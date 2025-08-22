@@ -407,10 +407,19 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		return err
 	}
 
+	oldCA, err := svc.ds.GetCertificateAuthorityByID(ctx, id, false)
+	if err != nil {
+		fmt.Println("error getting old ca", err.Error())
+		if strings.Contains(err.Error(), "not found") {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCertificate authority with ID %d does not exist.", errPrefix, id)}
+		}
+		return err
+	}
+
 	caToUpdate := fleet.CertificateAuthority{}
 
 	if p.DigiCertCAUpdatePayload != nil {
-		if err := p.DigiCertCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
+		if err := p.DigiCertCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
 		p.DigiCertCAUpdatePayload.Preprocess()
@@ -427,7 +436,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.CertificateSeatID = p.DigiCertCAUpdatePayload.CertificateSeatID
 	}
 	if p.HydrantCAUpdatePayload != nil {
-		if err := p.HydrantCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
+		if err := p.HydrantCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
 		p.HydrantCAUpdatePayload.Preprocess()
@@ -441,7 +450,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.ClientSecret = p.HydrantCAUpdatePayload.ClientSecret
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
-		if err := p.NDESSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
+		if err := p.NDESSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
 		p.NDESSCEPProxyCAUpdatePayload.Preprocess()
@@ -455,7 +464,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		caToUpdate.Password = p.NDESSCEPProxyCAUpdatePayload.Password
 	}
 	if p.CustomSCEPProxyCAUpdatePayload != nil {
-		if err := p.CustomSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix); err != nil {
+		if err := p.CustomSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
 		p.CustomSCEPProxyCAUpdatePayload.Preprocess()

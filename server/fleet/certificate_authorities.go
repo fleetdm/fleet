@@ -216,15 +216,10 @@ type DigiCertCAUpdatePayload struct {
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the URL is provided then the API token must also be provided.
-func (dcp *DigiCertCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
-	if dcp.Name != nil && dcp.APIToken == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when Name is set.", errPrefix)}
-	}
-	if dcp.URL != nil && dcp.APIToken == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when URL is set.", errPrefix)}
-	}
-	if dcp.ProfileID != nil && dcp.APIToken == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sAPI token must be provided when Profile ID is set.", errPrefix)}
+func (dcp *DigiCertCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
+	if (dcp.URL != nil || dcp.ProfileID != nil) && dcp.APIToken == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"api_token" must be set when modifying "url", or "profile_id" of an existing certificate authority: %s`, errPrefix, certName)}
 	}
 	return nil
 }
@@ -250,12 +245,10 @@ type NDESSCEPProxyCAUpdatePayload struct {
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Admin URL is provided then the Password must also be provided.
-func (ndesp *NDESSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
-	if ndesp.AdminURL != nil && ndesp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sPassword must be provided when Admin URL is set.", errPrefix)}
-	}
-	if ndesp.Username != nil && ndesp.Password == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sPassword must be provided when Username is set.", errPrefix)}
+func (ndesp *NDESSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
+	if (ndesp.URL != nil || ndesp.AdminURL != nil || ndesp.Username != nil) && ndesp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying an existing certificate authority: %s`, errPrefix, certName)}
 	}
 	return nil
 }
@@ -280,12 +273,10 @@ type CustomSCEPProxyCAUpdatePayload struct {
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Name is provided then the Challenge must also be provided.
-func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
-	if cscepp.Name != nil && cscepp.Challenge == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sChallenge must be provided when Name is set.", errPrefix)}
-	}
+func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
 	if cscepp.URL != nil || cscepp.Challenge == nil {
-		return &BadRequestError{Message: fmt.Sprintf("%sChallenge must be provided when URL is set.", errPrefix)}
+		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge" must be set when modifying "url" of an existing certificate authority: %s`, errPrefix, certName)}
 	}
 	return nil
 }
@@ -308,12 +299,9 @@ type HydrantCAUpdatePayload struct {
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Name is provided then the Client ID and Client Secret must also be provided
-func (hp *HydrantCAUpdatePayload) ValidateRelatedFields(errPrefix string) error {
-	if hp.Name != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
-		return &BadRequestError{Message: fmt.Sprintf("%sClient ID and Client Secret must be provided when Name is set.", errPrefix)}
-	}
+func (hp *HydrantCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
 	if hp.URL != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
-		return &BadRequestError{Message: fmt.Sprintf("%sClient ID and Client Secret must be provided when URL is set.", errPrefix)}
+		return &BadRequestError{Message: fmt.Sprintf(`%s"client_secret" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
 	}
 	return nil
 }
