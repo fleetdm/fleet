@@ -11,10 +11,25 @@
     font-weight: normal;
   }
 
-  &__preview-video {
+  &__preview-video, &__personal-preview-img  {
     width: 100%;
     display: block;
     margin: $pad-xxlarge auto 0;
     border-radius: $border-radius-large;
+  }
+
+  &__personal-preview-img {
+    border: solid 1px $ui-fleet-black-10;
+  }
+
+  // we need to override the default tab styles to remove the white background
+  // of the tab nav and selected tab
+  &__tab-nav {
+    margin-top: $pad-medium;
+    background-color: transparent;
+
+    .react-tabs__tab--selected {
+      background: transparent;
+    }
   }
 }

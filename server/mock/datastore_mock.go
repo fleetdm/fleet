@@ -231,6 +231,8 @@ type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) 
 
 type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
 
+type UpdateHostIssuesFailingPoliciesForSingleHostFunc func(ctx context.Context, hostID uint) error
+
 type GetHostIssuesLastUpdatedFunc func(ctx context.Context, hostId uint) (time.Time, error)
 
 type UpdateHostIssuesVulnerabilitiesFunc func(ctx context.Context) error
@@ -763,8 +765,6 @@ type SerialUpdateHostFunc func(ctx context.Context, host *fleet.Host) error
 
 type NewJobFunc func(ctx context.Context, job *fleet.Job) (*fleet.Job, error)
 
-type NewJobTxFunc func(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error)
-
 type GetQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error)
 
 type GetFilteredQueuedJobsFunc func(ctx context.Context, maxNumJobs int, now time.Time, jobNames []string) ([]*fleet.Job, error)
@@ -871,7 +871,7 @@ type UpsertMDMAppleHostDEPAssignmentsFunc func(ctx context.Context, hosts []flee
 
 type IngestMDMAppleDevicesFromDEPSyncFunc func(ctx context.Context, devices []godep.Device, abmTokenID uint, macOSTeam *fleet.Team, iosTeam *fleet.Team, ipadTeam *fleet.Team) (int64, error)
 
-type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, deviceInfo fleet.MDMAppleMachineInfo) error
+type IngestMDMAppleDeviceFromOTAEnrollmentFunc func(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error
 
 type MDMAppleUpsertHostFunc func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error
 
@@ -1316,6 +1316,8 @@ type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string,
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
 
 type GetTeamsWithInstallerByHashFunc func(ctx context.Context, sha256 string, url string) (map[uint]*fleet.ExistingSoftwareInstaller, error)
+
+type TeamIDsWithSetupExperienceIdPEnabledFunc func(ctx context.Context) ([]uint, error)
 
 type ListSetupExperienceResultsByHostUUIDFunc func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error)
 
@@ -1777,6 +1779,9 @@ type DataStore struct {
 
 	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
 	UpdateHostIssuesFailingPoliciesFuncInvoked bool
+
+	UpdateHostIssuesFailingPoliciesForSingleHostFunc        UpdateHostIssuesFailingPoliciesForSingleHostFunc
+	UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked bool
 
 	GetHostIssuesLastUpdatedFunc        GetHostIssuesLastUpdatedFunc
 	GetHostIssuesLastUpdatedFuncInvoked bool
@@ -2575,9 +2580,6 @@ type DataStore struct {
 
 	NewJobFunc        NewJobFunc
 	NewJobFuncInvoked bool
-
-	NewJobTxFunc        NewJobTxFunc
-	NewJobTxFuncInvoked bool
 
 	GetQueuedJobsFunc        GetQueuedJobsFunc
 	GetQueuedJobsFuncInvoked bool
@@ -3406,6 +3408,9 @@ type DataStore struct {
 
 	GetTeamsWithInstallerByHashFunc        GetTeamsWithInstallerByHashFunc
 	GetTeamsWithInstallerByHashFuncInvoked bool
+
+	TeamIDsWithSetupExperienceIdPEnabledFunc        TeamIDsWithSetupExperienceIdPEnabledFunc
+	TeamIDsWithSetupExperienceIdPEnabledFuncInvoked bool
 
 	ListSetupExperienceResultsByHostUUIDFunc        ListSetupExperienceResultsByHostUUIDFunc
 	ListSetupExperienceResultsByHostUUIDFuncInvoked bool
@@ -4358,6 +4363,13 @@ func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs
 	s.UpdateHostIssuesFailingPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesFailingPoliciesForSingleHostFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {
@@ -6222,13 +6234,6 @@ func (s *DataStore) NewJob(ctx context.Context, job *fleet.Job) (*fleet.Job, err
 	return s.NewJobFunc(ctx, job)
 }
 
-func (s *DataStore) NewJobTx(ctx context.Context, tx sqlx.ExtContext, job *fleet.Job) (*fleet.Job, error) {
-	s.mu.Lock()
-	s.NewJobTxFuncInvoked = true
-	s.mu.Unlock()
-	return s.NewJobTxFunc(ctx, tx, job)
-}
-
 func (s *DataStore) GetQueuedJobs(ctx context.Context, maxNumJobs int, now time.Time) ([]*fleet.Job, error) {
 	s.mu.Lock()
 	s.GetQueuedJobsFuncInvoked = true
@@ -6600,11 +6605,11 @@ func (s *DataStore) IngestMDMAppleDevicesFromDEPSync(ctx context.Context, device
 	return s.IngestMDMAppleDevicesFromDEPSyncFunc(ctx, devices, abmTokenID, macOSTeam, iosTeam, ipadTeam)
 }
 
-func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo fleet.MDMAppleMachineInfo) error {
+func (s *DataStore) IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo fleet.MDMAppleMachineInfo) error {
 	s.mu.Lock()
 	s.IngestMDMAppleDeviceFromOTAEnrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.IngestMDMAppleDeviceFromOTAEnrollmentFunc(ctx, teamID, deviceInfo)
+	return s.IngestMDMAppleDeviceFromOTAEnrollmentFunc(ctx, teamID, idpUUID, deviceInfo)
 }
 
 func (s *DataStore) MDMAppleUpsertHost(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
@@ -8159,6 +8164,13 @@ func (s *DataStore) GetTeamsWithInstallerByHash(ctx context.Context, sha256 stri
 	s.GetTeamsWithInstallerByHashFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetTeamsWithInstallerByHashFunc(ctx, sha256, url)
+}
+
+func (s *DataStore) TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error) {
+	s.mu.Lock()
+	s.TeamIDsWithSetupExperienceIdPEnabledFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamIDsWithSetupExperienceIdPEnabledFunc(ctx)
 }
 
 func (s *DataStore) ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {

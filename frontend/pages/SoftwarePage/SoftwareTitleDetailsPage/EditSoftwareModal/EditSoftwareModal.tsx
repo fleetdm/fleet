@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -22,7 +21,6 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";

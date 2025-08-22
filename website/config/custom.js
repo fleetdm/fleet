@@ -397,6 +397,20 @@ module.exports.custom = {
     'qq.com',
   ],
 
+  /***************************************************************************
+   *                                                                          *
+   * GitHub Projects configuration for engineering metrics                    *
+   *                                                                          *
+   ***************************************************************************/
+  githubProjectsV2: {
+    projects: {
+      orchestration: 71,
+      mdm: 58,
+      software: 70
+    },
+    excludeWeekends: true
+  },
+
   // Zapier:
   // zapierWebhookSecret: '…',
 
@@ -409,6 +423,9 @@ module.exports.custom = {
   // githubBotWebhookSecret: '…',
   // slackWebhookUrlForGithubBot: '…',
   // mergeFreezeAccessToken: '…',
+
+  // Metrics:
+  // engMetricsGcpServiceAccountKey: '…',
   // datadogApiKey: '…',
 
   // For receive-from-customer-fleet-instance webhook.

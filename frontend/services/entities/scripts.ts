@@ -1,8 +1,6 @@
 import { IHostScript, IScript, ScriptBatchStatus } from "interfaces/script";
 import sendRequest from "services";
 
-import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
-
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 import { PaginationMeta } from "./common";
@@ -182,7 +180,7 @@ export interface IScriptBatchSummariesQueryKey
 }
 
 export interface IScriptBatchSummariesResponse {
-  batch_executions: IScriptBatchSummaryV2[];
+  batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
   meta: PaginationMeta;
   count: number;
 }

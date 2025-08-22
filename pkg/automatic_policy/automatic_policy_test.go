@@ -135,7 +135,7 @@ Software won't be installed on Linux hosts with RPM-based distributions because 
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
-	SELECT 1 FROM deb_packages WHERE name = 'Zoobar'
+	SELECT 1 FROM deb_packages WHERE name = 'Zoobar' AND status = 'install ok installed'
 );`, policyData.Query)
 
 	policyData, err = Generate(FullInstallerMetadata{
