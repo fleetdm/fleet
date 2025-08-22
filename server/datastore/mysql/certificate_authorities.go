@@ -309,7 +309,8 @@ func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certifi
 		return ctxerr.Wrapf(ctx, err, "getting certificate authority with id %d", certificateAuthorityID)
 	}
 
-	sameName := *oldCA.Name == *ca.Name
+	// If the name is being updated, check if it's the same as the old one.
+	sameName := ca.Name != nil && *oldCA.Name == *ca.Name
 	if sameName {
 		return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
 	}
