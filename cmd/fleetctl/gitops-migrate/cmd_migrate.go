@@ -10,14 +10,14 @@ const (
 )
 
 func cmdMigrateExec(ctx context.Context, path string) error {
+	// Create a temp directory to which we'll write the backup archive.
+	tmpDir, err := mkBackupDir()
+	if err != nil {
+		return err
+	}
+
 	// Backup the provided migration target.
-	//
-	// NOTE: Calling 'backup' with path as both 'from' and 'to' args looks a
-	// little weird but the function creates a timestamped file name so there's
-	// no worries of file collision or overwrite. The purpose of this
-	// implementation is to make it convenient to expose the output path to the
-	// user eventually if we want.
-	archivePath, err := backup(ctx, path, path)
+	archivePath, err := backup(ctx, path, tmpDir)
 	if err != nil {
 		return err
 	}
