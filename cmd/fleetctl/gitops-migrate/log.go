@@ -5,7 +5,9 @@ import (
 	"log/slog"
 )
 
-var loggerKey struct{}
+type LoggerKey struct{}
+
+var loggerKey LoggerKey
 
 // LoggerIntoContext burns a '*slog.Logger' into the provided context, making it
 // retrievable via 'LoggerFromContext'.
