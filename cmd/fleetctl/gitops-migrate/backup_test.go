@@ -130,10 +130,29 @@ func rndFile(t *testing.T, path string, fileNameLen, fileSizeMin, fileSizeMax in
 	t.Helper()
 
 	// Randomly generate a file name.
-	fileName := rndFileName(t, fileNameLen)
+	fileName := rndString(t, fileNameLen)
 
-	// Construct the absolute file path.
-	filePath := filepath.Join(path, fileName)
+	// Generate a random number of nested path segments.
+	const pathSegMin = 0
+	const pathSegMax = 4
+	const pathSegLenMin = 8
+	const pathSegLenMax = 16
+	numPathSegs := pathSegMin + rand.IntN(pathSegMax-pathSegMin)
+	pathSegs := make([]string, numPathSegs, numPathSegs+2)
+	for i := range pathSegs {
+		// Generate a random path segment length.
+		pathSegLen := pathSegLenMin + rand.IntN(pathSegLenMax-pathSegLenMin)
+		pathSegs[i] = rndString(t, pathSegLen)
+	}
+
+	// Construct the parent directory path.
+	pathSegs = append([]string{path}, pathSegs...)
+	pathSegs = append(pathSegs, fileName)
+	filePath := filepath.Join(pathSegs...)
+
+	// Create the parent directory structure.
+	err := os.MkdirAll(filepath.Dir(filePath), fileModeUserRWX)
+	require.NoError(t, err)
 
 	// Generate random file content.
 	content := rndFileContent(t, fileSizeMin, fileSizeMax)
@@ -170,9 +189,9 @@ func rndFile(t *testing.T, path string, fileNameLen, fileSizeMin, fileSizeMax in
 	}
 }
 
-// rndFileName generates a 'length'-length random string using the hexadecimal
+// rndString generates a 'length'-length random string using the hexadecimal
 // character set (a-f, 0-9).
-func rndFileName(t *testing.T, length int) string {
+func rndString(t *testing.T, length int) string {
 	t.Helper()
 
 	// Init a 'length/2' (base-16) length byte slice and fill it with random data.
