@@ -2,13 +2,13 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"strings"
 )
 
 func cmdExec(ctx context.Context, args Args) error {
 	if len(args.Commands) == 0 {
-		return fmt.Errorf("expected command 'migrate' or 'restore'")
+		return errors.New("expected command 'migrate' or 'restore'")
 	}
 
 	// Slice off the first command.
