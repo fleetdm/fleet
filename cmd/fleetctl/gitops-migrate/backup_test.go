@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	crand "crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -16,17 +15,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBackup(t *testing.T) {
+func TestBackupAndRestore(t *testing.T) {
 	// Init a mock input directory.
 	mockInput := t.TempDir()
 	t.Logf("using mock input directory [%s]", mockInput)
 
 	// Populate the input directory with some fake files.
-	const numFiles = 8             // Number of fake files to create.
+	const numFiles = 128           // Number of fake files to create.
 	const fileNameLen = 32         // Length of the randomize file name (32-bytes).
 	const fileSizeMin = 64         // Minimum file size to create (64-bytes).
 	const fileSizeMax = 500 * 1024 // Maximum file size to create (500-kilobytes).
 	files := rndFiles(t, mockInput, numFiles, fileNameLen, fileSizeMin, fileSizeMax)
+
+	// Confirm we generated the expected number of files.
+	require.Equal(t, numFiles, len(files))
 
 	// Init the mock output directory (destination for the backup).
 	mockOutput := t.TempDir()
@@ -51,20 +53,6 @@ func testBackupAndRestore(t *testing.T, from, to string, files []File) {
 
 	// Remove the archive.
 	require.NoError(t, os.Remove(archivePath))
-
-	// Mutate 'from' as-needed.
-	//
-	// NOTE: This is only required for the test case where 'from' points to a
-	// file. This is required since we need to strip the 'from' prefix in the loop
-	// below to check the 'to'-side file existence and hash. There's also no
-	// trouble in us mutating it here as the condition we're testing (by passing
-	// the file path) occurs in the call to 'backup' above.
-	stats, err := os.Stat(from)
-	require.NoError(t, err)
-	require.NotNil(t, stats)
-	if !stats.IsDir() {
-		from = filepath.Dir(from)
-	}
 
 	// Recursively iterate all _input_ files, transposed to the 'mockOutput' dir,
 	// hash their contents and ensure it matches what we expect.
@@ -91,17 +79,12 @@ func testBackupAndRestore(t *testing.T, from, to string, files []File) {
 
 		// SHA-256 hash the file contents.
 		hashSum := sha256.Sum256(content)
-		// Base-16-encode the file contents.
+		// Base-16-encode the hash.
 		hash := hex.EncodeToString(hashSum[:])
 
 		// Ensure the hashes match.
 		require.Equal(t, file.Hash, hash)
 	}
-}
-
-type File struct {
-	Path string
-	Hash string
 }
 
 // rndFiles generates 'fileCount' random files in the directory defined by
@@ -164,20 +147,16 @@ func rndFile(t *testing.T, path string, fileNameLen, fileSizeMin, fileSizeMax in
 	require.NoError(t, err)
 	defer func() { require.NoError(t, f.Close()) }()
 
-	// Wrap the random file content into a 'bytes.Reader' (io.Reader impl.).
-	r := bytes.NewReader(content)
-
-	// Init a TeeReader to transparently SHA-256 hash the file content as we write
-	// it to disk.
-	tr := io.TeeReader(r, f)
-
 	// Init the SHA-256 hasher.
 	hasher := sha256.New()
 
-	// Write to disk and hash the random file content.
-	n, err := io.Copy(hasher, tr)
-	require.Equal(t, int64(len(content)), n)
+	// Wrap the hasher + file in a multiwriter.
+	w := io.MultiWriter(f, hasher)
+
+	// Write the file content to the hasher + file.
+	n, err := w.Write(content)
 	require.NoError(t, err)
+	require.Equal(t, len(content), n)
 
 	// Sum and base-16 encode the SHA-256 hash.
 	hashSum := hasher.Sum(nil)
