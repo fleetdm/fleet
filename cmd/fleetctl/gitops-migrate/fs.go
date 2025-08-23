@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"iter"
 	"os"
@@ -12,13 +11,6 @@ const (
 	fileModeUserRWX    = 0o700
 	fileModeUserRW     = 0o600
 	fileFlagsOverwrite = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
-)
-
-// We use this error to break the 'fsEnum' iterator if, for whatever reason, the
-// caller breaks the iterator.
-var (
-	enumEOF = errors.New("EOF")
-	sep     = string(os.PathSeparator)
 )
 
 type File struct {
