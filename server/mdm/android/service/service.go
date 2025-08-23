@@ -583,34 +583,52 @@ type enterpriseSSEResponse struct {
 	done chan string
 }
 
-func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWriter) {
+func (r enterpriseSSEResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.Header().Set("Transfer-Encoding", "chunked")
+
 	if r.done == nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = fmt.Fprint(w, "Error: No SSE data available")
 		return
 	}
+
+	// cache http.Flusher
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = fmt.Fprint(w, "Error: streaming not supported")
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
-	w.(http.Flusher).Flush()
+	flusher.Flush()
+
+	// ticker to avoid allocating a new timer on each iteration
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
 	for {
 		select {
+		case <-ctx.Done():
+			// Client disconnected or request canceled; stop to avoid hanging the server on Close().
+			return
 		case data, ok := <-r.done:
 			if ok {
 				_, _ = fmt.Fprint(w, data)
-				w.(http.Flusher).Flush()
+				flusher.Flush()
 			}
+			// we sent a successful message or the channel closed
 			return
-		case <-time.After(5 * time.Second):
+		case <-ticker.C:
 			// We send a heartbeat to prevent the load balancer from closing the (otherwise idle) connection.
 			// The leading colon indicates this is a comment, and is ignored.
 			// https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events
 			_, _ = fmt.Fprint(w, ":heartbeat\n")
-			w.(http.Flusher).Flush()
+			flusher.Flush()
 		}
 	}
 }

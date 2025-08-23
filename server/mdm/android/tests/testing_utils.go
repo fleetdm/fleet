@@ -42,6 +42,9 @@ type AndroidDSWithMock struct {
 }
 
 // resolve ambiguity between embedded datastore and mock methods
+func (ds *AndroidDSWithMock) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	return ds.Store.AppConfig(ctx) // use mock datastore
+}
 func (ds *AndroidDSWithMock) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
 	return ds.Datastore.CreateDeviceTx(ctx, tx, device)
 }
@@ -214,6 +217,9 @@ func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Servic
 	serverConfig := config.ServerConfig{}
 	server.Config = serverConfig.DefaultHTTPServer(testCtx(), rootMux)
 	require.NotZero(t, server.Config.WriteTimeout)
+	// Disable timeouts for SSE connections in tests
+	server.Config.ReadTimeout = 0
+	server.Config.WriteTimeout = 0
 	server.Config.Handler = rootMux
 	server.Start()
 	t.Cleanup(func() {
