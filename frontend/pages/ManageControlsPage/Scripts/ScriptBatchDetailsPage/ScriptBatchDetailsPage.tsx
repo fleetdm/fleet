@@ -84,7 +84,7 @@ const ScriptBatchDetailsPage = ({
   routeParams,
   location,
 }: IScriptBatchDetailsProps) => {
-  const { batch_execution_id } = routeParams;
+  const { batch_execution_id: batchExecutionId } = routeParams;
   const statusParam = location?.query.status;
   const selectedStatus = statusParam as ScriptBatchHostStatus;
 
@@ -100,9 +100,9 @@ const ScriptBatchDetailsPage = ({
     IScriptBatchSummaryV2,
     IScriptBatchSummaryQueryKey[]
   >(
-    [{ scope: "script_batch_summary", batch_execution_id }],
+    [{ scope: "script_batch_summary", batch_execution_id: batchExecutionId }],
     ({ queryKey }) => scriptsAPI.getRunScriptBatchSummaryV2(queryKey[0]),
-    { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batch_execution_id }
+    { ...DEFAULT_USE_QUERY_OPTIONS, enabled: !!batchExecutionId }
   );
 
   const pathToProgress = useMemo(() => {
@@ -118,7 +118,7 @@ const ScriptBatchDetailsPage = ({
     setIsCanceling(true);
 
     try {
-      await scriptsAPI.cancelScriptBatch(batch_execution_id);
+      await scriptsAPI.cancelScriptBatch(batchExecutionId);
       renderFlash(
         "success",
         <span className={`${baseClass}__success-message`}>
@@ -132,7 +132,7 @@ const ScriptBatchDetailsPage = ({
     } finally {
       setIsCanceling(false);
     }
-  }, [batch_execution_id, pathToProgress, renderFlash, router]);
+  }, [batchExecutionId, pathToProgress, renderFlash, router]);
 
   const handleTabChange = useCallback(
     (index: number) => {
@@ -144,11 +144,11 @@ const ScriptBatchDetailsPage = ({
 
       router.push(
         paths
-          .CONTROLS_SCRIPTS_BATCH_DETAILS(batch_execution_id)
+          .CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId)
           .concat(newQuery ? `?${newQuery}` : "")
       );
     },
-    [batch_execution_id, location?.search, router]
+    [batchExecutionId, location?.search, router]
   );
 
   // Reset to first tab if status is invalid.
@@ -166,7 +166,12 @@ const ScriptBatchDetailsPage = ({
     if (statusCount === 0) {
       return getEmptyState(status);
     }
-    return <></>;
+    return (
+      <ScriptBatchHostsTable
+        batchExecutionId={batchExecutionId}
+        status={status}
+      />
+    );
   };
 
   const renderContent = () => {

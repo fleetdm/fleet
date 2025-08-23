@@ -191,7 +191,7 @@ export interface IScriptBatchSummariesResponse extends ListEntitiesMeta {
 }
 
 export interface IScriptBatchHostResultsParams {
-  batch_execution_id: string; // in path
+  batch_execution_id: string;
   status: ScriptBatchHostStatus;
   page: number;
   per_page: number;
