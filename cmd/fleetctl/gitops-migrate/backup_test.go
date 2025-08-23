@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"math/big"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -28,7 +27,7 @@ func TestBackupAndRestore(t *testing.T) {
 	files := rndFiles(t, mockInput, numFiles, fileNameLen, fileSizeMin, fileSizeMax)
 
 	// Confirm we generated the expected number of files.
-	require.Equal(t, numFiles, len(files))
+	require.Len(t, files, numFiles)
 
 	// Init the mock output directory (destination for the backup).
 	mockOutput := t.TempDir()
