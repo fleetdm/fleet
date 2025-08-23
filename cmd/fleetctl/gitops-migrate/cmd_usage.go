@@ -50,7 +50,7 @@ var tmplFuncs = template.FuncMap{
 }
 
 var tmplUsageText = `
-Welcome to {{ green "Fleet's" }} GitOps migration utility!
+Welcome to the {{ green "Fleet GitOps" }} migration utility!
 
 The purpose of this package is to assist with automated GitOps YAML file
 transformations during the {{ green "4.74" }}(?) release.
