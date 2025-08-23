@@ -20,7 +20,7 @@ func cmdExec(ctx context.Context, args Args) error {
 
 	switch strings.ToLower(cmd) {
 	case cmdMigrate:
-		return cmdMigrateExec(ctx, args.From)
+		return cmdMigrateExec(ctx, args)
 	case cmdBackup:
 		return cmdBackupExec(ctx, args)
 	case cmdRestore:
