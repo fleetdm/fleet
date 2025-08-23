@@ -4116,7 +4116,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
-              "team_identifier": "EQHXZ8M8AV"
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b",
             }
           ]
         }
@@ -4167,7 +4168,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": ""
+              "team_identifier": "",
+              "hash_sha256": null,
             }
           ]
         }
