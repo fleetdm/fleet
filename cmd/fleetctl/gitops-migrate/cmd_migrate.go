@@ -24,13 +24,13 @@ func cmdMigrateExec(ctx context.Context, path string) error {
 	_ = archivePath
 
 	// Enumerate all files in the provided path.
-	for filePath, err := range fsEnum(path) {
+	for file, err := range fsEnum(path) {
 		if err != nil {
 			return err
 		}
 
 		// Read the file.
-		content, err := os.ReadFile(filePath)
+		content, err := os.ReadFile(file.Path)
 		if err != nil {
 			return err
 		}
