@@ -28,7 +28,7 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		).
 		ShouldNotDependOn(
 			"github.com/fleetdm/fleet/v4/server/service...",
-			"github.com/fleetdm/fleet/v4/server/datastore...",
+			"github.com/fleetdm/fleet/v4/server/datastore/mysql...",
 		)
 }
 
