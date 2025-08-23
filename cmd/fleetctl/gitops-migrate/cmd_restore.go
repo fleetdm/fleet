@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"path/filepath"
 )
 
 const cmdRestore = "restore"
@@ -10,7 +9,7 @@ const cmdRestore = "restore"
 func cmdRestoreExec(ctx context.Context, args Args) error {
 	log := LoggerFromContext(ctx)
 
-	err := restore(ctx, args.From, filepath.Dir(args.To))
+	err := restore(ctx, args.From, args.To)
 	if err != nil {
 		return err
 	}
