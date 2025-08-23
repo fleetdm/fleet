@@ -92,6 +92,7 @@ func usageText() (string, error) {
 
 	// Exec the template.
 	sb := new(strings.Builder)
+	sb.Grow(len(tmplUsageText))
 	err = tmpl.Execute(sb, appDetails)
 	if err != nil {
 		return "", fmt.Errorf("failed to execute template: %w", err)
