@@ -120,10 +120,13 @@ func rndFile(t *testing.T, path string, fileNameLen, fileSizeMin, fileSizeMax in
 	const pathSegMax = 4
 	const pathSegLenMin = 8
 	const pathSegLenMax = 16
+	//nolint:gosec,G304 // We don't need complex randoms.
 	numPathSegs := pathSegMin + rand.IntN(pathSegMax-pathSegMin)
 	pathSegs := make([]string, numPathSegs, numPathSegs+2)
 	for i := range pathSegs {
 		// Generate a random path segment length.
+		//
+		//nolint:gosec,G304 // We don't need complex randoms.
 		pathSegLen := pathSegLenMin + rand.IntN(pathSegLenMax-pathSegLenMin)
 		pathSegs[i] = rndString(t, pathSegLen)
 	}
@@ -190,15 +193,8 @@ func rndFileContent(t *testing.T, sizeMin, sizeMax int) []byte {
 
 	// Randomize file size.
 	//
-	// Init a 'big.Int' in the half-open range [0,sizeMin-sizeMax).
-	base := big.NewInt(int64(sizeMax - sizeMin))
-	// Generate a random operand from our 'big.Int'.
-	rnd, err := crand.Int(crand.Reader, base)
-	require.NoError(t, err)
-	require.True(t, rnd.IsInt64())
-	// Add back in the minimum (since it's a half-open range) to produce a truly
-	// randomized size in-range.
-	size := int64(sizeMin) + rnd.Int64()
+	//nolint:gosec,G304 // We don't need complex randoms.
+	size := sizeMin + rand.IntN(sizeMax-sizeMin)
 
 	// Init the "file" byte slice and fill it with random data.
 	file := make([]byte, size)
