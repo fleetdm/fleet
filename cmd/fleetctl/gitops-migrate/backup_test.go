@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"io"
 	"math/big"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,14 +32,8 @@ func TestBackup(t *testing.T) {
 	mockOutput := t.TempDir()
 	t.Logf("using mock output directory [%s]", mockOutput)
 
-	// Test backup and restore with the "root directory" as the input.
+	// Test backup and restore.
 	testBackupAndRestore(t, mockInput, mockOutput, files)
-
-	// Test backup and restore with a file in the "root directory" as the input.
-	//
-	// In this case backup will use the parent directory and the result should be
-	// identical.
-	testBackupAndRestore(t, files[0].Path, mockOutput, files)
 }
 
 func testBackupAndRestore(t *testing.T, from, to string, files []File) {

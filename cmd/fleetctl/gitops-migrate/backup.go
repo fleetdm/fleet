@@ -111,11 +111,6 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 	//
 	//nolint:wrapcheck // Not an external package error.
 	return output, filepath.Walk(from, func(path string, stats os.FileInfo, err error) error {
-		// Ignore directories.
-		if stats.IsDir() || path == from {
-			return nil
-		}
-
 		// Init the tar header for this file.
 		header, err := tar.FileInfoHeader(stats, path)
 		if err != nil {
@@ -128,12 +123,15 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 		// Construct the relative file path.
 		filePathRelative := strings.TrimPrefix(path, from)
 		filePathRelative = strings.TrimPrefix(filePathRelative, string(os.PathSeparator))
-		log.Info("compressing file", "to", filePathRelative)
 
 		// Fix up the tar header.
 		//
 		// See 'tar.FileInfoHeader' docs for more on this.
 		header.Name = filePathRelative
+		// If the item is a directory, zero the size.
+		if stats.IsDir() {
+			header.Size = 0
+		}
 
 		// Write the tar header.
 		err = tw.WriteHeader(header)
@@ -142,6 +140,12 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 				"failed to write tar header to tar stream: %w", err,
 			)
 		}
+		// If the item is a directory, no further to-do here.
+		if stats.IsDir() {
+			return nil
+		}
+
+		log.Info("compressing file", "to", filePathRelative)
 
 		// Get a readable handle to the file.
 		//
@@ -186,6 +190,8 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 }
 
 // restore restores a Fleet GitOps backup from the provided tarball.
+//
+// 'from' must be a path to a gzipped tarball.
 //
 // If the 'to' path is not provided, the current working directory will be used.
 func restore(ctx context.Context, from string, to string) error {
@@ -285,7 +291,6 @@ func restore(ctx context.Context, from string, to string) error {
 		// Handle the fs op based on the header type.
 		switch header.Typeflag {
 		case tar.TypeDir:
-			panic("Ok")
 			// Simply create the directory.
 			err := os.MkdirAll(output, fileModeUserRWX)
 			if err != nil && !errors.Is(err, os.ErrExist) {
@@ -293,12 +298,6 @@ func restore(ctx context.Context, from string, to string) error {
 			}
 
 		case tar.TypeReg:
-			// Create the output directory.
-			err := os.MkdirAll(filepath.Dir(output), fileModeUserRWX)
-			if err != nil && !errors.Is(err, os.ErrExist) {
-				return fmt.Errorf("failed to create output directory(%s): %w", output, err)
-			}
-
 			// Get a writable handle to the restore target.
 			//
 			//nolint:gosec,G304 // 'output' is sanitized above.
