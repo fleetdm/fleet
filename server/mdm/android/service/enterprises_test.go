@@ -214,7 +214,7 @@ type AndroidMockDS struct {
 
 type notFoundError struct{}
 
-func (e *notFoundError) Error() string { return "not found" }
+func (e *notFoundError) Error() string    { return "not found" }
 func (e *notFoundError) IsNotFound() bool { return true }
 
 type mockService struct {
