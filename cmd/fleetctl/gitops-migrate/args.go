@@ -12,6 +12,8 @@ type Args struct {
 func parseArgs() Args {
 	var args Args
 
+	// TODO: CLI usage text && help text on these flags.
+
 	// --from, -f
 	flag.StringVar(&args.From, "from", "", "")
 	flag.StringVar(&args.From, "f", "", "")
