@@ -19,26 +19,10 @@ const (
 	fileFlagsOverwrite = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 )
 
-// backup creates a backup of the path provided via 'from', to an archive in the
-// directory specified by 'to'.
-//
-// IF 'from' IS A FILE, the backup will occur recursively from its parent
-// directory.
-//
-// IF 'from' IS A DIRECTORY, the backup will occur recursively from it.
+// backup creates a backup of the path provided via 'from', to a gzipped tarball
+// in the directory specified by 'to'.
 func backup(ctx context.Context, from string, to string) (string, error) {
 	log := LoggerFromContext(ctx)
-
-	// If 'from' is a file path, begin from its parent directory.
-	stats, err := os.Stat(from)
-	if err != nil {
-		return "", fmt.Errorf("failed to stat backup archive input path(%s): %w",
-			from, err,
-		)
-	}
-	if !stats.IsDir() {
-		from = filepath.Dir(from)
-	}
 
 	// Construct the full output archive path.
 	now := time.Now()
@@ -56,7 +40,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 	)
 
 	// Create any requisite parent directories if necessary.
-	err = os.MkdirAll(filepath.Dir(to), fileModeUserRWX)
+	err := os.MkdirAll(filepath.Dir(to), fileModeUserRWX)
 	if err != nil {
 		if !errors.Is(err, os.ErrExist) {
 			return "", fmt.Errorf(
