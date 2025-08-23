@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -151,7 +152,31 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 
 func InitCommonDSMocks() *AndroidMockDS {
 	ds := AndroidMockDS{}
-	ds.Datastore.InitCommonMocks()
+	// Set up basic Android datastore mocks directly on the Fleet datastore mock
+	ds.Store.CreateEnterpriseFunc = func(ctx context.Context, _ uint) (uint, error) {
+		return 1, nil
+	}
+	ds.Store.UpdateEnterpriseFunc = func(ctx context.Context, enterprise *android.EnterpriseDetails) error {
+		return nil
+	}
+	ds.Store.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{}, nil
+	}
+	ds.Store.GetEnterpriseByIDFunc = func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
+		return &android.EnterpriseDetails{}, nil
+	}
+	ds.Store.GetEnterpriseBySignupTokenFunc = func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+		if signupToken == "signup_token" {
+			return &android.EnterpriseDetails{}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.Store.DeleteAllEnterprisesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.Store.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -184,9 +209,13 @@ func InitCommonDSMocks() *AndroidMockDS {
 }
 
 type AndroidMockDS struct {
-	android_mock.Datastore
 	ds_mock.Store
 }
+
+type notFoundError struct{}
+
+func (e *notFoundError) Error() string { return "not found" }
+func (e *notFoundError) IsNotFound() bool { return true }
 
 type mockService struct {
 	mock.Mock
