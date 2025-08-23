@@ -18,7 +18,7 @@ func main() {
 
 	// Setup logging, burning the logger into the context.
 	//
-	// See log.go/LoggerFromContext+LoggerIntoContext for more details.
+	// See 'log.go/LoggerFromContext' + 'LoggerIntoContext' for more details.
 	ctx = setupLogging(ctx, args)
 
 	// Execute the command.
