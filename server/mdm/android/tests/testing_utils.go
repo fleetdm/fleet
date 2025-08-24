@@ -217,9 +217,6 @@ func runServerForTests(t *testing.T, logger kitlog.Logger, fleetSvc fleet.Servic
 	serverConfig := config.ServerConfig{}
 	server.Config = serverConfig.DefaultHTTPServer(testCtx(), rootMux)
 	require.NotZero(t, server.Config.WriteTimeout)
-	// Disable timeouts for SSE connections in tests
-	server.Config.ReadTimeout = 0
-	server.Config.WriteTimeout = 0
 	server.Config.Handler = rootMux
 	server.Start()
 	t.Cleanup(func() {
