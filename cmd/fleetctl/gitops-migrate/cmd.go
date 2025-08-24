@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
-	"errors"
 	"strings"
 )
 
 func cmdExec(ctx context.Context, args Args) error {
+	// Check for the ['--help', '-h'] flag.
+	if args.Help {
+		showUsageAndExit(0, "")
+	}
+
+	// Make sure we have a command past this point.
 	if len(args.Commands) == 0 {
-		return errors.New("expected command 'migrate' or 'restore'")
+		showUsageAndExit(2, "Received no command.")
 	}
 
 	// Slice off the first command.
@@ -19,7 +24,7 @@ func cmdExec(ctx context.Context, args Args) error {
 	args.Commands = args.Commands[1:]
 
 	switch strings.ToLower(cmd) {
-	case cmdUsage:
+	case cmdUsage, cmdHelp:
 		return cmdUsageExec(ctx, args)
 	case cmdMigrate:
 		return cmdMigrateExec(ctx, args)
@@ -28,6 +33,7 @@ func cmdExec(ctx context.Context, args Args) error {
 	case cmdRestore:
 		return cmdRestoreExec(ctx, args)
 	default:
-		panic("NYI")
+		showUsageAndExit(2, "Received unknown command: %s.", cmd)
+		panic("impossible")
 	}
 }
