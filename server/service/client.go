@@ -766,7 +766,7 @@ func (c *Client) ApplyGroup(
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
 				var installDuringSetup *bool
-				if app.InstallDuringSetup.Set {
+				if app.InstallDuringSetup.Valid {
 					if len(installDuringSetupKeys) > 0 {
 						return nil, nil, nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
 					}
@@ -1103,7 +1103,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 		}
 
 		var installDuringSetup *bool
-		if si.InstallDuringSetup.Set {
+		if si.InstallDuringSetup.Valid {
 			if len(installDuringSetupKeys) > 0 {
 				return nil, fmt.Errorf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", si.URL)
 			}
@@ -2173,7 +2173,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			appsByAppID[vppApp.AppStoreID] = *vppApp
 
 			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
-			if vppApp.InstallDuringSetup.Set {
+			if vppApp.InstallDuringSetup.Valid {
 				if len(noTeamSoftwareMacOSSetup) > 0 {
 					return nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
 				}

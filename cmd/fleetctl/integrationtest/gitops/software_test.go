@@ -58,6 +58,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			"Please create the missing labels, or update your settings to not refer to these labels."},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
+		{"testdata/gitops/team_setup_software_on_package.yml", ""},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},
