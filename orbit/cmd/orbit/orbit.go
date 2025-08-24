@@ -237,6 +237,11 @@ func main() {
 			Usage:   "Custom path to osqueryd binary when using OpenFrame mode",
 			EnvVars: []string{"ORBIT_OPENFRAME_OSQUERY_PATH"},
 		},
+		&cli.StringFlag{
+			Name:    "openframe-token-path",
+			Usage:   "Path to OpenFrame token file",
+			EnvVars: []string{"ORBIT_OPENFRAME_TOKEN_PATH"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -984,7 +989,7 @@ func main() {
 			encryptionService := openframe.NewOpenframeEncryptionService(c.String("openframe-secret"))
 			
 			// Create token extractor
-			tokenExtractor := openframe.NewOpenframeTokenExtractor(encryptionService)
+			tokenExtractor := openframe.NewOpenframeTokenExtractor(encryptionService, c.String("openframe-token-path"))
 
 			openframeToken, err := tokenExtractor.ExtractToken()
 			if err != nil {
@@ -1293,12 +1298,20 @@ func main() {
 		if c.Bool("openframe-mode") {
 			options = append(options, osquery.WithFlags([]string{"--openframe-mode", "true"}))
 			options = append(options, osquery.WithFlags([]string{"--openframe-secret", c.String("openframe-secret")}))
+			options = append(options, osquery.WithFlags([]string{"--openframe-token-path", c.String("openframe-token-path")}))
 		}
 
 		// Create an osquery runner with the provided options.
 		r, err := osquery.NewRunner(osquerydPath, options...)
 		if err != nil {
 			return fmt.Errorf("create osquery runner: %w", err)
+		}
+		
+		// Log full command for OpenFrame mode
+		if c.Bool("openframe-mode") {
+			log.Info().
+				Str("full_command", r.GetCommand()).
+				Msg("OpenFrame osquery command created")
 		}
 		addSubsystem(&g, "osqueryd runner", r)
 

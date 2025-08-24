@@ -210,3 +210,8 @@ func (r *Runner) getContextAndCancel() (context.Context, func()) {
 	r.cancel = cancel
 	return r.ctx, r.cancel
 }
+
+// GetCommand returns the full command string that will be executed
+func (r *Runner) GetCommand() string {
+	return r.cmd.String()
+}

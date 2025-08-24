@@ -6,23 +6,22 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const (
-	filePath = "/etc/openframe/token.txt"
-)
-
 type OpenframeTokenExtractor struct {
 	encryptionService *OpenframeEncryptionService
+	tokenFilePath     string
 }
 
-func NewOpenframeTokenExtractor(encryptionService *OpenframeEncryptionService) *OpenframeTokenExtractor {
+func NewOpenframeTokenExtractor(encryptionService *OpenframeEncryptionService, tokenFilePath string) *OpenframeTokenExtractor {
+	log.Info().Msgf("Token file path: %s", tokenFilePath)
 	return &OpenframeTokenExtractor{
 		encryptionService: encryptionService,
+		tokenFilePath:     tokenFilePath,
 	}
 }
 
 func (te *OpenframeTokenExtractor) ExtractToken() (string, error) {
 	// Read the encrypted token from file
-	encryptedData, err := os.ReadFile(filePath)
+	encryptedData, err := os.ReadFile(te.tokenFilePath)
 	if err != nil {
 		log.Error().Err(err).Msg("Error reading token file")
 		return "", err

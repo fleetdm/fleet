@@ -201,7 +201,7 @@ func NewOrbitClient(
 	urlPrefix := ""
 	if openFrameMode {
 		log.Info().Msg("Add tools agent prefix for openframe mode")
-		urlPrefix = "/tools/agent/fleet"
+		urlPrefix = "/tools/agent/fleetmdm-server"
 	} else {
 		log.Info().Msg("Add no tools agent prefix for non-openframe mode")
 	}
