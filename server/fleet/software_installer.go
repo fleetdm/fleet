@@ -546,14 +546,15 @@ type SoftwarePackageOrApp struct {
 }
 
 type SoftwarePackageSpec struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	URL                string                `json:"url"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 
 	// FMA
 	Slug *string `json:"slug"`
@@ -580,6 +581,11 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	return spec
 }
 
+func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
+		spec.SelfService || spec.InstallDuringSetup.Set
+}
+
 func resolveApplyRelativePath(baseDir string, path string) string {
 	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
 		return filepath.Join(baseDir, path)
@@ -589,27 +595,29 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug              string                `json:"slug"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
-	Categories        []string              `json:"categories"`
+	Slug               string                `json:"slug"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	Categories         []string              `json:"categories"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
-		Slug:              &spec.Slug,
-		PreInstallQuery:   spec.PreInstallQuery,
-		InstallScript:     spec.InstallScript,
-		PostInstallScript: spec.PostInstallScript,
-		UninstallScript:   spec.UninstallScript,
-		SelfService:       spec.SelfService,
-		LabelsIncludeAny:  spec.LabelsIncludeAny,
-		LabelsExcludeAny:  spec.LabelsExcludeAny,
+		Slug:               &spec.Slug,
+		PreInstallQuery:    spec.PreInstallQuery,
+		InstallScript:      spec.InstallScript,
+		PostInstallScript:  spec.PostInstallScript,
+		UninstallScript:    spec.UninstallScript,
+		SelfService:        spec.SelfService,
+		LabelsIncludeAny:   spec.LabelsIncludeAny,
+		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		InstallDuringSetup: spec.InstallDuringSetup,
 	}
 }
 
