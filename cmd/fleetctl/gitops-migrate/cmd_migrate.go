@@ -28,7 +28,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		return err
 	}
 	// TODO: use a named return for 'error' and put this archive back if we fail
-	// the migration.
+	// the migration ('err != nil').
 	_ = archivePath
 
 	// Enumerate all files in the provided path.

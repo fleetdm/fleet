@@ -1,18 +1,26 @@
 package main
 
-import "flag"
+import (
+	"flag"
+	"fmt"
+)
 
 type Args struct {
 	From     string
 	To       string
 	Debug    bool
+	Help     bool
 	Commands []string
 }
 
 func parseArgs() Args {
 	var args Args
 
-	// TODO: CLI usage text && help text on these flags.
+	// Override the default flag package's usage text.
+	flag.Usage = func() {
+		text, _ := usageText()
+		fmt.Println(text)
+	}
 
 	// --from, -f
 	flag.StringVar(&args.From, "from", "", "")
@@ -24,6 +32,10 @@ func parseArgs() Args {
 
 	// --debug
 	flag.BoolVar(&args.Debug, "debug", false, "")
+
+	// --help
+	flag.BoolVar(&args.Help, "help", false, "")
+	flag.BoolVar(&args.Help, "h", false, "")
 
 	// Parse command-line inputs.
 	flag.Parse()

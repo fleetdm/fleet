@@ -3,39 +3,59 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 	"text/template"
 )
 
-const cmdUsage = "usage"
+const (
+	cmdUsage = "usage"
+	cmdHelp  = "help"
+)
 
 func cmdUsageExec(ctx context.Context, _ Args) error {
-	log := LoggerFromContext(ctx)
-
-	text, err := usageText()
-	if err != nil {
-		log.Error("encountered error in usage text generation", "error", err)
-		os.Exit(1)
-	}
-
-	fmt.Println(text)
-
-	return nil
+	showUsageAndExit(0, "")
+	panic("impossible")
 }
 
-var appDetails = struct {
+func showUsageAndExit(exitCode int, msg string, values ...any) {
+	// Generate the usage text.
+	text, err := usageText()
+	if err != nil {
+		slog.Error("failed to build usage text", "error", err)
+		os.Exit(exitCode)
+	}
+
+	// Format and print the provided message, if we received one.
+	if msg != "" {
+		msg = fmt.Sprintf(msg, values...)
+		fmt.Print(ansiRed, "ERROR: ", ansiReset, msg, "\n")
+	}
+
+	// Print the usage text and exit with the provided exit code.
+	fmt.Println(text)
+	os.Exit(exitCode)
+}
+
+type AppDetails struct {
 	Name    string
 	Command string
-}{
+}
+
+var appDetails = AppDetails{
 	Name:    "Fleet GitOps Migration Tool",
 	Command: "fm",
 }
 
 const (
-	ansiGreen  = "\x1b[32m"
-	ansiPurple = "\x1b[35m"
-	ansiReset  = "\x1b[0m"
+	ansiGreen   = "\x1b[1;32m"
+	ansiYellow  = "\x1b[1;33m"
+	ansiMagenta = "\x1b[1;35m"
+	ansiCyan    = "\x1b[1;36m"
+	ansiRed     = "\x1b[1;31m"
+	ansiReset   = "\x1b[0m"
 )
 
 func colorizer(c string) func(string) string {
@@ -45,37 +65,54 @@ func colorizer(c string) func(string) string {
 }
 
 var tmplFuncs = template.FuncMap{
-	"green":  colorizer(ansiGreen),
-	"purple": colorizer(ansiPurple),
+	"green":   colorizer(ansiGreen),
+	"magenta": colorizer(ansiMagenta),
+	"cyan":    colorizer(ansiCyan),
+	"yellow":  colorizer(ansiYellow),
+	"pathJoin": func(parts ...string) string {
+		return filepath.Join(parts...)
+	},
 }
 
-var tmplUsageText = `
-Welcome to the {{ green "Fleet GitOps" }} migration utility!
+var tmplUsageText = /* TODO: confirm this is going in 4.74 */ `
+{{ $gitops := (green "Fleet GitOps") -}}
+{{- $changeVer := (green "4.74(?)") -}}
+Welcome to the {{ $gitops }} migration utility!
 
 The purpose of this package is to assist with automated GitOps YAML file
-transformations during the {{ green "4.74" }}(?) release.
+transformations during the {{ $changeVer }} release.
 
-{{ purple ">> Commands" }}
+{{ magenta ">> Commands" }}
 
    backup   Perform a backup of a target directory, output as a gzipped tarball.
-   restore  Restore* a backup produced by the 'backup' command.
-   migrate  Migrates a provided directory's {{ green "Fleet GitOps" }} files.
+   restore  Restore* a backup produced by the {{ green "backup" }} command.
+   migrate  Migrates a provided directory's {{ $gitops }} files.
+   usage    Show this help text!
 
-   * NOTE: Restore _will_ overwrite any existing files in the specified output
+   {{ yellow "* NOTE:" }} Restore _will_ overwrite any existing files in the specified output
            directory!
 
-{{ purple ">> Flags" }}
+{{ magenta ">> Flags" }}
 
-   --from, -f  The _input_ directory, or archive, path for all commands.
-   --to,   -t  The _output_ directory path for all commands.
+   --from, -f  The {{ yellow "input" }} directory, or archive, path for all commands.
+   --to,   -t  The {{ yellow "output" }} directory path for all commands.
    --debug     Enables additional log output during any command executions.
+   --help      Show this help text!
 
-{{ purple ">> Examples" }}
+{{ magenta ">> Examples" }}
 
-   To perform a {{ green "Fleet GitOps" }} migration where:
-     - {{ green "Fleet GitOps" }} files reside in directory: './gitops'.
+   {{ $sampleSrc := (pathJoin "." "fleet" "gitops") -}}
+   {{- $sampleDst := (pathJoin "." "fleet" "backups") -}}
+   To perform a {{ $gitops }} migration where:
+     - {{ $gitops }} files reside in directory: '{{ $sampleSrc }}'.
 
-     $ {{ .Command }} migrate -f ./gitops
+     {{ cyan "$" }} {{ magenta .Command }} migrate -f {{ $sampleSrc }}
+
+   To perform a backup of {{ $gitops }} files, where:
+     - {{ $gitops }} files reside in directory: '{{ $sampleSrc }}'.
+     - We want to produce a backup gzipped tarball to '{{ $sampleDst }}'.
+
+     {{ cyan "$" }} {{ magenta .Command }} backup -f {{ $sampleSrc }} -t {{ $sampleDst }}
 ` // TODO: More examples.
 
 func usageText() (string, error) {
