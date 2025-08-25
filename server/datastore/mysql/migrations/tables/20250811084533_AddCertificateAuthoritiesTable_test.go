@@ -134,7 +134,7 @@ FROM certificate_authorities`
 			err = json.Unmarshal(ca.CertificateUserPrincipalNamesRaw, &ca.CertificateUserPrincipalNames)
 			require.NoErrorf(t, err, "failed to unmarshal certificate user principal names for %s", ca.Name)
 		}
-		casFound = append(casFound, ca.Name)
+		casFound = append(casFound, *ca.Name)
 
 		// No Hydrant CAs in this test so these should be nil
 		assert.Nil(t, ca.ClientID)
@@ -144,7 +144,7 @@ FROM certificate_authorities`
 			assert.Contains(t, []string{digicertCA1Name, digicertCA2Name}, ca.Name, "unexpected DigiCert CA name")
 			expectedCA := digicertCAs[0]
 			expectedAPIToken := digicertCA1EncryptedPassword
-			if ca.Name == digicertCA2Name {
+			if *ca.Name == digicertCA2Name {
 				expectedCA = digicertCAs[1]
 				expectedAPIToken = digicertCA2EncryptedPassword
 			}
@@ -161,7 +161,7 @@ FROM certificate_authorities`
 			require.Contains(t, []string{customSCEPCA1Name, customSCEPCA2Name}, ca.Name, "unexpected Custom SCEP Proxy CA name")
 			expectedCA := customSCEPProxyCAs[0]
 			expectedChallenge := customSCEPCA1EncryptedChallenge
-			if ca.Name == customSCEPCA2Name {
+			if *ca.Name == customSCEPCA2Name {
 				expectedCA = customSCEPProxyCAs[1]
 				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}

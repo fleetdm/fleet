@@ -75,8 +75,8 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	csrForRequest = strings.ReplaceAll(csrForRequest, "\\n", "")
 
 	certificate, err := svc.hydrantService.GetCertificate(ctx, fleet.HydrantCA{
-		Name:         ca.Name,
-		URL:          ca.URL,
+		Name:         *ca.Name,
+		URL:          *ca.URL,
 		ClientID:     *ca.ClientID,
 		ClientSecret: *ca.ClientSecret,
 	}, csrForRequest)

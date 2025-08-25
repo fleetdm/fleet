@@ -14325,8 +14325,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	password := "pass"
 	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     "bad-url",
-		URL:      testServer.URL,
+		Name:     ptr.String("bad-url"),
+		URL:      &testServer.URL,
 		AdminURL: &adminUrl,
 		Username: &username,
 		Password: &password,
@@ -14362,8 +14362,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     "bad-url",
-		URL:      ndesTimeoutServer.URL,
+		Name:     ptr.String("bad-url"),
+		URL:      &ndesTimeoutServer.URL,
 		AdminURL: &adminUrl,
 		Username: &username,
 		Password: &password,
@@ -14384,8 +14384,8 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     "bad-url",
-		URL:      scepServer.URL + "/scep",
+		Name:     ptr.String("bad-url"),
+		URL:      ptr.String(scepServer.URL + "/scep"),
 		AdminURL: &adminUrl,
 		Username: &username,
 		Password: &password,

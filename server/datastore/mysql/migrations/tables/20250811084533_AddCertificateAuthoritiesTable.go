@@ -123,8 +123,8 @@ FROM
 			casToInsert = append(casToInsert, dbCertificateAuthority{
 				CertificateAuthority: fleet.CertificateAuthority{
 					Type: string(fleet.CATypeCustomSCEPProxy),
-					Name: customSCEPProxyCA.Name,
-					URL:  customSCEPProxyCA.URL,
+					Name: &customSCEPProxyCA.Name,
+					URL:  &customSCEPProxyCA.URL,
 				},
 				ChallengeEncrypted: customSCEPChallenge.Value,
 			})
@@ -139,11 +139,11 @@ FROM
 			casToInsert = append(casToInsert, dbCertificateAuthority{
 				CertificateAuthority: fleet.CertificateAuthority{
 					Type:                          string(fleet.CATypeDigiCert),
-					Name:                          digicertCA.Name,
-					URL:                           digicertCA.URL,
+					Name:                          &digicertCA.Name,
+					URL:                           &digicertCA.URL,
 					ProfileID:                     &digicertCA.ProfileID,
 					CertificateCommonName:         &digicertCA.CertificateCommonName,
-					CertificateUserPrincipalNames: digicertCA.CertificateUserPrincipalNames,
+					CertificateUserPrincipalNames: &digicertCA.CertificateUserPrincipalNames,
 					CertificateSeatID:             &digicertCA.CertificateSeatID,
 				},
 				APITokenEncrypted: digicertAPIToken.Value,
@@ -163,11 +163,12 @@ FROM
 
 		// Insert NDES SCEP Proxy data
 		ndesCA := appConfigJSON.Integrations.NDESSCEPProxy.Value
+		name := "NDES"
 		dbNDESCA := dbCertificateAuthority{
 			CertificateAuthority: fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeNDESSCEPProxy),
-				Name:     "NDES",
-				URL:      ndesCA.URL,
+				Name:     &name,
+				URL:      &ndesCA.URL,
 				AdminURL: &ndesCA.AdminURL,
 				Username: &ndesCA.Username,
 			},
@@ -198,7 +199,7 @@ INSERT INTO certificate_authorities (
 		if ca.CertificateUserPrincipalNames != nil {
 			upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
 			if err != nil {
-				return fmt.Errorf("failed to marshal certificate user principal names for %s: %w", ca.Name, err)
+				return fmt.Errorf("failed to marshal certificate user principal names for %s: %w", *ca.Name, err)
 			}
 		}
 		args := []interface{}{
@@ -219,7 +220,7 @@ INSERT INTO certificate_authorities (
 		}
 		_, err = txx.Exec(insertStmt, args...)
 		if err != nil {
-			return fmt.Errorf("failed to insert certificate authority %s: %w", ca.Name, err)
+			return fmt.Errorf("failed to insert certificate authority %s: %w", *ca.Name, err)
 		}
 	}
 
