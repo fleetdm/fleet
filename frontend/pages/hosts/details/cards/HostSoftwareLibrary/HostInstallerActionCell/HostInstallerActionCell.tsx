@@ -343,12 +343,12 @@ export const HostInstallerActionCell = ({
     }
 
     // Case: instructions only → How to open button
-    if (hasInstructions) {
+    if (hasInstructions && onClickOpenInstructionsAction) {
       return (
         <HostInstallerActionButton
           baseClass={baseClass}
           disabled={false}
-          onClick={onClickOpenInstructionsAction!}
+          onClick={onClickOpenInstructionsAction}
           icon="info-outline"
           text="How to open"
           testId={`${baseClass}__instructions-button--test`}
