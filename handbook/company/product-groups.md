@@ -96,6 +96,18 @@ The goal of the website group is to increase and exceed [Fleet's product maturit
 > The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
 
 
+## Working groups
+
+TODO: Noah: New page
+
+What is a working group? When do they exist?
+
+Who? Product Designer, Engineer, and QA Engineer
+
+What happens? 
+- New temporary board, Slack channel, document who and what in the handbook
+
+
 ## Making changes
 
 Fleet's highest product ambition is to create experiences that users want.
