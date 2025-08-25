@@ -1291,6 +1291,30 @@ func newWindowsMDMProfileManagerSchedule(
 	return s, nil
 }
 
+func newAndroidMDMProfileManagerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
+			// TODO: return service.ReconcileWindowsProfiles(ctx, ds, logger)
+			panic("unimplemented")
+		}),
+	)
+
+	return s, nil
+}
+
 func newMDMAppleServiceDiscoverySchedule(
 	ctx context.Context,
 	instanceID string,
