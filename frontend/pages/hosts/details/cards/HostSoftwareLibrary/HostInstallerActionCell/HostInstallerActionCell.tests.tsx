@@ -849,8 +849,6 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       />
     );
 
-    const moreDropdown = screen.getByText("More");
-    await user.click(moreDropdown);
     expect(screen.queryByText("Uninstall")).toBeInTheDocument();
     expect(screen.queryByText("How to open")).not.toBeInTheDocument();
   });
@@ -873,8 +871,6 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
       />
     );
 
-    const moreDropdown = screen.getByText("More");
-    await user.click(moreDropdown);
     expect(screen.queryByText("Uninstall")).not.toBeInTheDocument();
     expect(screen.queryByText("How to open")).toBeInTheDocument();
   });

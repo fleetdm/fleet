@@ -311,41 +311,60 @@ export const HostInstallerActionCell = ({
     );
   };
 
-  const renderMoreOptionsDropdown = () => {
-    const showMoreOptionsDropdown =
-      canViewOpenInstructions || canUninstallSoftware;
+  const renderSecondaryActions = () => {
+    const hasUninstall = canUninstallSoftware;
+    const hasInstructions = canViewOpenInstructions;
 
-    if (!showMoreOptionsDropdown) {
-      return null;
+    // Case: both uninstall + instructions → "More" dropdown
+    if (hasUninstall && hasInstructions) {
+      return (
+        <div className={`${baseClass}__more-actions-wrapper`}>
+          <ActionsDropdown
+            className={`${baseClass}__more-actions-dropdown`}
+            onChange={onSelectOption}
+            placeholder="More"
+            options={getMoreActionsDropdownOptions(
+              hasInstructions,
+              hasUninstall,
+              uninstallDisabled,
+              uninstallTooltip,
+              buttonDisplayConfig.uninstall.text
+            )}
+            variant="button"
+            disabled={moreDisabled}
+          />
+        </div>
+      );
     }
 
-    const uninstallText = buttonDisplayConfig.uninstall.text;
+    // Case: uninstall only → Uninstall. button
+    if (hasUninstall) {
+      return renderUninstallButton();
+    }
 
-    return (
-      <div className={`${baseClass}__more-actions-wrapper`}>
-        <ActionsDropdown
-          className={`${baseClass}__more-actions-dropdown`}
-          onChange={onSelectOption}
-          placeholder="More"
-          options={getMoreActionsDropdownOptions(
-            canViewOpenInstructions,
-            canUninstallSoftware,
-            uninstallDisabled,
-            uninstallTooltip,
-            uninstallText
-          )}
-          variant="button"
-          disabled={moreDisabled}
+    // Case: instructions only → How to open button
+    if (hasInstructions) {
+      return (
+        <HostInstallerActionButton
+          baseClass={baseClass}
+          disabled={false}
+          onClick={onClickOpenInstructionsAction!}
+          icon="info-outline"
+          text="How to open"
+          testId={`${baseClass}__instructions-button--test`}
         />
-      </div>
-    );
+      );
+    }
+
+    // Case: no secondary actions
+    return null;
   };
 
   if (isMyDevicePage) {
     return (
       <div className={`${baseClass}__item-actions`}>
         {renderInstallButton()}
-        {renderMoreOptionsDropdown()}
+        {renderSecondaryActions()}
       </div>
     );
   }
