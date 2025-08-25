@@ -1,0 +1,7 @@
+{
+  "name": "Omnissa Horizon Client",
+  "slug": "omnissa-horizon-client/darwin",
+  "unique_identifier": "com.omnissa.horizon.client.mac",
+  "token": "omnissa-horizon-client",
+  "installer_format": "dmg"
+} 
