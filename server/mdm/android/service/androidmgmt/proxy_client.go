@@ -200,6 +200,19 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	return nil
 }
 
+func (p *ProxyClient) EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.Get(enterpriseName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ent, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
+	}
+	return ent, nil
+}
+
 func isErrorCode(err error, code int) bool {
 	if err == nil {
 		return false

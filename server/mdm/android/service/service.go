@@ -4,6 +4,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Used for overriding the private key validation in testing
@@ -375,6 +377,25 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
+
+	// Verify the enterprise still exists via Google API (or proxy)
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	_, err = svc.androidAPIClient.EnterpriseGet(ctx, enterprise.Name())
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) && gerr.Code == http.StatusForbidden {
+			// Treat 403 from Google as "enterprise deleted/disconnected" or inaccessible.
+			return nil, fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+		}
+		// Unexpected error while verifying with Google
+		return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+	}
+
 	return enterprise, nil
 }
 

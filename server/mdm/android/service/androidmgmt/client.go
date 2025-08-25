@@ -32,6 +32,10 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/delete
 	EnterpriseDelete(ctx context.Context, enterpriseName string) error
 
+	// EnterpriseGet retrieves an enterprise.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/get
+	EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error)
+
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
 }

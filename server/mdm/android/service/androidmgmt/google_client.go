@@ -230,6 +230,18 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	return nil
 }
 
+func (g *GoogleClient) EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	ent, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
+	if err != nil {
+		// Return the underlying error so callers can inspect specific googleapi error codes.
+		return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
+	}
+	return ent, nil
+}
+
 // SetAuthenticationSecret is not used by GoogleClient because this client gets its secret from env var.
 func (g *GoogleClient) SetAuthenticationSecret(_ string) error {
 	return nil
