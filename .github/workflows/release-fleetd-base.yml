@@ -219,6 +219,7 @@ jobs:
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
+      attest: true
       filename: fleetd-base.msi
       upload_name: fleetd-base-msi
     secrets:
