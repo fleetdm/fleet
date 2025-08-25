@@ -22,19 +22,19 @@ func Up_20250825165154(tx *sql.Tx) error {
 
 	createProfilesTable := `
 CREATE TABLE mdm_android_configuration_profiles (
-	-- profile_uuid is length 37 as it has a single char prefix (of 'g') before the actual uuid
+  -- profile_uuid is length 37 as it has a single char prefix (of 'g') before the actual uuid
   profile_uuid   VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	-- no FK constraint on teams, the profile is manually deleted when the team is deleted
+  -- no FK constraint on teams, the profile is manually deleted when the team is deleted
   team_id        INT UNSIGNED NOT NULL DEFAULT '0',
-	-- unique across all profiles (all platforms), must be checked on insert with the apple,
-	-- windows and apple declaration names.
+  -- unique across all profiles (all platforms), must be checked on insert with the apple,
+  -- windows and apple declaration names.
   name           VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	-- store as JSON so we can use JSON_CONTAINS to check if the applied JSON document
-	-- contains this profile's JSON.
+  -- store as JSON so we can use JSON_CONTAINS to check if the applied JSON document
+  -- contains this profile's JSON.
   raw_json       JSON NOT NULL,
 
-	-- see note comment above, needed for upserts
-	auto_increment BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
+  -- see note comment above, needed for upserts
+  auto_increment BIGINT NOT NULL AUTO_INCREMENT UNIQUE,
 
   created_at     TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   uploaded_at    TIMESTAMP(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -52,19 +52,19 @@ CREATE TABLE mdm_android_configuration_profiles (
 	createRequestsTable := `
 CREATE TABLE android_policy_requests (
   request_uuid      VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-	android_policy_id INT UNSIGNED NOT NULL,
-	policy_version    INT UNSIGNED NOT NULL,
+  android_policy_id INT UNSIGNED NOT NULL,
+  policy_version    INT UNSIGNED NOT NULL,
   payload           JSON NOT NULL,
 
-	-- track if API request was successful or not
-	status_code       INT NOT NULL,
-	-- in case of error, store (part of) the returned body
-	error_body				TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  -- track if API request was successful or not
+  status_code       INT NOT NULL,
+  -- in case of error, store (part of) the returned body
+  error_body				TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 
-	-- from figma, retry up to 3 times before marking profile as failed
-	-- (since the policy is a merge of all profiles, all profiles
-	-- associated with this request would be failed)
-	retries           TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  -- from figma, retry up to 3 times before marking profile as failed
+  -- (since the policy is a merge of all profiles, all profiles
+  -- associated with this request would be failed)
+  retries           TINYINT UNSIGNED NOT NULL DEFAULT '0',
 
   created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -98,16 +98,16 @@ CREATE TABLE host_mdm_android_profiles (
   host_uuid      VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   status         VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   operation_type VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-	-- same column name as for apple/windows, to store failure details if any
+  -- same column name as for apple/windows, to store failure details if any
   detail         TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-	profile_uuid   VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	profile_name   VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  profile_uuid   VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  profile_name   VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
-	-- uuid of the corresponding android_policy_requests, supports NULL because
-	-- we won't have the request uuid until the request is ready to be sent
-	request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  -- uuid of the corresponding android_policy_requests, supports NULL because
+  -- we won't have the request uuid until the request is ready to be sent
+  request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
 
-	created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
 
@@ -123,13 +123,13 @@ CREATE TABLE host_mdm_android_profiles (
 
 	alterProfileLabelsTable := `
 ALTER TABLE mdm_configuration_profile_labels
-	ADD COLUMN android_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
-	ADD FOREIGN KEY (android_profile_uuid) REFERENCES mdm_android_configuration_profiles(profile_uuid) ON DELETE CASCADE,
-	ADD UNIQUE KEY idx_mdm_configuration_profile_labels_android_label_name (android_profile_uuid, label_name),
-	DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
-	-- only one of apple, android or windows profile uuid must be set
-	ADD CONSTRAINT ck_mdm_configuration_profile_labels_profile_uuid
-		CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(android_profile_uuid), 0, 1) = 1)
+  ADD COLUMN android_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+  ADD FOREIGN KEY (android_profile_uuid) REFERENCES mdm_android_configuration_profiles(profile_uuid) ON DELETE CASCADE,
+  ADD UNIQUE KEY idx_mdm_configuration_profile_labels_android_label_name (android_profile_uuid, label_name),
+  DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
+  -- only one of apple, android or windows profile uuid must be set
+  ADD CONSTRAINT ck_mdm_configuration_profile_labels_profile_uuid
+    CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(android_profile_uuid), 0, 1) = 1)
 `
 	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
