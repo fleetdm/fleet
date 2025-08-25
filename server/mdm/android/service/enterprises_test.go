@@ -240,7 +240,7 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("normal enterprise retrieval works", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
@@ -255,7 +255,7 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("deleted enterprise returns 404", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		// Override EnterpriseGetFunc to simulate deleted enterprise (403 from Google)
 		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
 			return nil, &googleapi.Error{
@@ -263,7 +263,7 @@ func TestGetEnterprise(t *testing.T) {
 				Message: "Caller is not authorized to manage enterprise.",
 			}
 		}
-		
+
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
@@ -273,10 +273,10 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-		
+
 		// Check that it's a Fleet error with proper message and verify status code if available
 		assert.Contains(t, err.Error(), "Android Enterprise has been deleted")
-		
+
 		// Check if the error implements the StatusCode interface
 		if statusErr, ok := err.(interface{ StatusCode() int }); ok {
 			assert.Equal(t, http.StatusNotFound, statusErr.StatusCode())
@@ -288,7 +288,7 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("Google API authentication failures", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		// Override EnterpriseGetFunc to simulate authentication failure
 		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
 			return nil, &googleapi.Error{
@@ -296,7 +296,7 @@ func TestGetEnterprise(t *testing.T) {
 				Message: "Request had invalid authentication credentials.",
 			}
 		}
-		
+
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
@@ -306,7 +306,7 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-		
+
 		// Should NOT be treated as enterprise deleted - should be wrapped error
 		assert.Contains(t, err.Error(), "verifying enterprise with Google")
 		assert.Contains(t, err.Error(), "Request had invalid authentication credentials")
@@ -315,7 +315,7 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("unexpected Google API errors", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		// Override EnterpriseGetFunc to simulate unexpected error
 		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
 			return nil, &googleapi.Error{
@@ -323,7 +323,7 @@ func TestGetEnterprise(t *testing.T) {
 				Message: "Internal server error occurred.",
 			}
 		}
-		
+
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
@@ -333,7 +333,7 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-		
+
 		// Should be wrapped as verification error
 		assert.Contains(t, err.Error(), "verifying enterprise with Google")
 		assert.Contains(t, err.Error(), "Internal server error occurred")
@@ -342,12 +342,12 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("non-googleapi errors", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		// Override EnterpriseGetFunc to simulate non-googleapi error
 		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
 			return nil, errors.New("network timeout")
 		}
-		
+
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
@@ -357,7 +357,7 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-		
+
 		// Should be wrapped as verification error
 		assert.Contains(t, err.Error(), "verifying enterprise with Google")
 		assert.Contains(t, err.Error(), "network timeout")
@@ -366,13 +366,13 @@ func TestGetEnterprise(t *testing.T) {
 	t.Run("enterprise not found in database", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
-		
+
 		// Override GetEnterpriseFunc to return not found
 		fleetDS := InitCommonDSMocks()
 		fleetDS.Store.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
 			return nil, &notFoundError{}
 		}
-		
+
 		fleetSvc := mockService{}
 		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
 		require.NoError(t, err)
@@ -380,7 +380,7 @@ func TestGetEnterprise(t *testing.T) {
 		enterprise, err := svc.GetEnterprise(ctx)
 		require.Error(t, err)
 		require.Nil(t, enterprise)
-		
+
 		// Should not call Google API if enterprise not found in database
 		assert.False(t, androidAPIClient.EnterpriseGetFuncInvoked)
 		assert.Contains(t, err.Error(), "No enterprise found")
