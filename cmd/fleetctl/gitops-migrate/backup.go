@@ -198,7 +198,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 }
 
 func mkBackupDir() (string, error) {
-	path, err := os.MkdirTemp(os.TempDir(), "fleet-gitops-******")
+	path, err := os.MkdirTemp(os.TempDir(), "fleet-gitops-*")
 	if err != nil {
 		return "", fmt.Errorf("failed to create temp backup directory: %w", err)
 	}
