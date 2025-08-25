@@ -583,7 +583,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 
 func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
 	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
-		spec.SelfService || spec.InstallDuringSetup.Set
+		spec.SelfService || spec.InstallDuringSetup.Valid
 }
 
 func resolveApplyRelativePath(baseDir string, path string) string {

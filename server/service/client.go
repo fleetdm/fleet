@@ -766,16 +766,17 @@ func (c *Client) ApplyGroup(
 			appPayloads := make([]fleet.VPPBatchPayload, 0, len(apps))
 			for _, app := range apps {
 				var installDuringSetup *bool
+				if installDuringSetupKeys != nil {
+					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
+					installDuringSetup = &ok
+				}
 				if app.InstallDuringSetup.Valid {
 					if len(installDuringSetupKeys) > 0 {
 						return nil, nil, nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
 					}
 					installDuringSetup = &app.InstallDuringSetup.Value
 				}
-				if installDuringSetupKeys != nil {
-					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
-					installDuringSetup = &ok
-				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -1103,6 +1104,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 		}
 
 		var installDuringSetup *bool
+		if installDuringSetupKeys != nil {
+			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
+			installDuringSetup = &ok
+		}
+
 		if si.InstallDuringSetup.Valid {
 			if len(installDuringSetupKeys) > 0 {
 				return nil, fmt.Errorf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", si.URL)
@@ -1110,10 +1116,6 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			installDuringSetup = &si.InstallDuringSetup.Value
 		}
 
-		if installDuringSetupKeys != nil {
-			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
-			installDuringSetup = &ok
-		}
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                si.URL,
 			SelfService:        si.SelfService,
@@ -1620,7 +1622,7 @@ func (c *Client) DoGitOps(
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig,
-	// pass-by-ref to build lists
+// pass-by-ref to build lists
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
