@@ -1094,7 +1094,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, maintainedAppSpec := range software.FleetMaintainedApps {
-		maintainedAppSpec := maintainedAppSpec
 		if maintainedAppSpec.Slug == "" {
 			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
 			continue
