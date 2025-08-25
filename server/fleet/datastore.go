@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"time"
@@ -314,6 +315,8 @@ type Datastore interface {
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
 	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
 	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
+	// UpdateHostIssuesFailingPoliciesForSingleHost updates the failing policies count in host_issues table for a single host.
+	UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error
 	// Gets the last time the host's row in `host_issues` was updated
 	GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error)
 	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
@@ -1243,7 +1246,7 @@ type Datastore interface {
 
 	// IngestMDMAppleDeviceFromOTAEnrollment creates new host records for
 	// MDM-enrolled devices via OTA that are not already enrolled in Fleet.
-	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, deviceInfo MDMAppleMachineInfo) error
+	IngestMDMAppleDeviceFromOTAEnrollment(ctx context.Context, teamID *uint, idpUUID string, deviceInfo MDMAppleMachineInfo) error
 
 	// MDMAppleUpsertHost creates or matches a Fleet host record for an
 	// MDM-enrolled device.
@@ -2059,6 +2062,11 @@ type Datastore interface {
 	// metadata by the installer's hash.
 	GetTeamsWithInstallerByHash(ctx context.Context, sha256, url string) (map[uint]*ExistingSoftwareInstaller, error)
 
+	// TeamIDsWithSetupExperienceIdPEnabled returns the list of team IDs that
+	// have the setup experience IdP (End user authentication) enabled. It uses
+	// id 0 to represent "No team", should IdP be enabled for that team.
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 	//
@@ -2298,6 +2306,10 @@ type AndroidDatastore interface {
 	UpdateAndroidHost(ctx context.Context, host *AndroidHost, fromEnroll bool) error
 	UserOrDeletedUserByID(ctx context.Context, id uint) (*User, error)
 	VerifyEnrollSecret(ctx context.Context, secret string) (*EnrollSecret, error)
+	GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*MDMIdPAccount, error)
+	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
+	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
+	Team(ctx context.Context, tid uint) (*Team, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -2457,3 +2469,33 @@ func IsForeignKey(err error) bool {
 }
 
 type OptionalArg func() interface{}
+
+// SecretUsedError is returned when attempting to delete a variable that is in use in scripts or profiles.
+type SecretUsedError struct {
+	SecretName string
+	Entity     EntityUsingSecret
+}
+
+// Error implements the error interface.
+func (c *SecretUsedError) Error() string {
+	if c.Entity.Type == "script" {
+		return fmt.Sprintf(
+			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
+			c.SecretName, c.Entity.Name, c.Entity.TeamName,
+		)
+	}
+	return fmt.Sprintf(
+		"%s is used by the %q configuration profile in the %q team. Please delete the configuration profile and try again.",
+		c.SecretName, c.Entity.Name, c.Entity.TeamName,
+	)
+}
+
+// EntityUsingSecret describes the entity using a secret variable.
+type EntityUsingSecret struct {
+	// Type is the entity type, "script", "apple_profile", "apple_declaration", or "windows_profile".
+	Type string
+	// Name is the name of the entity.
+	Name string
+	// TeamName is the name of the team the entity belongs to.
+	TeamName string
+}

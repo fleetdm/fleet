@@ -586,7 +586,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 
 ### Coworking
 
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Digital Experience team](https://fleetdm.com/handbook/it-and-enablement#contact-us).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval from the [Finance team](https://fleetdm.com/handbook/finance#contact-us).
 
 
 ## Tools and equipment

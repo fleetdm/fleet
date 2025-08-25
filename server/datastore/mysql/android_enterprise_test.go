@@ -1,7 +1,6 @@
 package mysql
 
 import (
-	"context"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
@@ -11,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestEnterprise(t *testing.T) {
+func TestAndroidEnterprises(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	cases := []struct {
@@ -20,7 +19,8 @@ func TestEnterprise(t *testing.T) {
 	}{
 		{"CreateGetEnterprise", testCreateGetEnterprise},
 		{"UpdateEnterprise", testUpdateEnterprise},
-		{"DeleteAllEnterprises", testDeleteEnterprises},
+		{"DeleteEnterprises", testDeleteEnterprises},
+		{"GetEnterpriseBySignupToken", testGetEnterpriseBySignupToken},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -93,7 +93,7 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, enterprise, result)
 
-	// Create enteprise without enterprise_id
+	// Create enterprise without enterprise_id
 	id, err := ds.CreateEnterprise(testCtx(), 10)
 	require.NoError(t, err)
 	assert.NotZero(t, id)
@@ -120,7 +120,17 @@ func testDeleteEnterprises(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	_, err = ds.GetEnterpriseByID(testCtx(), enterprise.ID)
 	assert.True(t, fleet.IsNotFound(err))
+}
 
+func testGetEnterpriseBySignupToken(t *testing.T, ds *Datastore) {
+	_, err := ds.GetEnterpriseBySignupToken(testCtx(), "nonexistent")
+	assert.True(t, fleet.IsNotFound(err))
+
+	enterprise := createEnterprise(t, ds)
+
+	result, err := ds.GetEnterpriseBySignupToken(testCtx(), enterprise.SignupToken)
+	require.NoError(t, err)
+	assert.Equal(t, enterprise, result)
 }
 
 func createEnterprise(t *testing.T, ds *Datastore) *android.EnterpriseDetails {
@@ -129,7 +139,9 @@ func createEnterprise(t *testing.T, ds *Datastore) *android.EnterpriseDetails {
 			ID:           9999, // start with an invalid ID
 			EnterpriseID: "LC04bp524j",
 		},
-		SignupName: "signupUrls/C97372c91c6a85139",
+		SignupName:  "signupUrls/C97372c91c6a85139",
+		TopicID:     "topicId",
+		SignupToken: "signupToken",
 	}
 	const userID = uint(10)
 	id, err := ds.CreateEnterprise(testCtx(), userID)
@@ -141,8 +153,4 @@ func createEnterprise(t *testing.T, ds *Datastore) *android.EnterpriseDetails {
 	err = ds.UpdateEnterprise(testCtx(), enterprise)
 	require.NoError(t, err)
 	return enterprise
-}
-
-func testCtx() context.Context {
-	return context.Background()
 }
