@@ -23,6 +23,7 @@ func TestCertificateAuthority(t *testing.T) {
 		{"ListCertificateAuthorities", testListCertificateAuthorities},
 		{"CreateCertificateAuthority", testCreateCertificateAuthority},
 		{"Delete", testDeleteCertificateAuthority},
+		{"UpdateCertificateAuthorityByID", testUpdateCertificateAuthorityByID},
 	}
 
 	for _, c := range cases {
@@ -340,4 +341,155 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 	_, err = ds.DeleteCertificateAuthority(ctx, ca.ID)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "not found")
+}
+
+func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	digicertCA1 := &fleet.CertificateAuthority{
+		Name:                          ptr.String("Test Digicert CA"),
+		URL:                           ptr.String("https://digicert1.example.com"),
+		Type:                          string(fleet.CATypeDigiCert),
+		APIToken:                      ptr.String("test-api-token"),
+		ProfileID:                     ptr.String("test-profile-id"),
+		CertificateCommonName:         ptr.String("test-common-name $FLEET_VAR_HOST_HARDWARE_SERIAL"),
+		CertificateUserPrincipalNames: &[]string{"test-upn $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+		CertificateSeatID:             ptr.String("test-seat-id"),
+	}
+
+	hydrantCA1 := &fleet.CertificateAuthority{
+		Name:         ptr.String("Hydrant CA"),
+		URL:          ptr.String("https://hydrant1.example.com"),
+		Type:         string(fleet.CATypeHydrant),
+		ClientID:     ptr.String("hydrant-client-id"),
+		ClientSecret: ptr.String("hydrant-client-secret"),
+	}
+
+	// Custom SCEP CAs
+	customSCEPCA1 := &fleet.CertificateAuthority{
+		Name:      ptr.String("Custom SCEP CA"),
+		URL:       ptr.String("https://custom-scep.example.com"),
+		Type:      string(fleet.CATypeCustomSCEPProxy),
+		Challenge: ptr.String("custom-scep-challenge"),
+	}
+
+	// NDES CA
+	ndesCA1 := &fleet.CertificateAuthority{
+		Name:     ptr.String("NDES"),
+		URL:      ptr.String("https://ndes.example.com"),
+		AdminURL: ptr.String("https://ndes-admin.example.com"),
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Username: ptr.String("ndes-username"),
+		Password: ptr.String("ndes-password"),
+	}
+
+	casToCreate := []*fleet.CertificateAuthority{
+		digicertCA1,
+		hydrantCA1,
+		customSCEPCA1,
+		ndesCA1,
+	}
+
+	caMap := map[fleet.CAType]*fleet.CertificateAuthority{}
+
+	for _, ca := range casToCreate {
+		// Create one of each type of CA
+		createdCA, err := ds.NewCertificateAuthority(ctx, ca)
+		require.NoError(t, err)
+		caMap[fleet.CAType(createdCA.Type)] = createdCA
+	}
+
+	t.Run("fails if certificate authority is not found", func(t *testing.T) {
+		err := ds.UpdateCertificateAuthorityByID(ctx, uint(999), &fleet.CertificateAuthority{})
+		var nfe fleet.NotFoundError
+		require.ErrorAs(t, err, &nfe)
+	})
+
+	t.Run("successfully updates digicert CA", func(t *testing.T) {
+		digicertCA := caMap[fleet.CATypeDigiCert]
+
+		digicertCA.Name = ptr.String("New Digicert")
+		digicertCA.URL = ptr.String("https://localhost")
+		digicertCA.APIToken = ptr.String("my-new-api-token")
+		digicertCA.ProfileID = ptr.String("updated-profile-id")
+		digicertCA.CertificateCommonName = ptr.String("updated certificate common name")
+		upns := []string{"updated-upns"}
+		digicertCA.CertificateUserPrincipalNames = &upns
+		digicertCA.CertificateSeatID = ptr.String("updated-seat-id")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, digicertCA.ID, digicertCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, digicertCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "New Digicert", *updatedCA.Name)
+		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "my-new-api-token", *updatedCA.APIToken)
+		require.Equal(t, "updated-profile-id", *updatedCA.ProfileID)
+		require.Equal(t, "updated certificate common name", *updatedCA.CertificateCommonName)
+		require.ElementsMatch(t, []string{"updated-upns"}, *updatedCA.CertificateUserPrincipalNames)
+		require.Equal(t, "updated-seat-id", *updatedCA.CertificateSeatID)
+	})
+
+	t.Run("successfully updates Hydrant CA", func(t *testing.T) {
+		hydrantCA := caMap[fleet.CATypeHydrant]
+
+		hydrantCA.Name = ptr.String("updated Hydrant")
+		hydrantCA.URL = ptr.String("https://localhost")
+		hydrantCA.ClientID = ptr.String("updated-client-id")
+		hydrantCA.ClientSecret = ptr.String("updated-client-secret")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, hydrantCA.ID, hydrantCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, hydrantCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "updated Hydrant", *updatedCA.Name)
+		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "updated-client-id", *updatedCA.ClientID)
+		require.Equal(t, "updated-client-secret", *updatedCA.ClientSecret)
+	})
+
+	t.Run("successfully updates ndes scep proxy CA", func(t *testing.T) {
+		ndesCA := caMap[fleet.CATypeNDESSCEPProxy]
+
+		ndesCA.Name = ptr.String("Updated NDES")
+
+		ndesCA.URL = ptr.String("https://localhost")
+		ndesCA.AdminURL = ptr.String("https://admin.localhost")
+		ndesCA.Username = ptr.String("admin")
+		ndesCA.Password = ptr.String("password")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, ndesCA.ID, ndesCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, ndesCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "NDES", *updatedCA.Name)
+		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "https://admin.localhost", *updatedCA.AdminURL)
+		require.Equal(t, "admin", *updatedCA.Username)
+		require.Equal(t, "password", *updatedCA.Password)
+	})
+
+	t.Run("successfully updates custom SCEP proxy CA", func(t *testing.T) {
+		scepCA := caMap[fleet.CATypeCustomSCEPProxy]
+
+		scepCA.Name = ptr.String("Updated SCEP")
+		scepCA.URL = ptr.String("https://localhost")
+		scepCA.Challenge = ptr.String("updated-challenge")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, scepCA.ID, scepCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, scepCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "Updated SCEP", *updatedCA.Name)
+		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "updated-challenge", *updatedCA.Challenge)
+	})
 }
