@@ -122,8 +122,9 @@ const validate = (
     isExistingUserForcedToPasswordAuth ||
     (!initiallyPasswordAuth && !sso_enabled)
   ) {
-    if (password !== null && !validPassword(password)) {
-      newErrors.password = "Password must meet the criteria below";
+    const { isValid, error } = validPassword(password || "");
+    if (password !== null && !isValid) {
+      newErrors.password = error;
     }
     if (!validatePresence(password)) {
       newErrors.password = "Password field must be completed";

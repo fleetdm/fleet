@@ -10,8 +10,9 @@ export default (formData) => {
     new_password_confirmation: newPasswordConfirmation,
   } = formData;
 
-  if (newPassword && newPasswordConfirmation && !validPassword(newPassword)) {
-    errors.new_password = "Password must meet the criteria below";
+  const { isValid, error } = validPassword(newPassword);
+  if (newPassword && newPasswordConfirmation && !isValid) {
+    errors.new_password = error;
   }
 
   if (!oldPassword) {
