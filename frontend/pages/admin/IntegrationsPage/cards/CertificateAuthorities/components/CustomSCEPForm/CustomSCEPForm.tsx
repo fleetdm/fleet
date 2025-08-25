@@ -1,6 +1,6 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -22,6 +22,7 @@ export interface ICustomSCEPFormData {
 }
 
 interface ICustomSCEPFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
   formData: ICustomSCEPFormData;
   submitBtnText: string;
   isSubmitting: boolean;
@@ -32,6 +33,7 @@ interface ICustomSCEPFormProps {
 }
 
 const CustomSCEPForm = ({
+  certAuthorities,
   formData,
   submitBtnText,
   isSubmitting,
@@ -40,14 +42,9 @@ const CustomSCEPForm = ({
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
-  const { config } = useContext(AppContext);
   const validations = useMemo(
-    () =>
-      generateFormValidations(
-        config?.integrations.custom_scep_proxy ?? [],
-        isEditing
-      ),
-    [config?.integrations.custom_scep_proxy, isEditing]
+    () => generateFormValidations(certAuthorities ?? [], isEditing),
+    [certAuthorities, isEditing]
   );
   const [
     formValidation,

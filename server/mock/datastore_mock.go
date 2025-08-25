@@ -1465,6 +1465,18 @@ type GetHostIdentityCertByNameFunc func(ctx context.Context, name string) (*type
 
 type UpdateHostIdentityCertHostIDBySerialFunc func(ctx context.Context, serialNumber uint64, hostID uint) error
 
+type NewCertificateAuthorityFunc func(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error)
+
+type GetCertificateAuthorityByIDFunc func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error)
+
+type GetAllCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error)
+
+type GetGroupedCertificateAuthoritiesFunc func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
+
+type ListCertificateAuthoritiesFunc func(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error)
+
+type DeleteCertificateAuthorityFunc func(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error)
+
 type GetCurrentTimeFunc func(ctx context.Context) (time.Time, error)
 
 type DataStore struct {
@@ -3630,6 +3642,24 @@ type DataStore struct {
 
 	UpdateHostIdentityCertHostIDBySerialFunc        UpdateHostIdentityCertHostIDBySerialFunc
 	UpdateHostIdentityCertHostIDBySerialFuncInvoked bool
+
+	NewCertificateAuthorityFunc        NewCertificateAuthorityFunc
+	NewCertificateAuthorityFuncInvoked bool
+
+	GetCertificateAuthorityByIDFunc        GetCertificateAuthorityByIDFunc
+	GetCertificateAuthorityByIDFuncInvoked bool
+
+	GetAllCertificateAuthoritiesFunc        GetAllCertificateAuthoritiesFunc
+	GetAllCertificateAuthoritiesFuncInvoked bool
+
+	GetGroupedCertificateAuthoritiesFunc        GetGroupedCertificateAuthoritiesFunc
+	GetGroupedCertificateAuthoritiesFuncInvoked bool
+
+	ListCertificateAuthoritiesFunc        ListCertificateAuthoritiesFunc
+	ListCertificateAuthoritiesFuncInvoked bool
+
+	DeleteCertificateAuthorityFunc        DeleteCertificateAuthorityFunc
+	DeleteCertificateAuthorityFuncInvoked bool
 
 	GetCurrentTimeFunc        GetCurrentTimeFunc
 	GetCurrentTimeFuncInvoked bool
@@ -8682,6 +8712,48 @@ func (s *DataStore) UpdateHostIdentityCertHostIDBySerial(ctx context.Context, se
 	s.UpdateHostIdentityCertHostIDBySerialFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostIdentityCertHostIDBySerialFunc(ctx, serialNumber, hostID)
+}
+
+func (s *DataStore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
+	s.mu.Lock()
+	s.NewCertificateAuthorityFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewCertificateAuthorityFunc(ctx, ca)
+}
+
+func (s *DataStore) GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+	s.mu.Lock()
+	s.GetCertificateAuthorityByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCertificateAuthorityByIDFunc(ctx, id, includeSecrets)
+}
+
+func (s *DataStore) GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+	s.mu.Lock()
+	s.GetAllCertificateAuthoritiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAllCertificateAuthoritiesFunc(ctx, includeSecrets)
+}
+
+func (s *DataStore) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	s.mu.Lock()
+	s.GetGroupedCertificateAuthoritiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetGroupedCertificateAuthoritiesFunc(ctx, includeSecrets)
+}
+
+func (s *DataStore) ListCertificateAuthorities(ctx context.Context) ([]*fleet.CertificateAuthoritySummary, error) {
+	s.mu.Lock()
+	s.ListCertificateAuthoritiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCertificateAuthoritiesFunc(ctx)
+}
+
+func (s *DataStore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {
+	s.mu.Lock()
+	s.DeleteCertificateAuthorityFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteCertificateAuthorityFunc(ctx, certificateAuthorityID)
 }
 
 func (s *DataStore) GetCurrentTime(ctx context.Context) (time.Time, error) {
