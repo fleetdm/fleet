@@ -191,7 +191,8 @@ type TeamSpecAppStoreApp struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories []string `json:"categories"`
+	Categories         []string     `json:"categories"`
+	InstallDuringSetup optjson.Bool `json:"setup_experience"`
 }
 
 type TeamMDM struct {
