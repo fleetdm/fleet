@@ -231,6 +231,20 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
+
+      // Show "---" for ABM devices with Pending enrollment status
+      if (
+        cellProps.row.original.mdm?.enrollment_status === "Pending" &&
+        (cellProps.row.original.platform === "darwin" ||
+          cellProps.row.original.platform === "ios" ||
+          cellProps.row.original.platform === "ipados")
+      ) {
+        const tooltip = {
+          tooltipText: getHostStatusTooltipText("---"),
+        };
+        return <StatusIndicator value="---" tooltip={tooltip} />;
+      }
+
       const value = cellProps.cell.value;
       const tooltip = {
         tooltipText: getHostStatusTooltipText(value),
