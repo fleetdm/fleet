@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
+
 import { useQuery } from "react-query";
 import PATHS from "router/paths";
 

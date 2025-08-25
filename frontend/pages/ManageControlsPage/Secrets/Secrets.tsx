@@ -21,6 +21,7 @@ import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
@@ -236,12 +237,20 @@ const Secrets = () => {
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
             {canEdit && (
-              <span>
-                <Button variant="text-icon" onClick={onClickAddSecret}>
-                  <Icon name="plus" />
-                  <span>Add custom variable</span>
-                </Button>
-              </span>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <span>
+                    <Button
+                      variant="text-icon"
+                      onClick={onClickAddSecret}
+                      disabled={disableChildren}
+                    >
+                      <Icon name="plus" />
+                      <span>Add custom variable</span>
+                    </Button>
+                  </span>
+                )}
+              />
             )}
           </div>
         }

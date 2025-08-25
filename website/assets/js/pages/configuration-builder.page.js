@@ -86,8 +86,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -141,8 +139,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -158,8 +154,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -194,8 +188,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.mobiledevice.passwordpolicy',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -922,8 +914,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.security.firewall',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -939,8 +929,6 @@ parasails.registerPage('configuration-builder', {
                 payloadType: 'com.apple.security.firewall',
                 formInput: {
                   type: 'boolean',
-                  trueValue: 0,
-                  falseValue: 1
                 },
                 formOutput: {
                   settingFormat: 'boolean',
@@ -997,6 +985,526 @@ parasails.registerPage('configuration-builder', {
               // },
             ]
           }
+        ]
+      }
+    ],
+    //ios payloads
+    iosCategoriesAndPayloads: [
+      {
+        categoryName: 'Privacy & security',
+        categorySlug: 'ios-privacy-and-security',
+        subcategories: [
+          {
+            subcategoryName: 'Device lock',
+            subcategorySlug: 'ios-device-lock',
+            description: 'Settings related to screen lock and passwords.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/passcode',
+            payloads: [
+              {
+                name: 'Require device password',
+                uniqueSlug: 'ios-enable-force-pin',
+                tooltip: 'Require a password to unlock the device',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'forcePIN',
+                },
+              },
+              {
+                name: 'Maximum inactivity time before device locks',
+                uniqueSlug: 'ios-max-inactivity',
+                tooltip: 'The maximum number of minutes for which the device can be idle without the user unlocking it, before the system locks it.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 4,
+                  minValue: 0,
+                  maxValue: 60,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxInactivity',
+                },
+              },
+              {
+                name: 'Minimum password length',
+                uniqueSlug: 'ios-min-length',
+                tooltip: 'The minimum overall length of the passcode.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 16,
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'minLength',
+                },
+              },
+              {
+                name: 'Allow simple password',
+                uniqueSlug: 'ios-enable-allow-simple-pin',
+                tooltip: 'If false, the system prevents use of a simple passcode. A simple passcode contains repeated characters, or increasing or decreasing characters, such as 123 or CBA.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowSimple',
+                },
+              },
+              {
+                name: 'Require alphanumeric password',
+                uniqueSlug: 'ios-require-alphanumeric-password',
+                tooltip: 'If true, the system requires alphabetic characters instead of only numeric characters.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'requireAlphanumeric',
+                },
+              },
+              {
+                name: 'Minimum complex characters',
+                uniqueSlug: 'ios-min-complex-characters',
+                tooltip: 'The minimum number of complex characters that a passcode needs to contain. A complex character is a character other than a number or a letter, such as &, %, $, and #.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 4,
+                  unitLabel: 'characters'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'minComplexChars',
+                },
+              },
+              {
+                name: 'Maximum grace period',
+                uniqueSlug: 'ios-max-grace-period',
+                tooltip: 'The maximum grace period, in minutes, to unlock the device without entering a passcode. The default is 0, which is no grace period and requires a passcode immediately.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'minutes'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxGracePeriod',
+                },
+              },
+              {
+                name: 'Passcode history',
+                uniqueSlug: 'ios-passcode-history',
+                tooltip: 'This value defines N, where the new passcode must be unique within the last N entries in the passcode history.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  minValue: 1,
+                  maxValue: 50,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'pinHistory',
+                },
+              },
+              {
+                name: 'Maximum passcode age',
+                uniqueSlug: 'ios-max-pin-age',
+                tooltip: 'The number of days for which the passcode can remain unchanged. After this number of days, the system forces the user to change the passcode before it unlocks the device.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 0,
+                  minValue: 0,
+                  maxValue: 999,
+                  unitLabel: 'days'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxPINAgeInDays',
+                },
+              },
+              {
+                name: 'Maximum number of failed attempts',
+                uniqueSlug: 'ios-max-failed-attempts',
+                tooltip: 'The number of allowed failed attempts to enter the passcode at the device’s lock screen. After four failed attempts, the system imposes a time delay before a passcode can be entered again. When this number is exceeded in iOS, the system securely erases all data and settings.',
+                category: 'Device lock',
+                payload: 'Passcode',
+                payloadType: 'com.apple.mobiledevice.passwordpolicy',
+                formInput: {
+                  type: 'number',
+                  defaultValue: 11,
+                  minValue: 2,
+                  maxValue: 11,
+                  unitLabel: 'attempts'
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'maxFailedAttempts',
+                },
+              },
+            ],
+          },
+        ]
+      },
+      {
+        categoryName: 'Network',
+        categorySlug: 'ios-network',
+        subcategories: [
+          {
+            subcategoryName: 'WiFi',
+            subcategorySlug: 'ios-wifi',
+            description: 'Settings related to wireless network configuration on iOS',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/wifi',
+            payloads: [
+              {
+                name: 'Network SSID',
+                uniqueSlug: 'ios-wifi-ssid',
+                tooltip: 'The SSID of the Wi-Fi network to use.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'SSID_STR',
+                },
+              },
+              {
+                name: 'Network password',
+                uniqueSlug: 'ios-wifi-password',
+                tooltip: 'The password for the access point.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'Password',
+                },
+              },
+              {
+                name: 'Network encryption type',
+                uniqueSlug: 'ios-wifi-encryption-type',
+                tooltip: 'The encryption type for the network. If set to anything except None, the payload may contain the following three keys: Password, PayloadCertificateUUID, or EAPClientConfiguration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  options: [
+                    {
+                      name: 'WEP',
+                      value: 'WEP'
+                    },
+                    {
+                      name: 'WPA',
+                      value: 'WPA'
+                    },
+                    {
+                      name: 'WPA2',
+                      value: 'WPA2',
+                    },
+                    {
+                      name: 'WPA3',
+                      value: 'WPA3',
+                    },
+                    {
+                      name: 'Any',
+                      value: 'Any',
+                    },
+                    {
+                      name: 'None',
+                      value: 'None',
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'EncryptionType',
+                },
+              },
+              {
+                name: 'Join network automatically',
+                uniqueSlug: 'ios-wifi-auto-join',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'AutoJoin',
+                },
+              },
+              {
+                name: 'Hidden network',
+                uniqueSlug: 'ios-wifi-hidden-network',
+                tooltip: 'If true, defines this network as hidden.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'HIDDEN_NETWORK',
+                },
+              },
+              {
+                name: 'Enable IPV6',
+                uniqueSlug: 'ios-wifi-enable-ipv6',
+                tooltip: 'If true, enables IPv6 on this interface.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'EnableIPv6',
+                },
+              },
+              {
+                name: 'Domain name',
+                uniqueSlug: 'ios-wifi-domain-name',
+                tooltip: 'The primary domain of the tunnel.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'DomainName',
+                },
+              },
+              {
+                name: 'Treat network as a hotspot',
+                uniqueSlug: 'ios-wifi-hotspot',
+                tooltip: 'If true, the device joins the network automatically. If false, the user must tap the network name to join it.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'IsHotspot',
+                },
+              },
+              {
+                name: 'Allow connection to roaming service providers',
+                uniqueSlug: 'ios-wifi-service-provider-roaming',
+                tooltip: 'If true, allows connection to roaming service providers.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ServiceProviderRoamingEnabled',
+                },
+              },
+              {
+                name: 'Network HESSID',
+                uniqueSlug: 'ios-wifi-hessid',
+                tooltip: 'The Homogeneous extended service set identifier (HESSID) used for Wi-Fi Hotspot 2.0 negotiation.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'HESSID',
+                },
+              },
+              {
+                name: 'Proxy type',
+                uniqueSlug: 'ios-wifi-proxy-type',
+                tooltip: 'The proxy type, if any, to use. If you choose the manual proxy type, you need the proxy server address, including its port and optionally a user name and password into the proxy server. If you choose the auto proxy type, you can enter a proxy autoconfiguration (PAC) URL.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'radio',
+                  controlsOtherFields: true,
+                  options: [
+                    {
+                      name: 'None',
+                      value: 'None'
+                    },
+                    {
+                      name: 'Manual',
+                      value: 'Manual',
+                      alsoSelectedWhenSet: [
+                        'ios-wifi-proxy-server',
+                        'ios-wifi-proxy-server-port',
+                      ]
+                    },
+                    {
+                      name: 'Auto',
+                      value: 'Auto',
+                      alsoSelectedWhenSet: [
+                        'ios-wifi-proxy-pac-url',
+                        'ios-wifi-proxy-pac-fallback',
+                      ]
+                    },
+                  ]
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyType',
+                },
+              },
+              {
+                name: 'Proxy server address',
+                uniqueSlug: 'ios-wifi-proxy-server',
+                tooltip: 'The proxy server’s network address.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyServer',
+                },
+              },
+              {
+                name: 'Proxy server port',
+                uniqueSlug: 'ios-wifi-proxy-server-port',
+                tooltip: 'The proxy server’s port number.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'number',
+                  minValue: 0,
+                  maxValue: 65535,
+                },
+                formOutput: {
+                  settingFormat: 'integer',
+                  settingKey: 'ProxyServerPort',
+                },
+              },
+              {
+                name: 'Proxy server username',
+                uniqueSlug: 'ios-wifi-proxy-server-username',
+                tooltip: 'The user name used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyUsername',
+                },
+              },
+              {
+                name: 'Proxy server password',
+                uniqueSlug: 'ios-wifi-proxy-server-password',
+                tooltip: 'The password used to authenticate to the proxy server.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPassword',
+                },
+              },
+              {
+                name: 'Proxy PAC URL',
+                uniqueSlug: 'ios-wifi-proxy-pac-url',
+                tooltip: 'The URL of the PAC file that defines the proxy configuration.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'string',
+                  settingKey: 'ProxyPACURL',
+                },
+              },
+              {
+                name: `Allow connections if a proxy\'s PAC file is unreachable`,
+                uniqueSlug: 'ios-wifi-proxy-pac-fallback',
+                tooltip: 'If true, allows connecting directly to the destination if the PAC file is unreachable.',
+                category: 'WiFi',
+                payload: 'WiFi',
+                payloadGroup: 'Proxy',
+                payloadType: 'com.apple.wifi.managed',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'ProxyPACFallbackAllowed',
+                },
+              },
+            ]
+          },
         ]
       }
     ],
@@ -3113,7 +3621,7 @@ parasails.registerPage('configuration-builder', {
           }
         ]
       }
-    ]
+    ],
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -3152,14 +3660,14 @@ parasails.registerPage('configuration-builder', {
         // this.currentSelectedCategoryForDownload = undefined;
         if(this.selectedPlatform === 'windows') {
           await this.buildWindowsProfile(this.selectedOptionsInAPayload);
-        } else if(this.selectedPlatform === 'macos') {
-          await this.buildMacOSProfile(this.selectedOptionsInAPayload);
+        } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+          await this.buildAppleProfile(this.selectedOptionsInAPayload);
         }
       } else {
         if(this.selectedPlatform === 'windows') {
           await this.buildWindowsProfile(this.selectedPayloads);
-        } else if(this.selectedPlatform === 'macos') {
-          await this.buildMacOSProfile(this.selectedPayloads);
+        } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+          await this.buildAppleProfile(this.selectedPayloads);
         } else if(this.selectedPlatform === 'android') {
           await this.buildAndroidProfile(this.selectedPayloads);
         }
@@ -3171,8 +3679,8 @@ parasails.registerPage('configuration-builder', {
 
       if(this.selectedPlatform === 'windows') {
         await this.buildWindowsProfile(this.selectedPayloads);
-      } else if(this.selectedPlatform === 'macos') {
-        await this.buildMacOSProfile(this.selectedPayloads);
+      } else if(['macos', 'ios'].includes(this.selectedPlatform)) {
+        await this.buildAppleProfile(this.selectedPayloads);
       }
     },
     buildAndroidProfile: function(selectedPayloads) {
@@ -3244,7 +3752,7 @@ parasails.registerPage('configuration-builder', {
           value = this.configurationBuilderFormData[payload.uniqueSlug+'-value'];
           // If this payload is a boolean input, we'll convert the true/false value into the expected value for this payload.
           if(payload.formInput.type === 'boolean'){
-            if(payload.formOutput.trueValue){
+            if(payload.formOutput.trueValue !== undefined) {
               if(value) {
                 value = payload.formOutput.trueValue;
               } else {
@@ -3265,7 +3773,7 @@ parasails.registerPage('configuration-builder', {
       URL.revokeObjectURL(xmlDownloadUrl);
       this.syncing = false;
     },
-    buildMacOSProfile: function(selectedPayloads) {
+    buildAppleProfile: function(selectedPayloads) {
       let xmlString = `
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -3300,7 +3808,7 @@ parasails.registerPage('configuration-builder', {
           if(payloadOption.formInput.type === 'boolean') {
             // If a payload option has a nested trueValue and falseValue, then this boolean will not necessarily represent true/false values.
             // If that is the case, then modify the value to be the value they represent in the form.
-            if(payloadOption.formOutput.trueValue) {
+            if(payloadOption.formOutput.trueValue !== undefined) {
               if(value) {
                 value = payloadOption.formOutput.trueValue;
               } else {
@@ -3336,8 +3844,6 @@ parasails.registerPage('configuration-builder', {
 <string>${this.downloadProfileFormData.uuid}</string>
 <key>PayloadVersion</key>
 <integer>1</integer>
-<key>TargetDeviceType</key>
-<integer>5</integer>
 </dict>
 </plist>`;
       let xmlDownloadUrl = URL.createObjectURL(new Blob([_.trim(xmlString)], { type: 'text/xml;' }));
@@ -3410,7 +3916,7 @@ parasails.registerPage('configuration-builder', {
     },
     openDownloadModal: function() {
       this.modal = 'download-profile';
-      if(this.selectedPlatform === 'macos') {
+      if(['macos', 'ios'].includes(this.selectedPlatform)) {
         this.downloadProfileFormRules = {
           name: {required: true},
           uuid: {required: true},
