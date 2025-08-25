@@ -196,6 +196,8 @@ INSERT INTO
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
 		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
 	)
 )`
 
@@ -211,8 +213,8 @@ INSERT INTO
 			return err
 		}
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
-			teamID)
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt,
+			cp.Name, teamID, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -5268,7 +5270,9 @@ INSERT INTO mdm_apple_declarations (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
  		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
- 	)
+ 	) AND NOT EXISTS (
+ 		SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
+	)
 )`
 
 	return ds.insertOrUpsertMDMAppleDeclaration(ctx, stmt, declaration)
@@ -5289,7 +5293,9 @@ INSERT INTO mdm_apple_declarations (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
  		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
- 	)
+ 	) AND NOT EXISTS (
+ 		SELECT 1 FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?
+	)
 )
 ON DUPLICATE KEY UPDATE
 	identifier = VALUES(identifier),
@@ -5313,7 +5319,7 @@ func (ds *Datastore) insertOrUpsertMDMAppleDeclaration(ctx context.Context, insO
 		res, err := tx.ExecContext(ctx, insOrUpsertStmt,
 			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON,
 			declaration.SecretsUpdatedAt,
-			declaration.Name, tmID, declaration.Name, tmID)
+			declaration.Name, tmID, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):

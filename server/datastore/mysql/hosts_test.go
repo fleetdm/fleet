@@ -7405,6 +7405,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid)
+          VALUES (?, uuid())
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_apple_declarations (host_uuid, declaration_uuid, token, declaration_identifier, declaration_name)
           VALUES (?, uuid(), UNHEX(REPLACE(UUID(), '-', '')), 'test-identifier', 'test-name')
 	`, host.UUID)
