@@ -100,6 +100,16 @@ func (d *DigiCertCA) Equals(other *DigiCertCA) bool {
 		d.CertificateSeatID == other.CertificateSeatID
 }
 
+func (d *DigiCertCA) StrictEquals(other *DigiCertCA) bool {
+	return d.Name == other.Name &&
+		d.URL == other.URL &&
+		d.APIToken == other.APIToken &&
+		d.ProfileID == other.ProfileID &&
+		d.CertificateCommonName == other.CertificateCommonName &&
+		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
+		d.CertificateSeatID == other.CertificateSeatID
+}
+
 func (d *DigiCertCA) NeedToVerify(other *DigiCertCA) bool {
 	return d.Name != other.Name ||
 		d.URL != other.URL ||

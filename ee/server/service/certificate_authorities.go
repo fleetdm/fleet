@@ -373,7 +373,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return nil
 }
 
-func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, spec fleet.CertificateAuthoritiesSpec) error {
+func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, incoming fleet.CertificateAuthoritiesSpec, dryRun bool, viaGitOps bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}

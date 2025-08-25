@@ -1302,7 +1302,7 @@ type Service interface {
 	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
 	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
 	// ApplyCertificateAuthoritiesSpec applies the given certificate authorities spec
-	ApplyCertificateAuthoritiesSpec(ctx context.Context, spec CertificateAuthoritiesSpec) error
+	ApplyCertificateAuthoritiesSpec(ctx context.Context, spec CertificateAuthoritiesSpec, dryRun bool, viaGitOps bool) error
 }
 
 type KeyValueStore interface {
