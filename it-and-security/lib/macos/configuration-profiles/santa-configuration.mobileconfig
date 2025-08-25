@@ -12,7 +12,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.santa.servicemanagement</string>
 			<key>PayloadOrganization</key>
-			<string>My Company</string>
+			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.servicemanagement</string>
 			<key>PayloadUUID</key>
@@ -73,7 +73,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.santa.preferences</string>
 			<key>PayloadOrganization</key>
-			<string>My Company</string>
+			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.ManagedClient.preferences</string>
 			<key>PayloadUUID</key>
@@ -110,7 +110,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.santa.notificationsettings</string>
 			<key>PayloadOrganization</key>
-			<string>My Company</string>
+			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.notificationsettings</string>
 			<key>PayloadUUID</key>
@@ -147,7 +147,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.santa.system-extension</string>
 			<key>PayloadOrganization</key>
-			<string>My Company</string>
+			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.system-extension-policy</string>
 			<key>PayloadUUID</key>
@@ -163,7 +163,7 @@
 			<key>PayloadIdentifier</key>
 			<string>com.fleetdm.santa.tcc</string>
 			<key>PayloadOrganization</key>
-			<string>My Company</string>
+			<string>Fleet</string>
 			<key>PayloadType</key>
 			<string>com.apple.TCC.configuration-profile-policy</string>
 			<key>PayloadUUID</key>

@@ -4,9 +4,9 @@ Use Fleet's best practice GitOps workflow to manage your computers as code. To l
 
 Fleet GitOps workflow is designed to be applied to all teams at once. However, the flow can be customized to only modify specific teams and/or global settings.
 
-Users that have global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only to teams they has permissions to modify.
+Users with global admin permissions may apply GitOps configurations globally and to all teams, while users whose permissions are scoped to specific teams may apply settings to only the teams they have permission to modify.
 
-Any settings not defined in your YAML files (including missing or mispelled keys) will be reset to the default values, which may include deleting assets such as software packages.
+Any settings not defined in your YAML files (including missing or misspelled keys) will be reset to the default values, which may include deleting assets such as software packages.
 
 The following are the required keys in the `default.yml` and any `teams/team-name.yml` files:
 
@@ -19,6 +19,16 @@ controls: # Can be defined in teams/no-team.yml too.
 software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
 team_settings: # Only teams/team-name.yml
+```
+Paths in YAML files are always relative to the file you’re editing.
+
+For example:
+```yaml
+# If the file is in the same directory:
+package_path: package_name.yml
+
+# If the file is in a different directory:
+package_path: ../software/package_name.yml
 ```
 
 You may also wish to create specialized API-Only users which may modify configurations through GitOps, but cannot access fleet through the UI. These specialized users can be created through `fleetctl user create` with the `--api-only` flag, and then assigned the `GitOps` role, and given global or team scope in the UI.
@@ -53,6 +63,12 @@ labels:
     hosts:
       - "ceo-laptop"
       - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 #### Separate file
@@ -70,6 +86,12 @@ labels:
   hosts:
     - "ceo-laptop"
     - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 `lib/default.yml`
@@ -765,7 +787,7 @@ integrations:
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
 
-#### scep_proxy
+#### custom_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
@@ -858,12 +880,12 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
-After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment), the `apple_business_manager` section lets you determine which team Apple devices are assigned to in Fleet when they appear in Apple Business Manager.
+After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which team Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 
 #### Example
 

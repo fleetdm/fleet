@@ -4,8 +4,6 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import paths from "router/paths";
 import HostCountCard from "./HostCountCard";
 
-const LOADING_OPACITY = 0.4;
-
 describe("HostCountCard - component", () => {
   it("renders title, count, and image based on the information and data passed in", () => {
     render(

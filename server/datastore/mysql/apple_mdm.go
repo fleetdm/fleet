@@ -180,7 +180,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 	return nil
 }
 
-func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []string) (*fleet.MDMAppleConfigProfile, error) {
+func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 	profUUID := "a" + uuid.New().String()
 
 	// Set default scope if not provided
@@ -1518,6 +1518,8 @@ type hostToCreateFromMDM struct {
 	// - contains "ipad" the platform is "ipados"
 	// - otherwise the platform is "darwin"
 	PlatformHint string
+	// Optional UUID to be set before authenticate mdm
+	UUID *string
 }
 
 func createHostFromMDMDB(
@@ -1580,6 +1582,33 @@ func createHostFromMDMDB(
 		parts = append(parts, "?")
 	}
 
+	var whenCases []string
+	var whenArgs []interface{}
+	updateUUIDHosts := map[string]string{}
+	for _, d := range devices {
+		if d.UUID != nil {
+			whenCases = append(whenCases, "WHEN hardware_serial = ? THEN ?")
+			whenArgs = append(whenArgs, d.HardwareSerial, d.UUID)
+			updateUUIDHosts[d.HardwareSerial] = *d.UUID
+		}
+	}
+
+	for serial := range updateUUIDHosts {
+		whenArgs = append(whenArgs, serial)
+	}
+
+	if len(updateUUIDHosts) > 0 {
+		stmt = fmt.Sprintf(`
+	UPDATE hosts
+	SET uuid = CASE %s ELSE uuid END
+	WHERE hardware_serial IN (%s)
+		`, strings.Join(whenCases, " "), strings.TrimSuffix(strings.Repeat("?,", len(updateUUIDHosts)), ","))
+		_, err = tx.ExecContext(ctx, stmt, whenArgs...)
+		if err != nil {
+			return 0, nil, ctxerr.Wrap(ctx, err, "setting uuid for hosts")
+		}
+	}
+
 	var hostsWithEnrolled []struct {
 		fleet.Host
 		Enrolled *bool `db:"enrolled"`
@@ -1591,7 +1620,8 @@ func createHostFromMDMDB(
 				h.hardware_model,
 				h.hardware_serial,
 				h.hostname,
-				COALESCE(hmdm.enrolled, 0) as enrolled
+				COALESCE(hmdm.enrolled, 0) as enrolled,
+				h.uuid
 			FROM hosts h
 			LEFT JOIN host_mdm hmdm ON hmdm.host_id = h.id
 			WHERE h.hardware_serial IN(%s)`,
@@ -1647,6 +1677,7 @@ func createHostFromMDMDB(
 func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 	ctx context.Context,
 	teamID *uint,
+	idpUUID string,
 	deviceInfo fleet.MDMAppleMachineInfo,
 ) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1655,9 +1686,19 @@ func (ds *Datastore) IngestMDMAppleDeviceFromOTAEnrollment(
 				HardwareSerial: deviceInfo.Serial,
 				PlatformHint:   deviceInfo.Product,
 				HardwareModel:  deviceInfo.Product,
+				UUID:           &deviceInfo.UDID,
 			},
 		}
-		_, _, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
+		_, hosts, err := createHostFromMDMDB(ctx, tx, ds.logger, toInsert, false, teamID, teamID, teamID)
+		if idpUUID != "" && len(hosts) > 0 {
+			host := hosts[0]
+			level.Info(ds.logger).Log("msg", fmt.Sprintf("associating host %s with idp account %s", host.UUID, idpUUID))
+			err = associateHostMDMIdPAccountDB(ctx, tx, host.UUID, idpUUID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "associating host with idp account")
+			}
+		}
+
 		return ctxerr.Wrap(ctx, err, "creating host from OTA enrollment")
 	})
 }
@@ -2438,7 +2479,7 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
 		}
 
-		lookupVariablesByIdentifier := make(map[string][]string, len(profilesVariablesByIdentifier))
+		lookupVariablesByIdentifier := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
 		for _, p := range profilesVariablesByIdentifier {
 			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
 		}

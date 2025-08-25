@@ -1,26 +1,27 @@
 package microsoft_mdm
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
 )
 
-func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
+func TestSystemDriveRequiresStartupAuthSpec_validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		spec    SystemDrRequiresStartupAuthSpec
+		spec    SystemDriveRequiresStartupAuthSpec
 		wantErr string
 	}{
 		{
 			name:    "empty cmdUUID",
-			spec:    SystemDrRequiresStartupAuthSpec{},
+			spec:    SystemDriveRequiresStartupAuthSpec{},
 			wantErr: "cmdUUID is required",
 		},
 		{
 			name: "fields set but not enabled",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:                "test-uuid",
 				Enabled:                false,
 				ConfigureTPMStartupKey: ptr.Uint(PolicyOptDropdownRequired),
@@ -29,14 +30,14 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "valid configuration with no fields",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID: "test-uuid",
 				Enabled: false,
 			},
 		},
 		{
 			name: "valid configuration with enabled fields",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:                "test-uuid",
 				Enabled:                true,
 				ConfigureTPMStartupKey: ptr.Uint(PolicyOptDropdownRequired),
@@ -45,7 +46,7 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "invalid TPMStartupKey value",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:                "test-uuid",
 				Enabled:                true,
 				ConfigureTPMStartupKey: ptr.Uint(99),
@@ -54,7 +55,7 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "invalid PIN value",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:      "test-uuid",
 				Enabled:      true,
 				ConfigurePIN: ptr.Uint(99),
@@ -63,7 +64,7 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "invalid TPMPINKey value",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:            "test-uuid",
 				Enabled:            true,
 				ConfigureTPMPINKey: ptr.Uint(99), // Invalid value
@@ -72,7 +73,7 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "invalid TPM value",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:      "test-uuid",
 				Enabled:      true,
 				ConfigureTPM: ptr.Uint(99),
@@ -81,7 +82,7 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 		},
 		{
 			name: "all fields set with valid values",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:                   "test-uuid",
 				Enabled:                   true,
 				ConfigureNonTPMStartupKey: ptr.Bool(true),
@@ -105,23 +106,23 @@ func TestSystemDrRequiresStartupAuthSpec_validate(t *testing.T) {
 	}
 }
 
-func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
+func TestSystemDriveRequiresStartupAuthCmd_Template(t *testing.T) {
 	tests := []struct {
 		name     string
-		spec     SystemDrRequiresStartupAuthSpec
+		spec     SystemDriveRequiresStartupAuthSpec
 		expected string
 	}{
 		{
 			name: "disabled",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID: "uuid-123",
 				Enabled: false,
 			},
 			expected: `
 				<Atomic>
-					<CmdID>uuid-123-1</CmdID>
+					<CmdID>uuid-123</CmdID>
 					<Replace>
-						<CmdID>uuid-123-2</CmdID>
+						<CmdID>uuid-123-1</CmdID>
 						<Item>
 							<Meta>
 							  <Format>chr</Format>
@@ -139,7 +140,7 @@ func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
 		},
 		{
 			name: "enabled",
-			spec: SystemDrRequiresStartupAuthSpec{
+			spec: SystemDriveRequiresStartupAuthSpec{
 				CmdUUID:                   "uuid-789",
 				Enabled:                   true,
 				ConfigureNonTPMStartupKey: ptr.Bool(true),
@@ -150,9 +151,9 @@ func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
 			},
 			expected: `
 				<Atomic>
-					<CmdID>uuid-789-1</CmdID>
+					<CmdID>uuid-789</CmdID>
 					<Replace>
-						<CmdID>uuid-789-2</CmdID>
+						<CmdID>uuid-789-1</CmdID>
 						<Item>
 							<Meta>
 							  <Format>chr</Format>
@@ -179,7 +180,7 @@ func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, err := SystemDrRequiresStartupAuthCmd(tt.spec)
+			cmd, err := SystemDriveRequiresStartupAuthCmd(tt.spec)
 			require.NoError(t, err)
 
 			got := strings.Join(strings.Fields(string(cmd.RawCommand)), " ")

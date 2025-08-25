@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -23,7 +24,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc)
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -104,7 +105,6 @@ func TestEnterprisesAuth(t *testing.T) {
 			defer cancel()
 			_, err = svc.EnterpriseSignupSSE(ctx)
 			checkAuthErr(t, tt.shouldFailRead, err)
-
 		})
 	}
 
@@ -114,6 +114,29 @@ func TestEnterprisesAuth(t *testing.T) {
 		err = svc.EnterpriseSignupCallback(context.Background(), "bad_token", "token")
 		checkAuthErr(t, true, err)
 	})
+}
+
+func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
+	androidAPIClient := android_mock.Client{}
+	androidAPIClient.InitCommonMocks()
+	logger := kitlog.NewLogfmtLogger(os.Stdout)
+	fleetDS := InitCommonDSMocks()
+	fleetSvc := mockService{}
+
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	require.NoError(t, err)
+
+	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+
+	testSetEmptyPrivateKey = true
+	t.Cleanup(func() { testSetEmptyPrivateKey = false })
+
+	_, err = svc.EnterpriseSignup(ctx)
+	require.Error(t, err)
+
+	require.Contains(t, err.Error(), "missing required private key")
+	require.Contains(t, err.Error(), "https://fleetdm.com/learn-more-about/fleet-server-private-key")
 }
 
 func checkAuthErr(t *testing.T, shouldFail bool, err error) {
@@ -127,9 +150,33 @@ func checkAuthErr(t *testing.T, shouldFail bool, err error) {
 	}
 }
 
-func InitCommonDSMocks() fleet.AndroidDatastore {
+func InitCommonDSMocks() *AndroidMockDS {
 	ds := AndroidMockDS{}
-	ds.Datastore.InitCommonMocks()
+	// Set up basic Android datastore mocks directly on the Fleet datastore mock
+	ds.Store.CreateEnterpriseFunc = func(ctx context.Context, _ uint) (uint, error) {
+		return 1, nil
+	}
+	ds.Store.UpdateEnterpriseFunc = func(ctx context.Context, enterprise *android.EnterpriseDetails) error {
+		return nil
+	}
+	ds.Store.GetEnterpriseFunc = func(ctx context.Context) (*android.Enterprise, error) {
+		return &android.Enterprise{}, nil
+	}
+	ds.Store.GetEnterpriseByIDFunc = func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
+		return &android.EnterpriseDetails{}, nil
+	}
+	ds.Store.GetEnterpriseBySignupTokenFunc = func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+		if signupToken == "signup_token" {
+			return &android.EnterpriseDetails{}, nil
+		}
+		return nil, &notFoundError{}
+	}
+	ds.Store.DeleteAllEnterprisesFunc = func(ctx context.Context) error {
+		return nil
+	}
+	ds.Store.DeleteOtherEnterprisesFunc = func(ctx context.Context, ID uint) error {
+		return nil
+	}
 
 	ds.Store.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -141,7 +188,8 @@ func InitCommonDSMocks() fleet.AndroidDatastore {
 		return &fleet.User{ID: id}, nil
 	}
 	ds.Store.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
-		queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+		queryerContext sqlx.QueryerContext,
+	) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 		result := make(map[fleet.MDMAssetName]fleet.MDMConfigAsset, len(assetNames))
 		for _, name := range assetNames {
 			result[name] = fleet.MDMConfigAsset{Value: []byte("value")}
@@ -161,9 +209,13 @@ func InitCommonDSMocks() fleet.AndroidDatastore {
 }
 
 type AndroidMockDS struct {
-	android_mock.Datastore
 	ds_mock.Store
 }
+
+type notFoundError struct{}
+
+func (e *notFoundError) Error() string    { return "not found" }
+func (e *notFoundError) IsNotFound() bool { return true }
 
 type mockService struct {
 	mock.Mock

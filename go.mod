@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/v4
 
-go 1.24.5
+go 1.24.6
 
 require (
 	cloud.google.com/go/pubsub v1.45.1
@@ -44,7 +44,7 @@ require (
 	github.com/davecgh/go-spew v1.1.1
 	github.com/dgraph-io/badger/v2 v2.2007.4
 	github.com/digitalocean/go-smbios v0.0.0-20180907143718-390a4f403a8e
-	github.com/docker/docker v26.1.5+incompatible
+	github.com/docker/docker v28.0.0+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/doug-martin/goqu/v9 v9.18.0
 	github.com/e-dard/netbug v0.0.0-20151029172837-e64d308a0b20
@@ -52,6 +52,7 @@ require (
 	github.com/elimity-com/scim v0.0.0-20240320110924-172bf2aee9c8
 	github.com/facebookincubator/flog v0.0.0-20190930132826-d2511d0ce33c
 	github.com/fatih/color v1.16.0
+	github.com/foxboron/go-tpm-keyfiles v0.0.0-20250520203025-c3c3a4ec1653
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
 	github.com/github/smimesign v0.2.0
@@ -70,6 +71,7 @@ require (
 	github.com/gomodule/redigo v1.8.9
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v37 v37.0.0
+	github.com/google/go-tpm v0.9.5
 	github.com/google/uuid v1.6.0
 	github.com/goreleaser/nfpm/v2 v2.10.0
 	github.com/gorilla/mux v1.8.1
@@ -175,7 +177,6 @@ require (
 	github.com/AdamKorcz/go-118-fuzz-build v0.0.0-20230306123547-8075edf89bb0 // indirect
 	github.com/AlekSi/pointer v1.2.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
-	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
@@ -231,7 +232,6 @@ require (
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/foxboron/go-tpm-keyfiles v0.0.0-20250520203025-c3c3a4ec1653 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
@@ -239,7 +239,7 @@ require (
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/glog v1.2.4 // indirect
@@ -247,7 +247,6 @@ require (
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
-	github.com/google/go-tpm v0.9.5 // indirect
 	github.com/google/go-tpm-tools v0.4.5 // indirect
 	github.com/google/rpmpack v0.0.0-20210518075352-dc539ef4f2ea // indirect
 	github.com/google/s2a-go v0.1.8 // indirect

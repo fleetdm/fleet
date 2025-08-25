@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "7.13.1",
+      "version": "7.15.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.realvnc.vncviewer';"
       },
-      "installer_url": "https://downloads.realvnc.com/download/file/viewer.files/VNC-Viewer-7.13.1-MacOSX-universal.dmg",
+      "installer_url": "https://downloads.realvnc.com/download/file/viewer.files/VNC-Viewer-7.15.0-MacOSX-universal.dmg",
       "install_script_ref": "9628fdab",
       "uninstall_script_ref": "dd1f6aeb",
-      "sha256": "59177c10479e7d773a2df82d58a4f73b056d1c354b85b11b1040218b3c10419c",
+      "sha256": "893ab81e08d7c86231d5500e2bf1b9647daa3ca954f1b638cf0a558da4fa6fe0",
       "default_categories": [
         "Productivity"
       ]

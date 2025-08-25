@@ -177,7 +177,7 @@ Testing requires a test Mac that is present in your Apple Business Manager (ABM)
 
 2. In Fleet, navigate to the Hosts page and find your Mac. Make sure that the host's **MDM status** is set to "Pending."
 
-  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment) for more information.
+  > New Macs purchased through Apple Business Manager appear in Fleet with MDM status set to "Pending." See our [automatic enrollment guide](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager) for more information.
 
 3. Transfer this host to the "Workstations (canary)" team by selecting the checkbox to the left of the host and selecting **Transfer** at the top of the table. In the modal, choose the Workstations (canary) team and select **Transfer**.
 
@@ -189,7 +189,7 @@ You can configure software installations and a script to be executed during Setu
 
 If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
 
-![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
+![screen shot of Fleet setup experience window](../website/assets/images/articles/install-software-preview-462x364@2x.png)
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
 

@@ -15,7 +15,7 @@ import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -219,7 +219,7 @@ const UserForm = ({
     return () => window.removeEventListener("resize", checkScroll);
   }, [formData]);
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(

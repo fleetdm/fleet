@@ -45,6 +45,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
+      - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig
@@ -59,6 +60,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/enforce-library-validation.mobileconfig
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig

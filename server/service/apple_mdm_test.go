@@ -641,7 +641,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -753,7 +753,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -778,6 +778,12 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	r = bytes.NewReader(mcBytes)
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	mcBytes = mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	r = bytes.NewReader(mcBytes)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {
@@ -802,6 +808,23 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
+func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
+	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	profileWithSecret := mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+
+	// Test multiple profiles where one has a secret in PayloadDisplayName
+	goodProfile := mcBytesForTest("Good Profile", "good.identifier", "UUID1")
+	badProfile := mcBytesForTest("Bad $FLEET_SECRET_KEY Profile", "bad.identifier", "UUID2")
+	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+	assert.ErrorContains(t, err, "profiles[1]")
+}
+
 func TestNewMDMAppleDeclaration(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -810,6 +833,11 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	b := declBytesForTest("D1", "d1content $FLEET_VAR_BOZO")
 	_, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
+
+	// decl type missing actual type
+	b = declarationForTestWithType("D1", "com.apple.configuration")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
@@ -892,6 +920,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return time.Time{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
@@ -2894,7 +2925,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return nil
 	}
 
-	t.Run("replace $FLEET_VAR_"+fleet.FleetVarNDESSCEPProxyURL, func(t *testing.T) {
+	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURL), func(t *testing.T) {
 		var upsertCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -2926,7 +2957,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP, func(t *testing.T) {
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -4768,7 +4799,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	}{
 		{
 			desc:           "username only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4787,7 +4818,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username local part only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4806,7 +4837,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4828,7 +4859,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "multiple times username only scim",
-			profileContent: strings.Repeat("${FLEET_VAR_"+fleet.FleetVarHostEndUserIDPUsername+"}", 3),
+			profileContent: strings.Repeat("${FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername)+"}", 3),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4847,7 +4878,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "all 3 vars with scim",
-			profileContent: "${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups + "}",
+			profileContent: "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups) + "}",
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4869,7 +4900,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username no scim, with idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4890,7 +4921,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username scim and idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4911,7 +4942,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4925,12 +4956,12 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
 			},
 		},
 		{
 			desc:           "username local part, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4944,12 +4975,12 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
 			},
 		},
 		{
 			desc:           "groups, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4966,7 +4997,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "department, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4983,7 +5014,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups with scim user but no group",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -5000,7 +5031,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -5023,7 +5054,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department, user has no department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -5072,6 +5103,61 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			c.assert(output)
 		})
 	}
+}
+
+func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
+	t.Parallel()
+	appConfig := &fleet.AppConfig{}
+	profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile with Fleet variable</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, freeLic)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateConfigProfileFleetVariables(appConfig, profileWithVars, premiumLic)
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile without Fleet variables</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>StaticValue</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+	vars, err = validateConfigProfileFleetVariables(appConfig, profileNoVars, freeLic)
+	require.NoError(t, err)
+	require.Empty(t, vars)
 }
 
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
@@ -5368,7 +5454,9 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			// Pass a premium license for testing (we're not testing license validation here)
+			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile, premiumLic)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)

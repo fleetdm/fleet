@@ -162,5 +162,10 @@
       color: $core-fleet-black;
       padding-right: $pad-small;
     }
+
+    td {
+      display: flex;
+      align-items: center;
+    }
   }
 }

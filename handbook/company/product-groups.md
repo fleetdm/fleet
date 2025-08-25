@@ -45,7 +45,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_, [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen))
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
 
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
@@ -113,7 +113,9 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-> Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+
+Also, sometimes a contributor will propose a change in the form of a pull request (PR). When this happens, the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
 ### Planned and unplanned changes
 
@@ -271,10 +273,10 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 |:---|:-----------------------------|:-|
 | XXS | ≤1 day for 1 contributor | 1-3 |
 | XS | ≤1 week for 1 contributor | 3-8 |
-| S  | 1 sprint for 1 contributor | 8-25 |
-| M  | 1 sprint for 2 contributors | 25-60 |
-| L  | 1 sprint for 3 contributors | Variable (>60) |
-| XL | >1 sprint for 3 contributors | Variable (>100) |
+| S  | ≤1 sprint for 1 contributor | 8-25 |
+| M  | 1 sprint for 2 contributors | 25-50 |
+| L  | 1 sprint for 3 contributors | 50-75 |
+| XL | >1 sprint for 3 contributors | >75 |
 
 
 ### Implementing
@@ -284,7 +286,7 @@ T-shirt sizes represent a rough estimate on the effort required to complete a ta
 
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
+While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review.
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
@@ -358,7 +360,7 @@ When a release is in testing, QA should use the Slack channel #help-qa to keep e
 
 When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug) below.
 
-All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#bug-process).
+All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#bug-process).
 
  - **Release blockers:** Product may add the `~release blocker` label to user stories to indicate that the story must be completed to publish the next version of Fleet. Bugs are never labeled as release blockers.
 
@@ -381,7 +383,7 @@ Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handb
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
-When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#patch-releases).
+When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#prepare-a-patch-release).
 
 > After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
@@ -400,7 +402,7 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
 
 
 ### Criteria for prioritization
@@ -491,7 +493,7 @@ Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/ha
 
 At this state, the bug review DRI (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced) or request more information.
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At two weeks since last communication QA will ping the reporter for more information on the status of the issue. After four weeks of stale communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
@@ -509,7 +511,7 @@ Remove the “:reproduce” label, add the following labels:
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
+> **Fast for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
@@ -579,9 +581,9 @@ This has a dual purpose of providing more context for how our customers use Flee
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
 
-The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week. 
+The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week.
 
-Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
+Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users.
 
 See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines, and don't hesitate to reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 
@@ -861,7 +863,7 @@ Sprints are numbered according to the release version. For example, for the spri
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.

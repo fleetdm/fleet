@@ -1,0 +1,1 @@
+* Added new detail query, only executed if TPM PIN enforcement is required, for determining whether a BitLocker PIN is set.

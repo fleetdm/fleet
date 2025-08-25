@@ -32,7 +32,7 @@ import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import Button from "components/buttons/Button";
+
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -41,19 +41,19 @@ import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import Pagination from "components/Pagination";
 
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
+import UpdatesCard from "./UpdatesCard/UpdatesCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
-import { parseHostSoftwareQueryParams } from "../HostSoftware";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
 import {
@@ -63,7 +63,6 @@ import {
 } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
 import { getUiStatus } from "../helpers";
-import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const baseClass = "software-self-service";
 
@@ -76,6 +75,10 @@ const DEFAULT_SELF_SERVICE_QUERY_PARAMS = {
   category_id: undefined,
 } as const;
 
+const DEFAULT_SEARCH_QUERY = "";
+const DEFAULT_SORT_DIRECTION = "asc";
+const DEFAULT_SORT_HEADER = "name";
+const DEFAULT_PAGE = 0;
 const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
 export interface ISoftwareSelfServiceProps {
@@ -83,17 +86,40 @@ export interface ISoftwareSelfServiceProps {
   deviceToken: string;
   isSoftwareEnabled?: boolean;
   pathname: string;
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: ReturnType<typeof parseSelfServiceQueryParams>;
   router: InjectedRouter;
   refetchHostDetails: () => void;
   isHostDetailsPolling: boolean;
+  hostSoftwareUpdatedAt?: string | null;
   hostDisplayName: string;
 }
 
-const getUpdatesPageSize = (width: number): number => {
-  if (width >= 1400) return 4;
-  if (width >= 768) return 3;
-  return 2;
+export const parseSelfServiceQueryParams = (queryParams: {
+  page?: string;
+  query?: string;
+  order_key?: string;
+  order_direction?: "asc" | "desc";
+  category_id?: string;
+}) => {
+  const searchQuery = queryParams?.query ?? DEFAULT_SEARCH_QUERY;
+  const sortHeader = queryParams?.order_key ?? DEFAULT_SORT_HEADER;
+  const sortDirection = queryParams?.order_direction ?? DEFAULT_SORT_DIRECTION;
+  const page = queryParams?.page
+    ? parseInt(queryParams.page, 10)
+    : DEFAULT_PAGE;
+  const pageSize = DEFAULT_CLIENT_SIDE_PAGINATION;
+  const categoryId = queryParams?.category_id
+    ? parseInt(queryParams.category_id, 10)
+    : undefined;
+
+  return {
+    page,
+    query: searchQuery,
+    order_key: sortHeader,
+    order_direction: sortDirection,
+    per_page: pageSize,
+    category_id: categoryId,
+  };
 };
 
 const SoftwareSelfService = ({
@@ -105,9 +131,14 @@ const SoftwareSelfService = ({
   router,
   refetchHostDetails,
   isHostDetailsPolling,
+  hostSoftwareUpdatedAt,
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
+
+  const initialSortHeader = queryParams.order_key || "name";
+  const initialSortDirection = queryParams.order_direction || "asc";
+  const initialSortPage = queryParams.page || 0;
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -130,70 +161,14 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
-  const [updatesPage, setUpdatesPage] = useState(0);
-  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
-    getUpdatesPageSize(window.innerWidth)
-  );
 
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
     return selfServiceData.software.map((software) => ({
       ...software,
-      ui_status: getUiStatus(software, true),
+      ui_status: getUiStatus(software, true, hostSoftwareUpdatedAt),
     }));
-  }, [selfServiceData]);
-
-  const updateSoftware = enhancedSoftware.filter(
-    (software) =>
-      software.ui_status === "updating" ||
-      software.ui_status === "pending_update" || // Should never show as self-service = host online
-      software.ui_status === "update_available" ||
-      software.ui_status === "failed_install_update_available" ||
-      software.ui_status === "failed_uninstall_update_available"
-  );
-
-  // The page size only changes at 2 breakpoints and state update is very lightweight.
-  // Page size controls the number of shown cards and current page; no API calls or
-  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
-  useEffect(() => {
-    const handleResize = () => {
-      const newPageSize = getUpdatesPageSize(window.innerWidth);
-      setUpdatesPageSize(() => {
-        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
-        setUpdatesPage((prevPage) => {
-          // If the current page is now out of range, go to the last valid page
-          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
-        });
-        return newPageSize;
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [updateSoftware.length]);
-
-  const paginatedUpdates = useMemo(() => {
-    const start = updatesPage * updatesPageSize;
-    return updateSoftware.slice(start, start + updatesPageSize);
-  }, [updateSoftware, updatesPage, updatesPageSize]);
-
-  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
-
-  const onNextUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
-  };
-
-  const onPreviousUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.max(prev - 1, 0));
-  };
-
-  const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating"
-    return (
-      updateSoftware.length > 0 &&
-      updateSoftware.every((software) => software.ui_status === "updating")
-    );
-  }, [updateSoftware]);
+  }, [selfServiceData, hostSoftwareUpdatedAt]);
 
   const selectedSoftware = useRef<{
     softwareId: number;
@@ -211,12 +186,12 @@ const SoftwareSelfService = ({
       {
         scope: "device_software",
         id: deviceToken,
-        page: queryParams.page,
+        page: 0, // Pagination is clientside
         query: "", // Search is now client-side to reduce API calls
         ...DEFAULT_SELF_SERVICE_QUERY_PARAMS,
       },
     ];
-  }, [deviceToken, queryParams.page]);
+  }, [deviceToken]);
 
   // Fetch self-service software (regular API call)
   const {
@@ -502,7 +477,25 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         query: value,
         category_id: queryParams.category_id,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
+      })
+    );
+  };
+
+  const onSortChange = ({ sortHeader, sortDirection }: ITableQueryData) => {
+    router.push(
+      getPathWithQueryParams(pathname, {
+        ...queryParams,
+        order_key: sortHeader,
+        order_direction: sortDirection,
+        query: queryParams.query !== undefined ? queryParams.query : undefined,
+        category_id:
+          queryParams.category_id !== undefined
+            ? queryParams.category_id
+            : undefined,
+        page: 0, // Always reset to page 0 when sorting
       })
     );
   };
@@ -514,6 +507,8 @@ const SoftwareSelfService = ({
       getPathWithQueryParams(pathname, {
         category_id: option?.value !== "undefined" ? option?.value : undefined,
         query: queryParams.query,
+        order_key: initialSortHeader,
+        order_direction: initialSortDirection,
         page: 0, // Always reset to page 0 when searching
       })
     );
@@ -549,25 +544,27 @@ const SoftwareSelfService = ({
     onInstallOrUninstall();
   };
 
-  const onNextPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page + 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
-
-  const onPrevPage = useCallback(() => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: queryParams.query,
-        category_id: queryParams.category_id,
-        page: queryParams.page - 1,
-      })
-    );
-  }, [pathname, queryParams, router]);
+  const onClientSidePaginationChange = useCallback(
+    (page: number) => {
+      router.push(
+        getPathWithQueryParams(pathname, {
+          query: queryParams.query,
+          category_id: queryParams.category_id,
+          order_key: initialSortHeader,
+          order_direction: initialSortDirection,
+          page,
+        })
+      );
+    },
+    [
+      pathname,
+      queryParams.query,
+      queryParams.category_id,
+      initialSortDirection,
+      initialSortHeader,
+      router,
+    ]
+  );
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -598,45 +595,6 @@ const SoftwareSelfService = ({
     onClickInstallAction,
     onClickUninstallAction,
   ]);
-
-  const renderUpdatesCard = () => {
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      return <DeviceUserError />;
-    }
-
-    return (
-      <>
-        <div className={`${baseClass}__items`}>
-          {paginatedUpdates.map((s) => {
-            return (
-              <UpdateSoftwareItem
-                key={s.id}
-                software={s}
-                onClickUpdateAction={onClickUpdateAction}
-                onShowInstallerDetails={() => {
-                  onClickFailedUpdateStatus(s);
-                }}
-              />
-            );
-          })}
-        </div>
-        <Pagination
-          disableNext={updatesPage >= totalUpdatesPages - 1}
-          disablePrev={updatesPage === 0}
-          hidePagination={
-            updatesPage >= totalUpdatesPages - 1 && updatesPage === 0
-          }
-          onNextPage={onNextUpdatesPage}
-          onPrevPage={onPreviousUpdatesPage}
-          className={`${baseClass}__pagination`}
-        />
-      </>
-    );
-  };
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -699,17 +657,18 @@ const SoftwareSelfService = ({
               queryParams.category_id
             )}
             isLoading={isFetching}
-            defaultSortHeader={DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_key}
-            defaultSortDirection={
-              DEFAULT_SELF_SERVICE_QUERY_PARAMS.order_direction
-            }
-            pageIndex={0}
+            defaultSortHeader={initialSortHeader}
+            defaultSortDirection={initialSortDirection}
+            onQueryChange={onSortChange} // Only used for sort
+            pageIndex={initialSortPage} // Client-side pagination with URL source of truth
             disableNextPage={selfServiceData?.meta.has_next_results === false}
             pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
             searchQuery={queryParams.query} // Search is now client-side to reduce API calls
             searchQueryColumn="name"
             isClientSideFilter
             isClientSidePagination
+            disableAutoResetPage // Prevents resetting page to 0 on data change when clicking install/uninstall
+            onClientSidePaginationChange={onClientSidePaginationChange}
             emptyComponent={() => {
               return isEmptySearch ? (
                 <EmptyTable
@@ -736,51 +695,20 @@ const SoftwareSelfService = ({
             disableCount
           />
         </div>
-
-        <Pagination
-          disableNext={selfServiceData?.meta.has_next_results === false}
-          disablePrev={selfServiceData?.meta.has_previous_results === false}
-          hidePagination={
-            selfServiceData?.meta.has_next_results === false &&
-            selfServiceData?.meta.has_previous_results === false
-          }
-          onNextPage={onNextPage}
-          onPrevPage={onPrevPage}
-          className={`${baseClass}__pagination`}
-        />
       </>
     );
   };
 
   return (
     <div className={baseClass}>
-      {paginatedUpdates.length > 0 && (
-        <Card
-          className={`${baseClass}__updates-card`}
-          borderRadiusSize="xxlarge"
-          paddingSize="xlarge"
-          includeShadow
-        >
-          <div className={`${baseClass}__header`}>
-            <CardHeader
-              header="Updates"
-              subheader={
-                <>
-                  Your device has outdated software. Update to address potential
-                  security vulnerabilities or compatibility issues.
-                </>
-              }
-            />
-            <Button
-              disabled={disableUpdateAllButton}
-              onClick={onClickUpdateAll}
-            >
-              Update all
-            </Button>
-          </div>
-          {renderUpdatesCard()}
-        </Card>
-      )}
+      <UpdatesCard
+        enhancedSoftware={enhancedSoftware}
+        isLoading={isLoading}
+        isError={isError}
+        onClickUpdateAll={onClickUpdateAll}
+        onClickUpdateAction={onClickUpdateAction}
+        onClickFailedUpdateStatus={onClickFailedUpdateStatus}
+      />
       <Card
         className={`${baseClass}__self-service-card`}
         borderRadiusSize="xxlarge"
@@ -807,8 +735,6 @@ const SoftwareSelfService = ({
         <UninstallSoftwareModal
           softwareId={selectedSoftware.current.softwareId}
           softwareName={selectedSoftware.current.softwareName}
-          softwareInstallerType={selectedSoftware.current.softwareInstallerType}
-          version={selectedSoftware.current.version}
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
@@ -833,8 +759,7 @@ const SoftwareSelfService = ({
         <VppInstallDetailsModal
           deviceAuthToken={deviceToken}
           details={{
-            fleetInstallStatus:
-              selectedVPPInstallDetails.status || "pending_install",
+            fleetInstallStatus: selectedVPPInstallDetails.status,
             hostDisplayName,
             appName: selectedVPPInstallDetails.name,
             commandUuid: selectedVPPInstallDetails.commandUuid,

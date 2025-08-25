@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from "react";
 
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import validUrl from "components/forms/validators/valid_url";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -13,7 +15,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { ACTIVITY_EXPIRY_WINDOW_DROPDOWN_OPTIONS } from "utilities/constants";
 import { getCustomDropdownOptions } from "utilities/helpers";
 
-import { IAppConfigFormProps, IFormField } from "../constants";
+import { IAppConfigFormProps } from "../constants";
 
 const baseClass = "app-config-form";
 
@@ -81,8 +83,6 @@ const Advanced = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
-
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
     ssoUserURL: appConfig.sso_settings?.sso_server_url || "",
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
@@ -137,7 +137,7 @@ const Advanced = ({
     [deleteActivities]
   );
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validateFormData(newFormData);

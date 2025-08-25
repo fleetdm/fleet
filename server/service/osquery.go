@@ -176,9 +176,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 	}
 
 	// Save enrollment details if provided
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
-		ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
-	})
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: false, // here we are just using a few ingestion functions, so no need to set.
+		}, nil, // Ok ... the following queries do not need the Team's MDM config
+	)
 	save := false
 	if r, ok := hostDetails["os_version"]; ok {
 		err := detailQueries["os_version"].IngestFunc(ctx, svc.logger, host, []map[string]string{r})
@@ -722,12 +728,25 @@ func (svc *Service) detailQueriesForHost(ctx context.Context, host *fleet.Host) 
 		return nil, nil, ctxerr.Wrap(ctx, err, "read host features")
 	}
 
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "reading MDM Team Config")
+		}
+	}
+
 	queries = make(map[string]string)
 	discovery = make(map[string]string)
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
-		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-	})
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		}, mdmTeamConfig)
 	for name, query := range detailQueries {
 		if criticalQueriesOnly && !criticalDetailQueries[name] {
 			continue
@@ -1024,9 +1043,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
 			ll := level.Debug(svc.logger)
-			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			// We'd like to log these as warning for troubleshooting and improving of distributed queries.
+			// We have multiple feature requests filed to expose this information in the UI, including https://github.com/fleetdm/fleet/issues/18004
 			if messages[query] == "distributed query is denylisted" {
-				ll = level.Error(svc.logger)
+				ll = level.Warn(svc.logger)
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
@@ -1167,6 +1187,22 @@ func (svc *Service) SubmitDistributedQueryResults(
 					logging.WithErr(ctx, err)
 				}
 			}
+		}
+	}
+
+	if host.DiskEncryptionKeyEscrowed {
+		if err := svc.NewActivity(
+			ctx,
+			nil,
+			fleet.ActivityTypeEscrowedDiskEncryptionKey{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			level.Error(svc.logger).Log(
+				"msg", "record fleet disk encryption key escrowed activity",
+				"err", err,
+			)
 		}
 	}
 
@@ -1573,9 +1609,24 @@ func (svc *Service) directIngestDetailQuery(ctx context.Context, host *fleet.Hos
 		return false, newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
-		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-	})
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return false, newOsqueryError("ingest detail query: " + err.Error())
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
 	query, ok := detailQueries[name]
 	if !ok {
 		return false, newOsqueryError("unknown detail query " + name)
@@ -1717,9 +1768,25 @@ func (svc *Service) ingestDetailQuery(ctx context.Context, host *fleet.Host, nam
 		return newOsqueryError("ingest detail query: " + err.Error())
 	}
 
-	detailQueries := osquery_utils.GetDetailQueries(ctx, svc.config, appConfig, features, osquery_utils.Integrations{
-		ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
-	})
+	var mdmTeamConfig *fleet.TeamMDM
+	if appConfig != nil && appConfig.MDM.EnabledAndConfigured && host.TeamID != nil {
+		mdmTeamConfig, err = svc.ds.TeamMDMConfig(ctx, *host.TeamID)
+		if err != nil {
+			return newOsqueryError("ingest detail query: " + err.Error())
+		}
+	}
+
+	detailQueries := osquery_utils.GetDetailQueries(
+		ctx,
+		svc.config,
+		appConfig,
+		features,
+		osquery_utils.Integrations{
+			ConditionalAccessMicrosoft: svc.hostRequiresConditionalAccessMicrosoftIngestion(ctx, host),
+		},
+		mdmTeamConfig,
+	)
+
 	query, ok := detailQueries[name]
 	if !ok {
 		return newOsqueryError("unknown detail query " + name)

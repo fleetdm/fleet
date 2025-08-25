@@ -107,7 +107,7 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
 
 **Days to invoice customer**: 
-- Check the [invoice sent and payment received report]((https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders)) in Salesforce.
+- Check the [invoice sent and payment received report](https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders) in Salesforce.
 - Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 
@@ -139,20 +139,27 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 ### Create an invoice
 
 To create a new invoice for a Fleet customer, follow these steps:
-1. Go to the [invoice folder in Google Drive](https://drive.google.com/drive/folders/11limC_KQYNYQPApPoXN0CplHo_5Qgi2b?usp=drive_link).
-2. Create a copy of the invoice template, and title the copy `[invoice number] Fleet invoice - [customer name]`.
-    - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
-3.  Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
-    - Enter the invoice number (and PO number if required) into the top right section of the invoice.
-    - Update the date of the invoice to reflect the current date.
-    - Make sure the payment terms match the signed subscription agreement.
-    - Copy the customer address from the signed subscription agreement and input it in the "Bill to" section of the invoice.
-    - Copy the "Billing contact" email from the signed subscription agreement and add it to the last line of the "Bill to" address.
-    - Make sure the start and end dates of the contract and amount match the subscription agreement.
-    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-    - Ensure the "Notes" section has wiring instructions for payment via SVB.
-4.  Download the completed invoice as a PDF.
-5.  Send the PDF to the billing contact from the "Bill to" section of the invoice and cc [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays). Use the following template for the email:
+1. Go to the Invoice page on our billing system.
+2. Select “Create Invoice” on the right, and you will be directed to a new page to create an invoice.
+3. Under the “Add customer” dropdown box, select an existing customer, or add a new customer. The customer is the entity that will be receiving the invoice. 
+   - To add a new customer: Update the company name, contact person, billing email address, and “Bill to” address fields in the next page.
+4. Change the invoice number. 
+   - The invoice number follows the format of `YYMMDD[daily issued invoice number]`, where the daily issued invoice number should equal `01` if it's the first invoice issued that day, `02` if it's the second, etc.
+5. Edit the new invoice to reflect details from the signed subscription agreement (and PO if required).
+   - Enter the invoice number (and PO number if required) into the top right section of the invoice.
+   - Update the date of the invoice to reflect the current date.
+   - Make sure the payment terms match the signed subscription agreement.
+   - Validate if the customer address from the signed subscription agreement matches the default Bill to address shown on the invoice. 
+   - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
+   - Make sure the start and end dates of the contract and amount match the subscription agreement.
+   - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
+   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - For invoices that are not on annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice. 
+6. Download the completed invoice as a PDF.
+   - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
+   - Save a copy of the PDF into the invoice folder.
+
+7. Send the PDF to the billing contact from the "Bill to" section of the invoice via the Fleet billing email address. Use the following template for the email:
 
 ```
 Subject: Invoice for Fleet Device Management [invoice number]
@@ -210,6 +217,53 @@ Thanks,
 6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
 7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
 
+
+### Create an offer in AWS Marketplace
+
+1. Use gmail to log in to AWS SSO.
+
+2. Use this URL [https://aws.amazon.com/marketplace/management/offers/](https://aws.amazon.com/marketplace/management/offers/) to login.  
+
+3. Click "create private offer"
+
+4. Product type is "SaaS product"
+
+5. Product is "Fleet Premium".
+
+6. Click "continue to offer details." This should bring you to "Step 1: Provide offer information."
+
+7. For offer name use the naming convention [YYYY] [Customer name] [initial term or renewal]. Example, "2025 Horus renewal."
+
+8. You can leave the offer description blank.
+
+9. Select whether the offer is a renewal or not.
+
+10. If it is a renewal, you'll need to select whether it is an existing customer moving to AWS Marketplace with Fleet for the first time, or whether they are an existing AWS Marketplace customer of Fleet.
+
+11. Enter an appropriate date for the offer to expire (may need to consult with AE or CX person that owns the account). Then click next.
+
+12. This will bring you to Step 2: Configure offer pricing and duration. The pricing model is contract pricing with up front payment.
+
+13. Contract start date: Select start at a future date and enter the start date of the term on the order form.
+
+14. Contract duration: Select enter an end date and enter the date of the first annual term on the order form.
+
+15. Currency: Select USD unless the order form specifies something different.
+
+16. Purchasing options: you can leave multiple dimensions per contract selected.
+
+17. Pricing per contract dimension: Enter the number of hosts for annual cost per host.
+
+18. Enter the total contract value and select annually for billing. If it is a multi-year deal, hit generate installment plan and then make sure the annual billing details match the order form.
+
+19. Click next to proceed to Step 3: Add buyers.
+
+20. Enter the customer's AWS account ID and click next to proceed to Step 4: Configurel egal terms and offer documents.
+
+21. Select "custom legal terms" and upload the applicable terms. Note this could be two documents: an order form, and master subscription terms if separate from the order form.
+
+22. Click "Next" to go to Step 5: Review and create. Verify the information is accurate and submit the offer. Let the AE or CX account owner know that you have done so.
+    
 
 ### Obtain a copy of Fleet's W-9
 

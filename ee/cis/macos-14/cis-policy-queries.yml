@@ -140,6 +140,7 @@ spec:
         Ask your system administrator to deploy a script that will configure:
         /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XProtect.daemon.scan.plist
         /usr/bin/sudo /bin/launchctl load -w /Library/Apple/System/Library/LaunchDaemons/com.apple.XprotectFramework.PluginService.plist
+        /usr/bin/sudo /usr/sbin/softwareupdate -l --background-critical
   query: |
       SELECT 1
       WHERE (
@@ -152,7 +153,7 @@ spec:
       ) = 2;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: defensivedepth
+  contributors: defensivedepth, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -845,8 +846,18 @@ spec:
   platform: darwin
   description: |
     Bluetooth Sharing allows files to be exchanged with Bluetooth-enabled devices.
-    Disabling Bluetooth Sharing minimizes the risk of an attacker using Bluetooth
-    to remotely attack the system.
+    This setting only disables the receiving of files and requires both devices to
+    be paired through Bluetooth as well as accepted by the receiver. This setting
+    does not disable the ability to send files from the device to another paired
+    Bluetooth device.
+    Bluetooth pairing only requires an acceptance dialog on either device attempting
+    to pair. It does require the Bluetooth pane in System Settings to be open for
+    any macOS device to be discoverable. While it does give a verification code, it
+    does not require either device to enter the code, but just accept the dialog
+    box (on either device). At that point, the two devices are paired and files can
+    be shared through Bluetooth. To receive files through Bluetooth File Exchange
+    application, the user does have to accept the file(s) through a dialog box.
+    Users should only pair to known trusted Bluetooth devices.
   resolution: |
     Graphical Method:
     1. Open System Settings
@@ -1064,58 +1075,37 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Siri is enabled (Based on organization's policy) (MDM Required)
+  name: CIS - Ensure Siri is disabled (MDM required)
   platforms: macOS
   platform: darwin
   description: |
-    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
-    In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
-    Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
+    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While
+    there are data spillage concerns with the use of data-gathering personal
+    assistant software, the risk here does not seem greater in sending queries to
+    Apple through Siri than in sending search terms in a browser to Google or
+    Microsoft. While it is possible that Siri will be used for local actions
+    rather than Internet searches, Siri could, in theory, tell Apple about
+    confidential Programs and Projects that should not be revealed. This appears
+    to be a usage edge case.
+    In cases where sensitive or protected data is processed and Siri could expose
+    that information through assisting a user in navigating their machine, it
+    should be disabled. Siri does need to phone home to Apple, so it should not
+    be available from air-gapped networks as part of its requirements.
+    Most of the use case data published has shown that Siri is a tremendous time
+    saver on iOS where multiple screens and menus need to be navigated through.
+    Information like sports scores, weather, movie times, and simple to-do items
+    on existing calendars can be easily found with Siri. None of the standard use
+    cases should be more risky than already approved activity.
+    Note: Apple has significantly improved the features of Siri, but also created
+    a way to purchase products and services using Siri which may be
+    unintentionally approved. The new Siri Remote application increases the risk.
+    For more information, read the Apple Siri privacy policy.
   resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
-    1. The `PayloadType` string is com.apple.applicationaccess.
-    2. The key to include is allowAssistant.
-    3. The key must be set to <true/>.
-  query: |
-    SELECT 1 WHERE 
-      EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAssistant' AND 
-            (value = 1 OR value = 'true') AND 
-            username = ''
-        )
-      AND NOT EXISTS (
-        SELECT 1 FROM managed_policies WHERE 
-            domain='com.apple.applicationaccess' AND 
-            name='allowAssistant' AND 
-            (value != 1 AND value != 'true')
-        );  
-     /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
-      Depending on your organization's decision, you can delete this policy or its counterpart.*/
-  purpose: Informational
-  tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
----
-apiVersion: v1
-kind: policy
-spec:
-  name: CIS - Ensure Siri is disabled (Based on organization's policy) (MDM Required)
-  platforms: macOS
-  platform: darwin
-  description: |
-    With macOS 10.12 Sierra, Apple has introduced Siri from iOS to macOS. While there are data spillage concerns with the use of data-gathering personal assistant software, the risk here does not seem greater in sending queries to Apple through Siri than in sending search terms in a browser to Google or Microsoft. While it is possible that Siri will be used for local actions rather than Internet searches, Siri could, in theory, tell Apple about confidential Programs and Projects that should not be revealed. This appears be a usage edge case.
-    In cases where sensitive or protected data is processed and Siri could expose that information through assisting a user in navigating their machine, it should be disabled. Siri does need to phone home to Apple, so it should not be available from air-gapped networks as part of its requirements.
-    Most of the use case data published has shown that Siri is a tremendous time saver on iOS where multiple screens and menus need to be navigated through. Information like sports scores, weather, movie times, and simple to-do items on existing calendars can be easily found with Siri. None of the standard use cases should be more risky than already approved activity.
-  resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile that enables the Bluetooth status in the menu bar.
-    Create or edit a configuration profile with the following information:
-    1. The `PayloadType` string is com.apple.applicationaccess.
-    2. The key to include is allowAssistant.
-    3. The key must be set to <false/>.
+    Profile Method:
+    Ask your administrator to deploy a profile with the following configuration:
+    1. The PayloadType string is com.apple.applicationaccess
+    2. The key to include is allowAssistant
+    3. Set the key to <false/>
   query: |
     SELECT 1 WHERE 
       EXISTS (
@@ -1130,12 +1120,10 @@ spec:
             domain='com.apple.applicationaccess' AND 
             name='allowAssistant' AND 
             (value != 0 AND value != 'false')
-        );  
-    /*CIS does not make a hard recommendation for this policy. Fleet has provided two policies (one failing, one succeeding). 
-      Depending on your organization's decision, you can delete this policy or its counterpart.*/
+        );
   purpose: Informational
-  tags: compliance, CIS, CIS_Level1, decision-needed
-  contributors: sharon-fdm
+  tags: compliance, CIS, CIS_Level1
+  contributors: sharon-fdm, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -1698,6 +1686,59 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
+  name: CIS - Ensure sleep and display sleep is enabled on Apple Silicon devices (Fleetd required)
+  platforms: macOS
+  platform: darwin
+  description: |
+    MacBooks should be set so that the sleep is 15 minutes or less and the
+    display should sleep at 10 minutes or less. This setting should allow laptop
+    users in most cases to stay within physically secured areas while going to a
+    conference room, auditorium, or other internal location without having to
+    unlock the encryption. When the user goes home at night, the laptop will
+    auto-sleep after 15 minutes and to log back into the system when it resumes.
+  resolution: |
+    Automated method:
+    Ask your system administrator to deploy a script that runs the following
+    commands to set the sleep time and display sleep:
+    /usr/bin/sudo /usr/bin/pmset -a sleep 15
+    /usr/bin/sudo /usr/bin/pmset -a displaysleep 10
+  query: |
+    SELECT 1 AS result
+    WHERE
+      -- Pass if not Apple Silicon
+      NOT EXISTS (
+        SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%'
+      )
+      OR
+      -- For Apple Silicon, check sleep settings (Battery Power if available, otherwise AC Power)
+      EXISTS (
+        SELECT 1
+        FROM (
+          SELECT
+            CASE
+              WHEN JSON_EXTRACT(json_result, '$.Battery Power:') IS NOT NULL
+              THEN JSON_EXTRACT(json_result, '$.Battery Power:')
+              ELSE JSON_EXTRACT(json_result, '$.AC Power:')
+            END AS power_settings
+          FROM pmset
+          WHERE getting = 'custom'
+        )
+        WHERE
+          -- Require sleep setting to be 15 minutes or less
+          CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER) <= 15
+          AND
+          -- Require display sleep to be 10 minutes or less AND less than or equal to sleep value
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= 10
+          AND
+          CAST(JSON_EXTRACT(power_settings, '$.displaysleep') AS INTEGER) <= CAST(JSON_EXTRACT(power_settings, '$.sleep') AS INTEGER)
+      );
+  purpose: Informational
+  tags: compliance, CIS, CIS_Level2
+  contributors: getvictor
+---
+apiVersion: v1
+kind: policy
+spec:
   name: CIS - Ensure Wake for Network Access Is Disabled (Fleetd Required)
   platforms: macOS
   platform: darwin
@@ -1787,7 +1828,7 @@ spec:
           )
         ) OR EXISTS(
           SELECT 1 WHERE EXISTS(
-            SELECT 1 FROM system_info WHERE cpu_type = 'arm64e'
+            SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%'
           ) AND EXISTS (
             SELECT
                 CAST(JSON_EXTRACT(battery, '$.standby') AS INTEGER) AS standby
@@ -2555,14 +2596,22 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    MacOS can act as an NFS fileserver. NFS sharing could be enabled to allow someone on another computer to mount
-    shares and gain access to information from the user's computer.
+    macOS can act as an NFS fileserver. NFS sharing could be enabled to allow
+    someone on another computer to mount shares and gain access to information
+    from the user's computer. File sharing from a user endpoint has long been
+    considered questionable, and Apple has removed that capability from the GUI.
+    NFSD is still part of the Operating System and can be easily turned on to
+    export shares and provide remote connectivity to an end-user computer. The
+    etc/exports file contains the list of NFS shared directories. If the file
+    exists, it is likely that NFS sharing has been enabled in the past or may
+    be available periodically.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy the following script which will disable the NFS service
-    and its directory listing:
+    Ask your system administrator to deploy the following script which will
+    disable the NFS service and its directory listing:
     /usr/bin/sudo /bin/launchctl disable system/com.apple.nfsd
-    /usr/bin/sudo /bin/rm /etc/exports
+    /usr/bin/sudo /bin/rm -rf /etc/exports
+    Note: Removing /etc/exports also stops the NFS service if it was running.
   query: |
     SELECT 1 WHERE
     NOT EXISTS(SELECT 1 FROM processes WHERE path = '/sbin/nfsd')
@@ -2570,7 +2619,7 @@ spec:
     NOT EXISTS(SELECT 1 FROM file WHERE path = '/etc/exports');
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
+  contributors: lucasmrod, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -2717,31 +2766,50 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure No World Writable Files Exist in the Library Folder
+  name: CIS - Ensure No World Writable Folders Exist in the Library Folder (Fleetd required)
   platforms: macOS
   platform: darwin
   description: |
-    Software sometimes insists on being installed in the /System/Volumes/Data/Library Directory and has inappropriate world-writable permissions.  
-    Folders in /System/Volumes/Data/Library should not be world-writable. The audit check excludes the /System/Volumes/Data/Library/Caches and /System/Volumes/Data/Library/Preferences/Audio/Data folders where the sticky bit is set.
+    Software sometimes insists on being installed in the
+    /System/Volumes/Data/Library directory and has inappropriate world-writable
+    permissions. This software could be compromised with the folder(s) being
+    world-writable by unauthorized actions.
+    Folders in /System/Volumes/Data/Library should not be world-writable. The
+    audit check excludes folders where the sticky bit is set by Apple. These
+    folders are required by the operating system to run and should not be
+    modified. Some security vendors use a world-writable folder for their
+    security extension tool. This will be considered compliant due to the tools
+    themselves not allowing a user to write to their folders. This is against
+    the standard practice on POSIX systems. It is considered compliant here
+    because of additional security vendor controls that are controlled through
+    industry standard mitigations.
   resolution: |
-    Ask your system administrator to deploy a script that will ensure folders are not world-writable in the /System folder. 
+    Ask your system administrator to deploy a script that will ensure folders
+    are not world-writable in the /Library folder. 
     /usr/bin/sudo IFS=$'\n'
-    for libPermissions in $( /usr/bin/find /System/Volumes/Data/Library -type d -perm -2 | /usr/bin/grep -v Caches | /usr/bin/grep -v /Preferences/Audio/Data); 
-    do
+    for libPermissions in $(/usr/bin/find /Library -type d -perm -002 ! -perm -1000 ! -xattrname com.apple.rootless 2>/dev/null); do
       /bin/chmod -R o-w "$libPermissions"
     done
+    Note: Applications that are not following standard practices, and have
+    world-writable files in /System/Volumes/Data/Library may not launch or
+    operate correctly after the remediation has been run.
   query: |
     SELECT 1 WHERE NOT EXISTS (
-      SELECT 1 FROM find_cmd WHERE
-        directory = '/System/Volumes/Data/Library'
-        AND type = 'd'
-        AND perm = '-2'
-        AND path NOT LIKE '%Caches%'
-        AND path NOT LIKE '%/Preferences/Audio/Data%'
+      SELECT 1 FROM file f
+      WHERE 
+        f.path LIKE '/Library/%'
+        AND f.type = 'directory'
+        AND (CAST(SUBSTR(f.mode,-1) AS INTEGER) & 2) = 2
+        AND NOT ((CAST(f.mode AS INTEGER) & 01000) = 01000)
+        AND NOT EXISTS (
+          SELECT 1 FROM extended_attributes ea
+          WHERE ea.path = f.path
+          AND ea.key = 'com.apple.rootless'
+        )
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level2
-  contributors: sharon-fdm
+  contributors: getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -2774,9 +2842,7 @@ spec:
     A minimum password length is the fewest number of characters a password can contain to meet a system's requirements. Ensure that a minimum of a 15-character password is part of the password policy on the computer. Where the confidentiality of encrypted information in FileVault is more of a concern, requiring a longer password or passphrase may be sufficient rather than imposing additional complexity requirements that may be self-defeating.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy an MDM profile that disables Guest Account.
-    Profile Method:
-    Create or edit a configuration profile with the following information:
+    Ask your administrator to deploy a profile with the following configuration:
       1. The PayloadType string is com.apple.mobiledevice.passwordpolicy 
       2. The key to include is minLength
       3. The key must be set to <integer><value≥15></integer>
@@ -2901,21 +2967,35 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: CIS - Ensure Password History Is Configured (Fleetd Required)
+  name: CIS - Ensure password history is set to at least 24 (MDM required)
   platforms: macOS
   platform: darwin
   description: |
-    Over time, passwords can be captured by third parties through mistakes, phishing attacks, third-party breaches, or merely brute-force attacks. To reduce the risk of exposure and to decrease the incentives of password reuse (passwords that are not forced to be changed periodically generally are not ever changed), users must reset passwords periodically. This control ensures that previous passwords are not reused immediately by keeping a history of previous password hashes. Ensure that password history checks are part of the password policy on the computer. This control checks whether a new password is different than the previous 15. The latest NIST guidance based on exploit research referenced in this section details how one of the greatest risks is password exposure rather than password cracking. Passwords should be changed to a new unique value whenever a password might have been exposed to anyone other than the account holder. Attackers have maintained persistent control based on predictable password change patterns and substantially different patterns should be used in case of a leak.
+    Over time, passwords can be captured by third parties through mistakes,
+    phishing attacks, third-party breaches, or merely brute-force attacks. To
+    reduce the risk of exposure and to decrease the incentives of password reuse
+    (passwords that are not forced to be changed periodically generally are not
+    ever changed), users must reset passwords periodically. This control ensures
+    that previous passwords are not reused immediately by keeping a history of
+    previous password hashes. Ensure that password history checks are part of
+    the password policy on the computer. This control checks whether a new
+    password is different than the previous 24. The latest NIST guidance based
+    on exploit research referenced in this section details how one of the
+    greatest risks is password exposure rather than password cracking. Passwords
+    should be changed to a new unique value whenever a password might have been
+    exposed to anyone other than the account holder. Attackers have maintained
+    persistent control based on predictable password change patterns and
+    substantially different patterns should be used in case of a leak.
   resolution: |
-    Automated method:
-    Ask your system administrator to deploy an MDM profile with the following information:
-      1. The Payload Type string is com.apple.mobiledevice.passwordpolicy 
+    Profile method:
+    Ask your administrator to deploy a profile with the following configuration:
+      1. The Payload Type string is com.apple.mobiledevice.passwordpolicy
       2. The key to include is pinHistory
-      3. The key must be set to <integer><value≥15></integer>
-  query: SELECT 1 FROM  pwd_policy where history_depth >= 15;
+      3. The key must be set to <integer><value≥24></integer>
+  query: SELECT 1 FROM pwd_policy WHERE history_depth >= 24;
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: sharon-fdm
+  contributors: sharon-fdm, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -3057,12 +3137,21 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    Disabling the administrator's and/or user's ability to log into another user's active and locked session prevents
-    unauthorized persons from viewing potentially sensitive and/or personal information.
+    macOS has a privilege that can be granted to any user that will allow that
+    user to unlock active users' sessions. Disabling the administrator's and/or
+    user's ability to log into another user's active and locked session prevents
+    unauthorized persons from viewing potentially sensitive and/or personal
+    information.
+    Note: For organizations that are using Platform Single-Sign-On (PSSO), this
+    setting can cause issues with syncing with your PSSO. Verify if you are
+    using PSSO by running: /usr/bin/sudo app-sso platform -s
   resolution: |
     Automated method:
-    Ask your system administrator to deploy a script that runs the following:
-      /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver authenticate-session-owner
+    Ask your administrator to deploy a script that runs the following command:
+    /usr/bin/sudo /usr/bin/security authorizationdb write system.login.screensaver authenticate-session-owner
+    # Note: Running this command will disable Touch ID to unlock the screen
+    # saver. To re-enable Touch ID for users, run:
+    /usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.loginwindow screenUnlockMode -int 1
   query: |
     SELECT 1 WHERE EXISTS (
       SELECT JSON_EXTRACT(json_result, '$.rule') AS rule
@@ -3072,7 +3161,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: lucasmrod
+  contributors: lucasmrod, getvictor
 ---
 apiVersion: v1
 kind: policy
@@ -3124,14 +3213,20 @@ spec:
   platforms: macOS
   platform: darwin
   description: |
-    A filename extension is a suffix added to a base filename that indicates the base filename's
-    file format. Visible filename extensions allow the user to identify the file type and the
-    application it is associated with which leads to quick identification of misrepresented malicious files.
+    A filename extension is a suffix added to a base filename that indicates the
+    base filename's file format. This is intended for any user that logs into
+    the GUI and has a home folder and not for service accounts. For the audit,
+    we will continue to verify that every account with a home folder has
+    filename extensions enabled.
+    Visible filename extensions allow the user to identify the file type and the
+    application it is associated with which leads to quick identification of
+    misrepresented malicious files.
   resolution: |
     Automated method:
-    Ask your system administrator to deploy a script that will ensure Show All Filename Extensions Setting is Enabled
-        For each user run:
-        /usr/bin/sudo -u <username> /usr/bin/defaults write /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
+    Ask your administrator to deploy a script that runs the following command
+    for each user:
+    /usr/bin/sudo -u <username> /usr/bin/defaults write \
+    /Users/<username>/Library/Preferences/.GlobalPreferences.plist AppleShowAllExtensions -bool true
   query: |
     SELECT 1 WHERE NOT EXISTS (
       SELECT 1 FROM users AS u
@@ -3146,7 +3241,7 @@ spec:
     );
   purpose: Informational
   tags: compliance, CIS, CIS_Level1
-  contributors: artemist-work
+  contributors: artemist-work, getvictor
 ---
 apiVersion: v1
 kind: policy

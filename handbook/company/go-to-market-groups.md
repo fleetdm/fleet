@@ -28,12 +28,12 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 |:----------------------------------|:--------------------------|
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
-| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_
+| Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
@@ -69,7 +69,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
 | High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
+| Low (P3) | Questions or clarifications around features, documentation, deployments, or "how to's". | Standard email/chat support | 1-2 business days | 
 
 > **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
@@ -91,7 +91,7 @@ At Fleet, our GTM strategy consists of:
 
 ### Competition
 
-We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
+We track competitors' capabilities and adjacent (or commonly integrated) products in [Competition](https://docs.google.com/spreadsheets/d/1zwr59MpruIw4dsV-Qbk8xFbMrbHAV3qaRJDWM7-YrwU/edit?gid=611626809#gid=611626809) (private document).
 
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/680adba6-f5b7-4726-b2ea-73d0549a45eb">
 
@@ -132,7 +132,7 @@ Here are some topics for social media posts:
 
 > **Is there a post that you would like to see on the company page?**
 >
-> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Demand team will request permission to use the post in a promoted post.   
+> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Marketing team will request permission to use the post in a promoted post.   
 
 
 ##### Fleet on LinkedIn
@@ -156,7 +156,7 @@ It's important for Fleet to engage at [events](https://docs.google.com/spreadshe
 
 ##### Creating contacts in the wild
 
-Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM ASAP. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
+Often, Fleeties will engage with new contacts from current and future customers. These profiles are added to Fleet's CRM quickly. If you're at an event, whether it's a conference, dinner with a prospect, training event, or any other in-person meeting. Fleeties can use the [#help-create-contact Slack channel](https://fleetdm.slack.com/archives/C091MLXQKQV) to collect information and get the person [added to Fleet's CRM quickly](https://fleetdm.com/handbook/marketing#monitor-the-help-create-contact-channel). To do this:
 1. Locate the [help-create-contact](https://fleetdm.slack.com/archives/C091MLXQKQV) channel in Fleet Slack.
 2. Add the person's full name and any other details that can help the team identify the correct person. E.g.:
   - LinkedIn profile URL (this is the best option)
@@ -223,7 +223,7 @@ You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts,
 
 ### Getting a contract reviewed
 
-The [Digital Experience team](https://fleetdm.com/handbook/it-and-enablement#team) will review all contracts within **2 business days**. 
+The [Finance team](https://fleetdm.com/handbook/finance#team) will review all contracts within **2 business days**. 
 
 > If a document is ready for signature and does not need to be reviewed or negotiated, you can skip the review process and [get the contract signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed). Please submit other legal questions and requests to 💸 [Finance](https://fleetdm.com/handbook/finance#contact-us).
 

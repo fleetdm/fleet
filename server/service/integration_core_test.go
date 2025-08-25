@@ -2970,11 +2970,11 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hosts := s.createHosts(t, "linux")
 	host := hosts[0]
 
-	stalePolicyCount, staleIssuesCount, freshPolicyCount, freshIssueCount := uint64(50), uint64(500), uint64(0), uint64(0)
+	staleIssuesCount, freshIssueCount := uint64(500), uint64(0)
 	// create host_issues for it with stale data
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx,
-			`INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count) VALUES (?, ?, ?)`, host.ID, stalePolicyCount, staleIssuesCount)
+			`INSERT INTO host_issues (host_id, total_issues_count) VALUES (?, ?)`, host.ID, staleIssuesCount)
 		return err
 	})
 
@@ -2982,7 +2982,6 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	hostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
 
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, stalePolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, staleIssuesCount)
 
 	// set updated_at to longer than minute ago
@@ -2993,7 +2992,6 @@ func (s *integrationTestSuite) TestHostDetailsUpdatesStaleHostIssues() {
 	})
 	// hit endpoint: should have been updated this time
 	s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hostResp)
-	require.Equal(t, hostResp.Host.HostIssues.FailingPoliciesCount, freshPolicyCount)
 	require.Equal(t, hostResp.Host.HostIssues.TotalIssuesCount, freshIssueCount)
 }
 
@@ -8952,7 +8950,7 @@ func (s *integrationTestSuite) TestGetHostSoftwareUpdatedAt() {
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp, "exclude_software", "true")
 	require.Equal(t, host.ID, getHostResp.Host.ID)
-	require.Empty(t, getHostResp.Host.Software)
+	require.NotNil(t, getHostResp.Host.Software)
 	require.Greater(t, getHostResp.Host.SoftwareUpdatedAt, getHostResp.Host.CreatedAt)
 
 	getHostResp = getHostResponse{}
@@ -10796,7 +10794,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		App: config.AppConfig{
 			EnableScheduledQueryStats: true,
 		},
-	}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
@@ -10951,7 +10949,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithLongFields() {
 			"installed_path": "C:\\Program Files\\Wireshark",
 		},
 	}
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -11087,7 +11085,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w1 bytes.Buffer
 	logger1 := log.NewJSONLogger(&w1)
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger1,
@@ -11122,7 +11120,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 			"last_opened_at": "foobar",
 		},
 	}
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	var w2 bytes.Buffer
 	logger2 := log.NewJSONLogger(&w2)
 	err = detailQueries["software_windows"].DirectIngestFunc(
@@ -11162,7 +11160,7 @@ func (s *integrationTestSuite) TestDirectIngestSoftwareWithInvalidFields() {
 	}
 	var w3 bytes.Buffer
 	logger3 := log.NewJSONLogger(&w3)
-	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{})
+	detailQueries = osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
 	err = detailQueries["software_windows"].DirectIngestFunc(
 		context.Background(),
 		logger3,
@@ -13327,7 +13325,7 @@ func (s *integrationTestSuite) TestHostSoftwareWithTeamIdentifier() {
 	require.Nil(t, getHostSoftwareResp.Software[2].InstalledVersions[0].SignatureInformation)
 }
 
-func (s *integrationTestSuite) TestSecretVariables() {
+func (s *integrationTestSuite) TestSecretVariablesGitOps() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -13343,12 +13341,12 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	s.setTokenForTest(t, "gitops1@example.com", test.GoodPassword)
 
 	// Empty request
-	req := secretVariablesRequest{}
-	var resp secretVariablesResponse
+	req := createSecretVariablesRequest{}
+	var resp createSecretVariablesResponse
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &resp)
 
 	// Secret variable name too long
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  strings.Repeat("a", 256),
@@ -13360,7 +13358,7 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	assertBodyContains(t, httpResp, "secret variable name is too long")
 
 	// Secret variable name empty
-	req = secretVariablesRequest{
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "  ",
@@ -13371,8 +13369,8 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	httpResp = s.Do("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusUnprocessableEntity)
 	assertBodyContains(t, httpResp, "secret variable name cannot be empty")
 
-	validName := strings.Repeat("g", 255)
-	req = secretVariablesRequest{
+	validName := strings.Repeat("G", 255)
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_" + validName,
@@ -13395,6 +13393,268 @@ func (s *integrationTestSuite) TestSecretVariables() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 	assert.Equal(t, "value", secrets[0].Value)
+}
+
+func (s *integrationTestSuite) TestSecretVariables() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusOK, &csvr)
+	firstVariableID := csvr.ID
+	require.NotZero(t, firstVariableID)
+
+	// List (no-filtering).
+	var lsvr listSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	require.Equal(t, lsvr.Count, 1)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.NotZero(t, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+
+	// Make sure we can access the value internally.
+	secretVariables, err := s.ds.GetSecretVariables(ctx, []string{"NAME1"})
+	require.NoError(t, err)
+	require.Len(t, secretVariables, 1)
+	require.Equal(t, "NAME1", secretVariables[0].Name)
+	require.Equal(t, "value1", secretVariables[0].Value)
+	require.NotZero(t, secretVariables[0].UpdatedAt)
+
+	// Creating the same variable should fail with conflict.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusConflict, &csvr)
+
+	// Creating a variable with invalid name should fail with 422.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "lowercase",
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "",
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  strings.Repeat("HA ", 255/3+1),
+		Value: "foobar",
+	}, http.StatusUnprocessableEntity, &csvr)
+	// No server private key configured, should fail with 400.
+	testSetEmptyPrivateKey = true
+	defer func() {
+		testSetEmptyPrivateKey = false
+	}()
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME2",
+		Value: "foobar",
+	}, http.StatusBadRequest, &csvr)
+
+	testSetEmptyPrivateKey = false
+
+	// Creating a variable with empty value should fail with 422.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "ANOTHER_NAME",
+		Value: "",
+	}, http.StatusUnprocessableEntity, &csvr)
+
+	// Creating a second variable.
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "ANOTHER_NAME",
+		Value: "value2",
+	}, http.StatusOK, &csvr)
+	secondVariableID := csvr.ID
+	require.NotZero(t, secondVariableID)
+
+	// List (no-filtering) with pagination (first page).
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "0")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.False(t, lsvr.Meta.HasPreviousResults)
+	require.True(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	// List (no-filtering) with pagination (second page).
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "1", "page", "1")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.True(t, lsvr.Meta.HasPreviousResults)
+	require.False(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.Equal(t, firstVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	// List (no-filtering) with pagination (one page, two secrets).
+	// Must be ordered alphabetically.
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr, "per_page", "20", "page", "0")
+	require.Equal(t, 2, lsvr.Count)
+	require.NotNil(t, lsvr.Meta)
+	require.False(t, lsvr.Meta.HasPreviousResults)
+	require.False(t, lsvr.Meta.HasNextResults)
+	require.Len(t, lsvr.CustomVariables, 2)
+	require.Equal(t, secondVariableID, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "ANOTHER_NAME", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
+	require.Equal(t, firstVariableID, lsvr.CustomVariables[1].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[1].Name)
+	require.NotZero(t, lsvr.CustomVariables[1].UpdatedAt)
+
+	// Test deletion of non-existent ID
+	var dsvr deleteSecretVariableResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/custom_variables/999", nil, http.StatusNotFound, &dsvr)
+
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", secondVariableID), nil, http.StatusOK, &dsvr)
+
+	// List after deletions should be empty.
+	lsvr = listSecretVariablesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", nil, http.StatusOK, &lsvr)
+	require.Equal(t, 0, lsvr.Count)
+	require.Empty(t, lsvr.CustomVariables)
+}
+
+func (s *integrationTestSuite) TestSecretVariablesInUse() {
+	t := s.T()
+	ctx := context.Background()
+
+	foobarTeam, err := s.ds.NewTeam(ctx, &fleet.Team{
+		Name: "Foobar",
+	})
+	require.NoError(t, err)
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "value1",
+	}, http.StatusOK, &csvr)
+	firstVariableID := csvr.ID
+	require.NotZero(t, firstVariableID)
+
+	// Create Apple configuration profile in "No team" that uses the variable.
+	appleProfile, err := s.ds.NewMDMAppleConfigProfile(ctx,
+		fleet.MDMAppleConfigProfile{
+			Name:         "Name0",
+			Identifier:   "Identifier0",
+			Mobileconfig: []byte("$FLEET_SECRET_NAME1"),
+		},
+		nil,
+	)
+	require.NoError(t, err)
+
+	res := s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg := extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"Name0\" configuration profile in the \"No team\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMAppleConfigProfile(ctx, appleProfile.ProfileUUID)
+	require.NoError(t, err)
+
+	// Create Apple declaration in "Foobar" team that uses the variable.
+	appleDeclaration, err := s.ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: "decl-1",
+		Name:       "decl-1",
+		RawJSON:    json.RawMessage(`{"Identifier": "${FLEET_SECRET_NAME1}"}`),
+		TeamID:     &foobarTeam.ID,
+	})
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"decl-1\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMAppleDeclaration(ctx, appleDeclaration.DeclarationUUID)
+	require.NoError(t, err)
+
+	// Create Windows profile in "Foobar" team that uses the variable.
+	windowsProfile, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "zoo",
+		TeamID: &foobarTeam.ID,
+		SyncML: []byte("<Replace>$FLEET_SECRET_NAME1</Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"zoo\" configuration profile in the \"Foobar\" team. Please delete the configuration profile and try again.",
+	)
+
+	err = s.ds.DeleteMDMWindowsConfigProfile(ctx, windowsProfile.ProfileUUID)
+	require.NoError(t, err)
+
+	// Create a script in "No team" that uses a variable
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		Name:           "foobar.sh",
+		ScriptContents: "echo $FLEET_SECRET_NAME1",
+	})
+	require.NoError(t, err)
+
+	res = s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusConflict)
+	errorMsg = extractServerErrorText(res.Body)
+	require.Contains(t,
+		errorMsg,
+		"Couldn't delete. NAME1 is used by the \"foobar.sh\" script in the \"No team\" team. Please edit or delete the script and try again.",
+	)
+
+	err = s.ds.DeleteScript(ctx, script.ID)
+	require.NoError(t, err)
+
+	// Finally, delete now should work.
+	var dsvr deleteSecretVariableResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/custom_variables/%d", firstVariableID), nil, http.StatusOK, &dsvr)
+}
+
+func (s *integrationTestSuite) TestSecretVariablesPermissions() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a single secret variable.
+	var csvr createSecretVariableResponse
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "foobar",
+	}, http.StatusOK, &csvr)
+
+	// Create a global observer user which should be allowed to read but not create secret variables.
+	u := &fleet.User{
+		Name:       "Observer",
+		Email:      "observer@example.com",
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(ctx, u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, "observer@example.com", test.GoodPassword)
+
+	s.DoJSON("POST", "/api/latest/fleet/custom_variables", createSecretVariableRequest{
+		Name:  "NAME1",
+		Value: "foobar",
+	}, http.StatusForbidden, &csvr)
+
+	// List (no-filtering) should work for non-admins.
+	var lsvr listSecretVariablesResponse
+	s.DoJSON("GET", "/api/latest/fleet/custom_variables", listSecretVariablesRequest{}, http.StatusOK, &lsvr)
+	require.Equal(t, lsvr.Count, 1)
+	require.Len(t, lsvr.CustomVariables, 1)
+	require.NotZero(t, lsvr.CustomVariables[0].ID)
+	require.Equal(t, "NAME1", lsvr.CustomVariables[0].Name)
+	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 }
 
 func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
@@ -13453,6 +13713,50 @@ func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 	require.Equal(t, len(hostIDs), countResp.Count)
 }
 
+func (s *integrationTestSuite) TestAndroidHostStorageInAPI() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Android host with storage data
+	hostID := createAndroidHostWithStorage(t, s.ds, nil)
+
+	// individual host endpoint
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+
+	require.NotNil(t, hostResp.Host)
+	require.Equal(t, "android", hostResp.Host.Platform)
+
+	// storage data is present in API response
+	assert.Equal(t, 128.0, hostResp.Host.GigsTotalDiskSpace, "API should return total disk space")
+	assert.Equal(t, 35.0, hostResp.Host.GigsDiskSpaceAvailable, "API should return available disk space")
+	assert.InDelta(t, 27.34, hostResp.Host.PercentDiskSpaceAvailable, 0.1, "API should return disk space percentage")
+
+	// list endpoint includes storage data
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+
+	var androidHost *fleet.HostResponse
+	for _, host := range listResp.Hosts {
+		if host.ID == hostID {
+			androidHost = &host
+			break
+		}
+	}
+
+	require.NotNil(t, androidHost, "Android host should be in hosts list")
+	require.Equal(t, "android", androidHost.Platform)
+
+	// storage data in list endpoint
+	assert.Equal(t, 128.0, androidHost.GigsTotalDiskSpace, "Host list should include total disk space")
+	assert.Equal(t, 35.0, androidHost.GigsDiskSpaceAvailable, "Host list should include available disk space")
+	assert.InDelta(t, 27.34, androidHost.PercentDiskSpaceAvailable, 0.1, "Host list should include disk space percentage")
+
+	// clean up
+	err := s.ds.DeleteHost(ctx, hostID)
+	require.NoError(t, err)
+}
+
 func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
 	ids := make([]uint, 0, count)
 	for i := range count {
@@ -13480,6 +13784,34 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 		ids = append(ids, ahost.Host.ID)
 	}
 	return ids
+}
+
+func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:                  "android-storage-host",
+			ComputerName:              "Android Storage Test Device",
+			Platform:                  "android",
+			OSVersion:                 "Android 14",
+			Build:                     "UPB4.230623.005",
+			Memory:                    8192, // 8GB RAM
+			TeamID:                    teamID,
+			HardwareSerial:            "STORAGE-TEST-" + uuid.NewString(),
+			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
+			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
+			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(uuid.NewString()),
+			AndroidPolicyID:      ptr.Uint(1),
+			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
+		},
+	}
+	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
+	ahost, err := ds.NewAndroidHost(context.Background(), host)
+	require.NoError(t, err)
+	return ahost.Host.ID
 }
 
 func (s *integrationTestSuite) TestHostCertificates() {

@@ -48,7 +48,7 @@ module.exports = {
 
 
       // Deprovison this tenant
-      await sails.helpers.http.sendHttpRequest.with({
+      let deprovisionTenantResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
         url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')?api-version=1.6`,
         headers: {
@@ -62,6 +62,10 @@ module.exports = {
       }).intercept((err)=>{
         return new Error({error: `an error occurred when deprovisioning a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
       });
+      // Log responses from Micrsoft APIs for Fleet's integration
+      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+        sails.log.info(`Microsoft proxy: remove-one-compliance-partner-tenant deprovisioned a tenant: ${deprovisionTenantResponse.body}`);
+      }
     }
 
     await MicrosoftComplianceTenant.destroyOne({id: informationAboutThisTenant.id});

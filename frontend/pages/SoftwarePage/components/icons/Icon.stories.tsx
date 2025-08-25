@@ -1,7 +1,8 @@
 import React from "react";
 import { Meta, StoryObj } from "@storybook/react";
 import { ISoftware } from "interfaces/software";
-import getMatchedSoftwareIcon, {
+import {
+  getMatchedSoftwareIcon,
   SOFTWARE_NAME_TO_ICON_MAP,
   SOFTWARE_SOURCE_TO_ICON_MAP,
 } from ".";
@@ -11,7 +12,7 @@ type IconWrapperProps = Pick<ISoftware, "name" | "source"> & {
   selection?: string;
 };
 
-const IconWrapper: React.FC<IconWrapperProps> = ({ selection, ...props }) => {
+const IconWrapper: React.FC<IconWrapperProps> = ({ ...props }) => {
   const Icon = getMatchedSoftwareIcon(props);
   return <Icon />;
 };

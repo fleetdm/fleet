@@ -1,4 +1,5 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, parseISO } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
 
 /** Utility to create a string from a date in this format:
   `Uploaded .... ago`
@@ -30,5 +31,5 @@ export const dateAgo = (date: string | Date) => {
  * @example "January 01, 2024"
  */
 export const monthDayYearFormat = (date: string) => {
-  return format(date, "MMMM d, yyyy");
+  return formatInTimeZone(parseISO(date), "UTC", "MMMM d, yyyy");
 };

@@ -406,6 +406,8 @@ Gets the current SSO configuration.
 
 `POST /api/v1/fleet/sso`
 
+A successful response contains an HTTP cookie `__Host-FLEETSSOSESSIONID` that needs to be sent on the `POST /api/v1/fleet/sso/callback` request (this HTTP cookie is used to identify the SSO login session).
+
 #### Parameters
 
 | Name      | Type   | In   | Description                                                                 |
@@ -427,6 +429,11 @@ Gets the current SSO configuration.
 ##### Default response
 
 `Status: 200`
+
+Example response cookie in the HTTP `Set-Cookie` header:
+```
+Set-Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT; Path=/; Max-Age=300; HttpOnly; Secure
+```
 
 ##### Unknown error
 
@@ -450,11 +457,15 @@ This is the callback endpoint that the identity provider will use to send securi
 
 `POST /api/v1/fleet/sso/callback`
 
+The `__Host-FLEETSSOSESSIONID` HTTP cookie must be set for non-IdP initiated SSO login requests. The value for this cookie is returned in the `POST /api/v1/fleet/sso` request.
+For IdP-initiated SSO logins the cookie doesn't need to be set.
+
 #### Parameters
 
-| Name         | Type   | In   | Description                                                 |
-| ------------ | ------ | ---- | ----------------------------------------------------------- |
-| SAMLResponse | string | body | **Required**. The SAML response from the identity provider. |
+| Name                     | Type   | In     | Description                                                                                                         |
+| ------------------------ | ------ | ------ | ------------------------------------------------------------------------------------------------------------------- |
+| SAMLResponse             | string | body   | **Required**. The SAML response from the identity provider.                                                         |
+| __Host-FLEETSSOSESSIONID | string | cookie | HTTP Cookie returned in the `POST /api/v1/fleet/sso` request. This is not set/required for IdP initiated SSO logins |
 
 #### Example
 
@@ -466,6 +477,11 @@ This is the callback endpoint that the identity provider will use to send securi
 {
   "SAMLResponse": "<SAML response from IdP>"
 }
+```
+
+Example session cookie set in the `Cookie` request header:
+```
+Cookie: __Host-FLEETSSOSESSIONID=slI727JZ+j0FvyBRLyD/gri1rxtwpaZT
 ```
 
 ##### Default response
@@ -489,8 +505,12 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 |:--------------- |:------- |:----- |:------------------------------------------------------------|
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| query | string | query | Search query keywords. Searchable fields include `user_name` and `user_email`.
+| activity_type | string | query | Indicates the activity `type` to filter by. See available activity types on the [Audit logs page](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
+| start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
+| end_created_at | string | query | Filters to include only activities that happened before this date. If not specified, set to now.
 
 #### Example
 
@@ -3865,10 +3885,11 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 {
   "counts_updated_at": "2021-03-21T12:32:44Z",
   "mobile_device_management_enrollment_status": {
-    "enrolled_manual_hosts_count": 0,
-    "enrolled_automated_hosts_count": 2,
+    "enrolled_manual_hosts_count": 10,
+    "enrolled_automated_hosts_count": 200,
+    "enrolled_personal_hosts_count": 30,
     "unenrolled_hosts_count": 0,
-    "hosts_count": 2
+    "hosts_count": 240
   },
   "mobile_device_management_solution": [
     {
@@ -4054,6 +4075,8 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |
+
+On macOS hosts, `last_opened_at` represents the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. On Windows and Linux hosts, it represents the last open time of any version.
 
 #### Example
 
@@ -4844,11 +4867,20 @@ Add a dynamic or manual label.
 | name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
 | query       | string | body | The query in SQL syntax used to filter the hosts. Only one of either `query` (to create a dynamic label) or `hosts` (to create a manual label) can be included in the request.  |
+| criteria    | object | body | Criteria for adding hosts to a host vitals label. See [`criteria`](#criteria) for details. |
 | hosts       | array | body | The list of host identifiers (`hardware_serial`, `uuid`, or `hostname`) the label will apply to. Only one of either `query` (to create a dynamic label), `hosts` (to create a manual label), or `host_ids` (to create a manual label)  can be included in the request. |
-| host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request.
+| host_ids    | array | body | The list of Fleet host IDs the label will apply to.  Only one of either `query` (to create a dynamic label) or `hosts`/`host_ids` (to create a manual label)  can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
-If both `query` and `hosts` aren't specified, a manual label with no hosts will be created.
+If `query`, `criteria`, and `hosts` aren't specified, a manual label with no hosts will be created.
+
+#### criteria
+
+| Name        | Type   | Description                                                                                                                                                                                                                                  |
+| ----------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| vital       | string | The type of host vital to use when creating a host vital label. Can be `"end_user_idp_group"` or `"end_user_idp_department"`. |
+| value       | string | Hosts with vital data matching this value will be added to the label. |
+
 
 #### Example
 
@@ -6330,7 +6362,7 @@ List software that can or will be automatically installed during macOS setup. If
       "id": 12,
       "name": "Firefox.app",
       "software_package": {
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "platform": "darwin",
         "version": "125.6",
         "self_service": true,
@@ -6555,11 +6587,11 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived docuemntation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. [[Archived documentation](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results) is available for the deprecated endpoint.
 
 This endpoint returns the results for a specific custom MDM command.
 
-In the reponse, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
+In the response, the possible `status` values for macOS, iOS, and iPadOS hosts are the following:
 
 * Pending: the command has yet to run on the host. The host will run the command the next time it comes online.
 * NotNow: the host responded with "NotNow" status via the MDM protocol: the host received the command, but couldn’t execute it. The host will try to run the command the next time it comes online.
@@ -7954,7 +7986,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -7963,7 +7995,7 @@ Returns the query report specified by ID.
       "host_name": "bar",
       "last_fetched": "2021-01-19T17:20:00Z",
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     },
@@ -8034,7 +8066,7 @@ Returns a query report for a single host.
     },
     {
       "columns": {
-        "model": "USB Reciever",
+        "model": "USB Receiver",
         "vendor": "Logitech"
       }
     }
@@ -8622,7 +8654,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 | id              | integer | path  | **Required**. The team's ID.                                                                                                  |
 | page            | integer | query | Page number of the results to fetch.                                                                                          |
 | per_page        | integer | query | Results per page.                                                                                                             |
-| order_key       | string  | query | What to order results by. Can be any column in the `activites` table.                                                         |
+| order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
 
 #### Example
@@ -8998,14 +9030,6 @@ Get statuses and host counts for a batch-run script.
 #### Example
 
 `GET /api/v1/fleet/scripts/batch/summary/abc-def`
-
-##### Request body
-
-```json
-{
-  "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
 
 ##### Default response
 
@@ -9428,7 +9452,7 @@ Get a list of all software.
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
-        "name": "FirefoxInsall.pkg",
+        "name": "FirefoxInstall.pkg",
         "version": "125.6",
         "self_service": true,
         "automatic_install_policies": [
@@ -9851,7 +9875,6 @@ Returns information about the specified software version.
 {
   "software": {
     "id": 425224,
-    "software_title_id": 1337,
     "name": "Firefox.app",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",

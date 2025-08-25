@@ -3,8 +3,9 @@ package microsoft_mdm
 import (
 	"bytes"
 	"errors"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"text/template"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const (
@@ -13,7 +14,7 @@ const (
 	PolicyOptDropdownOptional
 )
 
-var systemDrRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs(map[string]any{
+var systemDriveRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs(map[string]any{
 	"derefBool": func(val *bool) bool {
 		return val != nil && *val
 	}, "derefUint": func(val *uint) uint {
@@ -24,9 +25,9 @@ var systemDrRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs(ma
 		return *val
 	}}).Parse(`
 <Atomic>
-	<CmdID>{{ .CmdUUID }}-1</CmdID>
+	<CmdID>{{ .CmdUUID }}</CmdID>
 	<Replace>
-		<CmdID>{{ .CmdUUID }}-2</CmdID>
+		<CmdID>{{ .CmdUUID }}-1</CmdID>
 		<Item>
 			<Meta>
 			  <Format>chr</Format>
@@ -54,9 +55,9 @@ var systemDrRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs(ma
 </Atomic>`,
 ))
 
-// SystemDrRequiresStartupAuthSpec specification for the SystemDrivesRequireStartupAuthentication command.
+// SystemDriveRequiresStartupAuthSpec specification for the SystemDrivesRequireStartupAuthentication command.
 // uint values must be one of the PolicyOptDropdown* variants
-type SystemDrRequiresStartupAuthSpec struct {
+type SystemDriveRequiresStartupAuthSpec struct {
 	CmdUUID string
 	// Enabled specifies whether the 'Require additional authentication at startup'
 	// policy setting should be enabled or not.
@@ -73,7 +74,7 @@ type SystemDrRequiresStartupAuthSpec struct {
 	ConfigureTPM *uint
 }
 
-func (spec SystemDrRequiresStartupAuthSpec) validate() error {
+func (spec SystemDriveRequiresStartupAuthSpec) validate() error {
 	if spec.CmdUUID == "" {
 		return errors.New("cmdUUID is required")
 	}
@@ -109,16 +110,16 @@ func (spec SystemDrRequiresStartupAuthSpec) validate() error {
 	return nil
 }
 
-// SystemDrRequiresStartupAuthCmd turns a SystemDrRequiresStartupAuthSpec into a
+// SystemDriveRequiresStartupAuthCmd turns a SystemDrRequiresStartupAuthSpec into a
 // https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp#systemdrivesrequirestartupauthentication
 // CMD.
-func SystemDrRequiresStartupAuthCmd(spec SystemDrRequiresStartupAuthSpec) (*fleet.MDMWindowsCommand, error) {
+func SystemDriveRequiresStartupAuthCmd(spec SystemDriveRequiresStartupAuthSpec) (*fleet.MDMWindowsCommand, error) {
 	if err := spec.validate(); err != nil {
 		return nil, err
 	}
 
 	var contents bytes.Buffer
-	if err := systemDrRequiresStartupAuthTmpl.Execute(&contents, spec); err != nil {
+	if err := systemDriveRequiresStartupAuthTmpl.Execute(&contents, spec); err != nil {
 		return nil, errors.New("failed to execute SystemDrRequiresStartupAuthCmd template")
 	}
 
