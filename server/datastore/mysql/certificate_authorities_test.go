@@ -320,6 +320,8 @@ func testDeleteCertificateAuthority(t *testing.T, ds *Datastore) {
 
 	ca, err = ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
 		Type: string(fleet.CATypeHydrant),
+		Name: ptr.String("Hydrant CA"),
+		URL:  ptr.String("https://localhost"),
 	})
 	require.NoError(t, err)
 	require.NotNil(t, ca)
