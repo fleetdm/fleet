@@ -136,7 +136,7 @@ jobs:
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
-      attest: "true"
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop.exe
     secrets:
@@ -182,7 +182,7 @@ jobs:
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:
-      attest: "true"
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop-arm64.exe
       download_name: unsigned-windows-arm64
