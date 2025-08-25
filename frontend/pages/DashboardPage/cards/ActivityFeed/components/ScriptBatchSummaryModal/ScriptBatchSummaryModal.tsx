@@ -119,12 +119,7 @@ incompatible or cancelled."
 
       try {
         await scriptsAPI.cancelScriptBatch(batchExecutionId);
-        renderFlash(
-          "success",
-          <span className={`${baseClass}__success-message`}>
-            <span>Successfully canceled script.</span>
-          </span>
-        );
+        renderFlash("success", "Successfully canceled script.");
         setShowCancelModal(false);
         onCancel();
       } catch (error) {
