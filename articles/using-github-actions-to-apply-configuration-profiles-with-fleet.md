@@ -1,6 +1,6 @@
 # Using GitHub Actions to apply configuration profiles with Fleet
 
-![Using GitHub Actions to apply configuration profiles with Fleet](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet@2x.jpg)
+![Using GitHub Actions to apply configuration profiles with Fleet](../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet-1600x900@2x.jpg)
 
 In the ever-evolving realm of software management, automated workflows are an essential tool in maintaining system efficiency and security. At the heart of this drive towards automation is GitHub Actions, a powerful platform that enables developers to automate, customize, and execute software development workflows directly in their repositories. In this blog post, we focus on utilizing GitHub Actions with Fleet to apply the latest configuration profiles from your repository.
 
@@ -167,5 +167,5 @@ With this in place, you need to trigger your GitHub action by adding configurati
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2023-05-31">
-<meta name="articleImageUrl" value="../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet@2x.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/using-github-actions-to-apply-configuration-profiles-with-fleet-1600x900@2x.jpg">
 <meta name="description" value="A guide on using GitHub Actions with Fleet for efficient and automated application of the latest configuration profiles for a GitOps workflow.">

@@ -18,8 +18,8 @@ Starting in version v4.58.0, Fleet supports running scripts to remediate failing
 Following are screenshots of the end-user experience when Fleet runs the script to install the extension (GNOME requires a prompt for installation of extensions for security purposes).
 
 <p float="left">
-  <img src="../website/assets/images/fedora_38_appindicator_extension_prompt.png" title="Fedora 38" width="300" />
-  <img src="../website/assets/images/debian_12_appindicator_extension_prompt.png" title="Debian 12" width="300" /> 
+  <img src="../website/assets/images/articles/fedora_38_appindicator_extension_prompt-326x434@2x.png" title="Fedora 38" width="300" />
+  <img src="../website/assets/images/articles/debian_12_appindicator_extension_prompt-326x434@2x.png" title="Debian 12" width="300" /> 
 </p>
 
 > If the end-user hits `Cancel` instead of `Install` then the extension won't be installed and the policy will continue to fail on the host. Fleet only deploys the script on the first failure of the policy, so the end-user won't be prompted again and again, just once. Admins can still run the script on such hosts manually.
@@ -29,8 +29,8 @@ Following are screenshots of the end-user experience when Fleet runs the script 
 After the extension is installed your users will see the Fleet icon on their menu bar:
 
 <p float="left">
-  <img src="../website/assets/images/fedora_38_fleet_desktop_tray.png" title="Fedora 38" width="300" />
-  <img src="../website/assets/images/debian_12_fleet_desktop_tray.png" title="Debian 12" width="300" /> 
+  <img src="../website/assets/images/articles/fedora_38_fleet_desktop_tray-159x59@2x.png" title="Fedora 38" width="300" />
+  <img src="../website/assets/images/articles/debian_12_fleet_desktop_tray-159x59@2x.png" title="Debian 12" width="300" /> 
 </p>
 
 <meta name="authorGitHubUsername" value="lucasmrod">

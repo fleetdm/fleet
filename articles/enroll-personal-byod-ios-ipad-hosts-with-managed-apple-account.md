@@ -1,6 +1,6 @@
 # Account-driven User Enrollment for personal Apple devices (BYOD)
 
-![Apple Account-driven User Enrollment (BYOD)](../website/assets/images/articles/apple-account-driven-user-enrollment.png)
+![Apple Account-driven User Enrollment (BYOD)](../website/assets/images/articles/apple-account-driven-user-enrollment-800x400@2x.png)
 
 _Available in Fleet Premium._
 

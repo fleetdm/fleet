@@ -1,6 +1,6 @@
 Deploying Windows configurations profiles (aka Configuration Service Providers (CSPs)) for Windows devices can feel daunting, especially if you're new to the process or accustomed to ClickOps and other UI-driven approaches. The scarcity of straightforward documentation and guides can make it feel like you're venturing into a configuration rabbit hole.
 
-![Rabbit Hole](../website/assets/images/articles/down-the-rabbit-hole.png)
+![Rabbit Hole](../website/assets/images/articles/down-the-rabbit-hole-452x304@2x.png)
 
 This guide will help you understand the building blocks to crafting CSPs of varying complexity – from simple payloads to more complex ones that involve modification of ADMX underpinnings.
 
@@ -29,12 +29,12 @@ Windows maps the name and category path of a Group Policy to an MDM policy by pa
 
 Unfortunately, to capture handling of ADMX the admin building the policies must use a UI, such as the Group Policy Editor, to gather the necessary data. For this example, we will use the ```WindowsPowerShell``` which controls PowerShell settings and is an ADMX-backed policy. [This](https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowspowershell) is the official documentation that we will work from if you want to follow along. Notice this banner that indicates the ADMX requirement:
 
-![ADMX Tool Tip](../website/assets/images/articles/admx-tool-tip.png)
+![ADMX Tool Tip](../website/assets/images/articles/admx-tool-tip-672x230@2x.png)
 
 
 In the Windows documentation, you will notice a section called ADMX Mapping:
 
-![ADMX Mapping](../website/assets/images/articles/admx-mapping.png)
+![ADMX Mapping](../website/assets/images/articles/admx-mapping-618x293@2x.png)
 
 Pay attention to the line **ADMX File Name**, which will show you the name of the .admx file you need to open to help craft your CSP. All ADMX files are located at:
 ```C:\Windows\PolicyDefinitions\{ADMXFileName.admx}```
@@ -66,7 +66,7 @@ Values can take one of the following types:
 At this point in the build we know the ADMX keys for this specific policy, which values those keys accept, and now to translate that into a CSP that Fleet can interpret.
 You can also see in the group policy editor the values that are being modified by the profile.
 
-![GPEDIT](../website/assets/images/articles/gpedit-example.png)
+![GPEDIT](../website/assets/images/articles/gpedit-example-240x79@2x.png)
 
 In this example, we will modify the ExecutionPolicy value, which in group policy editor translates to “Turn on Script Execution”, the XML from the .admx looks like such:
 
@@ -222,7 +222,7 @@ Applications and Service Logs > Microsoft > Windows > DeviceManagement-Enterpris
 
 The `Admin` logs will show you all profiles that have been pushed to the device and their status. It helps to use the `Find` function to look for keywords in your profile to narrow your search. Here is an example of the logs that show when the CSP we created here was deployed.
 
-![Windows Event Logs](../website/assets/images/articles/windows-event-log.png)
+![Windows Event Logs](../website/assets/images/articles/windows-event-log-314x222@2x.png)
 
 Alternatively, you can use this PowerShell one-liner to see errors from the MDM event log:
 

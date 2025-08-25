@@ -25,7 +25,7 @@ Fleet Desktop is currently in beta. Check out the remaining work to bring Fleet 
 ## Scope transparency with Fleet Desktop on macOS, Windows, and Linux
 **Available in Fleet Free & Fleet Premium**
 
-![Scope transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/fleet-4.15.0-2-1200x674.gif)
+![Scope transparency with Fleet Desktop on macOS, Windows, and Linux](../website/assets/images/articles/fleet-4.15.0-2-600x337@2x.gif)
 
 Fleet Desktop also allows end-users to see what information about their laptop or workstation, is accessible to their organization.
 

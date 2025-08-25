@@ -55,7 +55,7 @@ Configuration:
 
 > Available in Fleet Premium
 
-![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog.png)
+![Fleet's MDM migration dialog](../website/assets/images/articles/mdm-migration-dialog-494x327@2x.png)
 
 End user experience:
 
