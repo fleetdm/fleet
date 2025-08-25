@@ -4373,6 +4373,9 @@ type cmdTarget struct {
 // delivered to the device-channel.
 const hoursToWaitForUserEnrollmentAfterDeviceEnrollment = 2
 
+// ! TEMPORARY COUNTER
+var TIMES_TRIGGERED = 0
+
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -4413,8 +4416,22 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "getting profiles to install")
 	}
 
+	filteredToInstall := toInstall
+	if TIMES_TRIGGERED < 4 && len(toInstall) > 0 { // WE check count to avoid incrementing if we have no pending host (or profile changes.)
+		filteredToInstall = []*fleet.MDMAppleProfilePayload{}
+		//! TEMPORARY FIX
+		for _, prof := range toInstall {
+			if prof.ProfileIdentifier != "com.fleetdm.fleetd.config" {
+				continue
+			}
+
+			filteredToInstall = append(filteredToInstall, prof)
+		}
+		TIMES_TRIGGERED++
+	}
+
 	// Exclude macOS only profiles from iPhones/iPads.
-	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
+	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(filteredToInstall)
 
 	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
 	if err != nil {
