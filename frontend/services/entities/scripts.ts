@@ -6,7 +6,10 @@ import {
 } from "interfaces/script";
 import sendRequest from "services";
 
-import { createMockBatchScriptSummary } from "__mocks__/scriptMock";
+import {
+  createMockBatchScriptSummary,
+  createMockScriptBatchHostResults,
+} from "__mocks__/scriptMock";
 
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -206,8 +209,8 @@ export interface IScriptBatchHostResult {
   id: number;
   display_name: string;
   script_status: ScriptBatchHostStatus;
-  script_execution_id: string;
-  /** ISO 8601 date-time string. `null` if pending, cancelled, or incompatible. */
+  script_execution_id: string | null; // if status === pending, this may be `null` or contain a value dependending on whether the script exectution is this hosts next scheduled activity on the server
+  //  /** ISO 8601 date-time string. `null` if pending, cancelled, or incompatible. */
   script_executed_at: string | null;
   /** `null` if pending, cancelled, or incompatible. */
   script_output_preview: string | null;
@@ -317,11 +320,11 @@ export default {
         // status: "finished",
         status: "scheduled",
         // finished_at: null,
-        ran_host_count: 0,
-        pending_host_count: 0,
-        errored_host_count: 0,
-        incompatible_host_count: 0,
-        canceled_host_count: 0,
+        ran_host_count: 1,
+        pending_host_count: 1,
+        errored_host_count: 1,
+        incompatible_host_count: 1,
+        canceled_host_count: 1,
       })
     );
   },
@@ -336,6 +339,13 @@ export default {
   getScriptBatchHostResults(
     params: IScriptBatchHostResultsParams
   ): Promise<IScriptBatchHostResultsResponse> {
+    // remove me
+    return Promise.resolve(createMockScriptBatchHostResults("ran"));
+    return Promise.resolve(createMockScriptBatchHostResults("errored"));
+    return Promise.resolve(createMockScriptBatchHostResults("pending"));
+    return Promise.resolve(createMockScriptBatchHostResults("incompatible"));
+    return Promise.resolve(createMockScriptBatchHostResults("canceled"));
+
     const { batch_execution_id, status, page, per_page } = params;
     const path = `${endpoints.SCRIPT_BATCH_HOST_RESULTS(
       batch_execution_id
