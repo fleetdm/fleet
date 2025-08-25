@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { formatDistanceToNow } from "date-fns";
 import { AxiosError } from "axios";
@@ -16,6 +16,7 @@ import deviceUserAPI from "services/entities/device_user";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
@@ -49,19 +50,21 @@ export const renderContactOption = (url?: string) => (
   </>
 );
 
-// TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
-// present there
-const StatusMessage = ({
-  softwareName,
-  installResult,
-  isDUP,
-  contactUrl,
-}: {
+interface IInstallStatusMessage {
   softwareName: string;
   installResult?: ISoftwareInstallResult;
   isDUP: boolean;
   contactUrl?: string;
-}) => {
+}
+
+// TODO - match VppInstallDetailsModal status to this, still accounting for MDM-specific cases
+// present there
+export const StatusMessage = ({
+  softwareName,
+  installResult,
+  isDUP,
+  contactUrl,
+}: IInstallStatusMessage) => {
   // the case when software is installed by the user and not by Fleet
   if (!installResult) {
     return (
@@ -142,6 +145,51 @@ const StatusMessage = ({
   );
 };
 
+interface IModalButtonsProps {
+  deviceAuthToken?: string;
+  status?: string;
+  hostSoftwareId?: number;
+  onRetry?: (id: number) => void;
+  onCancel: () => void;
+}
+
+export const ModalButtons = ({
+  deviceAuthToken,
+  status,
+  hostSoftwareId,
+  onRetry,
+  onCancel,
+}: IModalButtonsProps) => {
+  if (deviceAuthToken && status === "failed_install") {
+    const onClickRetry = () => {
+      // on DUP, where this is relevant, both will be defined
+      if (onRetry && hostSoftwareId) {
+        onRetry(hostSoftwareId);
+      }
+      onCancel();
+    };
+
+    return (
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+  );
+};
+
 interface ISoftwareInstallDetailsProps {
   /** note that details.install_uuid is present in hostSoftware, but since it is always needed for
   this modal while hostSoftware is not, as in the case of the activity feeds, it is specifically
@@ -168,14 +216,6 @@ export const SoftwareInstallDetailsModal = ({
   const [showInstallDetails, setShowInstallDetails] = useState(false);
   const toggleInstallDetails = () => {
     setShowInstallDetails((prev) => !prev);
-  };
-
-  const onClickRetry = () => {
-    // on DUP, where this is relevant, both will be defined
-    if (onRetry && hostSoftware?.id) {
-      onRetry(hostSoftware.id);
-    }
-    onCancel();
   };
 
   const isInstalledByFleet = hostSoftware
@@ -304,26 +344,6 @@ export const SoftwareInstallDetailsModal = ({
     );
   };
 
-  const renderCta = () => {
-    if (deviceAuthToken && swInstallResult?.status === "failed_install") {
-      return (
-        <div className="modal-cta-wrap">
-          <Button type="submit" onClick={onClickRetry}>
-            Retry
-          </Button>
-          <Button variant="inverse" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      );
-    }
-    return (
-      <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
-      </div>
-    );
-  };
-
   return (
     <Modal
       title="Install details"
@@ -333,7 +353,13 @@ export const SoftwareInstallDetailsModal = ({
     >
       <>
         {renderContent()}
-        {renderCta()}
+        <ModalButtons
+          deviceAuthToken={deviceAuthToken}
+          status={swInstallResult?.status}
+          hostSoftwareId={hostSoftware?.id}
+          onRetry={onRetry}
+          onCancel={onCancel}
+        />
       </>
     </Modal>
   );

@@ -124,7 +124,7 @@ module.exports = {
     // Generate a UUID for this compliance update.
     let messageId = sails.helpers.strings.uuid();
 
-    await sails.helpers.http.sendHttpRequest.with({
+    let complianceUpdateResponse = await sails.helpers.http.sendHttpRequest.with({
       method: 'PUT',
       url: `${deviceDataSyncUrl}/DataUploadMessages(guid'${encodeURIComponent(messageId)}')?api-version=1.2`,
       headers: {
@@ -138,6 +138,10 @@ module.exports = {
     }).intercept((err)=>{
       return new Error({error: `An error occurred when sending a request to sync a device's compliance status for a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`});
     });
+    // Log responses from Micrsoft APIs for Fleet's integration
+    if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+      sails.log.info(`Microsoft proxy: update-one-devices-compliance-status sent a compliance update: ${complianceUpdateResponse.body}`);
+    }
 
 
     return {

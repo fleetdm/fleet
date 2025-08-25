@@ -6,10 +6,12 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"runtime"
 	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -66,11 +68,28 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 	}
 
 	key := s.keyForFile(fileID)
-	_, err := s.s3Client.PutObject(ctx, &s3.PutObjectInput{
+
+	// Init the uploader with the default upload part size (5MB) and concurrency
+	// equal to the host's logical processors.
+	uploader := manager.NewUploader(s.s3Client, func(u *manager.Uploader) {
+		u.PartSize = manager.DefaultUploadPartSize
+		u.Concurrency = runtime.NumCPU()
+	})
+
+	// TODO: The `UploadOutput` is discarded currently. However, it does include
+	// checksums of the uploaded content which are calculated _server-side_. We
+	// could do something like:
+	// - Wrap the `context.Context` with a cancellation.
+	// - Wrap the `content` `ReadSeeker` in a `TeeReader`.
+	// - Feed the `TeeReader` to a `hash.Hasher` (probably SHA1).
+	// - Compare the `hash.Hasher` result to the `manager.UploadOutput` hash to
+	//   verify upload integrity, cancelling the context if the hashes don't match.
+	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Body:   content,
 		Key:    &key,
 	})
+
 	return err
 }
 

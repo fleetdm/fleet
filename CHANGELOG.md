@@ -34,7 +34,6 @@
 - Updated go to 1.24.6.
 - Fixed issue with package ids ordering causing software installers' scripts to be inconsistently generated.
 - Fixed incorrectly displayed status in controls OS Settings page, if a host was only pending or failing on declaration for removal.
-- Fixed bug with `mdm_bridge` Orbit table that caused panics due to invalid COM initialization.
 - Fixed bug where a certificate Distinguished Name (DN) parser did not allow forward slashes in the value which resulted in parsing error.
 - Fixed an issue where the detected date for software vulnerabilities was not being pulled correctly from the database.
 - Fixed missing empty host lists on manual labels in gitops.

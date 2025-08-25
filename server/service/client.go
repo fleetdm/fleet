@@ -249,12 +249,18 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	fmt.Fprintf(os.Stderr, "%s %s %s (%s)\n", res.Request.Method, res.Request.URL, res.Status, took)
 
 	resBody := &bytes.Buffer{}
-	resBodyReader := io.TeeReader(res.Body, resBody)
-	if _, err := io.Copy(os.Stderr, resBodyReader); err != nil {
-		fmt.Fprintf(os.Stderr, "Read body error: %v", err)
-		return nil, err
+	if _, err := io.Copy(resBody, res.Body); err != nil {
+		return nil, fmt.Errorf("response buffer copy: %w", err)
 	}
 	res.Body = io.NopCloser(resBody)
+
+	// Only print text output, don't flood the terminal with binary content
+	if utf8.Valid(resBody.Bytes()) {
+		fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", resBody.Len())
+		fmt.Fprint(os.Stderr, resBody.String())
+	} else {
+		fmt.Fprintf(os.Stderr, "[binary output suppressed: %d bytes]\n", resBody.Len())
+	}
 
 	return res, nil
 }
@@ -357,15 +363,46 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			if platform == "macos" {
 				switch ext {
 				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
-					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
-					if err != nil {
-						errForMsg := errors.Unwrap(err)
-						if errForMsg == nil {
-							errForMsg = err
+					// For validation, we need to expand FLEET_SECRET_ variables in <data> tags so the XML parser
+					// can properly validate the profile structure. However, we must be careful not to expose
+					// secrets in the profile name.
+					containsSecrets := len(fleet.ContainsPrefixVars(string(fileContents), fleet.ServerSecretPrefix)) > 0
+
+					if containsSecrets {
+						// If profile contains secrets, check for secrets in PayloadDisplayName first
+						if err := fleet.ValidateNoSecretsInProfileName(fileContents); err != nil {
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, err)
 						}
-						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+
+						// Expand secrets for validation
+						validationContents, expandErr := spec.ExpandEnvBytesIncludingSecrets(fileContents)
+						if expandErr != nil {
+							return nil, fmt.Errorf("%s: expanding secrets for validation: %w", prefixErrMsg, expandErr)
+						}
+
+						// Validate the profile structure with expanded secrets
+						mcExpanded, validationErr := fleet.NewMDMAppleConfigProfile(validationContents, nil)
+						if validationErr != nil {
+							errForMsg := errors.Unwrap(validationErr)
+							if errForMsg == nil {
+								errForMsg = validationErr
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+
+						name = strings.TrimSpace(mcExpanded.Name)
+					} else {
+						// No secrets, parse normally
+						mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
+						if err != nil {
+							errForMsg := errors.Unwrap(err)
+							if errForMsg == nil {
+								errForMsg = err
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+						name = strings.TrimSpace(mc.Name)
 					}
-					name = strings.TrimSpace(mc.Name)
 				case ".json":
 					if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
 						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Declaration profiles should include valid JSON.")

@@ -86,9 +86,9 @@ show_script_diff() {
     fi
     
     # Create temporary files for diff
-    TEMP_PREV=$(mktemp -t old)
-    TEMP_CURR=$(mktemp -t new)
-    
+    TEMP_PREV=$(mktemp -t old.XXXXXX)
+    TEMP_CURR=$(mktemp -t new.XXXXXX)
+
     echo "$PREV_SCRIPT" > "$TEMP_PREV"
     echo "$CURR_SCRIPT" > "$TEMP_CURR"
     
