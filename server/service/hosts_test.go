@@ -1273,6 +1273,69 @@ func TestStreamHosts(t *testing.T) {
 	}
 }
 
+func TestListHostsSoftwareTitleIDFilter(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	teamID := uint(42)
+	titleID := uint(99)
+
+	ds.TeamExistsFunc = func(ctx context.Context, id uint) (bool, error) {
+		return true, nil
+	}
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{{ID: 1, Hostname: "test"}}, nil
+	}
+
+	// Case: Not found on team, not found globally - SoftwareTitle should be nil
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		require.Equal(t, titleID, id)
+		return nil, notFoundErr{}
+	}
+	req := &listHostsRequest{
+		Opts: fleet.HostListOptions{
+			TeamFilter:            &teamID,
+			SoftwareTitleIDFilter: &titleID,
+		},
+	}
+	resp_, err := listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
+	require.NoError(t, err)
+	resp := resp_.(listHostsResponse)
+	require.NotNil(t, resp.SoftwareTitle)
+	require.Equal(t, titleID, resp.SoftwareTitle.ID)
+	require.Equal(t, "", resp.SoftwareTitle.Name)
+
+	// Case: Not found on team, but found globally
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		if teamID != nil {
+			return nil, notFoundErr{}
+		}
+		return &fleet.SoftwareTitle{ID: id, Name: "GlobalTitle"}, nil
+	}
+	resp_, err = listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
+	require.NoError(t, err)
+	resp = resp_.(listHostsResponse)
+	require.NotNil(t, resp.SoftwareTitle)
+	require.Equal(t, titleID, resp.SoftwareTitle.ID)
+	require.Equal(t, "GlobalTitle", resp.SoftwareTitle.Name)
+
+	// Case: Found on team first, should NOT fall back
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		if teamID != nil {
+			return &fleet.SoftwareTitle{ID: id, Name: "TeamTitle"}, nil
+		}
+		t.Fatal("should not call global fallback if team result is found")
+		return nil, nil
+	}
+	resp_, err = listHostsEndpoint(test.UserContext(ctx, test.UserAdmin), req, svc)
+	require.NoError(t, err)
+	resp = resp_.(listHostsResponse)
+	require.NotNil(t, resp.SoftwareTitle)
+	require.Equal(t, titleID, resp.SoftwareTitle.ID)
+	require.Equal(t, "TeamTitle", resp.SoftwareTitle.Name)
+}
+
 func TestGetHostSummary(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
