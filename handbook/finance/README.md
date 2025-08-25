@@ -107,7 +107,7 @@ Use the following steps to update the [💸Finance department KPIs](https://docs
 - Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
 
 **Days to invoice customer**: 
-- Check the [invoice sent and payment received report]((https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders)) in Salesforce.
+- Check the [invoice sent and payment received report](https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders) in Salesforce.
 - Sort by close date, then check invoice dates for any recently closed deals and enter them in the finance spreadsheet and create new rows at the top of the 'time-to-invoice' tab in the spreadsheet for each new entry.  If a company has not been invoiced yet (invoice date is blank) do not enter yet, but verify if an invoice is scheduled to be sent using the [Invoice status and upcoming bill dates](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000010r8b2AA/view) report. If it doesn't appear here, create an issue on the finance board to investigate. 
 - Open the ["Time-to-invoice" tab](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=1835263594) in the [💸 Finance  metrics spreadsheet](https://docs.google.com/spreadsheets/d/1lp3OugxfPfMjAgQWRi_rbyL_3opILq-duHmlng_pwyo/edit#gid=0). Enter the year and month + customer name in column A, then the # of days between the close date and the invoice date in column B. After entering new entries you will probably have to adjust the formula in column D to include the new cells in the average and make sure the formula includes no further back than the last three months of invoices.
 
@@ -153,7 +153,8 @@ To create a new invoice for a Fleet customer, follow these steps:
    - Validate if the email from the signed subscription agreement matches with the email in the email field on the invoice.
    - Make sure the start and end dates of the contract and amount match the subscription agreement.
    - If professional services are included in the subscription agreement, include as a separate line in the invoice, and ensure the amounts total correctly.
-   - Ensure the wiring instructions for payment via SVB are listed in in the invoice. 
+   - Ensure the wiring instructions for payment via SVB are listed in in the invoice.
+   - For invoices that are not on annual payment schedule, note the invoicing schedule and invoice amount in the notes section of the invoice. 
 6. Download the completed invoice as a PDF.
    - Rename the pdf copy `[invoice number] Fleet invoice - [customer name]`.
    - Save a copy of the PDF into the invoice folder.

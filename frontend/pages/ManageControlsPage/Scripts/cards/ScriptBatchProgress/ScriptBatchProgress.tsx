@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
@@ -17,7 +17,7 @@ import ProgressBar from "components/ProgressBar";
 import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import PaginatedList from "components/PaginatedList";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import Icon from "components/Icon/Icon";
 
@@ -68,6 +68,10 @@ const ScriptBatchProgress = ({
   const [batchCount, setBatchCount] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
 
+  const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummaryV2>>(
+    null
+  );
+
   const statusParam = location?.query.status;
 
   const selectedStatus = statusParam as ScriptBatchStatus;
@@ -92,7 +96,7 @@ const ScriptBatchProgress = ({
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
               setBatchCount(r.count);
-              return r.batch_executions;
+              return r.batch_executions ?? [];
             })
             .finally(() => {
               setUpdating(false);
@@ -288,6 +292,7 @@ const ScriptBatchProgress = ({
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
+          ref={paginatedListRef}
           count={batchCount || 0}
           fetchPage={fetchPage}
           onClickRow={onClickRow}
@@ -329,6 +334,7 @@ const ScriptBatchProgress = ({
           scriptBatchExecutionDetails={{ ...batchDetailsForSummary }}
           onCancel={() => {
             setShowBatchDetailsForSummary(null);
+            paginatedListRef.current?.reload();
           }}
           router={router}
         />

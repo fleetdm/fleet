@@ -276,7 +276,21 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("foo@example.com", { exact: false })
+      screen.getByText("foo@example.com", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_failed_login without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserFailedLogin,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody failed", { exact: false })
     ).toBeInTheDocument();
   });
 

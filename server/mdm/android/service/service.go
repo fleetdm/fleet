@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -433,23 +436,57 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
-type enrollmentTokenResponse struct {
-	*android.EnrollmentToken
-	android.DefaultResponse
+func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret is required",
+		}
+	}
+
+	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
+
+	if err == http.ErrNoCookie {
+		// We do not fail here if no cookie is found, we validate later down the line if it's required
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      "",
+		}, nil
+	}
+
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "something went wrong parsing the boyd idp cookie",
+			InternalErr: err,
+		}
+	}
+
+	if err = byodIdpCookie.Valid(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "boyd idp cookie is not valid",
+			InternalErr: err,
+		}
+	}
+
+	return &enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      byodIdpCookie.Value,
+	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enrollmentTokenResponse{EnrollmentToken: token}
+	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
@@ -467,6 +504,29 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	if requiresIdPUUID && idpUUID == "" {
+		return nil, fleet.NewAuthFailedError("required idp uuid to be set, but none found")
+	}
+
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			iae := &fleet.InvalidArgumentError{}
+			iae.Append("IDP UUID", "Failed validating IDP account existence")
+			return nil, ctxerr.Wrap(ctx, iae)
+		}
+	}
+
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
@@ -478,10 +538,18 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	enrollmentTokenRequest, err := json.Marshal(enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      idpUUID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
-		AdditionalData:     enrollSecret,
+		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,

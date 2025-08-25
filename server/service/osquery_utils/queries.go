@@ -2645,6 +2645,7 @@ func GetDetailQueries(
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
 	integrations Integrations,
+	teamMDMConfig *fleet.TeamMDM,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2689,12 +2690,22 @@ func GetDetailQueries(
 			generatedMap[key] = query
 		}
 
-		if appConfig.MDM.WindowsEnabledAndConfigured &&
-			appConfig.MDM.EnableDiskEncryption.Value &&
-			appConfig.MDM.RequireBitLockerPIN.Value {
+		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
+		if appConfig.MDM.WindowsEnabledAndConfigured {
+			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
+			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
 
-			for key, query := range tpmPINQueries {
-				generatedMap[key] = query
+			// If the host is part of a team, we need to look at the related team config
+			// instead of the App config ...
+			if teamMDMConfig != nil {
+				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
+				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+			}
+
+			if enableDiskEncryption && requireTPMPin {
+				for key, query := range tpmPINQueries {
+					generatedMap[key] = query
+				}
 			}
 		}
 	}

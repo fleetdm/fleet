@@ -45,7 +45,7 @@ const QueryReport = ({
   queryReport,
   isClipped,
 }: IQueryReportProps): JSX.Element => {
-  const { lastEditedQueryName, lastEditedQueryBody } = useContext(QueryContext);
+  const { lastEditedQueryName } = useContext(QueryContext);
 
   const [filteredResults, setFilteredResults] = useState<Row[]>(
     flattenResults(queryReport?.results || [])

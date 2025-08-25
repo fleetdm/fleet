@@ -413,7 +413,7 @@ func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response 
 }
 
 func (ts *withServer) LoginAccountDrivenEnrollUser(username, password string) *http.Response {
-	requestParams := initiateMDMAppleSSORequest{
+	requestParams := initiateMDMSSORequest{
 		Initiator:      "account_driven_enroll",
 		UserIdentifier: username + "@example.com",
 	}

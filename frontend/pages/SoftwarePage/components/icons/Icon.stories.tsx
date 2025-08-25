@@ -12,7 +12,7 @@ type IconWrapperProps = Pick<ISoftware, "name" | "source"> & {
   selection?: string;
 };
 
-const IconWrapper: React.FC<IconWrapperProps> = ({ selection, ...props }) => {
+const IconWrapper: React.FC<IconWrapperProps> = ({ ...props }) => {
   const Icon = getMatchedSoftwareIcon(props);
   return <Icon />;
 };

@@ -63,7 +63,7 @@ module.exports = {
       // let partnerCompliancePoliciesUrl = accessTokenAndApiUrls.partnerCompliancePoliciesUrl;
 
       // Send a request to provision the new compliance tenant.
-      await sails.helpers.http.sendHttpRequest.with({
+      let complianceTenantProvisionResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'PUT',
         url: `${tenantDataSyncUrl}/PartnerTenants(guid'${informationAboutThisTenant.entraTenantId}')}?api-version=1.6`,
         headers: {
@@ -79,6 +79,10 @@ module.exports = {
         sails.log.warn(`an error occurred when provisioning a new Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
+      // Log responses from Micrsoft APIs for Fleet's integration
+      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft provisioned a new tenant: ${complianceTenantProvisionResponse.body}`);
+      }
       // Example response:
       // HTTP/1.1 200 OK
       // {
@@ -124,6 +128,11 @@ module.exports = {
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
 
+      // Log responses from Micrsoft APIs for Fleet's integration
+      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a compliance policy: ${createPolicyResponse.body}`);
+      }
+
       // Example response:
       // HTTP/1.1 201 Created
       // {
@@ -163,6 +172,11 @@ module.exports = {
         sails.log.warn(`An error occurred when sending a request to find the default "All users" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
+
+      // Log responses from Micrsoft APIs for Fleet's integration.
+      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a compliance policy: ${groupResponse.body}`);
+      }
       // Get the ID returned in the response.
       let parsedGroupResponse;
       try {
@@ -176,7 +190,7 @@ module.exports = {
 
 
       // Send a request to assign the new compliance policy to the "All users" group.
-      await sails.helpers.http.sendHttpRequest.with({
+      let assignPolicyResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'POST',
         url: `${tenantDataSyncUrl}/PartnerCompliancePolicies(guid'${encodeURIComponent(createdPolicyId)}')/Assign?api-version=1.6`,
         headers: {
@@ -198,6 +212,11 @@ module.exports = {
       //   “odata.metadata”: “…”,
       //   "value": “{\”assignments\":[\"GuidValue\",\"GuidValue\"]}”
       // }
+
+      // Log responses from Micrsoft APIs for Fleet's integration.
+      if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
+        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft assigned a compliance policy: ${assignPolicyResponse.body}`);
+      }
 
       // Update the database record to show that setup was completed for this compliance tenant.
       await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({
