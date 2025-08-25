@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 
 	"gopkg.in/yaml.v3"
 )
@@ -49,13 +48,13 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	// refer back to it if we encounter the same item again.
 	known := make(map[string]map[string]any)
 	// Track successful/failed conversions.
-	success := new(atomic.Int32)
-	failed := new(atomic.Int32)
+	success := 0
+	failed := 0
 	for item, err := range fsEnum(args.From) {
 		// Handle any iterator errors.
 		if err != nil {
 			log.Error("encountered error in file system enumeration", "error", err)
-			failed.Add(1)
+			failed += 1
 			continue
 		}
 
@@ -78,7 +77,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		teamFile, err := os.OpenFile(item.Path, fileFlagsReadWrite, 0)
 		if err != nil {
 			log.Error("failed to get a read-writable handle to file", "error", err)
-			failed.Add(1)
+			failed += 1
 			continue
 		}
 
@@ -87,7 +86,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		err = yaml.NewDecoder(teamFile).Decode(&team)
 		if err != nil {
 			log.Error("failed to unmarshal file", "error", err)
-			failed.Add(1)
+			failed += 1
 			continue
 		}
 
@@ -127,7 +126,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					"team YAML file has package with no 'path' key",
 					"package_index", i,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 
@@ -142,7 +141,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					"failed to construct absolute path to referenced package package",
 					"package_path", packagePath,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 
@@ -159,7 +158,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to get a readable handle to package file",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 				log := log.With("package_file", absPath)
@@ -172,7 +171,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to decode package file",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -243,7 +242,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to seek to file start for re-encode",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -254,7 +253,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to re-encode package file",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -265,7 +264,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to seek after package file re-encode",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -276,7 +275,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to truncate package file after re-encode",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -287,7 +286,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"failed to close package file after re-encode",
 						"error", err,
 					)
-					failed.Add(1)
+					failed += 1
 					continue
 				}
 
@@ -333,7 +332,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					"failed to seek to team file start for YAML encode",
 					"error", err,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 
@@ -344,7 +343,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					"failed to YAML-encode updated team file back to disk",
 					"error", err,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 
@@ -356,7 +355,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						"YAML-encode",
 					"error", err,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 
@@ -368,7 +367,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					"failed to truncate team file following YAML-encode",
 					"error", err,
 				)
-				failed.Add(1)
+				failed += 1
 				continue
 			}
 		}
@@ -380,7 +379,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				"failed to close team YAML file following YAML-encode",
 				"error", err,
 			)
-			failed.Add(1)
+			failed += 1
 			continue
 		}
 
@@ -390,17 +389,17 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				"successfully applied transforms to team file",
 				"count", changeCount,
 			)
-			success.Add(1)
+			success += 1
 		}
 	}
 
 	log.Info(
 		"migration complete",
-		"successful", success.Load(),
-		"failed", failed.Load(),
+		"successful", success,
+		"failed", failed,
 	)
 
-	if f := failed.Load(); f > 0 {
+	if f := failed; f > 0 {
 		return errors.New("encountered failures during attempted GitOps migration")
 	}
 
