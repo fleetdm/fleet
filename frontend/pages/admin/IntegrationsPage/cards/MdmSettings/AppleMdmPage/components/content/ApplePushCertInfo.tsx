@@ -5,7 +5,6 @@ import { IMdmApple } from "interfaces/mdm";
 import { readableDate } from "utilities/helpers";
 
 import Button from "components/buttons/Button";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 interface IApplePushCertInfoProps {
   baseClass: string;

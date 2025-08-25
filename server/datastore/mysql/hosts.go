@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -2334,7 +2335,7 @@ func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnro
 					fmt.Sprintf("This is likely due to a duplicate UUID/identity identifier used by multiple hosts: %s", osqueryHostID))
 			}
 
-			if err := deleteAllPolicyMemberships(ctx, tx, []uint{enrolledHostInfo.ID}); err != nil {
+			if err := deleteAllPolicyMemberships(ctx, tx, enrolledHostInfo.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
@@ -5716,8 +5717,31 @@ func (ds *Datastore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) 
 }
 
 func (ds *Datastore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+	})
+}
+
+func (ds *Datastore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
 	var tx sqlx.ExecerContext = ds.writer(ctx)
-	return updateHostIssuesFailingPolicies(ctx, tx, hostIDs)
+	return updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostID)
+}
+
+func updateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, tx sqlx.ExecerContext, hostID uint) error {
+	stmt := `
+	INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
+	SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
+		FROM policy_membership pm
+		RIGHT JOIN (SELECT ? as id) as host_id
+		ON pm.host_id = host_id.id
+		GROUP BY host_id.id
+	ON DUPLICATE KEY UPDATE
+		failing_policies_count = VALUES(failing_policies_count),
+		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
+	if _, err := tx.ExecContext(ctx, stmt, hostID); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating failing policies in host issues for one host")
+	}
+	return nil
 }
 
 func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext, hostIDs []uint) error {
@@ -5725,23 +5749,13 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		return nil
 	}
 
-	// For 1 host, we use a single statement to update the host_issues entry.
 	if len(hostIDs) == 1 {
-		stmt := `
-		INSERT INTO host_issues (host_id, failing_policies_count, total_issues_count)
-		SELECT host_id.id, COALESCE(SUM(!pm.passes), 0), COALESCE(SUM(!pm.passes), 0)
-			FROM policy_membership pm
-			RIGHT JOIN (SELECT ? as id) as host_id
-			ON pm.host_id = host_id.id
-			GROUP BY host_id.id
-		ON DUPLICATE KEY UPDATE
-			failing_policies_count = VALUES(failing_policies_count),
-			total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
-		if _, err := tx.ExecContext(ctx, stmt, hostIDs[0]); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating failing policies in host issues for one host")
-		}
-		return nil
+		return updateHostIssuesFailingPoliciesForSingleHost(ctx, tx, hostIDs[0])
 	}
+
+	// For multiple hosts, lock policy_membership rows first to prevent deadlocks
+	// ORDER BY ensures locks are acquired in consistent order (host_id, then policy_id)
+	lockPolicyStmt := `SELECT 1 FROM policy_membership WHERE host_id IN (?) ORDER BY host_id, policy_id FOR UPDATE`
 
 	// Clear host_issues entries for hosts that are not in policy_membership
 	clearStmt := `
@@ -5766,7 +5780,28 @@ func updateHostIssuesFailingPolicies(ctx context.Context, tx sqlx.ExecerContext,
 		failing_policies_count = VALUES(failing_policies_count),
 		total_issues_count = VALUES(failing_policies_count) + critical_vulnerabilities_count`
 
-	// Large number of hosts could be impacted, so we update their host issues entries in batches to reduce lock time.
+	// Sort host IDs to ensure consistent lock ordering across all transactions.
+	// This prevents deadlocks when multiple transactions process overlapping sets of hosts.
+	slices.Sort(hostIDs)
+
+	// First lock policy_membership rows to ensure consistent lock ordering
+	for i := 0; i < len(hostIDs); i += hostIssuesUpdateFailingPoliciesBatchSize {
+		start := i
+		end := i + hostIssuesUpdateFailingPoliciesBatchSize
+		if end > len(hostIDs) {
+			end = len(hostIDs)
+		}
+		hostIDsBatch := hostIDs[start:end]
+
+		stmt, args, err := sqlx.In(lockPolicyStmt, hostIDsBatch)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "building IN statement for locking policy_membership")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "locking policy_membership rows")
+		}
+	}
+
 	for i := 0; i < len(hostIDs); i += hostIssuesUpdateFailingPoliciesBatchSize {
 		start := i
 		end := i + hostIssuesUpdateFailingPoliciesBatchSize

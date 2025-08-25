@@ -11,7 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
+func (ds *AndroidDatastore) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
 	// android_enterprises user_id is only set when the row is created
 	stmt := `INSERT INTO android_enterprises (signup_name, user_id) VALUES ('', ?)`
 	res, err := ds.Writer(ctx).ExecContext(ctx, stmt, userID)
@@ -22,7 +22,7 @@ func (ds *Datastore) CreateEnterprise(ctx context.Context, userID uint) (uint, e
 	return uint(id), nil // nolint:gosec // dismiss G115
 }
 
-func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
+func (ds *AndroidDatastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
 	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE id = ?`
 	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, id)
@@ -35,7 +35,7 @@ func (ds *Datastore) GetEnterpriseByID(ctx context.Context, id uint) (*android.E
 	return &enterprise, nil
 }
 
-func (ds *Datastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+func (ds *AndroidDatastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
 	stmt := `SELECT id, signup_name, enterprise_id, pubsub_topic_id, signup_token, user_id FROM android_enterprises WHERE signup_token = ?`
 	var enterprise android.EnterpriseDetails
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt, signupToken)
@@ -48,7 +48,7 @@ func (ds *Datastore) GetEnterpriseBySignupToken(ctx context.Context, signupToken
 	return &enterprise, nil
 }
 
-func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
+func (ds *AndroidDatastore) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
 	stmt := `SELECT id, enterprise_id FROM android_enterprises WHERE enterprise_id != '' LIMIT 1`
 	var enterprise android.Enterprise
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &enterprise, stmt)
@@ -61,7 +61,7 @@ func (ds *Datastore) GetEnterprise(ctx context.Context) (*android.Enterprise, er
 	return &enterprise, nil
 }
 
-func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
+func (ds *AndroidDatastore) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
 	if enterprise == nil || enterprise.ID == 0 {
 		return errors.New("missing enterprise ID")
 	}
@@ -82,7 +82,7 @@ func (ds *Datastore) UpdateEnterprise(ctx context.Context, enterprise *android.E
 	return nil
 }
 
-func (ds *Datastore) DeleteOtherEnterprises(ctx context.Context, id uint) error {
+func (ds *AndroidDatastore) DeleteOtherEnterprises(ctx context.Context, id uint) error {
 	stmt := `DELETE FROM android_enterprises WHERE id != ?`
 	_, err := ds.Writer(ctx).ExecContext(ctx, stmt, id)
 	if err != nil {
@@ -91,7 +91,7 @@ func (ds *Datastore) DeleteOtherEnterprises(ctx context.Context, id uint) error 
 	return nil
 }
 
-func (ds *Datastore) DeleteAllEnterprises(ctx context.Context) error {
+func (ds *AndroidDatastore) DeleteAllEnterprises(ctx context.Context) error {
 	stmt := `DELETE FROM android_enterprises`
 	_, err := ds.Writer(ctx).ExecContext(ctx, stmt)
 	if err != nil {
