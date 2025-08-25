@@ -1,6 +1,6 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-2670x1514.png)
+![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
 
 _Available in Fleet Premium_
 
