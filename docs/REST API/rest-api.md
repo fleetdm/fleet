@@ -6297,7 +6297,6 @@ Delete an EULA file.
 
 _Available in Fleet Premium_
 
-
 Download an EULA file
 
 `GET /api/v1/fleet/setup_experience/eula/:token`
