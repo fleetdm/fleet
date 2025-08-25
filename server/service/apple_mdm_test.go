@@ -5074,6 +5074,93 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
+		{
+			desc:           "profile with scim full name, user has full name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						GivenName:  ptr.String("First"),
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has given name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:  "fake",
+						GivenName: ptr.String("First"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has family name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user has no full name value",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName: "fake",
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP fullname for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Len(t, targets, 0)
+			},
+		},
 	}
 
 	for _, c := range cases {
