@@ -2,6 +2,7 @@ package gitops
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -30,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
-	"github.com/go-json-experiment/json/v1"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -919,6 +919,290 @@ software:
 	_, err = s.DS.GetSetupExperienceScript(ctx, nil)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+}
+
+// Helper function to get No Team webhook settings from the database
+func getNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore) fleet.FailingPoliciesWebhookSettings {
+	cfg, err := ds.DefaultTeamConfig(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+	return cfg.WebhookSettings.FailingPoliciesWebhook
+}
+
+// Helper function to verify No Team webhook settings match expected values
+func verifyNoTeamWebhookSettings(ctx context.Context, t *testing.T, ds *mysql.Datastore, expected fleet.FailingPoliciesWebhookSettings) {
+	actual := getNoTeamWebhookSettings(ctx, t, ds)
+
+	require.Equal(t, expected.Enable, actual.Enable)
+	if expected.Enable {
+		require.Equal(t, expected.DestinationURL, actual.DestinationURL)
+		require.Equal(t, expected.HostBatchSize, actual.HostBatchSize)
+		require.ElementsMatch(t, expected.PolicyIDs, actual.PolicyIDs)
+	}
+}
+
+func (s *enterpriseIntegrationGitopsTestSuite) TestNoTeamWebhookSettings() {
+	t := s.T()
+	ctx := t.Context()
+
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	var webhookSettings fleet.FailingPoliciesWebhookSettings
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+
+	// Create a global config file
+	const globalTemplate = `
+agent_options:
+controls:
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: global_secret
+policies:
+queries:
+`
+
+	globalFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = globalFile.WriteString(globalTemplate)
+	require.NoError(t, err)
+	err = globalFile.Close()
+	require.NoError(t, err)
+
+	// Create a no-team.yml file with webhook settings
+	const noTeamTemplateWithWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: true
+      destination_url: https://example.com/no-team-webhook
+      host_batch_size: 50
+      policy_ids:
+        - 1
+        - 2
+        - 3
+`
+
+	noTeamFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFile.WriteString(noTeamTemplateWithWebhook)
+	require.NoError(t, err)
+	err = noTeamFile.Close()
+	require.NoError(t, err)
+	noTeamFilePath := filepath.Join(filepath.Dir(noTeamFile.Name()), "no-team.yml")
+	err = os.Rename(noTeamFile.Name(), noTeamFilePath)
+	require.NoError(t, err)
+
+	// Test dry-run first
+	output := fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath, "--dry-run"})
+
+	// Check that webhook settings are mentioned in the output
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "would've applied webhook settings for 'No team'")
+
+	// Apply the configuration (non-dry-run)
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+
+	// Verify the output mentions webhook settings were applied
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were actually applied by checking the database
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable:         true,
+		DestinationURL: "https://example.com/no-team-webhook",
+		HostBatchSize:  50,
+		PolicyIDs:      []uint{1, 2, 3},
+	})
+
+	// Test updating webhook settings
+	const noTeamTemplateUpdatedWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      enable_failing_policies_webhook: false
+      destination_url: https://updated.example.com/webhook
+      host_batch_size: 100
+      policy_ids:
+        - 4
+        - 5
+`
+
+	noTeamFileUpdated, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileUpdated.WriteString(noTeamTemplateUpdatedWebhook)
+	require.NoError(t, err)
+	err = noTeamFileUpdated.Close()
+	require.NoError(t, err)
+	noTeamFilePathUpdated := filepath.Join(filepath.Dir(noTeamFileUpdated.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileUpdated.Name(), noTeamFilePathUpdated)
+	require.NoError(t, err)
+
+	// Apply the updated configuration
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathUpdated})
+
+	// Verify the output still mentions webhook settings were applied
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were updated
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable:         false,
+		DestinationURL: "https://updated.example.com/webhook",
+		HostBatchSize:  100,
+		PolicyIDs:      []uint{4, 5},
+	})
+
+	// Test removing webhook settings entirely
+	const noTeamTemplateNoWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+`
+
+	noTeamFileNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileNoWebhook.WriteString(noTeamTemplateNoWebhook)
+	require.NoError(t, err)
+	err = noTeamFileNoWebhook.Close()
+	require.NoError(t, err)
+	noTeamFilePathNoWebhook := filepath.Join(filepath.Dir(noTeamFileNoWebhook.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileNoWebhook.Name(), noTeamFilePathNoWebhook)
+	require.NoError(t, err)
+
+	// Apply configuration without webhook settings
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathNoWebhook})
+
+	// Verify webhook settings are mentioned as being applied (they're applied as nil to clear)
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings were cleared
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
+
+	// Test case: team_settings exists but webhook_settings is nil
+	// First, set webhook settings again
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook was set
+	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
+	require.True(t, webhookSettings.Enable)
+
+	// Now apply config with team_settings but no webhook_settings
+	const noTeamTemplateTeamSettingsNoWebhook = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+`
+	noTeamFileTeamNoWebhook, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileTeamNoWebhook.WriteString(noTeamTemplateTeamSettingsNoWebhook)
+	require.NoError(t, err)
+	err = noTeamFileTeamNoWebhook.Close()
+	require.NoError(t, err)
+	noTeamFilePathTeamNoWebhook := filepath.Join(filepath.Dir(noTeamFileTeamNoWebhook.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileTeamNoWebhook.Name(), noTeamFilePathTeamNoWebhook)
+	require.NoError(t, err)
+
+	// Apply configuration with team_settings but no webhook_settings
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathTeamNoWebhook})
+
+	// Verify webhook settings are cleared
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings are disabled
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
+
+	// Test case: webhook_settings exists but failing_policies_webhook is nil
+	// First, set webhook settings again
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePath})
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook was set
+	webhookSettings = getNoTeamWebhookSettings(ctx, t, s.DS)
+	require.True(t, webhookSettings.Enable)
+
+	// Now apply config with webhook_settings but no failing_policies_webhook
+	const noTeamTemplateWebhookNoFailing = `
+name: No team
+policies:
+  - name: No Team Test Policy
+    query: SELECT 1 FROM osquery_info WHERE version = '0.0.0';
+    description: Test policy for no team
+    resolution: This is a test
+controls:
+software:
+team_settings:
+  webhook_settings:
+`
+	noTeamFileWebhookNoFailing, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	_, err = noTeamFileWebhookNoFailing.WriteString(noTeamTemplateWebhookNoFailing)
+	require.NoError(t, err)
+	err = noTeamFileWebhookNoFailing.Close()
+	require.NoError(t, err)
+	noTeamFilePathWebhookNoFailing := filepath.Join(filepath.Dir(noTeamFileWebhookNoFailing.Name()), "no-team.yml")
+	err = os.Rename(noTeamFileWebhookNoFailing.Name(), noTeamFilePathWebhookNoFailing)
+	require.NoError(t, err)
+
+	// Apply configuration with webhook_settings but no failing_policies_webhook
+	output = fleetctl.RunAppForTest(t,
+		[]string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "-f", noTeamFilePathWebhookNoFailing})
+
+	// Verify webhook settings are cleared
+	require.Contains(t, output, "applying webhook settings for 'No team'")
+	require.Contains(t, output, "applied webhook settings for 'No team'")
+
+	// Verify webhook settings are disabled
+	verifyNoTeamWebhookSettings(ctx, t, s.DS, fleet.FailingPoliciesWebhookSettings{
+		Enable: false,
+	})
 }
 
 func (s *enterpriseIntegrationGitopsTestSuite) TestRemoveCustomSettingsFromDefaultYAML() {

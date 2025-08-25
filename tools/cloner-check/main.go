@@ -46,6 +46,7 @@ var cacheableItems = []fleet.Cloner{
 	&fleet.ScheduledQuery{},
 	&fleet.Features{},
 	&fleet.TeamMDM{},
+	&fleet.TeamConfig{},
 	&fleet.Query{},
 	&fleet.MDMProfileSpec{},
 	&fleet.MDMConfigAsset{},

@@ -47,6 +47,8 @@ const (
 	defaultTeamFeaturesExpiration      = 1 * time.Minute
 	teamMDMConfigKey                   = "TeamMDMConfig:team:%d"
 	defaultTeamMDMConfigExpiration     = 1 * time.Minute
+	defaultTeamConfigKey               = "DefaultTeamConfig"
+	defaultDefaultTeamConfigExpiration = 1 * time.Minute
 	queryByNameKey                     = "QueryByName:team:%d:%s"
 	defaultQueryByNameExpiration       = 1 * time.Second
 	queryResultsCountKey               = "QueryResultsCount:%d"
@@ -114,6 +116,7 @@ type cachedMysql struct {
 	teamAgentOptionsExp  time.Duration
 	teamFeaturesExp      time.Duration
 	teamMDMConfigExp     time.Duration
+	defaultTeamConfigExp time.Duration
 	queryByNameExp       time.Duration
 	queryResultsCountExp time.Duration
 	mdmConfigAssetExp    time.Duration
@@ -175,6 +178,12 @@ func WithMDMConfigAssetExpiration(d time.Duration) Option {
 	}
 }
 
+func WithDefaultTeamConfigExpiration(d time.Duration) Option {
+	return func(o *cachedMysql) {
+		o.defaultTeamConfigExp = d
+	}
+}
+
 func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 	c := &cachedMysql{
 		Datastore:            ds,
@@ -185,6 +194,7 @@ func New(ds fleet.Datastore, opts ...Option) fleet.Datastore {
 		teamAgentOptionsExp:  defaultTeamAgentOptionsExpiration,
 		teamFeaturesExp:      defaultTeamFeaturesExpiration,
 		teamMDMConfigExp:     defaultTeamMDMConfigExpiration,
+		defaultTeamConfigExp: defaultDefaultTeamConfigExpiration,
 		queryByNameExp:       defaultQueryByNameExpiration,
 		queryResultsCountExp: defaultQueryResultsCountExpiration,
 		mdmConfigAssetExp:    defaultMDMConfigAssetExpiration,
@@ -447,4 +457,33 @@ func (ds *cachedMysql) GetAllMDMConfigAssetsByName(ctx context.Context, assetNam
 	}
 
 	return cachedAssets, nil
+}
+
+func (ds *cachedMysql) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	if x, found := ds.c.Get(ctx, defaultTeamConfigKey); found {
+		if cfg, ok := x.(*fleet.TeamConfig); ok {
+			return cfg, nil
+		}
+	}
+
+	cfg, err := ds.Datastore.DefaultTeamConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.c.Set(ctx, defaultTeamConfigKey, cfg, ds.defaultTeamConfigExp)
+
+	return cfg, nil
+}
+
+func (ds *cachedMysql) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	err := ds.Datastore.SaveDefaultTeamConfig(ctx, config)
+	if err != nil {
+		return err
+	}
+
+	// Invalidate the cache
+	ds.c.Delete(defaultTeamConfigKey)
+
+	return nil
 }
