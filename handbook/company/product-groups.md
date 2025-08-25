@@ -98,11 +98,9 @@ The goal of the website group is to increase and exceed [Fleet's product maturit
 
 ## Working groups
 
-TODO: Noah: New page
-
 What is a working group? When do they exist?
 
-Who? Product Designer, Engineer, and QA Engineer
+Who? Product Designer, Engineer, and QA Engineer. For #g-ux: Mike T, Rachel, Noah, and Janis
 
 What happens? 
 - New temporary board, label, Slack channel, document who and what in the handbook
