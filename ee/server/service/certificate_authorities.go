@@ -522,6 +522,26 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 		if err := validateURL(*digicert.URL, "DigiCert", errPrefix); err != nil {
 			return err
 		}
+
+		// We want to generate a DigiCertCA struct with all required fields to verify the new URL.
+		// If URL or APIToken are not being updated we use the existing values from oldCA
+		digicertCA := fleet.DigiCertCA{
+			URL: *digicert.URL,
+		}
+		if digicert.ProfileID != nil {
+			digicertCA.ProfileID = *digicert.ProfileID
+		} else {
+			digicertCA.ProfileID = *oldCA.ProfileID
+		}
+		if digicert.APIToken != nil {
+			digicertCA.APIToken = *digicert.APIToken
+		} else {
+			digicertCA.APIToken = *oldCA.APIToken
+		}
+		if err := svc.digiCertService.VerifyProfileID(ctx, digicertCA); err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to validate DigiCert URL", "err", err)
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCould not verify DigiCert URL: %s. Please correct and try again.", errPrefix, err.Error())}
+		}
 	}
 	if digicert.APIToken != nil && *digicert.APIToken == "" {
 		return &fleet.BadRequestError{
