@@ -1270,6 +1270,35 @@ func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	return config
 }
 
+func TestSoftwarePackagesUnmarshalMulti(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"software"})
+	config += `
+software:
+  packages:
+    - path: software/single-package.yml
+    - path: software/multiple-packages.yml
+`
+
+	path, basePath := createTempFile(t, "", config)
+
+	for _, f := range []string{"single-package.yml", "multiple-packages.yml"} {
+		err := file.Copy(
+			filepath.Join("testdata", "software", f),
+			filepath.Join(basePath, "software", f),
+			os.FileMode(0o755),
+		)
+		require.NoError(t, err)
+	}
+
+	appConfig := fleet.EnrichedAppConfig{}
+	appConfig.License = &fleet.LicenseInfo{
+		Tier: fleet.TierPremium,
+	}
+	_, err := GitOpsFromFile(path, basePath, &appConfig, nopLogf)
+	require.NoError(t, err)
+}
+
 func TestIllegalFleetSecret(t *testing.T) {
 	t.Parallel()
 	config := getGlobalConfig([]string{"policies"})
