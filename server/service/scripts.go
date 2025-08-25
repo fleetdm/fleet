@@ -1303,7 +1303,7 @@ func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecuti
 	return &summary, nil
 }
 
-func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, error error) {
+func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, err error) {
 	// Get the batch activity.
 	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
 	if err != nil {
@@ -1327,7 +1327,7 @@ func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchEx
 	}
 
 	// Authorize based on the script's team ID.
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: script.TeamID}, fleet.ActionRead); err != nil {
+	if err = svc.authz.Authorize(ctx, &fleet.Script{TeamID: script.TeamID}, fleet.ActionRead); err != nil {
 		return nil, nil, 0, err
 	}
 
