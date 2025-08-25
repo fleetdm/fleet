@@ -1637,8 +1637,7 @@ func (c *Client) DoGitOps(
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
-	appConfig *fleet.EnrichedAppConfig,
-	// pass-by-ref to build lists
+	appConfig *fleet.EnrichedAppConfig, // pass-by-ref to build lists
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
@@ -2046,17 +2045,22 @@ func (c *Client) DoGitOps(
 				windowsUpdates["grace_period_days"] = nil
 			}
 		}
+
 		// Put in default value for enable_disk_encryption
+		enableDiskEncryption := false
+		requireBitLockerPIN := false
 		if config.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
-		} else {
-			mdmAppConfig["enable_disk_encryption"] = false
+			enableDiskEncryption = config.Controls.EnableDiskEncryption.(bool)
 		}
 		if config.Controls.RequireBitLockerPIN != nil {
-			mdmAppConfig["windows_require_bitlocker_pin"] = config.Controls.RequireBitLockerPIN
-		} else {
-			mdmAppConfig["windows_require_bitlocker_pin"] = false
+			requireBitLockerPIN = config.Controls.RequireBitLockerPIN.(bool)
 		}
+		if !enableDiskEncryption && requireBitLockerPIN {
+			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+		}
+
+		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if config.TeamName != nil {
 			team["gitops_filename"] = filename
