@@ -833,7 +833,7 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
   });
 
   it('does not render "How to open" option for non-"app"/"program" sources like "pkg_packages" but does render "Uninstall"', () => {
-    renderWithSetup(
+    render(
       <HostInstallerActionCell
         software={{
           ...defaultSoftware,
