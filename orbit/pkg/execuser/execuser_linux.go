@@ -15,8 +15,11 @@ import (
 	"strings"
 
 	userpkg "github.com/fleetdm/fleet/v4/orbit/pkg/user"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
 )
+
+var canUseSelinuxContext *bool
 
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
@@ -48,9 +51,23 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		}
 	}
 
+	if userContext != nil && canUseSelinuxContext == nil {
+		// Attempt to run the `env` command with the user context.
+		testArgs := append(args, "-c", fmt.Sprintf("runcon \"%s\" env foo=bar", *userContext))
+		testArgs = append([]string{"runuser"}, testArgs...)
+		// Execute the command and check the return code
+		cmd := exec.Command(testArgs[0], testArgs[1:]...)
+		if err := cmd.Run(); err != nil {
+			log.Error().Err(err).Msg("failed to run command with SELinux context; will revert to runuser without runcon")
+			canUseSelinuxContext = ptr.Bool(false)
+		} else {
+			canUseSelinuxContext = ptr.Bool(true)
+		}
+	}
+
 	// If the user has an SELinux context, we run the command with runcon so that it has the correct context.
 	// Otherwise, we run the command directly.
-	if userContext != nil {
+	if userContext != nil && canUseSelinuxContext != nil && *canUseSelinuxContext {
 		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s %s", *userContext, strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
 	} else {
 		args = append(args, "-c", fmt.Sprintf("%s %s %s", strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
