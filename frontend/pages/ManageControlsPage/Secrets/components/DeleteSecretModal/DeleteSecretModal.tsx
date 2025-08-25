@@ -57,12 +57,6 @@ const DeleteSecretModal = ({
         <p>
           This will delete the <b>{secret?.name}</b> custom variable.
         </p>
-        <p>
-          If this custom variable is used in any configuration profiles or
-          scripts, they will fail.
-          <br />
-          To resolve, edit the configuration profile or script.
-        </p>
         <div className="modal-cta-wrap">
           <Button
             variant="alert"
