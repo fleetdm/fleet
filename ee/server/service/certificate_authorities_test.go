@@ -36,13 +36,13 @@ func TestGetCertificateAuthorityByID(t *testing.T) {
 			require.False(t, includeSecrets, "includeSecrets should be false - the API should never return the secrets")
 			return &fleet.CertificateAuthority{
 				ID:                            1,
-				Name:                          "Test CA",
-				URL:                           "https://example.com",
+				Name:                          ptr.String("Test CA"),
+				URL:                           ptr.String("https://example.com"),
 				Type:                          string(fleet.CATypeDigiCert),
 				APIToken:                      ptr.String(fleet.MaskedPassword),
 				ProfileID:                     ptr.String("digicert-profile-id"),
 				CertificateCommonName:         ptr.String("digicert-common-name"),
-				CertificateUserPrincipalNames: []string{"digicert-upn1"},
+				CertificateUserPrincipalNames: &[]string{"digicert-upn1"},
 				CertificateSeatID:             ptr.String("digicert-seat-id"),
 			}, nil
 		}
@@ -219,8 +219,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -228,7 +228,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, createdCA.CertificateUserPrincipalNames)
+		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -254,8 +254,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -263,7 +263,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, createdCA.CertificateUserPrincipalNames)
+		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -289,8 +289,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -298,7 +298,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.Nil(t, createdCA.CertificateUserPrincipalNames)
+		assert.Nil(t, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -321,8 +321,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createHydrantRequest.Hydrant.Name, createdCA.Name)
-		assert.Equal(t, createHydrantRequest.Hydrant.URL, createdCA.URL)
+		assert.Equal(t, createHydrantRequest.Hydrant.Name, *createdCA.Name)
+		assert.Equal(t, createHydrantRequest.Hydrant.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeHydrant), createdCA.Type)
 		require.NotNil(t, createdCA.ClientID)
 		assert.Equal(t, createHydrantRequest.Hydrant.ClientID, *createdCA.ClientID)
@@ -347,8 +347,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Name, createdCA.Name)
-		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.URL, createdCA.URL)
+		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Name, *createdCA.Name)
+		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeCustomSCEPProxy), createdCA.Type)
 		require.NotNil(t, createdCA.Challenge)
 		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Challenge, *createdCA.Challenge)
@@ -372,8 +372,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, "NDES", createdCA.Name)
-		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.URL, createdCA.URL)
+		assert.Equal(t, "NDES", *createdCA.Name)
+		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeNDESSCEPProxy), createdCA.Type)
 		require.NotNil(t, createdCA.AdminURL)
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.AdminURL, *createdCA.AdminURL)
