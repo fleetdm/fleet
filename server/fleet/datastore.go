@@ -2196,7 +2196,16 @@ type Datastore interface {
 
 	AndroidDatastore
 
+	// NewMDMAndroidConfigProfile creates a new Android MDM config profile.
 	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+
+	// GetMDMAndroidConfigProfile returns the Android MDM profile corresponding
+	// to the specified profile uuid.
+	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
+
+	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to
+	// the specified profile uuid.
+	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM

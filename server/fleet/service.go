@@ -1122,7 +1122,11 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Android MDM
+
+	// NewMDMAndroidConfigProfile creates a new Android configuration profile
 	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAndroidConfigProfile, error)
+	// DeleteMDMAndroidConfigProfile deletes the specified Android profile.
+	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

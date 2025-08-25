@@ -20,11 +20,12 @@ type MDMAndroidConfigProfile struct {
 	TeamID           *uint                       `db:"team_id" json:"team_id"`
 	Name             string                      `db:"name" json:"name"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
+	AutoIncrement    uint64                      `db:"auto_increment" json:"auto_increment"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
-	UpdatedAt        time.Time                   `db:"updated_at" json:"updated_at"`
+	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // Difference in DB field name vs JSON is conscious decision to match other platforms
 }
 
 // ForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles

@@ -351,8 +351,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 }
 
 func (ds *Datastore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
-	profileUUID := "g" + uuid.New().String()
-	// TODO Add android to the DUAL_WHERE bit
+	profileUUID := fleet.MDMAndroidProfileUUIDPrefix + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
     mdm_android_configuration_profiles (profile_uuid, team_id, name, raw_json, uploaded_at)
@@ -361,6 +360,8 @@ INSERT INTO
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	) AND NOT EXISTS (
 		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	)
 )`
 
@@ -370,7 +371,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.RawJSON, cp.Name, teamID, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.RawJSON, cp.Name, teamID, cp.Name, teamID, cp.Name, cp.TeamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
@@ -432,4 +433,53 @@ INSERT INTO
 		RawJSON:     cp.RawJSON,
 		TeamID:      cp.TeamID,
 	}, nil
+}
+
+func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
+	stmt := `SELECT profile_uuid, team_id, name, raw_json, auto_increment, created_at, uploaded_at FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
+	var profile fleet.MDMAndroidConfigProfile
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &profile, stmt, profileUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("MDMAndroidConfigProfile").WithName(profileUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting android mdm config profile")
+	}
+	labels, err := ds.listProfileLabelsForProfiles(ctx, nil, nil, []string{profile.ProfileUUID}, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, lbl := range labels {
+		switch {
+		case lbl.Exclude && lbl.RequireAll:
+			// this should never happen so log it for debugging
+			level.Debug(ds.logger).Log("msg", "unsupported profile label: cannot be both exclude and require all",
+				"profile_uuid", lbl.ProfileUUID,
+				"label_name", lbl.LabelName,
+			)
+		case lbl.Exclude && !lbl.RequireAll:
+			profile.LabelsExcludeAny = append(profile.LabelsExcludeAny, lbl)
+		case !lbl.Exclude && !lbl.RequireAll:
+			profile.LabelsIncludeAny = append(profile.LabelsIncludeAny, lbl)
+		default:
+			// default include all
+			profile.LabelsIncludeAll = append(profile.LabelsIncludeAll, lbl)
+		}
+	}
+	return &profile, nil
+}
+
+func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
+	stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting android mdm config profile")
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(profileUUID))
+	}
+
+	return nil
 }
