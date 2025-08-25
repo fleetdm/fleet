@@ -98,12 +98,42 @@ The goal of the website group is to increase and exceed [Fleet's product maturit
 
 ## Working groups
 
-What is a working group? When do they exist?
+Like a product group at Fleet, a working group is an arrangement of people from different functions. What makes a working group unique is that it is tasked with achieving a high-impact business goal fast. A working group disbands when the goal is achieved so Fleet stays fast and avoids unnecessary process.
 
-Who? Product Designer, Engineer, and QA Engineer. For #g-ux: Mike T, Rachel, Noah, and Janis
+Working groups are for important work that needs to be done quickly, when asynchronous work would be too slow.
 
-What happens? 
-- New temporary board, label, Slack channel, document who and what in the handbook
+Working groups should have their own section here in the handbook that includes the name, goal, resources, and contributors. See the commented out section in the handbook for an example.
+
+Items to cover in the section:
+- Name of the working group
+- Desired business outcomes (goals)
+- Link to the working group Slack channel and GitHub project
+- Who is involved. This should include who the DRI is.
+
+
+### UX group
+
+The goals of the UX group are to catch the Fleet product up with the [latest brand colors/styles](https://github.com/fleetdm/confidential/issues/11765) from the website (fleetdm.com), address [UX debt (spiffier)](https://github.com/fleetdm/confidential/issues/11868), and ship the Fleet product's first [2 graphs](https://github.com/fleetdm/confidential/issues/11864).
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Product Manager (DRI)             | [Noah Talerman](https://www.linkedin.com/in/markolisica/) _([@noahtalerman](https://github.com/marko-lisica))_
+[Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
+| Developer                         | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_
+
+<!-- 
+Example working group section
+### Name
+
+Goal
+
+| Responsibility | Human(s)   |
+|:---------------|:-----------|
+|                |
+|                | 
+|                |
+-->
 
 
 ## Making changes
