@@ -105,7 +105,7 @@ What is a working group? When do they exist?
 Who? Product Designer, Engineer, and QA Engineer
 
 What happens? 
-- New temporary board, Slack channel, document who and what in the handbook
+- New temporary board, label, Slack channel, document who and what in the handbook
 
 
 ## Making changes
