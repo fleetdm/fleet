@@ -363,7 +363,7 @@ func (a ActivityTypeAppliedSpecPack) Documentation() (activity string, details s
 type ActivityTypeCreatedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   int64   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 
@@ -376,8 +376,8 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.`, `{
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,
@@ -388,7 +388,7 @@ func (a ActivityTypeCreatedPolicy) Documentation() (activity string, details str
 type ActivityTypeEditedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   *uint   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 
@@ -401,8 +401,8 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 		`This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.`, `{
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,
@@ -413,7 +413,7 @@ func (a ActivityTypeEditedPolicy) Documentation() (activity string, details stri
 type ActivityTypeDeletedPolicy struct {
 	ID       uint    `json:"policy_id"`
 	Name     string  `json:"policy_name"`
-	TeamID   int64   `json:"team_id,omitempty"`
+	TeamID   *int64  `json:"team_id,omitempty"`
 	TeamName *string `json:"team_name,omitempty"`
 }
 
@@ -426,8 +426,8 @@ func (a ActivityTypeDeletedPolicy) Documentation() (activity string, details str
 		`This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
-- "team_id": the ID of the team the policy belonged to.
-- "team_name": the name of the team the policy belonged to.`, `{
+- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.`, `{
 	"policy_id": 123,
 	"policy_name": "foo",
 	"team_id": 1,

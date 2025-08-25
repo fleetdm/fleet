@@ -69,8 +69,8 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
@@ -90,8 +90,8 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
@@ -111,8 +111,8 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
-- "team_id": the ID of the team the policy belonged to.
-- "team_name": the name of the team the policy belonged to.
+- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.
 
 #### Example
 
