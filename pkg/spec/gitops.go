@@ -1135,13 +1135,13 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *teamLevelPackage.Path)
 			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %v", *teamLevelPackage.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *teamLevelPackage.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			if err := YamlUnmarshal(fileBytes, &softwarePackageSpec); err != nil {
