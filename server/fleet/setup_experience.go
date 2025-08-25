@@ -185,7 +185,29 @@ type SetupExperienceStatusPayload struct {
 	OrgLogoURL            string                                       `json:"org_logo_url"`
 }
 
+// IsSetupExperienceSupported returns whether "Setup experience" is supported for the host's platform.
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	// TODO: confirm we aren't supporting any other Apple platforms
-	return hostPlatform == "darwin"
+	return hostPlatform == "darwin" || IsLinux(hostPlatform)
+}
+
+// DeviceSetupExperienceStatusPayload holds the status of the "Setup experience" for a device.
+type DeviceSetupExperienceStatusPayload struct {
+	// Software holds the status of the software to install on the device.
+	Software []*SetupExperienceStatusResult `json:"software,omitempty"`
+}
+
+// HostUUIDForSetupExperience returns the host "UUID" to use during the "Setup experience"
+// for a non-darwin host.
+//
+// The setup_experience_status_results uses the host's "UUID" as the host identifier because the table
+// was created to implement "Setup experience" for macOS devices.
+//
+// On Linux devices there might be issues with duplicate hardware UUIDs, so for that reason we will instead
+// use the host.OsqueryHostID as UUID. For Linux devices, the "Setup experience" will be triggered after orbit
+// and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
+func HostUUIDForSetupExperience(host *Host) string {
+	if host.Platform == string(MacOSPlatform) {
+		return host.UUID
+	}
+	return *host.OsqueryHostID
 }

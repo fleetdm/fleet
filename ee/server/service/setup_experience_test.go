@@ -73,14 +73,12 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		}, nil
 	}
 
-	// No host exists
-	_, err := svc.SetupExperienceNextStep(ctx, host1UUID)
-	require.Error(t, err)
-
-	// Host exists, nothing to do
 	mockListHostsLite = append(mockListHostsLite, &fleet.Host{UUID: host1UUID, ID: host1ID})
 
-	finished, err := svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err := svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 	assert.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -98,7 +96,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		},
 	}
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -110,7 +111,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 
@@ -129,7 +133,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		},
 	}
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -141,7 +148,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Equal(t, "script-uuid", *requestedUpdateSetupExperience[0].ScriptExecutionID)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 
@@ -163,7 +173,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	}
 
 	// Only installer is queued
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -177,7 +190,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	// install finished, call it again. This time script is queued
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -191,7 +207,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	// both finished, now we're done
 	mockListSetupExperience[1].Status = fleet.SetupExperienceStatusFailure
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 }

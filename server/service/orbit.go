@@ -475,7 +475,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 		isConnectedToFleetMDM,
 		mdmInfo,
 	)
-
 	if err != nil {
 		return fleet.OrbitConfig{}, ctxerr.Wrap(ctx, err, "setting no-team disk encryption notifications")
 	}
@@ -872,7 +871,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
 			fromSetupExperience = true
-			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
@@ -1368,9 +1367,11 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
-		// this might be a setup experience software install result
+		// This might be a setup experience software install result, so we attempt to update the
+		// "Setup experience" status for that item.
+		hostUUID := fleet.HostUUIDForSetupExperience(host)
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
-			HostUUID:        host.UUID,
+			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,
 			InstallerStatus: result.Status(),
 		}, true); err != nil {
@@ -1378,7 +1379,7 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		} else if updated {
 			// TODO: call next step of setup experience?
 			fromSetupExperience = true
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", hostUUID, "execution_id", result.InstallUUID)
 		}
 	}
 
@@ -1469,6 +1470,53 @@ func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interfac
 }
 
 func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Setup experience init
+/////////////////////////////////////////////////////////////////////////////////
+
+type orbitSetupExperienceInitRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *orbitSetupExperienceInitRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *orbitSetupExperienceInitRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type orbitSetupExperienceInitResponse struct {
+	Result fleet.SetupExperienceInitResult `json:"result"`
+	Err    error                           `json:"error,omitempty"`
+}
+
+func (r orbitSetupExperienceInitResponse) Error() error {
+	return r.Err
+}
+
+func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	_, ok := request.(*orbitSetupExperienceInitRequest)
+	if !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
+	}
+	result, err := svc.SetupExperienceInit(ctx)
+	if err != nil {
+		return orbitSetupExperienceInitResponse{Err: err}, nil
+	}
+	return orbitSetupExperienceInitResponse{
+		Result: *result,
+	}, nil
+}
+
+func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
