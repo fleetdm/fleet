@@ -63,6 +63,12 @@ labels:
     hosts:
       - "ceo-laptop"
       - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 #### Separate file
@@ -80,6 +86,12 @@ labels:
   hosts:
     - "ceo-laptop"
     - "the-CFOs-computer"
+  - name: Engineering department
+    description: Hosts used by engineers
+    label_membership_type: host_vitals
+    criteria:
+      vital: end_user_idp_department
+      value: Engineering
 ```
 
 `lib/default.yml`
@@ -868,12 +880,12 @@ Can only be configured for all teams (`org_settings`).
 
 #### apple_business_manager
 
-After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#automatic-enrollment), the `apple_business_manager` section lets you determine which team Apple devices are assigned to in Fleet when they appear in Apple Business Manager.
+After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager), the `apple_business_manager` section lets you determine which team Apple hosts are assigned to in Fleet when they appear in Apple Business Manager.
 
 - `organization_name` is the organization name associated with the Apple Business Manager account.
-- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager.
-- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager.
-- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager.
+- `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+- `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 
 #### Example
 

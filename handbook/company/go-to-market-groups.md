@@ -33,7 +33,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
 | Customer Success Manager (CSM)    | [Jason Lewis](https://www.linkedin.com/in/jlewis0451/) _([@patagonia121](https://github.com/patagonia121))_ <br> [Michael Pinto](https://www.linkedin.com/in/michael-pinto-a06b4515a/) _([@pintomi1989](https://github.com/pintomi1989)_) <br> [Joshua Roskos](https://www.linkedin.com/in/jroskos/) _([@kc9wwh](https://github.com/kc9wwh))_ <br> [Raiven Williams](https://www.linkedin.com/in/raivenwilliams/) _([@bettapizza](https://github.com/bettapizza))_
-| Customer Support Engineer (CSE)       | [Kathy Satterlee](https://www.linkedin.com/in/ksatter/) _([@ksatter](https://github.com/ksatter))_ <br> [Mason Buettner](https://www.linkedin.com/in/mason-buettner-b72959175/) _([@mason-buettner](https://github.com/mason-buettner))_ <br> Ben Edwards _([@edwardsb](https://github.com/edwardsb))_  <br> [Jake Stenger](https://www.linkedin.com/in/jakestenger/) _([@jakestenger](https://github.com/jakestenger))_ <br> [Matt Rebelo](https://www.linkedin.com/in/matt-rebelo/) _([@reeblybeebly](https://github.com/reeblybeebly))_ <br> Steven Palmesano _([@spalmesano0](https://github.com/spalmesano0))_
+| Customer Support Engineer (CSE)       | <sup><sub> _See [Customer_Success](https://fleetdm.com/handbook/customer-success)_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR), [kanban release board](https://github.com/fleetdm/confidential/issues#workspaces/g-unicorns-67b0e98321bc780010a6e78e/board), and [GitHub label](https://github.com/fleetdm/confidential/labels/%23g-unicorns) for this GTM group is `#g-unicorns`.
 
@@ -69,7 +69,7 @@ The goal of the 🌐 Buy online group is to provide the best possible customer e
 | Emergency (P0) | Your production instance of Fleet is unavailable or completely unusable. For example, if Fleet is showing 502 errors for all users. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 hours** |
 | High (P1) | Fleet is highly degraded with significant business impact. | Expedited phone/chat/email support during business hours. </br></br>Email the contact address provided in your Fleet contract or chat with us via your dedicated private Slack channel | **≤4 business hours** |
 | Medium (P2) | Something is preventing normal Fleet operation, and there may or may not be minor business impact. | Standard email/chat support | ≤1 business day | 
-| Low (P3) | Questions or clarifications around features, documentation, deployments, or 'how to's'. | Standard email/chat support | 1-2 business days | 
+| Low (P3) | Questions or clarifications around features, documentation, deployments, or "how to's". | Standard email/chat support | 1-2 business days | 
 
 > **Note:** Fleet business hours for support are Monday-Friday, 6AM-4PM Pacific Time, excluding current U.S. federal holidays during which responses may be delayed for Medium and Low impact issues. Refer to your welcome email for contact and support info. 
 
@@ -132,7 +132,7 @@ Here are some topics for social media posts:
 
 > **Is there a post that you would like to see on the company page?**
 >
-> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Demand team will request permission to use the post in a promoted post.   
+> Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/marketing#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, reach out in the [#help-marketing channel](https://fleetdm.slack.com/archives/C01ALP02RB5) linking the team to your personal LinkedIn post (only original posts please, re-posts and quotes of other posts can not be promoted). Include any context in the Slack message and keep an eye on your inbox. The Marketing team will request permission to use the post in a promoted post.   
 
 
 ##### Fleet on LinkedIn

@@ -342,7 +342,7 @@ will be disabled and/or hidden in the UI.
                       contactSource: 'Website - Sign up',// Note: this is only set on new contacts.
                     });
                     let websiteVisitReason;
-                    if(req.session.adAttributionString && this.req.session.visitedSiteFromAdAt) {
+                    if(req.session.adAttributionString && req.session.visitedSiteFromAdAt) {
                       let thirtyMinutesAgoAt = Date.now() - (1000 * 60 * 30);
                       // If this user visited the website from an ad, set the websiteVisitReason to be the adAttributionString stored in their session.
                       if(req.session.visitedSiteFromAdAt > thirtyMinutesAgoAt) {

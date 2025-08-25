@@ -14,6 +14,7 @@ import { IMdmCommandResult } from "interfaces/mdm";
 import InventoryVersions from "pages/hosts/details/components/InventoryVersions";
 
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import Textarea from "components/Textarea";
@@ -148,6 +149,50 @@ export const getStatusMessage = ({
   );
 };
 
+interface IModalButtonsProps {
+  displayStatus: SoftwareInstallStatus | "pending";
+  deviceAuthToken?: string;
+  onCancel: () => void;
+  onRetry?: (id: number) => void;
+  hostSoftwareId?: number;
+}
+
+export const ModalButtons = ({
+  displayStatus,
+  deviceAuthToken,
+  onCancel,
+  onRetry,
+  hostSoftwareId,
+}: IModalButtonsProps) => {
+  const onClickRetry = () => {
+    // on DUP, where this is relevant, both will be defined
+    if (onRetry && hostSoftwareId) {
+      onRetry(hostSoftwareId);
+    }
+    onCancel();
+  };
+
+  if (deviceAuthToken && displayStatus === "failed_install") {
+    return (
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+  return (
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+  );
+};
+
 const baseClass = "vpp-install-details-modal";
 
 export type IVppInstallDetails = {
@@ -206,13 +251,6 @@ export const VppInstallDetailsModal = ({
     };
   };
 
-  const onClickRetry = () => {
-    // on DUP, where this is relevant, both will be defined
-    if (onRetry && hostSoftware?.id) {
-      onRetry(hostSoftware.id);
-    }
-    onCancel();
-  };
   const {
     data: vppCommandResult,
     isLoading: isLoadingVPPCommandResult,
@@ -349,26 +387,6 @@ export const VppInstallDetailsModal = ({
     );
   };
 
-  const renderCta = () => {
-    if (deviceAuthToken && displayStatus === "failed_install") {
-      return (
-        <div className="modal-cta-wrap">
-          <Button type="submit" onClick={onClickRetry}>
-            Retry
-          </Button>
-          <Button variant="inverse" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      );
-    }
-    return (
-      <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
-      </div>
-    );
-  };
-
   return (
     <Modal
       title="Install details"
@@ -378,7 +396,13 @@ export const VppInstallDetailsModal = ({
     >
       <>
         {renderContent()}
-        {renderCta()}
+        <ModalButtons
+          deviceAuthToken={deviceAuthToken}
+          hostSoftwareId={hostSoftware?.id}
+          onRetry={onRetry}
+          onCancel={onCancel}
+          displayStatus={displayStatus}
+        />
       </>
     </Modal>
   );

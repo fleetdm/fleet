@@ -29,6 +29,7 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -387,6 +388,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			Message:     "failed to read Apple config profile",
 			InternalErr: err,
 		})
+	}
+
+	// Check for secrets in profile name before expansion
+	if err := fleet.ValidateNoSecretsInProfileName(b); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	// Expand and validate secrets in profile
@@ -2593,6 +2599,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
+		// Check for secrets in profile name before expansion
+		if err := fleet.ValidateNoSecretsInProfileName(prof); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
+		}
 		// Expand profile for validation
 		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(prof))
 		if err != nil {
@@ -3208,12 +3219,12 @@ func (svc *Service) UpdateMDMAppleSetup(ctx context.Context, payload fleet.MDMAp
 // POST /mdm/sso
 ////////////////////////////////////////////////////////////////////////////////
 
-type initiateMDMAppleSSORequest struct {
+type initiateMDMSSORequest struct {
 	Initiator      string `json:"initiator,omitempty"`       // optional, passed by the UI during account-driven enrollment
 	UserIdentifier string `json:"user_identifier,omitempty"` // optional, passed by Apple for account-driven enrollment
 }
 
-type initiateMDMAppleSSOResponse struct {
+type initiateMDMSSOResponse struct {
 	URL string `json:"url,omitempty"`
 	Err error  `json:"error,omitempty"`
 
@@ -3221,20 +3232,20 @@ type initiateMDMAppleSSOResponse struct {
 	sessionDurationSeconds int
 }
 
-func (r initiateMDMAppleSSOResponse) Error() error { return r.Err }
+func (r initiateMDMSSOResponse) Error() error { return r.Err }
 
-func (r initiateMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+func (r initiateMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	setSSOCookie(w, r.sessionID, r.sessionDurationSeconds)
 }
 
-func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*initiateMDMAppleSSORequest)
-	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMAppleSSO(ctx, req.Initiator)
+func initiateMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*initiateMDMSSORequest)
+	sessionID, sessionDurationSeconds, idpProviderURL, err := svc.InitiateMDMSSO(ctx, req.Initiator, "")
 	if err != nil {
-		return initiateMDMAppleSSOResponse{Err: err}, nil
+		return initiateMDMSSOResponse{Err: err}, nil
 	}
 
-	return initiateMDMAppleSSOResponse{
+	return initiateMDMSSOResponse{
 		URL: idpProviderURL,
 
 		sessionID:              sessionID,
@@ -3242,7 +3253,7 @@ func initiateMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc f
 	}, nil
 }
 
-func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
+func (svc *Service) InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -3254,7 +3265,7 @@ func (svc *Service) InitiateMDMAppleSSO(ctx context.Context, initiator string) (
 // POST /mdm/sso/callback
 ////////////////////////////////////////////////////////////////////////////////
 
-type callbackMDMAppleSSORequest struct {
+type callbackMDMSSORequest struct {
 	sessionID    string
 	samlResponse []byte
 }
@@ -3263,49 +3274,54 @@ type callbackMDMAppleSSORequest struct {
 // redirect to the UI and let the UI display an error instead. The errors are
 // rare enough (malformed data coming from the SSO provider) so they shouldn't
 // affect many users.
-func (callbackMDMAppleSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (callbackMDMSSORequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	sessionID, samlResponse, err := decodeCallbackRequest(ctx, r)
 	if err != nil {
 		return nil, err
 	}
-	return &callbackMDMAppleSSORequest{
+	return &callbackMDMSSORequest{
 		sessionID:    sessionID,
 		samlResponse: samlResponse,
 	}, nil
 }
 
-type callbackMDMAppleSSOResponse struct {
-	redirectURL string
+type callbackMDMSSOResponse struct {
+	redirectURL           string
+	byodEnrollCookieValue string
 }
 
-func (r callbackMDMAppleSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r callbackMDMSSOResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
 	w.WriteHeader(http.StatusSeeOther)
 }
 
-func (r callbackMDMAppleSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
+func (r callbackMDMSSOResponse) SetCookies(_ context.Context, w http.ResponseWriter) {
 	deleteSSOCookie(w)
+	if r.byodEnrollCookieValue != "" {
+		setBYODCookie(w, r.byodEnrollCookieValue, 30*60) // valid for 30 minutes
+	}
 }
 
 // Error will always be nil because errors are handled by sending a query
 // parameter in the URL response, this way the UI is able to display an error
 // message.
-func (r callbackMDMAppleSSOResponse) Error() error { return nil }
+func (r callbackMDMSSOResponse) Error() error { return nil }
 
-func callbackMDMAppleSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	callbackRequest := request.(*callbackMDMAppleSSORequest)
-	redirectURL := svc.MDMAppleSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
-	return callbackMDMAppleSSOResponse{
-		redirectURL: redirectURL,
+func callbackMDMSSOEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	callbackRequest := request.(*callbackMDMSSORequest)
+	redirectURL, byodCookieValue := svc.MDMSSOCallback(ctx, callbackRequest.sessionID, callbackRequest.samlResponse)
+	return callbackMDMSSOResponse{
+		redirectURL:           redirectURL,
+		byodEnrollCookieValue: byodCookieValue,
 	}, nil
 }
 
-func (svc *Service) MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string {
+func (svc *Service) MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string) {
 	// skipauth: No authorization check needed due to implementation
 	// returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+	return apple_mdm.FleetUISSOCallbackPath + "?error=true", ""
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -6775,11 +6791,44 @@ func (svc *Service) RenewABMToken(ctx context.Context, token io.Reader, tokenID 
 
 type getOTAProfileRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
+}
+
+func (getOTAProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret is required",
+		}
+	}
+
+	boydIdpCookie, err := r.Cookie(shared_mdm.BYODIdpCookieName)
+	if err != nil {
+		// r.Cookie only return ErrNoCookie and no other errors.
+
+		// We do not fail here if no cookie is found, we validate later down the line if it's required
+		return &getOTAProfileRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      "",
+		}, nil
+	}
+
+	if err = boydIdpCookie.Valid(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "boyd idp cookie is not valid",
+			InternalErr: err,
+		}
+	}
+
+	return &getOTAProfileRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      boydIdpCookie.Value,
+	}, nil
 }
 
 func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOTAProfileRequest)
-	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret)
+	profile, err := svc.GetOTAProfile(ctx, req.EnrollSecret, req.IdpUUID)
 	if err != nil {
 		return &getMDMAppleConfigProfileResponse{Err: err}, err
 	}
@@ -6788,7 +6837,7 @@ func getOTAProfileEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	return &getMDMAppleConfigProfileResponse{fileReader: io.NopCloser(reader), fileLength: reader.Size(), fileName: "fleet-mdm-enrollment-profile"}, nil
 }
 
-func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error) {
+func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error) {
 	// Skip authz as this endpoint is used by end users from their iPhones or iPads; authz is done
 	// by the enroll secret verification below
 	svc.authz.SkipAuthorization(ctx)
@@ -6798,7 +6847,10 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 		return nil, ctxerr.Wrap(ctx, err, "getting app config to get org name")
 	}
 
-	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret)
+	// TODO(IB): Validate that the IdpUUID should be populated based on the criteria for showing the SSO in the first place
+	// Should be added with the work of #30660 or afterwars.
+
+	profBytes, err := apple_mdm.GenerateOTAEnrollmentProfileMobileconfig(cfg.OrgInfo.OrgName, cfg.MDMUrl(), enrollSecret, idpUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "generating ota mobileconfig file")
 	}
@@ -6817,6 +6869,7 @@ func (svc *Service) GetOTAProfile(ctx context.Context, enrollSecret string) ([]b
 
 type mdmAppleOTARequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	IdpUUID      string `query:"idp_uuid"`
 	Certificates []*x509.Certificate
 	RootSigner   *x509.Certificate
 	DeviceInfo   fleet.MDMAppleMachineInfo
@@ -6829,6 +6882,8 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 			InternalErr: errors.New("enroll_secret query parameter was empty"),
 		}
 	}
+
+	idpUUID := r.URL.Query().Get("idp_uuid") // Can be empty.
 
 	rawData, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -6859,6 +6914,7 @@ func (mdmAppleOTARequest) DecodeRequest(ctx context.Context, r *http.Request) (i
 	}
 
 	request.EnrollSecret = enrollSecret
+	request.IdpUUID = idpUUID
 	request.Certificates = p7.Certificates
 	request.RootSigner = p7.GetOnlySigner()
 	return &request, nil
@@ -6883,7 +6939,7 @@ func (r mdmAppleOTAResponse) HijackRender(ctx context.Context, w http.ResponseWr
 
 func mdmAppleOTAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleOTARequest)
-	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.DeviceInfo)
+	xml, err := svc.MDMAppleProcessOTAEnrollment(ctx, req.Certificates, req.RootSigner, req.EnrollSecret, req.IdpUUID, req.DeviceInfo)
 	if err != nil {
 		return mdmAppleGetInstallerResponse{Err: err}, nil
 	}
@@ -6896,6 +6952,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 	certificates []*x509.Certificate,
 	rootSigner *x509.Certificate,
 	enrollSecret string,
+	idpUUID string,
 	deviceInfo fleet.MDMAppleMachineInfo,
 ) ([]byte, error) {
 	// authorization is performed via the enroll secret and the provided certificates
@@ -6976,9 +7033,29 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 		return nil, ctxerr.Wrap(ctx, err, "generating manual enrollment profile")
 	}
 
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	if requiresIdPUUID && idpUUID == "" {
+		return nil, ctxerr.Wrap(
+			ctx,
+			authz.ForbiddenWithInternal("required idp uuid to be set, but none found", nil, nil, nil),
+			"missing required idp uuid",
+		)
+	}
+
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "validating idp account existence")
+		}
+	}
+
 	// before responding, create a host record, and assign the host to the
 	// team that matches the enroll secret provided.
-	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, deviceInfo)
+	err = svc.ds.IngestMDMAppleDeviceFromOTAEnrollment(ctx, enrollSecretInfo.TeamID, idpUUID, deviceInfo)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating new host record")
 	}

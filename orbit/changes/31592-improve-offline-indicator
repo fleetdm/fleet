@@ -1,1 +1,0 @@
-* Fixed offline indicator to be less sensitive to transient network failures and faster recovery when connectivity is restored.

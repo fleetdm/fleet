@@ -32,30 +32,30 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 		Name     string `db:"name"`
 		Platform string `db:"platform"`
 	}
-	existingLabels := make(map[string]existingLabel)
-
-	if len(labelNames) > 0 {
-		stmt := `SELECT id, name, platform FROM labels WHERE name IN (?)`
-		stmt, args, err := sqlx.In(stmt, labelNames)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build existing labels query")
-		}
-
-		var labels []existingLabel
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "query existing labels")
-		}
-
-		for _, label := range labels {
-			existingLabels[label.Name] = label
-		}
-	}
+	existingLabels := make(map[string]existingLabel, len(specs))
 
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
 		// are we ok depending solely on the caller to ensure that these fields
 		// are not changed?
+
+		if len(labelNames) > 0 {
+			stmt := `SELECT id, name, platform FROM labels WHERE name IN (?)`
+			stmt, args, err := sqlx.In(stmt, labelNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build existing labels query")
+			}
+
+			var labels []existingLabel
+			if err := sqlx.SelectContext(ctx, tx, &labels, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "query existing labels")
+			}
+
+			for _, label := range labels {
+				existingLabels[label.Name] = label
+			}
+		}
 
 		sql := `
 		INSERT INTO labels (
@@ -92,7 +92,7 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, s.HostVitalsCriteria, authorID)
+			insertLabelResult, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, s.HostVitalsCriteria, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
 			}
@@ -124,10 +124,11 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 				labelID = existing.ID
 			} else {
 				// New label - fetch the ID we just created
-				sqlGetID := `SELECT id FROM labels WHERE name = ?`
-				if err := sqlx.GetContext(ctx, tx, &labelID, sqlGetID, s.Name); err != nil {
+				id, err := insertLabelResult.LastInsertId()
+				if err != nil {
 					return ctxerr.Wrap(ctx, err, "get new label ID for manual membership")
 				}
+				labelID = uint(id) //nolint:gosec
 			}
 
 			sql = `

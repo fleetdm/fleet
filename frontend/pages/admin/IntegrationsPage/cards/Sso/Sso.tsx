@@ -69,10 +69,6 @@ const validate = (formData: ISsoFormData) => {
       errors.entity_id = "Entity ID must be present";
     }
 
-    if (typeof entityId === "string" && entityId.length < 5) {
-      errors.entity_id = "Entity ID must be 5 or more characters";
-    }
-
     if (!idpName) {
       errors.idp_name = "Identity provider name must be present";
     }

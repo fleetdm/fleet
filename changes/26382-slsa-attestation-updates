@@ -1,0 +1,3 @@
+* Attested the signed Windows Orbit binary instead of the unsigned one.
+* For both Fleet desktop and Osquery for macOS and Windows artifacts,
+  attested the binaries inside archives.

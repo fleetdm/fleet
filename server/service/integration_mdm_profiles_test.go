@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -92,9 +93,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	<key>PayloadContent</key>
 	<array/>
 	<key>PayloadDisplayName</key>
-	<string>$FLEET_SECRET_INVALID</string>
+	<string>My profile</string>
 	<key>PayloadIdentifier</key>
-	<string>N3</string>
+	<string>$FLEET_SECRET_INVALID</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
@@ -108,6 +109,31 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
+
+	invalidSecretsProfile = []byte(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>$FLEET_SECRET_INVALID</string>
+	<key>PayloadIdentifier</key>
+	<string>N3</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>601E0B42-0989-4FAD-A61B-18656BA3670E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`)
+
+	res = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
@@ -203,9 +229,8 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Use secret variables in a profile
 	secretIdentifier := "secret-identifier-1"
 	secretType := "secret.type.1"
-	secretName := "secretName"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_IDENTIFIER",
@@ -216,23 +241,19 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 				Value: secretType,
 			},
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName,
-			},
-			{
 				Name:  "FLEET_SECRET_PROFILE",
 				Value: secretProfile,
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 
 	// set new team profiles (delete + addition)
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
 		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
-			"$FLEET_SECRET_NAME"),
+			"InnerName5"),
 		// The whole profile is one big secret.
 		[]byte("$FLEET_SECRET_PROFILE"),
 	}
@@ -252,7 +273,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Manually replace the expected secret variables in the profile
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
 	wantTeamProfiles[2] = []byte(secretProfile)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
@@ -271,12 +291,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "newSecretName"
-	req = secretVariablesRequest{
+	secretType = "new.secret.type.1"
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -296,7 +320,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
@@ -342,12 +365,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "new2SecretName"
-	req = secretVariablesRequest{
+	secretType = "new2.secret.type.1"
+	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -367,7 +394,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
@@ -5610,18 +5636,42 @@ func (s *integrationMDMTestSuite) TestOTAProfile() {
 	cfg, err := s.ds.AppConfig(ctx)
 	require.NoError(t, err)
 
-	// Get profile with that enroll secret
-	resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
-	require.NotZero(t, resp.ContentLength)
-	require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
-	require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
-	require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
-	b, err := io.ReadAll(resp.Body)
-	require.NoError(t, err)
-	require.Equal(t, resp.ContentLength, int64(len(b)))
-	require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
-	require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
-	require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	t.Run("gets profile with idp uuid included if boyd cookie is set", func(t *testing.T) {
+		// Get profile with that enroll secret
+		j, err := json.Marshal(getOTAProfileRequest{})
+		require.NoError(t, err)
+
+		idpUUID := uuid.New()
+		resp := s.DoRawWithHeaders("GET", "/api/latest/fleet/enrollment_profiles/ota", j, http.StatusOK, map[string]string{
+			"Cookie": fmt.Sprintf("%s=%s", shared_mdm.BYODIdpCookieName, idpUUID.String()),
+		}, "enroll_secret", globalEnrollSec)
+		require.NotZero(t, resp.ContentLength)
+		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+		defer resp.Body.Close()
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, resp.ContentLength, int64(len(b)))
+		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s&amp;idp_uuid=%s", cfg.ServerSettings.ServerURL, escSec, idpUUID.String()))
+		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
+
+	t.Run("does not include idp_uuid in the url if cookie is not set", func(t *testing.T) {
+		resp := s.Do("GET", "/api/latest/fleet/enrollment_profiles/ota", &getOTAProfileRequest{}, http.StatusOK, "enroll_secret", globalEnrollSec)
+		require.NotZero(t, resp.ContentLength)
+		require.Contains(t, resp.Header.Get("Content-Disposition"), `attachment;filename="fleet-mdm-enrollment-profile.mobileconfig"`)
+		require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		require.Contains(t, resp.Header.Get("X-Content-Type-Options"), "nosniff")
+		b, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.Equal(t, resp.ContentLength, int64(len(b)))
+		require.Contains(t, string(b), "com.fleetdm.fleet.mdm.apple.ota")
+		require.Contains(t, string(b), fmt.Sprintf("%s/api/v1/fleet/ota_enrollment?enroll_secret=%s", cfg.ServerSettings.ServerURL, escSec))
+		require.NotContains(t, string(b), "idp_uuid=")
+		require.Contains(t, string(b), cfg.OrgInfo.OrgName)
+	})
 }
 
 // TestAppleDDMSecretVariablesUpload tests uploading DDM profiles with secrets via the /configuration_profiles endpoint
@@ -5672,7 +5722,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	assertBodyContains(t, res, `Secret variable \"$FLEET_SECRET_BASH\" missing`)
 
 	// Add secret(s) to server
-	req := secretVariablesRequest{
+	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
 				Name:  "FLEET_SECRET_BASH",
@@ -5684,7 +5734,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 			},
 		},
 	}
-	secretResp := secretVariablesResponse{}
+	secretResp := createSecretVariablesResponse{}
 	s.DoJSON("PUT", "/api/latest/fleet/spec/secret_variables", req, http.StatusOK, &secretResp)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusOK, headers)
 	var resp newMDMConfigProfileResponse
@@ -7449,5 +7499,4 @@ func (s *integrationMDMTestSuite) TestWindowsProfilesFleetVariableSubstitution()
 	require.Equal(t, "ProfileNoVars", (*hostRespNoVars.Host.MDM.Profiles)[0].Name)
 	require.Equal(t, fleet.MDMDeliveryVerified, *(*hostRespNoVars.Host.MDM.Profiles)[0].Status,
 		"Profile should be verified in host details API for no-vars host")
-
 }
