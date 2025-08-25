@@ -238,56 +238,6 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
-func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
-	headers := map[string]string{
-		"X-Forwarded-For": "1.2.3.4",
-	}
-
-	testCases := []struct {
-		endpoint string
-		verb     string
-		payload  interface{}
-		burst    int
-		status   int
-	}{
-		{
-			endpoint: "/api/latest/fleet/forgot_password",
-			verb:     "POST",
-			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 2,
-			status:   http.StatusAccepted,
-		},
-		{
-			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
-			verb:     "GET",
-			burst:    desktopRateLimitMaxBurst + 1,
-			status:   http.StatusUnauthorized,
-		},
-	}
-
-	// Mock working SMTP for password reset
-	config, err := s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	config.SMTPSettings.SMTPConfigured = true
-	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
-
-	for _, tCase := range testCases {
-		b, err := json.Marshal(tCase.payload)
-		require.NoError(s.T(), err)
-
-		for i := 0; i < tCase.burst; i++ {
-			s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, tCase.status, headers).Body.Close()
-		}
-		s.DoRawWithHeaders(tCase.verb, tCase.endpoint, b, http.StatusTooManyRequests, headers).Body.Close()
-	}
-
-	// Disable it again because integration tests leak state like a sieve
-	config, err = s.ds.AppConfig(context.Background())
-	require.NoError(s.T(), err)
-	config.SMTPSettings.SMTPConfigured = false
-	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
-}
-
 func (s *integrationTestSuite) TestErrorReporting() {
 	t := s.T()
 

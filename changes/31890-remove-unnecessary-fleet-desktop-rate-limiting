@@ -1,0 +1,1 @@
+* Removed unnecessary (and invalid) rate limitting to Fleet Desktop API requests (which was causing issues with hosts behind NATs).
