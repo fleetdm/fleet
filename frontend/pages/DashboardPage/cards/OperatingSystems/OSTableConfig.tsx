@@ -19,6 +19,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
@@ -100,7 +101,25 @@ const generateDefaultTableHeaders = (
     ),
   },
   {
-    Header: "Vulnerabilities",
+    Header: (): JSX.Element => {
+      const titleWithTooltip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Vulnerabilities on Linux are currently supported <br />
+              for Ubuntu, Debian, and Amazon Linux.
+            </>
+          }
+        >
+          Vulnerabilities
+        </TooltipWrapper>
+      );
+      return (
+        <>
+          <HeaderCell value={titleWithTooltip} disableSortBy />
+        </>
+      );
+    },
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {
