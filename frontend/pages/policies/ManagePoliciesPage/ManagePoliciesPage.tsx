@@ -572,15 +572,22 @@ const ManagePolicyPage = ({
         return;
       }
 
-      const promises = changedPolicies.map((changedPolicy) =>
-        teamPoliciesAPI.update(changedPolicy.id, {
-          software_title_id: changedPolicy.swIdToInstall || null,
-          team_id: teamIdForApi,
-        })
-      );
+      // Execute policy updates sequentially to reduce DB load
+      const results: PromiseSettledResult<any>[] = [];
 
-      // Allows for all API calls to settle even if there is an error on one
-      const results = await Promise.allSettled(promises);
+      // Use reduce to execute promises sequentially
+      await changedPolicies.reduce(async (previousPromise, changedPolicy) => {
+        await previousPromise;
+        try {
+          const result = await teamPoliciesAPI.update(changedPolicy.id, {
+            software_title_id: changedPolicy.swIdToInstall || null,
+            team_id: teamIdForApi,
+          });
+          results.push({ status: "fulfilled", value: result });
+        } catch (error) {
+          results.push({ status: "rejected", reason: error });
+        }
+      }, Promise.resolve());
 
       const successfulUpdates = results.filter(
         (result) => result.status === "fulfilled"

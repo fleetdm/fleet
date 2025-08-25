@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
+func (ds *AndroidDatastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
 	// Check for existing devices and duplicates
 	stmt := `SELECT id, device_id, enterprise_specific_id FROM android_devices WHERE device_id = ? OR enterprise_specific_id = ?`
 	var existing []android.Device
@@ -36,7 +36,7 @@ func (ds *Datastore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, dev
 	}
 }
 
-func (ds *Datastore) deleteDuplicate(ctx context.Context, device *android.Device, tx sqlx.ExtContext, existing []android.Device) error {
+func (ds *AndroidDatastore) deleteDuplicate(ctx context.Context, device *android.Device, tx sqlx.ExtContext, existing []android.Device) error {
 	// Duplicates should never happen. We log error and try to handle it gracefully.
 	level.Error(ds.logger).Log("msg", "Found two Android devices with the same device ID or enterprise specific ID", "device_id",
 		device.DeviceID, "enterprise_specific_id", device.EnterpriseSpecificID)
@@ -49,13 +49,13 @@ func (ds *Datastore) deleteDuplicate(ctx context.Context, device *android.Device
 	return nil
 }
 
-func (ds *Datastore) deleteDevice(ctx context.Context, tx sqlx.ExtContext, id uint) error {
+func (ds *AndroidDatastore) deleteDevice(ctx context.Context, tx sqlx.ExtContext, id uint) error {
 	deleteStmt := `DELETE FROM android_devices WHERE id = ?`
 	_, err := tx.ExecContext(ctx, deleteStmt, id)
 	return err
 }
 
-func (ds *Datastore) insertDevice(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
+func (ds *AndroidDatastore) insertDevice(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
 	stmt := `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id, android_policy_id, last_policy_sync_time) VALUES (?, ?, ?, ?,
 ?)`
 	result, err := tx.ExecContext(ctx, stmt, device.HostID, device.DeviceID, device.EnterpriseSpecificID, device.AndroidPolicyID,
@@ -71,7 +71,7 @@ func (ds *Datastore) insertDevice(ctx context.Context, device *android.Device, t
 	return device, nil
 }
 
-func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
+func (ds *AndroidDatastore) updateDevice(ctx context.Context, device *android.Device, tx sqlx.ExtContext) (*android.Device, error) {
 	stmt := `
 	UPDATE android_devices SET
 		host_id = :host_id,
@@ -91,7 +91,7 @@ func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device, t
 	return device, nil
 }
 
-func (ds *Datastore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error {
+func (ds *AndroidDatastore) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error {
 	_, err := ds.updateDevice(ctx, device, tx)
 	return err
 }
