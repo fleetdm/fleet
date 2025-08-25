@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250818165154, Down_20250818165154)
+	MigrationClient.AddMigration(Up_20250825165154, Down_20250825165154)
 }
 
-func Up_20250818165154(tx *sql.Tx) error {
+func Up_20250825165154(tx *sql.Tx) error {
 	// The AUTO_INCREMENT columns are used to determine if a row was updated by
 	// an INSERT ... ON DUPLICATE KEY UPDATE statement. This is needed because we
 	// are currently using CLIENT_FOUND_ROWS option to determine if a row was
@@ -17,15 +17,11 @@ func Up_20250818165154(tx *sql.Tx) error {
 	// LAST_INSERT_ID(). MySQL docs:
 	// https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html
 
-	// TODO: thoughts about naming it `google` as suggested by Sarah at standup?
-	// Makes it a bit clearer that the 'g' prefix is used for profile_uuid (and
-	// not 'a' - apple, nor 'd' - apple declarations).
-
-	// TODO: not adding `secrets_updated_at` / `variables_updated_at` anywhere
+	// NOTE: not adding `secrets_updated_at` / `variables_updated_at` anywhere
 	// just yet as we won't support them in Android profiles for now.
 
 	createProfilesTable := `
-CREATE TABLE mdm_google_configuration_profiles (
+CREATE TABLE mdm_android_configuration_profiles (
 	-- profile_uuid is length 37 as it has a single char prefix (of 'g') before the actual uuid
   profile_uuid   VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	-- no FK constraint on teams, the profile is manually deleted when the team is deleted
@@ -44,11 +40,11 @@ CREATE TABLE mdm_google_configuration_profiles (
   uploaded_at    TIMESTAMP(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
 
   PRIMARY KEY (profile_uuid),
-  UNIQUE KEY idx_mdm_google_configuration_profiles_team_id_name (team_id, name)
+  UNIQUE KEY idx_mdm_android_configuration_profiles_team_id_name (team_id, name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `
 	if _, err := tx.Exec(createProfilesTable); err != nil {
-		return fmt.Errorf("create mdm_google_configuration_profiles table: %w", err)
+		return fmt.Errorf("create mdm_android_configuration_profiles table: %w", err)
 	}
 
 	// TODO: do we get to define the policyId? Could it simply be the host's
@@ -64,7 +60,7 @@ CREATE TABLE mdm_google_configuration_profiles (
 	// retries).
 
 	createHostProfilesTable := `
-CREATE TABLE host_mdm_google_profiles (
+CREATE TABLE host_mdm_android_profiles (
   host_uuid varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   status varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   operation_type varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
@@ -72,7 +68,7 @@ CREATE TABLE host_mdm_google_profiles (
 	profile_uuid varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 	profile_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
-	-- TODO: link and FK with google requests
+	-- TODO: link and FK with android requests
 	-- request_uuid varchar(36)
 
 	-- TODO: need to store a version number, that will increment on each policy update
@@ -92,7 +88,7 @@ CREATE TABLE host_mdm_google_profiles (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `
 	if _, err := tx.Exec(createHostProfilesTable); err != nil {
-		return fmt.Errorf("create host_mdm_google_profiles table: %w", err)
+		return fmt.Errorf("create host_mdm_android_profiles table: %w", err)
 	}
 
 	// TODO: we want the profile name to be unique across all platforms (as we do for apple+windows)
@@ -101,19 +97,19 @@ CREATE TABLE host_mdm_google_profiles (
 
 	alterProfileLabelsTable := `
 ALTER TABLE mdm_configuration_profile_labels
-	ADD COLUMN google_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
-	ADD FOREIGN KEY (google_profile_uuid) REFERENCES mdm_google_configuration_profiles(profile_uuid) ON DELETE CASCADE,
-	ADD UNIQUE KEY idx_mdm_configuration_profile_labels_google_label_name (google_profile_uuid, label_name),
+	ADD COLUMN android_profile_uuid VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL,
+	ADD FOREIGN KEY (android_profile_uuid) REFERENCES mdm_android_configuration_profiles(profile_uuid) ON DELETE CASCADE,
+	ADD UNIQUE KEY idx_mdm_configuration_profile_labels_android_label_name (android_profile_uuid, label_name),
 	DROP CONSTRAINT ck_mdm_configuration_profile_labels_apple_or_windows,
-	-- only one of apple, google or windows profile uuid must be set
+	-- only one of apple, android or windows profile uuid must be set
 	ADD CONSTRAINT ck_mdm_configuration_profile_labels_profile_uuid
-		CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(google_profile_uuid), 0, 1) = 1)
+		CHECK (IF(ISNULL(apple_profile_uuid), 0, 1) + IF(ISNULL(windows_profile_uuid), 0, 1) + IF(ISNULL(android_profile_uuid), 0, 1) = 1)
 `
 	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
 	}
 
-	// TODO: add google_profile_uuid to mdm_configuration_profile_variables (even
+	// TODO: add android_profile_uuid to mdm_configuration_profile_variables (even
 	// if unsupported for now)? Opted not to, as I also did not add the
 	// variables/secrets updated at columns.
 
@@ -172,6 +168,6 @@ CREATE TABLE google_android_requests (
 	return nil
 }
 
-func Down_20250818165154(tx *sql.Tx) error {
+func Down_20250825165154(tx *sql.Tx) error {
 	return nil
 }
