@@ -1323,6 +1323,8 @@ func batchSetProfileLabelAssociationsDB(
 		platformPrefix = "apple"
 	case "windows":
 		platformPrefix = "windows"
+	case "android":
+		platformPrefix = "android"
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}

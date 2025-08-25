@@ -2196,6 +2196,8 @@ type Datastore interface {
 
 	AndroidDatastore
 
+	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

@@ -1121,6 +1121,10 @@ type Service interface {
 	GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) (MDMProfilesSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Android MDM
+	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAndroidConfigProfile, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
 
 	// GetMDMDiskEncryptionSummary returns the current disk encryption status of all macOS, Windows, and

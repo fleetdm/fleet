@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"time"
+	"unicode"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/google/uuid"
@@ -1075,3 +1077,74 @@ type MDMCommandResults interface {
 }
 
 type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error
+
+// DetermineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
+// Returns isApple, isAndroid, error.
+func DetermineJSONConfigType(data []byte) (bool, bool, error) {
+	/*
+		Not in this code but endpoint code maybe:
+		Verify that users get an error if they try to upload a profile with a name that already exists (across all platforms). Add Restrictions.json Android profile, then try to add macOS profile (.mobileconfig) that has PayloadDisplayName = Restrictions.
+		Verify that users get an error if they try to upload an Android profile with specific settings that
+		are restricted (specified in Figma).
+	*/
+	type jsonObj map[string]interface{}
+	var profileKeyMap jsonObj
+	err := json.Unmarshal(data, &profileKeyMap)
+	if err != nil {
+		// TODO invalid profile err
+		return false, false, err
+	}
+	if len(profileKeyMap) == 0 {
+		return false, false, errors.New("JSON profile is empty")
+	}
+	hasTypeKey := false
+	hasPayloadKey := false
+	hasKeysStartingInUpper := false
+	hasKeysStartingInLower := false
+	hasKeysContainingNonLetters := false
+	for k := range profileKeyMap {
+		if k == "" {
+			return false, false, errors.New("empty string is not a valid JSON configuration key")
+		}
+		if k == "Type" {
+			hasTypeKey = true
+		}
+		if k == "Payload" {
+			hasPayloadKey = true
+		}
+
+		for i, r := range k {
+			if i == 0 {
+				if unicode.IsUpper(r) {
+					hasKeysStartingInUpper = true
+				} else if unicode.IsLower(r) {
+					hasKeysStartingInLower = true
+				}
+			}
+			if !unicode.IsLetter(r) {
+				hasKeysContainingNonLetters = true
+			}
+		}
+	}
+
+	// It's an Apple declaration or at least looks like one
+	if hasKeysStartingInUpper && !hasKeysStartingInLower {
+		if hasTypeKey && hasPayloadKey {
+			return true, false, nil
+		}
+		if !hasTypeKey {
+			return false, false, errors.New("apple declaration missing Type")
+		}
+		// TODO this err
+		return false, false, errors.New("apple declaration missing Payload")
+	}
+	// Android declaration
+	if !hasKeysStartingInUpper && hasKeysStartingInLower {
+		if !hasKeysContainingNonLetters {
+			return false, true, nil
+		}
+		return false, false, errors.New("android configuration profile contains invalid keys")
+	}
+	// Didn't match either one
+	return false, false, errors.New("could not determine profile type from JSON keys")
+}

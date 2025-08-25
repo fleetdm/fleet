@@ -17,7 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
@@ -437,6 +436,28 @@ func (svc *Service) VerifyMDMWindowsConfigured(ctx context.Context) error {
 		// skipauth: Authorization is currently for user endpoints only.
 		svc.authz.SkipAuthorization(ctx)
 		return fleet.ErrWindowsMDMNotConfigured
+	}
+
+	return nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Android MDM Middleware
+////////////////////////////////////////////////////////////////////////////////
+
+func (svc *Service) VerifyMDMAndroidConfigured(ctx context.Context) error {
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return err
+	}
+
+	// Android MDM configuration setting
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		// skipauth: Authorization is currently for user endpoints only.
+		svc.authz.SkipAuthorization(ctx)
+		return fleet.ErrAndroidMDMNotConfigured
 	}
 
 	return nil
@@ -1363,7 +1384,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	isAppleDeclarationJSON, isAndroidJSON := false, false
 	if isJSON {
-		isAppleDeclarationJSON, isAndroidJSON, err = determineJSONConfigType(data)
+		isAppleDeclarationJSON, isAndroidJSON, err = fleet.DetermineJSONConfigType(data)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: fleet.NewInvalidArgumentError("profile", err.Error())}, nil
 		}
@@ -1399,7 +1420,8 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	}
 
 	if isAndroidJSON {
-		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, data, labels, profileName, labelsMode)
+		// TODO How do we call the Android service here?
+		cp, err := svc.NewMDMAndroidConfigProfile(ctx, req.TeamID, profileName, data, labels, labelsMode)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1422,97 +1444,6 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	return &newMDMConfigProfileResponse{Err: err}, nil
 }
 
-// determineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
-// Returns isApple, isAndroid, error.
-func determineJSONConfigType(data []byte) (bool, bool, error) {
-	/*
-		Ensure that if the user uploads a .json profile with keys that all start with uppercase letters, and it includes Type and Payload keys, it is uploaded as a macOS/iOS/iPadOS profile.
-		Ensure that if the user uploads a .json profile with keys that all start with lowercase letters, and
-		it includes keys that use only lowercase and uppercase letters, it is uploaded as an Android
-		profile.
-		Verify that users get an error if they try to upload a .json profile that is empty (includes only {}).
-		Verify that users get an error if they try to upload a .json profile that includes invalid JSON.
-
-		Not in this code but endpoint code maybe:
-		Verify that users get an error if they try to upload a profile with a name that already exists (across all platforms). Add Restrictions.json Android profile, then try to add macOS profile (.mobileconfig) that has PayloadDisplayName = Restrictions.
-		Verify that users get an error if they try to upload an Android profile with specific settings that
-		are restricted (specified in Figma).
-		statusReportingSettings
-		applications
-		appFunctiosn
-		playStoreMode
-		installAppsDisabled
-		uninstallAppsDisabled
-		blockApplicationsEnabled
-		appAutoUpdatePolicy
-		systemUpdate
-		kioskCustomLauncherEnabled
-		kioskCustomization
-		setupActions
-		encryptionPolicy
-	*/
-	type jsonObj map[string]interface{}
-	var profileKeyMap jsonObj
-	err := json.Unmarshal(data, &profileKeyMap)
-	if err != nil {
-		// TODO invalid profile err
-		return false, false, err
-	}
-	if len(profileKeyMap) == 0 {
-		return false, false, errors.New("JSON profile is empty")
-	}
-	hasTypeKey := false
-	hasPayloadKey := false
-	hasKeysStartingInUpper := false
-	hasKeysStartingInLower := false
-	hasKeysContainingNonLetters := false
-	for k := range profileKeyMap {
-		if k == "" {
-			return false, false, errors.New("empty string is not a valid JSON configuration key")
-		}
-		if k == "Type" {
-			hasTypeKey = true
-		}
-		if k == "Payload" {
-			hasPayloadKey = true
-		}
-
-		for i, r := range k {
-			if i == 0 {
-				if unicode.IsUpper(r) {
-					hasKeysStartingInUpper = true
-				} else if unicode.IsLower(r) {
-					hasKeysStartingInLower = true
-				}
-			}
-			if !unicode.IsLetter(r) {
-				hasKeysContainingNonLetters = true
-			}
-		}
-	}
-
-	// It's an Apple declaration or at least looks like one
-	if hasKeysStartingInUpper && !hasKeysStartingInLower {
-		if hasTypeKey && hasPayloadKey {
-			return true, false, nil
-		}
-		if !hasTypeKey {
-			return false, false, errors.New("apple declaration missing Type")
-		}
-		// TODO this err
-		return false, false, errors.New("apple declaration missing Payload")
-	}
-	// Android declaration
-	if !hasKeysStartingInUpper && hasKeysStartingInLower {
-		if !hasKeysContainingNonLetters {
-			return false, true, nil
-		}
-		return false, false, errors.New("android configuration profile contains invalid keys")
-	}
-	// Didn't match either one
-	return false, false, errors.New("could not determine profile type from JSON keys")
-}
-
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -1522,6 +1453,98 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	// svc.authz is only available on the concrete Service struct, not on the
 	// Service interface so it cannot be done in the endpoint itself.
 	return &fleet.BadRequestError{Message: "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file."}
+}
+
+func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Android MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just macOS
+	// TODO check Android
+	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("profile", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")
+	}
+
+	var teamName string
+	if teamID > 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err)
+		}
+		teamName = tm.Name
+	}
+
+	cp := fleet.MDMAndroidConfigProfile{
+		TeamID:  &teamID,
+		Name:    profileName,
+		RawJSON: data,
+	}
+	if err := cp.ValidateUserProvided(); err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
+			return nil, ctxerr.Wrap(ctx,
+				&fleet.BadRequestError{Message: msg + " To control these settings use disk encryption endpoint."})
+		}
+
+		// this is not great, but since the validations are shared between the CLI
+		// and the API, we must make some changes to error message here.
+		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
+			msg = strings.TrimSpace(msg[:ix])
+		}
+		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
+		return nil, ctxerr.Wrap(ctx, err, "validate profile")
+	}
+
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	switch labelsMembershipMode {
+	case fleet.LabelsIncludeAny:
+		cp.LabelsIncludeAny = labelMap
+	case fleet.LabelsExcludeAny:
+		cp.LabelsExcludeAny = labelMap
+	default:
+		// default include all
+		cp.LabelsIncludeAll = labelMap
+	}
+
+	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.RawJSON)}); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+	}
+
+	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
+	if err != nil {
+		var existsErr endpoint_utils.ExistsErrorInterface
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("profile", SameProfileNameUploadErrorMsg).
+				WithStatus(http.StatusConflict)
+		}
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	var (
+		actTeamID   *uint
+		actTeamName *string
+	)
+	if teamID > 0 {
+		actTeamID = &teamID
+		actTeamName = &teamName
+	}
+	// TODO AP Make sure this activity is correct
+	if err := svc.NewActivity(
+		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeCreatedAndroidProfile{
+			TeamID:      actTeamID,
+			TeamName:    actTeamName,
+			ProfileName: newCP.Name,
+		}); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "logging activity for create mdm android config profile")
+	}
+
+	return newCP, nil
 }
 
 func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
