@@ -1,15 +1,12 @@
+## [Daily Standup](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) 
 
-
-## Overview
-
-Purpose: Provide a fast daily synchronization point for the product group and a quick triage of freshly reported reproducible bugs.
+Purpose: Provide a fast daily synchronization point for the product group and a quick triage of freshly reported bugs awaiting reproduction.
 
 Cadence: Daily on all working days of the sprint (3‑week sprint cadence aligned with Fleet release cycle).
 
-
 Participants: Entire product group (engineers, EM, PD as needed). QA engineer (or whoever is wearing the QA hat) explicitly called out during the incoming bug review step.
 
-Focus:
+Agenda:
 * What changed since yesterday / what will change before tomorrow
 * Review incoming bugs for your team.
 * Blockers (surface, not solve in-room)
