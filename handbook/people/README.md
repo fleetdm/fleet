@@ -50,7 +50,7 @@ When review is requested on a proposal to open a new position, the Interim Head 
 ### Inform managers about hours worked
 
 Every Friday, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) for DRI (generally their manager) review. Here's how:
-1. Find the DRI using the [Peopl KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+1. Find the DRI using the [People KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
 2. Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack hours with an FYI including the total hours logged since last Saturday at midnight. For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
 3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
