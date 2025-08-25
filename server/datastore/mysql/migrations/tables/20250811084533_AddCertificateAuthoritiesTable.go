@@ -16,8 +16,8 @@ func init() {
 	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
 }
 
-// legacyIntegrationsWithCertAuthorties represents the legacy integrations configuration when it included certificate authorities.
-type legacyIntegrationsWithCertAuthorties struct {
+// LegacyIntegrationsWithCertAuthorties represents the legacy integrations configuration when it included certificate authorities.
+type LegacyIntegrationsWithCertAuthorties struct {
 	Jira           []*fleet.JiraIntegration           `json:"jira"`
 	Zendesk        []*fleet.ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*fleet.GoogleCalendarIntegration `json:"google_calendar"`
@@ -96,8 +96,8 @@ func Up_20250811084533(tx *sql.Tx) error {
 	}
 
 	// Populate the table with existing data from app_config_json
-	appConfigSelect := `SELECT json_value->"$integrations" FROM app_config_json LIMIT 1`
-	var integrations legacyIntegrationsWithCertAuthorties
+	appConfigSelect := `SELECT json_value->>"$.integrations" FROM app_config_json LIMIT 1`
+	var integrations LegacyIntegrationsWithCertAuthorties
 	jsonBytes := []byte{}
 	if err := txx.Get(&jsonBytes, appConfigSelect); err != nil {
 		return fmt.Errorf("failed to get app_config_json: %w", err)
