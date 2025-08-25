@@ -25,7 +25,6 @@ import ScriptBatchSummaryModal from "pages/DashboardPage/cards/ActivityFeed/comp
 import { IScriptBatchDetailsForSummary } from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal/ScriptBatchSummaryModal";
 
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
-import { ScriptsLocation } from "../../Scripts";
 
 const baseClass = "script-batch-progress";
 
@@ -52,9 +51,7 @@ const getEmptyState = (status: ScriptBatchStatus) => {
   );
 };
 
-export type IScriptBatchProgressProps = IScriptsCommonProps & {
-  location?: ScriptsLocation;
-};
+export type IScriptBatchProgressProps = IScriptsCommonProps;
 
 const ScriptBatchProgress = ({
   location,
