@@ -31,6 +31,7 @@ const DeleteSecretModal = ({
     setIsDeleting(true);
     try {
       await secretsAPI.deleteSecret(secret.id);
+      renderFlash("success", "Variable successfully deleted.");
       onDelete();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
