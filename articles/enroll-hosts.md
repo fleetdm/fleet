@@ -2,7 +2,15 @@
 
 Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
 
-You can enroll macOS, Windows or Linux hosts via the [CLI](#cli) or [UI](#ui). To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
+Fleet creates a host record when a device is enrolled. Note that “enrolled” and “MDM turned on” are not always the same action.
+
+- For macOS, Windows, and Linux: installing Fleet’s agent (fleetd) creates the host record in Fleet (enrollment). Turning on MDM is a separate step that can be performed after fleetd is installed.
+ - For iOS, iPadOS, and Android: hosts enroll into Fleet through the MDM enrollment. In other words, enrollment and enabling MDM happen at the same time — when the host is enrolled into MDM, the host record is created in Fleet, and MDM is turned on.
+
+
+You can enroll macOS, Windows, and Linux hosts via the [CLI](#cli) or [UI](#ui). You can enroll iOS, iPadOS, and Android hostsvia the [UI](#ui).
+
+To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
 
 ### Supported osquery versions
 
@@ -41,21 +49,28 @@ Tip: To see all options for `fleetctl package` command, run `fleetctl package -h
 
 ## UI
 
-To generate Fleet's agent (fleetd) in Fleet UI:
+To enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
 
-1. Go to the **Hosts** page, and select **Add hosts**.
+1. Go to the **Hosts** page, select team, and select **Add hosts**.
 2. Select the tab for your desired platform (e.g. macOS).
 3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
 
+To enroll iOS, iPadOS, or Android hosts, send link to the end user, following the steps below:
+
+1. Go to the **Hosts** page, select team, and select **Add hosts**.
+2. Select the tab for your desired platform (e.g. iOS).
+3. Copy the link from the UI and share it with your end user.
+4. Once they visit the link and follow the steps provided on the enrollment web page, their host will get enrolled.
+
 ### Install fleetd
 
-You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd. 
+You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on macOS or a package manager ([APT](https://en.wikipedia.org/wiki/APT_(software)) or [DNF](https://en.wikipedia.org/wiki/DNF_(software))) on Linux, to install fleetd.
 
 ### Enroll hosts to a team
 
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
-To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command.
+To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enrollment secret will be included in the generated command or on the enrollment web page for iOS, iPadOS, and Android hosts.
 
 ### Fleet Desktop
 
@@ -129,13 +144,15 @@ How to unenroll a host from Fleet:
 
 1. Determine if your host has MDM features turned on by looking at the **MDM status** on the host's **Host details** page. 
 
-2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. Instructions for turning off MDM on Windows hosts coming soon.
+2. For macOS hosts with MDM turned on, select **Actions > Turn off MDM** to turn MDM off. For Windows hosts with MDM turned on, follow the [instructions for turning off MDM](https://fleetdm.com/guides/windows-mdm-setup#turn-off-windows-mdm). For iOS, iPadOS hosts with MDM turned on, select **Actions > Turn off MDM**.
 
-3. Determine the platform of the host you're trying to unenroll, then follow the [uninstall instructions](https://fleetdm.com/guides/how-to-uninstall-fleetd) for that platform.
+4. For macOS, Windows, and Linux hosts [uninstall fleetd](https://fleetdm.com/guides/how-to-uninstall-fleetd).
 
-4. Select **Actions > Delete** to delete the host from Fleet.
+6. Select **Actions > Delete** to delete the host from Fleet.
 
 > If an end user wants to switch their workstation's operating system (e.g. Windows to Linux), before they switch, delete the host from Fleet. Then, re-enroll the host.
+
+> Unenroll feature for personal (BYOD) iOS, iPadOS, and Android hosts is coming soon. For more information see [#26010](https://github.com/fleetdm/fleet/issues/26010) and [#31584](https://github.com/fleetdm/fleet/issues/31584).
 
 ## Advanced
 
