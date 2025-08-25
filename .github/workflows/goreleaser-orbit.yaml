@@ -204,6 +204,7 @@ jobs:
     needs: goreleaser-windows
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:
@@ -257,6 +258,7 @@ jobs:
     needs: goreleaser-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:

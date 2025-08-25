@@ -215,6 +215,7 @@ jobs:
     needs: build-fleetd-base-msi
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for code-sign-windows
       attestations: write # required for code-sign-windows
     with:

@@ -70,6 +70,7 @@ jobs:
     needs: build
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:
