@@ -4418,6 +4418,7 @@ func ReconcileAppleProfiles(
 
 	filteredToInstall := toInstall
 	if TIMES_TRIGGERED < 4 && len(toInstall) > 0 { // WE check count to avoid incrementing if we have no pending host (or profile changes.)
+
 		filteredToInstall = []*fleet.MDMAppleProfilePayload{}
 		//! TEMPORARY FIX
 		for _, prof := range toInstall {
@@ -4428,6 +4429,11 @@ func ReconcileAppleProfiles(
 			filteredToInstall = append(filteredToInstall, prof)
 		}
 		TIMES_TRIGGERED++
+	}
+
+	level.Info(logger).Log("msg", fmt.Sprintf("Reconciling apple profiles with %d times triggered, and %d filtered profiles to install.", TIMES_TRIGGERED, len(filteredToInstall)))
+	for _, prof := range filteredToInstall {
+		level.Info(logger).Log("Profile Identifier", prof.ProfileIdentifier)
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
