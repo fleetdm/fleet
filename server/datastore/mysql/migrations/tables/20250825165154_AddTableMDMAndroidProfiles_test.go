@@ -59,26 +59,32 @@ func TestUp_20250825165154(t *testing.T) {
 	require.Equal(t, []int64{idB, idC}, ids)
 
 	// try to insert with all profile fields
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, windows_profile_uuid, apple_profile_uuid, label_name, label_id) 
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, windows_profile_uuid, apple_profile_uuid, label_name, label_id)
 		VALUES (?, ?, ?, ?, ?)`, andro, win, apple, "LB", idB)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
 
 	// try to insert with android+apple
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, apple_profile_uuid, label_name, label_id) 
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, apple_profile_uuid, label_name, label_id)
 		VALUES (?, ?, ?, ?)`, andro, apple, "LB", idB)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
 
 	// try to insert with android+windows
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, windows_profile_uuid, label_name, label_id) 
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (android_profile_uuid, windows_profile_uuid, label_name, label_id)
 		VALUES (?, ?, ?, ?)`, andro, win, "LB", idB)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
 
 	// try to insert with windows+apple
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, apple_profile_uuid, label_name, label_id) 
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, apple_profile_uuid, label_name, label_id)
 		VALUES (?, ?, ?, ?)`, win, apple, "LB", idB)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
+
+	// try to insert without any profile uuid
+	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (label_name, label_id)
+		VALUES (?, ?)`, "LB", idB)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
 }
