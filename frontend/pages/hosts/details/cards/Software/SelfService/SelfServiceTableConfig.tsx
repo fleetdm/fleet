@@ -47,6 +47,7 @@ interface ISelfServiceTableHeaders {
   ) => void;
   onClickInstallAction: (softwareId: number) => void;
   onClickUninstallAction: (software: IHostSoftwareWithUiStatus) => void;
+  onClickOpenInstructionsAction: (software: IHostSoftwareWithUiStatus) => void;
 }
 
 // NOTE: cellProps come from react-table
@@ -58,6 +59,7 @@ export const generateSoftwareTableHeaders = ({
   onShowUninstallDetails,
   onClickInstallAction,
   onClickUninstallAction,
+  onClickOpenInstructionsAction,
 }: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -115,6 +117,9 @@ export const generateSoftwareTableHeaders = ({
             onClickInstallAction={onClickInstallAction}
             onClickUninstallAction={() =>
               onClickUninstallAction(cellProps.row.original)
+            }
+            onClickOpenInstructionsAction={() =>
+              onClickOpenInstructionsAction(cellProps.row.original)
             }
             isMyDevicePage
           />
