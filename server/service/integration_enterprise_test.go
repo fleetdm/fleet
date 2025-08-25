@@ -6661,6 +6661,20 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
+	// List pending hosts
+	var batchPendingHostsResp batchScriptExecutionHostResultsResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
+	require.Len(t, batchPendingHostsResp.Hosts, 2)
+	require.Equal(t, batchPendingHostsResp.Count, uint(2))
+	require.Equal(t, batchPendingHostsResp.HasNextResults, false)
+	require.Equal(t, batchPendingHostsResp.HasPreviousResults, false)
+	require.Equal(t, batchPendingHostsResp.Hosts[0].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, batchPendingHostsResp.Hosts[0].DisplayName, host1.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[0].ID, host1.ID)
+	require.Equal(t, batchPendingHostsResp.Hosts[1].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, batchPendingHostsResp.Hosts[1].DisplayName, host2.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[1].ID, host2.ID)
+
 	// Another request so we can check the list endpoint
 	var batchRes2 batchScriptRunResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
@@ -6772,7 +6786,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
