@@ -4428,7 +4428,10 @@ func ReconcileAppleProfiles(
 
 			filteredToInstall = append(filteredToInstall, prof)
 		}
-		TIMES_TRIGGERED++
+
+		if len(filteredToInstall) > 0 {
+			TIMES_TRIGGERED++
+		}
 	}
 
 	level.Info(logger).Log("msg", fmt.Sprintf("Reconciling apple profiles with %d times triggered, and %d filtered profiles to install.", TIMES_TRIGGERED, len(filteredToInstall)))
