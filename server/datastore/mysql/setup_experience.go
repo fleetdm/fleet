@@ -124,7 +124,7 @@ WHERE global_or_team_id = ?`
 	return totalInsertions > 0, nil
 }
 
-func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, titleIDs []uint) error {
+func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
 
 	stmtSelectInstallersIDs := fmt.Sprintf(`

@@ -16,6 +16,7 @@ import (
 )
 
 type putSetupExperienceSoftwareRequest struct {
+	Platform string `url:"platform,optional"`
 	TeamID   uint   `json:"team_id"`
 	TitleIDs []uint `json:"software_title_ids"`
 }
@@ -29,7 +30,11 @@ func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
 
-	err := svc.SetSetupExperienceSoftware(ctx, req.TeamID, req.TitleIDs)
+	platform := req.Platform
+	if platform == "" {
+		platform = "macos"
+	}
+	err := svc.SetSetupExperienceSoftware(ctx, req.Platform, req.TeamID, req.TitleIDs)
 	if err != nil {
 		return &putSetupExperienceSoftwareResponse{Err: err}, nil
 	}
@@ -37,7 +42,7 @@ func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fl
 	return &putSetupExperienceSoftwareResponse{}, nil
 }
 
-func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error {
+func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -46,6 +51,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, teamID uint,
 }
 
 type getSetupExperienceSoftwareRequest struct {
+	Platform string `url:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
 }
