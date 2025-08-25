@@ -98,8 +98,8 @@ const FORM_VALIDATIONS: IFormValidations = {
             return true; // If date is invalid, skip time validation
           }
           const parsedDate = parse(
-            `${formData.date} ${formData.time}`,
-            "yyyy-MM-dd HH:mm",
+            `${formData.date} ${formData.time}:00.000Z`,
+            "yyyy-MM-dd HH:mm:ss.SSSX",
             new Date()
           );
           return parsedDate >= new Date();
