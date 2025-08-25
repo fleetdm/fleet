@@ -2665,7 +2665,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 		platform = "darwin"
 		buf, err := RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
 		require.NoError(t, err)
-		require.Empty(t, buf.String())
+		require.Contains(t, buf.String(), "No results received. Please check again later.")
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
@@ -2675,7 +2675,7 @@ func TestGetMDMCommandResults(t *testing.T) {
 		platform = "windows"
 		buf, err = RunAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
 		require.NoError(t, err)
-		require.Empty(t, buf.String())
+		require.Contains(t, buf.String(), "No results received. Please check again later.")
 		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
 		ds.GetMDMCommandPlatformFuncInvoked = false
 		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
