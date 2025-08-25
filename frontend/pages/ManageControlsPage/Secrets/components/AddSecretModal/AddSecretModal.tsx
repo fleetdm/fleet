@@ -63,6 +63,7 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
       };
       try {
         await secretsAPI.addSecret(newSecret);
+        renderFlash("success", "Variable created!");
         onSave();
       } catch (error: any) {
         if (error.status === 409) {
