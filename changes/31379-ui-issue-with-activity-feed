@@ -1,0 +1,2 @@
+* Fixed UI issue in the Dashboard page. The software card is now rendered while content is been fetched to avoid the layout
+to jump around.

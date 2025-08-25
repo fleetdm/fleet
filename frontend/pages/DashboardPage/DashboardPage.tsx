@@ -643,7 +643,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
     actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    showTitle: !isSoftwareFetching,
     children: (
       <Software
         errorSoftware={errorSoftware}
@@ -743,7 +742,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {showSoftwareCard && SoftwareCard}
+        {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
