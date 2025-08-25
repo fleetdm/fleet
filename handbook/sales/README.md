@@ -89,7 +89,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 1. Navigate to the Salesforce opportunity and click the "Create a subscription order form" link (top-right corner of the op page) to copy the "[TEMPLATE - Order form](https://docs.google.com/document/u/0/?tgif=d&ftv=1). 
 2. Move the order for to the "[Contract drafts](https://drive.google.com/drive/u/0/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c)" folder in Google Drive.
-3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask Digital Experience for help.
+3. Edit the order form to be specific to the customer (e.g. add/remove table rows as needed for multi-year deals). Where possible, include a graphic of the customer's logo. Use good judgment and omit if a high-quality graphic is unavailable. If in doubt, ask IT & Enablement for help.
 
 > **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
@@ -104,7 +104,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 Fleet uses "Non-Disclosure Agreements" (NDAs) to protect the company and the companies we collaborate with. Always offer to send Fleet's NDA and, whenever possible, default to using the company's version. To send an NDA to a customer, follow these steps: 
 1. If a customer has no objections to using Fleet's NDA, route the NDA to them for signature using the "🙊 NDA (Non-disclosure agreement)" template in [DocuSign](https://apps.docusign.com/send/home). If a customer would like to review the NDA first, download a .docx of [Fleet's NDA](https://docs.google.com/document/d/1gQCrF3silBFG9dJgyCvpmLa6hPhX_T4V7pL3XAwgqEU/edit?usp=sharing) and send it to the customer.
 2. If the customer has no objections, route the NDA using the template in DocuSign (do not upload and use the copy you emailed to the customer).
-3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Digital Experience can look over any proposed changes and provide guidance on how to proceed.
+3. If the customer "redlines" (i.e. wants to change) the NDA, follow the [contract review process](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) so that Finance can look over any proposed changes and provide guidance on how to proceed.
 
 
 ### Close a new customer deal

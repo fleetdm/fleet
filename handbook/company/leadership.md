@@ -164,7 +164,7 @@ Consultants [track time using the company's tools](https://fleetdm.com/handbook/
 
 ## Hiring a consultant
 
-> **To hire a consultant**, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the Digital Experience team.
+> **To hire a consultant**, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the People team.
 
 
 ## Tracking hours
