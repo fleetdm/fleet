@@ -98,10 +98,7 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
   useQuery(["android_enterprise"], () => mdmAndroidAPI.getAndroidEnterprise(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
     retry: false,
-    enabled:
-      false && // TODO: reenable when the BE is completed
-      !!isGlobalAdmin &&
-      !!config?.mdm.android_enabled_and_configured,
+    enabled: !!isGlobalAdmin && !!config?.mdm.android_enabled_and_configured,
     onSuccess: () => {
       setAndroidEnterpriseDeleted(false);
     },
