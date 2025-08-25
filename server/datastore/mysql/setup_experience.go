@@ -125,6 +125,10 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
+	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	}
+
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
 
 	stmtSelectInstallersIDs := fmt.Sprintf(`
@@ -208,29 +212,31 @@ WHERE id IN (%s)`
 			}
 		}
 
-		// Validate only macOS software
+		// Validate software titles match the expected platform.
 		for _, tuple := range softwareIDPlatforms {
 			delete(missingTitleIDs, tuple.TitleID)
-			if tuple.Platform != string(fleet.MacOSPlatform) {
-				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported software installer: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+			if tuple.Platform != platform {
+				return ctxerr.Errorf(ctx, "invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
 			}
 			softwareIDs = append(softwareIDs, tuple.ID)
 		}
 
 		// Select requested VPP apps
-		if len(titleIDs) > 0 {
-			if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
-				return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
+		if platform == string(fleet.MacOSPlatform) {
+			if len(titleIDs) > 0 {
+				if err := sqlx.SelectContext(ctx, tx, &vppIDPlatforms, stmtSelectVPPAppsTeamsID, titleIDAndTeam...); err != nil {
+					return ctxerr.Wrap(ctx, err, "selecting vpp app team IDs using title IDs")
+				}
 			}
-		}
 
-		// Validate only macOS VPPP apps
-		for _, tuple := range vppIDPlatforms {
-			delete(missingTitleIDs, tuple.TitleID)
-			if tuple.Platform != string(fleet.MacOSPlatform) {
-				return ctxerr.Errorf(ctx, "only MacOS supported, unsupported AppStoreApp title: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+			// Validate only macOS VPPP apps
+			for _, tuple := range vppIDPlatforms {
+				delete(missingTitleIDs, tuple.TitleID)
+				if tuple.Platform != string(fleet.MacOSPlatform) {
+					return ctxerr.Errorf(ctx, "only MacOS supported, unsupported AppStoreApp title: %d (%s, %s)", tuple.ID, tuple.Name, tuple.Platform)
+				}
+				vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 			}
-			vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 		}
 
 		// If we have any missing titles, return error
@@ -248,8 +254,10 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all vpp apps
-		if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, teamID); err != nil {
-			return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
+		if platform == string(fleet.MacOSPlatform) {
+			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, teamID); err != nil {
+				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
+			}
 		}
 
 		if len(softwareIDs) > 0 {
@@ -259,7 +267,7 @@ WHERE id IN (%s)`
 			}
 		}
 
-		if len(vppAppTeamIDs) > 0 {
+		if platform == string(fleet.MacOSPlatform) && len(vppAppTeamIDs) > 0 {
 			stmtSetVPPAppsTeamsLoop := fmt.Sprintf(stmtSetVPPAppsTeams, questionMarks(len(vppAppTeamIDs)))
 			if _, err := tx.ExecContext(ctx, stmtSetVPPAppsTeamsLoop, vppAppTeamIDs...); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting vpp app teams")
@@ -274,14 +282,18 @@ WHERE id IN (%s)`
 	return nil
 }
 
-func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
+		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	}
+
 	opts.IncludeMetadata = true
 	opts.After = ""
 
 	titles, count, meta, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		TeamID:              &teamID,
 		ListOptions:         opts,
-		Platform:            string(fleet.MacOSPlatform),
+		Platform:            platform,
 		AvailableForInstall: true,
 	}, fleet.TeamFilter{
 		IncludeObserver: true,

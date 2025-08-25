@@ -25,14 +25,14 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 	return nil
 }
 
-func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: &teamID,
 	}, fleet.ActionRead); err != nil {
 		return nil, 0, nil, err
 	}
 
-	titles, count, meta, err := svc.ds.ListSetupExperienceSoftwareTitles(ctx, teamID, opts)
+	titles, count, meta, err := svc.ds.ListSetupExperienceSoftwareTitles(ctx, platform, teamID, opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "retrieving list of software setup experience titles")
 	}

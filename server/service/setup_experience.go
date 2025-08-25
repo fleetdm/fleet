@@ -31,10 +31,10 @@ func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fl
 	req := request.(*putSetupExperienceSoftwareRequest)
 
 	platform := req.Platform
-	if platform == "" {
-		platform = "macos"
+	if platform == "" || platform == "macos" {
+		platform = "darwin"
 	}
-	err := svc.SetSetupExperienceSoftware(ctx, req.Platform, req.TeamID, req.TitleIDs)
+	err := svc.SetSetupExperienceSoftware(ctx, platform, req.TeamID, req.TitleIDs)
 	if err != nil {
 		return &putSetupExperienceSoftwareResponse{Err: err}, nil
 	}
@@ -68,7 +68,11 @@ func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
 
-	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, req.TeamID, req.ListOptions)
+	platform := req.Platform
+	if platform == "" || platform == "macos" {
+		platform = "darwin"
+	}
+	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil
 	}
@@ -76,7 +80,7 @@ func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fl
 	return &getSetupExperienceSoftwareResponse{SoftwareTitles: titles, Count: count, Meta: meta}, nil
 }
 
-func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
