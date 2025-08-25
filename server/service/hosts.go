@@ -237,33 +237,36 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 
 	var softwareTitle *fleet.SoftwareTitle
 	if req.Opts.SoftwareTitleIDFilter != nil {
-		var err error
 		// First try for this team
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
-		if fleet.IsNotFound(err) {
+		st, err := svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, req.Opts.TeamFilter)
+		switch {
+		case fleet.IsNotFound(err):
 			// Try without team filter
 			stGlobal, errGlobal := svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
-			if fleet.IsNotFound(errGlobal) {
+			switch {
+			case fleet.IsNotFound(errGlobal):
 				// Still not found: set id and empty name
 				softwareTitle = &fleet.SoftwareTitle{
 					ID:   *req.Opts.SoftwareTitleIDFilter,
 					Name: "",
 				}
-			} else if errGlobal == nil {
-				// Found globally: use that name but fills in other fields with the default empty states
+			case errGlobal == nil:
+				// Found globally: use that name but fills other fields with the default empty states
 				softwareTitle = &fleet.SoftwareTitle{
 					ID:   stGlobal.ID,
 					Name: stGlobal.Name,
 				}
-			} else {
+			default:
 				// Other error
 				return listHostsResponse{Err: errGlobal}, nil
 			}
-		} else if err != nil {
+		case err != nil:
 			// Other error
 			return listHostsResponse{Err: err}, nil
+		default:
+			// Success: found for this team
+			softwareTitle = st
 		}
-		// If no error, softwareTitle is already set properly
 	}
 
 	var mdmSolution *fleet.MDMSolution
