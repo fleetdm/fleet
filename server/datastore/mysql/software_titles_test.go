@@ -41,6 +41,7 @@ func TestSoftwareTitles(t *testing.T) {
 		{"UpdateSoftwareTitleName", testUpdateSoftwareTitleName},
 		{"ListSoftwareTitlesDoesnotIncludeDuplicates", testListSoftwareTitlesDoesnotIncludeDuplicates},
 		{"ListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam", testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam},
+		{"ListSoftwareTitlesPackagesOnly", testSoftwareTitlesPackagesOnly},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2072,4 +2073,87 @@ func testListSoftwareTitlesAllTeamsWithAutomaticInstallersInNoTeam(t *testing.T,
 	require.NoError(t, err)
 	require.Len(t, allTeamsTitles, 1)
 	require.Nil(t, allTeamsTitles[0].SoftwarePackage)
+}
+
+func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+
+	// Add some software to the host
+	software := []fleet.Software{
+		{Name: "foo", Version: "1.0.0", Source: "deb_packages"},
+		{Name: "bar", Version: "2.0.0", Source: "apps"},
+		{Name: "baz", Version: "3.0.0", Source: "rpm_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Create installers for some software
+	installer1, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "foo",
+		Source:          "deb_packages",
+		InstallScript:   "echo foo",
+		Filename:        "foo.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer1)
+
+	installer2, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "bar",
+		Source:          "apps",
+		InstallScript:   "echo bar",
+		Filename:        "bar.pkg",
+		UserID:          user.ID,
+		TeamID:          &team1.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installer2)
+
+	// Sync and reconcile
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Define test cases
+	cases := []struct {
+		packagesOnly bool
+		teamID       *uint
+		expected     []string
+	}{
+		{packagesOnly: false, teamID: nil, expected: []string{"foo", "bar", "baz"}},
+		{packagesOnly: true, teamID: nil, expected: []string{"foo", "bar"}},
+		{packagesOnly: false, teamID: &team1.ID, expected: []string{"foo", "bar", "baz"}},
+		{packagesOnly: true, teamID: &team1.ID, expected: []string{"foo", "bar"}},
+	}
+
+	for _, c := range cases {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			ListOptions:  fleet.ListOptions{},
+			TeamID:       c.teamID,
+			PackagesOnly: c.packagesOnly,
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, len(c.expected))
+
+		// Compare as sets (ignore order)
+		got := make(map[string]struct{}, len(titles))
+		for _, t := range titles {
+			got[t.Name] = struct{}{}
+		}
+		for _, name := range c.expected {
+			_, ok := got[name]
+			require.True(t, ok, "expected software title %s not found", name)
+		}
+	}
 }
