@@ -25,5 +25,10 @@ func (p *Client) InitCommonMocks() {
 	p.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy) error {
 		return nil
 	}
+	p.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
+		return &androidmanagement.Enterprise{
+			Name: enterpriseName,
+		}, nil
+	}
 	p.SetAuthenticationSecretFunc = func(secret string) error { return nil }
 }
