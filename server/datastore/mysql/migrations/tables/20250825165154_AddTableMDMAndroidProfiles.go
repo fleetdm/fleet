@@ -28,7 +28,7 @@ CREATE TABLE mdm_android_configuration_profiles (
   team_id        INT UNSIGNED NOT NULL DEFAULT '0',
 	-- unique across all profiles (all platforms), must be checked on insert with the apple,
 	-- windows and apple declaration names.
-  name           VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL,
+  name           VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
 	-- store as JSON so we can use JSON_CONTAINS to check if the applied JSON document
 	-- contains this profile's JSON.
   raw_json       JSON NOT NULL,
@@ -47,36 +47,65 @@ CREATE TABLE mdm_android_configuration_profiles (
 		return fmt.Errorf("create mdm_android_configuration_profiles table: %w", err)
 	}
 
+	// The table android_policy_requests tracks the API requests made to create
+	// or update the policy to apply to a given host.
+	createRequestsTable := `
+CREATE TABLE android_policy_requests (
+  request_uuid      VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+	android_policy_id INT UNSIGNED NOT NULL,
+	policy_version    INT UNSIGNED NOT NULL,
+  payload           JSON NOT NULL,
+
+	-- track if API request was successful or not
+	status_code       INT NOT NULL,
+	-- in case of error, store (part of) the returned body
+	error_body				TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+
+	-- from figma, retry up to 3 times before marking profile as failed
+	-- (since the policy is a merge of all profiles, all profiles
+	-- associated with this request would be failed)
+	retries           TINYINT UNSIGNED NOT NULL DEFAULT '0',
+
+  created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+
+  PRIMARY KEY (request_uuid)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`
+	if _, err := tx.Exec(createRequestsTable); err != nil {
+		return fmt.Errorf("create android_policy_requests table: %w", err)
+	}
+
 	// TODO: do we get to define the policyId? Could it simply be the host's
 	// uuid? TBD if we have to store this info, and where. I see that we already
 	// have android_policy_id in the android_devices table, my guess is that this
-	// is where we'll store that info.
+	// is where we'll store that info (AFAIK it is a 1:1 relationship with devices).
 	// See https://github.com/fleetdm/fleet/blob/49369c43b090f2bdf3c4de200046214e99252e1e/server/datastore/mysql/migrations/tables/20250219142401_UpdateAndroidTables.go#L31-L32
 
-	// TODO: not adding the `retries` column as we don't deliver the profiles to
-	// the hosts like apple/windows profiles, it's more similar to apple
-	// declarations in that sense (we call the Google API, if it succeeds then
-	// it's "delivered", if not we have to resend it regardless of the number of
-	// retries).
+	// Note that the policy version ID seems to be managed by Google and AFAICT we only
+	// receive it, we don't define it:
+	//
+	// See https://developers.google.com/android/management/reference/rest/v1/enterprises.policies
+	// > The version of the policy. This is a read-only field. The version is
+	// > incremented each time the policy is updated.
+	//
+	// Via the request_uuid and the policy_version that we could store on the requests
+	// table after receiving the response from Google, we could track which version
+	// a specific profile was associated with for a host.
 
 	createHostProfilesTable := `
 CREATE TABLE host_mdm_android_profiles (
-  host_uuid varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  status varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  operation_type varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  detail text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-	profile_uuid varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-	profile_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  host_uuid      VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  status         VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  operation_type VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	-- same column name as for apple/windows, to store failure details if any
+  detail         TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+	profile_uuid   VARCHAR(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+	profile_name   VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
-	-- TODO: link and FK with android requests
-	-- request_uuid varchar(36)
-
-	-- TODO: need to store a version number, that will increment on each policy update
-	-- > Fleet should create a policy in Android Enterprise each time when new host is enrolled
-	-- > and assign it to a device in AE. In Fleet, users can create multiple configuration profiles
-	-- > (JSON files), but all of them will be merged into the policy that's assigned to the device
-	-- > in AE. Each time when user add new configuration profile or edits an existing one policy in
-	-- > AE gets patched, and the version number of the policy is increased.
+	-- uuid of the corresponding android_policy_requests, supports NULL because
+	-- we won't have the request uuid until the request is ready to be sent
+	request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
 
 	created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -84,16 +113,13 @@ CREATE TABLE host_mdm_android_profiles (
 
   PRIMARY KEY (host_uuid, profile_uuid),
   FOREIGN KEY (status) REFERENCES mdm_delivery_status (status) ON UPDATE CASCADE,
-  FOREIGN KEY (operation_type) REFERENCES mdm_operation_types (operation_type) ON UPDATE CASCADE
+  FOREIGN KEY (operation_type) REFERENCES mdm_operation_types (operation_type) ON UPDATE CASCADE,
+  FOREIGN KEY (request_uuid) REFERENCES android_policy_requests (request_uuid) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `
 	if _, err := tx.Exec(createHostProfilesTable); err != nil {
 		return fmt.Errorf("create host_mdm_android_profiles table: %w", err)
 	}
-
-	// TODO: we want the profile name to be unique across all platforms (as we do for apple+windows)
-	// which means checking the apple (profiles+decls) and windows tables on insert.
-	// https://www.figma.com/design/sPlICOpfq9w3FG8vAuJFEO/-25557-Configuration-profiles-for-Android?node-id=5378-2783&t=RNOQg4AOkuIu31Wo-0
 
 	alterProfileLabelsTable := `
 ALTER TABLE mdm_configuration_profile_labels
@@ -108,62 +134,6 @@ ALTER TABLE mdm_configuration_profile_labels
 	if _, err := tx.Exec(alterProfileLabelsTable); err != nil {
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
 	}
-
-	// TODO: add android_profile_uuid to mdm_configuration_profile_variables (even
-	// if unsupported for now)? Opted not to, as I also did not add the
-	// variables/secrets updated at columns.
-
-	// TODO: I think we should keep track of the fully merged profile and the
-	// requests/responses made to the android management API, a bit like we track
-	// declaration requests and mdm commands. We'd then add the API request uuid
-	// reference to the host mdm google profiles table. This table would store
-	// the fully resolved/merged profile (android policy) that was sent to be
-	// applied for the host. We should also store the responses/status updates.
-	createGoogleRequestsTable := `
-CREATE TABLE google_android_requests (
-  request_uuid varchar(36) CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci NOT NULL,
-	-- the policy id may be necessary to associate the status response in the pub-sub
-	-- with the actual request?
-	android_policy_id INT UNSIGNED NOT NULL,
-  payload JSON NOT NULL,
-  created_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  updated_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
-
-  PRIMARY KEY (request_uuid)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-`
-	if _, err := tx.Exec(createGoogleRequestsTable); err != nil {
-		return fmt.Errorf("create google_android_requests table: %w", err)
-	}
-
-	// TODO: I think we may need a table to keep each setting set by each profile
-	// file, so that we can show it as failed or succeeded based on the status
-	// report from the Google API. E.g. top-level keys and associated value
-	// (maybe in JSON column). (because the setting in file a.json may be
-	// overwritten by file b.json, so in order to know if a.json succeeded or
-	// not, we'd check the status for the applied settings, see that the
-	// corresponding value is not the one declared in a.json but instead the one
-	// in b.json, so we mark a.json as failed and b.json as succeeded).
-	//
-	// Not having this lookup table would mean loading and unmarshaling the JSON
-	// for every applicable profile whenever we receive a status update, which
-	// would not be efficient.
-	//
-	// It looks like mysql's storage of JSON is normalized/canonicalized, so we
-	// can likely compare the JSON values directly even if the value is an object
-	// or array.
-	// https://dev.mysql.com/doc/refman/8.4/en/json.html#json-normalization
-	//
-	// But it may not even matter, as we could possibly use the JSON_CONTAINS
-	// JSON function to check if the profile's JSON document is contained as-is
-	// in the applied settings, and if so it succeeded, otherwise it failed.
-	// https://dev.mysql.com/doc/refman/8.4/en/json-search-functions.html#function_json-contains
-	//
-	// In which case we may not need a separate table for the key-values of the
-	// profile file's JSON document, we could just store the profile's JSON
-	// document as JSON in the mdm_google_configuration_profiles table.
-	// I'll go with that approach, we can revisit if the verification is not
-	// as straightforward as expected.
 
 	return nil
 }
