@@ -113,7 +113,8 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 		Device: &android.Device{
 			DeviceID:             "device_id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyVersion: ptr.Int64(1),
 			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}
@@ -151,7 +152,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.CPUType = "cpu_type_updated"
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
-	host.Device.AndroidPolicyID = ptr.Uint(2)
+	host.Device.AppliedPolicyID = ptr.String("2")
 	err = ds.UpdateAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 
@@ -327,7 +328,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 		Device: &android.Device{
 			DeviceID:             "storage-test-device-id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}

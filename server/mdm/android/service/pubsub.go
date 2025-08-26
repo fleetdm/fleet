@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -244,7 +243,10 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.AndroidPolicyID = policy
+		host.Device.AppliedPolicyID = policy
+		if device.AppliedPolicyVersion != 0 {
+			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
+		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 
@@ -365,7 +367,6 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		},
 	}
 	if device.AppliedPolicyName != "" {
-		// TODO(ap): change type of policy ID to string and store the applied policy version too.
 		policy, err := svc.getPolicyID(ctx, device)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting Android policy ID")
@@ -374,7 +375,10 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "parsing Android policy sync time")
 		}
-		host.Device.AndroidPolicyID = policy
+		host.Device.AppliedPolicyID = policy
+		if device.AppliedPolicyVersion != 0 {
+			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
+		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
@@ -419,7 +423,7 @@ func (svc *Service) getDeviceID(ctx context.Context, device *androidmanagement.D
 	return deviceID, nil
 }
 
-func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.Device) (*uint, error) {
+func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.Device) (*string, error) {
 	nameParts := strings.Split(device.AppliedPolicyName, "/")
 	if len(nameParts) != 4 {
 		return nil, ctxerr.Errorf(ctx, "invalid Android policy name: %s", device.AppliedPolicyName)
@@ -430,9 +434,5 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 			device.AppliedPolicyName)
 		return nil, nil
 	}
-	result, err := strconv.ParseUint(nameParts[3], 10, 64)
-	if err != nil {
-		return nil, ctxerr.Wrapf(ctx, err, "parsing Android policy ID from %s", device.AppliedPolicyName)
-	}
-	return ptr.Uint(uint(result)), nil
+	return ptr.String(nameParts[3]), nil
 }

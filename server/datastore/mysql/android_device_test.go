@@ -45,7 +45,6 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		HostID:               1,
 		DeviceID:             "deviceID",
 		EnterpriseSpecificID: ptr.String("enterpriseSpecificID"),
-		AndroidPolicyID:      nil,
 		LastPolicySyncTime:   nil,
 	}
 	result1, err := ds.createDevice(testCtx(), device1)
@@ -58,7 +57,7 @@ func testCreateGetDevice(t *testing.T, ds *Datastore) {
 		HostID:               2,
 		DeviceID:             "deviceID2",
 		EnterpriseSpecificID: ptr.String("enterpriseSpecificID2"),
-		AndroidPolicyID:      ptr.Uint(1),
+		AppliedPolicyID:      ptr.String("1"),
 		LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 	}
 	result2, err := ds.createDevice(testCtx(), device2)
@@ -81,14 +80,14 @@ func testUpdateDevice(t *testing.T, ds *Datastore) {
 		HostID:               1,
 		DeviceID:             "deviceID",
 		EnterpriseSpecificID: ptr.String("enterpriseSpecificID"),
-		AndroidPolicyID:      nil,
 		LastPolicySyncTime:   nil,
 	}
 	created, err := ds.createDevice(testCtx(), device)
 	require.NoError(t, err)
 
 	// Update device
-	created.AndroidPolicyID = ptr.Uint(5)
+	created.AppliedPolicyID = ptr.String("5")
+	created.AppliedPolicyVersion = ptr.Int64(3)
 	created.LastPolicySyncTime = ptr.Time(time.Now().UTC().Truncate(time.Millisecond))
 
 	err = ds.updateDevice(testCtx(), created)
@@ -120,7 +119,8 @@ func (ds *Datastore) updateDevice(ctx context.Context, device *android.Device) e
 }
 
 func (ds *Datastore) getDeviceByDeviceID(ctx context.Context, deviceID string) (*android.Device, error) {
-	stmt := `SELECT id, host_id, device_id, enterprise_specific_id, android_policy_id, last_policy_sync_time FROM android_devices WHERE device_id = ?`
+	stmt := `SELECT id, host_id, device_id, enterprise_specific_id, last_policy_sync_time, applied_policy_id, applied_policy_version
+		FROM android_devices WHERE device_id = ?`
 	var device android.Device
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &device, stmt, deviceID)
 	switch {
