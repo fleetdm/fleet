@@ -21,7 +21,7 @@ After this is done, the "Fleet partner" will be shown with a "Pending activation
 
 ![Conditional access pending activation](../website/assets/images/articles/compliance-partner-pending-activation-885x413@2x.png)
 
-## Step 2: Create a "Fleet conditional access devices" group in Entra
+## Step 2: Create a "Fleet conditional access" group in Entra
 
 To enforce conditional access, end users must be a member of a group called `"Fleet conditional access devices"` in Entra. First create this group in Entra and then assign users to it.
 
