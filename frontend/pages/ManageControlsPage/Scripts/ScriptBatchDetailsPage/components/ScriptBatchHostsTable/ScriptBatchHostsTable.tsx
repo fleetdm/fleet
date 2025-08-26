@@ -1,6 +1,9 @@
 import React, { useCallback } from "react";
 import { useQuery } from "react-query";
+import { InjectedRouter } from "react-router";
 import { AxiosError } from "axios";
+
+import PATHS from "router/paths";
 
 import scriptsAPI, {
   IScriptBatchHostResultsResponse,
@@ -9,7 +12,10 @@ import scriptsAPI, {
 } from "services/entities/scripts";
 import { OrderDirection } from "services/entities/common";
 
-import { ScriptBatchHostStatus } from "interfaces/script";
+import {
+  SCRIPT_BATCH_HOST_EXECUTED_STATUSES,
+  ScriptBatchHostStatus,
+} from "interfaces/script";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
@@ -26,20 +32,22 @@ const baseClass = "script-batch-hosts-table";
 
 interface IScriptBatchHostsTableProps {
   batchExecutionId: string;
-  hostStatus: ScriptBatchHostStatus;
+  selectedHostStatus: ScriptBatchHostStatus;
   page: number;
   orderDirection: OrderDirection;
   orderKey: ScriptBatchHostsOrderKey;
   setHostScriptExecutionIdForModal: (id: string) => void;
+  router: InjectedRouter;
 }
 
 const ScriptBatchHostsTable = ({
   batchExecutionId,
-  hostStatus,
+  selectedHostStatus,
   page,
   orderDirection,
   orderKey,
   setHostScriptExecutionIdForModal,
+  router,
 }: IScriptBatchHostsTableProps) => {
   const perPage = DEFAULT_PAGE_SIZE; // TODO - allow changing this via URL?
   const { data: hostResults, isLoading, error } = useQuery<
@@ -52,7 +60,7 @@ const ScriptBatchHostsTable = ({
       {
         scope: "script_batch_host_results",
         batch_execution_id: batchExecutionId,
-        status: hostStatus, // TODO - param name –> host_status?
+        status: selectedHostStatus,
         page,
         per_page: perPage,
         order_direction: orderDirection,
@@ -65,15 +73,22 @@ const ScriptBatchHostsTable = ({
     }
   );
 
+  const handleRowClick = useCallback(
+    (row: any) => {
+      if (SCRIPT_BATCH_HOST_EXECUTED_STATUSES.includes(selectedHostStatus)) {
+        setHostScriptExecutionIdForModal(row.original.script_execution_id);
+      } else {
+        router.push(PATHS.HOST_DETAILS(row.original.id));
+      }
+    },
+    [router, selectedHostStatus, setHostScriptExecutionIdForModal]
+  );
+
   if (error) {
     return <DataError description="Could not load host results." />;
   }
 
-  const handleRowClick = (row: any) => {
-    setHostScriptExecutionIdForModal(row.original.script_execution_id);
-  };
-
-  const columnConfigs = generateColumnConfigs(hostStatus);
+  const columnConfigs = generateColumnConfigs(selectedHostStatus);
   // const tableData = generateTableData(hostResults?.hosts || [], hostStatus);
 
   return (

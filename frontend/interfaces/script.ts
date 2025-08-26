@@ -42,13 +42,16 @@ export const isValidScriptBatchStatus = (
   return SCRIPT_BATCH_STATUSES.includes((status ?? "") as ScriptBatchStatus);
 };
 
-export const SCRIPT_BATCH_HOST_STATUSES = [
-  "ran",
-  "errored",
+export const SCRIPT_BATCH_HOST_EXECUTED_STATUSES = ["ran", "errored"];
+export const SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES = [
   "pending",
   "incompatible",
   "canceled",
 ];
+
+export const SCRIPT_BATCH_HOST_STATUSES = SCRIPT_BATCH_HOST_EXECUTED_STATUSES.concat(
+  SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES
+);
 export type ScriptBatchHostStatus = typeof SCRIPT_BATCH_HOST_STATUSES[number];
 
 export const isValidScriptBatchHostStatus = (

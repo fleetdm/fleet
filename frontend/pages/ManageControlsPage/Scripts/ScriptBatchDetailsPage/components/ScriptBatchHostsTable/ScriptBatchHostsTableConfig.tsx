@@ -2,7 +2,11 @@ import React from "react";
 
 import PATHS from "router/paths";
 
-import { ScriptBatchHostStatus } from "interfaces/script";
+import {
+  SCRIPT_BATCH_HOST_EXECUTED_STATUSES,
+  SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES,
+  ScriptBatchHostStatus,
+} from "interfaces/script";
 import { IScriptBatchHostResult } from "services/entities/scripts";
 
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
@@ -49,18 +53,28 @@ const generateColumnConfigs = (
       ),
       accessor: "display_name",
       Cell: (cellProps: ITableStringCellProps) => (
-        <LinkCell
-          value={cellProps.row.original.display_name}
-          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
-          customOnClick={(e) => {
-            e.stopPropagation();
-          }}
-        />
+        <span className="host-name-cell">
+          <LinkCell
+            value={cellProps.row.original.display_name}
+            path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+            customOnClick={(e) => {
+              e.stopPropagation();
+            }}
+          />
+          {SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES.includes(hostStatus) && (
+            <ViewAllHostsLink
+              customText="View host details"
+              rowHover
+              noLink
+              responsive
+            />
+          )}
+        </span>
       ),
     },
   ];
 
-  if (["ran", "errored"].includes(hostStatus)) {
+  if (SCRIPT_BATCH_HOST_EXECUTED_STATUSES.includes(hostStatus)) {
     columns = columns.concat([
       {
         Header: (cellProps: ITableHeaderProps) => (

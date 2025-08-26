@@ -1,4 +1,9 @@
 .script-batch-hosts-table {
+  .host-name-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
   .script-output-cell {
     display: flex;
     align-items: center;

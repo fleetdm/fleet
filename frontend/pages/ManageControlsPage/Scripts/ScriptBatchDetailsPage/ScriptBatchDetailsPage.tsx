@@ -187,11 +187,12 @@ const ScriptBatchDetailsPage = ({
         </span>
         <ScriptBatchHostsTable
           batchExecutionId={batchExecutionId}
-          hostStatus={hostStatus}
+          selectedHostStatus={hostStatus}
           page={pageParam}
           orderDirection={orderDirectionParam}
           orderKey={orderKeyParam}
           setHostScriptExecutionIdForModal={setHostScriptExecutionIdForModal}
+          router={router}
         />
       </div>
     );
@@ -238,7 +239,6 @@ const ScriptBatchDetailsPage = ({
     return (
       <div className={`${baseClass}`}>
         <BackLink text="Back to script activity" path={pathToProgress} />
-
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
           title={script_name}
