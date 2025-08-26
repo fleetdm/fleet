@@ -1,36 +1,27 @@
 ## Engineering rituals
 
-This folder contains concise, tactical guides for the recurring engineering rituals ("ceremonies") practiced at Fleet.  These docs exist to make the rituals easy to run and improve by:
+This folder contains guides for recurring engineering rituals ("ceremonies") practiced at Fleet.  The purpose of these docs is to:
 
-* Clarifying purpose (why we do the ritual)
-* Listing roles, inputs, and expected outputs
-* Supplying lightweight agendas / checklists and any timeboxes
-* Capturing tips, gotchas, and decision charts that help them run smoothly
+- Clarify purpose (why we do the ritual)
+- List roles and responsibilities (who does the ritual)
+- Provide agenda and clear expectations for participants (how we do the ritual)
+- Document decision flows that assist in the process
 
-Authoritative definitions of process and policy live in the public Fleet handbook (https://fleetdm.com/handbook).  Ritual docs here are intentionally practical and should avoid duplicating full policy text.  When a definition changes in the handbook, update links or brief summaries here (do not fork the process).
+Definitions of process and policy live in the Fleet handbook (https://fleetdm.com/handbook). These ritual docs are tactical and should not duplicate the handbook. When a definition changes in the handbook, update links or brief summaries here (do not fork the process).
 
 ### Adding or updating a ritual doc
 
-1. Create a new markdown file named after the ritual (e.g. `sprint-demo.md`, `oncall-handoff.md`).
+1. Create a new markdown file named after the ritual (e.g. `estimation.md`, `retrospective.md`).
 2. Start with an `## Overview` section (Purpose, Cadence, Participants, Primary artifacts).
-3. Provide an Agenda / Flow section with ordered or bulleted steps and explicit timeboxes where useful.
+3. Provide an Agenda section with ordered or bulleted steps and explicit timeboxes where useful.
 4. Include decision aids (Mermaid diagrams, tables) only when they accelerate the ritual (keep them small and actionable).
 5. Link to the relevant handbook sections for deeper context instead of duplicating content.
-6. Keep the tone instructional and brief. Remove information that drifts into historical narrative.
+6. Keep the tone instructional and brief.
 7. Add the new file to the list below.
 
 ### Current ritual docs
 
-* [Scrum](./scrum.md) – daily standup focus and incoming bug review flowchart (overview + decision chart). Canonical process: https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet
-
-### Future candidates (create when there is persistent friction)
-
-These are examples; only add if a stable, repeatable ritual with clear ownership emerges:
-
-* Sprint demo (live run checklist, recording tips)
-* Sprint retrospective variations
-* Estimation session facilitation
-* Incident review (if / when standardized beyond existing handbook guidance)
+- [Daily Standup](./daily-standup.md) – Daily ritual for status updates, blockers, and incoming bug triage.
 
 ### Maintenance
 
