@@ -2771,7 +2771,7 @@ func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
 	return "created_android_profile"
 }
 
-// TODO EJM Check activity spec
+// TODO AP Verify that this activity is correct
 func (a ActivityTypeCreatedAndroidProfile) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user adds a new Android profile to a team (or no team).`,
 		`This activity contains the following fields:

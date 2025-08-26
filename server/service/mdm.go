@@ -1530,9 +1530,8 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	// check that Android MDM is enabled - the middleware of that endpoint checks
+	// check that Android MDM is enabled - the middleware of the endpoint checks
 	// only that any MDM is enabled, maybe it's just macOS
-	// TODO check Android
 	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
 		err := fleet.NewInvalidArgumentError("profile", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err, "check android MDM enabled")

@@ -865,7 +865,6 @@ func additionalNDESValidation(contents string, ndesVars *ndesVarsFound) error {
 	return nil
 }
 
-// TODO EJM make this accept a pointer and move the read portion out of it
 func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
