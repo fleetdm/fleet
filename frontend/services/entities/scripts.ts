@@ -18,6 +18,7 @@ import {
   OrderDirection,
   PaginationParams,
 } from "./common";
+import { p } from "msw/lib/core/GraphQLHandler-D6mLMXGZ";
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
@@ -347,11 +348,7 @@ export default {
     params: IScriptBatchHostResultsParams
   ): Promise<IScriptBatchHostResultsResponse> {
     // // remove me
-    return Promise.resolve(createMockScriptBatchHostResults("ran"));
-    // return Promise.resolve(createMockScriptBatchHostResults("errored"));
-    // return Promise.resolve(createMockScriptBatchHostResults("pending"));
-    // return Promise.resolve(createMockScriptBatchHostResults("incompatible"));
-    // return Promise.resolve(createMockScriptBatchHostResults("canceled"));
+    return Promise.resolve(createMockScriptBatchHostResults(params.status));
 
     const {
       batch_execution_id,

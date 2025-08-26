@@ -17,7 +17,7 @@ import TableContainer from "components/TableContainer";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 
-import { generateTableHeaders, generateTableData } from "./TableConfig";
+import generateColumnConfigs from "./ScriptBatchHostsTableConfig";
 
 export const DEFAULT_SORT_DIRECTION = "asc";
 export const DEFAULT_PAGE_SIZE = 20;
@@ -61,27 +61,23 @@ const ScriptBatchHostsTable = ({
     ({ queryKey }) => scriptsAPI.getScriptBatchHostResults(queryKey[0]),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: !!batchExecutionId && !!hostStatus,
     }
   );
-
-  if (isLoading) {
-    return <Spinner />;
-  }
 
   if (error) {
     return <DataError description="Could not load host results." />;
   }
 
-  const tableHeaders = generateTableHeaders(hostStatus);
-  const tableData = generateTableData(hostResults?.hosts || [], hostStatus);
+  const handleRowClick = () => alert("TODO");
+
+  const columnConfigs = generateColumnConfigs(hostStatus);
+  // const tableData = generateTableData(hostResults?.hosts || [], hostStatus);
 
   return (
     <div className={baseClass}>
       <TableContainer
-        columnConfigs={tableHeaders}
-        data={tableData}
-        // resultsTitle=""
+        columnConfigs={columnConfigs}
+        data={hostResults?.hosts ?? []}
         isLoading={isLoading}
         defaultSortHeader={orderKey || DEFAULT_SORT_COLUMN}
         defaultSortDirection={orderDirection || DEFAULT_SORT_DIRECTION}
@@ -92,11 +88,10 @@ const ScriptBatchHostsTable = ({
         isAllPagesSelected={false}
         manualSortBy
         disableTableHeader
-        // disableCount
-        // disablePagination
         emptyComponent={() => <></>} // empty state handled by parent
         disableMultiRowSelect
         searchable={false}
+        onClickRow={handleRowClick}
       />
     </div>
   );
