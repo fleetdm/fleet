@@ -5846,6 +5846,9 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 
 	var listResp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
+	jsonBytes, err := json.Marshal(&listResp)
+	require.NoError(t, err)
+	fmt.Printf("%s\n", string(jsonBytes))
 	require.Len(t, listResp.Profiles, numProfiles)
 	profileUUIDs := make([]string, numProfiles)
 	for _, p := range listResp.Profiles {
