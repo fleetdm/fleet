@@ -231,6 +231,8 @@ type HostnamesByIdentifiersFunc func(ctx context.Context, identifiers []string) 
 
 type UpdateHostIssuesFailingPoliciesFunc func(ctx context.Context, hostIDs []uint) error
 
+type UpdateHostIssuesFailingPoliciesForSingleHostFunc func(ctx context.Context, hostID uint) error
+
 type GetHostIssuesLastUpdatedFunc func(ctx context.Context, hostId uint) (time.Time, error)
 
 type UpdateHostIssuesVulnerabilitiesFunc func(ctx context.Context) error
@@ -1779,6 +1781,9 @@ type DataStore struct {
 
 	UpdateHostIssuesFailingPoliciesFunc        UpdateHostIssuesFailingPoliciesFunc
 	UpdateHostIssuesFailingPoliciesFuncInvoked bool
+
+	UpdateHostIssuesFailingPoliciesForSingleHostFunc        UpdateHostIssuesFailingPoliciesForSingleHostFunc
+	UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked bool
 
 	GetHostIssuesLastUpdatedFunc        GetHostIssuesLastUpdatedFunc
 	GetHostIssuesLastUpdatedFuncInvoked bool
@@ -4363,6 +4368,13 @@ func (s *DataStore) UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs
 	s.UpdateHostIssuesFailingPoliciesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostIssuesFailingPoliciesFunc(ctx, hostIDs)
+}
+
+func (s *DataStore) UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error {
+	s.mu.Lock()
+	s.UpdateHostIssuesFailingPoliciesForSingleHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostIssuesFailingPoliciesForSingleHostFunc(ctx, hostID)
 }
 
 func (s *DataStore) GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error) {

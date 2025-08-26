@@ -98,7 +98,7 @@ jobs:
         shell: cmd
 
       - name: Attest binary
-        if: ${{ inputs.attest == 'true' }}
+        if: ${{ inputs.attest }}
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
