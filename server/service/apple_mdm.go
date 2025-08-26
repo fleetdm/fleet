@@ -5188,7 +5188,7 @@ func preprocessProfileContents(
 						value = user.Department
 					case string(fleet.FleetVarHostEndUserIDPFullname):
 						rx = fleetVarHostEndUserIDPFullnameRegexp
-						value = user.IdpFullName
+						value = strings.TrimSpace(user.IdpFullName)
 					}
 					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
 
@@ -5388,7 +5388,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 
 	noGroupsErr := fmt.Sprintf("There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
-	noFullnameErr := fmt.Sprintf("There is no IdP fullname for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
+	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
 	if len(users) > 0 && users[0].IdpUserName != "" {
 		idpUser := users[0]
 
@@ -5418,7 +5418,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 			}
 			return nil, false, nil
 		}
-		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && idpUser.IdpFullName == "" {
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
 			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 				CommandUUID:   target.cmdUUID,
 				HostUUID:      hostUUID,

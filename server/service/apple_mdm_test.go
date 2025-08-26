@@ -5538,6 +5538,17 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				"SCEP_RENEWAL_ID",
 			},
 		},
+		{
+			name: "Custom profile with IdP full name var",
+			profile: string(scopedMobileconfigForTest(
+				"FullName Var",
+				"com.example.fullname",
+				nil,
+				"HOST_END_USER_IDP_FULL_NAME", // will be prefixed to $FLEET_VAR_ by helper
+			)),
+			errMsg: "",
+			vars:   []string{"HOST_END_USER_IDP_FULL_NAME"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
