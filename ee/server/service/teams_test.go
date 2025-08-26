@@ -1,12 +1,95 @@
 package service
 
 import (
+	"context"
+	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUpdateTeamMDMDiskEncryption(t *testing.T) {
+	testCases := []struct {
+		name           string
+		mdmConfig      fleet.TeamMDM
+		diskEncryption *bool
+		requireTPMPIN  *bool
+		expectedError  string
+	}{
+		{
+			name: "try to disable disk encryption with TPM PIN enabled",
+			mdmConfig: fleet.TeamMDM{
+				EnableDiskEncryption: true,
+				RequireBitLockerPIN:  true,
+			},
+			diskEncryption: ptr.Bool(false),
+			requireTPMPIN:  ptr.Bool(true),
+
+			expectedError: fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+		{
+			name: "try to enable disk encryption with TPM PIN enabled",
+			mdmConfig: fleet.TeamMDM{
+				EnableDiskEncryption: false,
+				RequireBitLockerPIN:  false,
+			},
+			diskEncryption: ptr.Bool(false),
+			requireTPMPIN:  ptr.Bool(true),
+			expectedError:  fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
+		},
+		{
+			name: "try to disable disk encryption with TPM PIN enabled when disk encryption prev enabled",
+			mdmConfig: fleet.TeamMDM{
+				EnableDiskEncryption: true,
+				RequireBitLockerPIN:  false,
+			},
+			diskEncryption: ptr.Bool(false),
+			requireTPMPIN:  ptr.Bool(true),
+			expectedError:  fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+		},
+	}
+
+	ds := new(mock.Store)
+
+	svc := &Service{
+		ds: ds,
+		config: config.FleetConfig{
+			Server: config.ServerConfig{
+				PrivateKey: "something",
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	for _, tC := range testCases {
+		team := fleet.Team{
+			Config: fleet.TeamConfig{
+				MDM: tC.mdmConfig,
+			},
+		}
+
+		err := svc.updateTeamMDMDiskEncryption(
+			ctx,
+			&team,
+			tC.diskEncryption,
+			tC.requireTPMPIN,
+		)
+
+		if tC.expectedError != "" {
+			require.NotNil(t, err)
+			require.True(
+				t,
+				strings.Contains(err.Error(), tC.expectedError),
+				"Expected '%s' to contain '%s'",
+				err.Error(), tC.expectedError)
+		}
+	}
+}
 
 func TestObfuscateSecrets(t *testing.T) {
 	buildTeams := func(n int) []*fleet.Team {
