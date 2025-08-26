@@ -29,6 +29,7 @@ import {
 import paths from "router/paths";
 
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
+import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 
 import BackLink from "components/BackLink";
 import MainContent from "components/MainContent";
@@ -96,7 +97,11 @@ const ScriptBatchDetailsPage = ({
   const selectedHostStatus = hostStatusParam as ScriptBatchHostStatus;
 
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [showScriptDetails, setShowScriptDetails] = useState(false);
+  const [showBatchScriptDetails, setShowBatchScriptDetails] = useState(false);
+  const [
+    hostScriptExecutionIdForModal,
+    setHostScriptExecutionIdForModal,
+  ] = useState<string | null>(null);
   const [isCanceling, setIsCanceling] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
@@ -186,6 +191,7 @@ const ScriptBatchDetailsPage = ({
           page={pageParam}
           orderDirection={orderDirectionParam}
           orderKey={orderKeyParam}
+          setHostScriptExecutionIdForModal={setHostScriptExecutionIdForModal}
         />
       </div>
     );
@@ -247,7 +253,7 @@ const ScriptBatchDetailsPage = ({
                   buttonVariant: "text-icon",
                   iconName: "eye",
                   onClick: () => {
-                    setShowScriptDetails(true);
+                    setShowBatchScriptDetails(true);
                   },
                 },
                 {
@@ -329,13 +335,19 @@ const ScriptBatchDetailsPage = ({
           isCanceling={isCanceling}
         />
       )}
-      {showScriptDetails && (
+      {showBatchScriptDetails && (
         <ScriptDetailsModal
           selectedScriptId={batchDetails?.script_id}
           onCancel={() => {
-            setShowScriptDetails(false);
+            setShowBatchScriptDetails(false);
           }}
           suppressSecondaryActions
+        />
+      )}
+      {hostScriptExecutionIdForModal && (
+        <RunScriptDetailsModal
+          scriptExecutionId={hostScriptExecutionIdForModal}
+          onCancel={() => setHostScriptExecutionIdForModal(null)}
         />
       )}
     </>

@@ -83,24 +83,12 @@ const generateColumnConfigs = (
       },
       {
         Header: "Script output",
-        // Header: (cellProps: ITableHeaderProps) => (
-        //   <HeaderCell
-        //     value="Host name"
-        //     isSortedDesc={cellProps.column.isSortedDesc}
-        //   />
-        // ),
         disableSortBy: true,
         accessor: "script_output_preview",
         Cell: (cellProps: any) => <ScriptOutputCell {...cellProps} />,
       },
     ]);
   }
-  // columns.push({
-  //   Header: "",
-  //   id: "view-script-details",
-  //   disableSortBy: true,
-  //   Cell: <ViewAllHostsLink customText="View script details" rowHover noLink />,
-  // });
 
   return columns;
 };

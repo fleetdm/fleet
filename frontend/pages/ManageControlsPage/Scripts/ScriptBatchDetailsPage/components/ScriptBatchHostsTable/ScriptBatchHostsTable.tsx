@@ -30,6 +30,7 @@ interface IScriptBatchHostsTableProps {
   page: number;
   orderDirection: OrderDirection;
   orderKey: ScriptBatchHostsOrderKey;
+  setHostScriptExecutionIdForModal: (id: string) => void;
 }
 
 const ScriptBatchHostsTable = ({
@@ -38,6 +39,7 @@ const ScriptBatchHostsTable = ({
   page,
   orderDirection,
   orderKey,
+  setHostScriptExecutionIdForModal,
 }: IScriptBatchHostsTableProps) => {
   const perPage = DEFAULT_PAGE_SIZE; // TODO - allow changing this via URL?
   const { data: hostResults, isLoading, error } = useQuery<
@@ -67,7 +69,9 @@ const ScriptBatchHostsTable = ({
     return <DataError description="Could not load host results." />;
   }
 
-  const handleRowClick = () => alert("TODO");
+  const handleRowClick = (row: any) => {
+    setHostScriptExecutionIdForModal(row.original.script_execution_id);
+  };
 
   const columnConfigs = generateColumnConfigs(hostStatus);
   // const tableData = generateTableData(hostResults?.hosts || [], hostStatus);
@@ -91,7 +95,6 @@ const ScriptBatchHostsTable = ({
         disableMultiRowSelect
         searchable={false}
         onClickRow={handleRowClick}
-        // onSelectSingleRow={handleRowClick}
       />
     </div>
   );
