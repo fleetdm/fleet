@@ -3585,6 +3585,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, host2.ID, batchHosts[0].ID)
 	require.Equal(t, host2.Hostname, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionErrored, batchHosts[0].Status)
+	require.Equal(t, host2Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 
 	// List ran hosts for this batch. There should be one.
 	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionRan, fleet.ListOptions{})
@@ -3594,6 +3595,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, host1.ID, batchHosts[0].ID)
 	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionRan, batchHosts[0].Status)
+	require.Equal(t, host1Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 	require.Equal(t, "foo", batchHosts[0].ScriptOutput)
 
 	// List cancelled hosts for this batch. There should be one.

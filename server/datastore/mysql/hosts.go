@@ -1092,7 +1092,7 @@ SELECT
 		ELSE ''
 	END as updated_at,
     COALESCE(LEFT(hsr.output, 100), '') as output,
-	? as execution_id
+	COALESCE(hsr.execution_id, '') as execution_id
 FROM
     hosts h
 	%s
@@ -1120,7 +1120,7 @@ WHERE
 	}
 
 	// Add in the params for the main query SELECT.
-	queryParams = append([]interface{}{batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID}, queryParams...) // make a copy so we don't modify the original slice
+	queryParams = append([]interface{}{batchScriptExecutionStatus, batchScriptExecutionStatus}, queryParams...) // make a copy so we don't modify the original slice
 	// Add in the paging params.
 	sqlStmt, queryParams = appendListOptionsWithCursorToSQL(sqlStmt, queryParams, &opt)
 
