@@ -22,6 +22,10 @@ Definitions of process and policy live in the Fleet handbook (https://fleetdm.co
 ### Current ritual docs
 
 - [Daily Standup](./daily-standup.md) – Daily ritual for status updates, blockers, and incoming bug triage.
+- [Sprint Kickoff](./sprint-kickoff.md) – Forecast a body of work that the team is confident can be completed during the sprint.
+- [Weekly Estimation](./weekly-estimation.md) – Review user stories and bugs that have completed the drafting and specification process and add point estimates.
+- [Sprint Demo](./sprint-demo.md) – Showcase features, improvements, and bug fixes to all teams and stakeholders.
+- [Sprint Retrospective](./sprint-retrospective.md) – Reflect on the sprint and identify areas to imrpove for future sprints.
 
 ### Maintenance
 

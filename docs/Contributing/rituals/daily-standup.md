@@ -4,20 +4,20 @@ Purpose: Provide a fast daily synchronization point for the product group and a 
 
 Cadence: Daily, 15 minutes, same time every working day during the sprint.
 
-Participants: Entire product group (engineers, EM, PD, QA).
+Participants: Full product group.
 
-### Format
-1. The EM shares their screen and opens the team's GitHub Projects board. 
-2. The EM calls on each participant one at a time, and filters the project board to that assignee. 
-3. The participant answers the questions in the agenda below. 
-4. The EM calls on the next participant until everyone, including the EM, has provided their update. 
-5. The EM completes incoming bug review.
-6. The EM ends the Daily Standup for everyone except those with parking lot issues. 
-7. The EM goes through each parking lot item with the relevant participants and defined and assigned TODOs to resolve the blocker.
-
-> In absence of the EM, any team member may serve as ritual facilitator. 
+Facilitator: EM or assigned team member.
 
 ### Agenda
+1. Shares screen and open the team's GitHub Projects board. 
+2. Call on each participant and filters the project board to that assignee. 
+3. Participant answers the questions in the standup agenda below. 
+4. Call on the next participant until everyone, including the facilitator, has provided an update. 
+5. Complete incoming bug review.
+6. End the Daily Standup for everyone except those with parking lot issues. 
+7. Go through each parking lot item with the relevant participants and define and assign TODOs to resolve the blocker.
+
+### Standup agenda
 - What did you work on yesterday?
 - What are you working on today? 
 - Do you have any blockers? 
