@@ -997,6 +997,9 @@ func newCleanupsAndAggregationSchedule(
 			// in use.
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
 		}),
+		// schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
+		// 	return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
+		// }),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			// remove only those unused created more than a minute ago to avoid a
 			// race where we delete those created after the mysql query to get those

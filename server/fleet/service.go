@@ -1219,6 +1219,12 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	/////////////////////////////////////////////////////////////////////////////////
+	// Software title icons
+	//
+	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error)
+	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (*SoftwareTitleIcon, error)
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 

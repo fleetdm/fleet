@@ -746,6 +746,7 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
@@ -785,6 +786,11 @@ the way that the Fleet server works.
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
+					softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software title icon store")
+					}
+					level.Info(logger).Log("msg", "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -816,6 +822,7 @@ the way that the Fleet server works.
 					profileMatcher,
 					softwareInstallStore,
 					bootstrapPackageStore,
+					softwareTitleIconStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
 				)
@@ -1721,4 +1728,16 @@ func createTestBuckets(config *configpkg.FleetConfig, logger log.Logger) {
 			"name", config.S3.CarvesBucket,
 		)
 	}
+	// softwareTitleIconStore, err := s3.NewSoftwareTitleIconStore(config.S3)
+	// if err != nil {
+	// 	initFatal(err, "initializing S3 software title icon store")
+	// }
+	// if err := softwareTitleIconStore.CreateTestBucket(context.Background(), config.S3.SoftwareTitleIconsBucket); err != nil {
+	// 	// Don't panic, allow devs to run Fleet without minio/S3 dependency.
+	// 	level.Info(logger).Log(
+	// 		"err", err,
+	// 		"msg", "failed to create test software title icon bucket",
+	// 		"name", config.S3.SoftwareTitleIconsBucket,
+	// 	)
+	// }
 }

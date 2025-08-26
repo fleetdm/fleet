@@ -124,6 +124,8 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.S3.SoftwareInstallersDisableSSL = true
 		cfg.S3.SoftwareInstallersForceS3PathStyle = true
 	}
+
+	// cfg.S3.SoftwareTitleIconsBucket = "software-title-icons-dev"
 }
 
 func initLogger(cfg config.FleetConfig) kitlog.Logger {

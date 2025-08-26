@@ -354,6 +354,8 @@ type S3Config struct {
 	SoftwareInstallersCloudFrontURLSigningPublicKeyID string        `yaml:"software_installers_cloudfront_url_signing_public_key_id"`
 	SoftwareInstallersCloudFrontURLSigningPrivateKey  string        `yaml:"software_installers_cloudfront_url_signing_private_key"`
 	SoftwareInstallersCloudFrontSigner                crypto.Signer `yaml:"-"`
+
+	// SoftwareTitleIconsBucket string `yaml:"software_title_icons_bucket"`
 }
 
 func (s S3Config) ValidateCloudFrontURL(initFatal func(err error, msg string)) {
