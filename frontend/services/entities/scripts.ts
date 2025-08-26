@@ -13,7 +13,11 @@ import {
 
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-import { ListEntitiesMeta } from "./common";
+import {
+  ListEntitiesResponseCommon,
+  OrderDirection,
+  PaginationParams,
+} from "./common";
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
@@ -189,15 +193,16 @@ export interface IScriptBatchSummariesQueryKey
   scope: "script_batch_summaries";
 }
 
-export interface IScriptBatchSummariesResponse extends ListEntitiesMeta {
+export interface IScriptBatchSummariesResponse
+  extends ListEntitiesResponseCommon {
   batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
 }
 
-export interface IScriptBatchHostResultsParams {
+export interface IScriptBatchHostResultsParams extends PaginationParams {
   batch_execution_id: string;
   status: ScriptBatchHostStatus;
-  page: number;
-  per_page: number;
+  order_key: "display_name" | "script_executed_at"; // TODO - may need to order by "updated_at" instead of "script_executed_at"
+  order_direction: OrderDirection;
 }
 
 export interface IScriptBatchHostResultsQueryKey
@@ -215,7 +220,8 @@ export interface IScriptBatchHostResult {
   /** `null` if pending, cancelled, or incompatible. */
   script_output_preview: string | null;
 }
-export interface IScriptBatchHostResultsResponse extends ListEntitiesMeta {
+export interface IScriptBatchHostResultsResponse
+  extends ListEntitiesResponseCommon {
   hosts: IScriptBatchHostResult[];
 }
 
@@ -339,17 +345,30 @@ export default {
   getScriptBatchHostResults(
     params: IScriptBatchHostResultsParams
   ): Promise<IScriptBatchHostResultsResponse> {
-    // remove me
-    return Promise.resolve(createMockScriptBatchHostResults("ran"));
-    return Promise.resolve(createMockScriptBatchHostResults("errored"));
-    return Promise.resolve(createMockScriptBatchHostResults("pending"));
-    return Promise.resolve(createMockScriptBatchHostResults("incompatible"));
-    return Promise.resolve(createMockScriptBatchHostResults("canceled"));
+    // // remove me
+    // return Promise.resolve(createMockScriptBatchHostResults("ran"));
+    // return Promise.resolve(createMockScriptBatchHostResults("errored"));
+    // return Promise.resolve(createMockScriptBatchHostResults("pending"));
+    // return Promise.resolve(createMockScriptBatchHostResults("incompatible"));
+    // return Promise.resolve(createMockScriptBatchHostResults("canceled"));
 
-    const { batch_execution_id, status, page, per_page } = params;
+    const {
+      batch_execution_id,
+      status,
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    } = params;
     const path = `${endpoints.SCRIPT_BATCH_HOST_RESULTS(
       batch_execution_id
-    )}?${buildQueryStringFromParams({ status, page, per_page })}`;
+    )}?${buildQueryStringFromParams({
+      status,
+      page,
+      per_page,
+      order_key,
+      order_direction,
+    })}`;
     return sendRequest("GET", path);
   },
 };
