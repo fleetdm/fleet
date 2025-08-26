@@ -293,7 +293,7 @@ type BatchScriptHost struct {
 	// if no result was received yet.
 	ScriptOutput string `json:"script_output_preview,omitempty" db:"output"`
 	// Executed at is the time the script was executed on the host (if at all).
-	ScriptExecutedAt string `json:"script_executed_at,omitempty" db:"updated_at"`
+	ScriptExecutedAt time.Time `json:"script_executed_at,omitempty" db:"updated_at"`
 	// Status is the status of the host's batch script run.
 	Status BatchScriptExecutionStatus `json:"script_status" db:"status"`
 }
