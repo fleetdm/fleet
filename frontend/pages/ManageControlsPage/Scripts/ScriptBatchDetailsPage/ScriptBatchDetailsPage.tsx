@@ -88,7 +88,7 @@ const ScriptBatchDetailsPage = ({
 }: IScriptBatchDetailsProps) => {
   const { batch_execution_id: batchExecutionId } = routeParams;
 
-  const hostStatusParam = location.query.status ?? "ran";
+  const hostStatusParam = location.query.status;
   const pageParam = location.query.page ?? 0;
   const orderKeyParam = location.query.order_key ?? "display_name";
   const orderDirectionParam = location.query.order_direction ?? "asc";
