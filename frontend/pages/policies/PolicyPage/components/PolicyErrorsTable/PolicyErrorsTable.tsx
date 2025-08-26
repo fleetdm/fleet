@@ -16,14 +16,12 @@ interface IPolicyErrorsTableProps {
   errorsList: ICampaignError[];
   isLoading: boolean;
   resultsTitle?: string;
-  canAddOrDeletePolicy?: boolean;
 }
 
 const PolicyErrorsTable = ({
   errorsList,
   isLoading,
   resultsTitle,
-  canAddOrDeletePolicy,
 }: IPolicyErrorsTableProps): JSX.Element => {
   return (
     <div className={baseClass}>
