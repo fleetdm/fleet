@@ -1135,7 +1135,6 @@ func DetermineJSONConfigType(data []byte) (bool, bool, error) {
 		if !hasTypeKey {
 			return false, false, errors.New("apple declaration missing Type")
 		}
-		// TODO this err
 		return false, false, errors.New("apple declaration missing Payload")
 	}
 	// Android declaration
