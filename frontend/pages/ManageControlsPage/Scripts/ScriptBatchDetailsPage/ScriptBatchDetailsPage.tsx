@@ -158,7 +158,6 @@ const ScriptBatchDetailsPage = ({
     [batchExecutionId, location?.search, router]
   );
 
-  // Reset to first tab if host status is invalid.
   useEffect(() => {
     if (!isValidScriptBatchHostStatus(selectedHostStatus)) {
       handleTabChange(0);

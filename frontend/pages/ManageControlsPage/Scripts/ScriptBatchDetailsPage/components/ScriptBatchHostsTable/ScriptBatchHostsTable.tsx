@@ -49,7 +49,7 @@ const ScriptBatchHostsTable = ({
   setHostScriptExecutionIdForModal,
   router,
 }: IScriptBatchHostsTableProps) => {
-  const perPage = DEFAULT_PAGE_SIZE; // TODO - allow changing this via URL?
+  const perPage = DEFAULT_PAGE_SIZE;
   const { data: hostResults, isLoading, error } = useQuery<
     IScriptBatchHostResultsResponse,
     AxiosError,
@@ -89,7 +89,6 @@ const ScriptBatchHostsTable = ({
   }
 
   const columnConfigs = generateColumnConfigs(selectedHostStatus);
-  // const tableData = generateTableData(hostResults?.hosts || [], hostStatus);
 
   return (
     <div className={baseClass}>

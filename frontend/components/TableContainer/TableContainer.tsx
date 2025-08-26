@@ -327,10 +327,8 @@ const TableContainer = <T,>({
           className={`${baseClass}__table-action-button`}
         >
           <>
-            <>
-              {actionButton.buttonText}
-              {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
-            </>
+            {actionButton.buttonText}
+            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
           </>
         </Button>
       );
