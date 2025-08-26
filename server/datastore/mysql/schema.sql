@@ -63,15 +63,16 @@ CREATE TABLE `android_devices` (
   `host_id` int unsigned NOT NULL,
   `device_id` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `enterprise_specific_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `android_policy_id` int unsigned DEFAULT NULL,
   `last_policy_sync_time` datetime(3) DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  `applied_policy_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `applied_policy_version` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_android_devices_host_id` (`host_id`),
   UNIQUE KEY `idx_android_devices_device_id` (`device_id`),
   UNIQUE KEY `idx_android_devices_enterprise_specific_id` (`enterprise_specific_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
