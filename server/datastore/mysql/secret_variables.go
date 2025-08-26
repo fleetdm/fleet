@@ -175,23 +175,134 @@ func (ds *Datastore) ListSecretVariables(ctx context.Context, opt fleet.ListOpti
 	return secretVariables, meta, count, nil
 }
 
-func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (name string, err error) {
+func (ds *Datastore) DeleteSecretVariable(ctx context.Context, id uint) (secretName string, err error) {
+	type entity struct {
+		// Type is the entity type, "script", "apple_profile", "apple_declaration", or "windows_profile".
+		Type string `db:"entity"`
+		// Name is the name of the entity.
+		Name string `db:"name"`
+		// TeamName is the name of the team the entity belongs to.
+		TeamName string `db:"team_name"`
+		// Contents is the content of the entity (script's/profile's body).
+		Contents string `db:"contents"`
+	}
+
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM secret_variables WHERE id = ?`, id)
+		err := sqlx.GetContext(ctx, tx, &secretName, `SELECT name FROM secret_variables WHERE id = ?`, id)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				return ctxerr.Wrap(ctx, notFound("SecretVariable").WithID(id))
 			}
 			return ctxerr.Wrap(ctx, err, "getting name of secret variable to delete")
 		}
+
+		// 1. Check if the secret variable is used in scripts.
+		var scriptContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&scriptContents,
+			`SELECT 'script' AS entity, s.name,
+			COALESCE(t.name, 'No team') AS team_name, sc.contents
+			FROM script_contents sc
+			JOIN scripts s ON s.script_content_id = sc.id
+			LEFT JOIN teams t ON t.id = s.team_id;`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get script contents")
+		}
+		for _, c := range scriptContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
+		// 2. Check if the secret variable is used in Apple configuration profiles.
+		var appleConfigurationProfileContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&appleConfigurationProfileContents,
+			`SELECT 'apple_profile' AS entity, p.name,
+			COALESCE(t.name, 'No team') AS team_name, p.mobileconfig AS contents
+			FROM mdm_apple_configuration_profiles p
+			LEFT JOIN teams t ON t.id = p.team_id;`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get apple profile contents")
+		}
+		for _, c := range appleConfigurationProfileContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
+		// 3. Check if the secret variable is used in Apple declarations.
+		var appleDeclarationContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&appleDeclarationContents,
+			`SELECT 'apple_declaration' AS entity, d.name,
+			COALESCE(t.name, 'No team') AS team_name, d.raw_json AS contents
+			FROM mdm_apple_declarations d
+			LEFT JOIN teams t ON t.id = d.team_id;`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get apple declaration contents")
+		}
+		for _, c := range appleDeclarationContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
+		// 4. Check if the secret variable is used in Windows configuration profiles.
+		var windowsProfileContents []entity
+		if err := sqlx.SelectContext(ctx, tx,
+			&windowsProfileContents,
+			`SELECT 'windows_profile' AS entity, p.name,
+			COALESCE(t.name, 'No team') AS team_name, p.syncml AS contents
+			FROM mdm_windows_configuration_profiles p
+			LEFT JOIN teams t ON t.id = p.team_id;`,
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "get windows profile contents")
+		}
+		for _, c := range windowsProfileContents {
+			if fleet.ContainsVar(c.Contents, fleet.ServerSecretPrefix+secretName) {
+				return ctxerr.Wrap(ctx, &fleet.SecretUsedError{
+					SecretName: secretName,
+					Entity: fleet.EntityUsingSecret{
+						Type:     c.Type,
+						Name:     c.Name,
+						TeamName: c.TeamName,
+					},
+				}, "found secret in use")
+			}
+		}
+
 		if _, err := tx.ExecContext(ctx, `DELETE FROM secret_variables WHERE id = ?`, id); err != nil {
 			return ctxerr.Wrap(ctx, err, "delete secret variable")
 		}
+
 		return nil
 	}); err != nil {
 		return "", ctxerr.Wrap(ctx, err, "delete secret variable")
 	}
-	return name, nil
+
+	return secretName, nil
 }
 
 func (ds *Datastore) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {

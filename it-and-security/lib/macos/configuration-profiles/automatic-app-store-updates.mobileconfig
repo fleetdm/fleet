@@ -5,42 +5,30 @@
 	<key>PayloadContent</key>
 	<array>
 		<dict>
-			<key>AllowPreReleaseInstallation</key>
-			<true/>
-			<key>AutomaticCheckEnabled</key>
-			<true/>
-			<key>AutomaticDownload</key>
-			<true/>
 			<key>AutomaticallyInstallAppUpdates</key>
 			<true/>
-			<key>AutomaticallyInstallMacOSUpdates</key>
-			<true/>
-			<key>ConfigDataInstall</key>
-			<true/>
-			<key>CriticalUpdateInstall</key>
-			<true/>
 			<key>PayloadDescription</key>
-			<string>Configures Software Update settings</string>
+			<string>Automatically install App Store updates</string>
 			<key>PayloadDisplayName</key>
-			<string>Software Update</string>
+			<string>Automatically install App Store updates</string>
 			<key>PayloadIdentifier</key>
-			<string>com.github.erikberglund.ProfileCreator.BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8.com.apple.SoftwareUpdate.A8B97032-7645-4068-B457-01DE5C6B33F7</string>
+			<string>com.fleetdm.appstore.updates.0BCF86EE-7163-4580-9EA8-2F01EA8CA059</string>
 			<key>PayloadOrganization</key>
 			<string></string>
 			<key>PayloadType</key>
 			<string>com.apple.SoftwareUpdate</string>
 			<key>PayloadUUID</key>
-			<string>A8B97032-7645-4068-B457-01DE5C6B33F7</string>
+			<string>0BCF86EE-7163-4580-9EA8-2F01EA8CA059</string>
 			<key>PayloadVersion</key>
 			<integer>1</integer>
 		</dict>
 	</array>
 	<key>PayloadDescription</key>
-	<string>Enables automatic updates</string>
+	<string>Enables App Store automatic updates</string>
 	<key>PayloadDisplayName</key>
-	<string>Turn on automatic updates</string>
+	<string>Turn on App Store automatic updates</string>
 	<key>PayloadIdentifier</key>
-	<string>com.github.erikberglund.ProfileCreator.BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8</string>
+	<string>com.fleetdm.appstore.updates.FDCAEEFA-4FFE-4CFD-8C9D-DD718424BCAA</string>
 	<key>PayloadOrganization</key>
 	<string>FleetDM</string>
 	<key>PayloadRemovalDisallowed</key>
@@ -50,7 +38,7 @@
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
-	<string>BEBA0740-4DDB-4AC4-85DC-BA48B96C0DC8</string>
+	<string>FDCAEEFA-4FFE-4CFD-8C9D-DD718424BCAA</string>
 	<key>PayloadVersion</key>
 	<integer>1</integer>
 </dict>

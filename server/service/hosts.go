@@ -572,7 +572,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		return nil, ctxerr.Wrap(ctx, err, "checking host's host_issues last updated:")
 	}
 	if time.Since(lastUpdated) > time.Minute {
-		if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+		if err := svc.ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, id); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
 		}
 	}

@@ -193,6 +193,52 @@ func TestPubSubEnrollment(t *testing.T) {
 	})
 }
 
+func TestAndroidStorageExtraction(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{AndroidEnabledAndConfigured: true},
+		}, nil
+	}
+
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+		return nil, common_mysql.NotFound("android host lite mock")
+	}
+
+	mockDS.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
+		return &fleet.EnrollSecret{Secret: "global"}, nil
+	}
+
+	var createdHost *fleet.AndroidHost
+	mockDS.NewAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error) {
+		createdHost = host
+		return host, nil
+	}
+
+	t.Run("extracts storage data from AMAPI device", func(t *testing.T) {
+		createdHost = nil // Reset
+
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("storage-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, createdHost)
+		require.NotNil(t, createdHost.Host)
+
+		// Total: 64GB (internal) + 64GB (external) = 128GB
+		// Available: 10GB (internal free) + 25GB (external free) = 35GB
+		// Percentage: 35/128 * 100 = 27.34%
+		require.Equal(t, 128.0, createdHost.Host.GigsTotalDiskSpace, "should calculate total storage (64GB internal + 64GB external)")
+		require.Equal(t, 35.0, createdHost.Host.GigsDiskSpaceAvailable, "should calculate total available storage (10GB + 25GB)")
+		require.InDelta(t, 27.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage (35/128*100=27.34%)")
+	})
+}
+
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
@@ -206,7 +252,26 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 		AndroidVersion:     "1",
 	}
 	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
-		TotalRam: 1000,
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+	}
+
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free in system partition
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
 	}
 
 	data, err := json.Marshal(deviceInfo)

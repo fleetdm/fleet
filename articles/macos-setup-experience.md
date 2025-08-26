@@ -189,7 +189,7 @@ You can configure software installations and a script to be executed during Setu
 
 If you configure software and/or a script for setup experience, users will see a window like this pop open after their device enrolls in MDM via ADE:
 
-![screen shot of Fleet setup experience window](../website/assets/images/install-software-preview.png)
+![screen shot of Fleet setup experience window](../website/assets/images/articles/install-software-preview-462x364@2x.png)
 
 This window shows the status of the software installations as well as the script exectution. Once all steps have completed, the window can be closed and Setup Assistant will proceed as usual.
 

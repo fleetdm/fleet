@@ -83,8 +83,6 @@ const Advanced = ({
   handleSubmit,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
-  const gitOpsModeEnabled = appConfig.gitops.gitops_mode_enabled;
-
   const [formData, setFormData] = useState<IAdvancedConfigFormData>({
     ssoUserURL: appConfig.sso_settings?.sso_server_url || "",
     mdmAppleServerURL: appConfig.mdm?.apple_server_url || "",
