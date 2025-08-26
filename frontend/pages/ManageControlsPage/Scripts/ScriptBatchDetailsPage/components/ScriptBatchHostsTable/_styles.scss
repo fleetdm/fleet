@@ -1,0 +1,11 @@
+.script-batch-hosts-table {
+  .script-output-cell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .tooltip-truncated-text {
+      max-width: 78%;
+      white-space: nowrap;
+    }
+  }
+}
