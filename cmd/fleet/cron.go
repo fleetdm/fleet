@@ -55,7 +55,6 @@ func newVulnerabilitiesSchedule(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	config *config.VulnerabilitiesConfig,
-	fleetConfig *config.FleetConfig,
 ) (*schedule.Schedule, error) {
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
@@ -64,9 +63,6 @@ func newVulnerabilitiesSchedule(
 	var options []schedule.Option
 
 	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
-	if fleetConfig != nil {
-		options = append(options, schedule.WithOTELEnabled(fleetConfig.OTELEnabled()))
-	}
 
 	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
 	for _, fn := range vulnFuncs {
@@ -532,7 +528,7 @@ func newAutomationsSchedule(
 	logger kitlog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-	fleetConfig *config.FleetConfig,
+	enablePrimo bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -546,7 +542,6 @@ func newAutomationsSchedule(
 		// TODO(sarah): Reconfigure settings so automations interval doesn't reside under webhook settings
 		ctx, name, instanceID, appConfig.WebhookSettings.Interval.ValueOr(defaultInterval), ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
-		schedule.WithOTELEnabled(fleetConfig != nil && fleetConfig.OTELEnabled()),
 		schedule.WithConfigReloadInterval(intervalReload, func(ctx context.Context) (time.Duration, error) {
 			appConfig, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -572,7 +567,6 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				enablePrimo := fleetConfig != nil && fleetConfig.Partnerships.EnablePrimo
 				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet, enablePrimo)
 			},
 		),
@@ -851,7 +845,6 @@ func newCleanupsAndAggregationSchedule(
 		// Using leader for the lock to be backwards compatilibity with old deployments.
 		schedule.WithAltLockID("leader"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
-		schedule.WithOTELEnabled(config.OTELEnabled()),
 		// Run cleanup jobs first.
 		schedule.WithJob(
 			"distributed_query_campaigns",
@@ -1133,7 +1126,6 @@ func newUsageStatisticsSchedule(ctx context.Context, instanceID string, ds fleet
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
-		schedule.WithOTELEnabled(config.OTELEnabled()),
 		schedule.WithJob(
 			"try_send_statistics",
 			func(ctx context.Context) error {
