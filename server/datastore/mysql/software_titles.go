@@ -113,7 +113,7 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
-	if opt.TeamID == nil && opt.PackagesOnly == true {
+	if opt.TeamID == nil && opt.PackagesOnly {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
 	}
 
