@@ -1769,7 +1769,6 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 
 func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
-	// TODO Add android
 	insertProfileStmt := `
 INSERT INTO
     mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
@@ -1867,8 +1866,7 @@ INSERT INTO
 }
 
 func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-	profileUUID := "w" + uuid.New().String()
-	// TODO Add Android
+	profileUUID := fleet.MDMWindowsProfileUUIDPrefix + uuid.New().String()
 	stmt := `
 INSERT INTO
 	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)

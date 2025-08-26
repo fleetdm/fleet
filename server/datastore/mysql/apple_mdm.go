@@ -181,7 +181,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 }
 
 func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
-	profUUID := "a" + uuid.New().String()
+	profUUID := fleet.MDMAppleProfileUUIDPrefix + uuid.New().String()
 
 	// Set default scope if not provided
 	if cp.Scope == "" {
@@ -5279,7 +5279,6 @@ INSERT INTO mdm_apple_declarations (
 }
 
 func (ds *Datastore) SetOrUpdateMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-	// TODO Add Android
 	const stmt = `
 INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
