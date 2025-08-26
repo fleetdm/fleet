@@ -38,9 +38,11 @@ import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import DataError from "components/DataError";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 import getWhen from "../helpers";
 import CancelScriptBatchModal from "../components/CancelScriptBatchModal";
+import ScriptBatchHostsTable from "./components/ScriptBatchHostsTable";
 
 const baseClass = "script-batch-details-page";
 
@@ -62,7 +64,7 @@ const getEmptyState = (status: ScriptBatchHostStatus) => {
   );
 };
 
-const STATUS_BY_INDEX: ScriptBatchHostStatus[] = [
+const HOSTS_STATUS_BY_INDEX: ScriptBatchHostStatus[] = [
   "ran",
   "errored",
   "pending",
@@ -85,8 +87,13 @@ const ScriptBatchDetailsPage = ({
   location,
 }: IScriptBatchDetailsProps) => {
   const { batch_execution_id: batchExecutionId } = routeParams;
-  const statusParam = location?.query.status;
-  const selectedStatus = statusParam as ScriptBatchHostStatus;
+
+  const hostStatusParam = location.query.status ?? "ran";
+  const pageParam = location.query.page ?? 0;
+  const orderKeyParam = location.query.order_key ?? "display_name";
+  const orderDirectionParam = location.query.order_direction ?? "asc";
+
+  const selectedHostStatus = hostStatusParam as ScriptBatchHostStatus;
 
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showScriptDetails, setShowScriptDetails] = useState(false);
@@ -136,10 +143,10 @@ const ScriptBatchDetailsPage = ({
 
   const handleTabChange = useCallback(
     (index: number) => {
-      const newStatus = STATUS_BY_INDEX[index];
+      const newHostsStatus = HOSTS_STATUS_BY_INDEX[index];
 
       const newParams = new URLSearchParams(location?.search);
-      newParams.set("status", newStatus);
+      newParams.set("status", newHostsStatus);
       const newQuery = newParams.toString();
 
       router.push(
@@ -151,26 +158,41 @@ const ScriptBatchDetailsPage = ({
     [batchExecutionId, location?.search, router]
   );
 
-  // Reset to first tab if status is invalid.
+  // Reset to first tab if host status is invalid.
   useEffect(() => {
-    if (!isValidScriptBatchHostStatus(selectedStatus)) {
+    if (!isValidScriptBatchHostStatus(selectedHostStatus)) {
       handleTabChange(0);
     }
-  }, [handleTabChange, selectedStatus]);
+  }, [handleTabChange, selectedHostStatus]);
 
-  // const renderTabContent = (status: ScriptBatchHostStatus, statusCount: number) => {
-  const renderTabContent = ([status, statusCount]: [
+  const renderTabContent = ([hostStatus, hostStatusCount]: [
     ScriptBatchHostStatus,
     number
   ]) => {
-    if (statusCount === 0) {
-      return getEmptyState(status);
+    if (hostStatusCount === 0) {
+      return getEmptyState(hostStatus);
     }
     return (
-      <ScriptBatchHostsTable
-        batchExecutionId={batchExecutionId}
-        status={status}
-      />
+      <div className={`${baseClass}__tab-content`}>
+        <span className={`${baseClass}__tab-content__header`}>
+          <b>
+            {hostStatusCount} host{hostStatusCount > 1 && "s"}
+          </b>
+          <ViewAllHostsLink
+            queryParams={{
+              script_batch_execution_status: selectedHostStatus, // refers to script batch host status, may update pending conv w Rachael
+              script_batch_execution_id: batchExecutionId,
+            }}
+          />
+        </span>
+        <ScriptBatchHostsTable
+          batchExecutionId={batchExecutionId}
+          hostStatus={hostStatus}
+          page={pageParam}
+          orderDirection={orderDirectionParam}
+          orderKey={orderKeyParam}
+        />
+      </div>
     );
   };
 
@@ -193,7 +215,7 @@ const ScriptBatchDetailsPage = ({
       canceled_host_count: canceled,
     } = batchDetails || {};
 
-    const getStatusAndCountByIndex = (i: number) =>
+    const getHostStatusAndCountByIndex = (i: number) =>
       ([
         ["ran", ran],
         ["errored", errored],
@@ -250,7 +272,7 @@ const ScriptBatchDetailsPage = ({
         />
         <TabNav>
           <Tabs
-            selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
+            selectedIndex={HOSTS_STATUS_BY_INDEX.indexOf(selectedHostStatus)}
             onSelect={handleTabChange}
           >
             <TabList>
@@ -278,11 +300,21 @@ const ScriptBatchDetailsPage = ({
                 </TabText>
               </Tab>
             </TabList>
-            <TabPanel>{renderTabContent(getStatusAndCountByIndex(0))}</TabPanel>
-            <TabPanel>{renderTabContent(getStatusAndCountByIndex(1))}</TabPanel>
-            <TabPanel>{renderTabContent(getStatusAndCountByIndex(2))}</TabPanel>
-            <TabPanel>{renderTabContent(getStatusAndCountByIndex(3))}</TabPanel>
-            <TabPanel>{renderTabContent(getStatusAndCountByIndex(4))}</TabPanel>
+            <TabPanel>
+              {renderTabContent(getHostStatusAndCountByIndex(0))}
+            </TabPanel>
+            <TabPanel>
+              {renderTabContent(getHostStatusAndCountByIndex(1))}
+            </TabPanel>
+            <TabPanel>
+              {renderTabContent(getHostStatusAndCountByIndex(2))}
+            </TabPanel>
+            <TabPanel>
+              {renderTabContent(getHostStatusAndCountByIndex(3))}
+            </TabPanel>
+            <TabPanel>
+              {renderTabContent(getHostStatusAndCountByIndex(4))}
+            </TabPanel>
           </Tabs>
         </TabNav>
       </div>

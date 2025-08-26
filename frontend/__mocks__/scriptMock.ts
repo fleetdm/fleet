@@ -138,7 +138,10 @@ export const createMockScriptBatchHostResults = (
       has_next_results: false,
       has_previous_results: false,
     },
-    count: 1,
-    hosts: [SCRIPT_BATCH_HOST_RESULTS_BY_STATUS[status || "ran"]],
+    count: 2,
+    hosts: [
+      SCRIPT_BATCH_HOST_RESULTS_BY_STATUS[status || "ran"],
+      SCRIPT_BATCH_HOST_RESULTS_BY_STATUS[status || "ran"],
+    ],
   };
 };

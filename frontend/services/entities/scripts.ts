@@ -198,10 +198,11 @@ export interface IScriptBatchSummariesResponse
   batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
 }
 
+export type ScriptBatchHostsOrderKey = "display_name" | "script_executed_at"; // TODO - may need to order by "updated_at" instead of "script_executed_at"
 export interface IScriptBatchHostResultsParams extends PaginationParams {
   batch_execution_id: string;
   status: ScriptBatchHostStatus;
-  order_key: "display_name" | "script_executed_at"; // TODO - may need to order by "updated_at" instead of "script_executed_at"
+  order_key: ScriptBatchHostsOrderKey;
   order_direction: OrderDirection;
 }
 
@@ -326,7 +327,7 @@ export default {
         // status: "finished",
         status: "scheduled",
         // finished_at: null,
-        ran_host_count: 1,
+        ran_host_count: 2,
         pending_host_count: 1,
         errored_host_count: 1,
         incompatible_host_count: 1,
@@ -346,7 +347,7 @@ export default {
     params: IScriptBatchHostResultsParams
   ): Promise<IScriptBatchHostResultsResponse> {
     // // remove me
-    // return Promise.resolve(createMockScriptBatchHostResults("ran"));
+    return Promise.resolve(createMockScriptBatchHostResults("ran"));
     // return Promise.resolve(createMockScriptBatchHostResults("errored"));
     // return Promise.resolve(createMockScriptBatchHostResults("pending"));
     // return Promise.resolve(createMockScriptBatchHostResults("incompatible"));
