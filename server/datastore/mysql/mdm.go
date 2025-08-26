@@ -441,7 +441,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)
