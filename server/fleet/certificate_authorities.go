@@ -267,7 +267,7 @@ type CustomSCEPProxyCAUpdatePayload struct {
 // For example if the Name is provided then the Challenge must also be provided.
 func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
 	// TODO: add cert name
-	if cscepp.URL != nil || cscepp.Challenge == nil {
+	if cscepp.URL != nil && cscepp.Challenge == nil {
 		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge" must be set when modifying "url" of an existing certificate authority: %s`, errPrefix, certName)}
 	}
 	return nil
