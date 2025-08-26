@@ -214,7 +214,7 @@ INSERT INTO
 		}
 		res, err := tx.ExecContext(ctx, stmt,
 			profUUID, teamID, cp.Identifier, cp.Name, cp.Scope, cp.Mobileconfig, cp.Mobileconfig, cp.SecretsUpdatedAt, cp.Name, teamID, cp.Name,
-			teamID)
+			teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case IsDuplicate(err):
