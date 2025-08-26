@@ -1914,6 +1914,9 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
