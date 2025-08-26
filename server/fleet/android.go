@@ -20,7 +20,7 @@ type MDMAndroidConfigProfile struct {
 	TeamID           *uint                       `db:"team_id" json:"team_id"`
 	Name             string                      `db:"name" json:"name"`
 	RawJSON          []byte                      `db:"raw_json" json:"-"`
-	AutoIncrement    uint64                      `db:"auto_increment" json:"auto_increment"`
+	AutoIncrement    int64                       `db:"auto_increment" json:"auto_increment"`
 	LabelsIncludeAll []ConfigurationProfileLabel `db:"-" json:"labels_include_all,omitempty"`
 	LabelsIncludeAny []ConfigurationProfileLabel `db:"-" json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`

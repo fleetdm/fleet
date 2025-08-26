@@ -386,16 +386,8 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		teamName = tm.Name
 	}
 
-	b, err := io.ReadAll(r)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
-			Message:     "failed to read Apple config profile",
-			InternalErr: err,
-		})
-	}
-
 	// Check for secrets in profile name before expansion
-	if err := fleet.ValidateNoSecretsInProfileName(b); err != nil {
+	if err := fleet.ValidateNoSecretsInProfileName(data); err != nil {
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
