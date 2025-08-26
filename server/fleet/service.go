@@ -1288,6 +1288,22 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+
+	// ListCertificateAuthorities lists all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
+	// GetCertificateAuthority returns a CertificateAuthority by ID. Secrets are masked
+	GetCertificateAuthority(ctx context.Context, id uint) (*CertificateAuthority, error)
+	// NewCertificateAuthority creates a new certificate authority and returns the created object
+	// with its ID set. Secrets must be provided
+	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
+	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
+	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
+	// UpdateCertificateAuthority updates the certificate authority of the given id
+	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
+	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
 }
 
 type KeyValueStore interface {

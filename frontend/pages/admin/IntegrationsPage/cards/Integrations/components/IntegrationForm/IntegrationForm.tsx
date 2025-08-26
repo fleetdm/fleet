@@ -292,7 +292,7 @@ const IntegrationForm = ({
                         type="submit"
                         disabled={formInvalid || disableChildren}
                       >
-                        Save
+                        Add
                       </Button>
                     </div>
                     <ReactTooltip
