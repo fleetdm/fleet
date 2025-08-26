@@ -302,8 +302,8 @@ func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
 		OperationType:       p.OperationType,
 		Detail:              p.Detail,
 		Platform:            platform,
-		Scope:               scope,
-		ManagedLocalAccount: p.ManagedLocalAccount,
+		Scope:               &scope,
+		ManagedLocalAccount: &p.ManagedLocalAccount,
 	}
 }
 

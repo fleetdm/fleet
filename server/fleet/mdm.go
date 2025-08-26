@@ -383,8 +383,8 @@ type HostMDMProfile struct {
 	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
 	Detail              string             `db:"-" json:"detail"`
 	Platform            string             `db:"-" json:"platform"`
-	Scope               string             `db:"-" json:"scope"`
-	ManagedLocalAccount string             `db:"-" json:"managed_local_account"`
+	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
