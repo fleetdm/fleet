@@ -141,38 +141,38 @@ FROM certificate_authorities`
 		assert.Nil(t, ca.ClientSecret)
 		switch ca.Type {
 		case "digicert":
-			assert.Contains(t, []string{digicertCA1Name, digicertCA2Name}, ca.Name, "unexpected DigiCert CA name")
+			assert.Contains(t, []string{digicertCA1Name, digicertCA2Name}, *ca.Name, "unexpected DigiCert CA name")
 			expectedCA := digicertCAs[0]
 			expectedAPIToken := digicertCA1EncryptedPassword
 			if *ca.Name == digicertCA2Name {
 				expectedCA = digicertCAs[1]
 				expectedAPIToken = digicertCA2EncryptedPassword
 			}
-			assert.Equal(t, expectedCA.URL, ca.URL)
+			assert.Equal(t, expectedCA.URL, *ca.URL)
 			assert.Equal(t, expectedAPIToken, ca.APITokenEncrypted)
 			require.NotNil(t, ca.ProfileID)
 			assert.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
 			require.NotNil(t, ca.CertificateCommonName)
 			assert.Equal(t, expectedCA.CertificateCommonName, *ca.CertificateCommonName)
-			assert.Equal(t, expectedCA.CertificateUserPrincipalNames, ca.CertificateUserPrincipalNames)
+			assert.Equal(t, expectedCA.CertificateUserPrincipalNames, *ca.CertificateUserPrincipalNames)
 			require.NotNil(t, ca.CertificateSeatID)
 			assert.Equal(t, expectedCA.CertificateSeatID, *ca.CertificateSeatID)
 		case "custom_scep_proxy":
-			require.Contains(t, []string{customSCEPCA1Name, customSCEPCA2Name}, ca.Name, "unexpected Custom SCEP Proxy CA name")
+			require.Contains(t, []string{customSCEPCA1Name, customSCEPCA2Name}, *ca.Name, "unexpected Custom SCEP Proxy CA name")
 			expectedCA := customSCEPProxyCAs[0]
 			expectedChallenge := customSCEPCA1EncryptedChallenge
 			if *ca.Name == customSCEPCA2Name {
 				expectedCA = customSCEPProxyCAs[1]
 				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}
-			assert.Equal(t, expectedCA.URL, ca.URL)
+			assert.Equal(t, expectedCA.URL, *ca.URL)
 			assert.Equal(t, expectedChallenge, ca.ChallengeEncrypted)
 			assert.Nil(t, ca.CertificateUserPrincipalNames)
 		case "ndes_scep_proxy":
-			assert.Equal(t, "NDES", ca.Name)
+			assert.Equal(t, "NDES", *ca.Name)
 			require.NotNil(t, ca.AdminURL)
 			assert.Equal(t, ndesCA.AdminURL, *ca.AdminURL)
-			assert.Equal(t, ndesCA.URL, ca.URL)
+			assert.Equal(t, ndesCA.URL, *ca.URL)
 			require.NotNil(t, ca.Username)
 			assert.Equal(t, ndesCA.Username, *ca.Username)
 			assert.Equal(t, ndesEncryptedPassword, ca.PasswordEncrypted)

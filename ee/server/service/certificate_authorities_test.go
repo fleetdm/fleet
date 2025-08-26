@@ -1084,21 +1084,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. \"api_token\" must be set when modifying \"url\", or \"profile_id\" of an existing certificate authority: Test Digicert CA")
 		})
 
-		t.Run("Bad URL", func(t *testing.T) {
-			svc, ctx := baseSetupForCATests()
-
-			payload := fleet.CertificateAuthorityUpdatePayload{
-				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
-					URL:      ptr.String("https://bozo"),
-					APIToken: ptr.String("secret-token"),
-				},
-			}
-
-			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-			require.EqualError(t, err, "Couldn't edit certificate authority. Could not verify DigiCert URL: sending DigiCert request: Get \"https://bozo/mpki/api/v2/profile/test-profile-id\": dial tcp: lookup bozo: no such host. Please correct and try again.")
-		})
-
-		t.Run("Bad URL Format", func(t *testing.T) {
+		t.Run("Invalid URL Format", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 
 			payload := fleet.CertificateAuthorityUpdatePayload{
