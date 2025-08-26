@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -13,6 +12,8 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
+// TODO(ap): using fleet.Datastore for now as I list all hosts by label, but
+// could eventually be fleet.AndroidDatastore (if that's still a thing).
 func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -82,6 +83,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		// for now.
 		policy := &androidmanagement.Policy{
 			CameraDisabled: true,
+			FunDisabled:    true,
 		}
 
 		// for every policy, we want to enforce some settings
@@ -93,22 +95,29 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
 		applied, err := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
 		if err != nil {
+			// Note that from my tests, the "not modified" error is not reliable, the
+			// AMAPI happily returned 200 even if the policy was the same (as
+			// confirmed by the same version number being returned), so we do check
+			// for this error, but do not build critical logic on top of it.
+			//
+			// Tests do show that the version number is properly incremented when the
+			// policy changes, though.
 			if androidmgmt.IsNotModifiedError(err) {
 				// nothing to do, was already applied as-is
+				fmt.Println(">>>>> POLICY NOT MODIFIED")
 				continue
 			}
 			return ctxerr.Wrapf(ctx, err, "applying policy to host %s", h.UUID)
 		}
-		fmt.Println(">>>>> APPLIED POLICY:")
-		spew.Dump(applied)
+		_ = applied
+		// fmt.Println(">>>>> APPLIED POLICY:", err)
+		// spew.Dump(applied)
 	}
 
 	return nil
 }
 
 func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
-	// TODO(ap): exact settings to be confirmed, for now using the same settings we
-	// use in the (existing) default Android profile.
 	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
 		DeviceSettingsEnabled:        true,
 		MemoryInfoEnabled:            true,
@@ -119,7 +128,7 @@ func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
 		SystemPropertiesEnabled:      true,
 		SoftwareInfoEnabled:          true,
 		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    false,
-		ApplicationReportingSettings: nil,
+		ApplicationReportsEnabled:    true,
+		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
 	}
 }

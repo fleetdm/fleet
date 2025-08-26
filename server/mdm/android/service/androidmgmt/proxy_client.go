@@ -168,6 +168,20 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName s
 	return ret, nil
 }
 
+func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	call := p.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
 func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
 	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	if p == nil || p.mgmt == nil {

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -48,7 +50,11 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 		return nil
 	}
 
-	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	mgmt, err := androidmanagement.NewService(ctx,
+		option.WithCredentialsJSON([]byte(androidServiceCredentials)),
+		option.WithLogger(slogLogger),
+	)
 	if err != nil {
 		level.Error(logger).Log("msg", "creating android management service", "err", err)
 		return nil
@@ -164,6 +170,18 @@ func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName 
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
+	}
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	ret, err := g.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
 	}
 	return ret, nil
 }
