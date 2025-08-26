@@ -323,7 +323,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			ApplicationReportingSettings: nil,
 		},
 	})
-	if err != nil {
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 

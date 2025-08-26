@@ -161,6 +161,7 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName s
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
 	}

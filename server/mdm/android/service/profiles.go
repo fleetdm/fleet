@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
@@ -91,12 +93,17 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
 		applied, err := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
 		if err != nil {
+			if androidmgmt.IsNotModifiedError(err) {
+				// nothing to do, was already applied as-is
+				continue
+			}
 			return ctxerr.Wrapf(ctx, err, "applying policy to host %s", h.UUID)
 		}
-		_ = applied
+		fmt.Println(">>>>> APPLIED POLICY:")
+		spew.Dump(applied)
 	}
 
-	panic("unimplemented")
+	return nil
 }
 
 func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {

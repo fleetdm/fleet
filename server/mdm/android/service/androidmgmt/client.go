@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Client is used to interact with the Android Management API.
@@ -58,4 +59,10 @@ type EnterprisesCreateResponse struct {
 	// TopicName is the Google PubSub topic name, like: projects/project_id/topics/topic_id. It is only present Google API client is used
 	// directly (no proxy). We save it for debugging purposes.
 	TopicName string
+}
+
+// IsNotModifiedError reports whether the AMAPI error indicates that the
+// resource has not been modified.
+func IsNotModifiedError(err error) bool {
+	return googleapi.IsNotModified(err)
 }
