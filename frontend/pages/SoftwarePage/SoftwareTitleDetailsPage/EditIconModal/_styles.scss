@@ -1,0 +1,59 @@
+.edit-icon-modal {
+  &__preview-card {
+    max-height: 203px;
+    overflow: hidden;
+
+    &__fleet,
+    &__self-service {
+      width: 500px;
+    }
+
+    &__self-service {
+      height: 350px;
+
+      img {
+        width: 160%;
+      }
+    }
+  }
+
+  &__preview-table {
+    width: 520px;
+    height: 100px;
+    margin-bottom: -32px;
+    border-top-right-radius: 0;
+  }
+
+  &__self-service-preview {
+    position: relative;
+    top: -72px;
+    left: 186px;
+    display: flex;
+    gap: $pad-xsmall;
+    font-size: 12px;
+    align-items: center;
+  }
+
+  &__mask-overlay {
+    position: relative;
+    width: 550px;
+    height: 135px;
+    background: linear-gradient(
+      180deg,
+      rgba(249, 250, 252, 0) 0%,
+      rgba(249, 250, 252, 0.75) 29.33%,
+      #f9fafc 83.17%
+    );
+
+    &--fleet {
+      bottom: 156px;
+    }
+    &--self-service {
+      bottom: 200px;
+    }
+  }
+
+  .modal-footer__content-wrapper {
+    padding-top: $pad-large;
+  }
+}
