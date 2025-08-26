@@ -7,7 +7,7 @@ When a device fails a Fleet policy, Fleet can mark it as non-compliant in Entra.
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
 
 - [Step 1: Configure Fleet in Intune](#step-1-configure-fleet-in-intune)
-- [Step 2: Create a "Fleet conditional access devices" group in Entra](#step-2-create-a-fleet-conditional-access-group-in-entra)
+- [Step 2: Create a "Fleet conditional access" group in Entra](#step-2-create-a-fleet-conditional-access-group-in-entra)
 - [Step 3: Connect Fleet to Entra](#step-3-connect-fleet-to-entra)
 - [Step 4: Deploy Company Portal and the Platform SSO configuration profile](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile)
 - [Step 5: Add Fleet policies](#step-5-add-fleet-policies)
