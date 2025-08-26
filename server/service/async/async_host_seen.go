@@ -68,6 +68,19 @@ func (t *Task) RecordHostLastSeen(ctx context.Context, hostID uint) error {
 func (t *Task) FlushHostsLastSeen(ctx context.Context, now time.Time) error {
 	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
 	if !cfg.Enabled {
+		// Create a root span for this synchronous flush task if OTEL is enabled
+		if t.otelEnabled {
+			tracer := otel.Tracer("async")
+			var span trace.Span
+			ctx, span = tracer.Start(ctx, "async.flush_hosts_last_seen",
+				trace.WithAttributes(
+					attribute.String("async.mode", "synchronous"),
+					attribute.String("async.task", "host_last_seen"),
+				),
+			)
+			defer span.End()
+		}
+
 		hostIDs := t.seenHostSet.getAndClearHostIDs()
 		return t.datastore.MarkHostsSeen(ctx, hostIDs, now)
 	}

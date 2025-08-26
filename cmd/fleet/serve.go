@@ -154,7 +154,10 @@ the way that the Fleet server works.
 				if err != nil {
 					initFatal(err, "Failed to initialize tracing")
 				}
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider := sdktrace.NewTracerProvider(
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
