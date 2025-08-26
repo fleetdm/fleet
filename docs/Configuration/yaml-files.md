@@ -1006,7 +1006,7 @@ If you're self hosting Fleet, the `smtp_settings` section lets you configure an 
 
 If you're using Fleet's managed-cloud offering, an SMTP server is already setup for you.
 
-For possible options, see the parameters for the [smtp_settings object in the API]([https://fleetdm.com/docs/rest-api/rest-api#add-label](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings)).
+For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
 
 ##### Example
 
