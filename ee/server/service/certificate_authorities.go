@@ -441,7 +441,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 			return err
 		}
 		p.HydrantCAUpdatePayload.Preprocess()
-		if err := svc.validateHydrantUpdate(p.HydrantCAUpdatePayload, errPrefix); err != nil {
+		if err := svc.validateHydrantUpdate(ctx, p.HydrantCAUpdatePayload, oldCA, errPrefix); err != nil {
 			return err
 		}
 		caToUpdate.Type = string(fleet.CATypeHydrant)
@@ -593,7 +593,7 @@ func (svc *Service) validateDigicertUpdate(ctx context.Context, digicert *fleet.
 	return nil
 }
 
-func (svc *Service) validateHydrantUpdate(hydrant *fleet.HydrantCAUpdatePayload, errPrefix string) error {
+func (svc *Service) validateHydrantUpdate(ctx context.Context, hydrant *fleet.HydrantCAUpdatePayload, oldCA *fleet.CertificateAuthority, errPrefix string) error {
 	if hydrant.Name != nil {
 		if err := validateCAName(*hydrant.Name, errPrefix); err != nil {
 			return err
@@ -602,6 +602,13 @@ func (svc *Service) validateHydrantUpdate(hydrant *fleet.HydrantCAUpdatePayload,
 	if hydrant.URL != nil {
 		if err := validateURL(*hydrant.URL, "Hydrant", errPrefix); err != nil {
 			return err
+		}
+
+		hydrantCAToVerify := fleet.HydrantCA{ // The hydrant service for verification only requires the URL.
+			URL: *hydrant.URL,
+		}
+		if err := svc.hydrantService.ValidateHydrantURL(ctx, hydrantCAToVerify); err != nil {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid Hydrant URL. Please correct and try again.", errPrefix)}
 		}
 	}
 	if hydrant.ClientID != nil && *hydrant.ClientID == "" {
@@ -614,6 +621,7 @@ func (svc *Service) validateHydrantUpdate(hydrant *fleet.HydrantCAUpdatePayload,
 			Message: fmt.Sprintf("%sInvalid Hydrant Client Secret. Please correct and try again.", errPrefix),
 		}
 	}
+
 	return nil
 }
 
