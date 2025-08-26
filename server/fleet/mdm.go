@@ -547,6 +547,24 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 	}
 }
 
+func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
+	var tid *uint
+	if cp.TeamID != nil && *cp.TeamID > 0 {
+		tid = cp.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Platform:         "android",
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
+	}
+}
+
 // MDMProfileSpec represents the spec used to define configuration
 // profiles via yaml files.
 type MDMProfileSpec struct {
@@ -1091,11 +1109,10 @@ func DetermineJSONConfigType(data []byte) (bool, bool, error) {
 	var profileKeyMap jsonObj
 	err := json.Unmarshal(data, &profileKeyMap)
 	if err != nil {
-		// TODO invalid profile err
-		return false, false, err
+		return false, false, fmt.Errorf("Couldn't add. The file should include valid JSON: %s", err.Error())
 	}
 	if len(profileKeyMap) == 0 {
-		return false, false, errors.New("JSON profile is empty")
+		return false, false, errors.New("Couldn't add. JSON is empty")
 	}
 	hasTypeKey := false
 	hasPayloadKey := false
