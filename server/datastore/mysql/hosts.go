@@ -1084,15 +1084,15 @@ WHERE
 SELECT
     h.id,
     h.hostname as display_name,
-    '%s' as status,
+    ? as status,
 	-- pending hosts will have "updated_at" set in the db, but since 
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
-		WHEN '%s' != 'pending' THEN COALESCE(hsr.updated_at, '')
+		WHEN ? != 'pending' THEN COALESCE(hsr.updated_at, '')
 		ELSE ''
 	END as updated_at,
     COALESCE(LEFT(hsr.output, 100), '') as output,
-	'%s' as execution_id
+	? as execution_id
 FROM
     hosts h
 	%s
@@ -1105,8 +1105,8 @@ WHERE
 		return nil, nil, 0, errors.New("invalid batch execution status")
 	}
 
-	whereParams := []interface{}{}
-	batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams := ds.getBatchExecutionFilters(whereParams, fleet.HostListOptions{
+	queryParams := []interface{}{}
+	batchScriptExecutionJoin, batchScriptExecutionFilter, queryParams := ds.getBatchExecutionFilters(queryParams, fleet.HostListOptions{
 		BatchScriptExecutionIDFilter:     &batchScriptExecutionID,
 		BatchScriptExecutionStatusFilter: batchScriptExecutionStatus,
 	})
@@ -1115,14 +1115,18 @@ WHERE
 	// Do this before we add more "where" params for the main query.
 	countStmt = fmt.Sprintf(countStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
 	dbReader := ds.reader(ctx)
-	if err = sqlx.GetContext(ctx, dbReader, &count, countStmt, whereParams...); err != nil {
+	if err = sqlx.GetContext(ctx, dbReader, &count, countStmt, queryParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch scripts count")
 	}
 
-	// Add in the paging params and run the main query to get the list of hosts.
-	sqlStmt, whereParams = appendListOptionsWithCursorToSQL(sqlStmt, whereParams, &opt)
-	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID, batchScriptExecutionJoin, batchScriptExecutionFilter)
-	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, whereParams...); err != nil {
+	// Add in the params for the main query SELECT.
+	queryParams = append([]interface{}{batchScriptExecutionStatus, batchScriptExecutionStatus, batchScriptExecutionID}, queryParams...) // make a copy so we don't modify the original slice
+	// Add in the paging params.
+	sqlStmt, queryParams = appendListOptionsWithCursorToSQL(sqlStmt, queryParams, &opt)
+
+	// Run the main query to get the list of hosts.
+	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, queryParams...); err != nil {
 		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
 	}
 
