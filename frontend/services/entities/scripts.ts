@@ -198,7 +198,7 @@ export interface IScriptBatchSummariesResponse
   batch_executions: IScriptBatchSummaryV2[] | null; // should not return `null`, but API currently does sometimes. Remove this option when it's fixed.
 }
 
-export type ScriptBatchHostsOrderKey = "display_name" | "script_executed_at"; // TODO - may need to order by "updated_at" instead of "script_executed_at"
+export type ScriptBatchHostsOrderKey = "display_name" | "script_executed_at";
 export interface IScriptBatchHostResultsParams extends PaginationParams {
   batch_execution_id: string;
   status: ScriptBatchHostStatus;
@@ -347,7 +347,7 @@ export default {
       status,
       page,
       per_page,
-      order_key,
+      order_key: order_key === "script_executed_at" ? "updated_at" : order_key, // map to server field name
       order_direction,
     })}`;
     return sendRequest("GET", path);

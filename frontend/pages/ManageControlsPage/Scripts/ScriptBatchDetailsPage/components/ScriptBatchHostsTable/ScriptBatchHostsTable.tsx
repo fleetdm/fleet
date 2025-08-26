@@ -18,9 +18,11 @@ import {
 } from "interfaces/script";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { getNextLocationPath } from "utilities/helpers";
 
 import TableContainer from "components/TableContainer";
 import DataError from "components/DataError";
+import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import generateColumnConfigs from "./ScriptBatchHostsTableConfig";
 
@@ -84,6 +86,33 @@ const ScriptBatchHostsTable = ({
     [router, selectedHostStatus, setHostScriptExecutionIdForModal]
   );
 
+  const handleQueryChange = useCallback(
+    (newTableQuery: ITableQueryData) => {
+      const {
+        pageIndex: newPageIndex,
+        sortDirection: newOrderDirection,
+        sortHeader: newOrderKey,
+      } = newTableQuery;
+
+      const newQueryParams: { [key: string]: string | number | undefined } = {};
+      newQueryParams.status = selectedHostStatus;
+      newQueryParams.order_key = newOrderKey;
+      newQueryParams.order_direction = newOrderDirection;
+      newQueryParams.page = newPageIndex.toString();
+
+      if (newOrderKey !== orderKey || newOrderDirection !== orderDirection) {
+        newQueryParams.page = "0";
+      }
+      const path = getNextLocationPath({
+        pathPrefix: PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId),
+        queryParams: newQueryParams,
+      });
+
+      router.push(path);
+    },
+    [selectedHostStatus, orderKey, orderDirection, batchExecutionId, router]
+  );
+
   if (error) {
     return <DataError description="Could not load host results." />;
   }
@@ -109,6 +138,7 @@ const ScriptBatchHostsTable = ({
         disableMultiRowSelect
         searchable={false}
         onClickRow={handleRowClick}
+        onQueryChange={handleQueryChange}
       />
     </div>
   );
