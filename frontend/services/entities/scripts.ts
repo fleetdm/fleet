@@ -18,7 +18,6 @@ import {
   OrderDirection,
   PaginationParams,
 } from "./common";
-import { p } from "msw/lib/core/GraphQLHandler-D6mLMXGZ";
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
 
