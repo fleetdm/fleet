@@ -47,15 +47,9 @@ const Secrets = () => {
 
   const queryClient = useQueryClient();
 
-  const {
-    isGlobalAdmin,
-    isTeamAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainer,
-  } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
 
-  const canEdit =
-    isGlobalAdmin || isTeamAdmin || isGlobalMaintainer || isTeamMaintainer;
+  const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   // Fetch a single page of secrets.
   const fetchPage = useCallback(
