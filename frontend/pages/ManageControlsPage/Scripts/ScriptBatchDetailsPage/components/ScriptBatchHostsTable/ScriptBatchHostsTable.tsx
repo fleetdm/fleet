@@ -91,6 +91,7 @@ const ScriptBatchHostsTable = ({
         disableMultiRowSelect
         searchable={false}
         onClickRow={handleRowClick}
+        // onSelectSingleRow={handleRowClick}
       />
     </div>
   );

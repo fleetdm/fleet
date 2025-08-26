@@ -1,5 +1,7 @@
 import React from "react";
 
+import PATHS from "router/paths";
+
 import { ScriptBatchHostStatus } from "interfaces/script";
 import { IScriptBatchHostResult } from "services/entities/scripts";
 
@@ -11,6 +13,7 @@ import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { CellProps, Column } from "react-table";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 type IScriptBatchHostsTableConfig = Column<IScriptBatchHostResult>;
 type ITableHeaderProps = IHeaderProps<IScriptBatchHostResult>;
@@ -45,9 +48,11 @@ const generateColumnConfigs = (
         />
       ),
       accessor: "display_name",
-      // TODO - make link to host details on click
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.row.original.display_name} />
+        <LinkCell
+          value={cellProps.row.original.display_name}
+          path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+        />
       ),
     },
   ];
