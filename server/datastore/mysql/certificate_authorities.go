@@ -191,7 +191,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	var encryptedClientSecret []byte
 	var err error
 	if ca.CertificateUserPrincipalNames != nil {
-		upns, err = json.Marshal(ca.CertificateUserPrincipalNames)
+		upns, err = json.Marshal(*ca.CertificateUserPrincipalNames)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for new certificate authority")
 		}
@@ -301,4 +301,148 @@ func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificate
 	}
 
 	return &ca, nil
+}
+
+func (ds *Datastore) UpdateCertificateAuthorityByID(ctx context.Context, certificateAuthorityID uint, ca *fleet.CertificateAuthority) error {
+	oldCA, err := ds.GetCertificateAuthorityByID(ctx, certificateAuthorityID, false)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting certificate authority with id %d", certificateAuthorityID)
+	}
+
+	// If the name is being updated, check if it's the same as the old one.
+	sameName := ca.Name != nil && *oldCA.Name == *ca.Name
+	if sameName {
+		return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	}
+
+	var updateArgs []any
+
+	setStmt, err := ds.generateUpdateQueryWithArgs(ctx, ca, &updateArgs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "generating update query for certificate authority")
+	}
+	updateArgs = append(updateArgs, certificateAuthorityID)
+
+	stmt := fmt.Sprintf(`
+	UPDATE certificate_authorities
+	%s
+	WHERE id = ?
+	`, setStmt)
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, updateArgs...)
+	if err != nil {
+		if strings.Contains(err.Error(), "idx_ca_type_name") {
+			return fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+		}
+		return ctxerr.Wrapf(ctx, err, "updating certificate authority with id %d", certificateAuthorityID)
+	}
+
+	return nil
+}
+
+// generateUpdateQuery generates the SQL update query for a Certificate Authority based on the provided fields
+// and will also return the arguments to be used in the query.
+func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.CertificateAuthority, args *[]any) (string, error) {
+	updates := []string{}
+	switch ca.Type {
+	case string(fleet.CATypeDigiCert):
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.APIToken != nil {
+			updates = append(updates, "api_token_encrypted = ?")
+			encryptedAPIToken, err := encrypt([]byte(*ca.APIToken), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
+			}
+			*args = append(*args, encryptedAPIToken)
+		}
+		if ca.ProfileID != nil {
+			updates = append(updates, "profile_id = ?")
+			*args = append(*args, *ca.ProfileID)
+		}
+		if ca.CertificateCommonName != nil {
+			updates = append(updates, "certificate_common_name = ?")
+			*args = append(*args, *ca.CertificateCommonName)
+		}
+		if ca.CertificateUserPrincipalNames != nil {
+			updates = append(updates, "certificate_user_principal_names = ?")
+			upns, err := json.Marshal(*ca.CertificateUserPrincipalNames)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for updating certificate authority")
+			}
+			*args = append(*args, upns)
+		}
+		if ca.CertificateSeatID != nil {
+			updates = append(updates, "certificate_seat_id = ?")
+			*args = append(*args, *ca.CertificateSeatID)
+		}
+	case string(fleet.CATypeHydrant):
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.ClientID != nil {
+			updates = append(updates, "client_id = ?")
+			*args = append(*args, *ca.ClientID)
+		}
+		if ca.ClientSecret != nil {
+			updates = append(updates, "client_secret_encrypted = ?")
+			encryptedClientSecret, err := encrypt([]byte(*ca.ClientSecret), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
+			}
+			*args = append(*args, encryptedClientSecret)
+		}
+
+	case string(fleet.CATypeNDESSCEPProxy):
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.AdminURL != nil {
+			updates = append(updates, "admin_url = ?")
+			*args = append(*args, *ca.AdminURL)
+		}
+		if ca.Username != nil {
+			updates = append(updates, "username = ?")
+			*args = append(*args, *ca.Username)
+		}
+		if ca.Password != nil {
+			updates = append(updates, "password_encrypted = ?")
+			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			}
+			*args = append(*args, encryptedPassword)
+		}
+
+	case string(fleet.CATypeCustomSCEPProxy):
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.Challenge != nil {
+			updates = append(updates, "challenge_encrypted = ?")
+			encryptedChallenge, err := encrypt([]byte(*ca.Challenge), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
+			}
+			*args = append(*args, encryptedChallenge)
+		}
+	}
+	return fmt.Sprintf("SET %s", strings.Join(updates, ", ")), nil
 }

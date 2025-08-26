@@ -81,7 +81,7 @@ func createCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 		return createCertificateAuthorityResponse{Err: err}, nil
 	}
 
-	return createCertificateAuthorityResponse{ID: ca.ID, Name: ca.Name, Type: fleet.CAType(ca.Type)}, nil
+	return createCertificateAuthorityResponse{ID: ca.ID, Name: *ca.Name, Type: fleet.CAType(ca.Type)}, nil
 }
 
 func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.CertificateAuthorityPayload) (*fleet.CertificateAuthority, error) {
@@ -113,6 +113,34 @@ func deleteCertificateAuthorityEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error {
+	// skipauth: No authorization check needed due to implementation returning only license error.
+	svc.authz.SkipAuthorization(ctx)
+	return fleet.ErrMissingLicense
+}
+
+type updateCertificateAuthorityRequest struct {
+	ID uint `url:"id"`
+	fleet.CertificateAuthorityUpdatePayload
+}
+
+type updateCertificateAuthorityResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateCertificateAuthorityResponse) Error() error { return r.Err }
+
+func updateCertificateAuthorityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*updateCertificateAuthorityRequest)
+
+	err := svc.UpdateCertificateAuthority(ctx, req.ID, req.CertificateAuthorityUpdatePayload)
+	if err != nil {
+		return &updateCertificateAuthorityResponse{Err: err}, nil
+	}
+
+	return &updateCertificateAuthorityResponse{}, nil
+}
+
+func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, payload fleet.CertificateAuthorityUpdatePayload) error {
 	// skipauth: No authorization check needed due to implementation returning only license error.
 	svc.authz.SkipAuthorization(ctx)
 	return fleet.ErrMissingLicense

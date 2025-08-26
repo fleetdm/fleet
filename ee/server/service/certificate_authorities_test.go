@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -36,13 +37,13 @@ func TestGetCertificateAuthorityByID(t *testing.T) {
 			require.False(t, includeSecrets, "includeSecrets should be false - the API should never return the secrets")
 			return &fleet.CertificateAuthority{
 				ID:                            1,
-				Name:                          "Test CA",
-				URL:                           "https://example.com",
+				Name:                          ptr.String("Test CA"),
+				URL:                           ptr.String("https://example.com"),
 				Type:                          string(fleet.CATypeDigiCert),
 				APIToken:                      ptr.String(fleet.MaskedPassword),
 				ProfileID:                     ptr.String("digicert-profile-id"),
 				CertificateCommonName:         ptr.String("digicert-common-name"),
-				CertificateUserPrincipalNames: []string{"digicert-upn1"},
+				CertificateUserPrincipalNames: &[]string{"digicert-upn1"},
 				CertificateSeatID:             ptr.String("digicert-seat-id"),
 			}, nil
 		}
@@ -101,7 +102,7 @@ func TestListCertificateAuthorities(t *testing.T) {
 	})
 }
 
-func TestCreatingCertificateAuthorities(t *testing.T) {
+func setupMockCAServers(t *testing.T) (digicertServer, hydrantServer *httptest.Server) {
 	// Setup mock digicert server
 	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
 	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +127,6 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		err := json.NewEncoder(w).Encode(resp)
 		require.NoError(t, err)
 	}))
-	defer mockDigiCertServer.Close()
 
 	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet && r.URL.Path == "/cacerts" {
@@ -139,7 +139,18 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}))
-	defer mockHydrantServer.Close()
+
+	return mockDigiCertServer, mockHydrantServer
+}
+
+func TestCreatingCertificateAuthorities(t *testing.T) {
+	digicertServer, hydrantServer := setupMockCAServers(t)
+	digicertURL := digicertServer.URL
+	hydrantURL := hydrantServer.URL
+	t.Cleanup(func() {
+		digicertServer.Close()
+		hydrantServer.Close()
+	})
 
 	verifyNilFieldsForType := func(t *testing.T, ca *fleet.CertificateAuthority) {
 		if ca.Type != string(fleet.CATypeDigiCert) {
@@ -205,7 +216,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -219,8 +230,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -228,7 +239,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, createdCA.CertificateUserPrincipalNames)
+		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -240,7 +251,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "$FLEET_VAR_HOST_HARDWARE_SERIAL",
@@ -254,8 +265,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -263,7 +274,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, createdCA.CertificateUserPrincipalNames)
+		assert.ElementsMatch(t, createDigicertRequest.DigiCert.CertificateUserPrincipalNames, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -275,7 +286,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -289,8 +300,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createDigicertRequest.DigiCert.Name, createdCA.Name)
-		assert.Equal(t, createDigicertRequest.DigiCert.URL, createdCA.URL)
+		assert.Equal(t, createDigicertRequest.DigiCert.Name, *createdCA.Name)
+		assert.Equal(t, createDigicertRequest.DigiCert.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeDigiCert), createdCA.Type)
 		require.NotNil(t, createdCA.APIToken)
 		assert.Equal(t, createDigicertRequest.DigiCert.APIToken, *createdCA.APIToken)
@@ -298,7 +309,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createDigicertRequest.DigiCert.ProfileID, *createdCA.ProfileID)
 		require.NotNil(t, createdCA.CertificateCommonName)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateCommonName, *createdCA.CertificateCommonName)
-		assert.Nil(t, createdCA.CertificateUserPrincipalNames)
+		assert.Nil(t, *createdCA.CertificateUserPrincipalNames)
 		require.NotNil(t, createdCA.CertificateSeatID)
 		assert.Equal(t, createDigicertRequest.DigiCert.CertificateSeatID, *createdCA.CertificateSeatID)
 		verifyNilFieldsForType(t, createdCA)
@@ -306,11 +317,11 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 
 	t.Run("Create Hydrant CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
-
+		fmt.Println(hydrantURL)
 		createHydrantRequest := fleet.CertificateAuthorityPayload{
 			Hydrant: &fleet.HydrantCA{
 				Name:         "HydrantWIFI",
-				URL:          mockHydrantServer.URL,
+				URL:          hydrantURL,
 				ClientID:     "hydrant_client_id",
 				ClientSecret: "hydrant_client_secret",
 			},
@@ -321,8 +332,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createHydrantRequest.Hydrant.Name, createdCA.Name)
-		assert.Equal(t, createHydrantRequest.Hydrant.URL, createdCA.URL)
+		assert.Equal(t, createHydrantRequest.Hydrant.Name, *createdCA.Name)
+		assert.Equal(t, createHydrantRequest.Hydrant.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeHydrant), createdCA.Type)
 		require.NotNil(t, createdCA.ClientID)
 		assert.Equal(t, createHydrantRequest.Hydrant.ClientID, *createdCA.ClientID)
@@ -347,8 +358,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Name, createdCA.Name)
-		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.URL, createdCA.URL)
+		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Name, *createdCA.Name)
+		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeCustomSCEPProxy), createdCA.Type)
 		require.NotNil(t, createdCA.Challenge)
 		assert.Equal(t, createCustomSCEPRequest.CustomSCEPProxy.Challenge, *createdCA.Challenge)
@@ -372,8 +383,8 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 1)
 		createdCA := createdCAs[0]
 
-		assert.Equal(t, "NDES", createdCA.Name)
-		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.URL, createdCA.URL)
+		assert.Equal(t, "NDES", *createdCA.Name)
+		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.URL, *createdCA.URL)
 		assert.Equal(t, string(fleet.CATypeNDESSCEPProxy), createdCA.Type)
 		require.NotNil(t, createdCA.AdminURL)
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.AdminURL, *createdCA.AdminURL)
@@ -384,13 +395,13 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		verifyNilFieldsForType(t, createdCA)
 	})
 
-	t.Run("Create DigiCert CA - Bad name", func(t *testing.T) {
+	t.Run("Create DigiCert CA - Bad Name", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "Digicert WIFI",
-				URL:                           "bozo",
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -400,7 +411,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createDigicertRequest)
-		require.ErrorContains(t, err, "Invalid DigiCert URL")
+		require.ErrorContains(t, err, "Invalid characters in the \"name\" field")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
@@ -411,7 +422,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "Digicert WIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "",
@@ -432,7 +443,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "$FLEET_VAR_BOZO",
@@ -475,7 +486,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL + "/invalid",
+				URL:                           digicertURL + "/invalid",
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -496,7 +507,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -517,7 +528,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -538,7 +549,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -559,7 +570,7 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		createDigicertRequest := fleet.CertificateAuthorityPayload{
 			DigiCert: &fleet.DigiCertCA{
 				Name:                          "DigicertWIFI",
-				URL:                           mockDigiCertServer.URL,
+				URL:                           digicertURL,
 				APIToken:                      "digicert_api_token",
 				ProfileID:                     "digicert_profile_id",
 				CertificateCommonName:         "digicert_common_name",
@@ -874,6 +885,620 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.ErrorContains(t, err, "Insufficient permissions for NDES SCEP admin URL. Please correct and try again.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
+	})
+}
+
+func TestUpdatingCertificateAuthorities(t *testing.T) {
+	t.Parallel()
+
+	digicertServer, hydrantServer := setupMockCAServers(t)
+	digicertURL := digicertServer.URL
+	hydrantURL := hydrantServer.URL
+	t.Cleanup(func() {
+		digicertServer.Close()
+		hydrantServer.Close()
+	})
+
+	digicertID := uint(1)
+	hydrantID := uint(2)
+	scepID := uint(3)
+	ndesID := uint(4)
+	createdCAs := []*fleet.CertificateAuthority{}
+	baseSetupForCATests := func() (*Service, context.Context) {
+		ds := new(mock.Store)
+		// Reset createdCAs before each test
+		createdCAs = []*fleet.CertificateAuthority{}
+		// Setup CA's mocks
+		digicertCA := &fleet.CertificateAuthority{
+			ID:                            digicertID,
+			Name:                          ptr.String("Test Digicert CA"),
+			URL:                           ptr.String("https://digicert1.example.com"),
+			Type:                          string(fleet.CATypeDigiCert),
+			APIToken:                      ptr.String("test-api-token"),
+			ProfileID:                     ptr.String("test-profile-id"),
+			CertificateCommonName:         ptr.String("test-common-name $FLEET_VAR_HOST_HARDWARE_SERIAL"),
+			CertificateUserPrincipalNames: &[]string{"test-upn $FLEET_VAR_HOST_HARDWARE_SERIAL"},
+			CertificateSeatID:             ptr.String("test-seat-id"),
+		}
+
+		hydrantCA := &fleet.CertificateAuthority{
+			ID:           hydrantID,
+			Name:         ptr.String("Hydrant CA"),
+			URL:          ptr.String("https://hydrant1.example.com"),
+			Type:         string(fleet.CATypeHydrant),
+			ClientID:     ptr.String("hydrant-client-id"),
+			ClientSecret: ptr.String("hydrant-client-secret"),
+		}
+
+		// Custom SCEP CAs
+		customSCEPCA := &fleet.CertificateAuthority{
+			ID:        scepID,
+			Name:      ptr.String("Custom SCEP CA"),
+			URL:       ptr.String("https://custom-scep.example.com"),
+			Type:      string(fleet.CATypeCustomSCEPProxy),
+			Challenge: ptr.String("custom-scep-challenge"),
+		}
+
+		// NDES CA
+		ndesCA := &fleet.CertificateAuthority{
+			ID:       ndesID,
+			Name:     ptr.String("NDES"),
+			URL:      ptr.String("https://ndes.example.com"),
+			AdminURL: ptr.String("https://ndes-admin.example.com"),
+			Type:     string(fleet.CATypeNDESSCEPProxy),
+			Username: ptr.String("ndes-username"),
+			Password: ptr.String("ndes-password"),
+		}
+
+		createdCAs = append(createdCAs, digicertCA, hydrantCA, customSCEPCA, ndesCA)
+		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
+			for _, ca := range createdCAs {
+				if ca.ID == id {
+					return ca, nil
+				}
+			}
+
+			return nil, common_mysql.NotFound("get ca for update")
+		}
+		ds.UpdateCertificateAuthorityByIDFunc = func(ctx context.Context, certificateAuthorityID uint, updatedCA *fleet.CertificateAuthority) error {
+			for index, ca := range createdCAs {
+				if ca.ID != certificateAuthorityID {
+					continue
+				}
+
+				createdCAs[index] = updatedCA
+
+				// UpdateCertificateAuthority would normally call NewActivity() after calling this
+				// however it is not easy to mock that method here and it will just panic, so
+				// instead we return a specific error from this datastore mock that tests should
+				// check for
+				return errors.New("mock error to avoid NewActivity panic")
+			}
+
+			return common_mysql.NotFound("update") // Did not find CA in list of created CAs
+		}
+		authorizer, err := authz.NewAuthorizer()
+		require.NoError(t, err)
+
+		svc := &Service{
+			logger:          log.NewLogfmtLogger(os.Stdout),
+			ds:              ds,
+			authz:           authorizer,
+			digiCertService: digicert.NewService(),
+			hydrantService:  hydrant.NewService(),
+			scepConfigService: &scep_mock.SCEPConfigService{
+				ValidateSCEPURLFunc:          func(_ context.Context, _ string) error { return nil },
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+			},
+		}
+		svc.config.Server.PrivateKey = "supersecret"
+
+		ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+		return svc, ctx
+	}
+
+	t.Run("Errors if no certificate authority is found", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		payload := fleet.CertificateAuthorityUpdatePayload{
+			DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{},
+		}
+
+		err := svc.UpdateCertificateAuthority(ctx, 999, payload)
+		require.EqualError(t, err, "Couldn't edit certificate authority. Certificate authority with ID 999 does not exist.")
+	})
+
+	t.Run("Errors on wrong existing CA type", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		payload := fleet.CertificateAuthorityUpdatePayload{
+			HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+				ClientSecret: ptr.String("updated-secret"),
+			},
+		}
+
+		err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+		require.EqualError(t, err, "Couldn't edit certificate authority. The certificate authority types must be the same.")
+	})
+
+	t.Run("Digicert", func(t *testing.T) {
+		t.Run("Full update succeeds", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			upns := []string{"updated-upns"}
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					Name:                          ptr.String("Updated_Digicert"),
+					URL:                           &digicertURL,
+					APIToken:                      ptr.String("updated-api-token"),
+					ProfileID:                     ptr.String("profile-id"),
+					CertificateCommonName:         ptr.String("updated-cn"),
+					CertificateSeatID:             ptr.String("updated-seat-id"),
+					CertificateUserPrincipalNames: &upns,
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Allows variable for certificate related fields", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateCommonName:         ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+					CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_HOST_HARDWARE_SERIAL"},
+					CertificateSeatID:             ptr.String("$FLEET_VAR_HOST_HARDWARE_SERIAL"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.Error(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Fails updating URL if no api token", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					URL: &digicertURL,
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"api_token\" must be set when modifying \"url\", or \"profile_id\" of an existing certificate authority: Test Digicert CA")
+		})
+
+		t.Run("Fails updating profile ID if no api token", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					ProfileID: ptr.String("fake-profile-id"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"api_token\" must be set when modifying \"url\", or \"profile_id\" of an existing certificate authority: Test Digicert CA")
+		})
+
+		t.Run("Invalid URL Format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					URL:      ptr.String("bozo"),
+					APIToken: ptr.String("secret-token"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid DigiCert URL. Please correct and try again.")
+		})
+
+		t.Run("Bad URL Path", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					URL:      ptr.String(digicertURL + "/invalid"),
+					APIToken: ptr.String("secret-token"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.ErrorContains(t, err, "Couldn't edit certificate authority. Could not verify DigiCert URL: unexpected DigiCert status code: 400. Please correct and try again.")
+		})
+
+		t.Run("Empty CN", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateCommonName: ptr.String(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_common_name Couldn't edit certificate authority. CA Common Name (CN) cannot be empty")
+		})
+
+		t.Run("Unsupported variable in CN", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateCommonName: ptr.String("$FLEET_VAR_BOZO"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_common_name Couldn't edit certificate authority. FLEET_VAR_BOZO is not allowed in CA Common Name (CN)")
+		})
+
+		t.Run("Empty Seat ID", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateSeatID: ptr.String(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_seat_id Couldn't edit certificate authority. CA Seat ID cannot be empty")
+		})
+
+		t.Run("Unsupported variable in Seat ID", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateSeatID: ptr.String("$FLEET_VAR_BOZO"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_seat_id Couldn't edit certificate authority. FLEET_VAR_BOZO is not allowed in DigiCert Seat ID")
+		})
+
+		t.Run("Empty UPN", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateUserPrincipalNames: &[]string{""},
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_user_principal_names Couldn't edit certificate authority. DigiCert certificate_user_principal_name cannot be empty if specified")
+		})
+
+		t.Run("Unsupported variable in UPN", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+					CertificateUserPrincipalNames: &[]string{"$FLEET_VAR_BOZO"},
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+			require.EqualError(t, err, "validation failed: certificate_user_principal_names Couldn't edit certificate authority. FLEET_VAR_BOZO is not allowed in CA User Principal Name")
+		})
+	})
+
+	t.Run("Hydrant", func(t *testing.T) {
+		t.Run("Full update succeeds", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					Name:         ptr.String("Updated_Hydrant"),
+					URL:          &hydrantURL,
+					ClientID:     ptr.String("updated-id"),
+					ClientSecret: ptr.String("updated-secret"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Bad name", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					Name:         ptr.String("Updated Hydrant"),
+					URL:          &hydrantURL,
+					ClientID:     ptr.String("updated-id"),
+					ClientSecret: ptr.String("updated-secret"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "validation failed: name Couldn't edit certificate authority. Invalid characters in the \"name\" field. Only letters, numbers and underscores allowed.")
+		})
+
+		t.Run("Invalid URL format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					Name:         ptr.String("UpdatedHydrant"),
+					URL:          ptr.String("bozo"),
+					ClientID:     ptr.String("updated-id"),
+					ClientSecret: ptr.String("updated-secret"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.")
+		})
+
+		t.Run("Bad URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					Name:         ptr.String("UpdatedHydrant"),
+					URL:          ptr.String("https://hydrant.example.com/invalid"),
+					ClientID:     ptr.String("updated-id"),
+					ClientSecret: ptr.String("updated-secret"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid Hydrant URL. Please correct and try again.")
+		})
+
+		t.Run("Empty ClientID", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					ClientID: ptr.String(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid Hydrant Client ID. Please correct and try again.")
+		})
+
+		t.Run("Empty ClientSecret", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+					ClientSecret: ptr.String(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, hydrantID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid Hydrant Client Secret. Please correct and try again.")
+		})
+	})
+
+	t.Run("Custom SCEP", func(t *testing.T) {
+		t.Run("Full update succeeds", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					Name:      ptr.String("Updated_Scep"),
+					URL:       ptr.String("https://customscep.example.com"),
+					Challenge: ptr.String("updated-challenge"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Bad name", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					Name: ptr.String("Updated SCEP"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "validation failed: name Couldn't edit certificate authority. Invalid characters in the \"name\" field. Only letters, numbers and underscores allowed.")
+		})
+
+		t.Run("Invalid URL format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					URL:       ptr.String("bozo"),
+					Challenge: ptr.String("challenge"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+		})
+
+		t.Run("Requires challenge when updating URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					URL: ptr.String("https://customscep.localhost.com"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"challenge\" must be set when modifying \"url\" of an existing certificate authority: Custom SCEP CA")
+		})
+
+		t.Run("Bad SCEP URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return errors.New("some error") },
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{
+					URL:       ptr.String("https://customscep.localhost.com"),
+					Challenge: ptr.String("updated-challenge"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, scepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+		})
+	})
+
+	t.Run("NDES SCEP", func(t *testing.T) {
+		t.Run("Full update succeeds", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					URL:      ptr.String("https://ndes.example.com"),
+					AdminURL: ptr.String("https://ndes-admin.example.com"),
+					Username: ptr.String("ndes_user"),
+					Password: ptr.String("ndes_password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Invalid URL format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					URL:      ptr.String("bozo"),
+					Password: ptr.String("updated-pasword"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid NDES SCEP URL. Please correct and try again.")
+		})
+
+		t.Run("Bad SCEP URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return errors.New("some error") },
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					URL:      ptr.String("https://ndes.example.com"),
+					Password: ptr.String("updated-pasword"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+		})
+
+		t.Run("Missing password", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					URL: ptr.String("https://ndes.example.com"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying an existing certificate authority: NDES")
+		})
+
+		t.Run("Bad admin URL generic error", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return errors.New("some error")
+				},
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					AdminURL: ptr.String("https://ndes.example.com"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP admin URL or credentials. Please correct and try again.")
+		})
+
+		t.Run("Bad admin URL NDES Invalid error", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return NewNDESInvalidError("some error")
+				},
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					AdminURL: ptr.String("https://ndes.example.com"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid NDES SCEP admin URL or credentials. Please correct and try again.")
+		})
+
+		t.Run("Bad admin URL NDES Password cache full error", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return NewNDESPasswordCacheFullError("some error")
+				},
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					AdminURL: ptr.String("https://ndes.example.com"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. The NDES password cache is full. Please increase the number of cached passwords in NDES and try again.")
+		})
+
+		t.Run("Bad admin URL NDES Insufficient permissions", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error {
+					return NewNDESInsufficientPermissionsError("some error")
+				},
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{
+					AdminURL: ptr.String("https://ndes.example.com"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, ndesID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Insufficient permissions for NDES SCEP admin URL. Please correct and try again.")
+		})
 	})
 }
 

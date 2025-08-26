@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"time"
 )
@@ -42,15 +43,15 @@ type CertificateAuthority struct {
 	Type string `json:"type" db:"type"`
 
 	// common
-	Name string `json:"name" db:"name"`
-	URL  string `json:"url" db:"url"`
+	Name *string `json:"name" db:"name"`
+	URL  *string `json:"url" db:"url"`
 
 	// Digicert
-	APIToken                      *string  `json:"api_token,omitempty" db:"-"`
-	ProfileID                     *string  `json:"profile_id,omitempty" db:"profile_id"`
-	CertificateCommonName         *string  `json:"certificate_common_name,omitempty" db:"certificate_common_name"`
-	CertificateUserPrincipalNames []string `json:"certificate_user_principal_names,omitempty" db:"-"`
-	CertificateSeatID             *string  `json:"certificate_seat_id,omitempty" db:"certificate_seat_id"`
+	APIToken                      *string   `json:"api_token,omitempty" db:"-"`
+	ProfileID                     *string   `json:"profile_id,omitempty" db:"profile_id"`
+	CertificateCommonName         *string   `json:"certificate_common_name,omitempty" db:"certificate_common_name"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names,omitempty" db:"-"`
+	CertificateSeatID             *string   `json:"certificate_seat_id,omitempty" db:"certificate_seat_id"`
 
 	// NDES SCEP Proxy
 	AdminURL *string `json:"admin_url,omitempty" db:"admin_url"`
@@ -101,6 +102,12 @@ func (d *DigiCertCA) NeedToVerify(other *DigiCertCA) bool {
 		d.URL != other.URL ||
 		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
 		d.ProfileID != other.ProfileID
+}
+
+func (d *DigiCertCA) Preprocess() {
+	d.Name = Preprocess(d.Name)
+	d.URL = Preprocess(d.URL)
+	d.ProfileID = Preprocess(d.ProfileID)
 }
 
 type HydrantCA struct {
@@ -154,6 +161,152 @@ func (c *CertificateAuthority) AuthzType() string {
 	return "certificate_authority"
 }
 
+type CertificateAuthorityUpdatePayload struct {
+	*DigiCertCAUpdatePayload        `json:"digicert,omitempty"`
+	*NDESSCEPProxyCAUpdatePayload   `json:"ndes_scep_proxy,omitempty"`
+	*CustomSCEPProxyCAUpdatePayload `json:"custom_scep_proxy,omitempty"`
+	*HydrantCAUpdatePayload         `json:"hydrant,omitempty"`
+}
+
+// ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
+func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, errPrefix string) error {
+	caInPayload := 0
+	if p.DigiCertCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.HydrantCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.NDESSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if p.CustomSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
+	if caInPayload == 0 {
+		return &BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
+	}
+	if caInPayload > 1 {
+		return &BadRequestError{Message: fmt.Sprintf("%sOnly one certificate authority can be edited at a time", errPrefix)}
+	}
+
+	if len(privateKey) == 0 {
+		return &BadRequestError{Message: fmt.Sprintf("%sPrivate key must be configured. Learn more: https://fleetdm.com/learn-more-about/fleet-server-private-key", errPrefix)}
+	}
+	return nil
+}
+
+type DigiCertCAUpdatePayload struct {
+	Name                          *string   `json:"name"`
+	URL                           *string   `json:"url"`
+	APIToken                      *string   `json:"api_token"`
+	ProfileID                     *string   `json:"profile_id"`
+	CertificateCommonName         *string   `json:"certificate_common_name"`
+	CertificateUserPrincipalNames *[]string `json:"certificate_user_principal_names"`
+	CertificateSeatID             *string   `json:"certificate_seat_id"`
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the URL is provided then the API token must also be provided.
+func (dcp *DigiCertCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
+	if (dcp.URL != nil || dcp.ProfileID != nil) && dcp.APIToken == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"api_token" must be set when modifying "url", or "profile_id" of an existing certificate authority: %s`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (dcp *DigiCertCAUpdatePayload) Preprocess() {
+	if dcp.Name != nil {
+		*dcp.Name = Preprocess(*dcp.Name)
+	}
+	if dcp.URL != nil {
+		*dcp.URL = Preprocess(*dcp.URL)
+	}
+	if dcp.ProfileID != nil {
+		*dcp.ProfileID = Preprocess(*dcp.ProfileID)
+	}
+}
+
+type NDESSCEPProxyCAUpdatePayload struct {
+	URL      *string `json:"url"`
+	AdminURL *string `json:"admin_url"`
+	Username *string `json:"username"`
+	Password *string `json:"password"`
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Admin URL is provided then the Password must also be provided.
+func (ndesp *NDESSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
+	if (ndesp.URL != nil || ndesp.AdminURL != nil || ndesp.Username != nil) && ndesp.Password == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"password" must be set when modifying an existing certificate authority: %s`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (ndesp *NDESSCEPProxyCAUpdatePayload) Preprocess() {
+	if ndesp.URL != nil {
+		*ndesp.URL = Preprocess(*ndesp.URL)
+	}
+	if ndesp.AdminURL != nil {
+		*ndesp.AdminURL = Preprocess(*ndesp.AdminURL)
+	}
+	if ndesp.Username != nil {
+		*ndesp.Username = Preprocess(*ndesp.Username)
+	}
+}
+
+type CustomSCEPProxyCAUpdatePayload struct {
+	Name      *string `json:"name"`
+	URL       *string `json:"url"`
+	Challenge *string `json:"challenge"`
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Challenge must also be provided.
+func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// TODO: add cert name
+	if cscepp.URL != nil && cscepp.Challenge == nil {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge" must be set when modifying "url" of an existing certificate authority: %s`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (cscepp *CustomSCEPProxyCAUpdatePayload) Preprocess() {
+	if cscepp.Name != nil {
+		*cscepp.Name = Preprocess(*cscepp.Name)
+	}
+	if cscepp.URL != nil {
+		*cscepp.URL = Preprocess(*cscepp.URL)
+	}
+}
+
+type HydrantCAUpdatePayload struct {
+	Name         *string `json:"name"`
+	URL          *string `json:"url"`
+	ClientID     *string `json:"client_id"`
+	ClientSecret *string `json:"client_secret"`
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Client ID and Client Secret must also be provided
+func (hp *HydrantCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	if hp.URL != nil && (hp.ClientID == nil || hp.ClientSecret == nil) {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"client_secret" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (hp *HydrantCAUpdatePayload) Preprocess() {
+	if hp.Name != nil {
+		*hp.Name = Preprocess(*hp.Name)
+	}
+	if hp.URL != nil {
+		*hp.URL = Preprocess(*hp.URL)
+	}
+}
+
 type RequestCertificatePayload struct {
 	ID          uint    `url:"id"`             // ID Of the CA the cert is to be requested from.
 	CSR         string  `json:"csr"`           // PEM-encoded CSR
@@ -185,12 +338,12 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		switch ca.Type {
 		case string(CATypeDigiCert):
 			grouped.DigiCert = append(grouped.DigiCert, DigiCertCA{
-				Name:                          ca.Name,
+				Name:                          *ca.Name,
 				CertificateCommonName:         *ca.CertificateCommonName,
 				CertificateSeatID:             *ca.CertificateSeatID,
-				CertificateUserPrincipalNames: ca.CertificateUserPrincipalNames,
+				CertificateUserPrincipalNames: *ca.CertificateUserPrincipalNames,
 				APIToken:                      *ca.APIToken,
-				URL:                           ca.URL,
+				URL:                           *ca.URL,
 				ProfileID:                     *ca.ProfileID,
 			})
 		case string(CATypeNDESSCEPProxy):
@@ -199,7 +352,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 			}
 
 			grouped.NDESSCEP = &NDESSCEPProxyCA{
-				URL:      ca.URL,
+				URL:      *ca.URL,
 				AdminURL: *ca.AdminURL,
 				Username: *ca.Username,
 				Password: *ca.Password,
@@ -207,15 +360,15 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 
 		case string(CATypeHydrant):
 			grouped.Hydrant = append(grouped.Hydrant, HydrantCA{
-				Name:         ca.Name,
-				URL:          ca.URL,
+				Name:         *ca.Name,
+				URL:          *ca.URL,
 				ClientID:     *ca.ClientID,
 				ClientSecret: *ca.ClientSecret,
 			})
 		case string(CATypeCustomSCEPProxy):
 			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{
-				Name:      ca.Name,
-				URL:       ca.URL,
+				Name:      *ca.Name,
+				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
 		}

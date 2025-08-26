@@ -1301,6 +1301,8 @@ type Service interface {
 	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
 	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
 	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
+	// UpdateCertificateAuthority updates the certificate authority of the given id
+	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
 }
 
