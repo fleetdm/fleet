@@ -15,7 +15,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import TableContainer from "components/TableContainer";
 import DataError from "components/DataError";
-import Spinner from "components/Spinner";
 
 import generateColumnConfigs from "./ScriptBatchHostsTableConfig";
 

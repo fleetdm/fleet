@@ -1,106 +1,100 @@
 import React from "react";
-import { format } from "date-fns";
 
 import { ScriptBatchHostStatus } from "interfaces/script";
 import { IScriptBatchHostResult } from "services/entities/scripts";
 
+import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
+
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import { CellProps, Column } from "react-table";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
+type IScriptBatchHostsTableConfig = Column<IScriptBatchHostResult>;
+type ITableHeaderProps = IHeaderProps<IScriptBatchHostResult>;
+type ITableStringCellProps = IStringCellProps<IScriptBatchHostResult>;
+type ITimeCellProps = CellProps<IScriptBatchHostResult>;
 
-interface ICellProps {
-  cell: {
-    value: any;
-  };
-}
-
-type IDataColumn = {
-  title: string;
-  Header: ((props: IHeaderProps) => JSX.Element) | string;
-  accessor: string;
-  disableHidden?: boolean;
-  disableSortBy?: boolean;
-  Cell: (props: ICellProps) => JSX.Element;
+const ScriptOutputCell = (cellProps: CellProps<IScriptBatchHostResult>) => {
+  return (
+    <span className="script-output-cell">
+      <TooltipTruncatedText
+        value={cellProps.row.original.script_output_preview}
+      />
+      <ViewAllHostsLink
+        customText="View script details"
+        rowHover
+        noLink
+        responsive
+      />
+    </span>
+  );
 };
 
 const generateColumnConfigs = (
   hostStatus: ScriptBatchHostStatus
-): IDataColumn[] => {
-  const columns: IDataColumn[] = [
+): IScriptBatchHostsTableConfig[] => {
+  let columns: IScriptBatchHostsTableConfig[] = [
     {
-      title: "Host name",
-      Header: (cellProps: IHeaderProps) => (
+      Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell
-          value={cellProps.column.title}
+          value="Host name"
           isSortedDesc={cellProps.column.isSortedDesc}
         />
       ),
       accessor: "display_name",
       // TODO - make link to host details on click
-      Cell: ({ cell: { value } }: ICellProps) => <TextCell value={value} />,
+      Cell: (cellProps: ITableStringCellProps) => (
+        <TextCell value={cellProps.row.original.display_name} />
+      ),
     },
   ];
 
-  // Additional columns for specific statuses
   if (["ran", "errored"].includes(hostStatus)) {
-    columns.push(
+    columns = columns.concat([
       {
-        title: "Time",
-        Header: (cellProps: IHeaderProps) => (
+        Header: (cellProps: ITableHeaderProps) => (
           <HeaderCell
-            value={cellProps.column.title}
+            value="Time"
+            disableSortBy={false}
             isSortedDesc={cellProps.column.isSortedDesc}
           />
         ),
         accessor: "script_executed_at",
-        // TODO - format in timeago
-        Cell: ({ cell: { value } }: ICellProps) => <TextCell value={value} />,
+        Cell: (cellProps: ITimeCellProps) => (
+          <TextCell
+            value={
+              <HumanTimeDiffWithDateTip
+                timeString={cellProps.row.original.script_executed_at ?? ""}
+              />
+            }
+          />
+        ),
       },
       {
-        title: "Script output",
-        Header: (cellProps: IHeaderProps) => (
-          <HeaderCell value={cellProps.column.title} disableSortBy />
-        ),
+        Header: "Script output",
+        // Header: (cellProps: ITableHeaderProps) => (
+        //   <HeaderCell
+        //     value="Host name"
+        //     isSortedDesc={cellProps.column.isSortedDesc}
+        //   />
+        // ),
+        disableSortBy: true,
         accessor: "script_output_preview",
-        Cell: ({ cell: { value } }: ICellProps) => <TextCell value={value} />,
-      }
-    );
+        Cell: (cellProps: any) => <ScriptOutputCell {...cellProps} />,
+      },
+    ]);
   }
+  // columns.push({
+  //   Header: "",
+  //   id: "view-script-details",
+  //   disableSortBy: true,
+  //   Cell: <ViewAllHostsLink customText="View script details" rowHover noLink />,
+  // });
 
   return columns;
 };
 
 export default generateColumnConfigs;
-
-// export const generateTableData = (
-//   data: IScriptBatchHostResult[],
-//   status: ScriptBatchHostStatus
-// ) => {
-//   if (!data || !data.length) return [];
-
-//   return data.map((host) => {
-//     const baseData = {
-//       id: host.id,
-//       hostName: host.display_name,
-//     };
-
-//     // Add additional data for specific statuses
-//     if (status === "ran" || status === "errored" || status === "pending") {
-//       return {
-//         ...baseData,
-//         time: host.script_executed_at
-//           ? format(new Date(host.script_executed_at), "MMM d, yyyy h:mm a")
-//           : "—",
-//         scriptOutput: host.script_output_preview || "—",
-//       };
-//     }
-
-//     return baseData;
-//   });
-// };

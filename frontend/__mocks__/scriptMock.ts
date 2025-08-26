@@ -94,7 +94,8 @@ const SCRIPT_BATCH_HOST_RESULTS_BY_STATUS: Record<
     script_status: "ran",
     script_execution_id: "exec-1",
     script_executed_at: "2023-07-10T18:31:08Z",
-    script_output_preview: "Output from Host 1",
+    script_output_preview:
+      "Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1Output from Host 1",
   },
   errored: {
     id: 2,
