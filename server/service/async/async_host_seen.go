@@ -11,6 +11,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -75,6 +78,18 @@ func (t *Task) FlushHostsLastSeen(ctx context.Context, now time.Time) error {
 }
 
 func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	// Create a root span for this async collection task if OTEL is enabled
+	if t.otelEnabled {
+		tracer := otel.Tracer("async")
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "async.collect_hosts_last_seen",
+			trace.WithAttributes(
+				attribute.String("async.task", "host_last_seen"),
+			),
+		)
+		defer span.End()
+	}
+
 	cfg := t.taskConfigs[config.AsyncTaskHostLastSeen]
 
 	hostIDs, err := t.loadSeenHostsIDs(ctx, pool)

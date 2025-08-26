@@ -458,7 +458,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(ds, nil, clock.C, nil)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string

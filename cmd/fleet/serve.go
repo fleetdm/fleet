@@ -401,7 +401,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
+			task := async.NewTask(ds, redisPool, clock.C, &config)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
