@@ -312,11 +312,8 @@ export const HostInstallerActionCell = ({
   };
 
   const renderSecondaryActions = () => {
-    const hasUninstall = canUninstallSoftware;
-    const hasInstructions = canViewOpenInstructions;
-
     // Case: both uninstall + instructions → "More" dropdown
-    if (hasUninstall && hasInstructions) {
+    if (canUninstallSoftware && canViewOpenInstructions) {
       return (
         <div className={`${baseClass}__more-actions-wrapper`}>
           <ActionsDropdown
@@ -324,8 +321,8 @@ export const HostInstallerActionCell = ({
             onChange={onSelectOption}
             placeholder="More"
             options={getMoreActionsDropdownOptions(
-              hasInstructions,
-              hasUninstall,
+              canViewOpenInstructions,
+              canUninstallSoftware,
               uninstallDisabled,
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
@@ -338,12 +335,12 @@ export const HostInstallerActionCell = ({
     }
 
     // Case: uninstall only → Uninstall. button
-    if (hasUninstall) {
+    if (canUninstallSoftware) {
       return renderUninstallButton();
     }
 
     // Case: instructions only → How to open button
-    if (hasInstructions && onClickOpenInstructionsAction) {
+    if (canViewOpenInstructions && onClickOpenInstructionsAction) {
       return (
         <HostInstallerActionButton
           baseClass={baseClass}

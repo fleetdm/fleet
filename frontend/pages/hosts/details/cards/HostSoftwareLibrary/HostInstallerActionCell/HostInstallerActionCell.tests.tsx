@@ -864,6 +864,7 @@ describe("HostInstallerActionCell dropdown on My Device page", () => {
         }}
         onClickInstallAction={noop}
         onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={noop}
         baseClass={baseClass}
         hostScriptsEnabled
         hostMDMEnrolled
