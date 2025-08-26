@@ -113,6 +113,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
+	if opt.TeamID == nil && opt.PackagesOnly == true {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args, err := selectSoftwareTitlesSQL(opt)
 	if err != nil {
@@ -359,10 +363,6 @@ FROM software_titles st
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND 
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
-	{{else}}
-		{{if $.PackagesOnly}} 
-			INNER JOIN software_installers si ON si.title_id = st.id
-		{{end}}
 	{{end}}
 	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND 
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
