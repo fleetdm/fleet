@@ -178,7 +178,7 @@ describe("ScriptBatchProgress", () => {
     });
   });
 
-  it.only("Renders the 'scheduled' tab with appropriate scripts list", async () => {
+  it("Renders the 'scheduled' tab with appropriate scripts list", async () => {
     mockServer.use(teamBatchSummariesHandler);
 
     const render = createCustomRenderer({
@@ -197,7 +197,7 @@ describe("ScriptBatchProgress", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Test Script 1")).toBeInTheDocument();
-      expect(screen.getByText(/Scheduled to start/)).toBeInTheDocument();
+      expect(screen.getByText(/Will start/)).toBeInTheDocument();
       expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
     });
   });
