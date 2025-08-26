@@ -31,11 +31,11 @@ Now we need to connect and provision Fleet to operate on your Entra ID tenant (a
 
 To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID", which can be found in https://entra.microsoft.com. You can follow the steps in https://learn.microsoft.com/en-us/entra/fundamentals/how-to-find-tenant to get your tenant ID.
 
-Once you have your tenant ID, go to Fleet: `Settings` > `Integrations` > `Conditional access` and enter the tenant ID.
+Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Conditional access** and enter the tenant ID.
 
 ![Conditional access setup](../website/assets/images/articles/conditional-access-setup-554x250@2x.png)
 
-After clicking `Save` you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
+After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
 After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`).
 
 The next step is to enable and configure the integration on your teams.
@@ -50,19 +50,20 @@ To enroll macOS devices to Entra for Conditional Access you will need to configu
 
 The Company Portal macOS application can be downloaded from https://go.microsoft.com/fwlink/?linkid=853070.
 
-To configure automatic installation on your macOS devices you go to `Software` > `Select the team` > `Add software` > `Custom package`. Upload the `CompanyPortal-Installer.pkg` and check the `Automatic install` option.
+To configure automatic installation on your macOS hosts, head to **Software > Add software > Custom package**. Upload the `CompanyPortal-Installer.pkg` and check the **Automatic install** option.
 
 !['Company Portal.app' automatic install](../website/assets/images/articles/company-portal-automatic-734x284@2x.png)
 
-You should also configure "Company Portal" as a software package to deploy during "Setup Experience" for DEP/ABM devices.
-Go to `Controls` > `Setup experience` > `Install software` > `Add software`, select `Company Portal` for macOS and hit `Save`.
+You should also configure "Company Portal" as a software package to deploy during "Setup Experience" for hosts that automatically enroll (ADE).
+Go to **Controls > Setup experience > Install software > Add software**, select **Company Portal** and select **Save**.
 
 ### Add "Company Portal installed" label
 
 We will need to create a dynamic label to determine which macOS devices have "Company Portal" installed.
+
 We will use this label to conditionally deploy a Platform SSO configuration profile (next step).
 
-Go to `Hosts` > `Filter by platform or label` > `Add label +` > `Dynamic`.
+Head to **Hosts > Filter by platform or label > Add label + > Dynamic**.
 
 - Name: `Company Portal installed`
 - Description: `Company Portal is installed on the host.`
@@ -77,8 +78,8 @@ Go to `Hosts` > `Filter by platform or label` > `Add label +` > `Dynamic`.
 For Entra's "Conditional Access" feature we need to deploy a Platform SSO extension for Company Portal.
 The extension must be deployed via configuration profiles. For more information see https://learn.microsoft.com/en-us/intune/intune-service/configuration/platform-sso-macos#step-3---deploy-the-company-portal-app-for-macos.
 
-Go to `Controls` > `OS settings` > `Custom settings` > `+ Add profile`.
-Set `Target` > `Custom` > `Include all` and select `Company Portal installed`.
+Head to **Controls > OS settings > Custom settings > + Add profile**.
+Set **Target > Custom > Include all** and select **Company Portal installed**.
 
 Upload the following configuration profile:
 `company-portal-single-signon-extension.mobileconfig`:
@@ -156,7 +157,7 @@ Upload the following configuration profile:
 
 The final step is to add policies in Fleet that will determine whether a device is marked as "compliant" or "not compliant" on Entra.
 
-Go to `Policies` > `Select team` > `Automations` > `Conditional access`.
+Head to **Policies > Select team > Automations > Conditional access**.
 1. Make sure the feature is enabled for the team.
 2. Check the policies you want for Conditional access.
 
@@ -172,9 +173,9 @@ Make sure to assign Entra users/groups to the created "Conditional Access" polic
 
 ### Disabling "Conditional Access" on a team
 
-If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to `Policies` > `Select team` > `Automations` > `Conditional access`, uncheck all policies and hit `Save`. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
+If you need all your hosts on a team to be marked as "Compliant" (e.g. to unblock access to a resource) go to **Policies > Select team > Automations > Conditional access**, uncheck all policies, and select **Save**. The hosts will be marked as "Compliant" the next time they check in with policy results (within one hour, or by refetching manually).
 
-To disable the "Conditional Access" feature on a team go to `Policies` > `Select team` > `Automations` > `Conditional access` > `Disable`.
+To disable the "Conditional Access" feature on a team head to **Policies > Select team > Automations > Conditional access > Disable**.
 Once disabled, hosts will not be reporting compliance status to Entra anymore.
 
 ## End user experience
@@ -207,11 +208,11 @@ The user will be able to log in again once the failing policies are remediated.
 ### Disabling "Conditional Access"
 
 If you wish to disable the "Conditional Access" feature temporarily, we recommend turning off the "Conditional Access" policies on Entra.
-On Entra, go to `Protection` > `Conditional Access` > `Policies`, then select the policies and turn them off.
+On Entra, go to **Protection > Conditional Access > Policies**, then select the policies and turn them off.
 
 ### End users turning off MDM in Fleet
 
-If a user turns of MDM by going to `System Settings` > `Device Management` and hitting `Unenroll` on Fleet's enrollment profile then Fleet will report the "MDM turned off" state to Intune and the device will be automatically marked as non-compliant on Entra (even if it's passing all Fleet policies).
+If a user turns off MDM by going to **System Settings > Device Management and selecting **Unenroll** on Fleet's enrollment profile then Fleet will report the "MDM turned off" state to Intune and the device will be automatically marked as non-compliant on Entra (even if it's passing all Fleet policies).
 
 ## GitOps
 
@@ -276,9 +277,9 @@ software:
 
 For `lib/team-name/profiles/company-portal-single-signon-extension.mobileconfig`: See [Platform SSO configuration profile](#platform-sso-configuration-profile).
 
-<meta name="articleTitle" value="Entra conditional access integration">
+<meta name="articleTitle" value="Conditional access: Entra">
 <meta name="authorFullName" value="Lucas Manuel Rodriguez">
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="category" value="guides">
 <meta name="publishedOn" value="2025-06-20">
-<meta name="description" value="Learn how managed cloud customers can use Microsoft Entra conditional access with Fleet.">
+<meta name="description" value="Learn how to enforce conditional access with Fleet and Microsoft Entra.">
