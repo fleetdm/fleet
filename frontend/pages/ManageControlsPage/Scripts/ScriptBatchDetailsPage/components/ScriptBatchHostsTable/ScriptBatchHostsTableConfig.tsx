@@ -52,6 +52,9 @@ const generateColumnConfigs = (
         <LinkCell
           value={cellProps.row.original.display_name}
           path={PATHS.HOST_DETAILS(cellProps.row.original.id)}
+          customOnClick={(e) => {
+            e.stopPropagation();
+          }}
         />
       ),
     },
