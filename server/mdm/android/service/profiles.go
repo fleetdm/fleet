@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -17,6 +18,15 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 	if !appConfig.MDM.AndroidEnabledAndConfigured {
 		return nil
+	}
+
+	// get the one-and-only Android enterprise, which is treated as an error if
+	// not present, since the appconfig tells us Android MDM is enabled and
+	// configured.
+	enterprise, err := ds.GetEnterprise(ctx)
+	if err != nil {
+		fmt.Println(">>>>> NO ANDROID ENTERPRISE!")
+		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
 	// TODO(ap): here would come the queries to identify the profiles to add and
@@ -47,25 +57,43 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 
 	client := newAMAPIClient(ctx, logger, licenseKey)
 
-	// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
-	// for now.
-	basePolicy := &androidmanagement.Policy{
-		CameraDisabled: true,
-	}
-
 	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
 	// updated. Let's simulate it for any existing Android hosts for now.
+	mapIDs, err := ds.LabelIDsByName(ctx, []string{"Android"})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get android label ID")
+	}
+
 	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{OSNameFilter: ptr.String("android")})
+	hosts, err := ds.ListHostsInLabel(ctx, filter, mapIDs["Android"], fleet.HostListOptions{})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "list android hosts")
 	}
 
+	if len(hosts) == 0 {
+		fmt.Println(">>>>> NO ANDROID HOST!")
+		return nil
+	}
+
 	for _, h := range hosts {
+		// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
+		// for now.
+		policy := &androidmanagement.Policy{
+			CameraDisabled: true,
+		}
+
 		// for every policy, we want to enforce some settings
-		applyFleetEnforcedSettings(basePolicy)
-		//policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
-		client.EnterprisesPoliciesPatch(ctx)
+		applyFleetEnforcedSettings(policy)
+
+		// using the host uuid as policy id, so we don't need to track the id mapping
+		// to the host.
+		// TODO(ap): are we seeing any downsides to this?
+		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
+		applied, err := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "applying policy to host %s", h.UUID)
+		}
+		_ = applied
 	}
 
 	panic("unimplemented")

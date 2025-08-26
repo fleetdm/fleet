@@ -21,7 +21,8 @@ type Client interface {
 
 	// EnterprisesPoliciesPatch updates or creates a policy.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch
-	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
+	// On success it returns the applied policy, with its version number set.
+	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
 
 	// EnterprisesEnrollmentTokensCreate creates an enrollment token for a given enterprise. It is used to enroll an Android device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/create

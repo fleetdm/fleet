@@ -154,17 +154,17 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
-	_, err := call.Do()
+	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
 	case err != nil:
-		return fmt.Errorf("patching policy %s: %w", policyName, err)
+		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
 	}
-	return nil
+	return ret, nil
 }
 
 func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
