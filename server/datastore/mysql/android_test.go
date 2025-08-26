@@ -28,6 +28,8 @@ func TestAndroid(t *testing.T) {
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
+		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
+		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -461,6 +463,48 @@ func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 func testGetMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	ctx := testCtx()
 	profile, err := ds.GetMDMAndroidConfigProfile(ctx, "some-fake-uuid")
-	require.ErrorContains(t, err, "blah")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, profile)
+}
+
+func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	err := ds.DeleteMDMAndroidConfigProfile(ctx, "some-fake-uuid")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	profile1 := &fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello": "world"}`),
+	}
+
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	require.NoError(t, err)
+	require.NotNil(t, profile1)
+
+	profile2 := &fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid2",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello": "world"}`),
+	}
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+
+	// Delete the first profile
+	err = ds.DeleteMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
+	require.NoError(t, err)
+
+	// Verify the first profile is deleted
+	profile1, err = ds.GetMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, profile1)
+
+	// Verify the second profile is untouched
+	profile2, err = ds.GetMDMAndroidConfigProfile(ctx, profile2.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+	require.Equal(t, "testAndroid2", profile2.Name)
 }
