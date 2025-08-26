@@ -1457,7 +1457,17 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 	if isJSON {
 		isAppleDeclarationJSON, isAndroidJSON, err = fleet.DetermineJSONConfigType(data)
 		if err != nil {
-			return &newMDMConfigProfileResponse{Err: fleet.NewInvalidArgumentError("profile", err.Error())}, nil
+			if strings.Contains(string(data), fleet.ServerSecretPrefix) {
+				// Apple DDM configs allow replacing the entire file's contents via a secret. These
+				// cannot be validated however Android does not currently support secrets so if the
+				// JSON fails to parse AND it contains the server secret prefix, it is considered
+				// DDM and DDM validation path will handle it
+				// TODO AP Revisit this decision
+				isAppleDeclarationJSON = true
+				isAndroidJSON = false
+			} else {
+				return &newMDMConfigProfileResponse{Err: svc.NewMDMInvalidJSONConfigProfile(ctx, req.TeamID, err)}, nil
+			}
 		}
 	}
 
@@ -1512,6 +1522,17 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	err = svc.NewMDMUnsupportedConfigProfile(ctx, req.TeamID, req.Profile.Filename)
 	return &newMDMConfigProfileResponse{Err: err}, nil
+}
+
+func (svc *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// this is required because we need authorize to return the error, and
+	// svc.authz is only available on the concrete Service struct, not on the
+	// Service interface so it cannot be done in the endpoint itself.
+	return fleet.NewInvalidArgumentError("profile", err.Error())
 }
 
 func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
