@@ -465,11 +465,12 @@ FROM (
 	// load the labels associated with those profiles
 	var winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs []string
 	for _, prof := range profs {
-		if prof.Platform == "windows" {
+		switch prof.Platform {
+		case "windows":
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
-		} else if prof.Platform == "android" {
+		case "android":
 			androidProfUUIDs = append(androidProfUUIDs, prof.ProfileUUID)
-		} else {
+		default:
 			if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
 				continue
