@@ -27,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/log"
@@ -266,7 +265,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
-		Datastore:           android_mysql.New(options.Logger, dbWriter, dbReader),
+		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()
