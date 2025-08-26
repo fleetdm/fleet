@@ -135,13 +135,40 @@ ALTER TABLE mdm_configuration_profile_labels
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
 	}
 
+	alterAndroidDevicesTable := `
+ALTER TABLE android_devices
+	ADD COLUMN applied_policy_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	ADD COLUMN applied_policy_version INT DEFAULT NULL
+`
+	if _, err := tx.Exec(alterAndroidDevicesTable); err != nil {
+		return fmt.Errorf("alter android_devices table: %w", err)
+	}
+
+	// migrate android_policy_id to applied_policy_id, before removing the column
+	migratePolicyID := `
+UPDATE android_devices
+	SET applied_policy_id = CAST(android_policy_id AS CHAR(100)) 
+	WHERE android_policy_id IS NOT NULL
+`
+	if _, err := tx.Exec(migratePolicyID); err != nil {
+		return fmt.Errorf("migrate android_policy_id to applied_policy_id: %w", err)
+	}
+
+	cleanupAndroidDevicesTable := `
+ALTER TABLE android_devices
+	DROP COLUMN android_policy_id
+`
+	if _, err := tx.Exec(cleanupAndroidDevicesTable); err != nil {
+		return fmt.Errorf("cleanup android_devices table: %w", err)
+	}
+
 	// backfill the hosts.uuid column for pre-existing Android hosts that may not
 	// have it set (we now use the enterprise_specific_id for that).
 	updateHostUUIDs := `
 UPDATE hosts
 	JOIN android_devices ON android_devices.host_id = hosts.id
 	SET uuid = android_devices.enterprise_specific_id
-	WHERE 
+	WHERE
 		hosts.platform = ? AND
 		hosts.uuid = '' AND
 		COALESCE(android_devices.enterprise_specific_id, '') != ''

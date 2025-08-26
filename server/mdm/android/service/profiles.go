@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -107,11 +108,44 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 				fmt.Println(">>>>> POLICY NOT MODIFIED")
 				continue
 			}
-			return ctxerr.Wrapf(ctx, err, "applying policy to host %s", h.UUID)
+			return ctxerr.Wrapf(ctx, err, "defining policy for host %s", h.UUID)
 		}
 		_ = applied
-		// fmt.Println(">>>>> APPLIED POLICY:", err)
-		// spew.Dump(applied)
+
+		androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
+		}
+
+		// TODO(ap): is that step even necessary if that policy was already applied to this host? Or
+		// will it pick up that the policy changed and receive the changes from the PATCH /policy above?
+		// In any case, we'll have to do it for the first time a policy is applied to a host.
+		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+		device, err := client.EnterprisesDevicesPatch(ctx, deviceName, &androidmanagement.Device{
+			PolicyName: policyName,
+			// State must be specified when updating a device, otherwise it fails with
+			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+			State: "ACTIVE",
+		})
+		if err != nil {
+			if androidmgmt.IsNotModifiedError(err) {
+				// nothing to do, was already applied as-is
+				fmt.Println(">>>>> DEVICE NOT MODIFIED")
+				continue
+			}
+			return ctxerr.Wrapf(ctx, err, "applying device update to host %s", h.UUID)
+		}
+
+		// From what I can see in tests, after the PATCH /devices, the device
+		// returned will still have the old applied policy/version in the Applied
+		// fields, but the PolicyName will be the new one (presumably pending
+		// status report that reports the new policy as applied). Confirmed by a
+		// subsequent run that returned the new policy as applied, with the
+		// expected version. Note that with "funDisabled: true", I did get a
+		// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
+		// PolicyCompliant was still true.
+		fmt.Println(">>>>> APPLIED POLICY TO DEVICE:", err)
+		spew.Dump(device)
 	}
 
 	return nil
@@ -128,7 +162,7 @@ func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
 		SystemPropertiesEnabled:      true,
 		SoftwareInfoEnabled:          true,
 		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    true,
-		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+		ApplicationReportsEnabled:    false, // TODO(ap): SET THIS TO TRUE! Just switching for manual tests as apps are too noisy
+		ApplicationReportingSettings: nil,   // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
 	}
 }

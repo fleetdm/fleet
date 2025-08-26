@@ -260,6 +260,43 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 	return result, nil
 }
 
+func (ds *Datastore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*fleet.AndroidHost, error) {
+	type liteHost struct {
+		TeamID *uint `db:"team_id"`
+		*android.Device
+	}
+	stmt := `SELECT
+		h.team_id,
+		ad.id,
+		ad.host_id,
+		ad.device_id,
+		ad.enterprise_specific_id,
+		ad.android_policy_id,
+		ad.last_policy_sync_time
+		FROM android_devices ad
+		JOIN hosts h ON ad.host_id = h.id
+		WHERE ad.host_id = ?`
+	var host liteHost
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, common_mysql.NotFound("Android device").WithID(hostID)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting android device by host ID")
+	}
+	result := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			ID:     host.Device.HostID,
+			TeamID: host.TeamID,
+		},
+		Device: host.Device,
+	}
+	if host.Device.EnterpriseSpecificID != nil {
+		result.SetNodeKey(*host.Device.EnterpriseSpecificID)
+	}
+	return result, nil
+}
+
 func (ds *Datastore) insertAndroidHostLabelMembershipTx(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
 	// Insert the host in the builtin label memberships, adding them to the "All
 	// Hosts" and "Android" labels.

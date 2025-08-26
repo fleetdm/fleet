@@ -61,6 +61,16 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
 	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
 
+	resultLite, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
+	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
+
+	_, err = ds.AndroidHostLite(testCtx(), "non-existent")
+	require.Error(t, err)
+	_, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID+1000)
+	require.Error(t, err)
+
 	// Inserting the same host again should be fine.
 	// This may occur when 2 Fleet servers received the same host information via pubsub.
 	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
