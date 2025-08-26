@@ -1874,14 +1874,24 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
 	ctx = test.UserContext(ctx, test.UserAdmin)
 
-	host := &fleet.Host{
+	appleHost := &fleet.Host{
 		ID:       1,
-		UUID:     "host-uuid",
+		UUID:     "apple-host-uuid",
 		Platform: "darwin",
 	}
 
+	windowsHost := &fleet.Host{
+		ID:       2,
+		UUID:     "windows-host-uuid",
+		Platform: "windows",
+	}
+
 	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
-		return host, nil
+		if id == appleHost.ID {
+			return appleHost, nil
+		}
+		require.Equal(t, id, windowsHost.ID, "Host should only be called with Apple or Windows host IDs")
+		return windowsHost, nil
 	}
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -1907,7 +1917,8 @@ func TestHostMDMProfileScopes(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
-				EnabledAndConfigured: true,
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
 			},
 		}, nil
 	}
@@ -1930,7 +1941,7 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		return false, nil
 	}
 
-	cases := []struct {
+	appleCases := []struct {
 		name             string
 		storedProfiles   []fleet.HostMDMAppleProfile
 		expectedProfiles []fleet.HostMDMProfile
@@ -1942,33 +1953,52 @@ func TestHostMDMProfileScopes(t *testing.T) {
 		},
 		{
 			name:             "system scoped profile",
-			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}},
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}},
 		},
 		{
 			name:             "User scoped profile with username",
-			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
 		},
 		{
 			name:             "User scoped profile without username for some reason",
-			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("")}},
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("")}},
 		},
 		{
 			name:             "system + user scoped profiles",
-			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
-			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: host.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
 		},
 	}
 
-	for _, tt := range cases {
+	windowsCases := []struct {
+		name             string
+		storedProfiles   []fleet.HostMDMWindowsProfile
+		expectedProfiles []fleet.HostMDMProfile
+	}{
+		{
+			name:             "no profiles",
+			storedProfiles:   nil,
+			expectedProfiles: nil,
+		},
+		// Windows does not support scopes or managed local accounts yet but we should not error and
+		// should set these to nil which is checked below
+		{
+			name:             "example profile",
+			storedProfiles:   []fleet.HostMDMWindowsProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
+		},
+	}
+
+	for _, tt := range appleCases {
 		t.Run(tt.name, func(t *testing.T) {
 			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMAppleProfile, error) {
 				return tt.storedProfiles, nil
 			}
 
-			h, err := svc.GetHost(ctx, uint(1), fleet.HostDetailOptions{})
+			h, err := svc.GetHost(ctx, appleHost.ID, fleet.HostDetailOptions{})
 			require.NoError(t, err)
 			if tt.storedProfiles == nil {
 				require.NotNil(t, h.MDM.Profiles)
@@ -1987,6 +2017,32 @@ func TestHostMDMProfileScopes(t *testing.T) {
 				require.Equal(t, *tt.expectedProfiles[i].Scope, *profs[i].Scope)
 				require.NotNil(t, profs[i].ManagedLocalAccount)
 				require.Equal(t, *tt.expectedProfiles[i].ManagedLocalAccount, *profs[i].ManagedLocalAccount)
+			}
+		})
+	}
+	for _, tt := range windowsCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+				return tt.storedProfiles, nil
+			}
+
+			h, err := svc.GetHost(ctx, windowsHost.ID, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			if tt.storedProfiles == nil {
+				require.NotNil(t, h.MDM.Profiles)
+				require.Empty(t, *h.MDM.Profiles)
+				return
+			}
+			profs := *h.MDM.Profiles
+			require.Len(t, profs, len(tt.expectedProfiles))
+			for i := range profs {
+				require.Equal(t, tt.expectedProfiles[i].OperationType, profs[i].OperationType)
+				require.Equal(t, tt.expectedProfiles[i].HostUUID, profs[i].HostUUID)
+				require.Equal(t, tt.expectedProfiles[i].ProfileUUID, profs[i].ProfileUUID)
+				require.Equal(t, tt.expectedProfiles[i].Name, profs[i].Name)
+				require.Equal(t, tt.expectedProfiles[i].Status, profs[i].Status)
+				require.Nil(t, profs[i].Scope)
+				require.Nil(t, profs[i].ManagedLocalAccount)
 			}
 		})
 	}
