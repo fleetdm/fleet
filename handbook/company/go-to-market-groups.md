@@ -171,7 +171,7 @@ Often, Fleeties will engage with new contacts from current and future customers.
 
 #### SWAG
 
-Bulk "Stuff We All Get" or "SWAG" orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
+Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
 
 #### Video
 
