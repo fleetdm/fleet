@@ -156,8 +156,11 @@ const Secrets = () => {
         title={secret.name.toUpperCase()}
         details={
           <span>
-            Updated <HumanTimeDiffWithDateTip timeString={secret.updated_at} />{" "}
-            &bull; {getTokenFromSecretName(secret.name)}
+            <span className="secret-details__text">
+              Updated{" "}
+              <HumanTimeDiffWithDateTip timeString={secret.updated_at} /> &bull;{" "}
+              {getTokenFromSecretName(secret.name)}
+            </span>
             <Button
               variant="unstyled"
               className={`${baseClass}__copy-secret-icon`}
