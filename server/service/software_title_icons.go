@@ -235,3 +235,42 @@ func iconValidator(file multipart.File) error {
 
 	return nil
 }
+
+type deleteSoftwareTitleIconRequest struct {
+	TitleID uint  `url:"title_id"`
+	TeamID  *uint `query:"team_id"`
+}
+
+type deleteSoftwareTitleIconResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r deleteSoftwareTitleIconResponse) Error() error {
+	return r.Err
+}
+
+func deleteSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*deleteSoftwareTitleIconRequest)
+
+	if req.TeamID == nil {
+		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "team_id is required"}}, nil
+	}
+	if req.TitleID == 0 {
+		return getSoftwareTitleIconsResponse{Err: &fleet.BadRequestError{Message: "invalid title_id"}}, nil
+	}
+
+	err := svc.DeleteSoftwareTitleIcon(ctx, *req.TeamID, req.TitleID)
+	if err != nil {
+		return deleteSoftwareTitleIconResponse{Err: err}, nil
+	}
+
+	return deleteSoftwareTitleIconResponse{}, nil
+}
+
+func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

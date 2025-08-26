@@ -80,6 +80,18 @@ func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return &icon, nil
 }
 
+func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, id uint) error {
+	query := `
+		DELETE FROM software_title_icons
+		WHERE id = ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, query, id)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting software title icon")
+	}
+	return nil
+}
+
 // func (ds *Datastore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareInstallStore fleet.SoftwareInstallerStore, removeCreatedBefore time.Time) error {
 // 	if softwareInstallStore == nil {
 // 		// no-op in this case, possible if not running with a Premium license

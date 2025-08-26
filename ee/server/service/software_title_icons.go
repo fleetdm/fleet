@@ -88,3 +88,22 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 
 	return softwareTitleIcon, nil
 }
+
+func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {
+	var err error
+	if err = svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+
+	err = svc.ds.DeleteSoftwareTitleIcon(ctx, icon.ID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting software title icon")
+	}
+
+	return nil
+}

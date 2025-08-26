@@ -1224,6 +1224,7 @@ type Service interface {
 	//
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error)
 	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (*SoftwareTitleIcon, error)
+	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
