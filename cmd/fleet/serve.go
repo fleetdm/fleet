@@ -146,7 +146,10 @@ the way that the Fleet server works.
 			// Init tracing
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
-				client := otlptracegrpc.NewClient()
+				client := otlptracegrpc.NewClient(
+					// Enable gzip compression to reduce message size
+					otlptracegrpc.WithCompressor("gzip"),
+				)
 				otlpTraceExporter, err := otlptrace.New(ctx, client)
 				if err != nil {
 					initFatal(err, "Failed to initialize tracing")
@@ -929,14 +932,14 @@ the way that the Fleet server works.
 			if !vulnerabilityScheduleDisabled {
 				// vuln processing by default is run by internal cron mechanism
 				if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities)
+					return newVulnerabilitiesSchedule(ctx, instanceID, ds, logger, &config.Vulnerabilities, &config)
 				}); err != nil {
 					initFatal(err, "failed to register vulnerabilities schedule")
 				}
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, &config)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}

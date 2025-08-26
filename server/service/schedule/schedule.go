@@ -16,6 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ReloadInterval reloads and returns a new interval.
@@ -54,6 +57,8 @@ type Schedule struct {
 	statsStore CronStatsStore
 
 	runOnce bool
+
+	otelEnabled bool // whether OpenTelemetry tracing is enabled
 }
 
 // JobFn is the signature of a Job.
@@ -142,6 +147,13 @@ func WithRunOnce(once bool) Option {
 func WithDefaultPrevRunCreatedAt(tm time.Time) Option {
 	return func(s *Schedule) {
 		s.defaultPrevRunCreatedAt = tm
+	}
+}
+
+// WithOTELEnabled sets whether OpenTelemetry tracing is enabled for the schedule.
+func WithOTELEnabled(enabled bool) Option {
+	return func(s *Schedule) {
+		s.otelEnabled = enabled
 	}
 }
 
@@ -443,6 +455,25 @@ func (s *Schedule) Name() string {
 // record in the database for the provided stats type with "pending" status. After completing the
 // run, the stats record is updated to "completed" status.
 func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
+	// Only create OpenTelemetry spans if OTEL is enabled
+	if s.otelEnabled {
+		// Create a parent span for the entire cron job execution
+		tracer := otel.Tracer("cron")
+		ctx, span := tracer.Start(s.ctx, fmt.Sprintf("cron.%s", s.name),
+			trace.WithAttributes(
+				attribute.String("cron.name", s.name),
+				attribute.String("cron.stats_type", string(statsType)),
+				attribute.String("cron.instance_id", s.instanceID),
+			),
+		)
+		defer span.End()
+
+		// Update the schedule's context to include the span
+		originalCtx := s.ctx
+		s.ctx = ctx
+		defer func() { s.ctx = originalCtx }()
+	}
+
 	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
 	if err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
@@ -465,12 +496,30 @@ func (s *Schedule) runAllJobs() {
 	s.errors = make(fleet.CronScheduleErrors)
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
-		if err := runJob(s.ctx, job.Fn); err != nil {
+		if err := s.runJobWithSpan(s.ctx, job); err != nil {
 			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
 			ctxerr.Handle(s.ctx, err)
 		}
 	}
+}
+
+// runJobWithSpan executes a job with its own span
+func (s *Schedule) runJobWithSpan(ctx context.Context, job Job) error {
+	// Only create OpenTelemetry spans if OTEL is enabled
+	if s.otelEnabled {
+		tracer := otel.Tracer("cron")
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, fmt.Sprintf("cron.job.%s", job.ID),
+			trace.WithAttributes(
+				attribute.String("cron.job.id", job.ID),
+				attribute.String("cron.name", s.name),
+			),
+		)
+		defer span.End()
+	}
+
+	return runJob(ctx, job.Fn)
 }
 
 // runJob executes the job function with panic recovery.
@@ -596,7 +645,21 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
 	var scheduled, triggered fleet.CronStats
 
-	cs, err := s.statsStore.GetLatestCronStats(s.ctx, s.name)
+	ctx := s.ctx
+	// Only create OpenTelemetry spans if OTEL is enabled
+	if s.otelEnabled {
+		// Create a span for GetLatestStats operation
+		tracer := otel.Tracer("cron")
+		var span trace.Span
+		ctx, span = tracer.Start(s.ctx, fmt.Sprintf("cron.%s.get_latest_stats", s.name),
+			trace.WithAttributes(
+				attribute.String("cron.name", s.name),
+			),
+		)
+		defer span.End()
+	}
+
+	cs, err := s.statsStore.GetLatestCronStats(ctx, s.name)
 	if err != nil {
 		return fleet.CronStats{}, fleet.CronStats{}, err
 	}
