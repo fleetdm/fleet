@@ -5,10 +5,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
-func ReconcileProfiles(ctx context.Context, ds fleet.AndroidDatastore, logger kitlog.Logger) error {
+func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get app config")
@@ -43,5 +45,46 @@ func ReconcileProfiles(ctx context.Context, ds fleet.AndroidDatastore, logger ki
 	// host may need an update, compute the final payload and use the checksum to
 	// see if it has actually changed or not.
 
+	client := newAMAPIClient(ctx, logger, licenseKey)
+
+	// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
+	// for now.
+	basePolicy := &androidmanagement.Policy{
+		CameraDisabled: true,
+	}
+
+	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
+	// updated. Let's simulate it for any existing Android hosts for now.
+	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{OSNameFilter: ptr.String("android")})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "list android hosts")
+	}
+
+	for _, h := range hosts {
+		// for every policy, we want to enforce some settings
+		applyFleetEnforcedSettings(basePolicy)
+		//policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
+		client.EnterprisesPoliciesPatch(ctx)
+	}
+
 	panic("unimplemented")
+}
+
+func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
+	// TODO(ap): exact settings to be confirmed, for now using the same settings we
+	// use in the (existing) default Android profile.
+	policy.StatusReportingSettings = &androidmanagement.StatusReportingSettings{
+		DeviceSettingsEnabled:        true,
+		MemoryInfoEnabled:            true,
+		NetworkInfoEnabled:           true,
+		DisplayInfoEnabled:           true,
+		PowerManagementEventsEnabled: true,
+		HardwareStatusEnabled:        true,
+		SystemPropertiesEnabled:      true,
+		SoftwareInfoEnabled:          true,
+		CommonCriteriaModeEnabled:    true,
+		ApplicationReportsEnabled:    false,
+		ApplicationReportingSettings: nil,
+	}
 }

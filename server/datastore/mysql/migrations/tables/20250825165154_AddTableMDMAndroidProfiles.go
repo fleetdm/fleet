@@ -135,6 +135,20 @@ ALTER TABLE mdm_configuration_profile_labels
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
 	}
 
+	// backfill the hosts.uuid column for pre-existing Android hosts that may not
+	// have it set (we now use the enterprise_specific_id for that).
+	updateHostUUIDs := `
+UPDATE hosts
+	JOIN android_devices ON android_devices.host_id = hosts.id
+	SET uuid = android_devices.enterprise_specific_id
+	WHERE 
+		hosts.platform = ? AND
+		hosts.uuid = '' AND
+		COALESCE(android_devices.enterprise_specific_id, '') != ''
+`
+	if _, err := tx.Exec(updateHostUUIDs, "android"); err != nil {
+		return fmt.Errorf("backfill missing hosts.uuid for android hosts: %w", err)
+	}
 	return nil
 }
 
