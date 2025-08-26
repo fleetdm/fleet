@@ -236,7 +236,7 @@ const ScriptBatchDetailsPage = ({
     );
 
     return (
-      <div className={`${baseClass}`}>
+      <>
         <BackLink text="Back to script activity" path={pathToProgress} />
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
@@ -317,7 +317,7 @@ const ScriptBatchDetailsPage = ({
             </TabPanel>
           </Tabs>
         </TabNav>
-      </div>
+      </>
     );
   };
 

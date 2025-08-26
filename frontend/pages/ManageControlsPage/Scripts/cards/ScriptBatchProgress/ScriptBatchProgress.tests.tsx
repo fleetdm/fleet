@@ -93,9 +93,6 @@ const teamBatchSummariesHandler = http.get(
     }
 
     return HttpResponse.json({});
-    // TODO if status param === "scheduled"
-
-    // TODO if status param === "finished"
   }
 );
 
@@ -181,7 +178,7 @@ describe("ScriptBatchProgress", () => {
     });
   });
 
-  it("Renders the 'scheduled' tab with appropriate scripts list", async () => {
+  it.only("Renders the 'scheduled' tab with appropriate scripts list", async () => {
     mockServer.use(teamBatchSummariesHandler);
 
     const render = createCustomRenderer({
