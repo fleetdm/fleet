@@ -14,6 +14,7 @@ import { ISecret } from "interfaces/secrets";
 import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
+import { FLEET_WEBSITE_URL } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
@@ -25,7 +26,6 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
-import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 const baseClass = "secrets-batch-paginated-list";
 
