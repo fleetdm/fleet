@@ -1414,6 +1414,8 @@ Modifies the Fleet's configuration with the supplied information.
 
 <br/>
 
+> The Fleet server relies on the host operating system's trust store to validate TLS certificates. If your email server uses a private or self-signed certificate, you’ll need to add the certificate to the OS trust store on the server running Fleet. Fleet doesn't currently support uploading custom CA certificates via the UI or API.
+
 ##### Example request body
 
 ```json
