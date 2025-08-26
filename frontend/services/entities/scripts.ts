@@ -317,22 +317,9 @@ export default {
   getRunScriptBatchSummaryV2({
     batch_execution_id,
   }: IScriptBatchSummaryParams): Promise<IScriptBatchSummaryV2> {
-    // return sendRequest(
-    //   "GET",
-    //   `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
-    // );
-    // // TODO - remove
-    return Promise.resolve(
-      createMockBatchScriptSummary({
-        // status: "finished",
-        status: "scheduled",
-        // finished_at: null,
-        ran_host_count: 2,
-        pending_host_count: 1,
-        errored_host_count: 1,
-        incompatible_host_count: 1,
-        canceled_host_count: 1,
-      })
+    return sendRequest(
+      "GET",
+      `${endpoints.SCRIPT_RUN_BATCH_SUMMARY_V2(batch_execution_id)}`
     );
   },
   getRunScriptBatchSummaries(
@@ -346,9 +333,6 @@ export default {
   getScriptBatchHostResults(
     params: IScriptBatchHostResultsParams
   ): Promise<IScriptBatchHostResultsResponse> {
-    // // remove me
-    return Promise.resolve(createMockScriptBatchHostResults(params.status));
-
     const {
       batch_execution_id,
       status,
