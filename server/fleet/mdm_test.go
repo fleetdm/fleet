@@ -782,7 +782,7 @@ func TestDetermineJSONConfigType(t *testing.T) {
 			wantApple:   false,
 			wantAndroid: false,
 			wantErr:     true,
-			errContains: "JSON profile is empty",
+			errContains: "JSON is empty",
 		},
 		{
 			name:        "nearly empty json",

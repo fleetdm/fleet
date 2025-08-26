@@ -794,6 +794,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			}
 		}
 		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		require.NoError(t, err)
 
 		gcp = fleet.MDMAndroidConfigProfile{ // H N and T
 			Name:    string(rune('C' + inc + 5)),
@@ -807,6 +808,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			}
 		}
 		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		require.NoError(t, err)
 	}
 	// delete label 3, 4 and 8 so that profiles D, E and G are broken
 	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
