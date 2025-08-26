@@ -13,11 +13,19 @@ import DataSet from "components/DataSet";
 import LastUpdatedHostCount from "components/LastUpdatedHostCount";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
-const baseClass = "software-details-summary";
+/** This class are re-used on a edit icon modal > preview */
+export const baseClass = "software-details-summary";
+/** This class are re-used on a edit icon modal > preview */
+export const infoClass = `${baseClass}__info`;
+/** This class are re-used on a edit icon modal > preview */
+export const descriptionListClass = `${baseClass}__description-list`;
 
 interface ISoftwareDetailsSummaryProps {
   title: string;
@@ -32,6 +40,7 @@ interface ISoftwareDetailsSummaryProps {
   iconUrl?: string;
   /** Displays OS icon instead of Software icon */
   isOperatingSystem?: boolean;
+  onClickEditIcon?: () => void;
 }
 
 const SoftwareDetailsSummary = ({
@@ -45,42 +54,73 @@ const SoftwareDetailsSummary = ({
   versions,
   iconUrl,
   isOperatingSystem,
+  onClickEditIcon,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
   // Remove host count for tgz_packages only
   const showHostCount = source !== "tgz_packages";
 
   return (
-    <div className={baseClass}>
-      {isOperatingSystem ? (
-        <OSIcon name={name} size="xlarge" />
-      ) : (
-        <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
-      )}
-      <dl className={`${baseClass}__info`}>
-        <h1>{title}</h1>
-        <dl className={`${baseClass}__description-list`}>
-          {!!type && <DataSet title="Type" value={type} />}
-
-          {!!versions && <DataSet title="Versions" value={versions} />}
-          {showHostCount && (
-            <DataSet
-              title="Hosts"
-              value={
-                <LastUpdatedHostCount
-                  hostCount={
-                    <TooltipWrapper tipContent="View all hosts">
-                      <CustomLink url={hostCountPath} text={hosts.toString()} />
-                    </TooltipWrapper>
-                  }
-                  lastUpdatedAt={countsUpdatedAt}
+    <>
+      <div className={baseClass}>
+        {isOperatingSystem ? (
+          <OSIcon name={name} size="xlarge" />
+        ) : (
+          <SoftwareIcon
+            name={name}
+            source={source}
+            url={iconUrl}
+            size="xlarge"
+          />
+        )}
+        <dl className={infoClass}>
+          <h1>
+            {title}
+            {onClickEditIcon && (
+              <div className={`${baseClass}__edit-icon`}>
+                <GitOpsModeTooltipWrapper
+                  position="right"
+                  tipOffset={8}
+                  renderChildren={(disableChildren) => (
+                    <Button
+                      disabled={disableChildren}
+                      onClick={onClickEditIcon}
+                      className={`${baseClass}__edit-icon-btn`}
+                      variant="text-icon"
+                    >
+                      <Icon name="pencil" />
+                    </Button>
+                  )}
                 />
-              }
-            />
-          )}
+              </div>
+            )}
+          </h1>
+          <dl className={descriptionListClass}>
+            {!!type && <DataSet title="Type" value={type} />}
+
+            {!!versions && <DataSet title="Versions" value={versions} />}
+            {showHostCount && (
+              <DataSet
+                title="Hosts"
+                value={
+                  <LastUpdatedHostCount
+                    hostCount={
+                      <TooltipWrapper tipContent="View all hosts">
+                        <CustomLink
+                          url={hostCountPath}
+                          text={hosts.toString()}
+                        />
+                      </TooltipWrapper>
+                    }
+                    lastUpdatedAt={countsUpdatedAt}
+                  />
+                }
+              />
+            )}
+          </dl>
         </dl>
-      </dl>
-    </div>
+      </div>
+    </>
   );
 };
 
