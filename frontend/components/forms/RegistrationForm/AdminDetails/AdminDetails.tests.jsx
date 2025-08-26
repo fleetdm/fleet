@@ -91,8 +91,11 @@ describe("AdminDetails - form", () => {
       <AdminDetails handleSubmit={onSubmitSpy} currentPage />
     );
 
-    await user.type(screen.getByLabelText("Password"), "passw0rd");
-    await user.type(screen.getByLabelText("Confirm password"), "passw0rd");
+    await user.type(screen.getByLabelText("Password"), "invalidpassw0rd");
+    await user.type(
+      screen.getByLabelText("Confirm password"),
+      "invalidpassw0rd"
+    );
     await user.click(screen.getByRole("button", { name: "Next" }));
     // then
     expect(onSubmitSpy).not.toHaveBeenCalled();
