@@ -1088,8 +1088,8 @@ SELECT
 	-- pending hosts will have "updated_at" set in the db, but since 
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
-		WHEN ? != 'pending' THEN COALESCE(hsr.updated_at, FROM_UNIXTIME(0))
-		ELSE FROM_UNIXTIME(0)
+		WHEN ? != 'pending' THEN hsr.updated_at
+		ELSE NULL
 	END as updated_at,
     COALESCE(LEFT(hsr.output, 100), '') as output,
 	COALESCE(hsr.execution_id, '') as execution_id
