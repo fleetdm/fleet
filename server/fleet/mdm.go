@@ -374,15 +374,17 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID      string             `db:"-" json:"-"`
-	CommandUUID   string             `db:"-" json:"-"`
-	ProfileUUID   string             `db:"-" json:"profile_uuid"`
-	Name          string             `db:"-" json:"name"`
-	Identifier    string             `db:"-" json:"-"`
-	Status        *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType MDMOperationType   `db:"-" json:"operation_type"`
-	Detail        string             `db:"-" json:"detail"`
-	Platform      string             `db:"-" json:"platform"`
+	HostUUID            string             `db:"-" json:"-"`
+	CommandUUID         string             `db:"-" json:"-"`
+	ProfileUUID         string             `db:"-" json:"profile_uuid"`
+	Name                string             `db:"-" json:"name"`
+	Identifier          string             `db:"-" json:"-"`
+	Status              *MDMDeliveryStatus `db:"-" json:"status"`
+	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
+	Detail              string             `db:"-" json:"detail"`
+	Platform            string             `db:"-" json:"platform"`
+	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
