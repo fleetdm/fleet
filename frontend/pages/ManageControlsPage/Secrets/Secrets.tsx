@@ -25,6 +25,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
+import { FLEET_WEBSITE_URL } from "utilities/constants";
 
 const baseClass = "secrets-batch-paginated-list";
 
@@ -223,8 +224,13 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <p>
-        Manage custom variables that will be available in scripts and profiles.
+      <p className={`${baseClass}__description`}>
+        Manage custom variables that will be available in scripts and profiles.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+          newTab
+        />
       </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
