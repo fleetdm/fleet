@@ -51,6 +51,13 @@ const FORM_VALIDATIONS: IFormValidations = {
           "Name may only include uppercase letters, numbers, and underscores",
       },
       {
+        name: "notTooLong",
+        isValid: (formData: IAddSecretModalScheduleFormData) => {
+          return formData.name.length <= 256;
+        },
+        message: "Name may not exceed 256 characters",
+      },
+      {
         name: "doesNotIncludePrefix",
         isValid: (formData: IAddSecretModalScheduleFormData) => {
           return !formData.name.match(/^FLEET_SECRET_/);
