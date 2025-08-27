@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/davecgh/go-spew/spew"
@@ -11,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // TODO(ap): using fleet.Datastore for now as I list all hosts by label, but
@@ -99,34 +102,26 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		// to the host.
 		// TODO(ap): are we seeing any downsides to this?
 		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
-		applied, err := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+		skip, err := patchPolicy(ctx, client, ds, h.UUID, policyName, policy)
 		if err != nil {
-			// Note that from my tests, the "not modified" error is not reliable, the
-			// AMAPI happily returned 200 even if the policy was the same (as
-			// confirmed by the same version number being returned), so we do check
-			// for this error, but do not build critical logic on top of it.
-			//
-			// Tests do show that the version number is properly incremented when the
-			// policy changes, though.
-			if androidmgmt.IsNotModifiedError(err) {
-				// nothing to do, was already applied as-is
-				fmt.Println(">>>>> POLICY NOT MODIFIED")
-				continue
-			}
-			return ctxerr.Wrapf(ctx, err, "defining policy for host %s", h.UUID)
+			return ctxerr.Wrapf(ctx, err, "patch policy for host %d", h.ID)
 		}
-		_ = applied
+		if skip {
+			continue
+		}
 
 		androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
 		}
+		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
+			// that policy name is already applied to this host, it will pick up the new version
+			// TODO(ap): confirm in tests
+			continue
+		}
 
-		// TODO(ap): is that step even necessary if that policy was already applied to this host? Or
-		// will it pick up that the policy changed and receive the changes from the PATCH /policy above?
-		// In any case, we'll have to do it for the first time a policy is applied to a host.
 		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
-		device, err := client.EnterprisesDevicesPatch(ctx, deviceName, &androidmanagement.Device{
+		device := &androidmanagement.Device{
 			PolicyName: policyName,
 			// State must be specified when updating a device, otherwise it fails with
 			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
@@ -137,14 +132,13 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 			// > Note that when calling enterprises.devices.patch, ACTIVE and
 			// > DISABLED are the only allowable values.
 			State: "ACTIVE",
-		})
+		}
+		skip, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
 		if err != nil {
-			if androidmgmt.IsNotModifiedError(err) {
-				// nothing to do, was already applied as-is
-				fmt.Println(">>>>> DEVICE NOT MODIFIED")
-				continue
-			}
-			return ctxerr.Wrapf(ctx, err, "applying device update to host %s", h.UUID)
+			return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
+		}
+		if skip {
+			continue
 		}
 
 		// From what I can see in tests, after the PATCH /devices, the device
@@ -160,6 +154,99 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	return nil
+}
+
+func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
+	policyID, policyName string, policy *androidmanagement.Policy) (skip bool, err error) {
+	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
+	}
+
+	applied, apiErr := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			policyRequest.StatusCode = gerr.Code
+		}
+		policyRequest.ErrorDetails.V = apiErr.Error()
+		policyRequest.ErrorDetails.Valid = true
+
+		// Note that from my tests, the "not modified" error is not reliable, the
+		// AMAPI happily returned 200 even if the policy was the same (as
+		// confirmed by the same version number being returned), so we do check
+		// for this error, but do not build critical logic on top of it.
+		//
+		// Tests do show that the version number is properly incremented when the
+		// policy changes, though.
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		policyRequest.StatusCode = 200
+		policyRequest.PolicyVersion.V = applied.Version
+		policyRequest.PolicyVersion.Valid = true
+	}
+
+	if err := ds.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android policy request")
+	}
+	return skip, ctxerr.Wrapf(ctx, apiErr, "patch policy api request failed for %s", policyName)
+}
+
+func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy) (*fleet.MDMAndroidPolicyRequest, error) {
+	b, err := json.Marshal(policy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal policy to json: %w", err)
+	}
+	return &fleet.MDMAndroidPolicyRequest{
+		RequestName: policyName,
+		PolicyID:    policyID,
+		Payload:     b,
+	}, nil
+}
+
+func patchDevice(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
+	policyID, deviceName string, device *androidmanagement.Device) (skip bool, apiErr error) {
+	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
+	if err != nil {
+		return false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
+	}
+
+	applied, apiErr := client.EnterprisesDevicesPatch(ctx, deviceName, device)
+	if apiErr != nil {
+		var gerr *googleapi.Error
+		if errors.As(apiErr, &gerr) {
+			deviceRequest.StatusCode = gerr.Code
+		}
+		deviceRequest.ErrorDetails.V = apiErr.Error()
+		deviceRequest.ErrorDetails.Valid = true
+
+		if skip = androidmgmt.IsNotModifiedError(apiErr); skip {
+			apiErr = nil
+		}
+	} else {
+		deviceRequest.StatusCode = 200
+		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
+		deviceRequest.AppliedPolicyVersion.Valid = true
+	}
+
+	if err := ds.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "save android device request")
+	}
+	return skip, ctxerr.Wrapf(ctx, apiErr, "patch device api request failed for %s", deviceName)
+}
+
+func newAndroidDeviceRequest(policyID, deviceName string, device *androidmanagement.Device) (*fleet.MDMAndroidPolicyRequest, error) {
+	b, err := json.Marshal(device)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal device to json: %w", err)
+	}
+	return &fleet.MDMAndroidPolicyRequest{
+		RequestName: deviceName,
+		PolicyID:    policyID,
+		Payload:     b,
+	}, nil
 }
 
 func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {

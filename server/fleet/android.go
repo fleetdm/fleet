@@ -83,6 +83,6 @@ type MDMAndroidPolicyRequest struct {
 	Payload              []byte           `db:"payload"`
 	StatusCode           int              `db:"status_code"`
 	ErrorDetails         sql.Null[string] `db:"error_details"`
-	AppliedPolicyVersion sql.Null[int]    `db:"applied_policy_version"`
-	PolicyVersion        sql.Null[int]    `db:"policy_version"`
+	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
+	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
