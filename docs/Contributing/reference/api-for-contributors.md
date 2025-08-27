@@ -3266,7 +3266,7 @@ _Available in Fleet Premium._
 
 Retrieve the icon added via Fleet or icon from App Store (VPP).
 
-`GET /api/v1/fleet/device/{token}/software/titles/121/icon`
+`GET /api/v1/fleet/device/:token/software/titles/121/icon`
 
 #### Parameters
 
