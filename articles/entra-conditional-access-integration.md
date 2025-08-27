@@ -23,7 +23,7 @@ Login to [Intune](https://intune.microsoft.com), and follow [this Microsoft guid
 
 For **Platform**, select **macOS**.
 
-For **Assignments** add the "Fleet conditional access" group you created to the **Included** groups. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
+For **Assignments** add the "Fleet conditional access" group you created to **Included groups**. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
 
 After this is done, the "Fleet partner" will be shown with a "Pending activation" status.
 
