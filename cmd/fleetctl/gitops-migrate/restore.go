@@ -9,6 +9,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 )
 
 // restore restores a Fleet GitOps backup from the provided tarball.
@@ -17,17 +19,19 @@ import (
 //
 // If the 'to' path is not provided, the current working directory will be used.
 func restore(ctx context.Context, from string, to string) error {
-	log := LoggerFromContext(ctx)
-
 	// Set a default 'to' path, if necessary.
 	if to == "" {
 		log.Debug(
-			"found no 'to' path for restore operation, defaulting to " +
-				"current working directory",
+			"Found no 'to' path for restore operation, defaulting to " +
+				"current working directory.",
 		)
 		to = "."
 	}
-	log.Info("performing Fleet GitOps restore", "from", from, "to", to)
+	log.Info(
+		"Performing Fleet GitOps restore.",
+		"Archive Path", from,
+		"Archive", to,
+	)
 
 	// Create the output directory, if necessary.
 	err := os.MkdirAll(to, fileModeUserRWX)
@@ -71,8 +75,8 @@ func restore(ctx context.Context, from string, to string) error {
 		err := gz.Close()
 		if err != nil {
 			log.Error(
-				"failed to close restore archive gzip reader",
-				"error", err,
+				"Failed to close restore archive gzip reader.",
+				"Error", err,
 			)
 		}
 		errs = errors.Join(errs, err)
@@ -81,15 +85,14 @@ func restore(ctx context.Context, from string, to string) error {
 		err = f.Close()
 		if err != nil {
 			log.Error(
-				"failed to close restore archive file stream",
-				"error", err,
+				"Failed to close restore archive file stream.",
+				"Error", err,
 			)
 		}
 		errs = errors.Join(errs, err)
 
 		if errs != nil {
-			log.Error("errors encountered in restore archive stream close, exiting")
-			os.Exit(1)
+			log.Fatal("Errors encountered in restore archive stream close, exiting.")
 		}
 	}()
 
@@ -111,7 +114,7 @@ func restore(ctx context.Context, from string, to string) error {
 
 		// Construct the output path for this item.
 		output := filepath.Join(to, filepath.Clean(header.Name))
-		log.Info("decompressing restore archive item", "to", output)
+		log.Infof("Decompressing restore archive item: %s.", output)
 
 		// Handle the fs op based on the header type.
 		switch header.Typeflag {

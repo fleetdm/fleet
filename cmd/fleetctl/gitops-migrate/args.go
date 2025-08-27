@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
-	"fmt"
+	"os"
+
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 )
 
 type Args struct {
@@ -18,8 +20,10 @@ func parseArgs() Args {
 
 	// Override the default flag package's usage text.
 	flag.Usage = func() {
-		text, _ := usageText()
-		fmt.Println(text)
+		err := usageText(os.Stderr)
+		if err != nil {
+			log.Fatal("Failed to write usage text to stderr :|.")
+		}
 	}
 
 	// --from, -f

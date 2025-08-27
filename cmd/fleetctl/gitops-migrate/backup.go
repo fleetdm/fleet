@@ -11,13 +11,13 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 )
 
 // backup creates a backup of the path provided via 'from', to a gzipped tarball
 // in the directory specified by 'to'.
 func backup(ctx context.Context, from string, to string) (string, error) {
-	log := LoggerFromContext(ctx)
-
 	// Construct the full output archive path.
 	now := time.Now()
 	output := filepath.Join(
@@ -28,9 +28,9 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 	)
 
 	log.Info(
-		"performing Fleet GitOps file backup",
-		"source", from,
-		"destination", output,
+		"Performing Fleet GitOps file backup.",
+		"Source", from,
+		"Destination", output,
 	)
 
 	// Create any requisite parent directories if necessary.
@@ -72,30 +72,21 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 		// Close the output archive tar writer.
 		err = tw.Close()
 		if err != nil {
-			log.Error(
-				"failed to close the backup archive tar writer",
-				"error", err,
-			)
+			log.Errorf("Failed to close the backup archive tar writer: %s.", err)
 		}
 		errs = errors.Join(errs, err)
 
 		// Close the output archive gzip writer.
 		err = gz.Close()
 		if err != nil {
-			log.Error(
-				"failed to close the backup archive gzip writer",
-				"error", err,
-			)
+			log.Errorf("Failed to close the backup archive gzip writer: %s.", err)
 		}
 		errs = errors.Join(errs, err)
 
 		// Close the output archive file stream.
 		err := f.Close()
 		if err != nil {
-			log.Error(
-				"failed to close the backup archive file stream",
-				"error", err,
-			)
+			log.Errorf("Failed to close the backup archive file stream: %s.", err)
 		}
 		errs = errors.Join(errs, err)
 
@@ -103,8 +94,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 		// targeted GitOps files. So, if we encounter any errors at all, close up
 		// shop.
 		if errs != nil {
-			log.Error("errors encountered in backup archive stream close, exiting")
-			os.Exit(1)
+			log.Fatal("Errors encountered in backup archive stream close, exiting.")
 		}
 	}()
 
@@ -153,7 +143,11 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 			continue
 		}
 
-		log.Info("compressing file", "to", filePathRelative)
+		log.Info(
+			"Compressing file.",
+			"File Path", file.Path,
+			"Archive Path", filePathRelative,
+		)
 
 		// Get a readable handle to the file.
 		//

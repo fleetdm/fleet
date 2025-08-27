@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,8 +27,6 @@ const (
 )
 
 func cmdMigrateExec(ctx context.Context, args Args) error {
-	log := LoggerFromContext(ctx)
-
 	// Create a temp directory to which we'll write the backup archive.
 	tmpDir, err := mkBackupDir()
 	if err != nil {
@@ -53,30 +52,32 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	for item, err := range fsEnum(args.From) {
 		// Handle any iterator errors.
 		if err != nil {
-			log.Error("encountered error in file system enumeration", "error", err)
+			log.Errorf("Encountered error in file system enumeration: %s.", err)
 			failed += 1
 			continue
 		}
 
 		// Ignore directories.
 		if item.Stats.IsDir() {
-			log.Debug("ignoring directory", "path", item.Path)
+			log.Debugf("Ignoring directory: %s.", item.Path)
 			continue
 		}
 
 		// Ignore non-YAML files.
 		if !strings.HasSuffix(item.Path, ".yml") &&
 			!strings.HasSuffix(item.Path, ".yaml") {
-			log.Debug("ignoring non-YAML file", "path", item.Path)
+			log.Debugf("Ignoring non-YAML file: %s.", item.Path)
 			continue
 		}
-
-		log := log.With("team_file", item.Path)
 
 		// Get a read-writable handle to the input file.
 		teamFile, err := os.OpenFile(item.Path, fileFlagsReadWrite, 0)
 		if err != nil {
-			log.Error("failed to get a read-writable handle to file", "error", err)
+			log.Error(
+				"Failed to get a read-writable handle to file.",
+				"File Path", item.Path,
+				"Error", err,
+			)
 			failed += 1
 			continue
 		}
@@ -85,7 +86,11 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		team := make(map[string]any)
 		err = yaml.NewDecoder(teamFile).Decode(&team)
 		if err != nil {
-			log.Error("failed to unmarshal file", "error", err)
+			log.Error(
+				"Failed to unmarshal file.",
+				"Team File", item.Path,
+				"Error", err,
+			)
 			failed += 1
 			continue
 		}
@@ -93,14 +98,17 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// Look for a 'software' key.
 		software, ok := team[keySoftware].(map[string]any)
 		if !ok {
-			log.Warn("team file contains no software")
+			log.Warn("Team file contains no software.", "File", item.Path)
 			continue
 		}
 
 		// Look for a 'packages' key.
 		packagesObjects, ok := software[keyPackages].([]any)
 		if !ok {
-			log.Warn("team file's software object contains no packages")
+			log.Warn(
+				"Team file's software object contains no packages.",
+				"Team File", item.Path,
+			)
 			continue
 		}
 
@@ -115,7 +123,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			// Attempt to assert the 'packages' YAML-array item as a map.
 			pkg, ok := packagesObject.(map[string]any)
 			if !ok {
-				log.Warn("software->packages object is nil")
+				log.Warn(
+					"Software->packages object is nil.",
+					"Team File", item.Path,
+				)
 				continue
 			}
 
@@ -123,8 +134,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			packagePath, ok := pkg[keyPath].(string)
 			if !ok || packagePath == "" {
 				log.Error(
-					"team YAML file has package with no 'path' key",
-					"package_index", i,
+					"Team YAML file has package with no 'path' key.",
+					"Team File", item.Path,
+					"Package Index", i,
 				)
 				failed += 1
 				continue
@@ -138,8 +150,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			absPath, err = filepath.Abs(absPath)
 			if err != nil {
 				log.Error(
-					"failed to construct absolute path to referenced package package",
-					"package_path", packagePath,
+					"Failed to construct absolute path to referenced package package.",
+					"File Path", item.Path,
+					"Package Path", packagePath,
 				)
 				failed += 1
 				continue
@@ -155,13 +168,13 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				packageFile, err := os.OpenFile(absPath, fileFlagsReadWrite, 0)
 				if err != nil {
 					log.Error(
-						"failed to get a readable handle to package file",
-						"error", err,
+						"Failed to get a readable handle to package file.",
+						"Team File", item.Path,
+						"Error", err,
 					)
 					failed += 1
 					continue
 				}
-				log := log.With("package_file", absPath)
 
 				// Decode the package file.
 				pkg := make(map[string]any)
@@ -169,7 +182,8 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				if err != nil {
 					log.Error(
 						"failed to decode package file",
-						"error", err,
+						"Package File",
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -239,8 +253,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				_, err = packageFile.Seek(0, io.SeekStart)
 				if err != nil {
 					log.Error(
-						"failed to seek to file start for re-encode",
-						"error", err,
+						"Failed to seek to file start for re-encode.",
+						"Team File", item.Path,
+						"Package File", packagePath,
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -250,8 +266,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				err = yaml.NewEncoder(packageFile).Encode(pkg)
 				if err != nil {
 					log.Error(
-						"failed to re-encode package file",
-						"error", err,
+						"Failed to re-encode package file.",
+						"Team File", item.Path,
+						"Package File", packagePath,
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -261,8 +279,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				n, err := packageFile.Seek(0, io.SeekCurrent)
 				if err != nil {
 					log.Error(
-						"failed to seek after package file re-encode",
-						"error", err,
+						"Failed to seek after package file re-encode.",
+						"Team File", item.Path,
+						"Package File", packagePath,
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -272,8 +292,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				err = packageFile.Truncate(n)
 				if err != nil {
 					log.Error(
-						"failed to truncate package file after re-encode",
-						"error", err,
+						"Failed to truncate package file after re-encode.",
+						"Team File", item.Path,
+						"Package File", packagePath,
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -283,8 +305,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				err = packageFile.Close()
 				if err != nil {
 					log.Error(
-						"failed to close package file after re-encode",
-						"error", err,
+						"Failed to close package file after re-encode.",
+						"Team File", item.Path,
+						"Package File", packagePath,
+						"Error", err,
 					)
 					failed += 1
 					continue
@@ -329,8 +353,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			_, err = teamFile.Seek(0, io.SeekStart)
 			if err != nil {
 				log.Error(
-					"failed to seek to team file start for YAML encode",
-					"error", err,
+					"Failed to seek to team file start for YAML encode.",
+					"Team File", item.Path,
+					"Error", err,
 				)
 				failed += 1
 				continue
@@ -340,8 +365,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			err = yaml.NewEncoder(teamFile).Encode(team)
 			if err != nil {
 				log.Error(
-					"failed to YAML-encode updated team file back to disk",
-					"error", err,
+					"Failed to YAML-encode updated team file back to disk.",
+					"Team File", item.Path,
+					"Error", err,
 				)
 				failed += 1
 				continue
@@ -351,9 +377,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			n, err := teamFile.Seek(0, io.SeekCurrent)
 			if err != nil {
 				log.Error(
-					"failed to identify number of bytes written following team file "+
-						"YAML-encode",
-					"error", err,
+					"Failed to identify number of bytes written following team file "+
+						"YAML-encode.",
+					"Team File", item.Path,
+					"Error", err,
 				)
 				failed += 1
 				continue
@@ -364,8 +391,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			err = teamFile.Truncate(n)
 			if err != nil {
 				log.Error(
-					"failed to truncate team file following YAML-encode",
-					"error", err,
+					"Failed to truncate team file following YAML-encode.",
+					"Team File", item.Path,
+					"Error", err,
 				)
 				failed += 1
 				continue
@@ -376,8 +404,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		err = teamFile.Close()
 		if err != nil {
 			log.Error(
-				"failed to close team YAML file following YAML-encode",
-				"error", err,
+				"Failed to close team YAML file following YAML-encode.",
+				"Team File", item.Path,
+				"Error", err,
 			)
 			failed += 1
 			continue
@@ -386,17 +415,18 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// Success!
 		if changeCount > 0 {
 			log.Info(
-				"successfully applied transforms to team file",
-				"count", changeCount,
+				"Successfully applied transforms to team file.",
+				"Team File", item.Path,
+				"Count", changeCount,
 			)
 			success += 1
 		}
 	}
 
 	log.Info(
-		"migration complete",
-		"successful", success,
-		"failed", failed,
+		"Migration complete.",
+		"Successful", success,
+		"Failed", failed,
 	)
 
 	if f := failed; f > 0 {

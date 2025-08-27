@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"log/slog"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 )
 
 const (
@@ -17,25 +20,26 @@ const (
 
 func cmdUsageExec(ctx context.Context, _ Args) error {
 	showUsageAndExit(0, "")
-	panic("impossible")
+	return nil
 }
 
 func showUsageAndExit(exitCode int, msg string, values ...any) {
-	// Generate the usage text.
-	text, err := usageText()
-	if err != nil {
-		slog.Error("failed to build usage text", "error", err)
-		os.Exit(exitCode)
-	}
+	// Init the 'strings.Builder' to compose our error message and usage text.
+	sb := new(strings.Builder)
 
 	// Format and print the provided message, if we received one.
 	if msg != "" {
-		msg = fmt.Sprintf(msg, values...)
-		fmt.Print(ansiRed, "ERROR: ", ansiReset, msg, "\n")
+		fmt.Fprint(sb, ansi.Red, "ERROR: ", ansi.Reset, msg, "\n")
+	}
+
+	// Generate the usage text.
+	err := usageText(sb)
+	if err != nil {
+		log.Fatalf("Failed to build usage text: %s.", err)
 	}
 
 	// Print the usage text and exit with the provided exit code.
-	fmt.Println(text)
+	fmt.Println(sb.String())
 	os.Exit(exitCode)
 }
 
@@ -49,26 +53,17 @@ var appDetails = AppDetails{
 	Command: "fm",
 }
 
-const (
-	ansiGreen   = "\x1b[1;32m"
-	ansiYellow  = "\x1b[1;33m"
-	ansiMagenta = "\x1b[1;35m"
-	ansiCyan    = "\x1b[1;36m"
-	ansiRed     = "\x1b[1;31m"
-	ansiReset   = "\x1b[0m"
-)
-
 func colorizer(c string) func(string) string {
 	return func(s string) string {
-		return c + s + ansiReset
+		return c + s + ansi.Reset
 	}
 }
 
 var tmplFuncs = template.FuncMap{
-	"green":   colorizer(ansiGreen),
-	"magenta": colorizer(ansiMagenta),
-	"cyan":    colorizer(ansiCyan),
-	"yellow":  colorizer(ansiYellow),
+	"green":   colorizer(ansi.BoldGreen),
+	"magenta": colorizer(ansi.BoldMagenta),
+	"cyan":    colorizer(ansi.BoldCyan),
+	"yellow":  colorizer(ansi.BoldYellow),
 	"pathJoin": func(parts ...string) string {
 		return filepath.Join(parts...)
 	},
@@ -86,7 +81,6 @@ transformations during the {{ $changeVer }} release.
 
    backup   Perform a backup of a target directory, output as a gzipped tarball.
    restore  Restore* a backup produced by the {{ green "backup" }} command.
-   migrate  Migrates a provided directory's {{ $gitops }} files.
    usage    Show this help text!
 
    {{ yellow "* NOTE:" }} Restore _will_ overwrite any existing files in the specified output
@@ -115,7 +109,7 @@ transformations during the {{ $changeVer }} release.
      {{ cyan "$" }} {{ magenta .Command }} backup -f {{ $sampleSrc }} -t {{ $sampleDst }}
 ` // TODO: More examples.
 
-func usageText() (string, error) {
+func usageText(w io.Writer) error {
 	// Init the template, apply custom template functions.
 	tmpl := template.New("usage")
 	tmpl.Funcs(tmplFuncs)
@@ -124,7 +118,7 @@ func usageText() (string, error) {
 	var err error
 	tmpl, err = tmpl.Parse(tmplUsageText)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse 'text/template' template: %w", err)
+		return fmt.Errorf("failed to parse 'text/template' template: %w", err)
 	}
 
 	// Exec the template.
@@ -132,8 +126,8 @@ func usageText() (string, error) {
 	sb.Grow(len(tmplUsageText))
 	err = tmpl.Execute(sb, appDetails)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute template: %w", err)
+		return fmt.Errorf("failed to execute template: %w", err)
 	}
 
-	return sb.String(), nil
+	return nil
 }
