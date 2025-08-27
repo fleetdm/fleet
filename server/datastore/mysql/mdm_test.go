@@ -718,9 +718,9 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, profB.Name, profs[0].Name)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
-	// create 8 labels for label-based profiles
+	// create 12 labels for label-based profiles
 	var labels []*fleet.Label
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 12; i++ {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "l" + strconv.Itoa(i), Query: "select 1"})
 		require.NoError(t, err)
 		labels = append(labels, lbl)
@@ -729,10 +729,10 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	// create more profiles and test the pagination with a table-driven test so that
 	// global and team both have 9 profiles (including A and B already created above).
 	for i := 0; i < 3; i++ {
-		inc := i * 4 // e.g. C, D, E, F on first loop, G, H, I, J on second loop, etc.
+		inc := i * 6 // e.g. C, D, E, F, G, H on first loop, I, J, K, L, M, N on second loop, O, P, Q, R, S, T on third
 
 		// create label-based profiles for i==0, meaning CDEF will be label-based
-		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0)
+		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0) // C, I and O
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[0].Name, LabelID: labels[0].ID},
@@ -742,7 +742,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, acp, nil)
 		require.NoError(t, err)
 
-		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID)
+		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID) // D, J and P
 		if i == 0 {
 			acp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
 				{LabelName: labels[2].Name, LabelID: labels[2].ID},
@@ -752,7 +752,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMAppleConfigProfile(ctx, acp, nil)
 		require.NoError(t, err)
 
-		wcp := fleet.MDMWindowsConfigProfile{
+		wcp := fleet.MDMWindowsConfigProfile{ // E K and Q
 			Name:   string(rune('C' + inc + 2)),
 			TeamID: nil,
 			SyncML: winProf,
@@ -766,7 +766,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
 
-		wcp = fleet.MDMWindowsConfigProfile{
+		wcp = fleet.MDMWindowsConfigProfile{ // F L and R
 			Name:   string(rune('C' + inc + 3)),
 			TeamID: &team.ID,
 			SyncML: winProf,
@@ -779,11 +779,41 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 		}
 		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp, nil)
 		require.NoError(t, err)
-	}
 
-	// delete label 3 and 4 so that profiles D and E are broken
+		// gcp = Android("google") config profile
+		gcp := fleet.MDMAndroidConfigProfile{ // G M and S
+			Name:    string(rune('C' + inc + 4)),
+			TeamID:  nil,
+			RawJSON: []byte(`{"hello4": "world4"}`),
+		}
+
+		if i == 0 {
+			gcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[8].Name, LabelID: labels[8].ID},
+				{LabelName: labels[9].Name, LabelID: labels[9].ID},
+			}
+		}
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		require.NoError(t, err)
+
+		gcp = fleet.MDMAndroidConfigProfile{ // H N and T
+			Name:    string(rune('C' + inc + 5)),
+			TeamID:  &team.ID,
+			RawJSON: []byte(`{"hello5": "world5"}`),
+		}
+		if i == 0 {
+			gcp.LabelsIncludeAll = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[10].Name, LabelID: labels[10].ID},
+				{LabelName: labels[11].Name, LabelID: labels[11].ID},
+			}
+		}
+		_, err = ds.NewMDMAndroidConfigProfile(ctx, gcp)
+		require.NoError(t, err)
+	}
+	// delete label 3, 4 and 8 so that profiles D, E and G are broken
 	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
 	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[8].Name))
 	profLabels := map[string][]fleet.ConfigurationProfileLabel{
 		"C": {
 			{LabelName: labels[0].Name, LabelID: labels[0].ID, RequireAll: true},
@@ -801,6 +831,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			{LabelName: labels[6].Name, LabelID: labels[6].ID, RequireAll: true},
 			{LabelName: labels[7].Name, LabelID: labels[7].ID, RequireAll: true},
 		},
+		"G": {
+			{LabelName: labels[8].Name, Broken: true, RequireAll: true},
+			{LabelName: labels[9].Name, LabelID: labels[9].ID, RequireAll: true},
+		},
+		"H": {
+			{LabelName: labels[10].Name, LabelID: labels[10].ID, RequireAll: true},
+			{LabelName: labels[11].Name, LabelID: labels[11].ID, RequireAll: true},
+		},
 	}
 
 	cases := []struct {
@@ -814,14 +852,14 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			"all global",
 			nil,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
-			[]string{"A", "C", "E", "G", "I", "K", "M"},
+			[]string{"A", "C", "E", "G", "I", "K", "M", "O", "Q", "S"},
 			fleet.PaginationMetadata{},
 		},
 		{
 			"all team",
 			&team.ID,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true},
-			[]string{"B", "D", "F", "H", "J", "L", "N"},
+			[]string{"B", "D", "F", "H", "J", "L", "N", "P", "R", "T"},
 			fleet.PaginationMetadata{},
 		},
 
@@ -850,13 +888,20 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			"page 3 per page 2, global",
 			nil,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3},
-			[]string{"M"},
-			fleet.PaginationMetadata{HasPreviousResults: true},
+			[]string{"M", "O"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
 		},
 		{
 			"page 4 per page 2, global",
 			nil,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4},
+			[]string{"Q", "S"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 5 per page 2, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 5},
 			[]string{},
 			fleet.PaginationMetadata{HasPreviousResults: true},
 		},
@@ -886,17 +931,23 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			"page 3 per page 2, team",
 			&team.ID,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 3},
-			[]string{"N"},
-			fleet.PaginationMetadata{HasPreviousResults: true},
+			[]string{"N", "P"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
 		},
 		{
 			"page 4 per page 2, team",
 			&team.ID,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 4},
+			[]string{"R", "T"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 5 per page 2, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 2, Page: 5},
 			[]string{},
 			fleet.PaginationMetadata{HasPreviousResults: true},
 		},
-
 		{
 			"page 0 per page 3, global",
 			nil,
@@ -915,17 +966,23 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			"page 2 per page 3, global",
 			nil,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2},
-			[]string{"M"},
-			fleet.PaginationMetadata{HasPreviousResults: true},
+			[]string{"M", "O", "Q"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
 		},
 		{
 			"page 3 per page 3, global",
 			nil,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3},
+			[]string{"S"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 4 per page 3, global",
+			nil,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 4},
 			[]string{},
 			fleet.PaginationMetadata{HasPreviousResults: true},
 		},
-
 		{
 			"page 0 per page 3, team",
 			&team.ID,
@@ -944,13 +1001,20 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			"page 2 per page 3, team",
 			&team.ID,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 2},
-			[]string{"N"},
-			fleet.PaginationMetadata{HasPreviousResults: true},
+			[]string{"N", "P", "R"},
+			fleet.PaginationMetadata{HasPreviousResults: true, HasNextResults: true},
 		},
 		{
 			"page 3 per page 3, team",
 			&team.ID,
 			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 3},
+			[]string{"T"},
+			fleet.PaginationMetadata{HasPreviousResults: true},
+		},
+		{
+			"page 4 per page 3, team",
+			&team.ID,
+			fleet.ListOptions{OrderKey: "name", IncludeMetadata: true, PerPage: 3, Page: 4},
 			[]string{},
 			fleet.PaginationMetadata{HasPreviousResults: true},
 		},
@@ -991,7 +1055,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 					require.ElementsMatch(t, wantProfs, p.LabelsIncludeAll, "profile name: %s", p.Name)
 				}
 			}
-			require.Equal(t, got, c.wantNames)
+			require.Equal(t, c.wantNames, got)
 
 			var gotMeta fleet.PaginationMetadata
 			if meta != nil {

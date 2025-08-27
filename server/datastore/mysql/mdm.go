@@ -406,6 +406,22 @@ FROM (
 	FROM mdm_apple_declarations
 	WHERE team_id = ? AND
 		name NOT IN (?)
+
+		UNION ALL
+
+	SELECT
+		profile_uuid,
+		team_id,
+		name,
+		'' AS scope,
+		'android' AS platform,
+		'' AS identifier,
+		'' AS checksum,
+		created_at,
+		uploaded_at
+	FROM mdm_android_configuration_profiles
+	WHERE team_id = ? AND
+		name NOT IN (?)
 ) as combined_profiles
 `
 
@@ -425,7 +441,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames, globalOrTeamID, fleetNames}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)
@@ -447,11 +463,14 @@ FROM (
 	}
 
 	// load the labels associated with those profiles
-	var winProfUUIDs, macProfUUIDs, macDeclUUIDs []string
+	var winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs []string
 	for _, prof := range profs {
-		if prof.Platform == "windows" {
+		switch prof.Platform {
+		case "windows":
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
-		} else {
+		case "android":
+			androidProfUUIDs = append(androidProfUUIDs, prof.ProfileUUID)
+		default:
 			if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
 				continue
@@ -460,7 +479,7 @@ FROM (
 			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
 		}
 	}
-	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs, macDeclUUIDs)
+	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -493,11 +512,11 @@ FROM (
 	return profs, metaData, nil
 }
 
-func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, androidProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
 	// load the labels associated with those profiles
 	const labelsStmt = `
 SELECT
-	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
+	COALESCE(apple_profile_uuid, windows_profile_uuid, android_profile_uuid) as profile_uuid,
 	label_name,
 	COALESCE(label_id, 0) as label_id,
 	IF(label_id IS NULL, 1, 0) as broken,
@@ -507,7 +526,8 @@ FROM
 	mdm_configuration_profile_labels mcpl
 WHERE
 	mcpl.apple_profile_uuid IN (?) OR
-	mcpl.windows_profile_uuid IN (?)
+	mcpl.windows_profile_uuid IN (?) OR
+	mcpl.android_profile_uuid IN (?)
 UNION ALL
 SELECT
 	apple_declaration_uuid as profile_uuid,
@@ -531,11 +551,14 @@ ORDER BY
 	if len(macProfUUIDs) == 0 {
 		macProfUUIDs = []string{"-"}
 	}
+	if len(androidProfUUIDs) == 0 {
+		androidProfUUIDs = []string{"-"}
+	}
 	if len(macDeclUUIDs) == 0 {
 		macDeclUUIDs = []string{"-"}
 	}
 
-	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs, macDeclUUIDs)
+	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs, androidProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for profiles")
 	}
@@ -1323,6 +1346,8 @@ func batchSetProfileLabelAssociationsDB(
 		platformPrefix = "apple"
 	case "windows":
 		platformPrefix = "windows"
+	case "android":
+		platformPrefix = "android"
 	default:
 		return false, fmt.Errorf("unsupported platform %s", platform)
 	}

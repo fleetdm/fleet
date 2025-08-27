@@ -27,6 +27,9 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
+		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
+		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -356,4 +359,152 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testNewMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+	ctx := testCtx()
+
+	// create some labels to test
+	lblExcl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-1", Query: "select 1"})
+	require.NoError(t, err)
+	lblInclAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "include-label-2", Query: "select 2"})
+	require.NoError(t, err)
+	lblInclAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-label-3", Query: "select 3"})
+	require.NoError(t, err)
+
+	// New Android MDM config profile
+	profile := fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello": "world"}`),
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
+			LabelID:    lblInclAll.ID,
+			LabelName:  lblInclAll.Name,
+			RequireAll: true,
+		}},
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
+			LabelID:    lblInclAny.ID,
+			LabelName:  lblInclAny.Name,
+			RequireAll: false,
+		}},
+		LabelsExcludeAny: []fleet.ConfigurationProfileLabel{{
+			LabelID:    lblExcl.ID,
+			LabelName:  lblExcl.Name,
+			RequireAll: false,
+			Exclude:    true,
+		}},
+	}
+
+	// Create the profile
+	result, err := ds.NewMDMAndroidConfigProfile(ctx, profile)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result.ProfileUUID)
+
+	// Create another profile just to have multiple entries
+	profile2 := fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid2",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello2": "world2"}`),
+	}
+	result2, err := ds.NewMDMAndroidConfigProfile(ctx, profile2)
+	require.NoError(t, err)
+	assert.NotEmpty(t, result2.ProfileUUID)
+
+	returnedProfile, err := ds.GetMDMAndroidConfigProfile(ctx, result.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, returnedProfile)
+
+	// Verify the profile was created correctly
+	assert.Equal(t, profile.RawJSON, returnedProfile.RawJSON)
+	assert.Equal(t, profile.Name, returnedProfile.Name)
+	require.NotNil(t, returnedProfile.TeamID)
+	assert.Equal(t, uint(0), *returnedProfile.TeamID)
+	require.ElementsMatch(t, profile.LabelsIncludeAll, returnedProfile.LabelsIncludeAll)
+	require.ElementsMatch(t, profile.LabelsIncludeAny, returnedProfile.LabelsIncludeAny)
+	require.ElementsMatch(t, profile.LabelsExcludeAny, returnedProfile.LabelsExcludeAny)
+
+	// Create a Windows profile with a name, then make sure an error is returned when creating an
+	// Android profile with that name
+	windowsProfile := fleet.MDMWindowsConfigProfile{
+		Name:   "testWindowsAndroidConflict",
+		TeamID: nil,
+		SyncML: []byte(`hello`),
+	}
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, windowsProfile, nil)
+	require.NoError(t, err)
+
+	androidProfile := fleet.MDMAndroidConfigProfile{
+		Name:    "testWindowsAndroidConflict",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello3": "world3"}`),
+	}
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	require.ErrorContains(t, err, "already exists")
+
+	// Create that same conflicting android profile but on a different team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+	require.NotNil(t, team)
+	androidProfile.TeamID = ptr.Uint(team.ID)
+	otherTeamProfile, err := ds.NewMDMAndroidConfigProfile(ctx, androidProfile)
+	require.NoError(t, err)
+
+	// Verify we can GET the newly created profile
+	otherTeamProfile, err = ds.GetMDMAndroidConfigProfile(ctx, otherTeamProfile.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, otherTeamProfile)
+	assert.Equal(t, androidProfile.RawJSON, otherTeamProfile.RawJSON)
+	assert.Equal(t, androidProfile.Name, otherTeamProfile.Name)
+	require.NotNil(t, otherTeamProfile.TeamID)
+	assert.Equal(t, *androidProfile.TeamID, *otherTeamProfile.TeamID)
+}
+
+func testGetMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	profile, err := ds.GetMDMAndroidConfigProfile(ctx, "some-fake-uuid")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, profile)
+}
+
+func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
+	ctx := testCtx()
+	err := ds.DeleteMDMAndroidConfigProfile(ctx, "some-fake-uuid")
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	profile1 := &fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello": "world"}`),
+	}
+
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	require.NoError(t, err)
+	require.NotNil(t, profile1)
+
+	profile2 := &fleet.MDMAndroidConfigProfile{
+		Name:    "testAndroid2",
+		TeamID:  nil,
+		RawJSON: []byte(`{"hello": "world"}`),
+	}
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+
+	// Delete the first profile
+	err = ds.DeleteMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
+	require.NoError(t, err)
+
+	// Verify the first profile is deleted
+	profile1, err = ds.GetMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
+	require.ErrorAs(t, err, &nfe)
+	require.Nil(t, profile1)
+
+	// Verify the second profile is untouched
+	profile2, err = ds.GetMDMAndroidConfigProfile(ctx, profile2.ProfileUUID)
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+	require.Equal(t, "testAndroid2", profile2.Name)
 }
