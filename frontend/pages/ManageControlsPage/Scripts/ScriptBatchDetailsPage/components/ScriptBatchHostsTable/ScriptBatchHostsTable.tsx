@@ -128,7 +128,6 @@ const ScriptBatchHostsTable = ({
         defaultSortHeader={orderKey || DEFAULT_SORT_COLUMN}
         defaultSortDirection={orderDirection || DEFAULT_SORT_DIRECTION}
         pageIndex={page}
-        disableNextPage={!hostResults?.meta?.has_next_results}
         pageSize={perPage}
         showMarkAllPages={false}
         isAllPagesSelected={false}
