@@ -1,13 +1,12 @@
 package log
 
 import (
-	"bufio"
 	"io"
 	"os"
 )
 
-var output = bufio.NewWriter(os.Stderr)
+var output = io.Writer(os.Stderr)
 
 func SetOutput(w io.Writer) {
-	output = bufio.NewWriter(w)
+	output = w
 }

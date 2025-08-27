@@ -17,7 +17,7 @@ func main() {
 	args := parseArgs()
 
 	// If we received the ['--debug', '-d'] flag, tune the log config.
-	if !args.Debug {
+	if args.Debug {
 		log.Options.SetWithCaller()
 		log.Options.SetWithLevel()
 		log.Level = log.LevelDebug
@@ -28,8 +28,8 @@ func main() {
 	if err != nil {
 		log.Fatal(
 			"Failed to execute command.",
-			"command", args.Commands,
-			"error", err,
+			"Command", args.Commands,
+			"Error", err,
 		)
 	}
 }

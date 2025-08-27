@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
 )
@@ -53,16 +54,62 @@ func Fatalf(msg string, values ...any) {
 	os.Exit(1)
 }
 
+func Panic(msg string, values ...any) {
+	panic(fmt.Sprintf(msg, values...))
+}
+
+var builderPool = &sync.Pool{
+	New: func() any {
+		sb := new(strings.Builder)
+		sb.Grow(4096)
+		return sb
+	},
+}
+
+const (
+	brackL       = ansi.BoldBlack + "[" + ansi.Reset
+	brackR       = ansi.BoldBlack + "]" + ansi.Reset
+	arrow        = ansi.BoldMagenta + "=>" + ansi.Reset
+	rowMiddle    = ansi.BoldMagenta + "┣━━ " + ansi.Reset
+	rowBottom    = ansi.BoldMagenta + "┗━━ " + ansi.Reset
+	valueMissing = "<NOVALUE>"
+)
+
 func log(l level, skip int, msg string, pairs ...any) {
 	if l < Level {
 		return
 	}
 
+	// Grab a string builder from the pool, defer it's reset and return to
+	// the pool.
+	b := builderPool.Get().(*strings.Builder)
+	defer builderPool.Put(b)
+	defer b.Reset()
+
+	// Write the log level, if the appropriate configuration is set.
+	writeLevel(b, l)
+
+	// Write the caller if the appropriate configuration is set.
+	writeCaller(b, skip+1)
+
+	// Write the formatted message, followed by a newline.
+	fmt.Fprintln(b, msg)
+
+	// Produce all pairs.
+	writePairs(b, pairs...)
+
+	// Dump the buffer to the package writer.
+	fmt.Fprint(output, b.String())
+}
+
+func writeLevel(b *strings.Builder, l level) {
 	// Write the log level, if the appropriate configuration is set.
 	if Options.WithLevel() {
-		fmt.Fprintf(output, "%s ", l)
+		fmt.Fprintf(b, "%s ", l)
 	}
+}
 
+func writeCaller(b *strings.Builder, skip int) {
 	// Write the caller if the appropriate configuration is set.
 	if Options.WithCaller() {
 		// Init an array to send to the caller functions.
@@ -80,47 +127,37 @@ func log(l level, skip int, msg string, pairs ...any) {
 		if i := strings.LastIndexByte(file, '/'); i >= 0 && i <= len(file)-1 {
 			file = file[i+1:]
 		}
-		fmt.Fprintf(output, "%s[%s:%d]%s ", ansi.BoldWhite, file, line, ansi.Reset)
+		fmt.Fprintf(b, "%s[%s:%d]%s ", ansi.BoldWhite, file, line, ansi.Reset)
 	}
+}
 
-	// Write the formatted message, followed by a newline.
-	fmt.Fprintln(output, msg)
-
-	// Produce all pairs.
-	longestKey := 0
-	longestVal := 0
-	fmtPairs := make([][2]string, 0, len(pairs)/2)
+func writePairs(b *strings.Builder, pairs ...any) {
 	for i := 0; i < len(pairs); i += 2 {
+		// Grab the key + value.
 		key := fmt.Sprint(pairs[i])
-		if len(key) > longestKey {
-			longestKey = len(key)
-		}
-
 		var val string
-		if i+1 < len(pairs) {
-			val = fmt.Sprint(pairs[i+1])
+		if i+1 > len(pairs) {
+			val = valueMissing
 		} else {
-			val = "<MISSING>"
-		}
-		if len := len(val); len > longestVal {
-			longestVal = len
+			val = fmt.Sprint(pairs[i+1])
 		}
 
-		fmtPairs = append(fmtPairs, [2]string{key, val})
-	}
-	for _, pair := range fmtPairs {
-		key, val := pair[0], pair[1]
-		fmt.Fprintf(output, "  %s>>%s %s%s%s", ansi.BoldMagenta, ansi.Reset, ansi.BoldWhite, key, ansi.Reset)
-		for range longestKey - len(key) + 1 {
-			fmt.Fprint(output, " ")
+		// Write the prefixed box characters.
+		if i < len(pairs)-2 {
+			b.WriteString(rowMiddle)
+		} else {
+			b.WriteString(rowBottom)
 		}
-		fmt.Fprintf(output, "%s=>%s ", ansi.BoldMagenta, ansi.Reset)
-		fmt.Fprintf(output, "%s%s%s", ansi.BoldWhite, val, ansi.Reset)
-		fmt.Fprintln(output)
-	}
 
-	// Flush the buffered writer.
-	output.Flush()
+		// Write the key.
+		b.WriteString(brackL + ansi.BoldWhite + key + ansi.Reset + brackR)
+
+		// Write the '=>'.
+		b.WriteString(arrow)
+
+		// Write the value, followed by a newline.
+		b.WriteString(brackL + ansi.BoldWhite + val + ansi.Reset + brackR + "\n")
+	}
 }
 
 func logf(l level, skip int, msg string, values ...any) {

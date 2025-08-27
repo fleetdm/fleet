@@ -6,15 +6,19 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
+	"sync/atomic"
+	"time"
 
+	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/limit"
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 	"gopkg.in/yaml.v3"
 )
 
 const cmdFormat = "format"
 
-func cmdFormatExec(_ context.Context, args Args) error {
+func cmdFormatExec(ctx context.Context, args Args) error {
 	// Expect the 'input' path (root to begin formatting _from_) as the first
 	// positional arg.
 	if len(args.Commands) == 0 {
@@ -25,7 +29,13 @@ func cmdFormatExec(_ context.Context, args Args) error {
 	path := args.Commands[0]
 	log.Info("Formatting GitOps YAML files.")
 
+	// Init a limiter with a concurrency allowance equal to number of host machine
+	// logical processors.
+	l := limit.New(int32(runtime.NumCPU()))
+
 	// Enumerate the file system, format all YAML files.
+	pass := int32(0)
+	fail := int32(0)
 	for file, err := range fsEnum(path) {
 		// Handle errors.
 		if err != nil {
@@ -34,7 +44,7 @@ func cmdFormatExec(_ context.Context, args Args) error {
 
 		// Skip directories.
 		if file.Stats.IsDir() {
-			log.Debugf("Skipping directory: %s.", file.Path)
+			log.Debugf("Skipping [%s]: item is a directory, not file.", file.Path)
 			continue
 		}
 
@@ -42,15 +52,36 @@ func cmdFormatExec(_ context.Context, args Args) error {
 		lowerPath := strings.ToLower(file.Path)
 		if !strings.HasSuffix(lowerPath, ".yml") &&
 			!strings.HasSuffix(lowerPath, ".yaml") {
-			log.Debugf("Skipping directory: %s.", file.Path)
+			log.Debugf("Skipping [%s]: file is not YAML.", file.Path)
 			continue
 		}
 
-		log.Infof("Formatting file: %s.", file.Path)
-		err := formatFile(file.Path)
-		if err != nil {
-			return err
-		}
+		l.Go(func() {
+			log.Infof("Formatting file: %s.", file.Path)
+			err := formatFile(file.Path)
+			if err != nil {
+				log.Error(
+					"Failed to format file.",
+					"File", file.Path,
+					"Error", err,
+				)
+				atomic.AddInt32(&fail, 1)
+			} else {
+				atomic.AddInt32(&pass, 1)
+			}
+		})
+	}
+
+	// Wait for formatting to complete with a 10-second timeout.
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if err := l.WaitContext(ctx); err != nil {
+		return fmt.Errorf("hung Goroutine in limiter")
+	}
+
+	log.Info("Format run complete.", "Successful", pass, "Failed", fail)
+	if fail > 0 {
+		return fmt.Errorf("encountered format job failures")
 	}
 
 	return nil
