@@ -526,15 +526,14 @@ func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 		(year == 2021 && slices.Contains(dockerDesktopCVEs2021, *item.CVE.ID)) ||
 		(year == 2020 && slices.Contains(dockerDesktopCVEs2020, *item.CVE.ID)) {
 
-		for configID, _ := range item.CVE.Configurations {
-			for nodeID, _ := range item.CVE.Configurations[configID].Nodes {
-				for matchID, _ := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
+		for configID := range item.CVE.Configurations {
+			for nodeID := range item.CVE.Configurations[configID].Nodes {
+				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
 					item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria =
-						strings.Replace(
+						strings.ReplaceAll(
 							item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria,
 							"docker_desktop",
 							"desktop",
-							-1,
 						)
 				}
 			}
