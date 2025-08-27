@@ -10,42 +10,25 @@ import (
 )
 
 func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
-	icon, err := ds.GetSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID, &payload.StorageID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "getting software title icon")
-	}
-
 	var query string
 	var args []interface{}
-	if icon == nil {
-		query = `
-			INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
-			VALUES (?, ?, ?, ?)
-		`
-		args = []interface{}{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
-	} else {
-		query = `
-			UPDATE software_title_icons
-			SET filename = ?, storage_id = ?
-			WHERE id = ?
-		`
-		args = []interface{}{payload.Filename, payload.StorageID, icon.ID}
-	}
+	query = `
+		INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
+		VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE
+		id = LAST_INSERT_ID(id), storage_id = VALUES(storage_id), filename = VALUES(filename)
+	`
+	args = []interface{}{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
+
 	res, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upserting software title icon")
 	}
 
-	var iconID uint
-	if icon == nil {
-		iconInt64, err := res.LastInsertId()
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting last insert id")
-		}
-		iconID = uint(iconInt64)
-	} else {
-		iconID = icon.ID
+	iconInt64, err := res.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert id")
 	}
+	iconID := uint(iconInt64)
 
 	return &fleet.SoftwareTitleIcon{
 		ID:              iconID,
