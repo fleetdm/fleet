@@ -15,7 +15,7 @@ import (
 // result of combining all applicable profiles.
 type MDMAndroidConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
-	// Fleet. For Android profiles, it is the letter "a" followed by a uuid.
+	// Fleet. For Android profiles, it is the letter "g" followed by a uuid.
 	ProfileUUID      string                      `db:"profile_uuid" json:"profile_uuid"`
 	TeamID           *uint                       `db:"team_id" json:"team_id"`
 	Name             string                      `db:"name" json:"name"`
@@ -28,8 +28,8 @@ type MDMAndroidConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // Difference in DB field name vs JSON is conscious decision to match other platforms
 }
 
-// ForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles
-var ForbiddenJSONKeys = map[string]struct{}{
+// AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles
+var AndroidForbiddenJSONKeys = map[string]struct{}{
 	"statusReportingSettings":    {},
 	"applications":               {},
 	"appFunctions":               {},
@@ -64,7 +64,7 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 		return errors.New("JSON profile is empty")
 	}
 	for key := range profileKeyMap {
-		if _, ok := ForbiddenJSONKeys[key]; ok {
+		if _, ok := AndroidForbiddenJSONKeys[key]; ok {
 			return fmt.Errorf("Key %q is not allowed in user-provided Android configuration profiles.", key)
 		}
 	}

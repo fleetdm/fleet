@@ -1125,9 +1125,13 @@ func DetermineJSONConfigType(data []byte) (bool, bool, error) {
 		}
 		if k == "Type" {
 			hasTypeKey = true
+			hasKeysStartingInUpper = true
+			continue
 		}
 		if k == "Payload" {
 			hasPayloadKey = true
+			hasKeysStartingInUpper = true
+			continue
 		}
 
 		for i, r := range k {
