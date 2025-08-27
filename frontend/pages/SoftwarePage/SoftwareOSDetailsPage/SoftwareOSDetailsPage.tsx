@@ -39,7 +39,6 @@ import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabi
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import OSKernelsTable from "../components/tables/OSKernelsTable";
-import { createMockLinuxOSVersion } from "__mocks__/operatingSystemsMock";
 
 const baseClass = "software-os-details-page";
 
