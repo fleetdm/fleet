@@ -1383,7 +1383,7 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 		batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
 		switch opt.BatchScriptExecutionStatusFilter {
 		case fleet.BatchScriptExecutionRan:
-			batchScriptExecutionFilter += ` AND hsr.exit_code = 0 && hsr.canceled = 0`
+			batchScriptExecutionFilter += ` AND hsr.exit_code = 0 AND hsr.canceled = 0`
 		case fleet.BatchScriptExecutionPending:
 			// Pending can mean "waiting for execution" or "waiting for results".
 			// hsr.exit_code IS NULL <- this means the script has not reported back
