@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
@@ -32,7 +31,6 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// configured.
 	enterprise, err := ds.GetEnterprise(ctx)
 	if err != nil {
-		fmt.Println(">>>>> NO ANDROID ENTERPRISE!")
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
@@ -83,7 +81,6 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	if len(hosts) == 0 {
-		fmt.Println(">>>>> NO ANDROID HOST!")
 		return nil
 	}
 
@@ -92,7 +89,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		// for now.
 		policy := &androidmanagement.Policy{
 			CameraDisabled: true,
-			FunDisabled:    true,
+			FunDisabled:    false,
 		}
 
 		// for every policy, we want to enforce some settings
@@ -116,7 +113,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		}
 		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
 			// that policy name is already applied to this host, it will pick up the new version
-			// TODO(ap): confirm in tests
+			// (confirmed in tests)
 			continue
 		}
 
@@ -149,8 +146,6 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		// expected version. Note that with "funDisabled: true", I did get a
 		// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
 		// PolicyCompliant was still true.
-		fmt.Println(">>>>> APPLIED POLICY TO DEVICE:", err)
-		spew.Dump(device)
 	}
 
 	return nil

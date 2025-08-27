@@ -3,11 +3,9 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
@@ -111,9 +109,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
-
-	fmt.Println(">>>>> ANDROID STATUS REPORT:")
-	spew.Dump(device)
 
 	if device.AppliedState == string(android.DeviceStateDeleted) {
 		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
