@@ -102,7 +102,7 @@ Like a product group at Fleet, a working group is an arrangement of people from 
 
 Working groups are for important work that needs to be done quickly, when asynchronous work would be too slow.
 
-Working groups should have their own section here in the handbook that includes the name, goal, resources, and contributors. See the commented out section in the handbook for an example.
+Working groups have their own section in the handbook that includes the name, goal, resources, and contributors. See the commented out section in the handbook for an example.
 
 Items to cover in the section:
 - Name of the working group
