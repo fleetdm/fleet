@@ -850,6 +850,10 @@ func newCleanupsAndAggregationSchedule(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				if err != nil {
+					return err
+				}
+				_, err = ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
 				return err
 			},
 		),
