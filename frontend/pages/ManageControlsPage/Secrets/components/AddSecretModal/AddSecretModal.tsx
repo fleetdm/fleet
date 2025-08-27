@@ -41,7 +41,6 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
       value = value.trimRight().toUpperCase();
       setSecretName(value);
     } else if (name === "value") {
-      value = value.trimRight();
       setSecretValue(value);
     }
     setFormValidation(
