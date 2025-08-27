@@ -47,6 +47,7 @@ const SoftwareDetailsSummary = ({
   isOperatingSystem,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
+  console.log("queryPArams", queryParams);
   // Remove host count for tgz_packages only
   const showHostCount = source !== "tgz_packages";
 

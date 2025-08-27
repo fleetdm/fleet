@@ -39,6 +39,7 @@ import SoftwareVulnerabilitiesTable from "../components/tables/SoftwareVulnerabi
 import DetailsNoHosts from "../components/cards/DetailsNoHosts";
 import { VulnsNotSupported } from "../components/tables/SoftwareVulnerabilitiesTable/SoftwareVulnerabilitiesTable";
 import OSKernelsTable from "../components/tables/OSKernelsTable";
+import { createMockLinuxOSVersion } from "__mocks__/operatingSystemsMock";
 
 const baseClass = "software-os-details-page";
 
@@ -136,6 +137,8 @@ export const KernelsCard = ({
   >
     <CardHeader header="Kernels" />
     <OSKernelsTable
+      osName={osVersion.name_only}
+      osVersion={osVersion.version}
       data={osVersion.kernels}
       isLoading={isLoading}
       router={router}
@@ -177,7 +180,7 @@ const SoftwareOSDetailsPage = ({
   });
 
   const {
-    data: { os_version: osVersionDetails, counts_updated_at } = {},
+    data: { os_version: osVersionDetails2, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
@@ -210,6 +213,9 @@ const SoftwareOSDetailsPage = ({
     }
   );
 
+  const osVersionDetails = createMockLinuxOSVersion();
+
+  console.log("osVersionDetails", osVersionDetails);
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
