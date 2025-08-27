@@ -173,7 +173,7 @@ After you add policies in Fleet, you also need to add an Entra "Conditional Acce
 For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
 ![Entra ID Conditional Access policy example](../website/assets/images/articles/entra-conditional-access-policy-554x506@2x.png)
 
-Make sure to assign the "Fleet conditional access" group to the Entra policies.
+Make sure to assign the "Fleet conditional access" group to the Entra policy.
 
 ### Disabling "Conditional Access" on a team
 
