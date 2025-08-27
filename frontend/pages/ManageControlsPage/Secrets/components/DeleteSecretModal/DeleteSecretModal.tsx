@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import { ISecret } from "interfaces/secrets";
 import { NotificationContext } from "context/notification";
 
+import formatErrorResponse from "utilities/format_error_response";
 import secretsAPI from "services/entities/secrets";
 
 interface DeleteSecretModalProps {
@@ -30,12 +31,18 @@ const DeleteSecretModal = ({
     setIsDeleting(true);
     try {
       await secretsAPI.deleteSecret(secret.id);
+      renderFlash("success", "Variable successfully deleted.");
       onDelete();
     } catch (error) {
-      renderFlash(
-        "error",
-        "An error occurred while deleting the secret. Please try again."
-      );
+      const errorObject = formatErrorResponse(error);
+      const isInUseError =
+        errorObject.http_status === 409 &&
+        /used by/.test(errorObject?.base ?? "");
+      const message =
+        isInUseError && typeof errorObject?.base === "string"
+          ? errorObject.base
+          : "An error occurred while deleting the custom variable. Please try again.";
+      renderFlash("error", message);
     } finally {
       setIsDeleting(false);
     }
@@ -50,12 +57,6 @@ const DeleteSecretModal = ({
       <>
         <p>
           This will delete the <b>{secret?.name}</b> custom variable.
-        </p>
-        <p>
-          If this custom variable is used in any configuration profiles or
-          scripts, they will fail.
-          <br />
-          To resolve, edit the configuration profile or script.
         </p>
         <div className="modal-cta-wrap">
           <Button

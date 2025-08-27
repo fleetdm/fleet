@@ -112,7 +112,7 @@ export const isSoftwarePackage = (
 
 export interface IAppStoreApp {
   name: string;
-  app_store_id: number;
+  app_store_id: string; // API returns this as a string
   latest_version: string;
   created_at: string;
   icon_url: string;

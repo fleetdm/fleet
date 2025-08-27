@@ -20,8 +20,24 @@ do
     fi
 done
 
-# Remove the pam_nologin file
+# Remove the pam_nologin files
 [ -f /etc/nologin ] && rm /etc/nologin
+[ -f /run/nologin ] && rm /run/nologin
+
+# Remove GDM banner if we set one
+if [ -f /etc/dconf/db/gdm.d/99-fleet-lock-banner ]; then
+    echo "Removing GDM lock banner"
+    rm /etc/dconf/db/gdm.d/99-fleet-lock-banner
+    dconf update 2>/dev/null || true
+fi
+
+# Remove our custom lock message service
+if [ -f /etc/systemd/system/fleet-lock-message.service ]; then
+    systemctl stop fleet-lock-message.service 2>/dev/null || true
+    systemctl disable fleet-lock-message.service 2>/dev/null
+    rm /etc/systemd/system/fleet-lock-message.service
+    systemctl daemon-reload
+fi
 
 # Enable systemd-user-sessions, a service that deletes /etc/nologin
 if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
@@ -30,14 +46,28 @@ if [ -f /usr/lib/systemd/system/systemd-user-sessions.service ]; then
     /usr/lib/systemd/systemd-user-sessions start
 fi
 
-# TODO this should be re-checked and possibly removed in the future.
-#
-# When we lock a machine using /etc/nologin, GDM seems to get stuck in
-# a state where the screen stays black. This didn't used to be the
-# case on Ubuntu 22.04. This bug doesn't affect other login managers
-# such as lightdm.
-#
-# Because of a bug, likely in GDM on Ubuntu after 22.04, we have to reboot the
-# machine to get the login screen back. Note this bug does not occur
-# in Fedora
+# Check if we switched to text mode during lock and restore GUI if needed
+if [ -f /etc/fleet.text-mode-lock ]; then
+    echo "Restoring graphical mode"
+    
+    # Restore the original systemd target
+    if [ -f /etc/fleet.systemd-target.backup ]; then
+        TARGET=$(cat /etc/fleet.systemd-target.backup)
+        systemctl set-default "$TARGET" 2>/dev/null
+        rm /etc/fleet.systemd-target.backup
+    else
+        # Default to graphical target if no backup found
+        systemctl set-default graphical.target
+    fi
+    
+    # Clean up marker file
+    rm /etc/fleet.text-mode-lock
+    
+    # System needs reboot to properly restore GUI
+fi
+
+echo "All non-root users have been unlocked."
+
+# Although rebooting is not strictly necessary for all cases, we've seen some UI issues that
+# can be resolved by rebooting. For example, the password prompt is not fully visible in LightDM+Ubuntu24.04
 reboot

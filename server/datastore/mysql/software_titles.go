@@ -113,6 +113,10 @@ func (ds *Datastore) ListSoftwareTitles(
 		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "min_cvss_score, max_cvss_score, and exploit can only be provided with vulnerable=true")
 	}
 
+	if opt.TeamID == nil && opt.PackagesOnly {
+		return nil, 0, nil, fleet.NewInvalidArgumentError("query", "packages_only can only be provided with team_id")
+	}
+
 	dbReader := ds.reader(ctx)
 	getTitlesStmt, args, err := selectSoftwareTitlesSQL(opt)
 	if err != nil {
@@ -354,7 +358,8 @@ SELECT
 	{{end}}
 FROM software_titles st
 	{{if hasTeamID .}}
-		LEFT JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = {{teamID .}}
+		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
+		{{$installerJoin}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
 		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND 
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
@@ -395,8 +400,11 @@ WHERE
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
-	-- If teamID is set, defaults to "a software installer or VPP app exists", and see next condition.
-	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)" "FALSE"}}
+	{{with $defFilter := "FALSE"}}
+		-- If teamID is set and PackagesOnly is false, defaults to "a software installer or VPP app exists", and see next condition.
+		{{if and (hasTeamID $) (not $.PackagesOnly) }}
+			{{$defFilter = "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)"}}
+		{{end}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
