@@ -84,6 +84,16 @@ func checkNVDVulnerabilities(vulnPath string, logger log.Logger) {
 	if vulns["CVE-2024-0540"].CVSSv3BaseScore() != 9.8 { // primary source CVSS score
 		panic(errors.New("cvss v3 spot-check failed for CVE-2024-0540"))
 	}
+
+	vulns, err = cvefeed.LoadJSONDictionary(filepath.Join(vulnPath, "nvdcve-1.1-2023.json.gz"))
+	if err != nil {
+		panic(err)
+	}
+
+	// make sure we're rewriting docker_desktop to docker
+	if vulns["CVE-2023-0626"].Config()[0].Product != "desktop" {
+		panic(errors.New("docker_desktop spot-check failed for CVE-2023-0626"))
+	}
 }
 
 func checkGovalDictionaryVulnerabilities(vulnPath string) {
