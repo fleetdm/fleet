@@ -837,6 +837,7 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 }
 
 func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	// TODO(lucas): For Linux.
 	if host.Platform != string(fleet.MacOSPlatform) {
 		return false, nil
 	}

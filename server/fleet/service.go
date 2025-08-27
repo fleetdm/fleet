@@ -1238,6 +1238,8 @@ type Service interface {
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
+	GetOrbitSetupExperienceLinuxStatus(ctx context.Context, orbitNodeKey string) (*SetupExperienceLinuxStatusPayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps

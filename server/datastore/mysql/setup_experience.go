@@ -13,7 +13,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
+// TODO(lucas): Update to use host.ID for Linux.
+func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform string, hostUUID string, teamID uint) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ?`
@@ -33,7 +34,24 @@ FROM software_installers si
 INNER JOIN software_titles st
 	ON si.title_id = st.id
 WHERE install_during_setup = true
-AND global_or_team_id = ?`
+AND global_or_team_id = ?
+AND (
+	si.platform = ?
+	AND 
+	(
+		si.platform = 'darwin'
+		OR 
+		(
+			si.extension = 'tar.gz'
+			OR 
+			(
+				(si.extension = 'deb' AND ? = 'ubuntu')
+				OR
+				(si.extension = 'rpm' AND ? = 'rhel')
+			)
+		)
+	)
+)`
 
 	stmtVPPApps := `
 INSERT INTO setup_experience_status_results (
@@ -77,7 +95,8 @@ WHERE global_or_team_id = ?`
 		}
 
 		// Software installers
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID)
+		fleetPlatform := fleet.PlatformFromHost(hostPlatform)
+		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatform, hostPlatform)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
 		}
@@ -88,29 +107,35 @@ WHERE global_or_team_id = ?`
 		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
-		res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
+		if fleetPlatform == "darwin" {
+			res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
+			}
+			inserts, err = res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		inserts, err = res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
-		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// Scripts
-		res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
+		if fleetPlatform == "darwin" {
+			res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
+			}
+			inserts, err = res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		inserts, err = res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
-		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// Only run setup experience on hosts that have something configured.
-		if totalInsertions > 0 {
+		//
+		// TODO(lucas): Check if we need to do something like this for Linux.
+		if totalInsertions > 0 && fleetPlatform == "darwin" {
 			if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 				return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
 			}
@@ -304,6 +329,16 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 	}
 
 	return titles, count, meta, nil
+}
+
+func (ds *Datastore) HasSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint) (bool, error) {
+	var count int
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM software_installers WHERE install_during_setup AND platform = ? AND global_or_team_id = ?;`,
+		platform, teamID); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "check platform and team have setup experience software titles")
+	}
+	return count > 0, nil
 }
 
 type idPlatformTuple struct {

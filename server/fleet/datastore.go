@@ -2065,8 +2065,11 @@ type Datastore interface {
 
 	////////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
+	//
+
 	SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+	HasSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint) (bool, error)
 
 	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
 	// in the setup experience flow (which runs during macOS Setup Assistant).
@@ -2084,10 +2087,6 @@ type Datastore interface {
 	// id 0 to represent "No team", should IdP be enabled for that team.
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 
-	///////////////////////////////////////////////////////////////////////////////
-	// Setup Experience
-	//
-
 	// ListSetupExperienceResultsByHostUUID lists the setup experience results for a host by its UUID.
 	ListSetupExperienceResultsByHostUUID(ctx context.Context, hostUUID string) ([]*SetupExperienceStatusResult, error)
 
@@ -2100,7 +2099,7 @@ type Datastore interface {
 	// the initial device setup). It then adds any software and script that have been configured for
 	// this team to the host's queue and sets their status to pending. If any items were enqueued,
 	// it returns true, otherwise it returns false.
-	EnqueueSetupExperienceItems(ctx context.Context, hostUUID string, teamID uint) (bool, error)
+	EnqueueSetupExperienceItems(ctx context.Context, hostPlatform string, hostUUID string, teamID uint) (bool, error)
 
 	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
 	// setup experience script per team.
