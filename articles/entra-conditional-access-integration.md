@@ -223,7 +223,7 @@ If a user turns off MDM by going to **System Settings > Device Management and se
 
 If you're migrating your macOS hosts from your current MDM solution to Fleet, you can switch to Fleet for conditional access with Entra before your MDM migration. This means you can also use a different MDM solution with Fleet for conditional access. 
 
-When you switch, end users won't have to take any action
+When you switch, end users won't have to take any action.
 
 Before you switch to Fleet, let your team know that there will be a gap in conditional access coverage while you're setting this up. Microsoft only allows one compliance partner to be configured for macOS hosts.
 
