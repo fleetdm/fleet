@@ -66,7 +66,7 @@ jobs:
               state: 'open',
               per_page: 100
             });
-            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'fleet-release').map(pr => pr.number);
 
       - name: Get Assignee IDs
         id: get_assignee_ids
