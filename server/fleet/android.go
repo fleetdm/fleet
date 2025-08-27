@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -70,4 +71,18 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 	}
 
 	return nil
+}
+
+// MDMAndroidPolicyRequest represents a request made to the Android Management
+// API (AMAPI) to patch the policy or the device (as made by
+// androidsvc.ReconcileProfiles).
+type MDMAndroidPolicyRequest struct {
+	RequestUUID          string           `db:"request_uuid"`
+	RequestName          string           `db:"request_name"`
+	PolicyID             string           `db:"policy_id"`
+	Payload              []byte           `db:"payload"`
+	StatusCode           int              `db:"status_code"`
+	ErrorDetails         sql.Null[string] `db:"error_details"`
+	AppliedPolicyVersion sql.Null[int]    `db:"applied_policy_version"`
+	PolicyVersion        sql.Null[int]    `db:"policy_version"`
 }

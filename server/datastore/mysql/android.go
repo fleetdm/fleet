@@ -522,3 +522,7 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 
 	return nil
 }
+
+func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+	panic("unimplemented")
+}
