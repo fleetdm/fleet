@@ -987,10 +987,10 @@ type (
 )
 
 type batchScriptExecutionListResponse struct {
-	BatchScriptExecutions []fleet.BatchActivity `json:"batch_executions"`
-	Count                 uint                  `json:"count"`
-	Err                   error                 `json:"error,omitempty"`
-	fleet.PaginationMetadata
+	BatchScriptExecutions []fleet.BatchActivity    `json:"batch_executions"`
+	Count                 uint                     `json:"count"`
+	Err                   error                    `json:"error,omitempty"`
+	Meta                  fleet.PaginationMetadata `json:"meta"`
 }
 
 func (r batchScriptExecutionListResponse) Error() error { return r.Err }
@@ -1002,10 +1002,10 @@ type batchScriptExecutionHostResultsRequest struct {
 }
 
 type batchScriptExecutionHostResultsResponse struct {
-	Hosts []fleet.BatchScriptHost `json:"hosts"`
-	Count uint                    `json:"count"`
-	Err   error                   `json:"error,omitempty"`
-	fleet.PaginationMetadata
+	Hosts []fleet.BatchScriptHost  `json:"hosts"`
+	Count uint                     `json:"count"`
+	Err   error                    `json:"error,omitempty"`
+	Meta  fleet.PaginationMetadata `json:"meta"`
 }
 
 func (r batchScriptExecutionHostResultsResponse) Error() error { return r.Err }
@@ -1124,7 +1124,7 @@ func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interf
 	if err != nil {
 		return batchScriptExecutionHostResultsResponse{Err: err}, nil
 	}
-	return batchScriptExecutionHostResultsResponse{Hosts: hosts, PaginationMetadata: *meta, Count: count}, nil
+	return batchScriptExecutionHostResultsResponse{Hosts: hosts, Meta: *meta, Count: count}, nil
 }
 
 func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -1170,7 +1170,7 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 	return batchScriptExecutionListResponse{
 		BatchScriptExecutions: list,
 		Count:                 uint(count), //nolint:gosec // dismiss G115
-		PaginationMetadata: fleet.PaginationMetadata{
+		Meta: fleet.PaginationMetadata{
 			HasNextResults:     hasNextResults,
 			HasPreviousResults: hasPreviousResults,
 		},
