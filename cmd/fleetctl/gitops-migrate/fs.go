@@ -36,7 +36,7 @@ func fsEnum(root string) iter.Seq2[File, error] {
 	}
 }
 
-func fsEnumRec(path string, yield func(File, error) bool) {
+func fsEnumRec(path string, yield func(File, error) bool) bool {
 	stats, err := os.Lstat(path)
 	switch {
 	case err != nil:
@@ -45,12 +45,12 @@ func fsEnumRec(path string, yield func(File, error) bool) {
 			"failed to stat path(%s) during directory enumeration: %w",
 			path, err,
 		))
-		return
+		return false
 
 	case stats.IsDir():
 		// Yield the directory.
 		if !yield(File{Path: path, Stats: stats}, nil) {
-			return
+			return false
 		}
 
 		// Continue recursive directory enumeration.
@@ -60,43 +60,27 @@ func fsEnumRec(path string, yield func(File, error) bool) {
 				"failed to read directory(%s) during enumeration: %w",
 				path, err,
 			))
-			return
+			return false
 		}
 
-		// Iterate returned directory items, passing files through the yield fn and
-		// recursing on directories.
+		// Iterate returned directory items, recursing on each.
 		for _, item := range items {
 			// Assemble the nested item's path.
 			path := filepath.Join(path, item.Name())
-
-			// Get the 'os.FileInfo' for this item.
-			info, err := item.Info()
-			if err != nil {
-				yield(
-					File{},
-					fmt.Errorf(
-						"failed to get file info for directory item(%s) during enumeration: %w",
-						path, err,
-					))
-				return
-			}
-
-			if !item.IsDir() {
-				if !yield(File{Path: path, Stats: info}, nil) {
-					return
-				}
-			} else {
-				fsEnumRec(path, yield)
+			if !fsEnumRec(path, yield) {
+				return false
 			}
 		}
 
 	case !stats.IsDir():
 		// Simply yield file items.
 		if !yield(File{Path: path, Stats: stats}, nil) {
-			return
+			return false
 		}
 
 	default:
 		panic("impossible")
 	}
+
+	return true
 }
