@@ -255,7 +255,7 @@ func applyFleetEnforcedSettings(policy *androidmanagement.Policy) {
 		SystemPropertiesEnabled:      true,
 		SoftwareInfoEnabled:          true,
 		CommonCriteriaModeEnabled:    true,
-		ApplicationReportsEnabled:    false, // TODO(ap): SET THIS TO TRUE! Just switching for manual tests as apps are too noisy
-		ApplicationReportingSettings: nil,   // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
+		ApplicationReportsEnabled:    true,
+		ApplicationReportingSettings: nil, // only option is "includeRemovedApps", which I opted not to enable (we can diff apps to see removals)
 	}
 }

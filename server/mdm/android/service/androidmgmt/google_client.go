@@ -50,7 +50,7 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 		return nil
 	}
 
-	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 	mgmt, err := androidmanagement.NewService(ctx,
 		option.WithCredentialsJSON([]byte(androidServiceCredentials)),
 		option.WithLogger(slogLogger),
