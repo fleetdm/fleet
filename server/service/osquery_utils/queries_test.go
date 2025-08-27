@@ -2374,6 +2374,39 @@ func TestUserIngestNoUID(t *testing.T) {
 	require.Equal(t, 1, savedUsers)
 }
 
+func TestUserIngestMacosUpdateManagedUser(t *testing.T) {
+	ctx := context.Background()
+	host := fleet.Host{ID: 1, UUID: "host-uuid", Platform: "darwin"}
+	ds := new(mock.Store)
+	userUUIDForUpdate := "uuid-1234"
+
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "fleetie", userUUIDForUpdate, nil
+	}
+
+	ds.UpdateNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string, userUUID string, username string) error {
+		require.Equal(t, host.UUID, deviceID)
+		require.Equal(t, userUUIDForUpdate, userUUID)
+		require.Equal(t, "new fleetie", username)
+		return nil
+	}
+
+	ds.SaveHostUsersFunc = func(ctx context.Context, hostID uint, users []fleet.HostUser) error {
+		require.Len(t, users, 2)
+		return nil
+	}
+
+	input := []map[string]string{
+		{"uid": "1000", "shell": "/bin/sh", "username": "new fleetie", "uuid": userUUIDForUpdate},
+		{"uid": "500", "shell": "/bin/sh", "username": "someone else", "uuid": "some-other-uuid"},
+	}
+
+	err := usersQuery.DirectIngestFunc(ctx, nil, &host, ds, input)
+	require.NoError(t, err)
+	require.True(t, ds.UpdateNanoMDMUserEnrollmentUsernameFuncInvoked)
+	require.True(t, ds.SaveHostUsersFuncInvoked)
+}
+
 func TestMaxString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

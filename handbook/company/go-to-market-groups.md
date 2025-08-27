@@ -119,14 +119,14 @@ Fleet's community programs are rooted in several areas created to nurture commun
 
 Fleet's largest asset is our user community, the people actually using Fleet. Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
-Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) In fact, conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
+Fleet [does not self-promote](https://www.audible.com/pd/The-Impact-Equation-Audiobook/B00AR1VFBU).  (Great brands are [magnanimous](https://en.wikipedia.org/wiki/Magnanimity).) Conversations are already happening in our social spaces that open up opportunities for Fleet to [engage with the community](https://fleetdm.com/handbook/marketing#engage-with-the-community).
 
 Here are some topics for social media posts:
 - Fleet the product
 - Internal progress
 - Highlighting community contributions
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
+- Highlighting Fleet, osquery, and Mac Admins open-source accomplishments
+- Industry news about osquery 
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
@@ -169,10 +169,9 @@ Often, Fleeties will engage with new contacts from current and future customers.
 >   - Add as much context as possible to help the team find the right info. At least a full name + one other piece of information is required, but more is preferred.
 
 
-#### Podcast
+#### SWAG
 
-Fleet has created a [podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
-
+Bulk SWAG (Stuff-We-All-Get) orders of any kind are reviewed and placed by the [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team). If we're ordering a new SWAG item, the Content Specialist will work with the [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team) to obtain an approved product template. 
 
 #### Video
 

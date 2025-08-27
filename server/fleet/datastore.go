@@ -250,6 +250,7 @@ type Datastore interface {
 	Host(ctx context.Context, id uint) (*Host, error)
 	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus BatchScriptExecutionStatus, opt ListOptions) ([]BatchScriptHost, *PaginationMetadata, uint, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
 	// the provided uuids and filtered according to the provided team filters. It
@@ -1279,10 +1280,16 @@ type Datastore interface {
 	// id. Right now only one user channel enrollment is supported per device
 	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
-	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
-	// channel enrollment for the device id. Right now only one user channel
-	// enrollment is supported per device.
-	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
+	// GetNanoMDMUserEnrollmentUsernameAndUUID returns the short username and UUID of the user
+	// channel enrollment for the device id. Right now only one user channel enrollment is
+	// supported per device.
+	GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context, deviceID string) (string, string, error)
+
+	// UpdateNanoMDMUserEnrollmentUsername updates the username of the user channel with the given
+	// userUUID for the specified deviceID. The actual ID of the nano_user to be updated will be
+	// deviceID + ":" + userUUID because of the workings of nano. Note that this data can be
+	// overriden by a TokenUpdate but that should provide the latest username
+	UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string, userUUID string, username string) error
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
