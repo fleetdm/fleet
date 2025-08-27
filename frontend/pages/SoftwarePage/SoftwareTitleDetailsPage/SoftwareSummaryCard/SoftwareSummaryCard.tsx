@@ -47,6 +47,8 @@ const SoftwareSummaryCard = ({
     setShowEditIconModal(!showEditIconModal);
   };
 
+  const canEditIcon = softwareInstaller && teamId;
+
   return (
     <>
       <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
@@ -65,7 +67,7 @@ const SoftwareSummaryCard = ({
           iconUrl={
             title.app_store_app ? title.app_store_app.icon_url : undefined
           }
-          onClickEditIcon={softwareInstaller ? onClickEditIcon : undefined}
+          onClickEditIcon={canEditIcon && onClickEditIcon}
         />
         {showVersionsTable && (
           <TitleVersionsTable
