@@ -396,21 +396,44 @@ export default {
   editSoftwareIcon: (
     softwareId: number,
     teamId: number,
-    formData: any // TODO
+    fileObject: any // TODO
   ) => {
-    const { SOFTWARE_ICON } = endpoints;
+    const endpoint = endpoints.SOFTWARE_ICON(softwareId);
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
+
+    //   const reader = new FileReader();
+    //   reader.readAsText(formData.icon);
+
+    //   return new Promise((resolve, reject) => {
+    //     reader.addEventListener("load", () => {
+    //       try {
+    //         const body: Record<string, unknown> = {
+    //           icon: JSON.parse(reader.result as string),
+    //         };
+    //         resolve(sendRequest("PUT", path, body));
+    //       } catch {
+    //         // catches invalid JSON
+    //         reject("Couldn't add. The file should include valid JSON.");
+    //       }
+    //     });
+    //   });
+    // },
 
     // TODO
-    const body: any = {
-      team_id: teamId,
-    };
+    // const body: any = {};
+    // console.log("formData", formData);
+    // debugger;
+    // // Add icon if present
+    // if (formData.icon) {
+    //   body.icon = formData.icon;
+    // }
 
-    // Add icon if present
-    if (formData.icon) {
-      body.icon = formData.icon;
-    }
+    const formData = new FormData();
+    formData.append("icon", fileObject.icon);
 
-    return sendRequest("PUT", SOFTWARE_ICON(softwareId), body);
+    return sendRequest("PUT", path, formData);
   },
 
   // Endpoint for deleting packages or VPP

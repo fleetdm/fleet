@@ -170,26 +170,11 @@ const EditIconModal = ({
   };
 
   // TODO: fix
-  // Edit package API call
-  const onEditPackage = async () => {
+  const onClickSave = async () => {
     setIsUpdatingIcon(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingIcon(false);
-      return;
-    }
-
+    debugger;
     try {
-      await softwareAPI.editSoftwarePackage({
-        data: formData,
-        orignalPackage: software as ISoftwarePackage,
-        softwareId,
-        teamId: teamIdForApi,
-      });
+      await softwareAPI.editSoftwareIcon(softwareId, teamIdForApi, formData);
 
       renderFlash(
         "success",
@@ -206,49 +191,6 @@ const EditIconModal = ({
       renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
     }
     setIsUpdatingIcon(false);
-  };
-
-  // TODO: fix
-  const onEditApp = async () => {
-    setIsUpdatingIcon(true);
-
-    if (formData.software && formData.software.size > MAX_FILE_SIZE_BYTES) {
-      renderFlash(
-        "error",
-        `Couldn't edit software. The maximum file size is ${MAX_FILE_SIZE_MB} MB.`
-      );
-      setIsUpdatingIcon(false);
-      return;
-    }
-
-    try {
-      await softwareAPI.editSoftwarePackage({
-        data: formData,
-        orignalPackage: software as ISoftwarePackage,
-        softwareId,
-        teamId: teamIdForApi,
-      });
-
-      renderFlash(
-        "success",
-        <>
-          Successfully edited <b>{formData.software?.name}</b>.
-        </>
-      );
-      refetchSoftwareTitle();
-      onExit();
-    } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
-    }
-    setIsUpdatingIcon(false);
-  };
-
-  const onClickSave = () => {
-    if (isSoftwarePackage) {
-      onEditPackage();
-    } else {
-      onEditApp();
-    }
   };
 
   const renderPreviewFleetCard = () => {
