@@ -25,6 +25,8 @@ After this is done, the "Fleet partner" will be shown with a "Pending activation
 
 To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
 
+Fleet requires that this group is called "Fleet conditional access".
+
 ## Step 3: Connect Fleet to Entra
 
 Now we need to connect and provision Fleet to operate on your Entra ID tenant (activate partner).
@@ -35,10 +37,10 @@ Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Cond
 
 ![Conditional access setup](../website/assets/images/articles/conditional-access-setup-554x250@2x.png)
 
-After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application.
-After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`).
+After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application. 
 
-The next step is to enable and configure the integration on your teams.
+After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, please verify that you have a "Fleet conditional access" [group in Entra](#step-3-connect-fleet-to-entra). If you do and you still don't see a green checkmark, please [reach out to support](https://fleetdm.com/support).
+
 
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
