@@ -384,6 +384,35 @@ export default {
     });
   },
 
+  getSoftwareIcon: ({ softwareId, teamId }: any) => {
+    const endpoint = endpoints.SOFTWARE_ICON(softwareId);
+    const queryString = buildQueryStringFromParams({ team_id: teamId });
+    const path =
+      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
+
+  editSoftwareIcon: (
+    softwareId: number,
+    teamId: number,
+    formData: any // TODO
+  ) => {
+    const { SOFTWARE_ICON } = endpoints;
+
+    // TODO
+    const body: any = {
+      team_id: teamId,
+    };
+
+    // Add icon if present
+    if (formData.icon) {
+      body.icon = formData.icon;
+    }
+
+    return sendRequest("PUT", SOFTWARE_ICON(softwareId), body);
+  },
+
   // Endpoint for deleting packages or VPP
   deleteSoftwareInstaller: (softwareId: number, teamId: number) => {
     const { SOFTWARE_AVAILABLE_FOR_INSTALL } = endpoints;
