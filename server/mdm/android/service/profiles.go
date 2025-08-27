@@ -58,6 +58,11 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// timestamp vs timestamps of the profiles involved, and if it looks like a
 	// host may need an update, compute the final payload and use the checksum to
 	// see if it has actually changed or not.
+	//
+	// The profiles to apply should have status=NULL at this point, and will switch
+	// to explicit status=Pending after the API requests (or Failed if there is a
+	// profile overridden with another). On the pubsub status report, it will transition
+	// to Verified.
 
 	client := newAMAPIClient(ctx, logger, licenseKey)
 
@@ -125,6 +130,12 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 			PolicyName: policyName,
 			// State must be specified when updating a device, otherwise it fails with
 			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+			// TODO: should we send whatever the previous state was? If it was DISABLED,
+			// we probably don't want to re-enable it by accident. Those are the only
+			// 2 valid states when patching a device.
+			//
+			// > Note that when calling enterprises.devices.patch, ACTIVE and
+			// > DISABLED are the only allowable values.
 			State: "ACTIVE",
 		})
 		if err != nil {

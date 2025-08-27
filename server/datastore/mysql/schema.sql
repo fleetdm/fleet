@@ -92,12 +92,13 @@ CREATE TABLE `android_enterprises` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `android_policy_requests` (
   `request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `android_policy_id` int unsigned NOT NULL,
-  `policy_version` int unsigned NOT NULL,
+  `request_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `policy_id` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `payload` json NOT NULL,
   `status_code` int NOT NULL,
-  `error_body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
-  `retries` tinyint unsigned NOT NULL DEFAULT '0',
+  `error_details` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `applied_policy_version` int DEFAULT NULL,
+  `policy_version` int DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`request_uuid`)
@@ -609,16 +610,19 @@ CREATE TABLE `host_mdm_android_profiles` (
   `detail` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `profile_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
-  `request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `policy_request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `device_request_uuid` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`host_uuid`,`profile_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
-  KEY `request_uuid` (`request_uuid`),
+  KEY `policy_request_uuid` (`policy_request_uuid`),
+  KEY `device_request_uuid` (`device_request_uuid`),
   CONSTRAINT `host_mdm_android_profiles_ibfk_1` FOREIGN KEY (`status`) REFERENCES `mdm_delivery_status` (`status`) ON UPDATE CASCADE,
   CONSTRAINT `host_mdm_android_profiles_ibfk_2` FOREIGN KEY (`operation_type`) REFERENCES `mdm_operation_types` (`operation_type`) ON UPDATE CASCADE,
-  CONSTRAINT `host_mdm_android_profiles_ibfk_3` FOREIGN KEY (`request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL
+  CONSTRAINT `host_mdm_android_profiles_ibfk_3` FOREIGN KEY (`policy_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL,
+  CONSTRAINT `host_mdm_android_profiles_ibfk_4` FOREIGN KEY (`device_request_uuid`) REFERENCES `android_policy_requests` (`request_uuid`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
