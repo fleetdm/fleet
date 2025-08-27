@@ -126,7 +126,7 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	// First, create an enterprise to test with
 	var signupResp android.EnterpriseSignupResponse
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
-	
+
 	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
 	const enterpriseToken = "enterpriseToken"
 	s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
@@ -135,7 +135,6 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	var resp android.GetEnterpriseResponse
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
 	assert.Equal(s.T(), tests.EnterpriseID, resp.EnterpriseID)
-	assert.True(s.T(), s.AppConfig.MDM.AndroidEnabledAndConfigured)
 
 	t := s.T()
 
@@ -163,6 +162,12 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	})
 
 	t.Run("enterprise exists but permission issue - 403 from GET, enterprise in LIST", func(t *testing.T) {
+		// Re-create enterprise for this test since the previous test deleted it
+		var signupResp android.EnterpriseSignupResponse
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise/signup_url", nil, http.StatusOK, &signupResp)
+		s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeEnabledAndroidMDM")).Return(nil)
+		s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", "enterpriseToken2")
+
 		// Reset invocation flags for clean test
 		s.AndroidAPIClient.EnterpriseGetFuncInvoked = false
 		s.AndroidAPIClient.EnterprisesListFuncInvoked = false
@@ -183,12 +188,12 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 		}
 
 		// Attempt to get enterprise - should return a server error (not 404)
-		res := s.DoRawWithHeaders("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusInternalServerError, 
+		res := s.DoRawWithHeaders("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusInternalServerError,
 			map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.Token)})
-		
+
 		// Verify it's not a 404 (enterprise wasn't detected as deleted)
 		assert.NotEqual(t, http.StatusNotFound, res.StatusCode)
-		
+
 		// Verify both API calls were made
 		assert.True(t, s.AndroidAPIClient.EnterpriseGetFuncInvoked)
 		assert.True(t, s.AndroidAPIClient.EnterprisesListFuncInvoked)

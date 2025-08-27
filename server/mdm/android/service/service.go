@@ -406,7 +406,7 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 				enterprises, listErr := svc.androidAPIClient.EnterprisesList(ctx)
 				if listErr != nil {
 					// Can't verify with LIST - return original error (likely credential issue)
-					return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+					return nil, fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 				}
 
 				// Check if our enterprise is in the list
@@ -415,7 +415,8 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 					if strings.HasSuffix(ent.Name, enterpriseID) {
 						// Enterprise exists - this is a permission issue, not deletion
 						level.Info(svc.logger).Log("msg", "enterprise found in list - this is a credential issue, not deletion", "enterpriseID", enterpriseID)
-						return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+						// Return a 500 error for permission issues (not a 404 deletion)
+						return nil, fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 					}
 				}
 
@@ -434,11 +435,11 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 					return nil, fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 				}
 				// Regular 404 from direct Google API - treat as verification error (don't delete enterprise)
-				return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+				return nil, fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 			}
 		}
 		// Unexpected error while verifying with Google
-		return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+		return nil, fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 	}
 
 	return enterprise, nil
@@ -760,7 +761,7 @@ func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
 				enterprises, listErr := svc.androidAPIClient.EnterprisesList(ctx)
 				if listErr != nil {
 					// Can't verify with LIST - return original error (likely credential issue)
-					return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+					return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 				}
 
 				// Check if our enterprise is in the list
@@ -769,7 +770,8 @@ func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
 					if strings.HasSuffix(ent.Name, enterpriseID) {
 						// Enterprise exists - this is a permission issue, not deletion
 						level.Info(svc.logger).Log("msg", "enterprise found in list - this is a credential issue, not deletion", "enterpriseID", enterpriseID)
-						return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+						// Return a 500 error for permission issues (not a 404 deletion)
+						return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 					}
 				}
 
@@ -787,11 +789,11 @@ func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
 					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
 				}
 				// Regular 404 from direct Google API - treat as verification error
-				return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+				return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 			}
 		}
 		// Unexpected error while verifying with Google
-		return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 	}
 
 	// Enterprise verification passed

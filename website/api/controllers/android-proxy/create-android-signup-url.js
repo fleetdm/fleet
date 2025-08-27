@@ -48,19 +48,19 @@ module.exports = {
         });
         let authClient = await googleAuth.getClient();
         google.options({auth: authClient});
-        
+
         // Try to get the enterprise from Google
         await androidmanagement.enterprises.get({
           name: `enterprises/${connectionforThisInstanceExists.androidEnterpriseId}`,
         });
-        
+
         // If we got here, enterprise still exists in Google - throw conflict
         throw 'enterpriseAlreadyExists';
-        
-      } catch (err) {
+
+      } catch (unusedErr) {
         // Enterprise doesn't exist in Google (403/404) - clean up stale proxy record
         await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
-        
+
         // Continue with signup process (don't throw conflict)
       }
     }

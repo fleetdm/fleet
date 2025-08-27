@@ -21,10 +21,9 @@ module.exports = {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
-    let fleetServerSecret;
 
     if (authHeader && authHeader.startsWith('Bearer')) {
-      fleetServerSecret = authHeader.replace('Bearer', '').trim();
+      // We extract the token for validation but don't need to use it for LIST endpoint
     } else {
       return this.res.unauthorized('Authorization header with Bearer token is required');
     }
@@ -62,7 +61,7 @@ module.exports = {
 
       // Return the enterprises list (or empty list if no enterprises)
       return enterprisesList || { enterprises: [] };
-      
+
     } catch (err) {
       throw new Error(`When attempting to list android enterprises, an error occurred. Error: ${err}`);
     }

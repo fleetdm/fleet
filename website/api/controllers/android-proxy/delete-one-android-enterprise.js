@@ -83,7 +83,7 @@ module.exports = {
       }).intercept((err)=>{
         throw new Error(`When attempting to delete android enterprise from Google (${androidEnterpriseId}), an error occurred. Error: ${err}`);
       });
-    } catch (err) {
+    } catch (unusedErr) {
       // If Google API deletion fails (e.g., enterprise already deleted), continue with proxy cleanup
     }
 

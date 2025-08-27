@@ -41,7 +41,7 @@ module.exports = {
       thisAndroidEnterprise = await AndroidEnterprise.findOne({
         fleetServerSecret: fleetServerSecret
       });
-      
+
       // If found by fleetServerSecret, verify the androidEnterpriseId matches
       if (thisAndroidEnterprise && thisAndroidEnterprise.androidEnterpriseId !== androidEnterpriseId) {
         // This is likely a 403 case - enterprise exists but with different ID
@@ -85,7 +85,7 @@ module.exports = {
         let getEnterpriseResponse = await androidmanagement.enterprises.get({
           name: `enterprises/${androidEnterpriseId}`,
         });
-        
+
         return getEnterpriseResponse.data;
       }).intercept((err)=>{
         // Return the error for handling outside the intercept
@@ -95,7 +95,7 @@ module.exports = {
 
       // Return the enterprise details
       return enterpriseDetails;
-      
+
     } catch (err) {
       // Handle Google API errors properly here
       if (err.status === 403 || (err.errors && err.errors.some(e => e.reason === 'forbidden'))) {
