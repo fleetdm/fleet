@@ -140,6 +140,12 @@ type Datastore interface {
 	// The return values indicate how many campaigns were expired and any error.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
+	// CleanupCompletedCampaignTargets removes campaign targets for campaigns that have been
+	// completed for more than the specified duration. This helps reduce database size by
+	// cleaning up historical data that is no longer needed. Returns the number of
+	// targets deleted.
+	CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error)
+
 	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
 	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.
 	GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error)

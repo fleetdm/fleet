@@ -11,6 +11,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const (
+	// campaignTargetsCleanupBatchSize is the batch size for deleting campaign targets
+	campaignTargetsCleanupBatchSize = 10000
+)
+
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	args := []any{camp.QueryID, camp.Status, camp.UserID}
 
@@ -195,4 +200,66 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 	return uint(exp), nil //nolint:gosec // dismiss G115
+}
+
+// CleanupCompletedCampaignTargets removes campaign targets for campaigns that have been
+// completed for more than the specified duration. This helps improve campaign performance by
+// cleaning up historical data that is no longer needed.
+func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error) {
+	// First, get the IDs of targets to delete. We select targets from campaigns that:
+	// 1. Have status = QueryComplete
+	// 2. Were updated before the olderThan timestamp
+	const selectTargetsStmt = `
+		SELECT dqct.id
+		FROM distributed_query_campaign_targets dqct
+		INNER JOIN distributed_query_campaigns dqc 
+			ON dqc.id = dqct.distributed_query_campaign_id
+		WHERE dqc.status = ?
+		AND dqc.updated_at < ?
+		ORDER BY dqct.id
+		LIMIT ?
+	`
+
+	var totalDeleted uint
+
+	// Process deletions in batches to avoid locking issues and memory problems
+	for {
+		var targetIDs []uint
+		err := sqlx.SelectContext(ctx, ds.reader(ctx), &targetIDs, selectTargetsStmt,
+			fleet.QueryComplete, olderThan, campaignTargetsCleanupBatchSize)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "selecting campaign targets for cleanup")
+		}
+
+		// If no more targets to delete, we're done
+		if len(targetIDs) == 0 {
+			break
+		}
+
+		// Delete the batch of targets (max 10,000 at a time, well below MySQL's 65,535 placeholder limit)
+		deleteStmt := `DELETE FROM distributed_query_campaign_targets WHERE id IN (?)`
+		query, args, err := sqlx.In(deleteStmt, targetIDs)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "building delete query for campaign targets")
+		}
+
+		result, err := ds.writer(ctx).ExecContext(ctx, query, args...)
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "deleting campaign targets")
+		}
+
+		deleted, err := result.RowsAffected()
+		if err != nil {
+			return totalDeleted, ctxerr.Wrap(ctx, err, "getting rows affected for campaign targets deletion")
+		}
+
+		totalDeleted += uint(deleted) //nolint:gosec // dismiss G115
+
+		// If we deleted less than the batch size, we're done
+		if len(targetIDs) < campaignTargetsCleanupBatchSize {
+			break
+		}
+	}
+
+	return totalDeleted, nil
 }
