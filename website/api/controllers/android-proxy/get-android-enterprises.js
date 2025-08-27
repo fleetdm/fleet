@@ -43,7 +43,7 @@ module.exports = {
             private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
           },
         });
-        
+
         // Acquire the google auth client, and bind it to all future calls
         let authClient = await googleAuth.getClient();
         google.options({auth: authClient});
@@ -52,7 +52,7 @@ module.exports = {
         let listEnterprisesResponse = await androidmanagement.enterprises.list({
           projectId: sails.config.custom.androidEnterpriseProjectId,
         });
-        
+
         return listEnterprisesResponse.data;
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept

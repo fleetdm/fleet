@@ -212,7 +212,8 @@ func (p *ProxyClient) EnterpriseGet(ctx context.Context, enterpriseName string) 
 		// or 403 (enterprise access forbidden) and convert to proper googleapi.Error
 		// so the service layer can handle it correctly
 		var ae *googleapi.Error
-		if errors.As(err, &ae) {
+		switch {
+		case errors.As(err, &ae):
 			// Check if this googleapi.Error is a 404 from proxy (enterprise deleted)
 			if ae.Code == http.StatusNotFound {
 				// Convert 404 from proxy to proper googleapi.Error with special marker
@@ -223,21 +224,22 @@ func (p *ProxyClient) EnterpriseGet(ctx context.Context, enterpriseName string) 
 			}
 			// Other googleapi.Error, pass through
 			return nil, err
-		} else if isErrorCode(err, http.StatusNotFound) {
+		case isErrorCode(err, http.StatusNotFound):
 			// Convert 404 from proxy to proper googleapi.Error for service layer
 			// Use special message to indicate this was verified by proxy
 			return nil, &googleapi.Error{
 				Code:    http.StatusNotFound,
 				Message: "PROXY_VERIFIED_DELETED: Enterprise not found (deleted)",
 			}
-		} else if isErrorCode(err, http.StatusForbidden) {
+		case isErrorCode(err, http.StatusForbidden):
 			// Convert 403 from proxy to proper googleapi.Error for service layer
 			return nil, &googleapi.Error{
 				Code:    http.StatusForbidden,
 				Message: "Enterprise access forbidden",
 			}
+		default:
+			return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
 		}
-		return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
 	}
 	return ent, nil
 }
@@ -252,17 +254,19 @@ func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement
 	if err != nil {
 		// Convert proxy errors to proper googleapi.Error for service layer
 		var ae *googleapi.Error
-		if errors.As(err, &ae) {
+		switch {
+		case errors.As(err, &ae):
 			// Already a googleapi.Error, pass through
 			return nil, err
-		} else if isErrorCode(err, http.StatusForbidden) {
+		case isErrorCode(err, http.StatusForbidden):
 			// Convert 403 from proxy to proper googleapi.Error
 			return nil, &googleapi.Error{
 				Code:    http.StatusForbidden,
 				Message: "Enterprises list access forbidden",
 			}
+		default:
+			return nil, fmt.Errorf("listing enterprises: %w", err)
 		}
-		return nil, fmt.Errorf("listing enterprises: %w", err)
 	}
 	return resp.Enterprises, nil
 }

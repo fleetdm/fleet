@@ -76,7 +76,7 @@ module.exports = {
             private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
           },
         });
-        
+
         // Acquire the google auth client, and bind it to all future calls
         let authClient = await googleAuth.getClient();
         google.options({auth: authClient});
@@ -101,7 +101,7 @@ module.exports = {
       if (err.status === 403 || (err.errors && err.errors.some(e => e.reason === 'forbidden'))) {
         return this.res.notFound('Android Enterprise has been deleted or is no longer accessible');
       }
-      
+
       throw new Error(`When attempting to get android enterprise details (${androidEnterpriseId}), an error occurred. Error: ${err}`);
     }
 
