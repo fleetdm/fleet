@@ -6,26 +6,28 @@ When a device fails a Fleet policy, Fleet can mark it as non-compliant in Entra.
 
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
 
-- [Step 1: Configure Fleet in Intune](#step-1-configure-fleet-in-intune)
-- [Step 2: Create a "Fleet conditional access" group in Entra](#step-2-create-a-fleet-conditional-access-group-in-entra)
+- [Step 1: Create a "Fleet conditional access" group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra)
+- [Step 2: Configure Fleet in Intune](#step-2-configure-fleet-in-intune)
 - [Step 3: Connect Fleet to Entra](#step-3-connect-fleet-to-entra)
 - [Step 4: Deploy Company Portal and the Platform SSO configuration profile](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile)
 - [Step 5: Add Fleet policies](#step-5-add-fleet-policies)
 - [Step 6: Add Entra policies](#step-6-add-entra-policies)
 
-## Step 1: Configure Fleet in Intune
+## Step 1: Create a "Fleet conditional access" group in Entra
 
-The steps to configure Fleet as "Compliance partner" for macOS devices can be found here: https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners. The steps are executed in the Intune portal (https://intune.microsoft.com).
+To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
+
+## Step 2: Configure Fleet in Intune
+
+Login to [Intune](https://intune.microsoft.com), and follow [this Microsoft guide](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners#add-a-compliance-partner-to-intune) to add Fleet as compliance partner in Intune.
+
+For **Platform**, select **macOS**.
+
+For **Assignments** add the "Fleet conditional access" group you created to the **Included** groups. Don't select **Add all users** or pick a different group. Fleet requires the "Fleet conditional access" group.
 
 After this is done, the "Fleet partner" will be shown with a "Pending activation" status.
 
 ![Conditional access pending activation](../website/assets/images/articles/compliance-partner-pending-activation-885x413@2x.png)
-
-## Step 2: Create a "Fleet conditional access" group in Entra
-
-To enforce conditional access, end users must be a member of a group called "Fleet conditional access" in Entra. First create this group in Entra and then assign users to it.
-
-Fleet requires that this group is called "Fleet conditional access".
 
 ## Step 3: Connect Fleet to Entra
 
