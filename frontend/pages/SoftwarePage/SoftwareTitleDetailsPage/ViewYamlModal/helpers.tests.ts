@@ -9,6 +9,7 @@ describe("createPackageYaml", () => {
     name,
     version,
     url,
+    icon_url: iconUrl,
     hash_sha256: sha256,
     pre_install_query: preInstallQuery,
     install_script: installScript,
@@ -20,6 +21,7 @@ describe("createPackageYaml", () => {
     const yaml = createPackageYaml({
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
+      iconUrl,
       version,
       url,
       sha256,
@@ -47,6 +49,7 @@ uninstall_script:
     const yaml = createPackageYaml({
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
+      iconUrl,
       version,
       url: undefined,
       sha256: undefined,
@@ -65,6 +68,7 @@ uninstall_script:
     const yaml = createPackageYaml({
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
+      iconUrl,
       version,
       url: undefined,
       sha256: undefined,
@@ -86,6 +90,7 @@ post_install_script:
     const yaml = createPackageYaml({
       softwareTitle: "Falcon Sensor Test Package",
       packageName: name,
+      iconUrl,
       version,
       url: undefined,
       sha256: undefined,
@@ -105,6 +110,7 @@ install_script:
     const yamlNull = createPackageYaml({
       softwareTitle: "Null Hash",
       packageName: name,
+      iconUrl,
       version,
       url: undefined,
       sha256: null,
@@ -117,6 +123,7 @@ install_script:
     const yamlEmpty = createPackageYaml({
       softwareTitle: "Empty Hash",
       packageName: name,
+      iconUrl,
       version,
       url: undefined,
       sha256: "",

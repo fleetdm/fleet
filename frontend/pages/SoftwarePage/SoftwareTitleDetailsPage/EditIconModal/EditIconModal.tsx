@@ -3,10 +3,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
-import softwareAPI, {
-  MAX_FILE_SIZE_BYTES,
-  MAX_FILE_SIZE_MB,
-} from "services/entities/software";
+import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
@@ -26,9 +23,7 @@ import {
   descriptionListClass,
   infoClass,
 } from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
-import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
-import { getFileDetails } from "utilities/file/fileUtils";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
 import { getErrorMessage } from "./helpers";
@@ -42,41 +37,9 @@ const UPLOAD_MESSAGE =
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
 
-type IMessageFunc = (formData: any) => string;
-type IValidationMessage = string | IMessageFunc;
-type IFormValidationKey = keyof Omit<any, "isValid">;
-
-interface IValidation {
-  name: string;
-  isValid: (formData: any) => boolean;
-  message?: IValidationMessage;
+interface IIconFormData {
+  icon: File;
 }
-
-type IFormValidations = Record<
-  IFormValidationKey,
-  { validations: IValidation[] }
->;
-
-export const generateFormValidations = () => {
-  const FORM_VALIDATIONS: IFormValidations = {
-    icon: {
-      validations: [
-        {
-          name: "required",
-          isValid: (formData: any) => {
-            return true; // TODO
-          },
-        },
-      ],
-    },
-  };
-
-  return FORM_VALIDATIONS;
-};
-
-// Install type used on add but not edit
-export type IEditPackageFormData = Omit<IPackageFormData, "installType">;
-
 interface IEditIconModalProps {
   softwareId: number;
   teamIdForApi: number;
@@ -105,15 +68,11 @@ const EditIconModal = ({
 
   const isSoftwarePackage = installerType === "package";
 
-  const [editSoftwareModalClasses, setEditIconModalClasses] = useState(
-    baseClass
-  );
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
 
-  const [formData, setFormData] = useState<any>();
+  const [formData, setFormData] = useState<IIconFormData | null>(null);
   const [iconDimensions, setIconDimensions] = useState<number | null>(null);
   const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
-  const [formValidation, setFormValidation] = useState<any>();
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   const onFileSelect = (files: FileList | null) => {
@@ -127,7 +86,7 @@ const EditIconModal = ({
       }
 
       const reader = new FileReader();
-      reader.onload = (e: any) => {
+      reader.onload = (e: ProgressEvent<FileReader>) => {
         const img = new Image();
         img.onload = () => {
           const { width, height } = img;
@@ -153,7 +112,11 @@ const EditIconModal = ({
           const previewUrl = URL.createObjectURL(file);
           setIconPreviewUrl(previewUrl);
         };
-        img.src = e.target.result;
+        if (e.target && typeof e.target.result === "string") {
+          img.src = e.target.result; // img.src expects a string
+        } else {
+          renderFlash("error", "FileReader result was not a string.");
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -169,20 +132,16 @@ const EditIconModal = ({
     setNavTabIndex(index);
   };
 
-  // TODO: fix
   const onClickSave = async () => {
     setIsUpdatingIcon(true);
-    debugger;
+
     try {
       await softwareAPI.editSoftwareIcon(softwareId, teamIdForApi, formData);
 
       renderFlash(
         "success",
         <>
-          Successfully edited <b>{formData.software?.name}</b>.
-          {formData.selfService
-            ? " The end user can install from Fleet Desktop."
-            : ""}
+          Successfully edited <b>{software?.name}</b>.
         </>
       );
       refetchSoftwareTitle();
@@ -374,7 +333,7 @@ const EditIconModal = ({
   return (
     <>
       <Modal
-        className={editSoftwareModalClasses}
+        className={baseClass}
         title={isSoftwarePackage ? "Edit package" : "Edit app"}
         onExit={onExit}
       >
@@ -382,7 +341,11 @@ const EditIconModal = ({
           {renderForm()}
           <ModalFooter
             primaryButtons={
-              <Button type="submit" onClick={onClickSave}>
+              <Button
+                type="submit"
+                onClick={onClickSave}
+                isLoading={isUpdatingIcon}
+              >
                 Save
               </Button>
             }
