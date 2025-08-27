@@ -9399,6 +9399,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
 - [Add in-house iOS or iPadOS app](#add-in-house-ios-or-ipados-app)
+- [Modify in-house iOS or iPadOS app](#modify-in-house-ios-or-ipados-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
 - [Get software install result](#get-software-install-result)
@@ -10540,24 +10541,44 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "in_house_app": {
-    "title_id": 123,
-    "name": "MyBetaApp",
-    "version": "6.44",
-    "platform": "darwin",
-    "installer_id": 23,
-    "team_id": 1,
-    "uploaded_at": "2024-04-01T14:22:58Z",
-    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "url": "",
-    "labels_include_any": null,
-    "labels_exclude_any": null,
-    "status": {
-      "installed": 0,
-      "pending": 0,
-      "failed": 0
+  "in_house_apps": [
+    {
+      "title_id": 123,
+      "name": "MyBetaApp",
+      "version": "6.44",
+      "platform": "ios",
+      "installer_id": 23,
+      "team_id": 1,
+      "uploaded_at": "2024-04-01T14:22:58Z",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "url": "",
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "status": {
+        "installed": 0,
+        "pending": 0,
+        "failed": 0
+      }
+    },
+    {
+      "title_id": 124,
+      "name": "MyBetaApp",
+      "version": "6.44",
+      "platform": "ipados",
+      "installer_id": 24,
+      "team_id": 1,
+      "uploaded_at": "2024-04-01T14:22:58Z",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "url": "",
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "status": {
+        "installed": 0,
+        "pending": 0,
+        "failed": 0
+      }
     }
-  }
+  ]
 }
 ```
 
@@ -10585,7 +10606,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 
 #### Example
 
-`PATCH /api/v1/fleet/software//123/in_house_app`
+`PATCH /api/v1/fleet/software/123/in_house_app`
 
 ##### Request header
 
@@ -10617,7 +10638,7 @@ Content-Type: application/octet-stream
     "title_id": 123,
     "name": "MyBetaApp",
     "version": "6.50",
-    "platform": "darwin",
+    "platform": "ios",
     "installer_id": 24,
     "team_id": 1,
     "uploaded_at": "2025-04-01T14:22:58Z",
