@@ -32,55 +32,78 @@ module.exports = {
       return this.res.unauthorized('Authorization header with Bearer token is required');
     }
 
-    // Look up the database record for this Android enterprise
     let thisAndroidEnterprise = await AndroidEnterprise.findOne({
       androidEnterpriseId: androidEnterpriseId,
     });
 
-    // Return a 404 response if no records are found.
-    if(!thisAndroidEnterprise) {
-      return this.res.notFound();
+    // If not found by androidEnterpriseId, try to find by fleetServerSecret
+    if (!thisAndroidEnterprise) {
+      thisAndroidEnterprise = await AndroidEnterprise.findOne({
+        fleetServerSecret: fleetServerSecret
+      });
+      
+      // If found by fleetServerSecret, verify the androidEnterpriseId matches
+      if (thisAndroidEnterprise && thisAndroidEnterprise.androidEnterpriseId !== androidEnterpriseId) {
+        // This is likely a 403 case - enterprise exists but with different ID
+        return this.res.forbidden('Enterprise access forbidden');
+      }
     }
+
+    // If still no enterprise found, return 403 instead of trying Fleet backend fallback
+    if(!thisAndroidEnterprise) {
+      return this.res.forbidden('Enterprise not found or access denied');
+    }
+
 
     // Return an unauthorized response if the provided secret does not match.
     if(thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
       return this.res.unauthorized();
     }
 
-    // Get the Android enterprise details from Google
+    // Get the Android enterprise details from Google (normal flow with proxy DB record)
     // Note: We're using sails.helpers.flow.build here to handle any errors that occur using google's node library.
-    let enterpriseDetails = await sails.helpers.flow.build(async ()=>{
-      let { google } = require('googleapis');
-      let androidmanagement = google.androidmanagement('v1');
-      let googleAuth = new google.auth.GoogleAuth({
-        scopes: [
-          'https://www.googleapis.com/auth/androidmanagement'
-        ],
-        credentials: {
-          client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
-          private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
-        },
+    try {
+      let enterpriseDetails = await sails.helpers.flow.build(async ()=>{
+        let { google } = require('googleapis');
+        let androidmanagement = google.androidmanagement('v1');
+
+        let googleAuth = new google.auth.GoogleAuth({
+          scopes: [
+            'https://www.googleapis.com/auth/androidmanagement'
+          ],
+          credentials: {
+            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
+          },
+        });
+        
+        // Acquire the google auth client, and bind it to all future calls
+        let authClient = await googleAuth.getClient();
+        google.options({auth: authClient});
+
+        // Get the android enterprise details.
+        let getEnterpriseResponse = await androidmanagement.enterprises.get({
+          name: `enterprises/${androidEnterpriseId}`,
+        });
+        
+        return getEnterpriseResponse.data;
+      }).intercept((err)=>{
+        // Return the error for handling outside the intercept
+        // Note: In Sails.js, .intercept() handlers should return errors, not throw them
+        return err;
       });
-      // Acquire the google auth client, and bind it to all future calls
-      let authClient = await googleAuth.getClient();
-      google.options({auth: authClient});
+
+      // Return the enterprise details
+      return enterpriseDetails;
       
-      // Get the android enterprise details.
-      let getEnterpriseResponse = await androidmanagement.enterprises.get({
-        name: `enterprises/${androidEnterpriseId}`,
-      });
-      return getEnterpriseResponse.data;
-    }).intercept((err)=>{
-      // Check if this is a 403 error indicating the enterprise was deleted/disconnected
+    } catch (err) {
+      // Handle Google API errors properly here
       if (err.status === 403 || (err.errors && err.errors.some(e => e.reason === 'forbidden'))) {
         return this.res.notFound('Android Enterprise has been deleted or is no longer accessible');
       }
-      return new Error(`When attempting to get android enterprise details (${androidEnterpriseId}), an error occurred. Error: ${err}`);
-    });
-
-
-    // Return the enterprise details
-    return enterpriseDetails;
+      
+      throw new Error(`When attempting to get android enterprise details (${androidEnterpriseId}), an error occurred. Error: ${err}`);
+    }
 
   }
 

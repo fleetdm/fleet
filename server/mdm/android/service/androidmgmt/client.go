@@ -36,6 +36,10 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/get
 	EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error)
 
+	// EnterprisesList lists all enterprises accessible to the calling user.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/list
+	EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error)
+
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
 }

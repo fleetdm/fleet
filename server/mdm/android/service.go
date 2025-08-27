@@ -25,6 +25,18 @@ type DefaultResponse struct {
 
 func (r DefaultResponse) Error() error { return r.Err }
 
+// StatusCode implements the go-kit http StatusCoder interface to preserve HTTP status codes from errors
+func (r DefaultResponse) StatusCode() int {
+	if r.Err != nil {
+		// Check if the error has a custom status code (like errors created with .WithStatus())
+		if sc, ok := r.Err.(interface{ StatusCode() int }); ok {
+			return sc.StatusCode()
+		}
+	}
+	// Default to 200 OK if no error or no custom status code
+	return 200
+}
+
 type GetEnterpriseResponse struct {
 	EnterpriseID string `json:"android_enterprise_id"`
 	DefaultResponse

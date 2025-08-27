@@ -113,6 +113,16 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 		return nil, err
 	}
 
+	// Before checking if Android is already configured, verify if existing enterprise still exists
+	// This ensures we detect enterprise deletion even if user goes directly to signup page
+	if err := svc.verifyExistingEnterpriseIfAny(ctx); err != nil {
+		// If verification returns NotFound (enterprise was deleted), continue with signup
+		// Other errors should be returned as-is
+		if !fleet.IsNotFound(err) {
+			return nil, err
+		}
+	}
+
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
 	if err != nil {
 		return nil, err
@@ -388,9 +398,44 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 	_, err = svc.androidAPIClient.EnterpriseGet(ctx, enterprise.Name())
 	if err != nil {
 		var gerr *googleapi.Error
-		if errors.As(err, &gerr) && gerr.Code == http.StatusForbidden {
-			// Treat 403 from Google as "enterprise deleted/disconnected" or inaccessible.
-			return nil, fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusForbidden:
+				// 403 could mean enterprise deleted OR credential/permission issues
+				// Use LIST API to verify if enterprise actually exists
+				enterprises, listErr := svc.androidAPIClient.EnterprisesList(ctx)
+				if listErr != nil {
+					// Can't verify with LIST - return original error (likely credential issue)
+					return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+				}
+
+				// Check if our enterprise is in the list
+				enterpriseID := strings.TrimPrefix(enterprise.EnterpriseID, "enterprises/")
+				for _, ent := range enterprises {
+					if strings.HasSuffix(ent.Name, enterpriseID) {
+						// Enterprise exists - this is a permission issue, not deletion
+						level.Info(svc.logger).Log("msg", "enterprise found in list - this is a credential issue, not deletion", "enterpriseID", enterpriseID)
+						return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+					}
+				}
+
+				// Enterprise NOT in list - it's actually deleted
+				level.Info(svc.logger).Log("msg", "enterprise confirmed deleted via LIST API", "enterpriseID", enterpriseID)
+				svc.cleanupDeletedEnterprise(ctx, enterprise, enterpriseID)
+
+				return nil, fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+
+			case http.StatusNotFound:
+				// Only treat 404 as deletion if it came from proxy (has special message)
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					// 404 from proxy means enterprise was already confirmed as deleted
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return nil, fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+				// Regular 404 from direct Google API - treat as verification error (don't delete enterprise)
+				return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+			}
 		}
 		// Unexpected error while verifying with Google
 		return nil, ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
@@ -681,4 +726,98 @@ func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 		return true
 	}
 	return false
+}
+
+// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
+	// Check if there's an existing enterprise
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		// No enterprise exists - this is fine for signup
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "checking for existing enterprise")
+	}
+
+	// Enterprise exists - verify it's still valid via Google API
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	_, err = svc.androidAPIClient.EnterpriseGet(ctx, enterprise.Name())
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusForbidden:
+				// 403 could mean enterprise deleted OR credential/permission issues
+				// Use LIST API to verify if enterprise actually exists
+				enterprises, listErr := svc.androidAPIClient.EnterprisesList(ctx)
+				if listErr != nil {
+					// Can't verify with LIST - return original error (likely credential issue)
+					return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+				}
+
+				// Check if our enterprise is in the list
+				enterpriseID := strings.TrimPrefix(enterprise.EnterpriseID, "enterprises/")
+				for _, ent := range enterprises {
+					if strings.HasSuffix(ent.Name, enterpriseID) {
+						// Enterprise exists - this is a permission issue, not deletion
+						level.Info(svc.logger).Log("msg", "enterprise found in list - this is a credential issue, not deletion", "enterpriseID", enterpriseID)
+						return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+					}
+				}
+
+				// Enterprise NOT in list - it's actually deleted - perform cleanup
+				level.Info(svc.logger).Log("msg", "enterprise confirmed deleted via LIST API during signup", "enterpriseID", enterpriseID)
+				svc.cleanupDeletedEnterprise(ctx, enterprise, enterpriseID)
+				return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+
+			case http.StatusNotFound:
+				// Only treat 404 as deletion if it came from proxy (has special message)
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					// 404 from proxy means enterprise was already confirmed as deleted
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy during signup", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+				// Regular 404 from direct Google API - treat as verification error
+				return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+			}
+		}
+		// Unexpected error while verifying with Google
+		return ctxerr.Wrap(ctx, err, "verifying enterprise with Google")
+	}
+
+	// Enterprise verification passed
+	return nil
+}
+
+// cleanupDeletedEnterprise performs the complete cleanup when an enterprise deletion is detected
+func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *android.Enterprise, enterpriseID string) {
+	// Clean up proxy database records by calling proxy DELETE endpoint
+	// This ensures the proxy won't return conflicts when creating new signup URLs
+	if deleteErr := svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name()); deleteErr != nil {
+		level.Warn(svc.logger).Log("msg", "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
+	}
+
+	// Delete local enterprise records
+	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to delete local enterprise records after deletion", "err", deleteErr)
+	}
+
+	// Turn off Android MDM
+	if setErr := svc.ds.SetAndroidEnabledAndConfigured(ctx, false); setErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
+	}
+
+	// Unenroll Android hosts
+	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
+	}
 }

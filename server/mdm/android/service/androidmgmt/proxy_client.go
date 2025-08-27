@@ -208,9 +208,63 @@ func (p *ProxyClient) EnterpriseGet(ctx context.Context, enterpriseName string) 
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
 	ent, err := call.Do()
 	if err != nil {
+		// Check if the error is from the proxy returning a 404 (enterprise deleted)
+		// or 403 (enterprise access forbidden) and convert to proper googleapi.Error
+		// so the service layer can handle it correctly
+		var ae *googleapi.Error
+		if errors.As(err, &ae) {
+			// Check if this googleapi.Error is a 404 from proxy (enterprise deleted)
+			if ae.Code == http.StatusNotFound {
+				// Convert 404 from proxy to proper googleapi.Error with special marker
+				return nil, &googleapi.Error{
+					Code:    http.StatusNotFound,
+					Message: "PROXY_VERIFIED_DELETED: Enterprise not found (deleted)",
+				}
+			}
+			// Other googleapi.Error, pass through
+			return nil, err
+		} else if isErrorCode(err, http.StatusNotFound) {
+			// Convert 404 from proxy to proper googleapi.Error for service layer
+			// Use special message to indicate this was verified by proxy
+			return nil, &googleapi.Error{
+				Code:    http.StatusNotFound,
+				Message: "PROXY_VERIFIED_DELETED: Enterprise not found (deleted)",
+			}
+		} else if isErrorCode(err, http.StatusForbidden) {
+			// Convert 403 from proxy to proper googleapi.Error for service layer
+			return nil, &googleapi.Error{
+				Code:    http.StatusForbidden,
+				Message: "Enterprise access forbidden",
+			}
+		}
 		return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
 	}
 	return ent, nil
+}
+
+func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.List().Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	resp, err := call.Do()
+	if err != nil {
+		// Convert proxy errors to proper googleapi.Error for service layer
+		var ae *googleapi.Error
+		if errors.As(err, &ae) {
+			// Already a googleapi.Error, pass through
+			return nil, err
+		} else if isErrorCode(err, http.StatusForbidden) {
+			// Convert 403 from proxy to proper googleapi.Error
+			return nil, &googleapi.Error{
+				Code:    http.StatusForbidden,
+				Message: "Enterprises list access forbidden",
+			}
+		}
+		return nil, fmt.Errorf("listing enterprises: %w", err)
+	}
+	return resp.Enterprises, nil
 }
 
 func isErrorCode(err error, code int) bool {

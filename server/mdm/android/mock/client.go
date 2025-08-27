@@ -25,6 +25,8 @@ type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 
 type EnterpriseGetFunc func(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error)
 
+type EnterprisesListFunc func(ctx context.Context) ([]*androidmanagement.Enterprise, error)
+
 type SetAuthenticationSecretFunc func(secret string) error
 
 type Client struct {
@@ -45,6 +47,9 @@ type Client struct {
 
 	EnterpriseGetFunc        EnterpriseGetFunc
 	EnterpriseGetFuncInvoked bool
+
+	EnterprisesListFunc        EnterprisesListFunc
+	EnterprisesListFuncInvoked bool
 
 	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
 	SetAuthenticationSecretFuncInvoked bool
@@ -92,6 +97,13 @@ func (p *Client) EnterpriseGet(ctx context.Context, enterpriseName string) (*and
 	p.EnterpriseGetFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterpriseGetFunc(ctx, enterpriseName)
+}
+
+func (p *Client) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+	p.mu.Lock()
+	p.EnterprisesListFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesListFunc(ctx)
 }
 
 func (p *Client) SetAuthenticationSecret(secret string) error {

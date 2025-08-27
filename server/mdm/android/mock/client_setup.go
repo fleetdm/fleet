@@ -30,5 +30,13 @@ func (p *Client) InitCommonMocks() {
 			Name: enterpriseName,
 		}, nil
 	}
+	p.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		// Default implementation returns a single enterprise with a standard name
+		return []*androidmanagement.Enterprise{
+			{
+				Name: "enterprises/test-enterprise-id",
+			},
+		}, nil
+	}
 	p.SetAuthenticationSecretFunc = func(secret string) error { return nil }
 }

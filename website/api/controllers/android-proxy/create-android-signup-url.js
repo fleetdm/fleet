@@ -34,7 +34,35 @@ module.exports = {
     // Check the database for an existing record for this Fleet server.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
     if(connectionforThisInstanceExists){
-      throw 'enterpriseAlreadyExists';
+      // Before throwing conflict, verify the enterprise still exists in Google
+      // If it doesn't exist, clean up the stale proxy record and continue with signup
+      try {
+        let { google } = require('googleapis');
+        let androidmanagement = google.androidmanagement('v1');
+        let googleAuth = new google.auth.GoogleAuth({
+          scopes: ['https://www.googleapis.com/auth/androidmanagement'],
+          credentials: {
+            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
+          },
+        });
+        let authClient = await googleAuth.getClient();
+        google.options({auth: authClient});
+        
+        // Try to get the enterprise from Google
+        await androidmanagement.enterprises.get({
+          name: `enterprises/${connectionforThisInstanceExists.androidEnterpriseId}`,
+        });
+        
+        // If we got here, enterprise still exists in Google - throw conflict
+        throw 'enterpriseAlreadyExists';
+        
+      } catch (err) {
+        // Enterprise doesn't exist in Google (403/404) - clean up stale proxy record
+        await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
+        
+        // Continue with signup process (don't throw conflict)
+      }
     }
 
 
