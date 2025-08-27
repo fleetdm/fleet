@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	maps0 "maps"
 	"regexp"
 	"slices"
 	"sort"
@@ -1445,9 +1446,7 @@ func TestDirectIngestSoftware(t *testing.T) {
 			var calledWith map[string]struct{}
 			ds.UpdateHostSoftwareInstalledPathsFunc = func(ctx context.Context, hostID uint, sPaths map[string]struct{}, result *fleet.UpdateHostSoftwareDBResult) error {
 				calledWith = make(map[string]struct{})
-				for k, v := range sPaths {
-					calledWith[k] = v
-				}
+				maps0.Copy(calledWith, sPaths)
 				return nil
 			}
 
@@ -2018,7 +2017,6 @@ func TestIngestNetworkInterface(t *testing.T) {
 		{"IP could not be determined", "", true},
 		{"invalid value ends up in the context", "invalid-ip", false},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overridden
 			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)

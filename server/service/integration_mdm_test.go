@@ -363,7 +363,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	fleetdmSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := s.fleetDMNextCSRStatus.Swap(http.StatusOK)
 		w.WriteHeader(status.(int))
-		resp := []byte(fmt.Sprintf("status: %d", status))
+		resp := fmt.Appendf(nil, "status: %d", status)
 		if status == http.StatusOK && strings.Contains(r.URL.RawQuery, "deliveryMethod=json") {
 			rawBody, err := io.ReadAll(r.Body)
 			require.NoError(s.T(), err)
@@ -373,12 +373,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			err = json.Unmarshal(rawBody, &req)
 			require.NoError(s.T(), err)
 
-			resp = []byte(
-				fmt.Sprintf(
+			resp = 
+				fmt.Appendf(nil, 
 					`{"csr": %q}`,
 					base64.StdEncoding.EncodeToString(req.UnsignedCSRData),
 				),
-			)
+			
 		}
 		_, _ = w.Write(resp)
 	}))
@@ -509,7 +509,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 		}
 
 		// Handle /client/config
-		resp := []byte(fmt.Sprintf(`{"locationName": "%s"}`, s.appleVPPConfigSrvConfig.Location))
+		resp := fmt.Appendf(nil, `{"locationName": "%s"}`, s.appleVPPConfigSrvConfig.Location)
 		if strings.Contains(r.URL.RawQuery, "invalidToken") {
 			// This replicates the response sent back from Apple's VPP endpoints when an invalid
 			// token is passed. For more details see:
@@ -556,7 +556,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			objs = append(objs, data)
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"results": [%s]}`, strings.Join(objs, ",")))
 	}))
 
 	s.appleGDMFSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1679,7 +1679,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -1690,7 +1690,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings: map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -1702,7 +1702,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"enable_disk_encryption": true},
+			MacOSSettings:        map[string]any{"enable_disk_encryption": true},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -1714,7 +1714,7 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionSettingBackwardsCompat() 
 		Name: team.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(false),
-			MacOSSettings:        map[string]interface{}{"custom_settings": []interface{}{"A", "B"}},
+			MacOSSettings:        map[string]any{"custom_settings": []any{"A", "B"}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -2373,7 +2373,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleDiskEncryptionAggregate() {
 
 	// 10 new hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h, err := s.ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -2563,7 +2563,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": 123},
+			MacOSSettings: map[string]any{"enable_disk_encryption": 123},
 		},
 	}}}
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -2582,8 +2582,8 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "a"},
 				},
 			},
@@ -2615,7 +2615,7 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"enable_disk_encryption": false},
+			MacOSSettings: map[string]any{"enable_disk_encryption": false},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -4452,7 +4452,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			body, err := io.ReadAll(r.Body)
 			require.NoError(t, err)
@@ -4753,7 +4753,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
@@ -5135,8 +5135,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []interface{}{"foo", "bar"},
+			MacOSSettings: map[string]any{
+				"custom_settings": []any{"foo", "bar"},
 			},
 		},
 	}}}
@@ -5162,8 +5162,8 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 		Name: t1.Name,
 		MDM: fleet.TeamSpecMDM{
 			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []interface{}{"foo", "bar"},
+			MacOSSettings: map[string]any{
+				"custom_settings": []any{"foo", "bar"},
 			},
 		},
 	}}}
@@ -5754,15 +5754,15 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.NoError(t, err)
 
 	// Add matching SCIM user with a display name (givenName + familyName)
-	createUserPayload := map[string]interface{}{
+	createUserPayload := map[string]any{
 		"schemas":    []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName":   "some_other_username",
 		"externalID": "external_id",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "SCIM",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "sso_user_no_displayname@example.com",
 				"type":    "work",
@@ -5771,7 +5771,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 		},
 	}
 	displayName := "SCIM User"
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON("POST", "/api/latest/fleet/scim/Users", createUserPayload, http.StatusCreated, &createResp)
 	// Verify the created user
 	assert.Equal(t, "some_other_username", createResp["userName"])
@@ -5930,16 +5930,16 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	require.Equal(t, 2, expectedCount)
 
 	// Also add a group to the SCIM user
-	createGroup1Payload := map[string]interface{}{
+	createGroup1Payload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Test Group 1",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": scimUserID,
 			},
 		},
 	}
-	var createGroup1Resp map[string]interface{}
+	var createGroup1Resp map[string]any
 	s.DoJSON("POST", "/api/latest/fleet/scim/Groups", createGroup1Payload, http.StatusCreated, &createGroup1Resp)
 
 	// this marked profile N2 as pending for the host as the groups changed
@@ -7075,7 +7075,7 @@ func (s *integrationMDMTestSuite) TestValidDiscoveryRequest() {
 		require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 		// Checking if SOAP response can be unmarshalled to an golang type
-		var xmlType interface{}
+		var xmlType any
 		err = xml.Unmarshal(resBytes, &xmlType)
 		require.NoError(t, err)
 
@@ -7127,7 +7127,7 @@ func (s *integrationMDMTestSuite) TestInvalidDiscoveryRequest() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7179,7 +7179,7 @@ func (s *integrationMDMTestSuite) TestNoEmailDiscoveryRequest() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7214,7 +7214,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithDeviceToken() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7244,7 +7244,7 @@ func (s *integrationMDMTestSuite) TestValidGetPoliciesRequestWithAzureToken() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7287,7 +7287,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithInvalidUUID() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7320,7 +7320,7 @@ func (s *integrationMDMTestSuite) TestGetPoliciesRequestWithNotElegibleHost() {
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7354,7 +7354,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7406,7 +7406,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithAzureT
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7459,7 +7459,7 @@ func (s *integrationMDMTestSuite) TestInvalidRequestSecurityTokenRequestWithMiss
 	require.Contains(t, resp.Header["Content-Type"], syncml.SoapContentType)
 
 	// Checking if SOAP response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -7544,7 +7544,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	cmdOneUUID := uuid.New().String()
 	commandOne := &fleet.MDMWindowsCommand{
 		CommandUUID: cmdOneUUID,
-		RawCommand: []byte(fmt.Sprintf(`
+		RawCommand: fmt.Appendf(nil, `
                      <Exec>
                        <CmdID>%s</CmdID>
                        <Item>
@@ -7558,7 +7558,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
                          <Data></Data>
                        </Item>
                      </Exec>
-		`, cmdOneUUID)),
+		`, cmdOneUUID),
 		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
 	}
 	err := s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandOne)
@@ -7594,7 +7594,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	cmdTwoUUID := uuid.New().String()
 	commandTwo := &fleet.MDMWindowsCommand{
 		CommandUUID: cmdTwoUUID,
-		RawCommand: []byte(fmt.Sprintf(`
+		RawCommand: fmt.Appendf(nil, `
                     <Get>
                       <CmdID>%s</CmdID>
                       <Item>
@@ -7603,7 +7603,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
                         </Target>
                       </Item>
                     </Get>
-		`, cmdTwoUUID)),
+		`, cmdTwoUUID),
 		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 	}
 	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandTwo)
@@ -7612,7 +7612,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	cmdThreeUUID := uuid.New().String()
 	commandThree := &fleet.MDMWindowsCommand{
 		CommandUUID: cmdThreeUUID,
-		RawCommand: []byte(fmt.Sprintf(`
+		RawCommand: fmt.Appendf(nil, `
                     <Replace>
                        <CmdID>%s</CmdID>
                        <Item>
@@ -7626,7 +7626,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
                          <Data>1</Data>
                        </Item>
                     </Replace>
-		`, cmdThreeUUID)),
+		`, cmdThreeUUID),
 		TargetLocURI: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 	}
 	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandThree)
@@ -7635,7 +7635,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	cmdFourUUID := uuid.New().String()
 	commandFour := &fleet.MDMWindowsCommand{
 		CommandUUID: cmdFourUUID,
-		RawCommand: []byte(fmt.Sprintf(`
+		RawCommand: fmt.Appendf(nil, `
                     <Add>
                        <CmdID>%s</CmdID>
                        <Item>
@@ -7652,7 +7652,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 						 </Data>
                        </Item>
                     </Add>
-		`, cmdFourUUID)),
+		`, cmdFourUUID),
 		TargetLocURI: "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml",
 	}
 	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandFour)
@@ -7824,7 +7824,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
 	cmdOneUUID := uuid.New().String()
 	commandOne := &fleet.MDMWindowsCommand{
 		CommandUUID: cmdOneUUID,
-		RawCommand: []byte(fmt.Sprintf(`
+		RawCommand: fmt.Appendf(nil, `
                      <Exec>
                        <CmdID>%s</CmdID>
                        <Item>
@@ -7838,7 +7838,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDMCommandWithSecret() {
                          <Data>$FLEET_SECRET_DATA</Data>
                        </Item>
                      </Exec>
-		`, cmdOneUUID)),
+		`, cmdOneUUID),
 		TargetLocURI: "./Device/Vendor/MSFT/Reboot/RebootNow",
 	}
 	err := s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandOne)
@@ -8025,7 +8025,7 @@ func (s *integrationMDMTestSuite) TestValidManagementUnenrollRequest() {
 	require.NoError(t, err)
 
 	// Checking if response can be unmarshalled to an golang type
-	var xmlType interface{}
+	var xmlType any
 	err = xml.Unmarshal(resBytes, &xmlType)
 	require.NoError(t, err)
 
@@ -10628,7 +10628,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "abc", "org_name": %q}`, orgName))
 		}
 	}))
 
@@ -10663,7 +10663,7 @@ func (s *integrationMDMTestSuite) enableABM(orgName string) *fleet.ABMToken {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "abc", "org_name": %q}`, orgName)))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "abc", "org_name": %q}`, orgName))
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -10980,7 +10980,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushCron() {
 
 	// the cron to trigger pushes sends a new push request each time it
 	// runs if there are pending commands
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		err := SendPushesToPendingDevices(ctx, s.ds, s.mdmCommander, s.logger)
 		require.NoError(t, err)
 		require.Len(t, recordedPushes, 1)
@@ -12676,7 +12676,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 					"bundle_identifier": "%s", "source": "apps", "last_opened_at": "",
 					"installed_path": "/Applications/a.app"}]`, addedApp.Name, addedApp.LatestVersion, addedApp.BundleIdentifier)),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_macos": 0,
 		},
 		Messages: map[string]string{},
@@ -12691,7 +12691,7 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_macos": json.RawMessage(`[]`),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_macos": 0,
 		},
 		Messages: map[string]string{},
@@ -14477,8 +14477,8 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	defer cleanup()
 
 	caBad := getDigiCertIntegration(testServer.URL, "ca")
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig := map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{caBad},
 		},
 	}
@@ -14499,8 +14499,8 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ca1.APIToken = "api_token1"
 	ca2 := getDigiCertIntegration(digiCertServer.server.URL, "ca2")
 	ca2.APIToken = "api_token2"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca0, ca1, ca2},
 		},
 	}
@@ -14551,8 +14551,8 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	ca1.URL += "//"
 	ca3 := getDigiCertIntegration(digiCertServer.server.URL, "ca3")
 	ca3.APIToken = "api_token3"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca3, ca2, ca1},
 		},
 	}
@@ -14617,8 +14617,8 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	assert.Equal(t, 3, numFound)
 
 	// Clear DigiCert integrations
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": nil,
 		},
 	}
@@ -14661,8 +14661,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	// Add DigiCert config
 	ca := getDigiCertIntegration(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig := map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca},
 		},
 	}
@@ -14736,7 +14736,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	}
 
 	type pkcs12Profile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	var pkcs12Prof pkcs12Profile
 	require.NoError(t, plist.Unmarshal(rawProfile, &pkcs12Prof))
@@ -14752,10 +14752,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Equal(t, ca.ProfileID, digiCertServer.certReq.Profile["id"])
 	assert.Equal(t, ca.CertificateSeatID, digiCertServer.certReq.Seat["seat_id"])
 	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, ca.CertificateCommonName, digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+	assert.Equal(t, ca.CertificateCommonName, digiCertServer.certReq.Attributes["subject"].(map[string]any)["common_name"])
 
 	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	upnsReceived := digiCertServer.certReq.Attributes["extensions"].(map[string]any)["san"].(map[string]any)["user_principal_names"].([]any)
 	var stringSlice []string
 	for _, item := range upnsReceived {
 		if str, ok := item.(string); ok {
@@ -14773,8 +14773,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	// Try a DigiCert CA that will fail
 	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca, caFail},
 		},
 	}
@@ -14840,8 +14840,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}_"},
 		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
 		},
 	}
@@ -14925,10 +14925,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	assert.Equal(t, caFleetVars.ProfileID, digiCertServer.certReq.Profile["id"])
 	assert.Equal(t, "_"+host.HardwareSerial+"_", digiCertServer.certReq.Seat["seat_id"])
 	assert.Equal(t, "x509", digiCertServer.certReq.DeliveryFormat)
-	assert.Equal(t, host.HardwareSerial+" idp@example.com", digiCertServer.certReq.Attributes["subject"].(map[string]interface{})["common_name"])
+	assert.Equal(t, host.HardwareSerial+" idp@example.com", digiCertServer.certReq.Attributes["subject"].(map[string]any)["common_name"])
 
 	// Need to convert UPNs to string slice since assert.Equal cannot compare string slice and interface slice
-	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]interface{})["san"].(map[string]interface{})["user_principal_names"].([]interface{})
+	upnsReceived = digiCertServer.certReq.Attributes["extensions"].(map[string]any)["san"].(map[string]any)["user_principal_names"].([]any)
 	stringSlice = nil
 	for _, item := range upnsReceived {
 		if str, ok := item.(string); ok {
@@ -15006,8 +15006,8 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFleetVars.CertificateCommonName = "common_name"
 	caFleetVars.CertificateUserPrincipalNames = nil
 	caFleetVars.CertificateSeatID = "seat_id"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
 		},
 	}
@@ -15027,7 +15027,7 @@ var digiCertMobileconfig string
 var digiCert2Mobileconfig []byte
 
 func digiCertForTest(name, identifier, caName string) []byte {
-	return []byte(fmt.Sprintf(digiCertMobileconfig, caName, caName, name, identifier, uuid.New().String()))
+	return fmt.Appendf(nil, digiCertMobileconfig, caName, caName, name, identifier, uuid.New().String())
 }
 
 //go:embed testdata/profiles/custom-scep.mobileconfig
@@ -15037,7 +15037,7 @@ var customSCEPMobileconfig string
 var customSCEPMobileconfig2 []byte
 
 func customSCEPForTest(name, identifier, caName string) []byte {
-	return []byte(fmt.Sprintf(customSCEPMobileconfig, caName, caName, name, identifier, uuid.New().String()))
+	return fmt.Appendf(nil, customSCEPMobileconfig, caName, caName, name, identifier, uuid.New().String())
 }
 
 type mockDigiCertServer struct {
@@ -15052,7 +15052,7 @@ type certificateReq struct {
 	Profile        map[string]string      `json:"profile"`
 	Seat           map[string]string      `json:"seat"`
 	DeliveryFormat string                 `json:"delivery_format"`
-	Attributes     map[string]interface{} `json:"attributes"`
+	Attributes     map[string]any `json:"attributes"`
 }
 
 func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
@@ -15106,7 +15106,7 @@ func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {
 			if csr.Subject.CommonName == "Fail" {
 				w.WriteHeader(http.StatusBadRequest)
 				type errorResponse struct {
-					Errors interface{} `json:"errors"`
+					Errors any `json:"errors"`
 				}
 				err = json.NewEncoder(w).Encode(errorResponse{
 					Errors: []struct {
@@ -15171,8 +15171,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	defer cleanup()
 
 	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig := map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
 		},
 	}
@@ -15193,8 +15193,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	ca1.Challenge = "challenge1"
 	ca2 := getCustomSCEPIntegration(scepServerURL, "ca2")
 	ca2.Challenge = "challenge2"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1, ca2},
 		},
 	}
@@ -15245,8 +15245,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	ca1.Challenge = "challenge1-modified"
 	ca3 := getCustomSCEPIntegration(scepServerURL, "ca3")
 	ca3.Challenge = "challenge3"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca3, ca2, ca1},
 		},
 	}
@@ -15311,8 +15311,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	assert.Equal(t, 3, numFound)
 
 	// Clear CustomSCEPProxy integrations
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": nil,
 		},
 	}
@@ -15475,8 +15475,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	ca0 := getCustomSCEPIntegration(scepServerURL, "scepName")
 	ca1 := getCustomSCEPIntegration(scepServerURL, "scepName2")
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig := map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
 		},
 	}
@@ -15734,8 +15734,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// ////////////////////////////////////////////
 	// Remove the CAs and try to re-send the profile
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
+	appConfig = map[string]any{
+		"integrations": map[string]any{
 			"custom_scep_proxy": nil,
 		},
 	}

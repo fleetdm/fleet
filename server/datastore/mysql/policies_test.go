@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2650,9 +2651,7 @@ func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
 		99999: ptr.Bool(true),
 	})
 	require.NoError(t, err)
-	sort.Slice(newFailing, func(i, j int) bool {
-		return newFailing[i] < newFailing[j]
-	})
+	slices.Sort(newFailing)
 	require.Equal(t, []uint{99998}, newFailing)
 	require.Empty(t, newPassing) // because this would be the first run.
 
@@ -3398,7 +3397,7 @@ func testOutdatedAutomationBatch(t *testing.T, ds *Datastore) {
 
 func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	// create 30 policies
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
 		require.NoError(t, err)
 	}
@@ -3406,7 +3405,7 @@ func testListGlobalPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	// create 30 team policies
 	tm, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
 	}
@@ -3442,13 +3441,13 @@ func testListTeamPoliciesCanPaginate(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create 30 team policies
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		_, err := ds.NewTeamPolicy(context.Background(), tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
 	}
 
 	// create 30 global policies
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
 		require.NoError(t, err)
 	}
@@ -3499,7 +3498,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 0, mergedCount)
 
 	// 10 global policies
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: fmt.Sprintf("global policy %d", i)})
 		require.NoError(t, err)
 	}
@@ -3517,7 +3516,7 @@ func testCountPolicies(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 10, mergedCount)
 
 	// add 5 team policies
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err := ds.NewTeamPolicy(ctx, tm.ID, nil, fleet.PolicyPayload{Name: fmt.Sprintf("team policy %d", i)})
 		require.NoError(t, err)
 	}
@@ -3604,7 +3603,7 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 
 	// create 4 team hosts
 	var teamHosts []*fleet.Host
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{OsqueryHostID: ptr.String(fmt.Sprintf("host%d", i)), NodeKey: ptr.String(fmt.Sprintf("host%d", i)), TeamID: &team.ID})
 		require.NoError(t, err)
 		teamHosts = append(teamHosts, h)
@@ -5878,7 +5877,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	// performance test for 50_000 title ids, ensure batching works
 	megaTitleIDs := make([]uint, 0, 50_000)
 	megaTitleIDs = append(megaTitleIDs, *installer3.TitleID)
-	for i := uint(0); i < (50_000 - 2); i++ {
+	for i := range uint((50_000 - 2)) {
 		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
 	}
 	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)

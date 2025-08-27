@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -206,7 +207,7 @@ func (ds *Datastore) UpdateLabelMembershipByHostIDs(ctx context.Context, labelID
 		for _, hostIds := range batchHostIds(hostIds) {
 			// Use ignore because duplicate hostIds could appear in
 			// different batches and would result in duplicate key errors.
-			values := []interface{}{}
+			values := []any{}
 			placeholders := []string{}
 
 			for _, hostID := range hostIds {
@@ -567,11 +568,11 @@ func (ds *Datastore) RecordLabelQueryExecutions(ctx context.Context, host *fleet
 	for labelID := range results {
 		orderedIDs = append(orderedIDs, labelID)
 	}
-	sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
+	slices.Sort(orderedIDs)
 
 	// Loop through results, collecting which labels we need to insert/update,
 	// and which we need to delete
-	vals := []interface{}{}
+	vals := []any{}
 	bindvars := []string{}
 	removes := []uint{}
 	for _, labelID := range orderedIDs {
@@ -785,9 +786,9 @@ func (ds *Datastore) ListHostsInLabel(ctx context.Context, filter fleet.TeamFilt
 }
 
 // NOTE: the hosts table must be aliased to `h` in the query passed to this function.
-func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []interface{}, error) {
+func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.TeamFilter, lid uint, query string, opt fleet.HostListOptions) (string, []any, error) {
 	// prior to returning, params will be appended in the following order: joinParams, whereParams
-	var whereParams, joinParams []interface{}
+	var whereParams, joinParams []any
 
 	if opt.ListOptions.OrderKey == "display_name" {
 		query += ` JOIN host_display_names hdn ON h.id = hdn.host_id `
@@ -1042,10 +1043,8 @@ func (ds *Datastore) addAllHostsLabelToList(ctx context.Context, filter fleet.Te
 		return nil, ctxerr.Wrap(ctx, err, "get all hosts label")
 	}
 
-	for _, omission := range omit {
-		if omission == allHosts.ID {
-			return labels, nil
-		}
+	if slices.Contains(omit, allHosts.ID) {
+		return labels, nil
 	}
 
 	for _, label := range labels {
@@ -1071,7 +1070,7 @@ func (ds *Datastore) searchLabelsDefault(ctx context.Context, filter fleet.TeamF
 		`, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	var in interface{}
+	var in any
 	{
 		// use -1 if there are no values to omit.
 		// Avoids empty args error for `sqlx.In`
@@ -1206,7 +1205,7 @@ func (ds *Datastore) AsyncBatchInsertLabelMembership(ctx context.Context, batch 
 	sql = strings.TrimSuffix(sql, ",")
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
-	vals := make([]interface{}, 0, len(batch)*2)
+	vals := make([]any, 0, len(batch)*2)
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}
@@ -1233,7 +1232,7 @@ func (ds *Datastore) AsyncBatchDeleteLabelMembership(ctx context.Context, batch 
       lm.label_id = del_list.label_id AND
       lm.host_id = del_list.host_id`, rest)
 
-	vals := make([]interface{}, 0, len(batch)*2)
+	vals := make([]any, 0, len(batch)*2)
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}
@@ -1317,7 +1316,7 @@ func (ds *Datastore) AddLabelsToHost(ctx context.Context, hostID uint, labelIDs 
 	sql += strings.Repeat(`(?, ?),`, len(labelIDs))
 	sql = strings.TrimSuffix(sql, ",")
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = NOW()`
-	args := make([]interface{}, 0, len(labelIDs)*2)
+	args := make([]any, 0, len(labelIDs)*2)
 	for _, labelID := range labelIDs {
 		args = append(args, hostID, labelID)
 	}

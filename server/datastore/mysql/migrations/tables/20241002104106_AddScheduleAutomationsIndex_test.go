@@ -41,10 +41,10 @@ func TestUp_20241002104106(t *testing.T) {
 	stmtSuffix := ";"
 
 	var valueStrings []string
-	var valueArgs []interface{}
+	var valueArgs []any
 
 	// Generate 10 records
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		queryID := i + 1
 		valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 		valueArgs = append(valueArgs, 0, fmt.Sprintf("query_%d", queryID), "", "SELECT * FROM processes;", 1, 0, nil, "", "", "", 0, 0, "snapshot", 0)

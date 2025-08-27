@@ -183,7 +183,7 @@ func TestKinesisSplitBatchBySize(t *testing.T) {
 	// Make each record just under 1 MB (accounting for partitionkey) so that it
 	// takes 3 total batches of just under 5 MB each
 	logs := make([]json.RawMessage, 15)
-	for i := 0; i < len(logs); i++ {
+	for i := range logs {
 		logs[i] = make(json.RawMessage, kinesisMaxSizeOfRecord-1-256)
 	}
 	callCount := 0
@@ -203,7 +203,7 @@ func TestKinesisSplitBatchBySize(t *testing.T) {
 func TestKinesisSplitBatchByCount(t *testing.T) {
 	ctx := context.Background()
 	logs := make([]json.RawMessage, 2000)
-	for i := 0; i < len(logs); i++ {
+	for i := range logs {
 		logs[i] = json.RawMessage(`{}`)
 	}
 	callCount := 0

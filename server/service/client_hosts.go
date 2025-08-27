@@ -114,7 +114,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		return c.authenticatedRequest(params, verb, path, &responseBody)
 	}
 
-	filter := make(map[string]interface{})
+	filter := make(map[string]any)
 
 	if label != "" {
 		filter["label_id"] = labelID

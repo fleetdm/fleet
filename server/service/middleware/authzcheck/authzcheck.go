@@ -24,7 +24,7 @@ func NewMiddleware() *Middleware {
 
 func (m *Middleware) AuthzCheck() endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, req interface{}) (interface{}, error) {
+		return func(ctx context.Context, req any) (any, error) {
 			authzctx := &authz_ctx.AuthorizationContext{}
 			ctx = authz_ctx.NewContext(ctx, authzctx)
 

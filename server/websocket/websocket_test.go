@@ -43,7 +43,7 @@ func readJSONMessage(t *testing.T, conn *websocket.Conn) string {
 	return d[0]
 }
 
-func writeJSONMessage(t *testing.T, conn *websocket.Conn, typ string, data interface{}) {
+func writeJSONMessage(t *testing.T, conn *websocket.Conn, typ string, data any) {
 	buf, err := json.Marshal(JSONMessage{typ, data})
 	require.Nil(t, err)
 
@@ -58,7 +58,7 @@ func writeJSONMessage(t *testing.T, conn *websocket.Conn, typ string, data inter
 func TestWriteJSONMessage(t *testing.T) {
 	cases := []struct {
 		typ  string
-		data interface{}
+		data any
 	}{
 		{
 			typ:  "string",
@@ -115,7 +115,7 @@ func TestWriteJSONMessage(t *testing.T) {
 
 func TestWriteJSONError(t *testing.T) {
 	cases := []struct {
-		err interface{}
+		err any
 	}{
 		{
 			err: "this is an error",
@@ -167,7 +167,7 @@ func TestWriteJSONError(t *testing.T) {
 func TestReadJSONMessage(t *testing.T) {
 	cases := []struct {
 		typ  string
-		data interface{}
+		data any
 		err  error
 	}{
 		{

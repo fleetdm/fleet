@@ -291,7 +291,6 @@ func (ds *Datastore) ListSoftwareTitles(
 
 	titles := make([]fleet.SoftwareTitleListResult, 0, len(softwareList))
 	for _, st := range softwareList {
-		st := st
 		titles = append(titles, st.SoftwareTitleListResult)
 	}
 
@@ -634,7 +633,7 @@ func (ds *Datastore) SyncHostsSoftwareTitles(ctx context.Context, updatedAt time
 		// batch to prevent making too many single-row inserts.
 		const batchSize = 100
 		var batchCount int
-		args := make([]interface{}, 0, batchSize*4)
+		args := make([]any, 0, batchSize*4)
 		for rows.Next() {
 			var (
 				count  int

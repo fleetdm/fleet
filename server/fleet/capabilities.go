@@ -26,7 +26,7 @@ func (c *CapabilityMap) PopulateFromString(s string) {
 		return
 	}
 
-	for _, capability := range strings.Split(s, ",") {
+	for capability := range strings.SplitSeq(s, ",") {
 		(*c)[Capability(capability)] = struct{}{}
 	}
 }

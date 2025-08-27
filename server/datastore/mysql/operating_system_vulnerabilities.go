@@ -126,7 +126,7 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 }
 
 func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
-	var args []interface{}
+	var args []any
 
 	if len(vulnerabilities) == 0 {
 		return 0, nil
@@ -152,7 +152,7 @@ func (ds *Datastore) InsertOSVulnerability(ctx context.Context, v fleet.OSVulner
 		return false, fmt.Errorf("inserting operating system vulnerability: CVE cannot be empty %#v", v)
 	}
 
-	var args []interface{}
+	var args []any
 
 	// statement assumes a unique index on (host_id, cve)
 	sqlStmt := `
@@ -193,7 +193,7 @@ func (ds *Datastore) DeleteOSVulnerabilities(ctx context.Context, vulnerabilitie
 		strings.TrimSuffix(strings.Repeat("(?,?),", len(vulnerabilities)), ","),
 	)
 
-	var args []interface{}
+	var args []any
 	for _, v := range vulnerabilities {
 		args = append(args, v.OSID, v.CVE)
 	}

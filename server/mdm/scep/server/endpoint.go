@@ -209,7 +209,7 @@ func MakeClientEndpoints(instance string, opts ...ClientOption) (*Endpoints, err
 }
 
 func MakeSCEPEndpoint(svc Service) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(SCEPRequest)
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
@@ -235,7 +235,7 @@ type SCEPRequest struct {
 func (r SCEPRequest) scepOperation() string { return r.Operation }
 
 func MakeSCEPEndpointWithIdentifier(svc ServiceWithIdentifier) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(SCEPRequestWithIdentifier)
 		resp := SCEPResponse{operation: req.Operation}
 		switch req.Operation {
@@ -277,8 +277,8 @@ func (r SCEPResponse) scepOperation() string { return r.operation }
 // duration of each invocation, and the resulting error, if any.
 func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 	return func(next endpoint.Endpoint) endpoint.Endpoint {
-		return func(ctx context.Context, request interface{}) (response interface{}, err error) {
-			var keyvals []interface{}
+		return func(ctx context.Context, request any) (response any, err error) {
+			var keyvals []any
 			// check if this is a scep endpoint, if it is, append the method to the log.
 			if oper, ok := request.(interface {
 				scepOperation() string

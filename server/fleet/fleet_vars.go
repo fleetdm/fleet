@@ -15,8 +15,8 @@ const (
 func ContainsPrefixVars(text, prefix string) []string {
 	vars := []string{}
 	gather := func(variable string) string {
-		if strings.HasPrefix(variable, prefix) {
-			vars = append(vars, strings.TrimPrefix(variable, prefix))
+		if after, ok := strings.CutPrefix(variable, prefix); ok {
+			vars = append(vars, after)
 		}
 		return ""
 	}

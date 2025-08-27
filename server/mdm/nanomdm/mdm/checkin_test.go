@@ -43,7 +43,6 @@ func TestAuthenticate(t *testing.T) {
 			"com.apple.mgmt.External.e0bd1eac-1f17-4c8e-8a63-dd17d3dd35d9",
 		},
 	} {
-		test := test
 		t.Run(filepath.Base(test.filename), func(t *testing.T) {
 			t.Parallel()
 			b, err := ioutil.ReadFile(test.filename)
@@ -85,7 +84,6 @@ func TestTokenUpdate(t *testing.T) {
 			"com.apple.mgmt.External.e0bd1eac-1f17-4c8e-8a63-dd17d3dd35d9",
 		},
 	} {
-		test := test
 		t.Run(filepath.Base(test.filename), func(t *testing.T) {
 			t.Parallel()
 			b, err := ioutil.ReadFile(test.filename)

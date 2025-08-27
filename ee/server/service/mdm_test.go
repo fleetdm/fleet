@@ -42,9 +42,9 @@ func setup(t *testing.T) (*mock.Store, *Service) {
 func TestMDMAppleEnableFileVaultAndEscrow(t *testing.T) {
 	ctx := context.Background()
 
-	getPayloadWithType := func(mc mobileconfig.Mobileconfig, payloadType string) map[string]interface{} {
+	getPayloadWithType := func(mc mobileconfig.Mobileconfig, payloadType string) map[string]any {
 		var payload struct {
-			PayloadContent []map[string]interface{}
+			PayloadContent []map[string]any
 		}
 		_, err := plist.Unmarshal(mc, &payload)
 		require.NoError(t, err)

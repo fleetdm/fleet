@@ -68,7 +68,7 @@ func gitOpsFromString(t *testing.T, s string) (*GitOps, error) {
 	return GitOpsFromFile(path, basePath, nil, nopLogf)
 }
 
-func nopLogf(_ string, _ ...interface{}) {
+func nopLogf(_ string, _ ...any) {
 }
 
 func TestValidGitOpsYaml(t *testing.T) {
@@ -149,8 +149,6 @@ func TestValidGitOpsYaml(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
-		name := name
 		t.Run(
 			name, func(t *testing.T) {
 				if len(test.environment) > 0 {
@@ -179,10 +177,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check team settings
 					assert.Equal(t, "Team1", *gitops.TeamName)
 					assert.Contains(t, gitops.TeamSettings, "webhook_settings")
-					webhookSettings, ok := gitops.TeamSettings["webhook_settings"].(map[string]interface{})
+					webhookSettings, ok := gitops.TeamSettings["webhook_settings"].(map[string]any)
 					assert.True(t, ok, "webhook_settings not found")
 					assert.Contains(t, webhookSettings, "failing_policies_webhook")
-					failingPoliciesWebhook, ok := webhookSettings["failing_policies_webhook"].(map[string]interface{})
+					failingPoliciesWebhook, ok := webhookSettings["failing_policies_webhook"].(map[string]any)
 					assert.True(t, ok, "webhook_settings not found")
 					assert.Contains(t, failingPoliciesWebhook, "enable_failing_policies_webhook")
 					enableFailingPoliciesWebhook, ok := failingPoliciesWebhook["enable_failing_policies_webhook"].(bool)
@@ -228,10 +226,10 @@ func TestValidGitOpsYaml(t *testing.T) {
 					// Check org settings
 					serverSettings, ok := gitops.OrgSettings["server_settings"]
 					assert.True(t, ok, "server_settings not found")
-					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
-					assert.EqualValues(t, 2000, serverSettings.(map[string]interface{})["query_report_cap"])
+					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]any)["server_url"])
+					assert.EqualValues(t, 2000, serverSettings.(map[string]any)["query_report_cap"])
 					assert.Contains(t, gitops.OrgSettings, "org_info")
-					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]interface{})
+					orgInfo, ok := gitops.OrgSettings["org_info"].(map[string]any)
 					assert.True(t, ok)
 					assert.Equal(t, "Fleet Device Management", orgInfo["org_name"])
 					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
@@ -250,7 +248,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
 					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
 					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
-					activityExpirySettings, ok := gitops.OrgSettings["activity_expiry_settings"].(map[string]interface{})
+					activityExpirySettings, ok := gitops.OrgSettings["activity_expiry_settings"].(map[string]any)
 					require.True(t, ok)
 					activityExpiryEnabled, ok := activityExpirySettings["activity_expiry_enabled"].(bool)
 					require.True(t, ok)
@@ -278,20 +276,20 @@ func TestValidGitOpsYaml(t *testing.T) {
 				assert.True(t, ok, "windows_settings not found")
 				_, ok = gitops.Controls.EnableDiskEncryption.(bool)
 				assert.True(t, ok, "enable_disk_encryption not found")
-				_, ok = gitops.Controls.MacOSMigration.(map[string]interface{})
+				_, ok = gitops.Controls.MacOSMigration.(map[string]any)
 				assert.True(t, ok, "macos_migration not found")
 				assert.NotNil(t, gitops.Controls.MacOSSetup, "macos_setup not found")
-				_, ok = gitops.Controls.MacOSUpdates.(map[string]interface{})
+				_, ok = gitops.Controls.MacOSUpdates.(map[string]any)
 				assert.True(t, ok, "macos_updates not found")
-				_, ok = gitops.Controls.IOSUpdates.(map[string]interface{})
+				_, ok = gitops.Controls.IOSUpdates.(map[string]any)
 				assert.True(t, ok, "ios_updates not found")
-				_, ok = gitops.Controls.IPadOSUpdates.(map[string]interface{})
+				_, ok = gitops.Controls.IPadOSUpdates.(map[string]any)
 				assert.True(t, ok, "ipados_updates not found")
 				_, ok = gitops.Controls.WindowsEnabledAndConfigured.(bool)
 				assert.True(t, ok, "windows_enabled_and_configured not found")
 				_, ok = gitops.Controls.WindowsMigrationEnabled.(bool)
 				assert.True(t, ok, "windows_migration_enabled not found")
-				_, ok = gitops.Controls.WindowsUpdates.(map[string]interface{})
+				_, ok = gitops.Controls.WindowsUpdates.(map[string]any)
 				assert.True(t, ok, "windows_updates not found")
 				assert.Equal(t, "fleet_secret", gitops.FleetSecrets["FLEET_SECRET_FLEET_SECRET_"])
 				assert.Equal(t, "secret_name", gitops.FleetSecrets["FLEET_SECRET_NAME"])
@@ -853,8 +851,6 @@ func TestGitOpsPaths(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		test := test
-		name := name
 		t.Run(
 			name, func(t *testing.T) {
 				t.Parallel()

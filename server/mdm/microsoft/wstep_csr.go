@@ -1143,7 +1143,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
 			return
 		}
 		ret.length = 0
-		for i := 0; i < numBytes; i++ {
+		for range numBytes {
 			if offset >= len(bytes) {
 				err = asn1.SyntaxError{Msg: "truncated tag or length"}
 				return
@@ -1285,7 +1285,7 @@ func parseInt64(bytes []byte) (ret int64, err error) {
 		err = asn1.StructuralError{Msg: "integer too large"}
 		return
 	}
-	for bytesRead := 0; bytesRead < len(bytes); bytesRead++ {
+	for bytesRead := range bytes {
 		ret <<= 8
 		ret |= int64(bytes[bytesRead])
 	}

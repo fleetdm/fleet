@@ -3,6 +3,7 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"os"
 
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -69,12 +70,8 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	for cve, vuln := range other.Vulnerabities {
 		if _, ok := b.Vulnerabities[cve]; !ok {
 			newVuln := NewVulnerability(vuln.PublishedEpoch)
-			for pID, v := range vuln.ProductIDs {
-				newVuln.ProductIDs[pID] = v
-			}
-			for rID, v := range vuln.RemediatedBy {
-				newVuln.RemediatedBy[rID] = v
-			}
+			maps.Copy(newVuln.ProductIDs, vuln.ProductIDs)
+			maps.Copy(newVuln.RemediatedBy, vuln.RemediatedBy)
 			b.Vulnerabities[cve] = newVuln
 		}
 	}
@@ -83,9 +80,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	for kbID, r := range other.VendorFixes {
 		if _, ok := b.VendorFixes[kbID]; !ok {
 			newVF := NewVendorFix(r.FixedBuilds...)
-			for pID, v := range r.ProductIDs {
-				newVF.ProductIDs[pID] = v
-			}
+			maps.Copy(newVF.ProductIDs, r.ProductIDs)
 			if r.Supersedes != nil {
 				newVF.Supersedes = ptr.Uint(*r.Supersedes)
 			}

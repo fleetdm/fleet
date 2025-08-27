@@ -161,7 +161,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 		FROM activities a
 		WHERE a.host_only = false`
 
-	var args []interface{}
+	var args []any
 	if opt.Streamed != nil {
 		activitiesQ += " AND a.streamed = ?"
 		args = append(args, *opt.Streamed)

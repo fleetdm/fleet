@@ -8,7 +8,7 @@ import (
 )
 
 // PlistReader encodes v to XML Plist.
-func PlistReader(v interface{}) (io.Reader, error) {
+func PlistReader(v any) (io.Reader, error) {
 	buf := new(bytes.Buffer)
 	enc := plist.NewEncoder(buf)
 	enc.Indent("\t")

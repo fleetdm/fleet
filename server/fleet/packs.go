@@ -116,12 +116,12 @@ func (p *Pack) teamPack() (*uint, error) {
 }
 
 // ExtraAuthz implements authz.ExtraAuthzer.
-func (p *Pack) ExtraAuthz() (map[string]interface{}, error) {
+func (p *Pack) ExtraAuthz() (map[string]any, error) {
 	packTeamID, err := p.teamPack()
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{
+	return map[string]any{
 		"pack_team_id":   packTeamID,
 		"is_global_pack": p.isGlobalPack(),
 	}, nil
@@ -181,7 +181,7 @@ type PackSpec struct {
 	Description string          `json:"description,omitempty"`
 	Platform    string          `json:"platform,omitempty"`
 	Disabled    bool            `json:"disabled"`
-	Targets     PackSpecTargets `json:"targets,omitempty"`
+	Targets     PackSpecTargets `json:"targets"`
 	Queries     []PackSpecQuery `json:"queries,omitempty"`
 }
 

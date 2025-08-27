@@ -79,7 +79,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 	return results, nil
 }
 
-func (t *Table) flattenOutput(dataQuery string, status map[string]interface{}) ([]dataflatten.Row, error) {
+func (t *Table) flattenOutput(dataQuery string, status map[string]any) ([]dataflatten.Row, error) {
 	flattenOpts := []dataflatten.FlattenOpts{
 		dataflatten.WithLogger(t.logger),
 		dataflatten.WithQuery(strings.Split(dataQuery, "/")),

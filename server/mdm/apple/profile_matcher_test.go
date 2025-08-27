@@ -354,7 +354,7 @@ func TestKeyForExternalHostIdentifier(t *testing.T) {
 }
 
 func generateProfile(name, ident, typ, uuid string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -372,5 +372,5 @@ func generateProfile(name, ident, typ, uuid string) []byte {
 	<integer>1</integer>
 </dict>
 </plist>
-`, name, ident, typ, uuid))
+`, name, ident, typ, uuid)
 }

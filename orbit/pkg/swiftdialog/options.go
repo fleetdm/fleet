@@ -55,7 +55,7 @@ type SwiftDialogOptions struct {
 	// Enable a checkbox with the specified label
 	Checkbox []Checkbox `json:"checkbox,omitempty"`
 	// Change the appearance of checkboxes
-	CheckboxStyle CheckboxStyle `json:"checkboxstyle,omitempty"`
+	CheckboxStyle CheckboxStyle `json:"checkboxstyle"`
 	// Enable countdown timer (in seconds)
 	Timer uint `json:"timer,omitempty"`
 	// Enable interactive progress bar

@@ -47,12 +47,12 @@ func main() {
 				if strings.HasPrefix(*release.Name, "orbit-") {
 					continue
 				}
-				if strings.HasPrefix(*release.Name, "fleet-") {
-					versionWithoutPrefix := strings.TrimPrefix(*release.Name, "fleet-")
+				if after, ok := strings.CutPrefix(*release.Name, "fleet-"); ok {
+					versionWithoutPrefix := after
 					release.Name = ptr.String(versionWithoutPrefix)
 				}
-				if strings.HasPrefix(*release.Name, "Fleet ") {
-					versionWithoutPrefix := strings.TrimPrefix(*release.Name, "Fleet ")
+				if after, ok := strings.CutPrefix(*release.Name, "Fleet "); ok {
+					versionWithoutPrefix := after
 					release.Name = ptr.String(versionWithoutPrefix)
 				}
 				if (*release.Name)[0] != 'v' {

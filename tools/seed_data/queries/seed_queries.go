@@ -43,12 +43,12 @@ func main() {
 	stmtSuffix := ";"
 
 	// Insert records in batches
-	for batch := 0; batch < totalRecords/batchSize; batch++ {
+	for batch := range totalRecords / batchSize {
 		var valueStrings []string
-		var valueArgs []interface{}
+		var valueArgs []any
 
 		// Generate batch of 1000 records
-		for i := 0; i < batchSize; i++ {
+		for i := range batchSize {
 			queryID := batch*batchSize + i + 1
 			valueStrings = append(valueStrings, "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 			valueArgs = append(valueArgs, 0, fmt.Sprintf("query_%d", queryID), "", "SELECT * FROM processes;", 1, 0, nil, "", "", "", 0, 0, "snapshot", 0)

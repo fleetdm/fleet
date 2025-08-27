@@ -57,7 +57,7 @@ func TestActivity(t *testing.T) {
 
 type dummyActivity struct {
 	name    string `json:"-"`
-	details map[string]interface{}
+	details map[string]any
 	hostIDs []uint
 }
 
@@ -99,7 +99,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+				details: map[string]any{"detail": 1, "sometext": "aaa"},
 			}, nil, timestamp,
 		),
 	)
@@ -107,7 +107,7 @@ func testActivityUsernameChange(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
+				details: map[string]any{"detail": 2},
 			}, nil, timestamp,
 		),
 	)
@@ -152,7 +152,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 
 	activity := dummyActivity{
 		name:    "test0",
-		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+		details: map[string]any{"detail": 1, "sometext": "aaa"},
 	}
 	// If we don't set the ActivityWebhookContextKey context value, the activity will not be created
 	assert.Error(t, ds.NewActivity(context.Background(), u, activity, nil, timestamp))
@@ -165,7 +165,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+				details: map[string]any{"detail": 1, "sometext": "aaa"},
 			}, nil, timestamp,
 		),
 	)
@@ -173,7 +173,7 @@ func testActivityNew(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
+				details: map[string]any{"detail": 2},
 			}, nil, timestamp,
 		),
 	)
@@ -229,7 +229,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+				details: map[string]any{"detail": 1, "sometext": "aaa"},
 			}, nil, timestamp,
 		),
 	)
@@ -237,7 +237,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test2",
-				details: map[string]interface{}{"detail": 2},
+				details: map[string]any{"detail": 2},
 			}, nil, timestamp,
 		),
 	)
@@ -245,7 +245,7 @@ func testListActivitiesStreamed(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, u, dummyActivity{
 				name:    "test3",
-				details: map[string]interface{}{"detail": 3},
+				details: map[string]any{"detail": 3},
 			}, nil, timestamp,
 		),
 	)
@@ -292,7 +292,7 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 		t, ds.NewActivity(
 			ctx, nil, dummyActivity{
 				name:    "test1",
-				details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+				details: map[string]any{"detail": 1, "sometext": "aaa"},
 			}, nil, timestamp,
 		),
 	)
@@ -322,12 +322,12 @@ func testActivityEmptyUser(t *testing.T, ds *Datastore) {
 func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 	timestamp := time.Now()
 	ctx := context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		require.NoError(
 			t, ds.NewActivity(
 				ctx, nil, dummyActivity{
 					name:    fmt.Sprintf("test-%d", i),
-					details: map[string]interface{}{},
+					details: map[string]any{},
 				}, nil, timestamp,
 			),
 		)
@@ -933,26 +933,26 @@ func testCleanupActivitiesAndAssociatedData(t *testing.T, ds *Datastore) {
 	ctx = context.WithValue(context.Background(), fleet.ActivityWebhookContextKey, true)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "other activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
+		details: map[string]any{"detail": 0, "foo": "zoo"},
 	}, nil, timestamp,
 	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "live query",
-		details: map[string]interface{}{"detail": 1, "foo": "bar"},
+		details: map[string]any{"detail": 1, "foo": "bar"},
 	}, nil, timestamp,
 	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "some host activity",
-		details: map[string]interface{}{"detail": 0, "foo": "zoo"},
+		details: map[string]any{"detail": 0, "foo": "zoo"},
 		hostIDs: []uint{1},
 	}, nil, timestamp,
 	)
 	require.NoError(t, err)
 	err = ds.NewActivity(ctx, user1, dummyActivity{
 		name:    "some host activity 2",
-		details: map[string]interface{}{"detail": 0, "foo": "bar"},
+		details: map[string]any{"detail": 0, "foo": "bar"},
 		hostIDs: []uint{2},
 	}, nil, timestamp,
 	)
@@ -1034,8 +1034,8 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 		INSERT INTO activities
 		(user_id, user_name, activity_type, details, user_email)
 		VALUES `
-	var insertActivitiesArgs []interface{}
-	for i := 0; i < 1500; i++ {
+	var insertActivitiesArgs []any
+	for range 1500 {
 		insertActivitiesArgs = append(insertActivitiesArgs,
 			user1.ID, user1.Name, "foobar", `{"foo": "bar"}`, user1.Email,
 		)
@@ -1049,8 +1049,8 @@ func testCleanupActivitiesAndAssociatedDataBatch(t *testing.T, ds *Datastore) {
 		INSERT INTO queries
 		(name, description, query)
 		VALUES `
-	var insertQueriesArgs []interface{}
-	for i := 0; i < 1500; i++ {
+	var insertQueriesArgs []any
+	for i := range 1500 {
 		insertQueriesArgs = append(insertQueriesArgs,
 			fmt.Sprintf("foobar%d", i), "foobar", "SELECT 1;",
 		)

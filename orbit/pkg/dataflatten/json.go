@@ -16,7 +16,7 @@ func JsonFile(file string, opts ...FlattenOpts) ([]Row, error) {
 }
 
 func Json(rawdata []byte, opts ...FlattenOpts) ([]Row, error) {
-	var data interface{}
+	var data any
 
 	if err := json.Unmarshal(rawdata, &data); err != nil {
 		return nil, fmt.Errorf("unmarshalling json: %w", err)

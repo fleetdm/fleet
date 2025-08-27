@@ -75,10 +75,7 @@ func addHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) error 
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		maxSize := len(hostIDs)
-		if maxSize > redisSetMembersBatchSize {
-			maxSize = redisSetMembersBatchSize
-		}
+		maxSize := min(len(hostIDs), redisSetMembersBatchSize)
 
 		args := redigo.Args{enrolledHostsSetKey}
 		args = args.AddFlat(hostIDs[:maxSize])
@@ -95,10 +92,7 @@ func removeHosts(ctx context.Context, pool fleet.RedisPool, hostIDs ...uint) err
 	defer conn.Close()
 
 	for len(hostIDs) > 0 {
-		maxSize := len(hostIDs)
-		if maxSize > redisSetMembersBatchSize {
-			maxSize = redisSetMembersBatchSize
-		}
+		maxSize := min(len(hostIDs), redisSetMembersBatchSize)
 
 		args := redigo.Args{enrolledHostsSetKey}
 		args = args.AddFlat(hostIDs)

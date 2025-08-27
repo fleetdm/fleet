@@ -52,7 +52,7 @@ func BenchmarkFailingPolicySetClusterP10H10(b *testing.B) {
 
 func benchmarkFailingPolicySet(b *testing.B, policyCount, hostCount int, cluster bool) {
 	s := setupRedis(b, cluster, false)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		runBenchmark(b, policyCount, hostCount, s)
 	}
 }
@@ -100,7 +100,7 @@ func runBenchmark(b *testing.B, policyCount, hostCount int, s *redisFailingPolic
 		go func() {
 			defer wg.Done()
 
-			for i := 0; i < checkInCount; i++ {
+			for range checkInCount {
 				for policyID := 1; policyID < policyCount+1; policyID++ {
 					host := fleet.PolicySetHost{
 						ID:       hostID,

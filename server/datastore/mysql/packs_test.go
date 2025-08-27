@@ -436,7 +436,7 @@ func testPacksApplySpecFailsOnTargetIDNull(t *testing.T, ds *Datastore) {
 func randomPackStatsForHost(packID uint, packName string, packType string, scheduledQueries []*fleet.ScheduledQuery, amount int) []fleet.PackStats {
 	var queryStats []fleet.ScheduledQueryStats
 
-	for i := 0; i < amount; i++ {
+	for range amount {
 		sq := scheduledQueries[rand.Intn(len(scheduledQueries))]
 		queryStats = append(queryStats, fleet.ScheduledQueryStats{
 			ScheduledQueryName: sq.Name,
@@ -504,7 +504,7 @@ func testPacksApplyStatsNotLocking(t *testing.T, ds *Datastore) {
 	}()
 
 	time.Sleep(1 * time.Second)
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		require.NoError(t, ds.ApplyPackSpecs(context.Background(), specs))
 		time.Sleep(77 * time.Millisecond)
 	}
@@ -532,7 +532,7 @@ func testPacksApplyStatsNotLockingTryTwo(t *testing.T, ds *Datastore) {
 	require.NotNil(t, host)
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		go func() {
 			ms := rand.Intn(100)
 			if ms == 0 {

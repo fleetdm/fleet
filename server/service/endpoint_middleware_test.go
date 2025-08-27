@@ -157,7 +157,7 @@ func TestAuthenticatedHost(t *testing.T) {
 	endpoint := authenticatedHost(
 		svc,
 		kitlog.NewNopLogger(),
-		func(ctx context.Context, request interface{}) (interface{}, error) {
+		func(ctx context.Context, request any) (any, error) {
 			host, ok := hostctx.FromContext(ctx)
 			assert.True(t, ok)
 			assert.Equal(t, &expectedHost, host)
@@ -231,7 +231,7 @@ func TestAuthenticatedUserMW(t *testing.T) {
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
 			nextCalled := false
-			endpoint := auth.AuthenticatedUser(svc, func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			endpoint := auth.AuthenticatedUser(svc, func(ctx context.Context, request any) (response any, err error) {
 				nextCalled = true
 				return nil, nil
 			})

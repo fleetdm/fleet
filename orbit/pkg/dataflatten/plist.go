@@ -17,7 +17,7 @@ func PlistFile(file string, opts ...FlattenOpts) ([]Row, error) {
 }
 
 func Plist(rawdata []byte, opts ...FlattenOpts) ([]Row, error) {
-	var data interface{}
+	var data any
 
 	if _, err := plist.Unmarshal(rawdata, &data); err != nil {
 		return nil, fmt.Errorf("unmarshalling plist: %w", err)

@@ -299,11 +299,11 @@ func TestEndpointer(t *testing.T) {
 	}
 
 	e := newUserAuthenticatedEndpointer(svc, fleetAPIOptions, r, "v1", "2021-11")
-	nopHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	nopHandler := func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("nop"), nil
 	}
-	overrideHandler := func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	overrideHandler := func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return stringErrorer("override"), nil
 	}
@@ -420,32 +420,32 @@ func TestEndpointerCustomMiddleware(t *testing.T) {
 
 	var buf bytes.Buffer
 	e := newNoAuthEndpointer(svc, fleetAPIOptions, r, "v1")
-	e.GET("/none/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	e.GET("/none/", func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 		buf.WriteString("H1")
 		return nil, nil
 	}, nil)
 
 	e.WithCustomMiddleware(
 		func(e endpoint.Endpoint) endpoint.Endpoint {
-			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			return func(ctx context.Context, request any) (response any, err error) {
 				buf.WriteString("A")
 				return e(ctx, request)
 			}
 		},
 		func(e endpoint.Endpoint) endpoint.Endpoint {
-			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			return func(ctx context.Context, request any) (response any, err error) {
 				buf.WriteString("B")
 				return e(ctx, request)
 			}
 		},
 		func(e endpoint.Endpoint) endpoint.Endpoint {
-			return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+			return func(ctx context.Context, request any) (response any, err error) {
 				buf.WriteString("C")
 				return e(ctx, request)
 			}
 		},
 	).
-		GET("/mw/", func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+		GET("/mw/", func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 			buf.WriteString("H2")
 			return nil, nil
 		}, nil)

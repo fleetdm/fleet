@@ -662,7 +662,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 
 	// Test that we can use the renewed certificate to access the config endpoint
 	t.Run("test config endpoint with renewed certificate", func(t *testing.T) {
-		var configReq interface{}
+		var configReq any
 		var configURL string
 
 		if isOsquery {
@@ -696,7 +696,7 @@ func testCertificateRenewal(t *testing.T, s *Suite, existingCert *x509.Certifica
 
 	// Test that config endpoint does not work with old certificate after renewal
 	t.Run("config endpoint fails with old certificate after renewal", func(t *testing.T) {
-		var configReq interface{}
+		var configReq any
 		var configURL string
 
 		if isOsquery {
@@ -973,7 +973,7 @@ func testSCEPFailure(t *testing.T, s *Suite, config SCEPFailureConfig) {
 	require.NoError(t, err)
 	require.NotEmpty(t, caCerts)
 
-	var privateKey interface{}
+	var privateKey any
 	var sigAlg x509.SignatureAlgorithm
 
 	if config.UseECC {

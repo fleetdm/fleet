@@ -15,8 +15,8 @@ import (
 // pretty simple key, value format, but does have a free form first
 // line. It's not clear if this is going to be stable, or change
 // across versions.
-func parseStatus(rawdata []byte) (map[string]interface{}, error) {
-	var data map[string]interface{}
+func parseStatus(rawdata []byte) (map[string]any, error) {
+	var data map[string]any
 
 	if len(rawdata) == 0 {
 		return nil, errors.New("No data")
@@ -57,7 +57,7 @@ var firstLineRegexp = regexp.MustCompile(`^(?:Device (.*) (not found))|(?:(.*?) 
 // appears to be a free form string indicating several pieces of
 // information. It is parsed with a single regexp. (See tests for
 // examples)
-func parseFirstLine(line string) (map[string]interface{}, error) {
+func parseFirstLine(line string) (map[string]any, error) {
 	if line == "" {
 		return nil, errors.New("Invalid first line")
 	}
@@ -70,7 +70,7 @@ func parseFirstLine(line string) (map[string]interface{}, error) {
 		return nil, fmt.Errorf("Got %d matches. Expected 6. Failed to match first line: %s", len(m[0]), line)
 	}
 
-	data := make(map[string]interface{}, 3)
+	data := make(map[string]any, 3)
 
 	// check for $1 and $2 for the error condition
 	if m[0][1] != "" && m[0][2] != "" {

@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"strings"
@@ -73,9 +74,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 
 		// Merge resulting matches
 		for _, row := range t.parser.Parse(output) {
-			for k, v := range row {
-				result[k] = v
-			}
+			maps.Copy(result, row)
 		}
 	}
 	return []map[string]string{result}, nil

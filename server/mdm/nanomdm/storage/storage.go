@@ -99,7 +99,7 @@ type StoreMigrator interface {
 	// Note that order matters: device channel TokenUpdate messages must
 	// follow Authenticate messages and user channel TokenUpdates must
 	// follow the device channel TokenUpdate.
-	RetrieveMigrationCheckins(context.Context, chan<- interface{}) error
+	RetrieveMigrationCheckins(context.Context, chan<- any) error
 }
 
 // TokenUpdateTallyStore retrieves the TokenUpdate tally (count) for an id

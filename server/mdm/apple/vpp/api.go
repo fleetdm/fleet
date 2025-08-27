@@ -33,7 +33,7 @@ type Asset struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/errorresponse
 type ErrorResponse struct {
-	ErrorInfo    ResponseErrorInfo `json:"errorInfo,omitempty"`
+	ErrorInfo    ResponseErrorInfo `json:"errorInfo"`
 	ErrorMessage string            `json:"errorMessage"`
 	ErrorNumber  int32             `json:"errorNumber"`
 }

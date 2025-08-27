@@ -355,7 +355,7 @@ type Host struct {
 	// service layer).
 	DiskEncryptionKeyEscrowed bool `json:"-" db:"-" csv:"-"`
 
-	HostIssues `json:"issues,omitempty" csv:"-"`
+	HostIssues `json:"issues" csv:"-"`
 
 	// DeviceMapping is in fact included in the CSV export, but it is not directly
 	// encoded from this column, it is processed before marshaling, hence why the
@@ -481,7 +481,7 @@ type HostOrbitInfo struct {
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
 // the same name, see the comments/docs for the Host field above.
 type HostHealth struct {
-	UpdatedAt                    time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
+	UpdatedAt                    time.Time                      `json:"updated_at" db:"updated_at"`
 	OsVersion                    string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled        *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	FailingPoliciesCount         int                            `json:"failing_policies_count"`
@@ -682,7 +682,6 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 
 	var fvprof *HostMDMAppleProfile
 	for _, p := range profiles {
-		p := p
 		if p.Identifier == fileVaultIdentifier {
 			fvprof = &p
 			break
@@ -783,7 +782,7 @@ func (d *MDMHostData) TestGetRawDecryptable() *int {
 
 // Scan implements the Scanner interface for sqlx, to support unmarshaling a
 // JSON object from the database into a MDMHostData struct.
-func (d *MDMHostData) Scan(v interface{}) error {
+func (d *MDMHostData) Scan(v any) error {
 	var dst struct {
 		MDMHostData
 		RawDecryptable *int `json:"raw_decryptable"`
@@ -932,10 +931,7 @@ func (h *Host) Status(now time.Time) HostStatus {
 	// GenerateHostStatusStatistics and CountHostsInTargets
 	// NOTE: As of Fleet 4.15 StatusMIA is deprecated and will be removed in Fleet 5.0
 
-	onlineInterval := h.ConfigTLSRefresh
-	if h.DistributedInterval < h.ConfigTLSRefresh {
-		onlineInterval = h.DistributedInterval
-	}
+	onlineInterval := min(h.DistributedInterval, h.ConfigTLSRefresh)
 
 	// Add a small buffer to prevent flapping
 	onlineInterval += OnlineIntervalBuffer

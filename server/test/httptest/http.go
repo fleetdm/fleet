@@ -14,7 +14,7 @@ import (
 func DoHTTPReq(
 	t *testing.T,
 	client *http.Client,
-	jsonDecoder func(r io.Reader, v interface{}) error,
+	jsonDecoder func(r io.Reader, v any) error,
 	verb string, rawBytes []byte, urlPath string,
 	headers map[string]string,
 	expectedStatusCode int,

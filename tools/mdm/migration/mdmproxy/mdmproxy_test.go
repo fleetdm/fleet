@@ -95,7 +95,7 @@ func Test_udidFromRequestBody(t *testing.T) {
 // Run the function with the given percentage and return the number of included UDIDs
 func countUdidIncludedByPercentage(percentage, runs int) int {
 	included := 0
-	for i := 0; i < runs; i++ {
+	for range runs {
 		if udidIncludedByPercentage(uuid.NewString(), percentage) {
 			included++
 		}

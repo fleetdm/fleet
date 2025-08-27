@@ -50,10 +50,7 @@ func SendFailingPoliciesBatchedPOSTs(
 		hostBatchSize = len(hosts)
 	}
 	for i := 0; i < len(hosts); i += hostBatchSize {
-		end := i + hostBatchSize
-		if end > len(hosts) {
-			end = len(hosts)
-		}
+		end := min(i+hostBatchSize, len(hosts))
 		batch := hosts[i:end]
 
 		failingHosts := make([]failingHost, len(batch))

@@ -1154,7 +1154,7 @@ the way that the Fleet server works.
 			healthCheckers := make(map[string]health.Checker)
 			{
 				// a list of dependencies which could affect the status of the app if unavailable.
-				deps := map[string]interface{}{
+				deps := map[string]any{
 					"mysql": ds,
 					"redis": resultStore,
 				}

@@ -69,7 +69,7 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	s.token = getTestAdminToken(s.T(), s.server)
 
 	t := s.T()
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -221,7 +221,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 				hostDistributedQueryPrefix + "invalidcid": json.RawMessage(`""`), // empty string is sometimes sent for no results
 				hostDistributedQueryPrefix + "9999":       json.RawMessage(`""`),
 			},
-			Statuses: map[string]interface{}{
+			Statuses: map[string]any{
 				hostDistributedQueryPrefix + cid:    0,
 				hostDistributedQueryPrefix + "9999": "0",
 			},
@@ -886,7 +886,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 			Results: map[string]json.RawMessage{
 				hostDistributedQueryPrefix + cid: json.RawMessage(`[{"col1": "a", "col2": "b"}]`),
 			},
-			Statuses: map[string]interface{}{
+			Statuses: map[string]any{
 				hostDistributedQueryPrefix + cid: "0",
 			},
 			Messages: map[string]string{
@@ -901,7 +901,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
 			Results: map[string]json.RawMessage{
 				hostDistributedQueryPrefix + cid: json.RawMessage(`""`),
 			},
-			Statuses: map[string]interface{}{
+			Statuses: map[string]any{
 				hostDistributedQueryPrefix + cid: 123,
 			},
 			Messages: map[string]string{
@@ -1045,7 +1045,7 @@ func (s *liveQueriesTestSuite) TestOsqueryDistributedRead() {
 	assert.Contains(t, resp.Queries, hostDistributedQueryPrefix+fmt.Sprintf("%d", hostID))
 
 	// test with invalid node key
-	var errRes map[string]interface{}
+	var errRes map[string]any
 	req.NodeKey += "zzzz"
 	s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusUnauthorized, &errRes)
 	assert.Contains(t, errRes["error"], "invalid node key")

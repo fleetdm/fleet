@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -161,11 +162,8 @@ func main() {
 	ds.UpsertSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
 		for _, cpe := range cpes {
 			var found bool
-			for _, storedCPEs := range softwareCPEs {
-				if storedCPEs == cpe {
-					found = true
-					break
-				}
+			if slices.Contains(softwareCPEs, cpe) {
+				found = true
 			}
 			if !found {
 				softwareCPEs = append(softwareCPEs, cpe)

@@ -183,11 +183,11 @@ func assertError(t *testing.T, mockT *testingT, dependencyTrace ...string) {
 }
 
 type testingT struct {
-	errors [][]interface{}
+	errors [][]any
 }
 
 func (t *testingT) Errorf(format string, args ...any) {
-	t.errors = append(t.errors, append([]interface{}{format}, args...))
+	t.errors = append(t.errors, append([]any{format}, args...))
 }
 
 func (t testingT) errored() bool {

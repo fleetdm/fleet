@@ -59,8 +59,8 @@ CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
 	return err
 }
 
-func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, error) {
-	var cpes []interface{}
+func generateCPEItem(item cpedict.CPEItem) ([]any, map[string]string, error) {
+	var cpes []any
 	deprecations := make(map[string]string)
 
 	cpe23 := wfn.Attributes(item.CPE23.Name).BindToFmtString()
@@ -101,9 +101,9 @@ func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
 	}
 
 	cpesCount := 0
-	var cpesBatch []interface{}
+	var cpesBatch []any
 	deprecationsCount := 0
-	var deprecationsBatch []interface{}
+	var deprecationsBatch []any
 
 	for _, item := range items {
 		cpes, deprecations, err := generateCPEItem(item)
@@ -123,7 +123,7 @@ func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
 			if err != nil {
 				return err
 			}
-			cpesBatch = []interface{}{}
+			cpesBatch = []any{}
 			cpesCount = 0
 		}
 		if deprecationsCount > batchSize {
@@ -131,7 +131,7 @@ func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
 			if err != nil {
 				return err
 			}
-			deprecationsBatch = []interface{}{}
+			deprecationsBatch = []any{}
 			deprecationsCount = 0
 		}
 	}
@@ -155,7 +155,7 @@ func GenerateCPEDB(path string, items []cpedict.CPEItem) error {
 	return nil
 }
 
-func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations []interface{}) error {
+func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations []any) error {
 	values := strings.TrimSuffix(strings.Repeat("((SELECT rowid FROM CPE where cpe23 = ?), ?),", deprecationsCount), ",")
 	_, err := db.Exec(
 		fmt.Sprintf(`INSERT INTO deprecated_by(cpe_id, cpe23) VALUES %s`, values),
@@ -164,7 +164,7 @@ func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations 
 	return err
 }
 
-func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
+func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []any) error {
 	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", cpesCount), ", ")
 	_, err := db.Exec(
 		fmt.Sprintf(`

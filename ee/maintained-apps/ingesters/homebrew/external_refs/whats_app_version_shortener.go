@@ -10,8 +10,8 @@ import (
 func WhatsAppVersionShortener(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {
 	homebrewVersion := app.Version
 
-	if strings.HasPrefix(homebrewVersion, "2.") {
-		app.Version = strings.TrimPrefix(homebrewVersion, "2.")
+	if after, ok := strings.CutPrefix(homebrewVersion, "2."); ok {
+		app.Version = after
 	} else {
 		return app, fmt.Errorf("Expected WhatsApp version to start with '2.' but found '%s'", homebrewVersion)
 	}

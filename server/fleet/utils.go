@@ -46,7 +46,7 @@ func WriteAppleBMTermsExpiredBanner(w io.Writer) {
 // Compared to standard json.Unmarshal, this function will return an error if
 // any unknown key is specified in the JSON value, and if there is any trailing
 // byte after the JSON value.
-func JSONStrictDecode(r io.Reader, v interface{}) error {
+func JSONStrictDecode(r io.Reader, v any) error {
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {

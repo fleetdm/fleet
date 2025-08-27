@@ -142,14 +142,14 @@ VALUES (?, ?, ?, ?, UNHEX(MD5(mobileconfig)), UUID())
 
 		// unmarshal only the fields we want to test
 		var payload struct {
-			PayloadContent []map[string]interface{}
+			PayloadContent []map[string]any
 		}
 		_, err = plist.Unmarshal(mc, &payload)
 		require.NoError(t, err)
 		require.Len(t, payload.PayloadContent, 4)
 
 		// find the right payload
-		var found map[string]interface{}
+		var found map[string]any
 		for _, p := range payload.PayloadContent {
 			if p["PayloadType"] == "com.apple.MCX.FileVault2" {
 				found = p

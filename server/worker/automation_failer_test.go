@@ -71,7 +71,7 @@ func TestJiraFailer(t *testing.T) {
 
 	var failedIndices []int
 	cves := []string{"CVE-2018-1234", "CVE-2019-1234", "CVE-2020-1234", "CVE-2021-1234"}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cve := cves[i%len(cves)]
 		err := jira.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), json.RawMessage(fmt.Sprintf(`{"vulnerability":{"cve":%q}}`, cve)))
 		if err != nil {
@@ -130,7 +130,7 @@ func TestZendeskFailer(t *testing.T) {
 
 	var failedIndices []int
 	cves := []string{"CVE-2018-1234", "CVE-2019-1234", "CVE-2020-1234", "CVE-2021-1234"}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cve := cves[i%len(cves)]
 		err := zendesk.Run(license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree}), json.RawMessage(fmt.Sprintf(`{"vulnerability":{"cve":%q}}`, cve)))
 		if err != nil {

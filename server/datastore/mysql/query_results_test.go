@@ -313,7 +313,7 @@ func testCountResultsForQuery(t *testing.T, ds *Datastore) {
 	}
 
 	var resultRows []*fleet.ScheduledQueryResultRow
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		resultRows = append(resultRows, resultRow2)
 	}
 
@@ -513,7 +513,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	// Generate max rows -1
 	maxRows := fleet.DefaultMaxQueryReportRows - 1
 	maxMinusOneRows := make([]*fleet.ScheduledQueryResultRow, maxRows)
-	for i := 0; i < maxRows; i++ {
+	for i := range maxRows {
 		maxMinusOneRows[i] = &fleet.ScheduledQueryResultRow{
 			QueryID:     query.ID,
 			HostID:      host1.ID,
@@ -570,7 +570,7 @@ func testQueryResultRowsDoNotExceedMaxRows(t *testing.T, ds *Datastore) {
 	// Generate more than max rows in Query 2
 	rows := fleet.DefaultMaxQueryReportRows + 50
 	largeBatchRows := make([]*fleet.ScheduledQueryResultRow, rows)
-	for i := 0; i < rows; i++ {
+	for i := range rows {
 		largeBatchRows[i] = &fleet.ScheduledQueryResultRow{
 			QueryID:     query2.ID,
 			HostID:      host1.ID,

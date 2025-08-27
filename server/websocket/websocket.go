@@ -26,7 +26,7 @@ type JSONMessage struct {
 	Type string `json:"type"`
 	// Data contains the arbitrarily schemaed JSON data. Type should
 	// indicate how this should be deserialized.
-	Data interface{} `json:"data"`
+	Data any `json:"data"`
 }
 
 // Conn is a wrapper for a standard websocket connection with utility methods
@@ -48,13 +48,13 @@ func (c *Conn) WriteJSON(msg JSONMessage) error {
 
 // WriteJSONMessage writes the provided data as JSON (using the Message struct),
 // returning any error condition from the connection.
-func (c *Conn) WriteJSONMessage(typ string, data interface{}) error {
+func (c *Conn) WriteJSONMessage(typ string, data any) error {
 	return c.WriteJSON(JSONMessage{Type: typ, Data: data})
 }
 
 // WriteJSONError writes an error (Message struct with Type="error"), returning any
 // error condition from the connection.
-func (c *Conn) WriteJSONError(data interface{}) error {
+func (c *Conn) WriteJSONError(data any) error {
 	return c.WriteJSONMessage(errType, data)
 }
 

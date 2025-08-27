@@ -55,7 +55,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
@@ -195,7 +195,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}
@@ -271,7 +271,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
 
 	// enable FileVault
-	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage([]byte(fmt.Sprintf(`{"enable_disk_encryption":true,"team_id":%d}`, tm.ID))), http.StatusNoContent)
+	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", json.RawMessage(fmt.Appendf(nil, `{"enable_disk_encryption":true,"team_id":%d}`, tm.ID)), http.StatusNoContent)
 
 	// add a setup experience script to run for this team
 	extraArgs := map[string][]string{
@@ -344,7 +344,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseIphoneTeam() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
 		}

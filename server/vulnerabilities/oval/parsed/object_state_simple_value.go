@@ -2,6 +2,7 @@ package oval_parsed
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -34,10 +35,8 @@ func (sta ObjectStateSimpleValue) unpack() (DataType, OperationType, string) {
 func (sta ObjectStateSimpleValue) Eval(other string) (bool, error) {
 	dType, op, val := sta.unpack()
 
-	for _, cType := range complexTypes {
-		if dType == cType {
-			return false, fmt.Errorf("type %q not supported", dType)
-		}
+	if slices.Contains(complexTypes, dType) {
+		return false, fmt.Errorf("type %q not supported", dType)
 	}
 
 	switch dType {

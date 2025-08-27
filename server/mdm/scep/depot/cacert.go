@@ -92,7 +92,7 @@ func (c *CACert) newPkixName() *pkix.Name {
 }
 
 // SelfSign creates an x509 template based off our settings and self-signs it using priv.
-func (c *CACert) SelfSign(rand io.Reader, pub crypto.PublicKey, priv interface{}) ([]byte, error) {
+func (c *CACert) SelfSign(rand io.Reader, pub crypto.PublicKey, priv any) ([]byte, error) {
 	subjKeyId, err := cryptoutil.GenerateSubjectKeyID(pub)
 	if err != nil {
 		return nil, err

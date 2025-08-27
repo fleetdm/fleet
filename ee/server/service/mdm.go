@@ -1238,14 +1238,14 @@ func (svc *Service) mdmAppleEditedAppleOSUpdates(ctx context.Context, teamID *ui
 
 	// OS updates enabled, create or update the profile with the current settings.
 
-	rawDecl := []byte(fmt.Sprintf(`{
+	rawDecl := fmt.Appendf(nil, `{
 	"Identifier": %q,
 	"Type": %q,
 	"Payload": {
 		"TargetOSVersion": %q,
 		"TargetLocalDateTime": "%sT12:00:00"
 	}
-}`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value))
+}`, softwareUpdateIdentifier, softwareUpdateType, updates.MinimumVersion.Value, updates.Deadline.Value)
 
 	d := fleet.NewMDMAppleDeclaration(rawDecl, teamID, osUpdatesProfileName, softwareUpdateType, softwareUpdateIdentifier)
 

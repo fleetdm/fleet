@@ -35,9 +35,9 @@ const (
 )
 
 type specGeneric struct {
-	Kind    string      `json:"kind"`
-	Version string      `json:"apiVersion"`
-	Spec    interface{} `json:"spec"`
+	Kind    string `json:"kind"`
+	Version string `json:"apiVersion"`
+	Spec    any    `json:"spec"`
 }
 
 func defaultTable(writer io.Writer) *tablewriter.Table {
@@ -76,7 +76,7 @@ func jsonFlag() cli.Flag {
 	}
 }
 
-func printJSON(spec interface{}, writer io.Writer) error {
+func printJSON(spec any, writer io.Writer) error {
 	b, err := json.Marshal(spec)
 	if err != nil {
 		return err
@@ -85,7 +85,7 @@ func printJSON(spec interface{}, writer io.Writer) error {
 	return nil
 }
 
-func printYaml(spec interface{}, writer io.Writer) error {
+func printYaml(spec any, writer io.Writer) error {
 	b, err := yaml.Marshal(spec)
 	if err != nil {
 		return err
@@ -175,8 +175,8 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 	}
 
 	extraFieldsJSON, err := json.Marshal(&struct {
-		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval,omitempty"`
-		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities,omitempty"`
+		UpdateInterval  UpdateIntervalConfigPresenter  `json:"update_interval"`
+		Vulnerabilities VulnerabilitiesConfigPresenter `json:"vulnerabilities"`
 	}{
 		UpdateInterval: UpdateIntervalConfigPresenter{
 			eacp.UpdateInterval.OSQueryDetail.String(),
@@ -198,7 +198,7 @@ func (eacp enrichedAppConfigPresenter) MarshalJSON() ([]byte, error) {
 	return rawjson.CombineRoots(enrichedJSON, extraFieldsJSON)
 }
 
-func printConfig(c *cli.Context, config interface{}) error {
+func printConfig(c *cli.Context, config any) error {
 	spec := specGeneric{
 		Kind:    fleet.AppConfigKind,
 		Version: fleet.ApiVersion,
@@ -252,7 +252,7 @@ func printUserRoles(c *cli.Context, users []fleet.User) error {
 
 func printTeams(c *cli.Context, teams []fleet.Team) error {
 	for _, team := range teams {
-		var teamItem interface{} = team
+		var teamItem any = team
 		if c.Bool(yamlFlagName) {
 			teamSpec, err := fleet.TeamSpecFromTeam(&team)
 			if err != nil {
@@ -263,7 +263,7 @@ func printTeams(c *cli.Context, teams []fleet.Team) error {
 		spec := specGeneric{
 			Kind:    fleet.TeamKind,
 			Version: fleet.ApiVersion,
-			Spec: map[string]interface{}{
+			Spec: map[string]any{
 				"team": teamItem,
 			},
 		}
@@ -1060,7 +1060,7 @@ func getCarveCommand() *cli.Command {
 	}
 }
 
-func log(c *cli.Context, msg ...interface{}) {
+func log(c *cli.Context, msg ...any) {
 	fmt.Fprint(c.App.Writer, msg...)
 }
 

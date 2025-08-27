@@ -28,13 +28,13 @@ func New(logger log.Logger, stores ...storage.AllStorage) *MultiAllStorage {
 
 type returnCollector struct {
 	storeNumber int
-	returnValue interface{}
+	returnValue any
 	err         error
 }
 
-type errRunner func(storage.AllStorage) (interface{}, error)
+type errRunner func(storage.AllStorage) (any, error)
 
-func (ms *MultiAllStorage) execStores(ctx context.Context, r errRunner) (interface{}, error) {
+func (ms *MultiAllStorage) execStores(ctx context.Context, r errRunner) (any, error) {
 	retChan := make(chan *returnCollector)
 	for i, store := range ms.stores {
 		go func(n int, s storage.AllStorage) {
@@ -47,7 +47,7 @@ func (ms *MultiAllStorage) execStores(ctx context.Context, r errRunner) (interfa
 		}(i, store)
 	}
 	var finalErr error
-	var finalValue interface{}
+	var finalValue any
 	for range ms.stores {
 		sErr := <-retChan
 		if sErr.storeNumber == 0 {
@@ -64,49 +64,49 @@ func (ms *MultiAllStorage) execStores(ctx context.Context, r errRunner) (interfa
 }
 
 func (ms *MultiAllStorage) StoreAuthenticate(r *mdm.Request, msg *mdm.Authenticate) error {
-	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return nil, s.StoreAuthenticate(r, msg)
 	})
 	return err
 }
 
 func (ms *MultiAllStorage) StoreTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) error {
-	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return nil, s.StoreTokenUpdate(r, msg)
 	})
 	return err
 }
 
 func (ms *MultiAllStorage) RetrieveTokenUpdateTally(ctx context.Context, id string) (int, error) {
-	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	val, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return s.RetrieveTokenUpdateTally(ctx, id)
 	})
 	return val.(int), err
 }
 
 func (ms *MultiAllStorage) StoreUserAuthenticate(r *mdm.Request, msg *mdm.UserAuthenticate) error {
-	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return nil, s.StoreUserAuthenticate(r, msg)
 	})
 	return err
 }
 
 func (ms *MultiAllStorage) Disable(r *mdm.Request) error {
-	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return nil, s.Disable(r)
 	})
 	return err
 }
 
 func (ms *MultiAllStorage) ExpandEmbeddedSecrets(ctx context.Context, document string) (string, error) {
-	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	doc, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return s.ExpandEmbeddedSecrets(ctx, document)
 	})
 	return doc.(string), err
 }
 
 func (ms *MultiAllStorage) BulkDeleteHostUserCommandsWithoutResults(ctx context.Context, commandToIDs map[string][]string) error {
-	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return nil, s.BulkDeleteHostUserCommandsWithoutResults(ctx, commandToIDs)
 	})
 	return err

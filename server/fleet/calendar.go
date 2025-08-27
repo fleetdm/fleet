@@ -52,7 +52,7 @@ type UserCalendar interface {
 	// StopEventChannel stops the event's callback channel.
 	StopEventChannel(event *CalendarEvent) error
 	// Get retrieves the value of the given key from the event.
-	Get(event *CalendarEvent, key string) (interface{}, error)
+	Get(event *CalendarEvent, key string) (any, error)
 }
 
 // Lock interface for managing distributed locks.

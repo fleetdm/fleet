@@ -230,7 +230,7 @@ FROM upcoming
 		tmID = *teamID
 	}
 
-	query, args, err := sqlx.Named(stmt, map[string]interface{}{
+	query, args, err := sqlx.Named(stmt, map[string]any{
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
 		"team_id":                   tmID,
@@ -1317,7 +1317,6 @@ func (ds *Datastore) UpdateVPPTokenTeams(ctx context.Context, id uint, teams []u
 
 	if len(teams) > 0 {
 		for _, team := range teams {
-			team := team
 			if values == "" {
 				values = stmtValues
 			} else {

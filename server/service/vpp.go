@@ -27,7 +27,7 @@ type getAppStoreAppsResponse struct {
 
 func (r getAppStoreAppsResponse) Error() error { return r.Err }
 
-func getAppStoreAppsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getAppStoreAppsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getAppStoreAppsRequest)
 	apps, err := svc.GetAppStoreApps(ctx, &req.TeamID)
 	if err != nil {
@@ -67,7 +67,7 @@ type addAppStoreAppResponse struct {
 
 func (r addAppStoreAppResponse) Error() error { return r.Err }
 
-func addAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func addAppStoreAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addAppStoreAppRequest)
 	titleID, err := svc.AddAppStoreApp(ctx, req.TeamID, fleet.VPPAppTeam{
 		VPPAppID:             fleet.VPPAppID{AdamID: req.AppStoreID, Platform: req.Platform},
@@ -112,7 +112,7 @@ type updateAppStoreAppResponse struct {
 
 func (r updateAppStoreAppResponse) Error() error { return r.Err }
 
-func updateAppStoreAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func updateAppStoreAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateAppStoreAppRequest)
 
 	updatedApp, err := svc.UpdateAppStoreApp(ctx, req.TitleID, req.TeamID, req.SelfService, req.LabelsIncludeAny, req.LabelsExcludeAny, req.Categories)
@@ -139,7 +139,7 @@ type uploadVPPTokenRequest struct {
 	File *multipart.FileHeader
 }
 
-func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (uploadVPPTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := uploadVPPTokenRequest{}
 
 	err := r.ParseMultipartForm(512 * units.MiB)
@@ -173,7 +173,7 @@ func (r uploadVPPTokenResponse) Error() error {
 	return r.Err
 }
 
-func uploadVPPTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func uploadVPPTokenEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*uploadVPPTokenRequest)
 	file, err := req.File.Open()
 	if err != nil {
@@ -206,7 +206,7 @@ type patchVPPTokenRenewRequest struct {
 	File *multipart.FileHeader
 }
 
-func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (patchVPPTokenRenewRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	decoded := patchVPPTokenRenewRequest{}
 
 	err := r.ParseMultipartForm(512 * units.MiB)
@@ -247,7 +247,7 @@ func (r patchVPPTokenRenewResponse) Error() error {
 	return r.Err
 }
 
-func patchVPPTokenRenewEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func patchVPPTokenRenewEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*patchVPPTokenRenewRequest)
 	file, err := req.File.Open()
 	if err != nil {

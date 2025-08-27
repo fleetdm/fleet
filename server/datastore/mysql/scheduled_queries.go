@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -41,7 +42,7 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`
-	params := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery, id}
+	params := []any{false, fleet.AggregatedStatsTypeScheduledQuery, id}
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opts)
 	results := []*fleet.ScheduledQuery{}
 
@@ -247,12 +248,9 @@ func (ds *Datastore) ScheduledQueryIDsByName(ctx context.Context, batchSize int,
 
 	var indexOffset int
 	for len(packAndSchedQueryNames) > 0 {
-		maxSize := len(packAndSchedQueryNames)
-		if maxSize > batchSize {
-			maxSize = batchSize
-		}
+		maxSize := min(len(packAndSchedQueryNames), batchSize)
 
-		args := make([]interface{}, 0, maxSize*3)
+		args := make([]any, 0, maxSize*3)
 		for i, psn := range packAndSchedQueryNames[:maxSize] {
 			args = append(args, indexOffset+i, psn[0], psn[1])
 		}
@@ -311,16 +309,14 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 	for k := range stats {
 		hostIDs = append(hostIDs, k)
 	}
-	sort.Slice(hostIDs, func(i, j int) bool {
-		return hostIDs[i] < hostIDs[j]
-	})
+	slices.Sort(hostIDs)
 
 	var batchCount int
 
 	var (
-		userPacksArgs              []interface{}
+		userPacksArgs              []any
 		userPacksQueryCount        = 0
-		scheduledQueriesArgs       []interface{}
+		scheduledQueriesArgs       []any
 		scheduledQueriesQueryCount = 0
 	)
 
@@ -378,7 +374,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 			batchCount++
 			if batchCount >= batchSize {
 				var values []string
-				batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+				batchArgs := make([]any, 0, scheduledQueriesQueryCount+userPacksQueryCount)
 
 				if scheduledQueriesQueryCount > 0 {
 					values = append(values,
@@ -424,7 +420,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 
 	if batchCount > 0 {
 		var values []string
-		batchArgs := make([]interface{}, 0, scheduledQueriesQueryCount+userPacksQueryCount)
+		batchArgs := make([]any, 0, scheduledQueriesQueryCount+userPacksQueryCount)
 
 		if scheduledQueriesQueryCount > 0 {
 			values = append(values,

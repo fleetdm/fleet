@@ -20,7 +20,6 @@ func TestCommandAndReportResults(t *testing.T) {
 			"76eda240-5488-4989-8339-f2ae160113c4",
 		},
 	} {
-		test := test
 		t.Run(filepath.Base(test.filename), func(t *testing.T) {
 			t.Parallel()
 			b, err := ioutil.ReadFile(test.filename)

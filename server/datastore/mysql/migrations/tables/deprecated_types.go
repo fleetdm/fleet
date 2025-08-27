@@ -40,7 +40,7 @@ const (
 
 // MarshalJSON marshals option type to strings
 func (ot optionType) MarshalJSON() ([]byte, error) {
-	return []byte(fmt.Sprintf(`"%s"`, ot)), nil
+	return fmt.Appendf(nil, `"%s"`, ot), nil
 }
 
 // UnmarshalJSON converts json to optionType
@@ -75,7 +75,7 @@ func (ot optionType) String() string {
 // optionValue supports Valuer and Scan interfaces for reading and writing
 // to the database, and also JSON marshaling
 type optionValue struct {
-	Val interface{}
+	Val any
 }
 
 // Value is called by the DB driver.  Note that we store data as JSON
@@ -86,7 +86,7 @@ func (ov optionValue) Value() (dv driver.Value, err error) {
 }
 
 // Scan takes db string and turns it into an option type
-func (ov *optionValue) Scan(src interface{}) error {
+func (ov *optionValue) Scan(src any) error {
 	if err := json.Unmarshal(src.([]byte), &ov.Val); err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ type option struct {
 }
 
 // GetValue returns the value associated with the option
-func (opt option) GetValue() interface{} {
+func (opt option) GetValue() any {
 	return opt.Value.Val
 }
 

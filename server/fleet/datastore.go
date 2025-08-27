@@ -2474,7 +2474,7 @@ func IsForeignKey(err error) bool {
 	return false
 }
 
-type OptionalArg func() interface{}
+type OptionalArg func() any
 
 // SecretUsedError is returned when attempting to delete a variable that is in use in scripts or profiles.
 type SecretUsedError struct {

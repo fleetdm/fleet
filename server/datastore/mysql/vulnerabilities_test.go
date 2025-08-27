@@ -842,7 +842,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	// create 5 hosts
 	hosts := make([]*fleet.Host, 5)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		hosts[i] = test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.0.%d", i), fmt.Sprintf("%d", i+1000), fmt.Sprintf("%d", i+1000), time.Now())
 	}
 
@@ -850,14 +850,14 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[i].ID}))
 		require.NoError(t, err)
 	}
 
 	// create 200 OS vulns
 	osVulns := make([]fleet.OSVulnerability, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		osVulns[i] = fleet.OSVulnerability{
 			OSID: 1,
 			CVE:  fmt.Sprintf("CVE-2020-%d", i),
@@ -866,7 +866,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 
 	// create 200 software vulns
 	softwareVulns := make([]fleet.SoftwareVulnerability, 200)
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		softwareVulns[i] = fleet.SoftwareVulnerability{
 			SoftwareID: 1,
 			CVE:        fmt.Sprintf("CVE-2021-%d", i),
@@ -884,7 +884,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	}
 
 	// update host OS
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		err = ds.UpdateHostOperatingSystem(context.Background(), hosts[i].ID, fleet.OperatingSystem{
 			Name:     "Windows 11 Pro",
 			Version:  "10.0.22000.3007",
@@ -895,7 +895,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	}
 
 	// update host software
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = ds.UpdateHostSoftware(context.Background(), hosts[i].ID, []fleet.Software{
 			{
 				Name:    "Chrome",
@@ -1027,13 +1027,13 @@ func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.Vulnera
 func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// insert 20 hosts
 	var hostids []uint
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.0.%d", i), fmt.Sprintf("%d", i+1000), fmt.Sprintf("%d", i+1000), time.Now())
 		hostids = append(hostids, host.ID)
 	}
 
 	// update 10 hosts to windows
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		arch := "arm64"
 		if i%2 == 0 {
 			arch = "x86_64"
@@ -1097,7 +1097,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// 1 windows host in team 2
 	// 1 host in no team
 
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = ds.UpdateHostSoftware(context.Background(), hostids[i], []fleet.Software{
 			{
 				Name:    "Chrome",

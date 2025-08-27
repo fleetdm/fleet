@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -244,7 +245,7 @@ func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error)
 
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
 	teamWhere := "TRUE"
-	args := []interface{}{id}
+	args := []any{id}
 	if teamID != nil {
 		teamWhere = "team_id = ?"
 		args = append(args, *teamID)
@@ -482,9 +483,7 @@ func (ds *Datastore) FlippingPoliciesForHost(
 		return nil, nil, nil
 	}
 	// Sort the results to have generated SQL queries ordered to minimize deadlocks (see #1146).
-	sort.Slice(orderedIDs, func(i, j int) bool {
-		return orderedIDs[i] < orderedIDs[j]
-	})
+	slices.Sort(orderedIDs)
 	// By using `passes IS NOT NULL` we filter out those policies that never executed properly.
 	selectQuery := `SELECT policy_id, passes FROM policy_membership
 		WHERE host_id = ? AND policy_id IN (?) AND passes IS NOT NULL`
@@ -536,7 +535,7 @@ func filterNotExecuted(results map[uint]*bool) map[uint]bool {
 }
 
 func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *fleet.Host, results map[uint]*bool, updated time.Time, deferredSaveHost bool) error {
-	vals := []interface{}{}
+	vals := []any{}
 	bindvars := []string{}
 	if len(results) > 0 {
 		// Sort the results to have generated SQL queries ordered to minimize
@@ -545,7 +544,7 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 		for policyID := range results {
 			orderedIDs = append(orderedIDs, policyID)
 		}
-		sort.Slice(orderedIDs, func(i, j int) bool { return orderedIDs[i] < orderedIDs[j] })
+		slices.Sort(orderedIDs)
 
 		// Loop through results, collecting which labels we need to insert/update
 		for _, policyID := range orderedIDs {
@@ -672,7 +671,7 @@ func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOpti
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
 func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	var args []interface{}
+	var args []any
 
 	query := `
 		SELECT ` + policyCols + `,
@@ -714,7 +713,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 // getInheritedPoliciesForTeam returns the list of global policies with the
 // passing and failing host counts for the provided teamID
 func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	var args []interface{}
+	var args []any
 
 	query := `
         SELECT
@@ -755,7 +754,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, tea
 func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery string) (int, error) {
 	var (
 		query string
-		args  []interface{}
+		args  []any
 		count int
 	)
 
@@ -779,7 +778,7 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 }
 
 func (ds *Datastore) CountMergedTeamPolicies(ctx context.Context, teamID uint, matchQuery string) (int, error) {
-	var args []interface{}
+	var args []any
 
 	query := `SELECT count(*) FROM policies p WHERE (p.team_id = ? OR p.team_id IS NULL)`
 	args = append(args, teamID)
@@ -1034,7 +1033,7 @@ func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fle
 }
 
 func (ds *Datastore) ListMergedTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	var args []interface{}
+	var args []any
 
 	query := `
 		SELECT
@@ -1191,7 +1190,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 
 		var query string
-		var args []interface{}
+		var args []any
 		var err error
 		if teamID == nil {
 			query, args, err = sqlx.In("SELECT name, query, platforms, software_installer_id, vpp_apps_teams_id, script_id FROM policies WHERE team_id IS NULL AND name IN (?)", policyNames)
@@ -1385,7 +1384,7 @@ func (ds *Datastore) AsyncBatchInsertPolicyMembership(ctx context.Context, batch
 	sql = strings.TrimSuffix(sql, ",")
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at), passes = VALUES(passes)`
 
-	vals := make([]interface{}, 0, len(batch)*3)
+	vals := make([]any, 0, len(batch)*3)
 	hostIDs := make([]uint, 0, len(batch))
 	for _, tup := range batch {
 		vals = append(vals, tup.PolicyID, tup.HostID, tup.Passes)
@@ -1522,8 +1521,8 @@ func cleanupPolicyMembershipOnPolicyUpdate(
 	  FIND_IN_SET(h.platform, ?) = 0`
 
 	var expandedPlatforms []string
-	splitPlatforms := strings.Split(platforms, ",")
-	for _, platform := range splitPlatforms {
+	splitPlatforms := strings.SplitSeq(platforms, ",")
+	for platform := range splitPlatforms {
 		expandedPlatforms = append(expandedPlatforms, fleet.ExpandPlatform(strings.TrimSpace(platform))...)
 	}
 

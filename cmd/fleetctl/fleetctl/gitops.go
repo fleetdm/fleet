@@ -85,7 +85,7 @@ func gitopsCommand() *cli.Command {
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
 			}
-			logf := func(format string, a ...interface{}) {
+			logf := func(format string, a ...any) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
@@ -441,7 +441,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	result := make(map[string][]LabelUsage)
 
 	// Get profile label usage
-	for _, osSettingName := range []interface{}{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
+	for _, osSettingName := range []any{config.Controls.MacOSSettings, config.Controls.WindowsSettings} {
 		if osSettings, ok := getCustomSettings(osSettingName); ok {
 			for _, setting := range osSettings {
 				var labels []string
@@ -535,7 +535,7 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	return result, nil
 }
 
-func getCustomSettings(osSettings interface{}) ([]fleet.MDMProfileSpec, bool) {
+func getCustomSettings(osSettings any) ([]fleet.MDMProfileSpec, bool) {
 	if settingsMap, ok := osSettings.(fleet.WithMDMProfileSpecs); ok {
 		return settingsMap.GetMDMProfileSpecs(), true
 	}
@@ -550,7 +550,7 @@ func extractControlsForNoTeam(flFilenames cli.StringSlice, appConfig *fleet.Enri
 				break
 			}
 			baseDir := filepath.Dir(flFilename)
-			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...interface{}) {})
+			config, err := spec.GitOpsFromFile(flFilename, baseDir, appConfig, func(format string, a ...any) {})
 			if err != nil {
 				return spec.GitOpsControls{}, false, err
 			}

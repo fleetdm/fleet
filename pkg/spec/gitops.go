@@ -91,20 +91,20 @@ type BaseItem struct {
 
 type GitOpsControls struct {
 	BaseItem
-	MacOSUpdates   interface{}       `json:"macos_updates"`
-	IOSUpdates     interface{}       `json:"ios_updates"`
-	IPadOSUpdates  interface{}       `json:"ipados_updates"`
-	MacOSSettings  interface{}       `json:"macos_settings"`
+	MacOSUpdates   any               `json:"macos_updates"`
+	IOSUpdates     any               `json:"ios_updates"`
+	IPadOSUpdates  any               `json:"ipados_updates"`
+	MacOSSettings  any               `json:"macos_settings"`
 	MacOSSetup     *fleet.MacOSSetup `json:"macos_setup"`
-	MacOSMigration interface{}       `json:"macos_migration"`
+	MacOSMigration any               `json:"macos_migration"`
 
-	WindowsUpdates              interface{} `json:"windows_updates"`
-	WindowsSettings             interface{} `json:"windows_settings"`
-	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
-	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
+	WindowsUpdates              any `json:"windows_updates"`
+	WindowsSettings             any `json:"windows_settings"`
+	WindowsEnabledAndConfigured any `json:"windows_enabled_and_configured"`
+	WindowsMigrationEnabled     any `json:"windows_migration_enabled"`
 
-	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
-	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
+	EnableDiskEncryption any `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  any `json:"windows_require_bitlocker_pin,omitempty"`
 
 	Scripts []BaseItem `json:"scripts"`
 
@@ -170,8 +170,8 @@ type Software struct {
 type GitOps struct {
 	TeamID       *uint
 	TeamName     *string
-	TeamSettings map[string]interface{}
-	OrgSettings  map[string]interface{}
+	TeamSettings map[string]any
+	OrgSettings  map[string]any
 	AgentOptions *json.RawMessage
 	Controls     GitOpsControls
 	Policies     []*GitOpsPolicySpec
@@ -189,7 +189,7 @@ type GitOpsSoftware struct {
 	FleetMaintainedApps []*fleet.MaintainedAppSpec
 }
 
-type Logf func(format string, a ...interface{})
+type Logf func(format string, a ...any)
 
 // GitOpsFromFile parses a GitOps yaml file.
 func GitOpsFromFile(filePath, baseDir string, appConfig *fleet.EnrichedAppConfig, logFn Logf) (*GitOps, error) {
@@ -413,7 +413,7 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, file
 }
 
 func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Error {
-	var rawSecrets interface{}
+	var rawSecrets any
 	var ok bool
 	if result.TeamName == nil {
 		rawSecrets, ok = result.OrgSettings["secrets"]
@@ -429,14 +429,14 @@ func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Erro
 	// When secrets slice is empty, all secrets are removed.
 	enrollSecrets := make([]*fleet.EnrollSecret, 0)
 	if rawSecrets != nil {
-		secrets, ok := rawSecrets.([]interface{})
+		secrets, ok := rawSecrets.([]any)
 		if !ok {
 			return multierror.Append(multiError, errors.New("'secrets' must be a list of secret items"))
 		}
 		for _, enrollSecret := range secrets {
 			var secret string
-			var secretInterface interface{}
-			secretMap, ok := enrollSecret.(map[string]interface{})
+			var secretInterface any
+			secretMap, ok := enrollSecret.(map[string]any)
 			if ok {
 				secretInterface, ok = secretMap["secret"]
 			}
@@ -701,7 +701,6 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
 	for _, item := range labels {
-		item := item
 		if item.Path == nil {
 			result.Labels = append(result.Labels, &item.LabelSpec)
 		} else {
@@ -723,7 +722,6 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 					continue
 				}
 				for _, pq := range pathLabels {
-					pq := pq
 					if pq != nil {
 						if pq.Path != nil {
 							multiError = multierror.Append(
@@ -792,7 +790,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 	for _, item := range policies {
-		item := item
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
@@ -823,7 +820,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					continue
 				}
 				for _, pp := range pathPolicies {
-					pp := pp
 					if pp != nil {
 						if pp.Path != nil {
 							multiError = multierror.Append(
@@ -987,7 +983,6 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"queries"}, err))
 	}
 	for _, item := range queries {
-		item := item
 		if item.Path == nil {
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
@@ -1009,7 +1004,6 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 					continue
 				}
 				for _, pq := range pathQueries {
-					pq := pq
 					if pq != nil {
 						if pq.Path != nil {
 							multiError = multierror.Append(
@@ -1070,7 +1064,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	for _, item := range software.AppStoreApps {
-		item := item
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
 			continue
@@ -1084,7 +1077,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
 	for _, item := range software.FleetMaintainedApps {
-		item := item
 		if item.Slug == "" {
 			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
 			continue

@@ -125,12 +125,12 @@ func newTLSService(t *testing.T) *mock.TLSService {
 		},
 		GetClientConfigFunc: func(
 			ctx context.Context,
-		) (config map[string]interface{}, err error) {
-			return map[string]interface{}{
-				"options": map[string]interface{}{
+		) (config map[string]any, err error) {
+			return map[string]any{
+				"options": map[string]any{
 					"key": "value",
 				},
-				"decorators": map[string]interface{}{
+				"decorators": map[string]any{
 					"deco": "foobar",
 				},
 			}, nil

@@ -218,7 +218,7 @@ func processCalendarFailingHosts(
 	// It is a cache to avoid querying the database for each host.
 	policyIDtoPolicy := sync.Map{}
 
-	for i := 0; i < calendarConsumers; i++ {
+	for range calendarConsumers {
 		wg.Add(+1)
 		go func() {
 			defer wg.Done()
@@ -691,7 +691,7 @@ func removeCalendarEventsFromPassingHosts(
 	emailsCh := make(chan emailWithHosts)
 	var wg sync.WaitGroup
 
-	for i := 0; i < calendarConsumers; i++ {
+	for range calendarConsumers {
 		wg.Add(+1)
 		go func() {
 			defer wg.Done()
@@ -850,7 +850,7 @@ func deleteCalendarEventsInParallel(
 	if len(calendarEvents) > 0 {
 		calendarEventCh := make(chan *fleet.CalendarEvent)
 		var wg sync.WaitGroup
-		for i := 0; i < calendarConsumers; i++ {
+		for range calendarConsumers {
 			wg.Add(+1)
 			go func() {
 				defer wg.Done()

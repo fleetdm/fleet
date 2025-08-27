@@ -69,7 +69,7 @@ func (t *Table) generate(ctx context.Context, queryContext table.QueryContext) (
 				continue
 			}
 
-			rawKeyVals := make(map[string]interface{})
+			rawKeyVals := make(map[string]any)
 			scanner := bufio.NewScanner(file)
 			for scanner.Scan() {
 				line := scanner.Text()

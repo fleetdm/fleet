@@ -144,10 +144,7 @@ func (r *carveReader) Read(p []byte) (n int, err error) {
 	}
 
 	// Calculate length we can copy
-	copyLen := len(p)
-	if copyLen > len(r.buffer) {
-		copyLen = len(r.buffer)
-	}
+	copyLen := min(len(p), len(r.buffer))
 
 	// Perform copy and clear copied contents from buffer
 	copy(p, r.buffer[:copyLen])

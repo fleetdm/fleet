@@ -152,29 +152,29 @@ func getRoots(t *testing.T, tmpDir string) string {
 	require.NoError(t, err)
 
 	// Check output contains the root.json
-	var keys map[string]interface{}
+	var keys map[string]any
 	require.NoError(t, json.Unmarshal(out, &keys))
 	signed_ := keys["signed"]
 	require.NotNil(t, signed_)
-	signed, ok := signed_.(map[string]interface{})
+	signed, ok := signed_.(map[string]any)
 	require.True(t, ok)
 	keys_ := signed["keys"]
 	require.NotNil(t, keys_)
 	require.NotEmpty(t, signed["keys"])
-	keys, ok = keys_.(map[string]interface{})
+	keys, ok = keys_.(map[string]any)
 	require.True(t, ok)
 	require.NotEmpty(t, keys)
 	// Get first key (map key is the identifier of the key).
-	var key map[string]interface{}
+	var key map[string]any
 	for _, key_ := range keys {
-		key, ok = key_.(map[string]interface{})
+		key, ok = key_.(map[string]any)
 		require.True(t, ok)
 		break
 	}
 	require.NotEmpty(t, key)
 	require.Equal(t, "ed25519", key["scheme"])
 	require.Equal(t, "ed25519", key["keytype"])
-	keyval_, ok := key["keyval"].(map[string]interface{})
+	keyval_, ok := key["keyval"].(map[string]any)
 	require.True(t, ok)
 	require.NotEmpty(t, keyval_["public"]) // keyval_["public"] contains the public key.
 

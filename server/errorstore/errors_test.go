@@ -72,7 +72,7 @@ func TestHashErr(t *testing.T) {
 	})
 
 	t.Run("generates json", func(t *testing.T) {
-		var m []interface{}
+		var m []any
 
 		generatedErr := pkgErrors.New("some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
@@ -90,7 +90,7 @@ func TestHashErr(t *testing.T) {
 
 func TestHashErrFleetError(t *testing.T) {
 	t.Run("Marshal", func(t *testing.T) {
-		var m []interface{}
+		var m []any
 
 		generatedErr := ctxerr.New(ctx, "some err")
 		res, jsonBytes, err := hashAndMarshalError(generatedErr)
@@ -222,7 +222,7 @@ func testErrorHandlerCollectsErrors(t *testing.T, pool fleet.RedisPool, wd strin
 
 	<-chGo
 
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		alwaysNewError(eh) //nolint:errcheck
 	}
 
@@ -289,7 +289,7 @@ func testErrorHandlerCollectsDifferentErrors(t *testing.T, pool fleet.RedisPool,
 	alwaysNewError(eh) //nolint:errcheck
 
 	// while those two are the same, only one gets store
-	for i := 0; i < 2; i++ {
+	for range 2 {
 		alwaysNewError(eh) //nolint:errcheck
 	}
 

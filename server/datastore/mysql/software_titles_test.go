@@ -1201,7 +1201,7 @@ func testListSoftwareTitlesOverflow(t *testing.T, ds *Datastore) {
 	host2 := test.NewHost(t, ds, "host2", "", "hostkey2", "hostuuid2", time.Now())
 
 	var software []fleet.Software
-	for i := uint(0); i < 40_000; i++ {
+	for i := range uint(40_000) {
 		software = append(software,
 			fleet.Software{Name: fmt.Sprintf("%dname", i), Version: fmt.Sprintf("0.0.%d", i), Source: "deb_packages"},
 		)
@@ -1937,7 +1937,7 @@ func generateSelectSoftwareTitlesSQLFixture(t *testing.T) { //nolint: unused
 		TeamIDs:             []*uint{nil, ptr.Uint(0), ptr.Uint(1)},
 	}
 	combinations := make([]fleet.SoftwareTitleListOptions, 0)
-	currentValues := make(map[string]interface{})
+	currentValues := make(map[string]any)
 
 	generateSoftwareTitleListOptionsCombinations(
 		reflect.ValueOf(queryParams),
@@ -1980,7 +1980,7 @@ func generateSelectSoftwareTitlesSQLFixture(t *testing.T) { //nolint: unused
 // nolint: unused
 func generateSoftwareTitleListOptionsCombinations(
 	v reflect.Value,
-	currentValues map[string]interface{},
+	currentValues map[string]any,
 	combinations *[]fleet.SoftwareTitleListOptions,
 ) {
 	t := v.Type()

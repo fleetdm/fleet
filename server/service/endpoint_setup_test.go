@@ -77,19 +77,19 @@ func (m *testRoundTripper2) RoundTrip(req *http.Request) (*http.Response, error)
 func TestExtractScriptNames(t *testing.T) {
 	tests := []struct {
 		name     string
-		teams    []map[string]interface{}
+		teams    []map[string]any
 		expected []string
 	}{
 		{
 			name: "multiple teams with scripts",
-			teams: []map[string]interface{}{
+			teams: []map[string]any{
 				{
 					"name":    "Team1",
-					"scripts": []interface{}{"script1.sh", "script2.sh"},
+					"scripts": []any{"script1.sh", "script2.sh"},
 				},
 				{
 					"name":    "Team2",
-					"scripts": []interface{}{"script2.sh", "script3.sh"}, // Note: script2.sh is duplicated
+					"scripts": []any{"script2.sh", "script3.sh"}, // Note: script2.sh is duplicated
 				},
 				{
 					"name": "Team3", // No scripts
@@ -99,7 +99,7 @@ func TestExtractScriptNames(t *testing.T) {
 		},
 		{
 			name:     "no teams",
-			teams:    []map[string]interface{}{},
+			teams:    []map[string]any{},
 			expected: []string{},
 		},
 	}
@@ -179,9 +179,9 @@ func TestDownloadAndUpdateScripts(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 
 			// Create a test spec group
-			teamData := map[string]interface{}{
+			teamData := map[string]any{
 				"name":    "Team1",
-				"scripts": []interface{}{tt.scriptNames[0]},
+				"scripts": []any{tt.scriptNames[0]},
 			}
 			teamRaw, err := json.Marshal(teamData)
 			require.NoError(t, err)
@@ -207,11 +207,11 @@ func TestDownloadAndUpdateScripts(t *testing.T) {
 			}
 
 			// Verify the specs were updated
-			var updatedTeamData map[string]interface{}
+			var updatedTeamData map[string]any
 			err = json.Unmarshal(specs.Teams[0], &updatedTeamData)
 			require.NoError(t, err)
 
-			updatedScripts, ok := updatedTeamData["scripts"].([]interface{})
+			updatedScripts, ok := updatedTeamData["scripts"].([]any)
 			require.True(t, ok)
 
 			// The scripts should now be local paths
@@ -276,9 +276,9 @@ func TestDownloadAndUpdateScriptsWithInvalidPaths(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 
 			// Create a test spec group
-			teamData := map[string]interface{}{
+			teamData := map[string]any{
 				"name":    "Team1",
-				"scripts": []interface{}{tt.scriptNames[0]},
+				"scripts": []any{tt.scriptNames[0]},
 			}
 			teamRaw, err := json.Marshal(teamData)
 			require.NoError(t, err)
@@ -392,9 +392,9 @@ func TestDownloadAndUpdateScriptsTimeout(t *testing.T) {
 			defer os.RemoveAll(tempDir)
 
 			// Create a test spec group
-			teamData := map[string]interface{}{
+			teamData := map[string]any{
 				"name":    "Team1",
-				"scripts": []interface{}{"test-script.sh"},
+				"scripts": []any{"test-script.sh"},
 			}
 			teamRaw, err := json.Marshal(teamData)
 			require.NoError(t, err)
@@ -493,7 +493,7 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 	require.NotEmpty(t, capturedSpecs.Teams, "Specs should contain teams")
 
 	// Verify that the first team has the expected structure
-	var team1 map[string]interface{}
+	var team1 map[string]any
 	unmarshalErr := json.Unmarshal(capturedSpecs.Teams[0], &team1)
 	require.NoError(t, unmarshalErr, "Should be able to unmarshal team JSON")
 
@@ -503,7 +503,7 @@ func TestApplyStarterLibraryWithMockClient(t *testing.T) {
 	require.NotEmpty(t, teamName, "Team name should not be empty")
 
 	// Verify the scripts
-	scripts, ok := team1["scripts"].([]interface{})
+	scripts, ok := team1["scripts"].([]any)
 	require.True(t, ok, "Team should have scripts")
 	require.Len(t, scripts, 3, "Team should have 3 scripts")
 
@@ -558,7 +558,7 @@ func TestApplyStarterLibraryWithMalformedYAML(t *testing.T) {
 	}
 
 	// Use a defer/recover to explicitly catch any panics
-	var panicValue interface{}
+	var panicValue any
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -703,7 +703,7 @@ func TestApplyStarterLibraryWithFreeLicense(t *testing.T) {
 
 	// Verify that scripts were removed from AppConfig
 	if capturedSpecs.AppConfig != nil {
-		appConfigMap, ok := capturedSpecs.AppConfig.(map[string]interface{})
+		appConfigMap, ok := capturedSpecs.AppConfig.(map[string]any)
 		if ok {
 			_, hasScripts := appConfigMap["scripts"]
 			assert.False(t, hasScripts, "AppConfig should not contain scripts for free license")

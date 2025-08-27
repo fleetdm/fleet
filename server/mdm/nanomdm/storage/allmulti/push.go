@@ -8,7 +8,7 @@ import (
 )
 
 func (ms *MultiAllStorage) RetrievePushInfo(ctx context.Context, ids []string) (map[string]*mdm.Push, error) {
-	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	val, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return s.RetrievePushInfo(ctx, ids)
 	})
 	return val.(map[string]*mdm.Push), err

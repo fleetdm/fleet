@@ -13,7 +13,7 @@ import (
 // doing the minimum to read context values and generate KV pairs. Each
 // associated CtxKVFunc is called every time we adapt a logger with
 // Logger.
-type CtxKVFunc func(context.Context) []interface{}
+type CtxKVFunc func(context.Context) []any
 
 // ctxKeyFuncs is the context key for storing and retriveing
 // a funcs{} struct on a context.
@@ -50,7 +50,7 @@ func Logger(ctx context.Context, logger log.Logger) log.Logger {
 	if !ok || ctxFuncs == nil {
 		return logger
 	}
-	var acc []interface{}
+	var acc []any
 	ctxFuncs.RLock()
 	for _, f := range ctxFuncs.funcs {
 		acc = append(acc, f(ctx)...)
@@ -61,11 +61,11 @@ func Logger(ctx context.Context, logger log.Logger) log.Logger {
 
 // SimpleStringFunc is a helper that generates a simple CtxKVFunc that
 // returns a key-value pair if found on the context.
-func SimpleStringFunc(logKey string, ctxKey interface{}) CtxKVFunc {
-	return func(ctx context.Context) (out []interface{}) {
+func SimpleStringFunc(logKey string, ctxKey any) CtxKVFunc {
+	return func(ctx context.Context) (out []any) {
 		v, _ := ctx.Value(ctxKey).(string)
 		if v != "" {
-			out = []interface{}{logKey, v}
+			out = []any{logKey, v}
 		}
 		return
 	}

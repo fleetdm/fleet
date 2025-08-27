@@ -41,7 +41,7 @@ func TestCPE(t *testing.T) {
 
 	for _, cpe := range cases {
 		label := []string{"CreateSync", "UseExistingSync"}
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			info := fmt.Sprintf("%s/%s", label[i], cpe)
 			t.Run(info, func(t *testing.T) {
 				err = cpe.Sync(context.Background(), src, td)

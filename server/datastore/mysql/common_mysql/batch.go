@@ -13,10 +13,7 @@ func BatchProcessSimple[T any](
 
 	for i := 0; i < len(payloads); i += batchSize {
 		start := i
-		end := i + batchSize
-		if end > len(payloads) {
-			end = len(payloads)
-		}
+		end := min(i+batchSize, len(payloads))
 		if err := executeBatch(payloads[start:end]); err != nil {
 			return err
 		}

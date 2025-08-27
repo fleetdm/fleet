@@ -215,7 +215,7 @@ func (r *ExtensionRunner) Run(config *fleet.OrbitConfig) error {
 //
 // Returns an empty map if flags is nil or an empty JSON `{}`.
 func getFlagsFromJSON(flags json.RawMessage) (map[string]string, error) {
-	var data map[string]interface{}
+	var data map[string]any
 	err := json.Unmarshal([]byte(flags), &data)
 	if err != nil {
 		return nil, err
@@ -283,8 +283,8 @@ func readFlagFile(rootDir string) (map[string]string, error) {
 	if len(content) == 0 {
 		return result, nil
 	}
-	lines := strings.Split(content, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(content, "\n")
+	for line := range lines {
 		line := strings.TrimSpace(line)
 		// skip any empty lines
 		if line == "" {

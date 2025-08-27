@@ -18,7 +18,7 @@ func TestUp_20230918132351(t *testing.T) {
 		)
 		VALUES (?, ?, ?)
 	`
-	args := []interface{}{
+	args := []any{
 		1,
 		0,
 		"CVE-2021-1234",

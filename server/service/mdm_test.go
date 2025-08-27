@@ -1572,7 +1572,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			[]fleet.MDMProfileBatchPayload{
 				{
-					Name: "foo", Contents: []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+					Name: "foo", Contents: fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1604,7 +1604,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<key>PayloadVersion</key>
 				<integer>1</integer>
 			</dict>
-			</plist>`, mobileconfig.FleetFileVaultPayloadType)),
+			</plist>`, mobileconfig.FleetFileVaultPayloadType),
 				},
 			},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,

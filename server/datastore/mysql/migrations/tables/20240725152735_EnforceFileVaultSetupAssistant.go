@@ -15,18 +15,18 @@ func init() {
 }
 
 func setKeyInPayloadContent(original []byte, destType, key string, value any) ([]byte, error) {
-	var configuration map[string]interface{}
+	var configuration map[string]any
 	if _, err := plist.Unmarshal(original, &configuration); err != nil {
 		return nil, fmt.Errorf("unmarshalling configuration profile: %w", err)
 	}
 
-	payloadContent, ok := configuration["PayloadContent"].([]interface{})
+	payloadContent, ok := configuration["PayloadContent"].([]any)
 	if !ok {
 		return nil, errors.New("failed to access PayloadContent element")
 	}
 
 	for _, c := range payloadContent {
-		payload, ok := c.(map[string]interface{})
+		payload, ok := c.(map[string]any)
 		if !ok {
 			return nil, errors.New("failed to access element in Payload array")
 		}

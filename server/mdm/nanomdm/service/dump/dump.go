@@ -66,7 +66,7 @@ func (svc *Dumper) GetBootstrapToken(r *mdm.Request, m *mdm.GetBootstrapToken) (
 	_, _ = svc.file.Write(m.Raw)
 	bsToken, err := svc.next.GetBootstrapToken(r, m)
 	if svc.bst && bsToken != nil && len(bsToken.BootstrapToken) > 0 {
-		_, _ = svc.file.Write([]byte(fmt.Sprintf("Bootstrap token: %s\n", bsToken.BootstrapToken.String())))
+		_, _ = svc.file.Write(fmt.Appendf(nil, "Bootstrap token: %s\n", bsToken.BootstrapToken.String()))
 	}
 	return bsToken, err
 }

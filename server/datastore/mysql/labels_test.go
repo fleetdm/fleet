@@ -52,7 +52,7 @@ func TestBatchHostIdsSmall(t *testing.T) {
 
 func TestBatchHostIdsLarge(t *testing.T) {
 	large := []uint{}
-	for i := 0; i < 230000; i++ {
+	for i := range 230000 {
 		large = append(large, uint(i)) //nolint:gosec // dismiss G115
 	}
 	batched := batchHostIds(large)
@@ -115,7 +115,7 @@ func testLabelsAddAllHosts(deferred bool, t *testing.T, db *Datastore) {
 	hosts := []fleet.Host{}
 	var host *fleet.Host
 	var err error
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		host, err = db.EnrollHost(context.Background(),
 			fleet.WithEnrollHostOsqueryHostID(fmt.Sprint(i)),
 			fleet.WithEnrollHostNodeKey(fmt.Sprint(i)),
@@ -616,7 +616,7 @@ func testLabelsListUniqueHostsInLabels(t *testing.T, db *Datastore) {
 	}
 	require.NoError(t, db.ApplyLabelSpecs(context.Background(), []*fleet.LabelSpec{&l1, &l2}))
 
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		err = db.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{l1.ID: ptr.Bool(true)}, time.Now(), false)
 		assert.Nil(t, err)
 	}
@@ -742,7 +742,7 @@ func testLabelsChangeDetails(t *testing.T, db *Datastore) {
 }
 
 func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -1103,7 +1103,7 @@ func testLabelsSummary(t *testing.T, db *Datastore) {
 
 func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -1176,7 +1176,7 @@ func testListHostsInLabelIssues(t *testing.T, ds *Datastore) {
 		{Name: "foo7", Version: "7", Source: "chrome_extensions"}, // vulnerable
 	}
 
-	for i := 0; i < len(software); i++ {
+	for i := range software {
 		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software[:i+1])
 		require.NoError(t, err)
 	}
@@ -1280,7 +1280,7 @@ func testListHostsInLabelDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 
 	// seed hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -2165,8 +2165,8 @@ type TestHostVitalsLabel struct {
 	fleet.Label
 }
 
-func (t *TestHostVitalsLabel) CalculateHostVitalsQuery() (string, []interface{}, error) {
-	return "SELECT %s FROM %s JOIN host_users ON (host_users.host_id = hosts.id) WHERE host_users.username = ?", []interface{}{"user1"}, nil
+func (t *TestHostVitalsLabel) CalculateHostVitalsQuery() (string, []any, error) {
+	return "SELECT %s FROM %s JOIN host_users ON (host_users.host_id = hosts.id) WHERE host_users.username = ?", []any{"user1"}, nil
 }
 
 func (t *TestHostVitalsLabel) GetLabel() *fleet.Label {

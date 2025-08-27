@@ -60,10 +60,10 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}}, nil
 }
 
-func parsePMSetOutput(output []byte) map[string]interface{} {
+func parsePMSetOutput(output []byte) map[string]any {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 
-	result := make(map[string]interface{})
+	result := make(map[string]any)
 	curKey := ""
 	for scanner.Scan() {
 		line := scanner.Text()

@@ -73,7 +73,7 @@ func TestCaCert(t *testing.T) {
 	var serCollector []*big.Int
 
 	ctx := context.Background()
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// check CA
 		caBytes, num, err := svc.GetCACert(ctx, "")
 		if err != nil {

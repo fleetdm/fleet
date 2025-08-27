@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
@@ -47,13 +48,7 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	if command == "" {
 		return nil, fmt.Errorf("missing command argument, supported commands: %+v", supportedCommands)
 	}
-	supported := false
-	for _, supportedCommand := range supportedCommands {
-		if supportedCommand == command {
-			supported = true
-			break
-		}
-	}
+	supported := slices.Contains(supportedCommands, command)
 	if !supported {
 		return nil, fmt.Errorf("unsupported command: %s, supported commands: %+v", command, supportedCommands)
 	}

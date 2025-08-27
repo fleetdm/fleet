@@ -743,7 +743,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	var cveMeta []fleet.CVEMeta
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		cveMeta = append(cveMeta, generateCVEMeta(i))
 	}
 
@@ -752,7 +752,7 @@ func testSoftwareLoadSupportsTonsOfCVEs(t *testing.T, ds *Datastore) {
 
 	values := strings.TrimSuffix(strings.Repeat("(?, ?), ", len(cveMeta)), ", ")
 	query := `INSERT INTO software_cve (software_id, cve) VALUES ` + values
-	var args []interface{}
+	var args []any
 	for _, cve := range cveMeta {
 		args = append(args, host.Software[0].ID, cve.CVE)
 	}
@@ -1276,7 +1276,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	softwareTemp := make([]fleet.Software, 0, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		softwareTemp = append(
 			softwareTemp, fleet.Software{Name: fmt.Sprintf("foo%d", i), Version: fmt.Sprintf("%d.0.1", i), Source: "deb_packages"},
 		)
@@ -2903,7 +2903,7 @@ func testGetHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 
 	// Insert an installed_path for a single software entry
 	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
-	args := []interface{}{host.ID, host.Software[0].ID, "/some/path"}
+	args := []any{host.ID, host.Software[0].ID, "/some/path"}
 	_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
@@ -2957,7 +2957,7 @@ func testHostSoftwareInstalledPathsDelta(t *testing.T, ds *Datastore) {
 		for i, s := range software {
 			var executableSHA256 *string
 			if i%2 == 0 {
-				hash := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("hash-%d", s.ID))))
+				hash := fmt.Sprintf("%x", sha256.Sum256(fmt.Appendf(nil, "hash-%d", s.ID)))
 				executableSHA256 = &hash
 			}
 
@@ -3107,12 +3107,12 @@ func testDeleteHostSoftwareInstalledPaths(t *testing.T, ds *Datastore) {
 
 	query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
 	for _, s := range software1 {
-		args := []interface{}{host1.ID, s.ID, fmt.Sprintf("/some/path/%d", s.ID)}
+		args := []any{host1.ID, s.ID, fmt.Sprintf("/some/path/%d", s.ID)}
 		_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 		require.NoError(t, err)
 	}
 
-	args := []interface{}{host2.ID, software2[0].ID, fmt.Sprintf("/some/path/%d", software2[0].ID)}
+	args := []any{host2.ID, software2[0].ID, fmt.Sprintf("/some/path/%d", software2[0].ID)}
 	_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	require.NoError(t, err)
 
@@ -3416,7 +3416,7 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		hostID := h.ID
 		g.Go(func() error {
-			for i := 0; i < updateCount; i++ {
+			for range updateCount {
 				software := []fleet.Software{
 					{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo"},
 					{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar"},
@@ -3819,7 +3819,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		// create software titles for all but swi1Pending (will be linked to
 		// existing software title b)
 		var titleIDs []uint
-		for i := 0; i < numberOfSoftwareInstallers-1; i++ {
+		for i := range numberOfSoftwareInstallers - 1 {
 			res, err := q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES (?, 'apps')`, fmt.Sprintf("i%d", i))
 			if err != nil {
 				return err
@@ -3829,7 +3829,7 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 		}
 
 		var swiIDs []uint
-		for i := 0; i < numberOfSoftwareInstallers; i++ {
+		for i := range numberOfSoftwareInstallers {
 			var (
 				titleID        uint
 				teamID         *uint
@@ -5209,7 +5209,7 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	anotherHost.TeamID = &tm.ID
 
 	software := []fleet.Software{}
-	for i := 0; i < numberOfApps; i++ {
+	for i := range numberOfApps {
 		software = append(software, fleet.Software{
 			Name:             fmt.Sprintf("z%d", i),
 			Version:          fmt.Sprintf("0.0.%d", i),
@@ -5516,7 +5516,7 @@ func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
 		id, _ := res.LastInsertId()
 
 		// create some install requests for the host
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			_, err = q.ExecContext(ctx, `
 			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id) VALUES (?, ?, ?)`,
 				fmt.Sprintf("uuid%d", i), host.ID, id)
@@ -7863,7 +7863,7 @@ func testListHostSoftwareLastOpenedAt(t *testing.T, ds *Datastore) {
 
 		query := `INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`
 		for i := range host.Software {
-			args := []interface{}{host.ID, host.Software[i].ID, fmt.Sprintf("/Applications/%s-%s.app", host.Software[i].Name, host.Software[i].Version)}
+			args := []any{host.ID, host.Software[i].ID, fmt.Sprintf("/Applications/%s-%s.app", host.Software[i].Name, host.Software[i].Version)}
 			_, err = ds.writer(ctx).ExecContext(ctx, query, args...)
 			require.NoError(t, err)
 		}

@@ -19,7 +19,7 @@ type translatorResponse struct {
 
 func (r translatorResponse) Error() error { return r.Err }
 
-func translatorEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func translatorEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*translatorRequest)
 	resp, err := svc.Translate(ctx, req.List)
 	if err != nil {

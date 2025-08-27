@@ -18,7 +18,7 @@ func queryMinLength(query string) bool {
 
 func countLongestTerm(query string) int {
 	maxSize := 0
-	for _, q := range strings.Split(query, " ") {
+	for q := range strings.SplitSeq(query, " ") {
 		if len(q) > maxSize {
 			maxSize = len(q)
 		}

@@ -24,7 +24,7 @@ INSERT INTO  host_mdm_apple_profiles (
 VALUES
 	(?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	args := []interface{}{
+	args := []any{
 		1,
 		"test-identifier",
 		"test-host-uuid",
@@ -81,7 +81,7 @@ INSERT INTO  host_mdm_apple_profiles (
 VALUES
 	(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
-	args = []interface{}{
+	args = []any{
 		1,
 		"test-identifier",
 		"test-host-uuid-2",

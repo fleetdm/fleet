@@ -276,7 +276,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 type itemToWrite struct {
 	ctx   context.Context
 	errCh chan error
-	item  interface{}
+	item  any
 }
 
 type hostXUpdatedAt struct {
@@ -621,8 +621,8 @@ func appendListOptionsToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 
 func appendOrderByToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *goqu.SelectDataset {
 	if opts.OrderKey != "" {
-		ordersKeys := strings.Split(opts.OrderKey, ",")
-		for _, key := range ordersKeys {
+		ordersKeys := strings.SplitSeq(opts.OrderKey, ",")
+		for key := range ordersKeys {
 			ident := goqu.I(key)
 
 			var orderedExpr exp.OrderedExpression
@@ -667,7 +667,7 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 //
 // NOTE: this method will mutate the options argument if no explicit PerPage
 // option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []any) {
 	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
@@ -676,7 +676,7 @@ func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []inte
 //
 // NOTE: this method will mutate the options argument if no explicit PerPage option
 // is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsWithCursorToSQL(sql string, params []interface{}, opts *fleet.ListOptions) (string, []interface{}) {
+func appendListOptionsWithCursorToSQL(sql string, params []any, opts *fleet.ListOptions) (string, []any) {
 	orderKey := sanitizeColumn(opts.OrderKey)
 
 	if opts.After != "" && orderKey != "" {
@@ -940,7 +940,7 @@ func (ds *Datastore) whereOmitIDs(colName string, omit []uint) string {
 	return fmt.Sprintf("%s NOT IN (%s)", colName, strings.Join(idStrs, ","))
 }
 
-func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []interface{}) (string, []interface{}) {
+func (ds *Datastore) whereFilterHostsByIdentifier(identifier, stmt string, params []any) (string, []any) {
 	if identifier == "" {
 		return stmt, params
 	}
@@ -1000,11 +1000,11 @@ func noneReplacer(m string) string {
 // searchLike adds SQL and parameters for a "search" using LIKE syntax.
 //
 // The input columns must be sanitized if they are provided by the user.
-func searchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+func searchLike(sql string, params []any, match string, columns ...string) (string, []any) {
 	return searchLikePattern(sql, params, match, likePattern, columns...)
 }
 
-func searchLikePattern(sql string, params []interface{}, match string, replacer patternReplacer, columns ...string) (string, []interface{}) {
+func searchLikePattern(sql string, params []any, match string, replacer patternReplacer, columns ...string) (string, []any) {
 	if len(columns) == 0 || len(match) == 0 {
 		return sql, params
 	}
@@ -1034,7 +1034,7 @@ var (
 
 // hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
 // the host from the `hosts` table must be aliased to `h` in `sql`.
-func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
+func hostSearchLike(sql string, params []any, match string, columns ...string) (string, []any, bool) {
 	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
@@ -1049,7 +1049,7 @@ func hostSearchLike(sql string, params []interface{}, match string, columns ...s
 	return base, args, matchesEmail
 }
 
-func hostSearchLikeAny(sql string, params []interface{}, match string, columns ...string) (string, []interface{}) {
+func hostSearchLikeAny(sql string, params []any, match string, columns ...string) (string, []any) {
 	return searchLikePattern(sql, params, buildWildcardMatchPhrase(match), noneReplacer, columns...)
 }
 
@@ -1131,7 +1131,7 @@ func insertOnDuplicateDidInsertOrUpdate(res sql.Result) bool {
 
 type parameterizedStmt struct {
 	Statement string
-	Args      []interface{}
+	Args      []any
 }
 
 // optimisticGetOrInsert encodes an efficient pattern of looking up a row's ID

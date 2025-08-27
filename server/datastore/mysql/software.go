@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -236,13 +238,10 @@ func insertHostSoftwareInstalledPaths(
 	batchSize := 500
 
 	for i := 0; i < len(toInsert); i += batchSize {
-		end := i + batchSize
-		if end > len(toInsert) {
-			end = len(toInsert)
-		}
+		end := min(i+batchSize, len(toInsert))
 		batch := toInsert[i:end]
 
-		var args []interface{}
+		var args []any
 		for _, v := range batch {
 			args = append(args, v.HostID, v.SoftwareID, v.InstalledPath, v.TeamIdentifier, v.ExecutableSHA256)
 		}
@@ -383,9 +382,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
 			// are runnning inside ds.withRetryTxx.
 			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
-			for key, value := range incomingByChecksum {
-				incomingByChecksumCopy[key] = value
-			}
+			maps.Copy(incomingByChecksumCopy, incomingByChecksum)
 
 			inserted, err := ds.insertNewInstalledHostSoftwareDB(
 				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware, existingBundleIDsToUpdate,
@@ -742,7 +739,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 	existingBundleIDsToUpdate map[string]fleet.Software,
 ) ([]fleet.Software, error) {
-	var insertsHostSoftware []interface{}
+	var insertsHostSoftware []any
 	var insertedSoftware []fleet.Software
 	existingTitleNames := make(map[uint]string)
 	for _, s := range existingSoftware {
@@ -781,10 +778,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		}
 		for i := 0; i < len(keys); i += softwareInsertBatchSize {
 			start := i
-			end := i + softwareInsertBatchSize
-			if end > len(keys) {
-				end = len(keys)
-			}
+			end := min(i+softwareInsertBatchSize, len(keys))
 			totalToProcess := end - start
 
 			// Insert into software
@@ -809,7 +803,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				) VALUES %s`,
 				values,
 			)
-			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+			args := make([]any, 0, totalToProcess*numberOfArgsPerSoftware)
 			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
 			for j := start; j < end; j++ {
 				checksum := keys[j]
@@ -848,7 +842,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
-				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
+				titlesArgs := make([]any, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
@@ -1005,10 +999,7 @@ func updateModifiedHostSoftwareDB(
 
 	for i := 0; i < len(keysToUpdate); i += softwareInsertBatchSize {
 		start := i
-		end := i + softwareInsertBatchSize
-		if end > len(keysToUpdate) {
-			end = len(keysToUpdate)
-		}
+		end := min(i+softwareInsertBatchSize, len(keysToUpdate))
 		totalToProcess := end - start
 
 		const numberOfArgsPerSoftware = 3 // number of ? in each UPDATE
@@ -1021,7 +1012,7 @@ func updateModifiedHostSoftwareDB(
 			values,
 		)
 
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
+		args := make([]any, 0, totalToProcess*numberOfArgsPerSoftware)
 		for j := start; j < end; j++ {
 			key := keysToUpdate[j]
 			curSw, newSw := currentMap[key], incomingMap[key]
@@ -1072,7 +1063,7 @@ func listSoftwareDB(
 	var softwares []fleet.Software
 	ids := make(map[uint]int) // map of ids to index into softwares
 	for _, result := range results {
-		result := result // create a copy because we need to take the address to fields below
+		// create a copy because we need to take the address to fields below
 
 		idx, ok := ids[result.ID]
 		if !ok {
@@ -1137,7 +1128,7 @@ type softwareCVE struct {
 	CreatedAt *time.Time `db:"created_at"`
 }
 
-func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, error) {
+func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []any, error) {
 	ds := dialect.
 		From(goqu.I("software").As("s")).
 		Select(
@@ -1474,7 +1465,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	}
 
 	var err error
-	var args []interface{}
+	var args []any
 
 	stmt := `SELECT
 		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id,
@@ -1521,7 +1512,7 @@ func (ds *Datastore) AllSoftwareIterator(
 }
 
 func (ds *Datastore) UpsertSoftwareCPEs(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
-	var args []interface{}
+	var args []any
 
 	if len(cpes) == 0 {
 		return 0, nil
@@ -1576,7 +1567,7 @@ func (ds *Datastore) ListSoftwareCPEs(ctx context.Context) ([]fleet.SoftwareCPE,
 	var result []fleet.SoftwareCPE
 
 	var err error
-	var args []interface{}
+	var args []any
 
 	stmt := `SELECT id, software_id, cpe FROM software_cpe`
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, args...)
@@ -1628,7 +1619,7 @@ func (ds *Datastore) DeleteSoftwareVulnerabilities(ctx context.Context, vulnerab
 		`DELETE FROM software_cve WHERE (software_id, cve) IN (%s)`,
 		strings.TrimSuffix(strings.Repeat("(?,?),", len(vulnerabilities)), ","),
 	)
-	var args []interface{}
+	var args []any
 	for _, vulnerability := range vulnerabilities {
 		args = append(args, vulnerability.SoftwareID, vulnerability.CVE)
 	}
@@ -1738,7 +1729,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 
 	var software fleet.Software
 	for i, result := range results {
-		result := result // create a copy because we need to take the address to fields below
+		// create a copy because we need to take the address to fields below
 
 		if i == 0 {
 			software = result.Software
@@ -1885,7 +1876,7 @@ func (ds *Datastore) SyncHostsSoftware(ctx context.Context, updatedAt time.Time)
 			// batch to prevent making too many single-row inserts.
 			const batchSize = 100
 			var batchCount int
-			args := make([]interface{}, 0, batchSize*4)
+			args := make([]any, 0, batchSize*4)
 			for rows.Next() {
 				var (
 					count        int
@@ -2194,15 +2185,12 @@ ON DUPLICATE KEY UPDATE
 
 	batchSize := 500
 	for i := 0; i < len(cveMeta); i += batchSize {
-		end := i + batchSize
-		if end > len(cveMeta) {
-			end = len(cveMeta)
-		}
+		end := min(i+batchSize, len(cveMeta))
 
 		batch := cveMeta[i:end]
 
 		valuesFrag := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?), ", len(batch)), ", ")
-		var args []interface{}
+		var args []any
 		for _, meta := range batch {
 			args = append(args, meta.CVE, meta.CVSSScore, meta.EPSSProbability, meta.CISAKnownExploit, meta.Published, meta.Description)
 		}
@@ -2227,7 +2215,7 @@ func (ds *Datastore) InsertSoftwareVulnerability(
 		return false, nil
 	}
 
-	var args []interface{}
+	var args []any
 
 	stmt := `
 		INSERT INTO software_cve (cve, source, software_id, resolved_in_version)
@@ -2301,7 +2289,7 @@ func (ds *Datastore) ListSoftwareForVulnDetection(
 ) ([]fleet.Software, error) {
 	var result []fleet.Software
 	var sqlstmt string
-	var args []interface{}
+	var args []any
 
 	baseSQL := `
 		SELECT
@@ -3018,13 +3006,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 		seperator = ""
 	}
 	softwareIDList := strings.Split(*softwareTitleRecord.SoftwareIDList, ",")
-	found := false
-	for _, id := range softwareIDList {
-		if id == softwareIDStr {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(softwareIDList, softwareIDStr)
 	if !found {
 		*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
 		if hostInstalledSoftware.SoftwareSource != nil {
@@ -3822,13 +3804,13 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 	var titleCount uint
 	var hostSoftwareList []*hostSoftware
 	if len(softwareTitleIds) > 0 || len(vppAdamIDs) > 0 {
-		var args []interface{}
+		var args []any
 		var stmt string
 		var softwareTitleStatement string
 		var vppAdamStatment string
 
 		matchClause := ""
-		matchArgs := []interface{}{}
+		matchArgs := []any{}
 		if opts.ListOptions.MatchQuery != "" {
 			matchClause, matchArgs = searchLike(matchClause, matchArgs, opts.ListOptions.MatchQuery, "software_titles.name")
 		}
@@ -3844,8 +3826,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 		var cveMetaFilter string
 		var cveMatchClause string
-		var cveNamedArgs []interface{}
-		var cveMatchArgs []interface{}
+		var cveNamedArgs []any
+		var cveMatchArgs []any
 		if opts.KnownExploit {
 			cveMetaFilter += "\nAND cve_meta.cisa_known_exploit = :known_exploit"
 		}
@@ -3933,7 +3915,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			%s
 			`
 
-			var softwareTitleArgs []interface{}
+			var softwareTitleArgs []any
 			if len(softwareIDs) > 0 {
 				softwareTitleStatement, softwareTitleArgs, err = sqlx.In(softwareTitleStatement, softwareIDs, softwareTitleIds)
 			} else {
@@ -4349,7 +4331,6 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 
 	software := make([]*fleet.HostSoftwareWithInstaller, 0, len(hostSoftwareList))
 	for _, hs := range hostSoftwareList {
-		hs := hs
 		software = append(software, &hs.HostSoftwareWithInstaller)
 	}
 
@@ -4441,7 +4422,7 @@ INNER JOIN host_vpp_software_installs hvsi ON hvsi.host_id = :host_id AND hvsi.a
 INNER JOIN nano_command_results ncr ON ncr.command_uuid = hvsi.command_uuid
 WHERE hvsi.removed = 0 AND hvsi.canceled = 0 AND ncr.status = :mdm_status_acknowledged
 `
-	selectStmt, args, err := sqlx.Named(stmt, map[string]interface{}{
+	selectStmt, args, err := sqlx.Named(stmt, map[string]any{
 		"host_id":                   hostID,
 		"software_status_installed": fleet.SoftwareInstalled,
 		"mdm_status_acknowledged":   fleet.MDMAppleStatusAcknowledged,

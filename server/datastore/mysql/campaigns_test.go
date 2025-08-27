@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"math/rand"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -231,7 +232,7 @@ func testCompletedCampaigns(t *testing.T, ds *Datastore) {
 	totalFilterSize := 100000
 	filter := make([]uint, 0, totalFilterSize)
 	complete := make([]uint, 0, numCampaigns)
-	for i := 0; i < numCampaigns; i++ {
+	for range numCampaigns {
 		c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
 		gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.NoError(t, err)
@@ -251,7 +252,7 @@ func testCompletedCampaigns(t *testing.T, ds *Datastore) {
 
 	result, err = ds.GetCompletedCampaigns(context.Background(), filter)
 	assert.NoError(t, err)
-	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	slices.Sort(result)
 	assert.Equal(t, complete, result)
 
 }

@@ -25,12 +25,12 @@ var errFromConn = errors.New("SUCCESS")
 
 type redisConn struct{}
 
-func (redisConn) Close() error                                       { return errFromConn }
-func (redisConn) Err() error                                         { return errFromConn }
-func (redisConn) Do(_ string, _ ...interface{}) (interface{}, error) { return nil, errFromConn }
-func (redisConn) Send(_ string, _ ...interface{}) error              { return errFromConn }
-func (redisConn) Flush() error                                       { return errFromConn }
-func (redisConn) Receive() (interface{}, error)                      { return nil, errFromConn }
+func (redisConn) Close() error                       { return errFromConn }
+func (redisConn) Err() error                         { return errFromConn }
+func (redisConn) Do(_ string, _ ...any) (any, error) { return nil, errFromConn }
+func (redisConn) Send(_ string, _ ...any) error      { return errFromConn }
+func (redisConn) Flush() error                       { return errFromConn }
+func (redisConn) Receive() (any, error)              { return nil, errFromConn }
 
 func TestConnectRetry(t *testing.T) {
 	mockDial := func(err error) func(net, addr string, opts ...redigo.DialOption) (redigo.Conn, error) {

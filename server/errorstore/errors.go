@@ -97,7 +97,7 @@ func (h *Handler) Retrieve(flush bool) ([]*ctxerr.StoredError, error) {
 	}
 
 	keysBySlot := redis.SplitKeysBySlot(h.pool, errorKeys...)
-	var rawErrs []interface{}
+	var rawErrs []any
 	for _, qkeys := range keysBySlot {
 		if len(qkeys) > 0 {
 			gotErrors, err := h.collectBatchErrors(qkeys, flush)
@@ -115,7 +115,7 @@ func (h *Handler) Retrieve(flush bool) ([]*ctxerr.StoredError, error) {
 	return errorList, nil
 }
 
-func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]interface{}, error) {
+func (h *Handler) collectBatchErrors(errorKeys []string, flush bool) ([]any, error) {
 	conn := redis.ConfigureDoer(h.pool, h.pool.Get())
 	defer conn.Close()
 

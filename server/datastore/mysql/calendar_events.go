@@ -251,7 +251,7 @@ func (ds *Datastore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*f
 		SELECT ` + calendarEventCols + ` FROM calendar_events ce
 	`
 
-	var args []interface{}
+	var args []any
 	if teamID != nil {
 		calendarEventsQuery += ` JOIN host_calendar_events hce ON ce.id=hce.calendar_event_id
 								 JOIN hosts h ON h.id=hce.host_id WHERE h.team_id = ?`

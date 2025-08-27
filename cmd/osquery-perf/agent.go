@@ -96,8 +96,8 @@ func loadExtraVulnerableSoftware() {
 	if err != nil {
 		log.Fatal("reading vulnerable vscode_extensions software file: ", err)
 	}
-	lines := bytes.Split(vsCodeExtensionsVulnerableSoftwareData, []byte("\n"))
-	for _, line := range lines {
+	lines := bytes.SplitSeq(vsCodeExtensionsVulnerableSoftwareData, []byte("\n"))
+	for line := range lines {
 		parts := bytes.Split(line, []byte("##"))
 		if len(parts) < 3 {
 			log.Println("skipping", string(line))
@@ -1531,7 +1531,7 @@ func (a *agent) config() error {
 
 	parsedResp := struct {
 		Packs map[string]struct {
-			Queries map[string]interface{} `json:"queries"`
+			Queries map[string]any `json:"queries"`
 		} `json:"packs"`
 	}{}
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
@@ -1554,7 +1554,7 @@ func (a *agent) config() error {
 
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
-			m, ok := query.(map[string]interface{})
+			m, ok := query.(map[string]any)
 			if !ok {
 				return fmt.Errorf("processing scheduled query failed: %v", query)
 			}
@@ -1598,7 +1598,7 @@ const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567
 func randomString(n int) string {
 	sb := strings.Builder{}
 	sb.Grow(n)
-	for i := 0; i < n; i++ {
+	for range n {
 		sb.WriteByte(stringVals[rand.Int63()%int64(len(stringVals))])
 	}
 	return sb.String()
@@ -1617,7 +1617,7 @@ func (a *agent) hostUsers() []map[string]string {
 	groupNames := []string{"staff", "nobody", "wheel", "tty", "daemon"}
 	shells := []string{"/bin/zsh", "/bin/sh", "/usr/bin/false", "/bin/bash"}
 	commonUsers := make([]map[string]string, a.userCount.common)
-	for i := 0; i < len(commonUsers); i++ {
+	for i := range commonUsers {
 		commonUsers[i] = map[string]string{
 			"uid":       fmt.Sprint(i),
 			"username":  fmt.Sprintf("Common_%d", i),
@@ -1627,7 +1627,7 @@ func (a *agent) hostUsers() []map[string]string {
 		}
 	}
 	uniqueUsers := make([]map[string]string, a.userCount.unique)
-	for i := 0; i < len(uniqueUsers); i++ {
+	for i := range uniqueUsers {
 		uniqueUsers[i] = map[string]string{
 			"uid":       fmt.Sprint(i),
 			"username":  fmt.Sprintf("Unique_%d_%d", a.agentIndex, i),
@@ -1741,7 +1741,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
 	software = append(software, vulnerableSoftware...)
-	a.installedSoftware.Range(func(key, value interface{}) bool {
+	a.installedSoftware.Range(func(key, value any) bool {
 		software = append(software, value.(map[string]string))
 		return true
 	})
@@ -2028,7 +2028,7 @@ var munkiIssues = func() []string {
 		// that it can still make a bit of sense for UI tests.
 		numParts := rand.Intn(15) + 6 // number between 0-14, add 6 to get between 6-20
 		var sb strings.Builder
-		for j := 0; j < numParts; j++ {
+		for j := range numParts {
 			if j > 0 {
 				sb.WriteString(" ")
 			}
@@ -2443,7 +2443,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 		}
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
-			a.installedSoftware.Range(func(key, value interface{}) bool {
+			a.installedSoftware.Range(func(key, value any) bool {
 				results = append(results, value.(map[string]string))
 				return true
 			})
@@ -2474,7 +2474,7 @@ func (a *agent) processQuery(name, query string, cachedResults *cachedResults) (
 					}
 					results = append(results, m)
 				}
-				a.installedSoftware.Range(func(key, value interface{}) bool {
+				a.installedSoftware.Range(func(key, value any) bool {
 					results = append(results, value.(map[string]string))
 					return true
 				})
@@ -2771,7 +2771,7 @@ func (a *mdmAgent) runAppleIDeviceMDMLoop(mdmSCEPChallenge string) {
 // rows returns a set of rows for use in tests for query results.
 func rows(num int) string {
 	b := strings.Builder{}
-	for i := 0; i < num; i++ {
+	for i := range num {
 		b.WriteString(`    {
       "build_distro": "centos7",
       "build_platform": "linux",

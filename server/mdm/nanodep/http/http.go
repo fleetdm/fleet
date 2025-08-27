@@ -62,7 +62,7 @@ func TraceLoggingMiddleware(next http.Handler, logger log.Logger, newTrace func(
 		if err != nil {
 			host = r.RemoteAddr
 		}
-		logs := []interface{}{
+		logs := []any{
 			"addr", host,
 			"method", r.Method,
 			"path", r.URL.Path,

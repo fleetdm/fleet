@@ -31,7 +31,7 @@ func TestParseAuthDBReadOutput(t *testing.T) {
 	m, err := parseAuthDBReadOutput([]byte(systemLoginScreensaver))
 	require.NoError(t, err)
 	require.NotNil(t, m["rule"])
-	rule, ok := m["rule"].([]interface{})
+	rule, ok := m["rule"].([]any)
 	require.True(t, ok)
 	require.Len(t, rule, 1)
 	require.Equal(t, "authenticate-session-owner-or-admin", rule[0])

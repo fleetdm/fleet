@@ -57,10 +57,10 @@ func testAuth(t *testing.T, s *Suite) {
 
 	// Unauthenticated
 	s.Token = "bozo"
-	var resp map[string]interface{}
+	var resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusUnauthorized, &resp)
 	assert.Contains(t, resp["detail"], "Authentication")
-	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	scimDetails := contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusUnauthorized, &scimDetails)
 	// Make sure unauthenticated response wasn't saved as the last SCIM request
@@ -74,7 +74,7 @@ func testAuth(t *testing.T, s *Suite) {
 	s.Token = s.GetTestToken(t, service.TestObserverUserEmail, test.GoodPassword)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusForbidden, &resp)
 	assert.Contains(t, resp["detail"], "forbidden")
-	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusForbidden, &scimDetails)
 	// Make sure unauthorized response WAS saved as the last SCIM request
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
@@ -89,7 +89,7 @@ func testAuth(t *testing.T, s *Suite) {
 	resp = nil
 	s.Token = s.GetTestToken(t, service.TestMaintainerUserEmail, test.GoodPassword)
 	s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &resp)
-	assert.EqualValues(t, resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 }
 
 func testBaseEndpoints(t *testing.T, s *Suite) {
@@ -99,7 +99,7 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 	assert.Nil(t, scimDetails.LastRequest)
 
 	t.Run("Test /Schemas endpoint", func(t *testing.T) {
-		var schemasResp map[string]interface{}
+		var schemasResp map[string]any
 		s.DoJSON(t, "GET", scimPath("/Schemas"), nil, http.StatusOK, &schemasResp)
 
 		// Verify last request was recorded
@@ -111,8 +111,8 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 		assert.Empty(t, scimDetails.LastRequest.Details)
 
 		// Verify schemas response
-		assert.EqualValues(t, schemasResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-		resources, ok := schemasResp["Resources"].([]interface{})
+		assert.EqualValues(t, schemasResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+		resources, ok := schemasResp["Resources"].([]any)
 		assert.True(t, ok, "Resources should be an array")
 		assert.GreaterOrEqual(t, len(resources), 2, "Should have at least 2 schemas (User and Group)")
 
@@ -120,7 +120,7 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 		foundUser := false
 		foundGroup := false
 		for _, resource := range resources {
-			schema, ok := resource.(map[string]interface{})
+			schema, ok := resource.(map[string]any)
 			assert.True(t, ok, "Schema should be an object")
 
 			id, ok := schema["id"].(string)
@@ -128,11 +128,11 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 
 			if id == "urn:ietf:params:scim:schemas:core:2.0:User" {
 				foundUser = true
-				attributes := schema["attributes"].([]interface{})
+				attributes := schema["attributes"].([]any)
 				assert.NotNil(t, attributes, "User schema should have attributes")
 			} else if id == "urn:ietf:params:scim:schemas:core:2.0:Group" {
 				foundGroup = true
-				attributes := schema["attributes"].([]interface{})
+				attributes := schema["attributes"].([]any)
 				assert.NotNil(t, attributes, "Group schema should have attributes")
 			}
 		}
@@ -141,21 +141,21 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 	})
 
 	t.Run("Test /ServiceProviderConfig endpoint", func(t *testing.T) {
-		var configResp map[string]interface{}
+		var configResp map[string]any
 		s.DoJSON(t, "GET", scimPath("/ServiceProviderConfig"), nil, http.StatusOK, &configResp)
 
 		// Verify service provider config response
-		assert.EqualValues(t, configResp["schemas"], []interface{}{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"})
+		assert.EqualValues(t, configResp["schemas"], []any{"urn:ietf:params:scim:schemas:core:2.0:ServiceProviderConfig"})
 		assert.NotNil(t, configResp["documentationUri"])
 	})
 
 	t.Run("Test /ResourceTypes endpoint", func(t *testing.T) {
-		var resourceTypesResp map[string]interface{}
+		var resourceTypesResp map[string]any
 		s.DoJSON(t, "GET", scimPath("/ResourceTypes"), nil, http.StatusOK, &resourceTypesResp)
 
 		// Verify resource types response
-		assert.EqualValues(t, resourceTypesResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-		resourceTypes, ok := resourceTypesResp["Resources"].([]interface{})
+		assert.EqualValues(t, resourceTypesResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+		resourceTypes, ok := resourceTypesResp["Resources"].([]any)
 		assert.True(t, ok, "Resources should be an array")
 		assert.GreaterOrEqual(t, len(resourceTypes), 2, "Should have at least 2 resource types (User and Group)")
 
@@ -163,7 +163,7 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 		foundUserResource := false
 		foundGroupResource := false
 		for _, resource := range resourceTypes {
-			resourceType, ok := resource.(map[string]interface{})
+			resourceType, ok := resource.(map[string]any)
 			assert.True(t, ok, "Resource type should be an object")
 
 			name, ok := resourceType["name"].(string)
@@ -185,15 +185,15 @@ func testBaseEndpoints(t *testing.T, s *Suite) {
 }
 
 // createTestUser creates a test user with the given username and returns the user ID and response
-func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string]interface{}) {
-	createUserPayload := map[string]interface{}{
+func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string]any) {
+	createUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": userName,
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Test",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   userName,
 				"type":    "work",
@@ -203,7 +203,7 @@ func createTestUser(t *testing.T, s *Suite, userName string) (string, map[string
 		"active": true,
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 
 	// Verify the created user
@@ -223,17 +223,17 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	userID, _ := createTestUser(t, s, userName)
 
 	// Test getting a user by ID
-	var getResp map[string]interface{}
+	var getResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, userID, getResp["id"])
 	assert.Equal(t, userName, getResp["userName"])
 	assert.Equal(t, true, getResp["active"])
 
 	// Test getting a user with a bad ID
-	var errResp map[string]interface{}
+	var errResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/99999"), nil, http.StatusNotFound, &errResp)
 	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
-	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	// Make sure the error is reflected in the last request
 	scimDetails := contract.ScimDetailsResponse{}
 	s.DoJSON(t, "GET", scimPath("/details"), nil, http.StatusOK, &scimDetails)
@@ -243,33 +243,33 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	assert.Equal(t, errResp["detail"], scimDetails.LastRequest.Details)
 
 	// Test listing users
-	var listResp map[string]interface{}
+	var listResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &listResp)
-	assert.EqualValues(t, listResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	resources, ok := listResp["Resources"].([]interface{})
+	assert.EqualValues(t, listResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resources, ok := listResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, len(resources), 1, "Should have 1 user")
 
 	// Test filtering users by userName
-	var filterResp map[string]interface{}
+	var filterResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &filterResp, "filter", `userName eq "testuser@example.com"`)
-	assert.EqualValues(t, filterResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	filterResources, ok := filterResp["Resources"].([]interface{})
+	assert.EqualValues(t, filterResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources, ok := filterResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 1, len(filterResources), "Should have exactly 1 user matching the filter")
 
 	// Test filtering users by userName with random capitalization (case insensitivity)
 	randomCapUserName := "TeStUsEr@ExAmPlE.cOm" // Randomly capitalized version of testuser@example.com
-	var caseInsensitiveResp map[string]interface{}
+	var caseInsensitiveResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &caseInsensitiveResp, "filter", `userName eq "`+randomCapUserName+`"`)
-	assert.EqualValues(t, caseInsensitiveResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	caseInsensitiveResources, ok := caseInsensitiveResp["Resources"].([]interface{})
+	assert.EqualValues(t, caseInsensitiveResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	caseInsensitiveResources, ok := caseInsensitiveResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 1, len(caseInsensitiveResources), "Should have exactly 1 user matching the case-insensitive filter")
 
 	// Verify it's the same user
 	if len(caseInsensitiveResources) > 0 {
-		user, ok := caseInsensitiveResources[0].(map[string]interface{})
+		user, ok := caseInsensitiveResources[0].(map[string]any)
 		assert.True(t, ok, "User should be an object")
 		assert.Equal(t, userID, user["id"], "Should be the same user despite case differences in userName filter")
 		assert.Equal(t, userName, user["userName"], "Original userName should be preserved")
@@ -278,20 +278,20 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	// Test filtering users by non-existent userName
 	filterResp = nil
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &filterResp, "filter", `userName eq "bozo@example.com"`)
-	assert.EqualValues(t, filterResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	filterResources, ok = filterResp["Resources"].([]interface{})
+	assert.EqualValues(t, filterResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources, ok = filterResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Empty(t, filterResources, "Should have no users matching the filter")
 
 	// Test updating a user
-	updateUserPayload := map[string]interface{}{
+	updateUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": userName,
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Updated",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   userName,
 				"type":    "work",
@@ -301,19 +301,19 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+userID), updateUserPayload, http.StatusOK, &updateResp)
 	assert.Equal(t, userName, updateResp["userName"])
 
 	// Verify the name was updated
-	name, ok := updateResp["name"].(map[string]interface{})
+	name, ok := updateResp["name"].(map[string]any)
 	assert.True(t, ok, "Name should be an object")
 	assert.Equal(t, "Updated", name["givenName"])
 
 	// Test patching a user (updating just the active status)
-	patchUserPayload := map[string]interface{}{
+	patchUserPayload := map[string]any{
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
+		"Operations": []map[string]any{
 			{
 				"op":    "Replace",
 				"path":  "active",
@@ -322,17 +322,17 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 		},
 	}
 
-	var patchResp map[string]interface{}
+	var patchResp map[string]any
 	s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserPayload, http.StatusOK, &patchResp)
 	assert.Equal(t, false, patchResp["active"])
 
 	// Test patching a user without path attribute (updating just the active status)
-	patchUserPayload = map[string]interface{}{
+	patchUserPayload = map[string]any{
 		"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-		"Operations": []map[string]interface{}{
+		"Operations": []map[string]any{
 			{
 				"op": "replace",
-				"value": map[string]interface{}{
+				"value": map[string]any{
 					"active": true,
 				},
 			},
@@ -347,21 +347,21 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 	s.Do(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNoContent)
 
 	// Verify the user was deleted by trying to get it (should return 404)
-	var errorResp map[string]interface{}
+	var errorResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/"+userID), nil, http.StatusNotFound, &errorResp)
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "not found")
 
 	// Test replacing a user that doesn't exist
 	nonExistentUserID := "99999"
-	updateNonExistentUserPayload := map[string]interface{}{
+	updateNonExistentUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "nonexistent@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Non",
 			"familyName": "Existent",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "nonexistent@example.com",
 				"type":    "work",
@@ -371,28 +371,28 @@ func testUsersBasicCRUD(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var updateNonExistentResp map[string]interface{}
+	var updateNonExistentResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+nonExistentUserID), updateNonExistentUserPayload, http.StatusNotFound, &updateNonExistentResp)
-	assert.EqualValues(t, updateNonExistentResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, updateNonExistentResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, updateNonExistentResp["detail"], "not found")
 
 	// Test deleting a user that was already deleted
-	var deleteAgainResp map[string]interface{}
+	var deleteAgainResp map[string]any
 	s.DoJSON(t, "DELETE", scimPath("/Users/"+userID), nil, http.StatusNotFound, &deleteAgainResp)
-	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, deleteAgainResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
 }
 
 // createTestGroup creates a test group with the given display name and members and returns the group ID and response
-func createTestGroup(t *testing.T, s *Suite, displayName string, memberIDs []string) (string, map[string]interface{}) {
-	members := make([]map[string]interface{}, 0, len(memberIDs))
+func createTestGroup(t *testing.T, s *Suite, displayName string, memberIDs []string) (string, map[string]any) {
+	members := make([]map[string]any, 0, len(memberIDs))
 	for _, id := range memberIDs {
-		members = append(members, map[string]interface{}{
+		members = append(members, map[string]any{
 			"value": id,
 		})
 	}
 
-	createGroupPayload := map[string]interface{}{
+	createGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": displayName,
 	}
@@ -401,7 +401,7 @@ func createTestGroup(t *testing.T, s *Suite, displayName string, memberIDs []str
 		createGroupPayload["members"] = members
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 
 	// Verify the created group
@@ -422,28 +422,28 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	groupID, createResp := createTestGroup(t, s, "Test Group", []string{userID})
 
 	// Verify members
-	members, ok := createResp["members"].([]interface{})
+	members, ok := createResp["members"].([]any)
 	assert.True(t, ok, "Members should be an array")
 	require.Equal(t, 1, len(members), "Should have 1 member")
-	member := members[0].(map[string]interface{})
+	member := members[0].(map[string]any)
 	assert.Equal(t, userID, member["value"])
 	assert.Equal(t, "User", member["type"])
 
 	// Test getting a group by ID
-	var getResp map[string]interface{}
+	var getResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &getResp)
 	assert.Equal(t, groupID, getResp["id"])
 	assert.Equal(t, "Test Group", getResp["displayName"])
 
 	// Verify members in the GET response
-	getMembers, ok := getResp["members"].([]interface{})
+	getMembers, ok := getResp["members"].([]any)
 	assert.True(t, ok, "Members should be an array")
 	assert.Equal(t, 1, len(getMembers), "Should have 1 member")
-	getMember := getMembers[0].(map[string]interface{})
+	getMember := getMembers[0].(map[string]any)
 	assert.Equal(t, userID, getMember["value"])
 
 	// Test getting a group by ID with excludedAttributes=members
-	var getExcludedResp map[string]interface{}
+	var getExcludedResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusOK, &getExcludedResp, "excludedAttributes", "members")
 	assert.Equal(t, groupID, getExcludedResp["id"])
 	assert.Equal(t, "Test Group", getExcludedResp["displayName"])
@@ -453,30 +453,30 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	assert.False(t, membersExist, "Members should not be included when excludedAttributes=members")
 
 	// Test getting a group with a bad ID
-	var errResp map[string]interface{}
+	var errResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups/99999"), nil, http.StatusNotFound, &errResp)
 	assert.Contains(t, errResp["detail"], "Resource 99999 not found")
-	assert.EqualValues(t, errResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 
 	// Test listing groups
-	var listResp map[string]interface{}
+	var listResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &listResp)
-	assert.EqualValues(t, listResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	resources, ok := listResp["Resources"].([]interface{})
+	assert.EqualValues(t, listResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resources, ok := listResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.GreaterOrEqual(t, len(resources), 1, "Should have at least 1 group")
 
 	// Test listing groups with excludedAttributes=members
-	var listExcludedResp map[string]interface{}
+	var listExcludedResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &listExcludedResp, "excludedAttributes", "members")
-	assert.EqualValues(t, listExcludedResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	resourcesExcluded, ok := listExcludedResp["Resources"].([]interface{})
+	assert.EqualValues(t, listExcludedResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	resourcesExcluded, ok := listExcludedResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.GreaterOrEqual(t, len(resourcesExcluded), 1, "Should have at least 1 group")
 
 	// Verify members are not included in any of the groups
 	for _, resource := range resourcesExcluded {
-		group, ok := resource.(map[string]interface{})
+		group, ok := resource.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		_, hasMembersField := group["members"]
 		assert.False(t, hasMembersField, "Group should not have members field when excludedAttributes=members")
@@ -486,53 +486,53 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	secondGroupID, _ := createTestGroup(t, s, "Second Test Group", []string{userID})
 
 	// Test filtering groups by displayName - first group
-	var filterResp1 map[string]interface{}
+	var filterResp1 map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp1, "filter", `displayName eq "Test Group"`)
-	assert.EqualValues(t, filterResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	filterResources1, ok := filterResp1["Resources"].([]interface{})
+	assert.EqualValues(t, filterResp1["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources1, ok := filterResp1["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 1, len(filterResources1), "Should have exactly 1 group matching the filter")
 
 	// Verify it's the correct group
 	if len(filterResources1) > 0 {
-		group, ok := filterResources1[0].(map[string]interface{})
+		group, ok := filterResources1[0].(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, groupID, group["id"], "Should be the first group")
 		assert.Equal(t, "Test Group", group["displayName"], "Should have the correct display name")
 	}
 
 	// Test filtering groups by displayName - second group
-	var filterResp2 map[string]interface{}
+	var filterResp2 map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp2, "filter", `displayName eq "Second Test Group"`)
-	assert.EqualValues(t, filterResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	filterResources2, ok := filterResp2["Resources"].([]interface{})
+	assert.EqualValues(t, filterResp2["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources2, ok := filterResp2["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 1, len(filterResources2), "Should have exactly 1 group matching the filter")
 
 	// Verify it's the correct group
 	if len(filterResources2) > 0 {
-		group, ok := filterResources2[0].(map[string]interface{})
+		group, ok := filterResources2[0].(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, secondGroupID, group["id"], "Should be the second group")
 		assert.Equal(t, "Second Test Group", group["displayName"], "Should have the correct display name")
 	}
 
 	// Test filtering groups by non-existent displayName
-	var filterResp3 map[string]interface{}
+	var filterResp3 map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &filterResp3, "filter", `displayName eq "Non-Existent Group"`)
-	assert.EqualValues(t, filterResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
-	filterResources3, ok := filterResp3["Resources"].([]interface{})
+	assert.EqualValues(t, filterResp3["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	filterResources3, ok := filterResp3["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Empty(t, filterResources3, "Should have no groups matching the filter")
 
 	// Test updating a group
-	updateGroupPayload := map[string]interface{}{
+	updateGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Updated Test Group",
-		"members":     []map[string]interface{}{}, // Remove all members
+		"members":     []map[string]any{}, // Remove all members
 	}
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+groupID), updateGroupPayload, http.StatusOK, &updateResp)
 	assert.Equal(t, "Updated Test Group", updateResp["displayName"])
 
@@ -545,28 +545,28 @@ func testGroupsBasicCRUD(t *testing.T, s *Suite) {
 	s.Do(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNoContent)
 
 	// Verify the group was deleted by trying to get it (should return 404)
-	var errorResp map[string]interface{}
+	var errorResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups/"+groupID), nil, http.StatusNotFound, &errorResp)
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "not found")
 
 	// Test replacing a group that doesn't exist
 	nonExistentGroupID := "99999"
-	updateNonExistentGroupPayload := map[string]interface{}{
+	updateNonExistentGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Non-Existent Group",
-		"members":     []map[string]interface{}{},
+		"members":     []map[string]any{},
 	}
 
-	var updateNonExistentResp map[string]interface{}
+	var updateNonExistentResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+nonExistentGroupID), updateNonExistentGroupPayload, http.StatusNotFound, &updateNonExistentResp)
-	assert.EqualValues(t, updateNonExistentResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, updateNonExistentResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, updateNonExistentResp["detail"], "not found")
 
 	// Test deleting a group that was already deleted
-	var deleteAgainResp map[string]interface{}
+	var deleteAgainResp map[string]any
 	s.DoJSON(t, "DELETE", scimPath("/Groups/"+groupID), nil, http.StatusNotFound, &deleteAgainResp)
-	assert.EqualValues(t, deleteAgainResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, deleteAgainResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, deleteAgainResp["detail"], "not found")
 
 	// Delete the user we created
@@ -579,14 +579,14 @@ func testCreateGroup(t *testing.T, s *Suite) {
 
 	for i := 1; i <= 5; i++ {
 		userName := fmt.Sprintf("group-test-user-%d@example.com", i)
-		createUserPayload := map[string]interface{}{
+		createUserPayload := map[string]any{
 			"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 			"userName": userName,
-			"name": map[string]interface{}{
+			"name": map[string]any{
 				"givenName":  fmt.Sprintf("User%d", i),
 				"familyName": "GroupTest",
 			},
-			"emails": []map[string]interface{}{
+			"emails": []map[string]any{
 				{
 					"value":   userName,
 					"type":    "work",
@@ -596,19 +596,19 @@ func testCreateGroup(t *testing.T, s *Suite) {
 			"active": true,
 		}
 
-		var createResp map[string]interface{}
+		var createResp map[string]any
 		s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 		userID := createResp["id"].(string)
 		userIDs = append(userIDs, userID)
 	}
 
 	// Test 1: Create a group with 0 members
-	emptyGroupPayload := map[string]interface{}{
+	emptyGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Empty Group",
 	}
 
-	var emptyGroupResp map[string]interface{}
+	var emptyGroupResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), emptyGroupPayload, http.StatusCreated, &emptyGroupResp)
 
 	// Verify the created group
@@ -622,34 +622,34 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	assert.NotEmpty(t, emptyGroupID)
 
 	// Test 2: Create a group with many members
-	members := make([]map[string]interface{}, 0, len(userIDs))
+	members := make([]map[string]any, 0, len(userIDs))
 	for _, userID := range userIDs {
-		members = append(members, map[string]interface{}{
+		members = append(members, map[string]any{
 			"value": userID,
 		})
 	}
 
-	manyMembersGroupPayload := map[string]interface{}{
+	manyMembersGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Many Members Group",
 		"members":     members,
 	}
 
-	var manyMembersGroupResp map[string]interface{}
+	var manyMembersGroupResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), manyMembersGroupPayload, http.StatusCreated, &manyMembersGroupResp)
 
 	// Verify the created group
 	assert.Equal(t, "Many Members Group", manyMembersGroupResp["displayName"])
 
 	// Verify members
-	respMembers, ok := manyMembersGroupResp["members"].([]interface{})
+	respMembers, ok := manyMembersGroupResp["members"].([]any)
 	assert.True(t, ok, "Members should be an array")
 	assert.Equal(t, len(userIDs), len(respMembers), "Should have the same number of members as we added")
 
 	// Verify each member is in the response
 	memberValues := make([]string, 0, len(respMembers))
 	for _, member := range respMembers {
-		memberMap, ok := member.(map[string]interface{})
+		memberMap, ok := member.(map[string]any)
 		assert.True(t, ok, "Member should be an object")
 		memberValues = append(memberValues, memberMap["value"].(string))
 		assert.Equal(t, "User", memberMap["type"])
@@ -663,18 +663,18 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	assert.NotEmpty(t, manyMembersGroupID)
 
 	// Test 3: Create a group with externalId
-	externalIDGroupPayload := map[string]interface{}{
+	externalIDGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "External ID Group",
 		"externalId":  "external-system-group-789",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userIDs[0], // Just add the first user as a member
 			},
 		},
 	}
 
-	var externalIDGroupResp map[string]interface{}
+	var externalIDGroupResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), externalIDGroupPayload, http.StatusCreated, &externalIDGroupResp)
 
 	// Verify the created group
@@ -682,7 +682,7 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	assert.Equal(t, "external-system-group-789", externalIDGroupResp["externalId"])
 
 	// Verify members
-	externalIDGroupMembers, ok := externalIDGroupResp["members"].([]interface{})
+	externalIDGroupMembers, ok := externalIDGroupResp["members"].([]any)
 	assert.True(t, ok, "Members should be an array")
 	assert.Equal(t, 1, len(externalIDGroupMembers), "Should have 1 member")
 
@@ -690,20 +690,20 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	assert.NotEmpty(t, externalIDGroupID)
 
 	// Test 4: Try to create a group with the same display name (should fail)
-	duplicateGroupPayload := map[string]interface{}{
+	duplicateGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Empty Group", // Same as the first group
 	}
 
-	var errorResp map[string]interface{}
+	var errorResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), duplicateGroupPayload, http.StatusConflict, &errorResp)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test 4: Try to create a group without displayName (should fail)
-	noDisplayNamePayload := map[string]interface{}{
+	noDisplayNamePayload := map[string]any{
 		"schemas": []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		// No displayName
 	}
@@ -712,14 +712,14 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	s.DoJSON(t, "POST", scimPath("/Groups"), noDisplayNamePayload, http.StatusBadRequest, &errorResp)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp["detail"], "A required value was missing")
 
 	// Test 5: Try to create a group with invalid member ID (should fail)
-	invalidMemberPayload := map[string]interface{}{
+	invalidMemberPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Invalid Member Group",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": "invalid-user-id",
 			},
@@ -730,7 +730,7 @@ func testCreateGroup(t *testing.T, s *Suite) {
 	s.DoJSON(t, "POST", scimPath("/Groups"), invalidMemberPayload, http.StatusBadRequest, &errorResp)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 
 	// Delete the groups we created
 	s.Do(t, "DELETE", scimPath("/Groups/"+emptyGroupID), nil, http.StatusNoContent)
@@ -745,13 +745,13 @@ func testCreateGroup(t *testing.T, s *Suite) {
 
 func testCreateUser(t *testing.T, s *Suite) {
 	// Test creating a user without givenName
-	userWithoutGivenName := map[string]interface{}{
+	userWithoutGivenName := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "no-given-name@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"familyName": "NoGivenName",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "no-given-name@example.com",
 				"type":    "work",
@@ -761,19 +761,19 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var errorResp map[string]interface{}
+	var errorResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutGivenName, http.StatusBadRequest, &errorResp)
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without familyName
-	userWithoutFamilyName := map[string]interface{}{
+	userWithoutFamilyName := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "no-family-name@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName": "NoFamilyName",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "no-family-name@example.com",
 				"type":    "work",
@@ -785,21 +785,21 @@ func testCreateUser(t *testing.T, s *Suite) {
 
 	errorResp = nil
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutFamilyName, http.StatusBadRequest, &errorResp)
-	assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Equal(t, errors.ScimErrorInvalidValue.Detail, errorResp["detail"])
 
 	// Test creating a user without emails
-	userWithoutEmails := map[string]interface{}{
+	userWithoutEmails := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "no-emails@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "No",
 			"familyName": "Emails",
 		},
 		"active": true,
 	}
 
-	var createResp3 map[string]interface{}
+	var createResp3 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutEmails, http.StatusCreated, &createResp3)
 	assert.Equal(t, "no-emails@example.com", createResp3["userName"])
 	userID3 := createResp3["id"].(string)
@@ -809,14 +809,14 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.False(t, hasEmails, "emails should not be present")
 
 	// Test creating a user without active status
-	userWithoutActive := map[string]interface{}{
+	userWithoutActive := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "no-active@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "No",
 			"familyName": "Active",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "no-active@example.com",
 				"type":    "work",
@@ -825,7 +825,7 @@ func testCreateUser(t *testing.T, s *Suite) {
 		},
 	}
 
-	var createResp4 map[string]interface{}
+	var createResp4 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithoutActive, http.StatusCreated, &createResp4)
 	assert.Equal(t, "no-active@example.com", createResp4["userName"])
 	userID4 := createResp4["id"].(string)
@@ -835,14 +835,14 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.False(t, hasActive, "active should not be present")
 
 	// Test creating a user with multiple emails
-	userWithMultipleEmails := map[string]interface{}{
+	userWithMultipleEmails := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "multiple-emails@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Multiple",
 			"familyName": "Emails",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "multiple-emails@example.com",
 				"type":    "work",
@@ -862,25 +862,25 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp5 map[string]interface{}
+	var createResp5 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithMultipleEmails, http.StatusCreated, &createResp5)
 	assert.Equal(t, "multiple-emails@example.com", createResp5["userName"])
 	userID5 := createResp5["id"].(string)
 
 	// Verify multiple emails are present
-	emails, ok := createResp5["emails"].([]interface{})
+	emails, ok := createResp5["emails"].([]any)
 	assert.True(t, ok, "Emails should be an array")
 	assert.Equal(t, 3, len(emails), "Should have 3 emails")
 
 	// Test creating a user with empty userName
-	userWithEmptyUserName := map[string]interface{}{
+	userWithEmptyUserName := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "", // Empty userName
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Empty",
 			"familyName": "UserName",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "empty-username@example.com",
 				"type":    "work",
@@ -890,22 +890,22 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var errorResp1 map[string]interface{}
+	var errorResp1 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithEmptyUserName, http.StatusBadRequest, &errorResp1)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp1["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp1["detail"], "Bad Request")
 
 	// Test creating a user with duplicate userName
-	duplicateUserNamePayload := map[string]interface{}{
+	duplicateUserNamePayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "multiple-emails@example.com", // Same as userWithMultipleEmails
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Duplicate",
 			"familyName": "UserName",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "duplicate@example.com",
 				"type":    "work",
@@ -915,23 +915,23 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var errorResp2 map[string]interface{}
+	var errorResp2 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), duplicateUserNamePayload, http.StatusConflict, &errorResp2)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp2["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test creating a user with duplicate userName using different case.
 	// userName must be case insensitive
-	duplicateUserNamePayload = map[string]interface{}{
+	duplicateUserNamePayload = map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "Multiple-Emails@example.com", // Same as userWithMultipleEmails
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Duplicate",
 			"familyName": "UserName",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "duplicate@example.com",
 				"type":    "work",
@@ -941,23 +941,23 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var errorResp3 map[string]interface{}
+	var errorResp3 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), duplicateUserNamePayload, http.StatusConflict, &errorResp3)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp3["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp3["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp3["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test creating a user with externalId
-	userWithExternalID := map[string]interface{}{
+	userWithExternalID := map[string]any{
 		"schemas":    []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName":   "external-id-user@example.com",
 		"externalId": "external-system-123456",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "External",
 			"familyName": "IDUser",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "external-id-user@example.com",
 				"type":    "work",
@@ -967,7 +967,7 @@ func testCreateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp6 map[string]interface{}
+	var createResp6 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithExternalID, http.StatusCreated, &createResp6)
 	assert.Equal(t, "external-id-user@example.com", createResp6["userName"])
 	userID6 := createResp6["id"].(string)
@@ -976,17 +976,17 @@ func testCreateUser(t *testing.T, s *Suite) {
 	assert.Equal(t, "external-system-123456", createResp6["externalId"])
 
 	// Test creating a user with department
-	userWithDepartment := map[string]interface{}{
+	userWithDepartment := map[string]any{
 		"schemas": []string{
 			"urn:ietf:params:scim:schemas:core:2.0:User",
 			"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
 		},
 		"userName": "user-with-department@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Foo",
 			"familyName": "Bar",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "foobar@example.com",
 				"type":    "work",
@@ -994,12 +994,12 @@ func testCreateUser(t *testing.T, s *Suite) {
 			},
 		},
 		"active": true,
-		"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": map[string]interface{}{
+		"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User": map[string]any{
 			"department": "Engineering",
 		},
 	}
 
-	var createResp7 map[string]interface{}
+	var createResp7 map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), userWithDepartment, http.StatusCreated, &createResp7)
 	assert.Equal(t, "user-with-department@example.com", createResp7["userName"])
 	userID7 := createResp7["id"].(string)
@@ -1007,7 +1007,7 @@ func testCreateUser(t *testing.T, s *Suite) {
 	// Verify department is present and correct
 	m_, ok := createResp7["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
 	require.True(t, ok)
-	m, ok := m_.(map[string]interface{})
+	m, ok := m_.(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "Engineering", m["department"])
 
@@ -1021,14 +1021,14 @@ func testCreateUser(t *testing.T, s *Suite) {
 
 func testUpdateUser(t *testing.T, s *Suite) {
 	// Create first user
-	firstUserPayload := map[string]interface{}{
+	firstUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "first-user@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "First",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "first-user@example.com",
 				"type":    "work",
@@ -1038,20 +1038,20 @@ func testUpdateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var firstUserResp map[string]interface{}
+	var firstUserResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), firstUserPayload, http.StatusCreated, &firstUserResp)
 	firstUserID := firstUserResp["id"].(string)
 	assert.NotEmpty(t, firstUserID)
 
 	// Create second user
-	secondUserPayload := map[string]interface{}{
+	secondUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "second-user@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Second",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "second-user@example.com",
 				"type":    "work",
@@ -1061,20 +1061,20 @@ func testUpdateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var secondUserResp map[string]interface{}
+	var secondUserResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), secondUserPayload, http.StatusCreated, &secondUserResp)
 	secondUserID := secondUserResp["id"].(string)
 	assert.NotEmpty(t, secondUserID)
 
 	// Test 1: Try to update first user's userName to be exactly the same as second user's userName
-	updatePayload := map[string]interface{}{
+	updatePayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "second-user@example.com", // Same as second user
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "First",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "first-user@example.com",
 				"type":    "work",
@@ -1084,27 +1084,27 @@ func testUpdateUser(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var errorResp1 map[string]interface{}
+	var errorResp1 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusConflict, &errorResp1)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp1["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp1["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test 2: Try to update first user's userName to be a case-randomized version of second user's userName
 	updatePayload["userName"] = "SeCoNd-UsEr@ExAmPlE.cOm" // Case-randomized version of second user's userName
 
-	var errorResp2 map[string]interface{}
+	var errorResp2 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusConflict, &errorResp2)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp2["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test 3: Try to update first user's userName to be exactly the same as its current userName (should succeed)
 	updatePayload["userName"] = "first-user@example.com" // Same as current userName
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp)
 
 	// Verify the update was successful
@@ -1113,7 +1113,7 @@ func testUpdateUser(t *testing.T, s *Suite) {
 	// Test 4: Try to update first user's userName to be a case-randomized version of its current userName (should succeed)
 	updatePayload["userName"] = "FiRsT-uSeR@eXaMpLe.CoM" // Case-randomized version of current userName
 
-	var updateResp2 map[string]interface{}
+	var updateResp2 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp2)
 
 	// Verify the update was successful.
@@ -1125,17 +1125,17 @@ func testUpdateUser(t *testing.T, s *Suite) {
 	schemas, ok := schemas_.([]string)
 	require.True(t, ok)
 	updatePayload["schemas"] = append(schemas, "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User")
-	updatePayload["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"] = map[string]interface{}{
+	updatePayload["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"] = map[string]any{
 		"department": "Engineering",
 	}
 
-	var updateResp3 map[string]interface{}
+	var updateResp3 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Users/"+firstUserID), updatePayload, http.StatusOK, &updateResp3)
 
 	// Verify the update was successful.
 	m_, ok := updateResp3["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
 	require.True(t, ok)
-	m, ok := m_.(map[string]interface{})
+	m, ok := m_.(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "Engineering", m["department"])
 
@@ -1146,14 +1146,14 @@ func testUpdateUser(t *testing.T, s *Suite) {
 
 func testUpdateGroup(t *testing.T, s *Suite) {
 	// Create a test user to be added as a member of the groups
-	createUserPayload := map[string]interface{}{
+	createUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "group-update-test@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Group",
 			"familyName": "UpdateTest",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "group-update-test@example.com",
 				"type":    "work",
@@ -1163,75 +1163,75 @@ func testUpdateGroup(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createUserResp map[string]interface{}
+	var createUserResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createUserResp)
 	userID := createUserResp["id"].(string)
 	assert.NotEmpty(t, userID)
 
 	// Create first group
-	firstGroupPayload := map[string]interface{}{
+	firstGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "First Test Group",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userID,
 			},
 		},
 	}
 
-	var firstGroupResp map[string]interface{}
+	var firstGroupResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), firstGroupPayload, http.StatusCreated, &firstGroupResp)
 	firstGroupID := firstGroupResp["id"].(string)
 	assert.NotEmpty(t, firstGroupID)
 
 	// Create second group
-	secondGroupPayload := map[string]interface{}{
+	secondGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Second Test Group",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userID,
 			},
 		},
 	}
 
-	var secondGroupResp map[string]interface{}
+	var secondGroupResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), secondGroupPayload, http.StatusCreated, &secondGroupResp)
 	secondGroupID := secondGroupResp["id"].(string)
 	assert.NotEmpty(t, secondGroupID)
 
 	// Test 1: Try to update first group's displayName to be exactly the same as second group's displayName
-	updatePayload := map[string]interface{}{
+	updatePayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Second Test Group", // Same as second group
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userID,
 			},
 		},
 	}
 
-	var errorResp1 map[string]interface{}
+	var errorResp1 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusConflict, &errorResp1)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp1["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp1["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp1["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test 2: Try to update first group's displayName to be a case-randomized version of second group's displayName
 	updatePayload["displayName"] = "SeCoNd TeSt GrOuP" // Case-randomized version of second group's displayName
 
-	var errorResp2 map[string]interface{}
+	var errorResp2 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusConflict, &errorResp2)
 
 	// Verify error response
-	assert.EqualValues(t, errorResp2["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+	assert.EqualValues(t, errorResp2["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 	assert.Contains(t, errorResp2["detail"], "One or more of the attribute values are already in use or are reserved")
 
 	// Test 3: Try to update first group's displayName to be exactly the same as its current displayName (should succeed)
 	updatePayload["displayName"] = "First Test Group" // Same as current displayName
 
-	var updateResp map[string]interface{}
+	var updateResp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusOK, &updateResp)
 
 	// Verify the update was successful
@@ -1240,7 +1240,7 @@ func testUpdateGroup(t *testing.T, s *Suite) {
 	// Test 4: Try to update first group's displayName to be a case-randomized version of its current displayName (should succeed)
 	updatePayload["displayName"] = "FiRsT TeSt GrOuP" // Case-randomized version of current displayName
 
-	var updateResp2 map[string]interface{}
+	var updateResp2 map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+firstGroupID), updatePayload, http.StatusOK, &updateResp2)
 
 	// Verify the update was successful but the displayName is normalized
@@ -1263,22 +1263,22 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	}
 
 	// Test 1: Get first page with 3 users per page
-	var page1Resp map[string]interface{}
+	var page1Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page1Resp, "startIndex", "1", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page1Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page1Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page1Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources1, ok := page1Resp["Resources"].([]interface{})
+	resources1, ok := page1Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources1), "First page should have 3 users")
 
 	// Verify the users on the first page
 	userNames1 := make([]string, 0, 3)
 	for _, resource := range resources1 {
-		user, ok := resource.(map[string]interface{})
+		user, ok := resource.(map[string]any)
 		assert.True(t, ok, "User should be an object")
 		userName, ok := user["userName"].(string)
 		assert.True(t, ok, "userName should be a string")
@@ -1289,22 +1289,22 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, userNames1, "pagination-user-3@example.com", "First page should contain user 3")
 
 	// Test 2: Get second page with 3 users per page
-	var page2Resp map[string]interface{}
+	var page2Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page2Resp, "startIndex", "4", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page2Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page2Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page2Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources2, ok := page2Resp["Resources"].([]interface{})
+	resources2, ok := page2Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources2), "Second page should have 3 users")
 
 	// Verify the users on the second page
 	userNames2 := make([]string, 0, 3)
 	for _, resource := range resources2 {
-		user, ok := resource.(map[string]interface{})
+		user, ok := resource.(map[string]any)
 		assert.True(t, ok, "User should be an object")
 		userName, ok := user["userName"].(string)
 		assert.True(t, ok, "userName should be a string")
@@ -1315,22 +1315,22 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, userNames2, "pagination-user-6@example.com", "Second page should contain user 6")
 
 	// Test 3: Get third page with 3 users per page
-	var page3Resp map[string]interface{}
+	var page3Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page3Resp, "startIndex", "7", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page3Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page3Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page3Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources3, ok := page3Resp["Resources"].([]interface{})
+	resources3, ok := page3Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources3), "Third page should have 3 users")
 
 	// Verify the users on the third page
 	userNames3 := make([]string, 0, 3)
 	for _, resource := range resources3 {
-		user, ok := resource.(map[string]interface{})
+		user, ok := resource.(map[string]any)
 		assert.True(t, ok, "User should be an object")
 		userName, ok := user["userName"].(string)
 		assert.True(t, ok, "userName should be a string")
@@ -1341,48 +1341,48 @@ func testUsersPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, userNames3, "pagination-user-9@example.com", "Third page should contain user 9")
 
 	// Test 4: Get fourth page with 3 users per page (should contain only 1 user)
-	var page4Resp map[string]interface{}
+	var page4Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &page4Resp, "startIndex", "10", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page4Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page4Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page4Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources4, ok := page4Resp["Resources"].([]interface{})
+	resources4, ok := page4Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	require.Len(t, resources4, 1, "Fourth page should have 1 user")
 
 	// Verify the user on the fourth page
-	user4, ok := resources4[0].(map[string]interface{})
+	user4, ok := resources4[0].(map[string]any)
 	assert.True(t, ok, "User should be an object")
 	userName4, ok := user4["userName"].(string)
 	assert.True(t, ok, "userName should be a string")
 	assert.Equal(t, "pagination-user-10@example.com", userName4, "Fourth page should contain user 10")
 
 	// Test 5: Get page with startIndex beyond the total results (should return empty resources)
-	var emptyPageResp map[string]interface{}
+	var emptyPageResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &emptyPageResp, "startIndex", "11", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, emptyPageResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, emptyPageResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), emptyPageResp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	emptyResources, ok := emptyPageResp["Resources"].([]interface{})
+	emptyResources, ok := emptyPageResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Empty(t, emptyResources, "Page beyond total results should have 0 users")
 
 	// Test 6: Get all users in a single page
-	var allUsersResp map[string]interface{}
+	var allUsersResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users"), nil, http.StatusOK, &allUsersResp, "count", "20")
 
 	// Verify response structure
-	assert.EqualValues(t, allUsersResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, allUsersResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), allUsersResp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	allResources, ok := allUsersResp["Resources"].([]interface{})
+	allResources, ok := allUsersResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 10, len(allResources), "All users page should have 10 users")
 
@@ -1411,22 +1411,22 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 	}
 
 	// Test 1: Get first page with 3 groups per page
-	var page1Resp map[string]interface{}
+	var page1Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page1Resp, "startIndex", "1", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page1Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page1Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page1Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources1, ok := page1Resp["Resources"].([]interface{})
+	resources1, ok := page1Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources1), "First page should have 3 groups")
 
 	// Verify the groups on the first page
 	displayNames1 := make([]string, 0, 3)
 	for _, resource := range resources1 {
-		group, ok := resource.(map[string]interface{})
+		group, ok := resource.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		displayName, ok := group["displayName"].(string)
 		assert.True(t, ok, "displayName should be a string")
@@ -1437,22 +1437,22 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, displayNames1, "Pagination Group 3", "First page should contain group 3")
 
 	// Test 2: Get second page with 3 groups per page
-	var page2Resp map[string]interface{}
+	var page2Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page2Resp, "startIndex", "4", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page2Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page2Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page2Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources2, ok := page2Resp["Resources"].([]interface{})
+	resources2, ok := page2Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources2), "Second page should have 3 groups")
 
 	// Verify the groups on the second page
 	displayNames2 := make([]string, 0, 3)
 	for _, resource := range resources2 {
-		group, ok := resource.(map[string]interface{})
+		group, ok := resource.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		displayName, ok := group["displayName"].(string)
 		assert.True(t, ok, "displayName should be a string")
@@ -1463,22 +1463,22 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, displayNames2, "Pagination Group 6", "Second page should contain group 6")
 
 	// Test 3: Get third page with 3 groups per page
-	var page3Resp map[string]interface{}
+	var page3Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page3Resp, "startIndex", "7", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page3Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page3Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page3Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources3, ok := page3Resp["Resources"].([]interface{})
+	resources3, ok := page3Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 3, len(resources3), "Third page should have 3 groups")
 
 	// Verify the groups on the third page
 	displayNames3 := make([]string, 0, 3)
 	for _, resource := range resources3 {
-		group, ok := resource.(map[string]interface{})
+		group, ok := resource.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		displayName, ok := group["displayName"].(string)
 		assert.True(t, ok, "displayName should be a string")
@@ -1489,54 +1489,54 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 	assert.Contains(t, displayNames3, "Pagination Group 9", "Third page should contain group 9")
 
 	// Test 4: Get fourth page with 3 groups per page (should contain only 1 group)
-	var page4Resp map[string]interface{}
+	var page4Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &page4Resp, "startIndex", "10", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, page4Resp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, page4Resp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), page4Resp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	resources4, ok := page4Resp["Resources"].([]interface{})
+	resources4, ok := page4Resp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	require.Len(t, resources4, 1, "Fourth page should have 1 group")
 
 	// Verify the group on the fourth page
-	group4, ok := resources4[0].(map[string]interface{})
+	group4, ok := resources4[0].(map[string]any)
 	assert.True(t, ok, "Group should be an object")
 	displayName4, ok := group4["displayName"].(string)
 	assert.True(t, ok, "displayName should be a string")
 	assert.Equal(t, "Pagination Group 10", displayName4, "Fourth page should contain group 10")
 
 	// Test 5: Get page with startIndex beyond the total results (should return empty resources)
-	var emptyPageResp map[string]interface{}
+	var emptyPageResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &emptyPageResp, "startIndex", "11", "count", "3")
 
 	// Verify response structure
-	assert.EqualValues(t, emptyPageResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, emptyPageResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), emptyPageResp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	emptyResources, ok := emptyPageResp["Resources"].([]interface{})
+	emptyResources, ok := emptyPageResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Empty(t, emptyResources, "Page beyond total results should have 0 groups")
 
 	// Test 6: Get all groups in a single page
-	var allGroupsResp map[string]interface{}
+	var allGroupsResp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Groups"), nil, http.StatusOK, &allGroupsResp, "count", "20")
 
 	// Verify response structure
-	assert.EqualValues(t, allGroupsResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
+	assert.EqualValues(t, allGroupsResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:ListResponse"})
 	assert.Equal(t, float64(10), allGroupsResp["totalResults"], "Total results should be 10")
 
 	// Verify resources
-	allResources, ok := allGroupsResp["Resources"].([]interface{})
+	allResources, ok := allGroupsResp["Resources"].([]any)
 	assert.True(t, ok, "Resources should be an array")
 	assert.Equal(t, 10, len(allResources), "All groups page should have 10 groups")
 
 	// Test 7: Verify that even-numbered groups have the user as a member
 	for _, resource := range allResources {
-		group, ok := resource.(map[string]interface{})
+		group, ok := resource.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		displayName, ok := group["displayName"].(string)
 		assert.True(t, ok, "displayName should be a string")
@@ -1549,12 +1549,12 @@ func testGroupsPagination(t *testing.T, s *Suite) {
 		// Check if the group has members based on its number
 		if groupNum%2 == 0 {
 			// Even-numbered groups should have the user as a member
-			members, ok := group["members"].([]interface{})
+			members, ok := group["members"].([]any)
 			assert.True(t, ok, "members should be an array")
 			assert.Equal(t, 1, len(members), "Even-numbered group should have 1 member")
 
 			if len(members) > 0 {
-				member, ok := members[0].(map[string]interface{})
+				member, ok := members[0].(map[string]any)
 				assert.True(t, ok, "Member should be an object")
 				assert.Equal(t, userID, member["value"], "Member should be the test user")
 			}
@@ -1591,17 +1591,17 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	group2ID, _ := createTestGroup(t, s, "Test Group 2", []string{userIDs[1], userIDs[2]})
 
 	// Test 1: Verify that User 1 is in Group 1 only
-	var user1Resp map[string]interface{}
+	var user1Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[0]), nil, http.StatusOK, &user1Resp)
 
 	// Check groups field in user response
-	user1Groups, ok := user1Resp["groups"].([]interface{})
+	user1Groups, ok := user1Resp["groups"].([]any)
 	assert.True(t, ok, "User should have groups field")
 	assert.Equal(t, 1, len(user1Groups), "User 1 should be in 1 group")
 
 	// Verify the group is Group 1
 	if len(user1Groups) > 0 {
-		group, ok := user1Groups[0].(map[string]interface{})
+		group, ok := user1Groups[0].(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, group1ID, group["value"], "User 1 should be in Group 1")
 		assert.Equal(t, "Groups/"+group1ID, group["$ref"], "Group $ref should be correct")
@@ -1609,11 +1609,11 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	}
 
 	// Test 2: Verify that User 2 is in both Group 1 and Group 2
-	var user2Resp map[string]interface{}
+	var user2Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[1]), nil, http.StatusOK, &user2Resp)
 
 	// Check groups field in user response
-	user2Groups, ok := user2Resp["groups"].([]interface{})
+	user2Groups, ok := user2Resp["groups"].([]any)
 	assert.True(t, ok, "User should have groups field")
 	assert.Equal(t, 2, len(user2Groups), "User 2 should be in 2 groups")
 
@@ -1621,7 +1621,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	groupValues := make([]string, 0, 2)
 	groupDisplays := make(map[string]string)
 	for _, g := range user2Groups {
-		group, ok := g.(map[string]interface{})
+		group, ok := g.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		groupID := group["value"].(string)
 		groupValues = append(groupValues, groupID)
@@ -1633,17 +1633,17 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	assert.Equal(t, "Test Group 2", groupDisplays[group2ID], "Group 2 display name should be correct")
 
 	// Test 3: Verify that User 3 is in Group 2 only
-	var user3Resp map[string]interface{}
+	var user3Resp map[string]any
 	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[2]), nil, http.StatusOK, &user3Resp)
 
 	// Check groups field in user response
-	user3Groups, ok := user3Resp["groups"].([]interface{})
+	user3Groups, ok := user3Resp["groups"].([]any)
 	assert.True(t, ok, "User should have groups field")
 	assert.Equal(t, 1, len(user3Groups), "User 3 should be in 1 group")
 
 	// Verify the group is Group 2
 	if len(user3Groups) > 0 {
-		group, ok := user3Groups[0].(map[string]interface{})
+		group, ok := user3Groups[0].(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		assert.Equal(t, group2ID, group["value"], "User 3 should be in Group 2")
 		assert.Equal(t, "Groups/"+group2ID, group["$ref"], "Group $ref should be correct")
@@ -1651,10 +1651,10 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	}
 
 	// Test 4: Update Group 1 to remove User 1 and add User 3
-	updateGroup1Payload := map[string]interface{}{
+	updateGroup1Payload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Test Group 1",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userIDs[1], // Keep User 2
 			},
@@ -1664,7 +1664,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 		},
 	}
 
-	var updateGroup1Resp map[string]interface{}
+	var updateGroup1Resp map[string]any
 	s.DoJSON(t, "PUT", scimPath("/Groups/"+group1ID), updateGroup1Payload, http.StatusOK, &updateGroup1Resp)
 
 	// Test 5: Verify that User 1 is no longer in any group
@@ -1680,7 +1680,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	s.DoJSON(t, "GET", scimPath("/Users/"+userIDs[2]), nil, http.StatusOK, &user3Resp)
 
 	// Check groups field in user response
-	user3Groups, ok = user3Resp["groups"].([]interface{})
+	user3Groups, ok = user3Resp["groups"].([]any)
 	assert.True(t, ok, "User should have groups field")
 	assert.Equal(t, 2, len(user3Groups), "User 3 should be in 2 groups")
 
@@ -1688,7 +1688,7 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 	groupValues = make([]string, 0, 2)
 	groupDisplays = make(map[string]string)
 	for _, g := range user3Groups {
-		group, ok := g.(map[string]interface{})
+		group, ok := g.(map[string]any)
 		assert.True(t, ok, "Group should be an object")
 		groupID := group["value"].(string)
 		groupValues = append(groupValues, groupID)
@@ -1711,14 +1711,14 @@ func testUsersAndGroups(t *testing.T, s *Suite) {
 
 func testPatchUserEmails(t *testing.T, s *Suite) {
 	// Create a test user with initial email
-	createUserPayload := map[string]interface{}{
+	createUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "patch-emails-test@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Patch",
 			"familyName": "EmailsTest",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "patch-emails-test@example.com",
 				"type":    "work",
@@ -1728,18 +1728,18 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 	userID := createResp["id"].(string)
 
 	t.Run("Patch the user to replace emails with a new set of emails", func(t *testing.T) {
-		patchEmailsPayload := map[string]interface{}{
+		patchEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "new-primary@example.com",
 								"type":    "work",
@@ -1756,18 +1756,18 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailsPayload, http.StatusOK, &patchResp)
 
 		// Verify the emails were updated
-		emails, _ := patchResp["emails"].([]interface{})
+		emails, _ := patchResp["emails"].([]any)
 		assert.Equal(t, 2, len(emails), "Should have 2 emails after patch")
 
 		// Verify the email values
 		emailValues := make([]string, 0, 2)
 		primaryFound := false
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			emailValues = append(emailValues, email["value"].(string))
 
@@ -1784,13 +1784,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	})
 
 	t.Run("Verify that patching with no primary email is allowed", func(t *testing.T) {
-		patchNoPrimaryPayload := map[string]interface{}{
+		patchNoPrimaryPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value": "no-primary1@example.com",
 								"type":  "work",
@@ -1807,17 +1807,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var noPrimaryResp map[string]interface{}
+		var noPrimaryResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNoPrimaryPayload, http.StatusOK, &noPrimaryResp)
 
 		// Verify the emails were updated
-		noPrimaryEmails, _ := noPrimaryResp["emails"].([]interface{})
+		noPrimaryEmails, _ := noPrimaryResp["emails"].([]any)
 		assert.Equal(t, 2, len(noPrimaryEmails), "Should have 2 emails after patch")
 
 		// Verify the email values
 		noPrimaryEmailValues := make([]string, 0, 2)
 		for _, e := range noPrimaryEmails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			noPrimaryEmailValues = append(noPrimaryEmailValues, email["value"].(string))
 		}
@@ -1826,19 +1826,19 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	})
 
 	t.Run("Verify that patching with an empty emails array removes all emails", func(t *testing.T) {
-		patchEmptyEmailsPayload := map[string]interface{}{
+		patchEmptyEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{},
+					"value": map[string]any{
+						"emails": []map[string]any{},
 					},
 				},
 			},
 		}
 
-		var emptyEmailsResp map[string]interface{}
+		var emptyEmailsResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmptyEmailsPayload, http.StatusOK, &emptyEmailsResp)
 
 		// Verify the emails were updated (should be empty or not present)
@@ -1847,13 +1847,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 	})
 
 	t.Run("Patch emails with explicit path", func(t *testing.T) {
-		patchEmailsWithPathPayload := map[string]interface{}{
+		patchEmailsWithPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "emails",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value":   "explicit-path-primary@example.com",
 							"type":    "work",
@@ -1869,9 +1869,9 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchEmailsWithPathResp map[string]interface{}
+		var patchEmailsWithPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchEmailsWithPathPayload, http.StatusOK, &patchEmailsWithPathResp)
-		emails, ok := patchEmailsWithPathResp["emails"].([]interface{})
+		emails, ok := patchEmailsWithPathResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should have 2 emails after patch with explicit path")
 
@@ -1879,7 +1879,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		emailValues := make([]string, 0, 2)
 		primaryFound := false
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			emailValues = append(emailValues, email["value"].(string))
 
@@ -1897,13 +1897,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Add a new email with path specified", func(t *testing.T) {
 		// First, ensure we have a clean starting state with one email
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -1915,17 +1915,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Now add a new email with path specified
-		addEmailPayload := map[string]interface{}{
+		addEmailPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": "emails",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value":   "added-email@example.com",
 							"type":    "home",
@@ -1936,11 +1936,11 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addEmailResp map[string]interface{}
+		var addEmailResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailPayload, http.StatusOK, &addEmailResp)
 
 		// Verify both emails are present
-		emails, ok := addEmailResp["emails"].([]interface{})
+		emails, ok := addEmailResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should have 2 emails after adding one")
 
@@ -1948,7 +1948,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		emailValues := make([]string, 0, 2)
 		emailTypes := make(map[string]string)
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			emailValue := email["value"].(string)
 			emailValues = append(emailValues, emailValue)
@@ -1963,13 +1963,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Add a new email without path specified", func(t *testing.T) {
 		// First, ensure we have a clean starting state with one email
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -1981,17 +1981,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Now add a new email without path specified (should add to the resource)
-		addEmailPayload := map[string]interface{}{
+		addEmailPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "add",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "added-email@example.com",
 								"type":    "home",
@@ -2003,11 +2003,11 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addEmailResp map[string]interface{}
+		var addEmailResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailPayload, http.StatusOK, &addEmailResp)
 
 		// Verify both emails are present
-		emails, ok := addEmailResp["emails"].([]interface{})
+		emails, ok := addEmailResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should have 2 emails after adding one")
 
@@ -2015,7 +2015,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		emailValues := make([]string, 0, 2)
 		emailTypes := make(map[string]string)
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			emailValue := email["value"].(string)
 			emailValues = append(emailValues, emailValue)
@@ -2030,13 +2030,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Remove an email by type filter", func(t *testing.T) {
 		// First, ensure we have both work and home emails
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2053,13 +2053,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Delete the home email using a type filter
-		deleteEmailPayload := map[string]interface{}{
+		deleteEmailPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": `emails[type eq "home"]`,
@@ -2067,16 +2067,16 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var deleteEmailResp map[string]interface{}
+		var deleteEmailResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deleteEmailPayload, http.StatusOK, &deleteEmailResp)
 
 		// Verify only work email remains
-		emails, ok := deleteEmailResp["emails"].([]interface{})
+		emails, ok := deleteEmailResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 1, len(emails), "Should have only 1 email after deleting home email")
 
 		// Check that only the work email remains
-		email, ok := emails[0].(map[string]interface{})
+		email, ok := emails[0].(map[string]any)
 		assert.True(t, ok, "Email should be an object")
 		assert.Equal(t, "work-email@example.com", email["value"], "Work email should remain")
 		assert.Equal(t, "work", email["type"], "Remaining email should be of type work")
@@ -2085,13 +2085,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Remove all emails", func(t *testing.T) {
 		// First, ensure we have both work and home emails
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2108,13 +2108,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Delete all emails by removing the entire emails attribute
-		deleteAllEmailsPayload := map[string]interface{}{
+		deleteAllEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "emails",
@@ -2122,7 +2122,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var deleteAllEmailsResp map[string]interface{}
+		var deleteAllEmailsResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deleteAllEmailsPayload, http.StatusOK, &deleteAllEmailsResp)
 
 		// Verify emails attribute is not present or is empty
@@ -2132,13 +2132,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Combined add and remove operations in a single request", func(t *testing.T) {
 		// First, ensure we have both work and home emails
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2155,13 +2155,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Perform combined operations: remove home email and add other email
-		combinedOpsPayload := map[string]interface{}{
+		combinedOpsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": `emails[type eq "home"]`,
@@ -2169,7 +2169,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 				{
 					"op":   "add",
 					"path": "emails",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value":   "other-email@example.com",
 							"type":    "other",
@@ -2180,11 +2180,11 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var combinedOpsResp map[string]interface{}
+		var combinedOpsResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), combinedOpsPayload, http.StatusOK, &combinedOpsResp)
 
 		// Verify we have two emails: work and other (home was removed)
-		emails, ok := combinedOpsResp["emails"].([]interface{})
+		emails, ok := combinedOpsResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should have 2 emails after combined operations")
 
@@ -2192,7 +2192,7 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		emailValues := make([]string, 0, 2)
 		emailTypes := make(map[string]string)
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			emailValue := email["value"].(string)
 			emailValues = append(emailValues, emailValue)
@@ -2208,13 +2208,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Patch emails by type filter", func(t *testing.T) {
 		// First, ensure we have both work and home emails
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2231,17 +2231,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Now patch only the work email using the filter
-		patchWorkEmailPayload := map[string]interface{}{
+		patchWorkEmailPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": `emails[type eq "work"]`,
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"value":   "updated-work@example.com",
 						"type":    "work",
 						"primary": true,
@@ -2250,16 +2250,16 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchWorkResp map[string]interface{}
+		var patchWorkResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchWorkEmailPayload, http.StatusOK, &patchWorkResp)
-		emails, ok := patchWorkResp["emails"].([]interface{})
+		emails, ok := patchWorkResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching work email")
 
 		// Check that only the work email was updated and home email remains unchanged
-		var workEmail, homeEmail map[string]interface{}
+		var workEmail, homeEmail map[string]any
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 
 			if email["type"].(string) == "work" {
@@ -2280,13 +2280,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Patch individual field of email by type", func(t *testing.T) {
 		// First, ensure we have both work and home emails with known values
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2303,13 +2303,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Now patch only the primary field of the work email
-		patchWorkPrimaryPayload := map[string]interface{}{
+		patchWorkPrimaryPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  `emails[type eq "work"].primary`,
@@ -2318,16 +2318,16 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchPrimaryResp map[string]interface{}
+		var patchPrimaryResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchWorkPrimaryPayload, http.StatusOK, &patchPrimaryResp)
-		emails, ok := patchPrimaryResp["emails"].([]interface{})
+		emails, ok := patchPrimaryResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching primary flag")
 
 		// Check that only the primary flag of work email was updated
-		var workEmail, homeEmail map[string]interface{}
+		var workEmail, homeEmail map[string]any
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 
 			if email["type"].(string) == "work" {
@@ -2346,9 +2346,9 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		assert.Equal(t, false, homeEmail["primary"], "Home email primary flag should remain false")
 
 		// Now patch only the value field of the home email
-		patchHomeValuePayload := map[string]interface{}{
+		patchHomeValuePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  `emails[type eq "home"].value`,
@@ -2357,18 +2357,18 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchHomeValueResp map[string]interface{}
+		var patchHomeValueResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchHomeValuePayload, http.StatusOK, &patchHomeValueResp)
 
 		// Verify the value was updated correctly
-		emails, ok = patchHomeValueResp["emails"].([]interface{})
+		emails, ok = patchHomeValueResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching home email value")
 
 		// Check that only the value of home email was updated
 		workEmail, homeEmail = nil, nil
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 
 			if email["type"].(string) == "work" {
@@ -2389,13 +2389,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Patch email type by type", func(t *testing.T) {
 		// First, ensure we have both work and home emails with known values
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2412,13 +2412,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Now patch the type of the home email to "other"
-		patchHomeTypePayload := map[string]interface{}{
+		patchHomeTypePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  `emails[type eq "home"].type`,
@@ -2427,20 +2427,20 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchTypeResp map[string]interface{}
+		var patchTypeResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchHomeTypePayload, http.StatusOK, &patchTypeResp)
 
 		// Verify the type was updated correctly
-		emails, ok := patchTypeResp["emails"].([]interface{})
+		emails, ok := patchTypeResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should still have 2 emails after patching email type")
 
 		// Check that the home email type was changed to "other"
-		var workEmail, otherEmail map[string]interface{}
+		var workEmail, otherEmail map[string]any
 		var homeEmailFound bool
 
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			switch email["type"].(string) {
 			case "work":
@@ -2465,13 +2465,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Add individual email attribute", func(t *testing.T) {
 		// First, ensure we have a work email with known values
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2483,17 +2483,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Add a new email with just the value attribute first, because it is required
-		addEmailTypePayload := map[string]interface{}{
+		addEmailTypePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": `emails[type eq "home"]`,
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": "home-email@example.com",
 						},
@@ -2502,13 +2502,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addEmailTypeResp map[string]interface{}
+		var addEmailTypeResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailTypePayload, http.StatusOK, &addEmailTypeResp)
 
 		// Now modify the type attribute of the email
-		addEmailValuePayload := map[string]interface{}{
+		addEmailValuePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  `emails[type eq "home"].type`,
@@ -2517,13 +2517,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addEmailValueResp map[string]interface{}
+		var addEmailValueResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailValuePayload, http.StatusOK, &addEmailValueResp)
 
 		// Finally add the primary attribute to the email
-		addEmailPrimaryPayload := map[string]interface{}{
+		addEmailPrimaryPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  `emails[type eq "other"].primary`,
@@ -2532,17 +2532,17 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addEmailPrimaryResp map[string]interface{}
+		var addEmailPrimaryResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addEmailPrimaryPayload, http.StatusOK, &addEmailPrimaryResp)
 
 		// Verify both emails are present and home email is now primary
-		emails, ok := addEmailPrimaryResp["emails"].([]interface{})
+		emails, ok := addEmailPrimaryResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 		assert.Equal(t, 2, len(emails), "Should have 2 emails")
 
-		var workEmail, otherEmail map[string]interface{}
+		var workEmail, otherEmail map[string]any
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			if email["type"] == "work" {
 				workEmail = email
@@ -2562,13 +2562,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 	t.Run("Remove individual email attribute", func(t *testing.T) {
 		// First, ensure we have both work and home emails with known values
-		setupEmailsPayload := map[string]interface{}{
+		setupEmailsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"emails": []map[string]interface{}{
+					"value": map[string]any{
+						"emails": []map[string]any{
 							{
 								"value":   "work-email@example.com",
 								"type":    "work",
@@ -2585,13 +2585,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupEmailsPayload, http.StatusOK, &setupResp)
 
 		// Remove the primary attribute from the work email
-		removePrimaryPayload := map[string]interface{}{
+		removePrimaryPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": `emails[type eq "work"].primary`,
@@ -2599,16 +2599,16 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 		}
 
-		var removePrimaryResp map[string]interface{}
+		var removePrimaryResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), removePrimaryPayload, http.StatusOK, &removePrimaryResp)
 
 		// Verify the primary attribute was removed
-		emails, ok := removePrimaryResp["emails"].([]interface{})
+		emails, ok := removePrimaryResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 
-		var workEmail map[string]interface{}
+		var workEmail map[string]any
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			if email["type"] == "work" {
 				workEmail = email
@@ -2626,18 +2626,18 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		// Define test cases
 		testCases := []struct {
 			name         string
-			payload      map[string]interface{}
+			payload      map[string]any
 			errorMessage string
 		}{
 			{
 				name: "Multiple primary emails",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "primary1@example.com",
 										"type":    "work",
@@ -2657,13 +2657,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Invalid email format",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "not-an-email", // Invalid email format (missing @ and domain)
 										"type":    "work",
@@ -2678,13 +2678,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Empty email value",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "", // Empty email value
 										"type":    "work",
@@ -2699,13 +2699,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Email missing @ symbol",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "testinvalid.com", // Email missing @ symbol
 										"type":    "work",
@@ -2720,13 +2720,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Email value as a number",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   123, // Number instead of string
 										"type":    "work",
@@ -2741,13 +2741,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Email value as a boolean",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   true, // Boolean instead of string
 										"type":    "work",
@@ -2762,13 +2762,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Email type as a number",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "valid@example.com",
 										"type":    123, // Number instead of string
@@ -2783,13 +2783,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Email type as a boolean",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "valid@example.com",
 										"type":    true, // Boolean instead of string
@@ -2804,13 +2804,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Primary flag as a string",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "valid@example.com",
 										"type":    "work",
@@ -2825,13 +2825,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Primary flag as a number",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   "valid@example.com",
 										"type":    "work",
@@ -2846,13 +2846,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Null email value",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"emails": []map[string]interface{}{
+							"value": map[string]any{
+								"emails": []map[string]any{
 									{
 										"value":   nil, // Null email value
 										"type":    "work",
@@ -2867,12 +2867,12 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Null emails field",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"emails": nil,
 							},
 						},
@@ -2882,14 +2882,14 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Add operation with invalid email path",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "add",
 							// We only support type as a subattribute filter
 							"path": `emails[primary eq "true"]`,
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"value":   "new-email@example.com",
 								"type":    "work",
 								"primary": true,
@@ -2901,13 +2901,13 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Add operation with missing values",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":    "add",
 							"path":  "emails",
-							"value": []map[string]interface{}{},
+							"value": []map[string]any{},
 						},
 					},
 				},
@@ -2915,9 +2915,9 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove operation with invalid email path",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "remove",
 							"path": `emails[type eq "nonexistent"]`,
@@ -2932,9 +2932,9 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel() // these failure test cases do not modify state, so they can run in parallel
-				var errorResp map[string]interface{}
+				var errorResp map[string]any
 				s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), tc.payload, http.StatusBadRequest, &errorResp)
-				assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+				assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 				assert.Contains(t, errorResp["detail"], tc.errorMessage)
 			})
 		}
@@ -2943,14 +2943,14 @@ func testPatchUserEmails(t *testing.T, s *Suite) {
 
 func testPatchUserAttributes(t *testing.T, s *Suite) {
 	// Create a test user
-	createUserPayload := map[string]interface{}{
+	createUserPayload := map[string]any{
 		"schemas":  []string{"urn:ietf:params:scim:schemas:core:2.0:User"},
 		"userName": "patch-attributes-test@example.com",
-		"name": map[string]interface{}{
+		"name": map[string]any{
 			"givenName":  "Original",
 			"familyName": "User",
 		},
-		"emails": []map[string]interface{}{
+		"emails": []map[string]any{
 			{
 				"value":   "patch-attributes-test@example.com",
 				"type":    "work",
@@ -2960,36 +2960,36 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		"active": true,
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Users"), createUserPayload, http.StatusCreated, &createResp)
 	userID := createResp["id"].(string)
 
 	t.Run("Patch userName", func(t *testing.T) {
-		patchUserNamePayload := map[string]interface{}{
+		patchUserNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"userName": "new-username@example.com",
 					},
 				},
 			},
 		}
 
-		var patchUserNameResp map[string]interface{}
+		var patchUserNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNamePayload, http.StatusOK, &patchUserNameResp)
 		assert.Equal(t, "new-username@example.com", patchUserNameResp["userName"], "userName should be updated")
 	})
 
 	t.Run("Patch entire name object", func(t *testing.T) {
-		patchNamePayload := map[string]interface{}{
+		patchNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"name": map[string]interface{}{
+					"value": map[string]any{
+						"name": map[string]any{
 							"givenName":  "CompletelyNew",
 							"familyName": "FullName",
 						},
@@ -2998,41 +2998,41 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchNameResp map[string]interface{}
+		var patchNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchNamePayload, http.StatusOK, &patchNameResp)
-		name, ok := patchNameResp["name"].(map[string]interface{})
+		name, ok := patchNameResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "CompletelyNew", name["givenName"], "givenName should be updated")
 		assert.Equal(t, "FullName", name["familyName"], "familyName should be updated")
 	})
 
 	t.Run("Patch active status", func(t *testing.T) {
-		patchActivePayload := map[string]interface{}{
+		patchActivePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"active": false,
 					},
 				},
 			},
 		}
 
-		var patchActiveResp map[string]interface{}
+		var patchActiveResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActivePayload, http.StatusOK, &patchActiveResp)
 		assert.Equal(t, false, patchActiveResp["active"], "active should be updated to false")
 	})
 
 	t.Run("Patch multiple attributes at once (userName, name, active)", func(t *testing.T) {
-		patchMultiplePayload := map[string]interface{}{
+		patchMultiplePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"userName": "multi-update@example.com",
-						"name": map[string]interface{}{
+						"name": map[string]any{
 							"givenName":  "Multiple",
 							"familyName": "Updates",
 						},
@@ -3042,42 +3042,42 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchMultipleResp map[string]interface{}
+		var patchMultipleResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchMultiplePayload, http.StatusOK, &patchMultipleResp)
 		assert.Equal(t, "multi-update@example.com", patchMultipleResp["userName"], "userName should be updated")
 		assert.Equal(t, true, patchMultipleResp["active"], "active should be updated to true")
-		name, ok := patchMultipleResp["name"].(map[string]interface{})
+		name, ok := patchMultipleResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "Multiple", name["givenName"], "givenName should be updated")
 		assert.Equal(t, "Updates", name["familyName"], "familyName should be updated")
 	})
 
 	t.Run("Patch department", func(t *testing.T) {
-		patchDepartmentPayload := map[string]interface{}{
+		patchDepartmentPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department": "QA",
 					},
 				},
 			},
 		}
 
-		var patchDepartmentResp map[string]interface{}
+		var patchDepartmentResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload, http.StatusOK, &patchDepartmentResp)
 		// Verify department is present and correct
 		m_, ok := patchDepartmentResp["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
 		require.True(t, ok)
-		m, ok := m_.(map[string]interface{})
+		m, ok := m_.(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "QA", m["department"])
 
 		// Now remove department using path.
-		patchDepartmentPayload2 := map[string]interface{}{
+		patchDepartmentPayload2 := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department",
@@ -3085,16 +3085,16 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchDepartmentResp2 map[string]interface{}
+		var patchDepartmentResp2 map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload2, http.StatusOK, &patchDepartmentResp2)
 		// Verify department is not present (if there are no extension attributes, then the whole map is not there).
 		_, ok = patchDepartmentResp2["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
 		require.False(t, ok)
 
 		// Now re-add department using path.
-		patchDepartmentPayload3 := map[string]interface{}{
+		patchDepartmentPayload3 := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User:department",
@@ -3103,12 +3103,12 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchDepartmentResp3 map[string]interface{}
+		var patchDepartmentResp3 map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchDepartmentPayload3, http.StatusOK, &patchDepartmentResp3)
 		// Verify department is present and correct
 		m_, ok = patchDepartmentResp3["urn:ietf:params:scim:schemas:extension:enterprise:2.0:User"]
 		require.True(t, ok)
-		m, ok = m_.(map[string]interface{})
+		m, ok = m_.(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "Engineering", m["department"])
 	})
@@ -3117,9 +3117,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 	// Tests for patching with explicit operation path
 
 	t.Run("Patch userName with explicit path", func(t *testing.T) {
-		patchUserNameWithPathPayload := map[string]interface{}{
+		patchUserNameWithPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "userName",
@@ -3128,15 +3128,15 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchUserNameWithPathResp map[string]interface{}
+		var patchUserNameWithPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchUserNameWithPathPayload, http.StatusOK, &patchUserNameWithPathResp)
 		assert.Equal(t, "explicit-path-username@example.com", patchUserNameWithPathResp["userName"], "userName should be updated with explicit path")
 	})
 
 	t.Run("Patch name.givenName with explicit path", func(t *testing.T) {
-		patchGivenNameWithPathPayload := map[string]interface{}{
+		patchGivenNameWithPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "name.givenName",
@@ -3145,18 +3145,18 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchGivenNameWithPathResp map[string]interface{}
+		var patchGivenNameWithPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchGivenNameWithPathPayload, http.StatusOK, &patchGivenNameWithPathResp)
-		nameObj1, ok := patchGivenNameWithPathResp["name"].(map[string]interface{})
+		nameObj1, ok := patchGivenNameWithPathResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "ExplicitPathGiven", nameObj1["givenName"], "givenName should be updated with explicit path")
 		assert.Equal(t, "Updates", nameObj1["familyName"], "familyName should remain unchanged")
 	})
 
 	t.Run("Patch name.familyName with explicit path", func(t *testing.T) {
-		patchFamilyNameWithPathPayload := map[string]interface{}{
+		patchFamilyNameWithPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "name.familyName",
@@ -3165,18 +3165,18 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchFamilyNameWithPathResp map[string]interface{}
+		var patchFamilyNameWithPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchFamilyNameWithPathPayload, http.StatusOK, &patchFamilyNameWithPathResp)
-		nameObj2, ok := patchFamilyNameWithPathResp["name"].(map[string]interface{})
+		nameObj2, ok := patchFamilyNameWithPathResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "ExplicitPathGiven", nameObj2["givenName"], "givenName should remain unchanged")
 		assert.Equal(t, "ExplicitPathFamily", nameObj2["familyName"], "familyName should be updated with explicit path")
 	})
 
 	t.Run("Patch active with explicit path", func(t *testing.T) {
-		patchActiveWithPathPayload := map[string]interface{}{
+		patchActiveWithPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "active",
@@ -3185,16 +3185,16 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchActiveWithPathResp map[string]interface{}
+		var patchActiveWithPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), patchActiveWithPathPayload, http.StatusOK, &patchActiveWithPathResp)
 		assert.Equal(t, false, patchActiveWithPathResp["active"], "active should be updated to false with explicit path")
 	})
 
 	t.Run("Add a new attribute", func(t *testing.T) {
 		// Add externalId attribute
-		addExternalIdPayload := map[string]interface{}{
+		addExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "externalId",
@@ -3203,33 +3203,33 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addExternalIdResp map[string]interface{}
+		var addExternalIdResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addExternalIdPayload, http.StatusOK, &addExternalIdResp)
 		assert.Equal(t, "external-id-123", addExternalIdResp["externalId"], "externalId should be added")
 	})
 
 	t.Run("Delete an attribute", func(t *testing.T) {
 		// First, ensure the user has an externalId
-		setupExternalIdPayload := map[string]interface{}{
+		setupExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"externalId": "external-id-to-delete",
 					},
 				},
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupExternalIdPayload, http.StatusOK, &setupResp)
 		assert.Equal(t, "external-id-to-delete", setupResp["externalId"], "externalId should be set")
 
 		// Now delete the externalId
-		deleteExternalIdPayload := map[string]interface{}{
+		deleteExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "externalId",
@@ -3237,7 +3237,7 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var deleteExternalIdResp map[string]interface{}
+		var deleteExternalIdResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), deleteExternalIdPayload, http.StatusOK, &deleteExternalIdResp)
 		_, hasExternalId := deleteExternalIdResp["externalId"]
 		assert.False(t, hasExternalId, "externalId should be deleted")
@@ -3245,9 +3245,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 
 	t.Run("Add a new attribute without path specified", func(t *testing.T) {
 		// First, ensure externalId is not present
-		removeExternalIdPayload := map[string]interface{}{
+		removeExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "externalId",
@@ -3255,35 +3255,35 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var removeResp map[string]interface{}
+		var removeResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), removeExternalIdPayload, http.StatusOK, &removeResp)
 
 		// Add externalId attribute without path specified
-		addExternalIdPayload := map[string]interface{}{
+		addExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "add",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"externalId": "external-id-no-path",
 					},
 				},
 			},
 		}
 
-		var addExternalIdResp map[string]interface{}
+		var addExternalIdResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addExternalIdPayload, http.StatusOK, &addExternalIdResp)
 		assert.Equal(t, "external-id-no-path", addExternalIdResp["externalId"], "externalId should be added without path specified")
 	})
 
 	t.Run("Combined add and remove operations for attributes", func(t *testing.T) {
 		// Setup initial state with externalId and active attributes
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"externalId": "initial-external-id",
 						"active":     true,
 					},
@@ -3291,15 +3291,15 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), setupPayload, http.StatusOK, &setupResp)
 		assert.Equal(t, "initial-external-id", setupResp["externalId"], "externalId should be set")
 		assert.Equal(t, true, setupResp["active"], "active should be set to true")
 
 		// Perform combined operations: remove externalId and add a new email
-		combinedOpsPayload := map[string]interface{}{
+		combinedOpsPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "externalId",
@@ -3307,7 +3307,7 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 				{
 					"op":   "add",
 					"path": "emails",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value":   "new-combined-email@example.com",
 							"type":    "work",
@@ -3318,20 +3318,20 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var combinedOpsResp map[string]interface{}
+		var combinedOpsResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), combinedOpsPayload, http.StatusOK, &combinedOpsResp)
 
 		// Verify externalId is removed and new email is added
 		_, hasExternalId := combinedOpsResp["externalId"]
 		assert.False(t, hasExternalId, "externalId should be removed")
 
-		emails, ok := combinedOpsResp["emails"].([]interface{})
+		emails, ok := combinedOpsResp["emails"].([]any)
 		require.True(t, ok, "Response should have emails array")
 
 		// Find the new email
 		var foundNewEmail bool
 		for _, e := range emails {
-			email, ok := e.(map[string]interface{})
+			email, ok := e.(map[string]any)
 			assert.True(t, ok, "Email should be an object")
 			if email["value"] == "new-combined-email@example.com" {
 				foundNewEmail = true
@@ -3344,9 +3344,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 
 	t.Run("Add userName attribute", func(t *testing.T) {
 		// Add userName attribute
-		addUserNamePayload := map[string]interface{}{
+		addUserNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "userName",
@@ -3355,16 +3355,16 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addUserNameResp map[string]interface{}
+		var addUserNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addUserNamePayload, http.StatusOK, &addUserNameResp)
 		assert.Equal(t, "new-username@example.com", addUserNameResp["userName"], "userName should be updated")
 	})
 
 	t.Run("Add name attributes", func(t *testing.T) {
 		// Add givenName attribute
-		addGivenNamePayload := map[string]interface{}{
+		addGivenNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "name.givenName",
@@ -3373,16 +3373,16 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addGivenNameResp map[string]interface{}
+		var addGivenNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addGivenNamePayload, http.StatusOK, &addGivenNameResp)
-		name, ok := addGivenNameResp["name"].(map[string]interface{})
+		name, ok := addGivenNameResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "NewGiven", name["givenName"], "givenName should be updated")
 
 		// Add familyName attribute
-		addFamilyNamePayload := map[string]interface{}{
+		addFamilyNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "name.familyName",
@@ -3391,20 +3391,20 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addFamilyNameResp map[string]interface{}
+		var addFamilyNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addFamilyNamePayload, http.StatusOK, &addFamilyNameResp)
-		name, ok = addFamilyNameResp["name"].(map[string]interface{})
+		name, ok = addFamilyNameResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "NewFamily", name["familyName"], "familyName should be updated")
 
 		// Add entire name object
-		addNamePayload := map[string]interface{}{
+		addNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": "name",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"givenName":  "CompletelyNew",
 						"familyName": "FullName",
 					},
@@ -3412,9 +3412,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addNameResp map[string]interface{}
+		var addNameResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), addNamePayload, http.StatusOK, &addNameResp)
-		name, ok = addNameResp["name"].(map[string]interface{})
+		name, ok = addNameResp["name"].(map[string]any)
 		require.True(t, ok, "Response should have name object")
 		assert.Equal(t, "CompletelyNew", name["givenName"], "givenName should be updated")
 		assert.Equal(t, "FullName", name["familyName"], "familyName should be updated")
@@ -3424,17 +3424,17 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 	t.Run("Failure cases", func(t *testing.T) {
 		testCases := []struct {
 			name         string
-			payload      map[string]interface{}
+			payload      map[string]any
 			errorMessage string
 		}{
 			{
 				name: "Invalid userName (empty string)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"userName": "", // Empty userName
 							},
 						},
@@ -3444,12 +3444,12 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "userName as wrong type (number)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"userName": 12345, // Number instead of string
 							},
 						},
@@ -3459,12 +3459,12 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "name as wrong type (string instead of object)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"name": "John Doe", // String instead of object
 							},
 						},
@@ -3474,13 +3474,13 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "name.givenName without required familyName",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"name": map[string]interface{}{
+							"value": map[string]any{
+								"name": map[string]any{
 									"givenName": "NewFirstName",
 									// Missing familyName
 								},
@@ -3492,13 +3492,13 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "givenName as wrong type (number)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"name": map[string]interface{}{
+							"value": map[string]any{
+								"name": map[string]any{
 									"givenName":  12345, // Number instead of string
 									"familyName": "NewLastName",
 								},
@@ -3510,13 +3510,13 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "familyName as wrong type (boolean)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
-								"name": map[string]interface{}{
+							"value": map[string]any{
+								"name": map[string]any{
 									"givenName":  "NewFirstName",
 									"familyName": true, // Boolean instead of string
 								},
@@ -3528,12 +3528,12 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "active as wrong type (string)",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
-							"value": map[string]interface{}{
+							"value": map[string]any{
 								"active": "true", // String instead of boolean
 							},
 						},
@@ -3543,9 +3543,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "unsupported operation",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":    "bad",
 							"path":  "active",
@@ -3557,9 +3557,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "no path and invalid value format",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "replace",
 							// No path specified
@@ -3571,9 +3571,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "wrong value type for active using path",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":    "replace",
 							"path":  "active",
@@ -3585,9 +3585,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Add operation with invalid path",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":    "add",
 							"path":  "nonExistentAttribute",
@@ -3599,9 +3599,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Add operation without value",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "add",
 							"path": "externalId",
@@ -3613,9 +3613,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove operation without path",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op": "remove",
 							// Missing path
@@ -3626,9 +3626,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove required attribute - userName",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "remove",
 							"path": "userName",
@@ -3639,9 +3639,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove required attribute - givenName",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "remove",
 							"path": "name.givenName",
@@ -3652,9 +3652,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove required attribute - familyName",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "remove",
 							"path": "name.familyName",
@@ -3665,9 +3665,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 			},
 			{
 				name: "Remove required attribute - entire name object",
-				payload: map[string]interface{}{
+				payload: map[string]any{
 					"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-					"Operations": []map[string]interface{}{
+					"Operations": []map[string]any{
 						{
 							"op":   "remove",
 							"path": "name",
@@ -3681,9 +3681,9 @@ func testPatchUserAttributes(t *testing.T, s *Suite) {
 		for _, tc := range testCases {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel() // Since these failure tests do not modify state, we can run them in parallel
-				var errorResp map[string]interface{}
+				var errorResp map[string]any
 				s.DoJSON(t, "PATCH", scimPath("/Users/"+userID), tc.payload, http.StatusBadRequest, &errorResp)
-				assert.EqualValues(t, errorResp["schemas"], []interface{}{"urn:ietf:params:scim:api:messages:2.0:Error"})
+				assert.EqualValues(t, errorResp["schemas"], []any{"urn:ietf:params:scim:api:messages:2.0:Error"})
 				assert.Contains(t, errorResp["detail"], tc.errorMessage)
 			})
 		}
@@ -3695,25 +3695,25 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 	userID, _ := createTestUser(t, s, "group-patch-test@example.com")
 
 	// Create a test group
-	createGroupPayload := map[string]interface{}{
+	createGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Original Group Name",
 		"externalId":  "original-external-id",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userID,
 			},
 		},
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 	groupID := createResp["id"].(string)
 
 	t.Run("Replace displayName with explicit path", func(t *testing.T) {
-		patchDisplayNamePayload := map[string]interface{}{
+		patchDisplayNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "displayName",
@@ -3722,15 +3722,15 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchDisplayNamePayload, http.StatusOK, &patchResp)
 		assert.Equal(t, "Updated Group Name", patchResp["displayName"], "displayName should be updated")
 	})
 
 	t.Run("Replace externalId with explicit path", func(t *testing.T) {
-		patchExternalIdPayload := map[string]interface{}{
+		patchExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "replace",
 					"path":  "externalId",
@@ -3739,16 +3739,16 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchExternalIdPayload, http.StatusOK, &patchResp)
 		assert.Equal(t, "updated-external-id", patchResp["externalId"], "externalId should be updated")
 	})
 
 	t.Run("Remove and add operation for externalId", func(t *testing.T) {
 		// First, remove the externalId
-		removeExternalIdPayload := map[string]interface{}{
+		removeExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "externalId",
@@ -3756,15 +3756,15 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var removeResp map[string]interface{}
+		var removeResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeExternalIdPayload, http.StatusOK, &removeResp)
 		_, hasExternalId := removeResp["externalId"]
 		assert.False(t, hasExternalId, "externalId should be removed")
 
 		// Now add a new externalId
-		addExternalIdPayload := map[string]interface{}{
+		addExternalIdPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "externalId",
@@ -3773,15 +3773,15 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addResp map[string]interface{}
+		var addResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addExternalIdPayload, http.StatusOK, &addResp)
 		assert.Equal(t, "added-external-id", addResp["externalId"], "externalId should be added")
 	})
 
 	t.Run("Multiple operations in one request", func(t *testing.T) {
-		multiOperationPayload := map[string]interface{}{
+		multiOperationPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  "externalId",
@@ -3795,19 +3795,19 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var multiOpResp map[string]interface{}
+		var multiOpResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), multiOperationPayload, http.StatusOK, &multiOpResp)
 		assert.Equal(t, "multi-op-external-id", multiOpResp["externalId"], "externalId should be added")
 		assert.Equal(t, "Multi-Op Group Name", multiOpResp["displayName"], "displayName should be updated")
 	})
 
 	t.Run("Operations without path attribute", func(t *testing.T) {
-		noPathPayload := map[string]interface{}{
+		noPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
+					"value": map[string]any{
 						"displayName": "No-Path Group Name",
 						"externalId":  "no-path-external-id",
 					},
@@ -3815,16 +3815,16 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var noPathResp map[string]interface{}
+		var noPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), noPathPayload, http.StatusOK, &noPathResp)
 		assert.Equal(t, "no-path-external-id", noPathResp["externalId"], "externalId should be updated")
 		assert.Equal(t, "No-Path Group Name", noPathResp["displayName"], "displayName should be updated")
 	})
 
 	t.Run("Attempt to remove required displayName attribute", func(t *testing.T) {
-		removeDisplayNamePayload := map[string]interface{}{
+		removeDisplayNamePayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "displayName",
@@ -3832,20 +3832,20 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var errorResp map[string]interface{}
+		var errorResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeDisplayNamePayload, http.StatusBadRequest, &errorResp)
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for removing required attribute")
 	})
 
 	t.Run("Add members to group", func(t *testing.T) {
 		// First, ensure the group has a known state with just the original user
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userID,
 						},
@@ -3853,23 +3853,23 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
 
 		// Now add the second user to the group
 		secondUserID, _ := createTestUser(t, s, "second-group-patch-test@example.com")
-		addMembersPayload := map[string]interface{}{
+		addMembersPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": secondUserID,
 						},
@@ -3878,18 +3878,18 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addResp map[string]interface{}
+		var addResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addMembersPayload, http.StatusOK, &addResp)
 
 		// Verify both users are now in the group
-		members, ok = addResp["members"].([]interface{})
+		members, ok = addResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 2, len(members), "Group should have 2 members after adding one")
 
 		// Check that both users are present
 		memberValues := make([]string, 0, 2)
 		for _, m := range members {
-			member, ok := m.(map[string]interface{})
+			member, ok := m.(map[string]any)
 			assert.True(t, ok, "Member should be an object")
 			memberValues = append(memberValues, member["value"].(string))
 		}
@@ -3902,13 +3902,13 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 		setupUserID, _ := createTestUser(t, s, "setup-user@example.com")
 		defer s.Do(t, "DELETE", scimPath("/Users/"+setupUserID), nil, http.StatusNoContent)
 
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userID,
 						},
@@ -3919,23 +3919,23 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 2, len(members), "Group should have 2 members after setup")
 
 		// Now replace all members with just the new user
 		newUserID, _ := createTestUser(t, s, "replace-members-test@example.com")
-		replaceMembersPayload := map[string]interface{}{
+		replaceMembersPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": newUserID,
 						},
@@ -3944,16 +3944,16 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var replaceResp map[string]interface{}
+		var replaceResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), replaceMembersPayload, http.StatusOK, &replaceResp)
 
 		// Verify only the new user is in the group
-		members, ok = replaceResp["members"].([]interface{})
+		members, ok = replaceResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have only 1 member after replacing")
 
 		// Check that only the new user is present
-		member, ok := members[0].(map[string]interface{})
+		member, ok := members[0].(map[string]any)
 		assert.True(t, ok, "Member should be an object")
 		assert.Equal(t, newUserID, member["value"], "New user should be the only member")
 	})
@@ -3961,13 +3961,13 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 	t.Run("Remove all members from group", func(t *testing.T) {
 		// First, ensure the group has members to remove
 		setupUserID, _ := createTestUser(t, s, "remove-test-user@example.com")
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userID,
 						},
@@ -3978,18 +3978,18 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 2, len(members), "Group should have 2 members after setup")
 
 		// Now remove all members
-		removeMembersPayload := map[string]interface{}{
+		removeMembersPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "members",
@@ -3997,7 +3997,7 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var removeResp map[string]interface{}
+		var removeResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), removeMembersPayload, http.StatusOK, &removeResp)
 
 		// Verify no members are in the group
@@ -4007,16 +4007,16 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 
 	t.Run("Add members without path attribute", func(t *testing.T) {
 		// First, ensure the group has no members
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": "members",
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
@@ -4024,13 +4024,13 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 		assert.False(t, hasMembers, "Group should have no members after setup")
 
 		// Now add a member without specifying path
-		addMembersNoPathPayload := map[string]interface{}{
+		addMembersNoPathPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "add",
-					"value": map[string]interface{}{
-						"members": []map[string]interface{}{
+					"value": map[string]any{
+						"members": []map[string]any{
 							{
 								"value": userID,
 							},
@@ -4040,31 +4040,31 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var addNoPathResp map[string]interface{}
+		var addNoPathResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), addMembersNoPathPayload, http.StatusOK, &addNoPathResp)
 
 		// Verify the user is now in the group
-		var members []interface{}
+		var members []any
 		var ok bool
-		members, ok = addNoPathResp["members"].([]interface{})
+		members, ok = addNoPathResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after adding")
 
 		// Check that the user is present
-		member, ok := members[0].(map[string]interface{})
+		member, ok := members[0].(map[string]any)
 		assert.True(t, ok, "Member should be an object")
 		assert.Equal(t, userID, member["value"], "Original user should be added back to the group")
 	})
 
 	t.Run("Invalid member ID format", func(t *testing.T) {
 		// Try to add a member with invalid ID format
-		invalidMemberPayload := map[string]interface{}{
+		invalidMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": "invalid-user-id",
 						},
@@ -4073,20 +4073,20 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var errorResp map[string]interface{}
+		var errorResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), invalidMemberPayload, http.StatusBadRequest, &errorResp)
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for invalid member ID format")
 	})
 
 	t.Run("Non-existent member ID", func(t *testing.T) {
 		// Try to add a member with non-existent ID
-		nonExistentMemberPayload := map[string]interface{}{
+		nonExistentMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "add",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": "4294967295", // Non-existent user ID
 						},
@@ -4095,7 +4095,7 @@ func testPatchGroupAttributes(t *testing.T, s *Suite) {
 			},
 		}
 
-		var errorResp map[string]interface{}
+		var errorResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), nonExistentMemberPayload, http.StatusBadRequest, &errorResp)
 		assert.Contains(t, errorResp["detail"], "Bad Request", "Should return error for non-existent member ID")
 	})
@@ -4111,29 +4111,29 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 	}
 
 	// Create a group with the first user as a member
-	createGroupPayload := map[string]interface{}{
+	createGroupPayload := map[string]any{
 		"schemas":     []string{"urn:ietf:params:scim:schemas:core:2.0:Group"},
 		"displayName": "Patch Members Test Group",
-		"members": []map[string]interface{}{
+		"members": []map[string]any{
 			{
 				"value": userIDs[0],
 			},
 		},
 	}
 
-	var createResp map[string]interface{}
+	var createResp map[string]any
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 	groupID := createResp["id"].(string)
 
 	t.Run("Deduplicate members in replace payload", func(t *testing.T) {
 		// Setup: Ensure the group has only the first user
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[0],
 						},
@@ -4141,22 +4141,22 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
 
 		// Test: Replace payload includes duplicate records of the second user
-		patchAddMemberPayload := map[string]interface{}{
+		patchAddMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[1],
 						},
@@ -4171,31 +4171,31 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
 
 		// Verify the member was added
-		members, ok = patchResp["members"].([]interface{})
+		members, ok = patchResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
 
 		// Check that both users are in the members list
 		memberValues := make([]string, 0, len(members))
 		for _, m := range members {
-			member, ok := m.(map[string]interface{})
+			member, ok := m.(map[string]any)
 			assert.True(t, ok, "Member should be an object")
 			memberValues = append(memberValues, member["value"].(string))
 		}
 		assert.ElementsMatch(t, memberValues, []string{userIDs[1], userIDs[0], userIDs[1]}) // FIXME: See above
 
 		// Test: Replace payload omits path includes duplicate records of the third user
-		patchAddMemberPayload = map[string]interface{}{
+		patchAddMemberPayload = map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op": "replace",
-					"value": map[string]interface{}{
-						"members": []map[string]interface{}{
+					"value": map[string]any{
+						"members": []map[string]any{
 							{
 								"value": userIDs[2],
 							},
@@ -4211,18 +4211,18 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		patchResp = map[string]interface{}{}
+		patchResp = map[string]any{}
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
 
 		// Verify the member was added
-		members, ok = patchResp["members"].([]interface{})
+		members, ok = patchResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
 
 		// Check that both users are in the members list
 		memberValues = make([]string, 0, len(members))
 		for _, m := range members {
-			member, ok := m.(map[string]interface{})
+			member, ok := m.(map[string]any)
 			assert.True(t, ok, "Member should be an object")
 			memberValues = append(memberValues, member["value"].(string))
 		}
@@ -4231,13 +4231,13 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 
 	t.Run("Add a member using path filtering", func(t *testing.T) {
 		// Setup: Ensure the group has only the first user
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[0],
 						},
@@ -4245,38 +4245,38 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
 
 		// Test: Add the second user to the group using path filtering
-		patchAddMemberPayload := map[string]interface{}{
+		patchAddMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":    "add",
 					"path":  fmt.Sprintf(`members[value eq "%s"]`, userIDs[1]),
-					"value": map[string]interface{}{},
+					"value": map[string]any{},
 				},
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
 
 		// Verify the member was added
-		members, ok = patchResp["members"].([]interface{})
+		members, ok = patchResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 2, len(members), "Group should now have 2 members")
 
 		// Check that both users are in the members list
 		memberValues := make([]string, 0, 2)
 		for _, m := range members {
-			member, ok := m.(map[string]interface{})
+			member, ok := m.(map[string]any)
 			assert.True(t, ok, "Member should be an object")
 			memberValues = append(memberValues, member["value"].(string))
 		}
@@ -4286,13 +4286,13 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 
 	t.Run("Remove a member using path filtering", func(t *testing.T) {
 		// Setup: Ensure the group has both first and second users
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[0],
 						},
@@ -4303,18 +4303,18 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 2, len(members), "Group should have 2 members after setup")
 
 		// Test: Remove the first user from the group using path filtering
-		patchRemoveMemberPayload := map[string]interface{}{
+		patchRemoveMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": fmt.Sprintf(`members[value eq "%s"]`, userIDs[0]),
@@ -4322,29 +4322,29 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveMemberPayload, http.StatusOK, &patchResp)
 
 		// Verify the member was removed
-		members, ok = patchResp["members"].([]interface{})
+		members, ok = patchResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should now have 1 member")
 
 		// Check that only the second user is in the members list
-		member, ok := members[0].(map[string]interface{})
+		member, ok := members[0].(map[string]any)
 		assert.True(t, ok, "Member should be an object")
 		assert.Equal(t, userIDs[1], member["value"], "Only the second user should remain as a member")
 	})
 
 	t.Run("Replace a member using path filtering", func(t *testing.T) {
 		// Setup: Ensure the group has only the second user
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[1],
 						},
@@ -4352,18 +4352,18 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
 
 		// Test: Replace the second user with the third user using path filtering
-		patchReplaceMemberPayload := map[string]interface{}{
+		patchReplaceMemberPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": fmt.Sprintf(`members[value eq "%s"]`, userIDs[1]),
@@ -4371,34 +4371,34 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				{
 					"op":    "add",
 					"path":  fmt.Sprintf(`members[value eq "%s"]`, userIDs[2]),
-					"value": map[string]interface{}{},
+					"value": map[string]any{},
 				},
 			},
 		}
 
-		var patchResp map[string]interface{}
+		var patchResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchReplaceMemberPayload, http.StatusOK, &patchResp)
 
 		// Verify the member was replaced
-		members, ok = patchResp["members"].([]interface{})
+		members, ok = patchResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should still have 1 member")
 
 		// Check that only the third user is in the members list
-		member, ok := members[0].(map[string]interface{})
+		member, ok := members[0].(map[string]any)
 		assert.True(t, ok, "Member should be an object")
 		assert.Equal(t, userIDs[2], member["value"], "Only the third user should be a member")
 	})
 
 	t.Run("Try to remove a non-existent member", func(t *testing.T) {
 		// Setup: Ensure the group has only the third user
-		setupPayload := map[string]interface{}{
+		setupPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "replace",
 					"path": "members",
-					"value": []map[string]interface{}{
+					"value": []map[string]any{
 						{
 							"value": userIDs[2],
 						},
@@ -4406,18 +4406,18 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 				},
 			},
 		}
-		var setupResp map[string]interface{}
+		var setupResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
 
 		// Verify setup was successful
-		members, ok := setupResp["members"].([]interface{})
+		members, ok := setupResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
 
 		// Test: Try to remove a user that is not a member
-		patchRemoveNonExistentPayload := map[string]interface{}{
+		patchRemoveNonExistentPayload := map[string]any{
 			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
-			"Operations": []map[string]interface{}{
+			"Operations": []map[string]any{
 				{
 					"op":   "remove",
 					"path": fmt.Sprintf(`members[value eq "%s"]`, userIDs[0]),
@@ -4425,9 +4425,9 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 			},
 		}
 
-		var removeMemberResp map[string]interface{}
+		var removeMemberResp map[string]any
 		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchRemoveNonExistentPayload, http.StatusOK, &removeMemberResp)
-		members, ok = removeMemberResp["members"].([]interface{})
+		members, ok = removeMemberResp["members"].([]any)
 		require.True(t, ok, "Response should have members array")
 		assert.Equal(t, 1, len(members), "Group should have 1 member")
 	})

@@ -1239,15 +1239,15 @@ func NewNanoMDMLogger(logger kitlog.Logger) *NanoMDMLogger {
 	}
 }
 
-func (l *NanoMDMLogger) Info(keyvals ...interface{}) {
+func (l *NanoMDMLogger) Info(keyvals ...any) {
 	level.Info(l.logger).Log(keyvals...)
 }
 
-func (l *NanoMDMLogger) Debug(keyvals ...interface{}) {
+func (l *NanoMDMLogger) Debug(keyvals ...any) {
 	level.Debug(l.logger).Log(keyvals...)
 }
 
-func (l *NanoMDMLogger) With(keyvals ...interface{}) nanomdm_log.Logger {
+func (l *NanoMDMLogger) With(keyvals ...any) nanomdm_log.Logger {
 	newLogger := kitlog.With(l.logger, keyvals...)
 	return &NanoMDMLogger{
 		logger: newLogger,

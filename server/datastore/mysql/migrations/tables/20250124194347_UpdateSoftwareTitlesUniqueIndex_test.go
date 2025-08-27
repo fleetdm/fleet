@@ -26,9 +26,9 @@ func TestUp_20250124194347(t *testing.T) {
 
 	insertSql = `INSERT INTO software_titles (name, source, browser, bundle_identifier) VALUES`
 	var valueStrings []string
-	var valueArgs []interface{}
+	var valueArgs []any
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		valueStrings = append(valueStrings, "(?, ?, ?, ?)")
 		source := ""
 		if i%2 == 0 {

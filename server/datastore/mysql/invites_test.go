@@ -36,7 +36,7 @@ func TestInvites(t *testing.T) {
 }
 
 func testInvitesCreate(t *testing.T, ds *Datastore) {
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
@@ -84,7 +84,7 @@ func setupTestInvites(t *testing.T, ds fleet.Datastore) {
 	admin, err := ds.NewInvite(context.Background(), admin)
 	require.NoError(t, err)
 
-	for user := 0; user < 23; user++ {
+	for user := range 23 {
 		i := fleet.Invite{
 			InvitedBy:  admin.ID,
 			Email:      fmt.Sprintf("user%d@foo.com", user),
@@ -217,7 +217,7 @@ func testInvitesInvite(t *testing.T, ds *Datastore) {
 }
 
 func testInvitesUpdate(t *testing.T, ds *Datastore) {
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}

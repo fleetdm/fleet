@@ -1808,7 +1808,7 @@ func flagNameFromConfigKey(key string) string {
 type Manager struct {
 	viper    *viper.Viper
 	command  *cobra.Command
-	defaults map[string]interface{}
+	defaults map[string]any
 }
 
 // NewManager initializes a Manager wrapping the provided cobra
@@ -1819,7 +1819,7 @@ func NewManager(command *cobra.Command) Manager {
 	man := Manager{
 		viper:    viper.New(),
 		command:  command,
-		defaults: map[string]interface{}{},
+		defaults: map[string]any{},
 	}
 	man.addConfigs()
 	return man
@@ -1827,7 +1827,7 @@ func NewManager(command *cobra.Command) Manager {
 
 // addDefault will check for duplication, then add a default value to the
 // defaults map
-func (man Manager) addDefault(key string, defVal interface{}) {
+func (man Manager) addDefault(key string, defVal any) {
 	if _, exists := man.defaults[key]; exists {
 		panic("Trying to add duplicate config for key " + key)
 	}
@@ -1842,7 +1842,7 @@ func getFlagUsage(key string, usage string) string {
 // getInterfaceVal is a helper function used by the getConfig* functions to
 // retrieve the config value as interface{}, which will then be cast to the
 // appropriate type by the getConfig* function.
-func (man Manager) getInterfaceVal(key string) interface{} {
+func (man Manager) getInterfaceVal(key string) any {
 	interfaceVal := man.viper.Get(key)
 	if interfaceVal == nil {
 		var ok bool

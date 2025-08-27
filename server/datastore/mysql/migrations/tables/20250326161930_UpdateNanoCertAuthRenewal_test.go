@@ -35,13 +35,13 @@ func TestUp_20250326161930(t *testing.T) {
 </plist>`
 
 	// create a few commands
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		execNoErr(t, db, `INSERT INTO nano_commands (command_uuid, request_type, command)
 		VALUES (?, ?, ?)`, fmt.Sprintf("renew-command_uuid-%d", i), "InstallProfile", "some-command")
 	}
 
 	// create a few devices/enrollments:
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		execNoErr(t, db, `INSERT INTO nano_devices (id, authenticate)
 		VALUES (?, ?)`, fmt.Sprintf("device-%d", i), fmt.Sprintf(authMsg, i))
 		execNoErr(t, db, `INSERT INTO nano_enrollments (id, device_id, type, topic, push_magic, token_hex, enabled, last_seen_at)

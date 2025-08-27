@@ -33,8 +33,8 @@ func TestUp_20240430111727(t *testing.T) {
 		))
 	}
 	newQueryResults := func(queryID, hostID uint, resultCount int) {
-		var args []interface{}
-		for i := 0; i < resultCount; i++ {
+		var args []any
+		for i := range resultCount {
 			args = append(args, queryID, hostID, fmt.Sprintf(`{"foo": "bar%d"}`, i))
 		}
 		values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, NOW()),", resultCount), ",")

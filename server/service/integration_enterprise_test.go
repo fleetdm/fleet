@@ -154,7 +154,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	calendarEmail := "service@example.com"
 	calendarWebhookUrl := "https://example.com/webhook"
 	s.DoRaw(
-		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+		"PATCH", "/api/v1/fleet/config", fmt.Appendf(nil,
 			`{
 		"integrations": {
 			"google_calendar": [{
@@ -166,7 +166,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			}]
 		}
 	}`, calendarEmail,
-		)), http.StatusOK,
+		), http.StatusOK,
 	)
 
 	// updates a team, no secret is provided so it will keep the one generated
@@ -1818,7 +1818,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}}, http.StatusUnprocessableEntity, &tmResp)
 
 	// add a couple Jira integrations at the global level (qux and qux2)
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", fmt.Appendf(nil, `{
 		"integrations": {
 			"jira": [
 				{
@@ -1835,7 +1835,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				}
 			]
 		}
-	}`, srvURL)), http.StatusOK)
+	}`, srvURL), http.StatusOK)
 
 	// enable an automation - should fail as the webhook is enabled too
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -1995,7 +1995,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}}, http.StatusUnprocessableEntity, &tmResp)
 
 	// add a couple Zendesk integrations at the global level (122 and 123), keep the jira ones too
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", fmt.Appendf(nil, `{
 		"integrations": {
 			"zendesk": [
 				{
@@ -2026,7 +2026,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				}
 			]
 		}
-	}`, srvURL)), http.StatusOK)
+	}`, srvURL), http.StatusOK)
 
 	// enable a Zendesk automation - should fail as the webhook is enabled too
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -2214,7 +2214,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}, http.StatusOK, &tmResp)
 
 	// removing Zendesk 122 from the global config removes it from the team too
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", fmt.Appendf(nil, `{
 		"integrations": {
 			"zendesk": [
 				{
@@ -2239,7 +2239,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				}
 			]
 		}
-	}`, srvURL)), http.StatusOK)
+	}`, srvURL), http.StatusOK)
 
 	// get the team, only one Zendesk integration remains, none are enabled
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
@@ -2251,7 +2251,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.False(t, getResp.Team.Config.Integrations.Zendesk[0].EnableFailingPolicies)
 
 	// removing Jira qux2 from the global config does not impact the team as it is unused.
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", fmt.Appendf(nil, `{
 		"integrations": {
 			"zendesk": [
 				{
@@ -2270,7 +2270,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				}
 			]
 		}
-	}`, srvURL)), http.StatusOK)
+	}`, srvURL), http.StatusOK)
 
 	// get the team, integrations are unchanged
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
@@ -2303,7 +2303,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 
 	// removing Zendesk 123 from the global config removes it from the team but
 	// leaves the Jira integration enabled.
-	s.DoRaw("PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(`{
+	s.DoRaw("PATCH", "/api/v1/fleet/config", fmt.Appendf(nil, `{
 		"integrations": {
 			"jira": [
 				{
@@ -2314,7 +2314,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 				}
 			]
 		}
-	}`, srvURL)), http.StatusOK)
+	}`, srvURL), http.StatusOK)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &getResp)
 	require.Len(t, getResp.Team.Config.Integrations.Jira, 1)
@@ -5125,7 +5125,7 @@ func (s *integrationEnterpriseTestSuite) TestResetAutomation() {
 // allEqual compares all fields of a struct.
 // If a field is a pointer on one side but not on the other, then it follows that pointer. This is useful for optional
 // arguments.
-func allEqual(t *testing.T, expect, actual interface{}, fields ...string) {
+func allEqual(t *testing.T, expect, actual any, fields ...string) {
 	require.NotEmpty(t, fields)
 	t.Helper()
 	expV := reflect.Indirect(reflect.ValueOf(expect))
@@ -7566,7 +7566,7 @@ func (s *integrationEnterpriseTestSuite) TestListSavedScripts() {
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = s.ds.NewScript(ctx, &fleet.Script{
 			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
 			ScriptContents: "echo",
@@ -7682,7 +7682,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), ScriptContents: "echo"})
 		require.NoError(t, err)
 		_, err = s.ds.NewScript(ctx, &fleet.Script{Name: fmt.Sprintf("test-script-details-%d.sh", i), TeamID: &tm1.ID, ScriptContents: "echo"})
@@ -7795,7 +7795,7 @@ INSERT INTO
 VALUES
 	(%s ?,?,?,?,?,?, 1)`
 
-		args := []interface{}{}
+		args := []any{}
 		var scID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			// First check if this script content already exists
@@ -8406,7 +8406,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	}
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
-	spec := []byte(fmt.Sprintf(`
+	spec := fmt.Appendf(nil, `
   name: %s
   features:
     additional_queries:
@@ -8416,7 +8416,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
       users: null
       software_linux: "select * from blah;"
       disk_encryption_linux: null
-`, teamName))
+`, teamName)
 
 	s.applyTeamSpec(spec)
 	team, err := s.ds.TeamByName(ctx, teamName)
@@ -8455,7 +8455,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
 	require.Contains(t, dqResp.Queries, "fleet_detail_query_software_linux")
 	require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_distributed_query_%s", t.Name()))
 
-	spec = []byte(fmt.Sprintf(`
+	spec = fmt.Appendf(nil, `
   name: %s
   features:
     additional_queries:
@@ -8463,7 +8463,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamConfigDetailQueriesOverrides() 
     enable_host_users: true
     detail_query_overrides:
       software_linux: "select * from blah;"
-`, teamName))
+`, teamName)
 
 	s.applyTeamSpec(spec)
 	team, err = s.ds.TeamByName(ctx, teamName)
@@ -9724,7 +9724,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	var softwareFoo, softwareBar *fleet.SoftwareTitleListResult
 	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
-		s := s
 		switch s.Name {
 		case "foo":
 			softwareFoo = &s
@@ -9737,7 +9736,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	var teamFooVersion *fleet.SoftwareVersion
 	for _, sv := range softwareFoo.Versions {
-		sv := sv
 		if sv.Version == "0.0.1" {
 			teamFooVersion = &sv
 		}
@@ -9946,7 +9944,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 func genDistributedReqWithPolicyResults(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 	var (
 		results  = make(map[string]json.RawMessage)
-		statuses = make(map[string]interface{})
+		statuses = make(map[string]any)
 		messages = make(map[string]string)
 	)
 	for policyID, policyResult := range policyResults {
@@ -13090,7 +13088,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 					"source": "deb_packages", "last_opened_at": "",
 					"installed_path": "/bin/ruby"}]`, payload.Title)),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_linux": 0,
 		},
 		Messages: map[string]string{},
@@ -13110,7 +13108,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		Results: map[string]json.RawMessage{
 			hostDetailQueryPrefix + "software_linux": json.RawMessage(`[]`),
 		},
-		Statuses: map[string]interface{}{
+		Statuses: map[string]any{
 			hostDistributedQueryPrefix + "software_linux": 0,
 		},
 		Messages: map[string]string{},
@@ -13169,7 +13167,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", h.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
-	details := make(map[string]interface{}, 5)
+	details := make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &details))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, details["status"])
 
@@ -13222,7 +13220,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	details = make(map[string]interface{}, 5)
+	details = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "uninstalled", details["status"])
 
@@ -13266,7 +13264,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	details = make(map[string]interface{}, 5)
+	details = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &details))
 	assert.Equal(t, "failed", details["status"])
 
@@ -13429,7 +13427,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listUpcomingAct)
 	require.Len(t, listUpcomingAct.Activities, 1)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), listUpcomingAct.Activities[0].Type)
-	uninstallDetails := make(map[string]interface{}, 5)
+	uninstallDetails := make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*listUpcomingAct.Activities[0].Details, &uninstallDetails))
 	assert.EqualValues(t, fleet.SoftwareUninstallPending, uninstallDetails["status"])
 	assert.EqualValues(t, true, uninstallDetails["self_service"])
@@ -13459,7 +13457,7 @@ func (s *integrationEnterpriseTestSuite) TestSelfServiceSoftwareInstallUninstall
 		"order_direction", "desc")
 	require.NotEmpty(t, activitiesResp.Activities)
 	assert.Equal(t, fleet.ActivityTypeUninstalledSoftware{}.ActivityName(), activitiesResp.Activities[0].Type)
-	uninstallDetails = make(map[string]interface{}, 5)
+	uninstallDetails = make(map[string]any, 5)
 	require.NoError(t, json.Unmarshal(*activitiesResp.Activities[0].Details, &uninstallDetails))
 	assert.Equal(t, "uninstalled", uninstallDetails["status"])
 	assert.EqualValues(t, true, uninstallDetails["self_service"])
@@ -13526,7 +13524,7 @@ func (s *integrationEnterpriseTestSuite) TestHostSoftwareInstallResult() {
 	beforeInstall := time.Now()
 	installUUIDs := make([]string, 3)
 	titleIDs := []uint{titleID, titleID2, titleID3}
-	for i := 0; i < len(installUUIDs); i++ {
+	for i := range installUUIDs {
 		resp := installSoftwareResponse{}
 		s.DoJSON("POST", fmt.Sprintf("/api/v1/fleet/hosts/%d/software/%d/install", host.ID, titleIDs[i]), nil, http.StatusAccepted, &resp)
 		installUUIDs[i] = latestInstallUUID()
@@ -13797,7 +13795,7 @@ func genDistributedReqWithEntraIDDetails(host *fleet.Host, deviceID, userPrincip
 	return submitDistributedQueryResultsRequestShim{
 		NodeKey:  *host.NodeKey,
 		Results:  results,
-		Statuses: make(map[string]interface{}),
+		Statuses: make(map[string]any),
 		Messages: make(map[string]string),
 		Stats:    map[string]*fleet.Stats{},
 	}
@@ -13850,7 +13848,7 @@ func (s *integrationEnterpriseTestSuite) TestAutofillPoliciesAuthTeamUser() {
 					}
 					switch r.URL.Path {
 					case "/ok":
-						var body map[string]interface{}
+						var body map[string]any
 						err := json.NewDecoder(r.Body).Decode(&body)
 						if err != nil {
 							t.Log(err)
@@ -14432,7 +14430,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarCallback() {
 	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 		var (
 			results  = make(map[string]json.RawMessage)
-			statuses = make(map[string]interface{})
+			statuses = make(map[string]any)
 			messages = make(map[string]string)
 		)
 		for policyID, policyResult := range policyResults {
@@ -14932,7 +14930,7 @@ func (s *integrationEnterpriseTestSuite) TestCalendarEventBodyUpdate() {
 	genDistributedReqWithPolicyResults := func(host *fleet.Host, policyResults map[uint]*bool) submitDistributedQueryResultsRequestShim {
 		var (
 			results  = make(map[string]json.RawMessage)
-			statuses = make(map[string]interface{})
+			statuses = make(map[string]any)
 			messages = make(map[string]string)
 		)
 		for policyID, policyResult := range policyResults {
@@ -16740,7 +16738,7 @@ func (s *integrationEnterpriseTestSuite) TestPolicyAutomationsScripts() {
 	require.Equal(t, "Fleet", *listResp.Activities[0].ActorFullName)
 	require.Nil(t, listResp.Activities[0].ActorGravatar)
 	require.Equal(t, "ran_script", listResp.Activities[0].Type)
-	var activityJson map[string]interface{}
+	var activityJson map[string]any
 	err = json.Unmarshal(*listResp.Activities[0].Details, &activityJson)
 	require.NoError(t, err)
 	require.Equal(t, float64(policy4Team2.ID), activityJson["policy_id"])

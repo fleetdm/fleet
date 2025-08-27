@@ -24,7 +24,7 @@ type conditionalAccessMicrosoftCreateResponse struct {
 
 func (r conditionalAccessMicrosoftCreateResponse) Error() error { return r.Err }
 
-func conditionalAccessMicrosoftCreateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func conditionalAccessMicrosoftCreateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*conditionalAccessMicrosoftCreateRequest)
 	adminConsentURL, err := svc.ConditionalAccessMicrosoftCreateIntegration(ctx, req.MicrosoftTenantID)
 	if err != nil {
@@ -97,7 +97,7 @@ type conditionalAccessMicrosoftConfirmResponse struct {
 
 func (r conditionalAccessMicrosoftConfirmResponse) Error() error { return r.Err }
 
-func conditionalAccessMicrosoftConfirmEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func conditionalAccessMicrosoftConfirmEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	_ = request.(*conditionalAccessMicrosoftConfirmRequest)
 	configurationCompleted, err := svc.ConditionalAccessMicrosoftConfirm(ctx)
 	if err != nil {
@@ -161,7 +161,7 @@ type conditionalAccessMicrosoftDeleteResponse struct {
 
 func (r conditionalAccessMicrosoftDeleteResponse) Error() error { return r.Err }
 
-func conditionalAccessMicrosoftDeleteEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func conditionalAccessMicrosoftDeleteEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	_ = request.(*conditionalAccessMicrosoftDeleteRequest)
 	if err := svc.ConditionalAccessMicrosoftDelete(ctx); err != nil {
 		return conditionalAccessMicrosoftDeleteResponse{Err: err}, nil

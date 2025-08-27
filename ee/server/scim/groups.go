@@ -119,8 +119,8 @@ func areMembersExcluded(r *http.Request) bool {
 	}
 
 	// Split the excluded attributes by comma
-	attrs := strings.Split(excludedAttrs, ",")
-	for _, attr := range attrs {
+	attrs := strings.SplitSeq(excludedAttrs, ",")
+	for attr := range attrs {
 		// Trim spaces and check if it's "members"
 		if strings.TrimSpace(attr) == membersAttr {
 			return true
@@ -165,7 +165,7 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 	if len(group.ScimUsers) > 0 {
 		members := make([]scim.ResourceAttributes, 0, len(group.ScimUsers))
 		for _, userID := range group.ScimUsers {
-			members = append(members, map[string]interface{}{
+			members = append(members, map[string]any{
 				"value": scimUserID(userID),
 				"type":  "User",
 			})
@@ -179,10 +179,7 @@ func createGroupResource(group *fleet.ScimGroup) scim.Resource {
 // GetAll
 // Pagination is 1-indexed on the startIndex. The startIndex is the index of the resource (not the index of the page), per RFC7644.
 func (g *GroupHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	startIndex := params.StartIndex
-	if startIndex < 1 {
-		startIndex = 1
-	}
+	startIndex := max(params.StartIndex, 1)
 	count := params.Count
 	if count > maxResults {
 		return scim.Page{}, errors.ScimErrorTooMany
@@ -328,7 +325,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 				level.Info(g.logger).Log("msg", "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			newValues, ok := op.Value.(map[string]interface{})
+			newValues, ok := op.Value.(map[string]any)
 			if !ok {
 				level.Info(g.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -396,7 +393,7 @@ func (g *GroupHandler) Patch(r *http.Request, id string, operations []scim.Patch
 	return createGroupResource(group), nil
 }
 
-func (g *GroupHandler) patchExternalId(op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchExternalId(op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		group.ExternalID = nil
 		return nil
@@ -410,7 +407,7 @@ func (g *GroupHandler) patchExternalId(op string, v interface{}, group *fleet.Sc
 	return nil
 }
 
-func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchDisplayName(op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove {
 		level.Info(g.logger).Log("msg", "cannot remove required attribute", "attribute", displayNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -429,7 +426,7 @@ func (g *GroupHandler) patchDisplayName(op string, v interface{}, group *fleet.S
 }
 
 // patchMembers handles add/replace/remove operations for the members attribute
-func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{}, group *fleet.ScimGroup) error {
+func (g *GroupHandler) patchMembers(ctx context.Context, op string, v any, group *fleet.ScimGroup) error {
 	if op == scim.PatchOperationRemove {
 		// Remove all members
 		group.ScimUsers = []uint{}
@@ -437,17 +434,17 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 	}
 
 	// For add and replace operations, we need to extract the member IDs
-	var membersList []interface{}
+	var membersList []any
 
 	// Handle different value formats
 	switch val := v.(type) {
-	case []interface{}:
+	case []any:
 		// Direct array of members
 		membersList = val
-	case map[string]interface{}:
+	case map[string]any:
 		// Single member as a map
-		membersList = []interface{}{val}
-	case []map[string]interface{}:
+		membersList = []any{val}
+	case []map[string]any:
 		// Array of member maps
 		for _, m := range val {
 			membersList = append(membersList, m)
@@ -462,7 +459,7 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 	valueStrings := make([]string, 0, len(membersList))
 
 	for _, memberIntf := range membersList {
-		member, ok := memberIntf.(map[string]interface{})
+		member, ok := memberIntf.(map[string]any)
 		if !ok {
 			level.Info(g.logger).Log("msg", "member must be an object", "member", memberIntf)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", memberIntf)})

@@ -670,10 +670,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, report))
 	}
 
-	setProfileUploadedAt := func(t *testing.T, uploadedAt time.Time, identifiers ...interface{}) {
+	setProfileUploadedAt := func(t *testing.T, uploadedAt time.Time, identifiers ...any) {
 		bindVars := strings.TrimSuffix(strings.Repeat("?, ", len(identifiers)), ", ")
 		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE identifier IN(%s)", bindVars)
-		args := append([]interface{}{uploadedAt}, identifiers...)
+		args := append([]any{uploadedAt}, identifiers...)
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
 			return err
@@ -1624,7 +1624,7 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, "foo")))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, "foo"))
 		case "/profile":
 			w.WriteHeader(http.StatusOK)
 			require.NoError(t, encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"}))
@@ -2223,8 +2223,8 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "foo", "labels": []string{"a", "b"}},
 					{"path": "bar", "labels_exclude_any": []string{"c"}},
 				},
@@ -2245,7 +2245,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"foo_bar": 123},
+			MacOSSettings: map[string]any{"foo_bar": 123},
 		},
 	}}}
 	res := s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -2256,7 +2256,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []interface{}{"A", true}},
+			MacOSSettings: map[string]any{"custom_settings": []any{"A", true}},
 		},
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
@@ -2284,7 +2284,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
+			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
@@ -2299,7 +2299,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
+			MacOSSettings: map[string]any{"custom_settings": []map[string]any{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -2311,8 +2311,8 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{
-				"custom_settings": []map[string]interface{}{
+			MacOSSettings: map[string]any{
+				"custom_settings": []map[string]any{
 					{"path": "bar", "labels": []string{"x"}},
 					{"path": "foo", "labels": []string{"a", "b"}, "labels_include_all": []string{"c"}},
 				},
@@ -3165,13 +3165,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
 		}
 
-		bytes := []byte(fmt.Sprintf(`{
+		bytes := fmt.Appendf(nil, `{
   "Type": "com.apple.configuration.foo",
   "Payload": {
     "Echo": "f1337"
   },
   "Identifier": "%s"
-}`, ident))
+}`, ident)
 
 		body, headers := generateNewProfileMultipartRequest(t, filename, bytes, s.token, fields)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
@@ -3226,7 +3226,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		body, headers := generateNewProfileMultipartRequest(
 			t,
 			filename,
-			[]byte(fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target></Item></Add><Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI, locURI)),
+			fmt.Appendf(nil, `<Add><Item><Target><LocURI>%s</LocURI></Target></Item></Add><Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI, locURI),
 			s.token,
 			fields,
 		)
@@ -3564,7 +3564,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 
 	// create 5 profiles for no team and team 1, names are A, B, C ... for global and
 	// tA, tB, tC ... for team 1. Alternate macOS and Windows profiles.
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		name := string('A' + byte(i))
 		if i%2 == 0 {
 			prof, err := fleet.NewMDMAppleConfigProfile(mcBytesForTest(name, name+".identifier", name+".uuid"), nil)
@@ -5254,7 +5254,7 @@ func (s *integrationMDMTestSuite) TestHostMDMProfilesExcludeLabels() {
 
 	// create a few labels
 	labels := make([]*fleet.Label, 5)
-	for i := 0; i < len(labels); i++ {
+	for i := range labels {
 		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: fmt.Sprintf("label-%d", i), Query: "select 1;"})
 		require.NoError(t, err)
 		labels[i] = label
@@ -5529,7 +5529,7 @@ func (s *integrationMDMTestSuite) TestMDMProfilesIncludeAnyLabels() {
 
 	// create a few labels, we'll use the first five for "exclude any" profiles and the remaining for "include any"
 	labels := make([]*fleet.Label, 10)
-	for i := 0; i < len(labels); i++ {
+	for i := range labels {
 		label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: fmt.Sprintf("label-%d", i), Query: "select 1;"})
 		require.NoError(t, err)
 		labels[i] = label
@@ -5687,7 +5687,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariablesUpload() {
 }`
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return fmt.Appendf(nil, tmpl, i, i, i)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -5706,7 +5706,7 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	t := s.T()
 	const numProfiles = 2
 	var profiles [][]byte
-	for i := 0; i < numProfiles; i++ {
+	for i := range numProfiles {
 		profiles = append(profiles, newProfileBytes(i))
 	}
 	// Use secrets
@@ -5769,12 +5769,12 @@ func (s *integrationMDMTestSuite) testSecretVariablesUpload(newProfileBytes func
 	}
 
 	// Check that contents are masking secret values
-	for i := 0; i < numProfiles; i++ {
+	for i := range numProfiles {
 		assert.Equal(t, string(profiles[i]), getProfileContents(profileUUIDs[i]))
 	}
 
 	// Delete profiles -- make sure there is no issue deleting profiles with secrets
-	for i := 0; i < numProfiles; i++ {
+	for i := range numProfiles {
 		s.Do("DELETE", "/api/latest/fleet/configuration_profiles/"+profileUUIDs[i], nil, http.StatusOK)
 	}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &listResp)
@@ -5821,7 +5821,7 @@ func (s *integrationMDMTestSuite) TestAppleConfigSecretVariablesUpload() {
 </plist>`
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return fmt.Appendf(nil, tmpl, i, i, i)
 	}
 
 	getProfileContents := func(profileUUID string) string {
@@ -5851,7 +5851,7 @@ func (s *integrationMDMTestSuite) TestWindowsConfigSecretVariablesUpload() {
 `
 
 	newProfileBytes := func(i int) []byte {
-		return []byte(fmt.Sprintf(tmpl, i, i, i))
+		return fmt.Appendf(nil, tmpl, i, i, i)
 	}
 
 	getProfileContents := func(profileUUID string) string {

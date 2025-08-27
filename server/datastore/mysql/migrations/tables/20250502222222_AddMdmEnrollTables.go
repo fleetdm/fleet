@@ -172,7 +172,7 @@ FROM
 	}
 
 	refMatchByHostUUID := make(map[string]accountMatch, len(matchedRefs))
-	refConflicts := []interface{}{}
+	refConflicts := []any{}
 	for _, match := range matchedRefs {
 		if m, ok := refMatchByHostUUID[match.HostUUID]; ok {
 			if m.Email != match.Email || m.AccountUUID != match.AccountUUID {
@@ -228,7 +228,7 @@ FROM
 	}
 	executeUpsertBatch := func(itemsThisBatch []accountMatch) error {
 		valuesPart := ""
-		args := make([]interface{}, 0, len(itemsThisBatch)*2)
+		args := make([]any, 0, len(itemsThisBatch)*2)
 		for _, item := range itemsThisBatch {
 			valuesPart += "(?, ?),"
 			args = append(args, item.HostUUID, item.AccountUUID)

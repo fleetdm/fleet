@@ -104,12 +104,12 @@ func saveConfigProfileVars(tx *sql.Tx, profileUUID string, vars map[string]any, 
 
 // this is a copy of the code in the server/service package so that any future
 // change to it does not impact the behavior of this DB migration.
-func findFleetVariables(contents string) map[string]interface{} {
+func findFleetVariables(contents string) map[string]any {
 	resultSlice := findFleetVariablesKeepDuplicates(contents)
 	if len(resultSlice) == 0 {
 		return nil
 	}
-	result := make(map[string]interface{}, len(resultSlice))
+	result := make(map[string]any, len(resultSlice))
 	for _, v := range resultSlice {
 		// re-add the "FLEET_VAR_" prefix as it is needed to map with the entries in
 		// fleet_variables table.

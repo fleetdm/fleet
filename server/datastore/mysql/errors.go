@@ -20,14 +20,14 @@ func notFound(kind string) *common_mysql.NotFoundError {
 }
 
 type existsError struct {
-	Identifier   interface{}
+	Identifier   any
 	ResourceType string
 	TeamID       *uint
 
 	fleet.ErrorWithUUID
 }
 
-func alreadyExists(kind string, identifier interface{}) error {
+func alreadyExists(kind string, identifier any) error {
 	if s, ok := identifier.(string); ok {
 		identifier = strconv.Quote(s)
 	}

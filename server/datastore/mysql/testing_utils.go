@@ -440,7 +440,7 @@ func TruncateTables(t testing.TB, ds *Datastore, tables ...string) {
 // created for tests. Calls to this function should be temporary and removed when
 // done investigating the plan, so it is expected that this function will be detected
 // as unused.
-func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args ...interface{}) { //nolint:deadcode,unused
+func explainSQLStatement(w io.Writer, db sqlx.QueryerContext, stmt string, args ...any) { //nolint:deadcode,unused
 	var rows []struct {
 		ID           int             `db:"id"`
 		SelectType   string          `db:"select_type"`
@@ -491,7 +491,7 @@ func DumpTable(t *testing.T, q sqlx.QueryerContext, tableName string, cols ...st
 			require.NoError(t, err)
 			anyDst = make([]any, len(cols))
 			strDst = make([]sql.NullString, len(cols))
-			for i := 0; i < len(cols); i++ {
+			for i := range cols {
 				anyDst[i] = &strDst[i]
 			}
 			t.Logf("%v", cols)
@@ -523,7 +523,7 @@ func generateDummyWindowsProfileContents(uuid string) fleet.MDMWindowsProfileCon
 }
 
 func generateDummyWindowsProfile(uuid string) []byte {
-	return []byte(fmt.Sprintf(`<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid))
+	return fmt.Appendf(nil, `<Replace><Target><LocUri>./Device/Foo/%s</LocUri></Target></Replace>`, uuid)
 }
 
 // TODO(roberto): update when we have datastore functions and API methods for this
@@ -563,7 +563,7 @@ func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.Aggr
 // a timestamp incremented by 1s.
 func SetOrderedCreatedAtTimestamps(t testing.TB, ds *Datastore, afterTime time.Time, table, keyCol string, keys ...any) time.Time {
 	now := afterTime
-	for i := 0; i < len(keys); i++ {
+	for i := range keys {
 		now = now.Add(time.Second)
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(),
@@ -780,7 +780,7 @@ func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (Mas
 	}
 	numberOfColumns := len(columns)
 	for rows.Next() {
-		cols := make([]interface{}, numberOfColumns)
+		cols := make([]any, numberOfColumns)
 		for i := range cols {
 			cols[i] = new(string)
 		}
@@ -810,7 +810,7 @@ func (ds *Datastore) MasterStatus(ctx context.Context, mysqlVersion string) (Mas
 	return ms, nil
 }
 
-func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{}, error) {
+func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]any, error) {
 	rows, err := ds.reader(ctx).QueryContext(ctx, "SHOW REPLICA STATUS")
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "show replica status")
@@ -823,9 +823,9 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 		return nil, ctxerr.Wrap(ctx, err, "get columns")
 	}
 	numberOfColumns := len(columns)
-	result := make(map[string]interface{}, numberOfColumns)
+	result := make(map[string]any, numberOfColumns)
 	for rows.Next() {
-		cols := make([]interface{}, numberOfColumns)
+		cols := make([]any, numberOfColumns)
 		for i := range cols {
 			cols[i] = &sql.NullString{}
 		}

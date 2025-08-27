@@ -428,7 +428,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		// test with a command that requires a premium license
 		ctx = test.UserContext(ctx, test.UserAdmin)
 		ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-		rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString([]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+		rawB64PremiumCmd := base64.RawStdEncoding.EncodeToString(fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -440,7 +440,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
     <key>CommandUUID</key>
     <string>uuid</string>
 </dict>
-</plist>`, "DeviceLock")))
+</plist>`, "DeviceLock"))
 		_, err = svc.EnqueueMDMAppleCommand(ctx, rawB64PremiumCmd, []string{"host1"})
 		require.Error(t, err)
 		require.ErrorContains(t, err, fleet.ErrMissingLicense.Error())
@@ -787,7 +787,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -805,7 +805,7 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 	<integer>1</integer>
 </dict>
 </plist>
-`, name, identifier, uuid))
+`, name, identifier, uuid)
 }
 
 func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
@@ -1873,7 +1873,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			[][]byte{[]byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+			[][]byte{fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1905,7 +1905,7 @@ func TestMDMBatchSetAppleProfiles(t *testing.T) {
 				<key>PayloadVersion</key>
 				<integer>1</integer>
 			</dict>
-			</plist>`, mobileconfig.FleetFileVaultPayloadType))},
+			</plist>`, mobileconfig.FleetFileVaultPayloadType)},
 			mobileconfig.DiskEncryptionProfileRestrictionErrMsg,
 		},
 		{
@@ -3795,7 +3795,7 @@ func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScop
 		scopeEntry = fmt.Sprintf(`\n<key>PayloadScope</key>\n<string>%s</string>`, string(*scope))
 	}
 
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -3814,7 +3814,7 @@ func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScop
 	%s
 </dict>
 </plist>
-`, name, identifier, uuid.New().String(), scopeEntry, varsStr.String()))
+`, name, identifier, uuid.New().String(), scopeEntry, varsStr.String())
 }
 
 func mobileconfigForTest(name, identifier string, vars ...string) []byte {
@@ -3830,7 +3830,7 @@ func declBytesForTest(identifier string, payloadContent string) []byte {
 		}
 	}`
 
-	declBytes := []byte(fmt.Sprintf(tmpl, identifier, identifier, payloadContent))
+	declBytes := fmt.Appendf(nil, tmpl, identifier, identifier, payloadContent)
 	return declBytes
 }
 
@@ -3839,7 +3839,7 @@ func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier,
 		innerName = outerName + ".inner"
 	}
 
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -3872,7 +3872,7 @@ func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier,
 	<integer>1</integer>
 </dict>
 </plist>
-`, innerName, innerIdentifier, innerType, outerName, outerIdentifier, uuid.New().String()))
+`, innerName, innerIdentifier, innerType, outerName, outerIdentifier, uuid.New().String())
 }
 
 func generateCertWithAPNsTopic() ([]byte, []byte, error) {

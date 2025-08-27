@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -768,7 +769,7 @@ func testHostsDelete(t *testing.T, ds *Datastore) {
 
 	numHosts := 5
 	hosts := make([]*fleet.Host, numHosts)
-	for i := 0; i < numHosts; i++ {
+	for i := range numHosts {
 		hosts[i], err = ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -816,7 +817,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	var hosts []*fleet.Host
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		var opts []test.NewHostOption
 		switch i {
 		case 0:
@@ -1018,7 +1019,7 @@ func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListStatus(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -1055,7 +1056,7 @@ func testHostsListStatus(t *testing.T, ds *Datastore) {
 
 func testHostsListQuery(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{}
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		hostname := fmt.Sprintf("hostname%%00%d", i)
 		if i == 5 {
 			hostname += "ba@b.ca"
@@ -1334,7 +1335,7 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var hostIDs []uint
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -1596,7 +1597,7 @@ func testHostsListMunkiIssueID(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var hostIDs []uint
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -2076,7 +2077,7 @@ func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
 func testHostsSearchLimit(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -2424,7 +2425,7 @@ func testHostIDsByIdentifier(t *testing.T, ds *Datastore) {
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hostsByIdentifier, err := ds.HostIDsByIdentifier(context.Background(), filter, []string{"foo.2.local", "foo.1.local", "foo.5.local"})
 	require.NoError(t, err)
-	sort.Slice(hostsByIdentifier, func(i, j int) bool { return hostsByIdentifier[i] < hostsByIdentifier[j] })
+	slices.Sort(hostsByIdentifier)
 	assert.Equal(t, hostsByIdentifier, []uint{2, 3, 6})
 
 	// by UUID
@@ -2733,7 +2734,7 @@ func testHostsAddToTeam(t *testing.T, ds *Datastore) {
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		test.NewHost(t, ds, fmt.Sprint(i), "", "key"+fmt.Sprint(i), "uuid"+fmt.Sprint(i), time.Now())
 	}
 
@@ -2969,7 +2970,7 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3021,7 +3022,7 @@ func testHostsListByPolicy(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListBySoftware(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3106,7 +3107,7 @@ func testHostsListBySoftware(t *testing.T, ds *Datastore) {
 }
 
 func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3185,7 +3186,7 @@ func testHostsListBySoftwareChangedAt(t *testing.T, ds *Datastore) {
 func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 	// seed hosts
 	hostsByID := make(map[uint]fleet.Host)
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3253,7 +3254,7 @@ func testHostsListByOperatingSystemID(t *testing.T, ds *Datastore) {
 func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	// seed hosts
 	hostsByID := make(map[uint]fleet.Host)
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3336,7 +3337,7 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	// seed hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 9; i++ {
+	for i := range 9 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3358,7 +3359,7 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 
 	// add software to 5 hosts
 	var swVulnHostIDs []uint
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software)
 		require.NoError(t, err)
 		swVulnHostIDs = append(swVulnHostIDs, hosts[i].ID)
@@ -3549,7 +3550,7 @@ func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore)
 
 	// seed hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3718,7 +3719,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 
 	// seed hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3878,7 +3879,7 @@ func testListHostsProfileUUIDAndStatus(t *testing.T, ds *Datastore) {
 
 func testHostsListFailingPolicies(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -3973,7 +3974,7 @@ func testHostsReadsLessRows(t *testing.T, ds *Datastore) {
 
 	user1 := test.NewUser(t, ds, "alice", "alice-123@example.com", true)
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
 			LabelUpdatedAt:  time.Now(),
@@ -4426,7 +4427,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		seenTime := time.Now()
 		if i >= 5 {
 			seenTime = seenTime.Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
@@ -4495,7 +4496,7 @@ func testIOSHostsExpiration(t *testing.T, ds *Datastore) {
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		platform := "ios"
 		if i%2 == 0 {
 			platform = "ipados"
@@ -7767,7 +7768,7 @@ func testHostsReplaceHostBatteriesDeadlock(t *testing.T, ds *Datastore) {
 	for _, h := range hosts {
 		hostID := h.ID
 		g.Go(func() error {
-			for i := 0; i < replaceCount; i++ {
+			for range replaceCount {
 				if err := ds.ReplaceHostBatteries(ctx, hostID, []*fleet.HostBattery{
 					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0000", hostID), CycleCount: 1, Health: "Good"},
 					{HostID: hostID, SerialNumber: fmt.Sprintf("%d-0001", hostID), CycleCount: 2, Health: "Fair"},
@@ -7903,7 +7904,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -7921,7 +7922,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 		u := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
 		var policies []*fleet.Policy
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 			p, err := ds.NewGlobalPolicy(ctx, &u.ID, fleet.PolicyPayload{QueryID: &q.ID})
 			require.NoError(t, err)
@@ -7998,7 +7999,7 @@ func testFailingPoliciesCount(t *testing.T, ds *Datastore) {
 func testHostsRecordNoPolicies(t *testing.T, ds *Datastore) {
 	initialTime := time.Now()
 
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		_, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: initialTime,
 			LabelUpdatedAt:  initialTime,
@@ -8155,7 +8156,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 	// Test sorting by issues
 	policies := make([]*fleet.Policy, 0, 3)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -8165,7 +8166,7 @@ func testHostOrder(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		policies = append(policies, p)
 	}
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		results := make(map[uint]*bool, 3)
 		for j := 0; j <= i; j++ {
 			results[policies[j].ID] = ptr.Bool(false) // fail
@@ -9125,7 +9126,6 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotEqual(t, h1Orbit.ID, h2Orbit.ID) // the hosts are enrolled as two separate hosts
 	}
 	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
-		platform := platform
 		t.Run("scenarioA_"+platform, func(t *testing.T) {
 			scenarioA(platform)
 		})
@@ -9187,7 +9187,6 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NotEqual(t, h1Orbit.ID, h2Orbit.ID) // the hosts are enrolled as two separate hosts
 	}
 	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
-		platform := platform
 		t.Run("scenarioB_"+platform, func(t *testing.T) {
 			scenarioB(platform)
 		})
@@ -9263,7 +9262,6 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		}
 	}
 	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
-		platform := platform
 		t.Run("scenarioC_"+platform, func(t *testing.T) {
 			scenarioC(platform)
 		})
@@ -9336,7 +9334,6 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
 	}
 	for _, platform := range []string{"ubuntu", "windows", "darwin"} {
-		platform := platform
 		t.Run("scenarioD_"+platform, func(t *testing.T) {
 			t.Parallel()
 			scenarioD(platform)
@@ -9899,7 +9896,7 @@ func testListHostsWithPagination(t *testing.T, ds *Datastore) {
 
 	hostCount := 150
 	hosts := make([]*fleet.Host, 0, hostCount)
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		hosts = append(hosts, newHostFunc(fmt.Sprintf("h%d", i)))
 	}
 
@@ -9984,7 +9981,7 @@ func testLastRestarted(t *testing.T, ds *Datastore) {
 	hostCount := 10
 	hosts := make([]*fleet.Host, 0, hostCount)
 	hostsToVals := make(map[uint]time.Time, 0)
-	for i := 0; i < hostCount; i++ {
+	for i := range hostCount {
 		nh, expectedVal := newHostFunc(fmt.Sprintf("h%d", i), i%2 == 0)
 		hosts = append(hosts, nh)
 		hostsToVals[nh.ID] = expectedVal
@@ -10520,7 +10517,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	policies := make([]*fleet.Policy, 0, 6)
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		q := test.NewQuery(t, ds, nil, fmt.Sprintf("query%d", i), "select 1", 0, true)
 		p, err := ds.NewGlobalPolicy(
 			context.Background(), &user1.ID, fleet.PolicyPayload{
@@ -10532,7 +10529,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 	}
 	for i := 2; i < 6; i++ {
 		results := make(map[uint]*bool, 6)
-		for j := 0; j < 1; j++ {
+		for j := range 1 {
 			results[policies[j].ID] = ptr.Bool(true) // pass
 		}
 		for j := 1; j <= i; j++ {
@@ -10561,7 +10558,7 @@ func testUpdateHostIssues(t *testing.T, ds *Datastore) {
 		{Name: "foo7", Version: "7", Source: "chrome_extensions"}, // vulnerable
 	}
 
-	for i := 0; i < len(software); i++ {
+	for i := range software {
 		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software[:i+1])
 		require.NoError(t, err)
 	}

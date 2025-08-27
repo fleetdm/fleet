@@ -367,7 +367,7 @@ func QueueMacosSetupAssistantJob(
 	teamID *uint,
 	serialNumbers ...string,
 ) (uint, error) {
-	attrs := []interface{}{
+	attrs := []any{
 		"enabled", "true",
 		macosSetupAssistantJobName, task,
 		"hosts_count", len(serialNumbers),

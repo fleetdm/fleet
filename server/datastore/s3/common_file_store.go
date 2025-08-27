@@ -166,7 +166,6 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	g.SetLimit(10)
 
 	for _, obj := range toDeleteKeys {
-		obj := obj
 		g.Go(func() error {
 			_, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 				Bucket: &s.bucket,

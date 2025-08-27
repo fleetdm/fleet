@@ -668,9 +668,9 @@ team_settings:
 	require.Equal(t, "Label1", profs[0].LabelsIncludeAll[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(globalFile.Name(), []byte(fmt.Sprintf(globalTemplate, profileFile.Name(), emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(globalFile.Name(), fmt.Appendf(nil, globalTemplate, profileFile.Name(), emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, profileFile.Name(), "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, profileFile.Name(), "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs
@@ -813,9 +813,9 @@ team_settings:
 	require.Equal(t, "Label1", meta.LabelsExcludeAny[0].LabelName)
 
 	// remove the label conditions
-	err = os.WriteFile(noTeamFilePath, []byte(fmt.Sprintf(noTeamTemplate, emptyLabelsIncludeAny)), 0o644)
+	err = os.WriteFile(noTeamFilePath, fmt.Appendf(nil, noTeamTemplate, emptyLabelsIncludeAny), 0o644)
 	require.NoError(t, err)
-	err = os.WriteFile(teamFile.Name(), []byte(fmt.Sprintf(teamTemplate, "", teamName)), 0o644)
+	err = os.WriteFile(teamFile.Name(), fmt.Appendf(nil, teamTemplate, "", teamName), 0o644)
 	require.NoError(t, err)
 
 	// Apply configs

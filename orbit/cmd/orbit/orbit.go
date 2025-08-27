@@ -1435,7 +1435,7 @@ func main() {
 						ErrorSourceVersion: desktopVersion,
 						ErrorTimestamp:     time.Now(),
 						ErrorMessage:       msg,
-						ErrorAdditionalInfo: map[string]interface{}{
+						ErrorAdditionalInfo: map[string]any{
 							"orbit_version":   build.Version,
 							"osquery_version": osqueryHostInfo.OsqueryVersion,
 							"os_platform":     osqueryHostInfo.Platform,

@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -112,11 +113,11 @@ func TestGetClientConfig(t *testing.T) {
 	ctx2 := hostctx.NewContext(ctx, &fleet.Host{ID: 2})
 	ctx3 := hostctx.NewContext(ctx, &fleet.Host{ID: 1, TeamID: ptr.Uint(1)})
 
-	expectedOptions := map[string]interface{}{
+	expectedOptions := map[string]any{
 		"baz": "bar",
 	}
 
-	expectedConfig := map[string]interface{}{
+	expectedConfig := map[string]any{
 		"options": expectedOptions,
 	}
 
@@ -646,7 +647,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		if rows[0].QueryID == 777 {
 			require.Len(t, rows, 3)
 
-			for i := 0; i < 3; i++ {
+			for i := range 3 {
 				require.NotZero(t, rows[i].LastFetched)
 				require.Equal(t, uint(999), rows[i].HostID)
 				require.Equal(t, uint(777), rows[i].QueryID)
@@ -1036,7 +1037,6 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.input, func(t *testing.T) {
 			t.Parallel()
 
@@ -2984,7 +2984,7 @@ func TestDistributedQueriesLogsManyErrors(t *testing.T) {
 	parts := strings.Split(strings.TrimSpace(logs), "\n")
 	require.Len(t, parts, 1)
 
-	var logData map[string]interface{}
+	var logData map[string]any
 	err = json.Unmarshal([]byte(parts[0]), &logData)
 	require.NoError(t, err)
 	assert.Equal(t, "something went wrong || something went wrong", logData["err"])
@@ -3570,12 +3570,8 @@ func TestPolicyWebhooks(t *testing.T) {
 		for expSet := range expSets {
 			expSets_ = append(expSets_, expSet)
 		}
-		sort.Slice(expSets_, func(i, j int) bool {
-			return expSets_[i] < expSets_[j]
-		})
-		sort.Slice(actualSets, func(i, j int) bool {
-			return actualSets[i] < actualSets[j]
-		})
+		slices.Sort(expSets_)
+		slices.Sort(actualSets)
 		if !reflect.DeepEqual(actualSets, expSets_) {
 			return fmt.Errorf("sets mismatch: %+v vs %+v", actualSets, expSets_)
 		}
@@ -4378,7 +4374,6 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			host := &fleet.Host{ID: 1}
 			if tc.host != nil {
@@ -4410,8 +4405,8 @@ func BenchmarkFindPackDelimiterStringCommon(b *testing.B) {
 	input := "pack/Global/Foo"
 
 	// Run the benchmark
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		findPackDelimiterString(input)
 	}
 }
@@ -4421,8 +4416,8 @@ func BenchmarkFindPackDelimiterStringTeamPack(b *testing.B) {
 	input := "packGlobalGlobalGlobalGlobal" // global pack delimiter, global team, query name global
 
 	// Run the benchmark
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		findPackDelimiterString(input)
 	}
 }
@@ -4466,7 +4461,7 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 		hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
 	}
 }

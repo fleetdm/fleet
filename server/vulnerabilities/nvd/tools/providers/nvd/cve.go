@@ -167,7 +167,7 @@ func cveFileList(c CVE) []cveFile {
 	encoding := c.encoding()
 	compression := c.compression()
 
-	for i := 0; i < entries; i++ {
+	for i := range entries {
 		year := startingYear + i
 		suffix := strconv.Itoa(year)
 		f[i] = cveFile{
@@ -409,7 +409,7 @@ func (m metaFile) WriteTo(w io.Writer) (int64, error) {
 		"gzSize:%d\r\n",
 		"sha256:%s\r\n",
 	}
-	params := []interface{}{
+	params := []any{
 		m.LastModifiedDate.Format(time.RFC3339),
 		m.Size,
 		m.ZipSize,
@@ -417,7 +417,7 @@ func (m metaFile) WriteTo(w io.Writer) (int64, error) {
 		strings.ToUpper(m.SHA256),
 	}
 	var total int64
-	for i := 0; i < len(lines); i++ {
+	for i := range lines {
 		n, err := fmt.Fprintf(w, lines[i], params[i])
 		if err != nil {
 			return 0, err

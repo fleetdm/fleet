@@ -149,7 +149,7 @@ func BenchmarkExtractInstallerMetadata(b *testing.B) {
 				// the goal of this benchmark is not so much accuracy of time performance, but
 				// memory usage, so it doesn't matter that the file is read from disk on each
 				// iteration.
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					tfr, err := fleet.NewKeepFileReader(filepath.Join("testdata", "installers", dent.Name()))
 					require.NoError(b, err)
 

@@ -144,7 +144,7 @@ func (s *googleCalendarIntegrationTestSuite) TestFillUpCalendar() {
 	assert.Equal(t, 0, event.StartTime.Minute())
 
 	currentEventTime := event.StartTime
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		if !(currentEventTime.Hour() == endHour-1 && currentEventTime.Minute() == 30) {
 			currentEventTime = currentEventTime.Add(30 * time.Minute)
 		}

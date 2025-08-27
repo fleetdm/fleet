@@ -19,7 +19,7 @@ type AgentOptions struct {
 	// Config is the base config options.
 	Config json.RawMessage `json:"config"`
 	// Overrides includes any platform-based overrides.
-	Overrides AgentOptionsOverrides `json:"overrides,omitempty"`
+	Overrides AgentOptionsOverrides `json:"overrides"`
 	// CommandLineStartUpFlags are the osquery CLI_FLAGS
 	CommandLineStartUpFlags json.RawMessage `json:"command_line_flags,omitempty"`
 	// Extensions are the orbit managed extensions
@@ -141,7 +141,7 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 }
 
 func checkEmptyFields(prefix string, data json.RawMessage) error {
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		return fmt.Errorf("unmarshal data: %w", err)
 	}

@@ -216,7 +216,7 @@ INSERT INTO software_installers (
  	upgrade_code
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT name FROM users WHERE id = ?), (SELECT email FROM users WHERE id = ?), ?, ?, ?)`
 
-		args := []interface{}{
+		args := []any{
 			tid,
 			globalOrTeamID,
 			titleID,
@@ -302,7 +302,7 @@ INSERT INTO software_installers (
 
 func setOrUpdateSoftwareInstallerCategoriesDB(ctx context.Context, tx sqlx.ExtContext, installerID uint, categoryIDs []uint, swType softwareType) error {
 	// remove existing categories
-	delArgs := []interface{}{installerID}
+	delArgs := []any{installerID}
 	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_software_categories WHERE %[1]s_id = ?`, swType)
 	if len(categoryIDs) > 0 {
 		inStmt, args, err := sqlx.In(` AND software_category_id NOT IN (?)`, categoryIDs)
@@ -446,7 +446,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 	}
 
 	// remove existing labels
-	delArgs := []interface{}{installerID}
+	delArgs := []any{installerID}
 	delStmt := fmt.Sprintf(`DELETE FROM %[1]s_labels WHERE %[1]s_id = ?`, softwareType)
 	if len(labelIds) > 0 {
 		inStmt, args, err := sqlx.In(` AND label_id NOT IN (?)`, labelIds)
@@ -476,7 +476,7 @@ func setOrUpdateSoftwareInstallerLabelsDB(ctx context.Context, tx sqlx.ExtContex
 
 		stmt := `INSERT INTO %[1]s_labels (%[1]s_id, label_id, exclude) VALUES %s ON DUPLICATE KEY UPDATE exclude = VALUES(exclude)`
 		var placeholders string
-		var insertArgs []interface{}
+		var insertArgs []any
 		for _, lid := range labelIds {
 			placeholders += "(?, ?, ?),"
 			insertArgs = append(insertArgs, installerID, lid, exclude)
@@ -549,7 +549,7 @@ func (ds *Datastore) SaveInstallerUpdates(ctx context.Context, payload *fleet.Up
 			user_email = (SELECT email FROM users WHERE id = ?)%s%s
 			WHERE id = ?`, touchUploaded, clearFleetMaintainedAppID)
 
-		args := []interface{}{
+		args := []any{
 			payload.StorageID,
 			payload.Filename,
 			payload.Version,
@@ -1314,7 +1314,7 @@ SELECT
 FROM upcoming
 ) t`
 
-	query, args, err := sqlx.Named(stmt, map[string]interface{}{
+	query, args, err := sqlx.Named(stmt, map[string]any{
 		"installer_id":                      installerID,
 		"software_status_pending_install":   fleet.SoftwareInstallPending,
 		"software_status_failed_install":    fleet.SoftwareInstallFailed,
@@ -1334,7 +1334,7 @@ FROM upcoming
 	return &dest, nil
 }
 
-func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+func (ds *Datastore) vppAppJoin(appID fleet.VPPAppID, status fleet.SoftwareInstallerStatus) (string, []any, error) {
 	// for pending status, we'll join through upcoming_activities
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
@@ -1358,7 +1358,7 @@ WHERE
 			// activity type that is associated with the app (i.e. both install and uninstall)
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{appID.AdamID, appID.Platform}, nil
+		return fmt.Sprintf(stmt, filter), []any{appID.AdamID, appID.Platform}, nil
 	}
 
 	// TODO: Update this when VPP supports uninstall so that we map for now we map the generic failed status to the install statuses
@@ -1402,7 +1402,7 @@ WHERE
 ) hss ON hss.host_id = h.id
 `, vppAppHostStatusNamedQuery("hvsi", "ncr", ""))
 
-	return sqlx.Named(stmt, map[string]interface{}{
+	return sqlx.Named(stmt, map[string]any{
 		"status":                    status,
 		"adam_id":                   appID.AdamID,
 		"platform":                  appID.Platform,
@@ -1415,7 +1415,7 @@ WHERE
 	})
 }
 
-func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []interface{}, error) {
+func (ds *Datastore) softwareInstallerJoin(titleID uint, status fleet.SoftwareInstallerStatus) (string, []any, error) {
 	// for pending status, we'll join through upcoming_activities
 	if status == fleet.SoftwarePending || status == fleet.SoftwareInstallPending || status == fleet.SoftwareUninstallPending {
 		stmt := `JOIN (
@@ -1437,7 +1437,7 @@ WHERE
 			// no change
 		}
 
-		return fmt.Sprintf(stmt, filter), []interface{}{titleID}, nil
+		return fmt.Sprintf(stmt, filter), []any{titleID}, nil
 	}
 
 	// for non-pending statuses, we'll join through host_software_installs filtered by the status
@@ -1477,7 +1477,7 @@ WHERE
 ) hss ON hss.host_id = h.id
 `, statusFilter)
 
-	return sqlx.Named(stmt, map[string]interface{}{
+	return sqlx.Named(stmt, map[string]any{
 		"status":          status,
 		"installFailed":   fleet.SoftwareInstallFailed,
 		"uninstallFailed": fleet.SoftwareUninstallFailed,
@@ -2102,7 +2102,7 @@ VALUES
 				postInstallScriptID = &insertID
 			}
 
-			wasUpdatedArgs := []interface{}{
+			wasUpdatedArgs := []any{
 				// package update
 				installer.StorageID,
 				// metadata update
@@ -2132,7 +2132,7 @@ VALUES
 				}
 			}
 
-			args := []interface{}{
+			args := []any{
 				tmID,
 				globalOrTeamID,
 				installer.StorageID,
@@ -2314,7 +2314,7 @@ func (ds *Datastore) HasSelfServiceSoftwareInstallers(ctx context.Context, hostP
 	if hostTeamID != nil {
 		globalOrTeamID = *hostTeamID
 	}
-	args := []interface{}{hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
+	args := []any{hostPlatform, globalOrTeamID, hostPlatform, globalOrTeamID}
 	var hasInstallers bool
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &hasInstallers, stmt, args...)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {

@@ -18,7 +18,7 @@ type TestingT interface {
 
 // ElementsMatchSkipID asserts that the elements match, skipping any field with
 // name "ID".
-func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchSkipID(t TestingT, listA, listB any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
@@ -34,7 +34,7 @@ func ElementsMatchSkipID(t TestingT, listA, listB interface{}, msgAndArgs ...int
 
 // ElementsMatchSkipIDAndHostCount asserts that the elements match, skipping any field with
 // name "ID" or "HostCount".
-func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
@@ -50,7 +50,7 @@ func ElementsMatchSkipIDAndHostCount(t TestingT, listA, listB interface{}, msgAn
 
 // ElementsMatchSkipTimestampsID asserts that the elements match, skipping any field with
 // name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing after DB insertion.
-func ElementsMatchSkipTimestampsID(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchSkipTimestampsID(t TestingT, listA, listB any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
@@ -70,7 +70,7 @@ func ElementsMatchSkipTimestampsID(t TestingT, listA, listB interface{}, msgAndA
 // EqualSkipTimestampsID asserts that the structs are equal, skipping any field
 // with name "ID", "CreatedAt", and "UpdatedAt". This is useful for comparing
 // after DB insertion.
-func EqualSkipTimestampsID(t TestingT, a, b interface{}, msgAndArgs ...interface{}) (ok bool) {
+func EqualSkipTimestampsID(t TestingT, a, b any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
@@ -99,7 +99,7 @@ func EqualSkipTimestampsID(t TestingT, a, b interface{}, msgAndArgs ...interface
 // additional options as provided by the cmp package. This allows, for example,
 // comparing structs while ignoring fields. See assert.ElementsMatch
 // documentation for more details.
-func ElementsMatchWithOptions(t TestingT, listA, listB interface{}, opts cmp.Options, msgAndArgs ...interface{}) (ok bool) {
+func ElementsMatchWithOptions(t TestingT, listA, listB any, opts cmp.Options, msgAndArgs ...any) (ok bool) {
 	if isEmpty(listA) && isEmpty(listB) {
 		return true
 	}
@@ -118,7 +118,7 @@ func ElementsMatchWithOptions(t TestingT, listA, listB interface{}, opts cmp.Opt
 }
 
 // isEmpty gets whether the specified object is considered empty or not.
-func isEmpty(object interface{}) bool {
+func isEmpty(object any) bool {
 	// get nil case out of the way
 	if object == nil {
 		return true
@@ -145,7 +145,7 @@ func isEmpty(object interface{}) bool {
 }
 
 // isList checks that the provided value is array or slice.
-func isList(t TestingT, list interface{}, msgAndArgs ...interface{}) (ok bool) {
+func isList(t TestingT, list any, msgAndArgs ...any) (ok bool) {
 	kind := reflect.TypeOf(list).Kind()
 	if kind != reflect.Array && kind != reflect.Slice {
 		return assert.Fail(t, fmt.Sprintf("%q has an unsupported type %s, expecting array or slice", list, kind),
@@ -157,7 +157,7 @@ func isList(t TestingT, list interface{}, msgAndArgs ...interface{}) (ok bool) {
 // diffLists diffs two arrays/slices and returns slices of elements that are only in A and only in B.
 // If some element is present multiple times, each instance is counted separately (e.g. if something is 2x in A and
 // 5x in B, it will be 0x in extraA and 3x in extraB). The order of items in both lists is ignored.
-func diffLists(listA, listB interface{}, opts cmp.Options) (extraA, extraB []interface{}) {
+func diffLists(listA, listB any, opts cmp.Options) (extraA, extraB []any) {
 	aValue := reflect.ValueOf(listA)
 	bValue := reflect.ValueOf(listB)
 
@@ -166,10 +166,10 @@ func diffLists(listA, listB interface{}, opts cmp.Options) (extraA, extraB []int
 
 	// Mark indexes in bValue that we already used
 	visited := make([]bool, bLen)
-	for i := 0; i < aLen; i++ {
+	for i := range aLen {
 		element := aValue.Index(i).Interface()
 		found := false
-		for j := 0; j < bLen; j++ {
+		for j := range bLen {
 			if visited[j] {
 				continue
 			}
@@ -184,7 +184,7 @@ func diffLists(listA, listB interface{}, opts cmp.Options) (extraA, extraB []int
 		}
 	}
 
-	for j := 0; j < bLen; j++ {
+	for j := range bLen {
 		if visited[j] {
 			continue
 		}
@@ -194,7 +194,7 @@ func diffLists(listA, listB interface{}, opts cmp.Options) (extraA, extraB []int
 	return
 }
 
-func formatListDiff(listA, listB interface{}, extraA, extraB []interface{}) string {
+func formatListDiff(listA, listB any, extraA, extraB []any) string {
 	spewConfig := spew.ConfigState{
 		Indent:                  " ",
 		DisablePointerAddresses: true,
@@ -224,7 +224,7 @@ func formatListDiff(listA, listB interface{}, extraA, extraB []interface{}) stri
 }
 
 // QueryElementsMatch asserts that two queries slices match
-func QueryElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...interface{}) (ok bool) {
+func QueryElementsMatch(t TestingT, listA, listB any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {
@@ -248,7 +248,7 @@ func QueryElementsMatch(t TestingT, listA, listB interface{}, msgAndArgs ...inte
 }
 
 // QueriesMatch asserts that two queries 'match'.
-func QueriesMatch(t TestingT, a, b interface{}, msgAndArgs ...interface{}) (ok bool) {
+func QueriesMatch(t TestingT, a, b any, msgAndArgs ...any) (ok bool) {
 	t.Helper()
 
 	opt := cmp.FilterPath(func(p cmp.Path) bool {

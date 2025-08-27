@@ -134,7 +134,6 @@ func TestDataFlattenTables(t *testing.T) {
 	}
 
 	for testN, tt := range tests {
-		tt := tt
 		for tableName, testTable := range tt.testTables {
 			tableName, testTable := tableName, testTable
 

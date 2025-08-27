@@ -34,7 +34,7 @@ func getCriteria(qContext table.QueryContext) (*criteria, error) {
 	if len(qContext.Constraints) == 0 {
 		return nil, missingPropErr
 	}
-	for _, c := range strings.Split(requiredCriteria, ", ") {
+	for c := range strings.SplitSeq(requiredCriteria, ", ") {
 		constraint, ok := qContext.Constraints[c]
 		if !ok || len(constraint.Constraints) == 0 || len(constraint.Constraints[0].Expression) == 0 {
 			return nil, missingPropErr

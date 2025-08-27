@@ -48,10 +48,7 @@ func BatchProcess[T fleet.Vulnerability](
 		return nil
 	}
 
-	bSize := batchSize
-	if bSize > len(values) {
-		bSize = len(values)
-	}
+	bSize := min(batchSize, len(values))
 
 	buffer := make([]T, bSize)
 	var offset, i int

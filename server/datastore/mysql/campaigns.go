@@ -147,10 +147,7 @@ func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) (
 
 	completed := make([]uint, 0, len(filter))
 	for i := 0; i < len(filter); i += batchSize {
-		end := i + batchSize
-		if end > len(filter) {
-			end = len(filter)
-		}
+		end := min(i+batchSize, len(filter))
 		batch := filter[i:end]
 
 		query, args, err := sqlx.In(

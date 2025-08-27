@@ -120,7 +120,7 @@ func DownloadCPEDBFromGithub(vulnPath string, cpeDBURL string) error {
 // cpeGeneralSearchQuery puts together several search statements to find the correct row in the CPE datastore.
 // Each statement has a custom weight column, where 1 is the highest priority (most likely to be correct).
 // The SQL statements are combined into a master statements with UNION.
-func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, error) {
+func cpeGeneralSearchQuery(software *fleet.Software) (string, []any, error) {
 	dialect := goqu.Dialect("sqlite")
 
 	// 1 - Try to match product and vendor terms
@@ -165,7 +165,7 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 	}
 
 	var sqlParts []string
-	var args []interface{}
+	var args []any
 	var stm string
 
 	for _, d := range datasets {
@@ -501,13 +501,13 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			hasAllTerms := true
 
 			sName := strings.ToLower(software.Name)
-			for _, sN := range strings.Split(item.Product, "_") {
+			for sN := range strings.SplitSeq(item.Product, "_") {
 				hasAllTerms = hasAllTerms && strings.Contains(sName, sN)
 			}
 
 			sVendor := strings.ToLower(software.Vendor)
 			sBundle := strings.ToLower(software.BundleIdentifier)
-			for _, sV := range strings.Split(item.Vendor, "_") {
+			for sV := range strings.SplitSeq(item.Vendor, "_") {
 				if sVendor != "" {
 					hasAllTerms = hasAllTerms && strings.Contains(sVendor, sV)
 				}

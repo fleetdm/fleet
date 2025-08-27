@@ -104,10 +104,7 @@ func (c *bufordPushProvider) pushSingle(pushInfo *mdm.Push) *push.Response {
 }
 
 func (c *bufordPushProvider) pushMulti(pushInfos []*mdm.Push) map[string]*push.Response {
-	workers := uint(len(pushInfos))
-	if workers > c.workers {
-		workers = c.workers
-	}
+	workers := min(uint(len(pushInfos)), c.workers)
 	queue := bufordpush.NewQueue(c.service, workers)
 	defer queue.Close()
 	for _, push := range pushInfos {

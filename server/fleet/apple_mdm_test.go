@@ -281,7 +281,7 @@ func MobileconfigForTest(name string, identifier string, uuid string, payloadCon
 		pc = fmt.Sprintf(`<array>%s
 	</array>`, payloadContent)
 	}
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -299,7 +299,7 @@ func MobileconfigForTest(name string, identifier string, uuid string, payloadCon
 	<integer>1</integer>
 </dict>
 </plist>
-`, pc, name, identifier, uuid))
+`, pc, name, identifier, uuid)
 }
 
 func mcPayloadContentForTest(refs []string) string {
@@ -431,7 +431,7 @@ func TestMDMAppleHostDeclarationEqual(t *testing.T) {
 	items := [...]MDMAppleHostDeclaration{{}, {}}
 
 	numberOfFields := 0
-	for i := 0; i < len(items); i++ {
+	for i := range len(items) {
 		rValue := reflect.ValueOf(&items[i]).Elem()
 		numberOfFields = rValue.NumField()
 		for j := 0; j < numberOfFields; j++ {
@@ -610,7 +610,7 @@ func TestConfigurationProfileLabelEqual(t *testing.T) {
 	items := [...]ConfigurationProfileLabel{{}, {}}
 
 	numberOfFields := 0
-	for i := 0; i < len(items); i++ {
+	for i := range len(items) {
 		rValue := reflect.ValueOf(&items[i]).Elem()
 		numberOfFields = rValue.NumField()
 		for j := 0; j < numberOfFields; j++ {

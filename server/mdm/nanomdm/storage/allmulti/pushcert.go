@@ -8,7 +8,7 @@ import (
 )
 
 func (ms *MultiAllStorage) IsPushCertStale(ctx context.Context, topic string, staleToken string) (bool, error) {
-	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	val, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return s.IsPushCertStale(ctx, topic, staleToken)
 	})
 	return val.(bool), err
@@ -20,7 +20,7 @@ type retrievePushCertReturns struct {
 }
 
 func (ms *MultiAllStorage) RetrievePushCert(ctx context.Context, topic string) (cert *tls.Certificate, staleToken string, err error) {
-	val, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	val, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		rets := new(retrievePushCertReturns)
 		var err error
 		rets.cert, rets.staleToken, err = s.RetrievePushCert(ctx, topic)
@@ -31,7 +31,7 @@ func (ms *MultiAllStorage) RetrievePushCert(ctx context.Context, topic string) (
 }
 
 func (ms *MultiAllStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
-	_, err := ms.execStores(ctx, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(ctx, func(s storage.AllStorage) (any, error) {
 		return nil, s.StorePushCert(ctx, pemCert, pemKey)
 	})
 	return err

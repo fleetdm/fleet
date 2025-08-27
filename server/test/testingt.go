@@ -11,6 +11,6 @@ func Quiet(t *testing.T) *quiet {
 	return &quiet{t}
 }
 
-func (q *quiet) Logf(format string, args ...interface{}) {
+func (q *quiet) Logf(format string, args ...any) {
 	// No logging
 }

@@ -117,13 +117,13 @@ func TestStreamCampaignResultsClosesReditOnWSClose(t *testing.T) {
 
 	err = conn.WriteJSON(ws.JSONMessage{
 		Type: "auth",
-		Data: map[string]interface{}{"token": "asd"},
+		Data: map[string]any{"token": "asd"},
 	})
 	require.NoError(t, err)
 
 	err = conn.WriteJSON(ws.JSONMessage{
 		Type: "select_campaign",
-		Data: map[string]interface{}{"campaign_id": campaign.ID},
+		Data: map[string]any{"campaign_id": campaign.ID},
 	})
 	require.NoError(t, err)
 

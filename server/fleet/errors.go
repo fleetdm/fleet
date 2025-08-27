@@ -56,7 +56,7 @@ type ErrWithLogFields interface {
 	error
 	// LogFields returns the additional log fields to add, which should come in
 	// key, value pairs (as used in go-kit log).
-	LogFields() []interface{}
+	LogFields() []any
 }
 
 // ErrWithRetryAfter is an interface for errors that should set a specific HTTP
@@ -147,7 +147,7 @@ func (e *InvalidArgumentError) Append(name, reason string) {
 	})
 }
 
-func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...interface{}) {
+func (e *InvalidArgumentError) Appendf(name, reasonFmt string, args ...any) {
 	e.Append(name, fmt.Sprintf(reasonFmt, args...))
 }
 
@@ -465,7 +465,7 @@ func NewError(code int, message string) error {
 
 // NewErrorf returns a fleet error with the code, and message formatted
 // based on the format string and args specified
-func NewErrorf(code int, format string, args ...interface{}) error {
+func NewErrorf(code int, format string, args ...any) error {
 	return &Error{
 		Code:    code,
 		Message: fmt.Sprintf(format, args...),

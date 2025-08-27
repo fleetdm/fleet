@@ -125,8 +125,8 @@ func mysqlStorageConfig(dsn, options string, logger log.Logger) (*mysql.MySQLSto
 
 func splitOptions(s string) map[string]string {
 	out := make(map[string]string)
-	opts := strings.Split(s, ",")
-	for _, opt := range opts {
+	opts := strings.SplitSeq(s, ",")
+	for opt := range opts {
 		optKAndV := strings.SplitN(opt, "=", 2)
 		if len(optKAndV) < 2 {
 			optKAndV = append(optKAndV, "")

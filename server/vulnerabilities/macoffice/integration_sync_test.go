@@ -3,6 +3,7 @@ package macoffice
 import (
 	"context"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -39,10 +40,5 @@ func TestIntegrationsSync(t *testing.T) {
 }
 
 func contains(slice []string, str string) bool {
-	for _, v := range slice {
-		if v == str {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, str)
 }

@@ -220,7 +220,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 			b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
 				withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for b.Loop() {
 						_, err := Analyze(context.Background(), ds, v, vulnPath, true)
 						require.NoError(b, err)
 					}
@@ -271,7 +271,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 			b.Run(fmt.Sprintf("for %s %s", v.version.Platform, v.version.Name), func(b *testing.B) {
 				withTestFixture(v.version, v.ovalFixtureDir, v.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for b.Loop() {
 						_, err := Analyze(context.Background(), ds, v.version, vulnPath, true)
 						require.NoError(b, err)
 					}

@@ -16,7 +16,7 @@ func newContextWithValues(ctx context.Context, r *mdm.Request) context.Context {
 	return context.WithValue(newCtx, ctxKeyType{}, r.Type)
 }
 
-func ctxKVs(ctx context.Context) (out []interface{}) {
+func ctxKVs(ctx context.Context) (out []any) {
 	id, ok := ctx.Value(ctxKeyID{}).(string)
 	if ok {
 		out = append(out, "id", id)

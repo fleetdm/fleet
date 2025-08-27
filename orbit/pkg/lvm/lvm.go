@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"slices"
 )
 
 type BlockDevice struct {
@@ -73,10 +74,8 @@ func searchForRoot(device BlockDevice) *BlockDevice {
 		return &device
 	}
 
-	for _, mountpoint := range device.Mountpoints {
-		if mountpoint == "/" {
-			return &device
-		}
+	if slices.Contains(device.Mountpoints, "/") {
+		return &device
 	}
 	for _, child := range device.Children {
 		if result := searchForRoot(child); result != nil {

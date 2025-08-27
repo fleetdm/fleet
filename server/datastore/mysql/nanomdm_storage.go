@@ -36,15 +36,15 @@ type nanoMDMLogAdapter struct {
 	logger log.Logger
 }
 
-func (l nanoMDMLogAdapter) Info(args ...interface{}) {
+func (l nanoMDMLogAdapter) Info(args ...any) {
 	level.Info(l.logger).Log(args...)
 }
 
-func (l nanoMDMLogAdapter) Debug(args ...interface{}) {
+func (l nanoMDMLogAdapter) Debug(args ...any) {
 	level.Debug(l.logger).Log(args...)
 }
 
-func (l nanoMDMLogAdapter) With(args ...interface{}) nanomdm_log.Logger {
+func (l nanoMDMLogAdapter) With(args ...any) nanomdm_log.Logger {
 	wl := log.With(l.logger, args...)
 	return nanoMDMLogAdapter{logger: wl}
 }
@@ -272,7 +272,7 @@ func enqueueCommandDB(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd
 	}
 	query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
 	query += strings.Repeat(", (?, ?)", len(ids)-1)
-	args := make([]interface{}, len(ids)*2)
+	args := make([]any, len(ids)*2)
 	for i, id := range ids {
 		args[i*2] = id
 		args[i*2+1] = cmd.CommandUUID

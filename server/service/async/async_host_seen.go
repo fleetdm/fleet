@@ -2,6 +2,7 @@ package async
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -88,7 +89,7 @@ func (t *Task) collectHostsLastSeen(ctx context.Context, ds fleet.Datastore, poo
 	// process in batches, as there could be many thousand host IDs
 	if len(hostIDs) > 0 {
 		// globally sort the host IDs so they are sent ordered as batches to MarkHostsSeen
-		sort.Slice(hostIDs, func(i, j int) bool { return hostIDs[i] < hostIDs[j] })
+		slices.Sort(hostIDs)
 
 		ts := t.clock.Now()
 		batch := make([]uint, cfg.InsertBatch)

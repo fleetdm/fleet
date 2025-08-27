@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -148,13 +149,7 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 	}
 
 	// Check if the request version is one of the defined enrollment versions
-	versionFound := false
-	for _, v := range syncml.SupportedEnrollmentVersions {
-		if req.Body.Discover.Request.RequestVersion == v {
-			versionFound = true
-			break
-		}
-	}
+	versionFound := slices.Contains(syncml.SupportedEnrollmentVersions, req.Body.Discover.Request.RequestVersion)
 	if !versionFound {
 		return fmt.Errorf("invalid discover message: Request.RequestVersion=%q not in supported versions %v",
 			req.Body.Discover.Request.RequestVersion, syncml.SupportedEnrollmentVersions)
@@ -162,11 +157,8 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 
 	// Traverse the AuthPolicies slice and check for valid values
 	isInvalidAuth := true
-	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
-		if authPolicy == syncml.AuthOnPremise {
-			isInvalidAuth = false
-			break
-		}
+	if slices.Contains(req.Body.Discover.Request.AuthPolicies.AuthPolicy, syncml.AuthOnPremise) {
+		isInvalidAuth = false
 	}
 
 	if isInvalidAuth {

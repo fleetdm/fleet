@@ -410,7 +410,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 		return fmt.Errorf("unmarshaling OTA enrollment response: %w", err)
 	}
 
-	rawDeviceInfo := []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	rawDeviceInfo := fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -423,7 +423,7 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	<key>VERSION</key>
 	<string>22A5316k</string>
 </dict>
-</plist>`, c.Model, c.SerialNumber, c.UUID))
+</plist>`, c.Model, c.SerialNumber, c.UUID)
 
 	do := func(cert *x509.Certificate, key *rsa.PrivateKey) ([]byte, error) {
 		signedData, err := pkcs7.NewSignedData(rawDeviceInfo)
@@ -904,7 +904,7 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 		"Status":      "Acknowledged",
 		"UDID":        udid,
 		"CommandUUID": cmdUUID,
-		"QueryResponses": map[string]interface{}{
+		"QueryResponses": map[string]any{
 			"AvailableDeviceCapacity": float64(51.53312768),
 			"DeviceCapacity":          float64(64),
 			"DeviceName":              deviceName,
@@ -917,9 +917,9 @@ func (c *TestAppleMDMClient) AcknowledgeDeviceInformation(udid, cmdUUID, deviceN
 }
 
 func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID string, software []fleet.Software) (*mdm.Command, error) {
-	mdmSoftware := make([]map[string]interface{}, 0, len(software))
+	mdmSoftware := make([]map[string]any, 0, len(software))
 	for _, s := range software {
-		mdmSoftware = append(mdmSoftware, map[string]interface{}{
+		mdmSoftware = append(mdmSoftware, map[string]any{
 			"Name":         s.Name,
 			"ShortVersion": s.Version,
 			"Identifier":   s.BundleIdentifier,
@@ -1100,12 +1100,12 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 // ParseEnrollmentProfile parses the enrollment profile and returns the parsed information as EnrollInfo.
 func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	var enrollmentProfile struct {
-		PayloadContent []map[string]interface{} `plist:"PayloadContent"`
+		PayloadContent []map[string]any `plist:"PayloadContent"`
 	}
 	if err := plist.Unmarshal(mobileConfig, &enrollmentProfile); err != nil {
 		return nil, fmt.Errorf("unmarshal enrollment profile: %w", err)
 	}
-	payloadContent := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]interface{})
+	payloadContent := enrollmentProfile.PayloadContent[0]["PayloadContent"].(map[string]any)
 
 	scepChallenge, ok := payloadContent["Challenge"].(string)
 	if !ok || scepChallenge == "" {
@@ -1234,7 +1234,7 @@ func MachineInfoAsPKCS7(machineInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
 	return appleInfoStructAsPKCS7(machineInfo)
 }
 
-func appleInfoStructAsPKCS7(v interface{}) ([]byte, error) {
+func appleInfoStructAsPKCS7(v any) ([]byte, error) {
 	body, err := plist.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("marshal device info: %w", err)

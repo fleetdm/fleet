@@ -60,7 +60,7 @@ LIMIT ?
 		now = time.Now().UTC()
 	}
 
-	args := []interface{}{fleet.JobStateQueued, now}
+	args := []any{fleet.JobStateQueued, now}
 
 	// Add job name filter if needed
 	var nameClause string

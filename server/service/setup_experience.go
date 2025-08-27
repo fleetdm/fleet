@@ -26,7 +26,7 @@ type putSetupExperienceSoftwareResponse struct {
 
 func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
-func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func putSetupExperienceSoftware(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
 
 	err := svc.SetSetupExperienceSoftware(ctx, req.TeamID, req.TitleIDs)
@@ -59,7 +59,7 @@ type getSetupExperienceSoftwareResponse struct {
 
 func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
-func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getSetupExperienceSoftware(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
 
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, req.TeamID, req.ListOptions)
@@ -90,7 +90,7 @@ type getSetupExperienceScriptResponse struct {
 
 func (r getSetupExperienceScriptResponse) Error() error { return r.Err }
 
-func getSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getSetupExperienceScriptEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceScriptRequest)
 	downloadRequested := req.Alt == "media"
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
@@ -123,7 +123,7 @@ type setSetupExperienceScriptRequest struct {
 	Script *multipart.FileHeader
 }
 
-func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (setSetupExperienceScriptRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	var decoded setSetupExperienceScriptRequest
 
 	err := r.ParseMultipartForm(512 * units.MiB) // same in-memory size as for other multipart requests we have
@@ -160,7 +160,7 @@ type setSetupExperienceScriptResponse struct {
 
 func (r setSetupExperienceScriptResponse) Error() error { return r.Err }
 
-func setSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func setSetupExperienceScriptEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*setSetupExperienceScriptRequest)
 
 	scriptFile, err := req.Script.Open()
@@ -196,7 +196,7 @@ func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
 
 // func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
 
-func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteSetupExperienceScriptEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSetupExperienceScriptRequest)
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
 	// // use it in the auth layer where team_id=0 is not allowed?
@@ -230,7 +230,7 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 // supported type, it returns false and an error indicated that the type is not supported.
 // If the skipPending parameter is true, the datastore will only be updated if the given result
 // status is not pending.
-func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result interface{}, requireTerminalStatus bool) (bool, error) {
+func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, result any, requireTerminalStatus bool) (bool, error) {
 	switch v := result.(type) {
 	case fleet.SetupExperienceScriptResult:
 		status := v.SetupExperienceStatus()

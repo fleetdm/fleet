@@ -101,7 +101,7 @@ LIMIT 1
 	)
 	// decode if we did get an object
 	if raw.Valid && len(raw.V) > 0 && raw.V[0] == '{' {
-		var config map[string]interface{}
+		var config map[string]any
 		if err := json.Unmarshal(raw.V, &config); err != nil {
 			return fmt.Errorf("unmarshal appconfig: %w", err)
 		}

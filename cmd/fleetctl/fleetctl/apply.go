@@ -76,7 +76,7 @@ func applyCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
-			logf := func(format string, a ...interface{}) {
+			logf := func(format string, a ...any) {
 				fmt.Fprintf(c.App.Writer, format, a...)
 			}
 

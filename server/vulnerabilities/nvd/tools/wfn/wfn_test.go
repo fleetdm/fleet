@@ -47,7 +47,7 @@ func TestWFNize(t *testing.T) {
 }
 
 func BenchmarkWFNize(t *testing.B) {
-	for i := 0; i < t.N; i++ {
+	for t.Loop() {
 		_, _ = WFNize("1.8.14.6001")
 	}
 }

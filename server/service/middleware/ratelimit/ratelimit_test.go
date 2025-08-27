@@ -25,7 +25,7 @@ func TestLimit(t *testing.T) {
 	limiter := NewMiddleware(store)
 	var endpointCallCount uint
 
-	endpoint := func(context.Context, interface{}) (interface{}, error) {
+	endpoint := func(context.Context, any) (any, error) {
 		endpointCallCount++
 		return struct{}{}, nil
 	}
@@ -91,7 +91,7 @@ func TestLimitOnlyWhenError(t *testing.T) {
 
 	store, _ := memstore.New(1)
 	limiter := NewErrorMiddleware(store)
-	endpoint := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
+	endpoint := func(context.Context, any) (any, error) { return struct{}{}, nil }
 	wrapped := limiter.Limit(
 		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0}, kitlog.NewNopLogger(),
 	)(endpoint)
@@ -104,7 +104,7 @@ func TestLimitOnlyWhenError(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedError := errors.New("error")
-	failingEndpoint := func(context.Context, interface{}) (interface{}, error) { return nil, expectedError }
+	failingEndpoint := func(context.Context, any) (any, error) { return nil, expectedError }
 	wrappedFailer := limiter.Limit(
 		"test_limit", throttled.RateQuota{MaxRate: throttled.PerHour(1), MaxBurst: 0}, kitlog.NewNopLogger(),
 	)(failingEndpoint)
@@ -133,7 +133,7 @@ func TestNoRateLimitWithoutPublicIP(t *testing.T) {
 	limiter := NewErrorMiddleware(store)
 
 	expectedError := errors.New("error")
-	failingEndpoint := func(context.Context, interface{}) (interface{}, error) {
+	failingEndpoint := func(context.Context, any) (any, error) {
 		return nil, expectedError
 	}
 	wrappedFailer := limiter.Limit(

@@ -7,7 +7,7 @@ import (
 
 // common routines
 
-func writeTemplateToFile(path string, t *template.Template, data interface{}) (string, error) {
+func writeTemplateToFile(path string, t *template.Template, data any) (string, error) {
 	f, e := os.Create(path)
 	if e != nil {
 		return "", e

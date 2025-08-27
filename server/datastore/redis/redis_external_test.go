@@ -73,7 +73,7 @@ func TestEachNode(t *testing.T) {
 			conn = rc
 		}
 
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			_, err := conn.Do("SET", fmt.Sprintf("%s%d", prefix, i), i)
 			require.NoError(t, err)
 		}

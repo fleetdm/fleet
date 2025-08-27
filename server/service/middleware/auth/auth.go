@@ -30,7 +30,7 @@ func AuthViewer(ctx context.Context, sessionKey string, svc fleet.Service) (*vie
 //
 // If auth fails or the user must reset their password, an error is returned.
 func AuthenticatedUser(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
-	authUserFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authUserFunc := func(ctx context.Context, request any) (any, error) {
 		// first check if already successfully set
 		if v, ok := viewer.FromContext(ctx); ok {
 			if v.User.IsAdminForcedPasswordReset() {

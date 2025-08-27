@@ -319,7 +319,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 		return err
 	}
 
-	attrs := []interface{}{
+	attrs := []any{
 		"msg", "created zendesk ticket for failing policy",
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
@@ -332,7 +332,7 @@ func (z *Zendesk) runFailingPolicy(ctx context.Context, cli ZendeskClient, args 
 	return nil
 }
 
-func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, summaryTpl, descTpl *template.Template, args interface{}) (*zendesk.Ticket, error) {
+func (z *Zendesk) createTemplatedTicket(ctx context.Context, cli ZendeskClient, summaryTpl, descTpl *template.Template, args any) (*zendesk.Ticket, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -405,7 +405,7 @@ func QueueZendeskVulnJobs(
 func QueueZendeskFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	policy *fleet.Policy, hosts []fleet.PolicySetHost,
 ) error {
-	attrs := []interface{}{
+	attrs := []any{
 		"enabled", "true",
 		"failing_policy", policy.ID,
 		"hosts_count", len(hosts),

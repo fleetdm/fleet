@@ -68,7 +68,7 @@ func TestCPEDB(t *testing.T) {
 				cols, _ := rows.Columns()
 				for rows.Next() {
 					// Setting up for converting row to a string
-					pointers := make([]interface{}, len(cols))
+					pointers := make([]any, len(cols))
 					container := make([]string, len(cols))
 					for i := range pointers {
 						pointers[i] = &container[i]

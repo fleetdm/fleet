@@ -146,7 +146,7 @@ spec:
 				assert.Equal(t, c.want, got)
 
 				// GitOps
-				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				mdm, ok := specs.AppConfig.(map[string]any)["mdm"].(map[string]any)
 				require.True(t, ok)
 				mdm["macos_settings"] = fleet.MacOSSettings{CustomSettings: c.want}
 				got = extractAppCfgMacOSCustomSettings(specs.AppConfig)
@@ -288,7 +288,7 @@ spec:
 				assert.Equal(t, c.want, got)
 
 				// GitOps
-				mdm, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+				mdm, ok := specs.AppConfig.(map[string]any)["mdm"].(map[string]any)
 				require.True(t, ok)
 				windowsSettings := fleet.WindowsSettings{}
 				windowsSettings.CustomSettings = optjson.SetSlice(c.want)
@@ -952,7 +952,7 @@ func TestGitOpsErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			config := &spec.GitOps{}
-			config.OrgSettings = make(map[string]interface{})
+			config.OrgSettings = make(map[string]any)
 			// Signal that we don't want to send any labels.
 			// This avoids this test attempting to make a request to the GetLabels endpoint.
 			config.Labels = make([]*fleet.LabelSpec, 0)

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ END AS platform
 	return p, nil
 }
 
-func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []interface{}) {
+func getCombinedMDMCommandsQuery(ds *Datastore, hostFilter string) (string, []any) {
 	appleStmt := `
 SELECT
     nvq.id as host_uuid,
@@ -75,7 +76,7 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 WHERE TRUE
 `
 
-	var params []interface{}
+	var params []any
 	appleStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, appleStmt, params)
 	windowsStmtWithFilter, params := ds.whereFilterHostsByIdentifier(hostFilter, windowsStmt, params)
 
@@ -295,7 +296,7 @@ WHERE
 	return results, nil
 }
 
-func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []interface{}) (string, []interface{}) {
+func addRequestTypeFilter(stmt string, filter *fleet.MDMCommandFilters, params []any) (string, []any) {
 	if filter.RequestType != "" {
 		stmt += " AND request_type = ?"
 		params = append(params, filter.RequestType)
@@ -650,11 +651,8 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 		} else {
 			uuidStmt += `team_id IN (?)`
 			args = append(args, teamIDs)
-			for _, tmID := range teamIDs {
-				if tmID == 0 {
-					uuidStmt += ` OR team_id IS NULL`
-					break
-				}
+			if slices.Contains(teamIDs, 0) {
+				uuidStmt += ` OR team_id IS NULL`
 			}
 		}
 
@@ -788,7 +786,7 @@ WHERE
 	AND status IS NOT NULL
 	AND %s IN(?)`
 
-	args := []interface{}{
+	args := []any{
 		host.UUID,
 		fleet.MDMOperationTypeInstall,
 		identifiersOrNames,
@@ -844,13 +842,13 @@ WHERE
 		return fmt.Errorf("unsupported platform %s", host.Platform)
 	}
 
-	args := []interface{}{
+	args := []any{
 		fleet.MDMDeliveryVerifying,
 		fleet.HostMDMProfileDetailFailedWasVerifying,
 		fleet.HostMDMProfileDetailFailedWasVerified,
 		fleet.MDMDeliveryFailed,
 		host.UUID,
-		[]interface{}{
+		[]any{
 			fleet.MDMDeliveryVerifying,
 			fleet.MDMDeliveryVerified,
 		},
@@ -897,10 +895,10 @@ WHERE
 		return fmt.Errorf("unsupported platform %s", host.Platform)
 	}
 
-	args := []interface{}{
+	args := []any{
 		fleet.MDMDeliveryVerified,
 		host.UUID,
-		[]interface{}{
+		[]any{
 			fleet.MDMDeliveryPending,
 			fleet.MDMDeliveryVerifying,
 			fleet.MDMDeliveryFailed,

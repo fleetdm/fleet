@@ -172,10 +172,7 @@ func Setup(
 
 			// Set timer for 180 days before expiry (plus 1 minute buffer)
 			// or 1 hour, whichever is longer
-			renewalTime := timeUntilExpiry - certificateRenewalThreshold + 1*time.Minute
-			if renewalTime < 1*time.Hour {
-				renewalTime = 1 * time.Hour
-			}
+			renewalTime := max(timeUntilExpiry-certificateRenewalThreshold+1*time.Minute, 1*time.Hour)
 
 			// Add random jitter (0-30 minutes) to prevent thundering herd
 			jitter := time.Duration(mathrand.IntN(int(30 * time.Minute))) // nolint:gosec // OK to use weak randomizer since we're just randomizing time jitter

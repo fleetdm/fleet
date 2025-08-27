@@ -7,7 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 )
 
-func getScimDetailsEndpoint(ctx context.Context, _ interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getScimDetailsEndpoint(ctx context.Context, _ any, svc fleet.Service) (fleet.Errorer, error) {
 	details, err := svc.ScimDetails(ctx)
 	if err != nil {
 		return contract.ScimDetailsResponse{Err: err}, nil

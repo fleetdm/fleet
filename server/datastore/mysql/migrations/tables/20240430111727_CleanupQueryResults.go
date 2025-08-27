@@ -63,7 +63,7 @@ func fixDisableAIForNonNewInstallation(tx *sql.Tx) error {
 		return fmt.Errorf("select app_config_json: %w", err)
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.Unmarshal(raw, &config); err != nil {
 		return fmt.Errorf("unmarshal appconfig: %w", err)
 	}
@@ -72,7 +72,7 @@ func fixDisableAIForNonNewInstallation(tx *sql.Tx) error {
 	if !ok {
 		return errors.New("missing server_settings")
 	}
-	serverSettings, ok := ss.(map[string]interface{})
+	serverSettings, ok := ss.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid type for server_settings: %T", ss)
 	}

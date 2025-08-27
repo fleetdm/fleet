@@ -50,7 +50,7 @@ func LoadLicense(licenseKey string) (*fleet.LicenseInfo, error) {
 		licenseKey,
 		&licenseClaims{},
 		// Always use the same public key
-		func(*jwt.Token) (interface{}, error) {
+		func(*jwt.Token) (any, error) {
 			return loadPublicKey()
 		},
 	)

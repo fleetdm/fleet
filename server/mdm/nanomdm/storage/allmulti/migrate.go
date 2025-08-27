@@ -6,7 +6,7 @@ import (
 	"github.com/micromdm/nanolib/log/ctxlog"
 )
 
-func (ms *MultiAllStorage) RetrieveMigrationCheckins(ctx context.Context, c chan<- interface{}) error {
+func (ms *MultiAllStorage) RetrieveMigrationCheckins(ctx context.Context, c chan<- any) error {
 	ctxlog.Logger(ctx, ms.logger).Info(
 		"msg", "only using first store for migration",
 	)

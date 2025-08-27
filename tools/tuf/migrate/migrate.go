@@ -113,7 +113,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 		log.Fatal("failed to read the source targets.json file")
 	}
 
-	var targetsJSON map[string]interface{}
+	var targetsJSON map[string]any
 	if err := json.Unmarshal(targetsBytes, &targetsJSON); err != nil {
 		log.Fatal("failed to parse the source targets.json file")
 	}
@@ -122,7 +122,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 	if signed_ == nil {
 		log.Fatal("missing signed key in targets.json file")
 	}
-	signed, ok := signed_.(map[string]interface{})
+	signed, ok := signed_.(map[string]any)
 	if !ok {
 		log.Fatalf("invalid signed key in targets.json file: %T, expected map", signed_)
 	}
@@ -130,7 +130,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 	if targets_ == nil {
 		log.Fatal("missing signed.targets key in targets.json file")
 	}
-	targets, ok := targets_.(map[string]interface{})
+	targets, ok := targets_.(map[string]any)
 	if !ok {
 		log.Fatalf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
 	}
@@ -154,7 +154,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 			continue
 		}
 
-		metadata, ok := metadata_.(map[string]interface{})
+		metadata, ok := metadata_.(map[string]any)
 		if !ok {
 			log.Fatalf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
 		}
@@ -162,7 +162,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 		if custom_ == nil {
 			log.Fatalf("target: %q: missing custom field", target)
 		}
-		custom, ok := custom_.(map[string]interface{})
+		custom, ok := custom_.(map[string]any)
 		if !ok {
 			log.Fatalf("target: %q: invalid custom field: %T, expected map", target, custom_)
 		}
@@ -187,7 +187,7 @@ func iterateRepository(repositoryDirectory string, fn func(target, targetPath, p
 		if hashes_ == nil {
 			log.Fatalf("target: %q: missing hashes field", target)
 		}
-		hashes, ok := hashes_.(map[string]interface{})
+		hashes, ok := hashes_.(map[string]any)
 		if !ok {
 			log.Fatalf("target: %q: invalid hashes field: %T", target, hashes_)
 		}

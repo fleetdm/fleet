@@ -121,7 +121,7 @@ func BenchmarkCompare(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to unbind WFN from FSB %q: %v", tgt, err)
 	}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// checking error and result adds about 10% of runtime to this benchmark on my machine
 		// and correctness is covered by tests, so skip it
 		_, _ = Compare(srcAttr, tgtAttr)
@@ -139,7 +139,7 @@ func BenchmarkMatch(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to unbind WFN from FSB %q: %v", tgt, err)
 	}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		// checking error and result adds about 10% of runtime to this benchmark on my machine
 		// and correctness is covered by tests, so skip it
 		Match(srcAttr, tgtAttr)
@@ -158,7 +158,7 @@ func BenchmarkIsDisjoint(b *testing.B) {
 		b.Fatalf("failed to unbind WFN from FSB %q: %v", tgt, err)
 	}
 	cmp, _ := Compare(srcAttr, tgtAttr)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		cmp.IsDisjoint()
 	}
 }
@@ -176,7 +176,7 @@ func BenchmarkHasWildcard(b *testing.B) {
 				b.Fatalf("failed to unbind WFN from FSB %q: %v", test, err)
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				HasWildcard(srcAttr.Vendor)
 				HasWildcard(srcAttr.Product)
 			}

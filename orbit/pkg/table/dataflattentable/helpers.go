@@ -4,6 +4,7 @@ package dataflattentable
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
 	"github.com/osquery/osquery-go/plugin/table"
+	"maps"
 )
 
 // ToMap is a helper function to convert Flatten output directly for
@@ -13,9 +14,7 @@ func ToMap(rows []dataflatten.Row, query string, rowData map[string]string) []ma
 
 	for i, row := range rows {
 		res := make(map[string]string, len(rowData)+5)
-		for k, v := range rowData {
-			res[k] = v
-		}
+		maps.Copy(res, rowData)
 
 		p, k := row.ParentKey("/")
 

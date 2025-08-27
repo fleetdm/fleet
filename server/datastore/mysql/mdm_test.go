@@ -720,7 +720,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 	// create 8 labels for label-based profiles
 	var labels []*fleet.Label
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "l" + strconv.Itoa(i), Query: "select 1"})
 		require.NoError(t, err)
 		labels = append(labels, lbl)
@@ -728,7 +728,7 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 
 	// create more profiles and test the pagination with a table-driven test so that
 	// global and team both have 9 profiles (including A and B already created above).
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		inc := i * 4 // e.g. C, D, E, F on first loop, G, H, I, J on second loop, etc.
 
 		// create label-based profiles for i==0, meaning CDEF will be label-based
@@ -1139,7 +1139,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// create some darwin hosts, all enrolled
 	var darwinHosts []*fleet.Host // not pre-allocating, causes gosec false positive
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
@@ -1178,7 +1178,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// create some windows hosts, all enrolled
 	i = 5
 	var windowsHosts []*fleet.Host // not preallocating, causes gosec false positive
-	for j := 0; j < 3; j++ {
+	for j := range 3 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i+j),
 			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i+j)),
@@ -2835,7 +2835,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// create some labels for label-based profiles
 	var labels []*fleet.Label
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "l" + strconv.Itoa(i), Query: "select 1"})
 		require.NoError(t, err)
 		labels = append(labels, lbl)
@@ -5707,8 +5707,8 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 
 		// We cannot control the generated profile UUIDs here so we need to map them back to the
 		// created profiles for test correctness
-		for i := 0; i < len(profs); i++ {
-			for j := 0; j < len(profiles); j++ {
+		for i := range profs {
+			for j := range profiles {
 				if profs[i].Identifier == profiles[j].Identifier {
 					profiles[j].ProfileUUID = profs[i].ProfileUUID
 					break
@@ -7318,7 +7318,7 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 	var hosts []*fleet.Host
 	macHostsByID := make(map[uint]*fleet.Host, 5)
 	winHostsByID := make(map[uint]*fleet.Host, 5)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		p := "windows"
 		if i >= 5 {
 			p = "darwin"
@@ -7799,7 +7799,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// create some "exclude" labels
 	var labels []*fleet.Label
-	for i := 0; i < 6; i++ {
+	for i := range 6 {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-" + strconv.Itoa(i), Query: "select 1"})
 		require.NoError(t, err)
 		labels = append(labels, lbl)

@@ -248,7 +248,7 @@ func saveUsersForTeamDB(ctx context.Context, exec sqlx.ExecerContext, team *flee
 
 	// Bulk insert
 	const valueStr = "(?,?,?),"
-	var args []interface{}
+	var args []any
 	for _, teamUser := range team.Users {
 		args = append(args, teamUser.User.ID, team.ID, teamUser.Role)
 	}

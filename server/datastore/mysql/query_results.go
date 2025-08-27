@@ -64,7 +64,7 @@ func (ds *Datastore) OverwriteQueryResultRows(ctx context.Context, rows []*fleet
 
 		// Insert the new rows
 		valueStrings := make([]string, 0, len(rows))
-		valueArgs := make([]interface{}, 0, len(rows)*4)
+		valueArgs := make([]any, 0, len(rows)*4)
 		for _, row := range rows {
 			valueStrings = append(valueStrings, "(?, ?, ?, ?)")
 			valueArgs = append(valueArgs, queryID, hostID, row.LastFetched, row.Data)

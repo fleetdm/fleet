@@ -1321,7 +1321,7 @@ func createFakeITunesAndVPPServices(t *testing.T) {
 			objs = append(objs, db[a])
 		}
 
-		_, _ = w.Write([]byte(fmt.Sprintf(`{"results": [%s]}`, strings.Join(objs, ","))))
+		_, _ = w.Write(fmt.Appendf(nil, `{"results": [%s]}`, strings.Join(objs, ",")))
 	}))
 	t.Setenv("FLEET_DEV_ITUNES_URL", appleITunesSrv.URL)
 }

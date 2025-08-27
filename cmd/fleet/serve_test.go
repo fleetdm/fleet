@@ -292,8 +292,7 @@ func TestAutomationsSchedule(t *testing.T) {
 		return 10, []uint{1, 2, 3, 4, 5, 6}, nil
 	}
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	failingPoliciesSet := service.NewMemFailingPolicySet()
 	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 5*time.Minute, failingPoliciesSet, false)
@@ -310,8 +309,7 @@ func TestAutomationsSchedule(t *testing.T) {
 
 func TestCronVulnerabilitiesCreatesDatabasesPath(t *testing.T) {
 	t.Parallel()
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -648,8 +646,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 	logger := kitlog.NewNopLogger()
 	logger = level.NewFilter(logger, level.AllowDebug())
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	appConfig := &fleet.AppConfig{
 		Features: fleet.Features{EnableSoftwareInventory: true},
@@ -673,8 +670,7 @@ func TestScanVulnerabilitiesMkdirFailsIfVulnPathIsFile(t *testing.T) {
 }
 
 func TestCronVulnerabilitiesSkipMkdirIfDisabled(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	ds := new(safeStore)
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -803,8 +799,7 @@ func TestAutomationsScheduleLockDuration(t *testing.T) {
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 1*time.Second, service.NewMemFailingPolicySet(), false)
 	require.NoError(t, err)
@@ -869,15 +864,14 @@ func TestAutomationsScheduleIntervalChange(t *testing.T) {
 	ds.InsertCronStatsFunc = mockStatsStore.InsertCronStats
 	ds.UpdateCronStatsFunc = mockStatsStore.UpdateCronStats
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	s, err := newAutomationsSchedule(ctx, "test_instance", ds, kitlog.NewNopLogger(), 200*time.Millisecond, service.NewMemFailingPolicySet(), false)
 	require.NoError(t, err)
 	s.Start()
 
 	// wait for config to be called once by startAutomationsSchedule and again by configReloadFunc
-	for c := 0; c < 2; c++ {
+	for range 2 {
 		select {
 		case <-configLoaded:
 		case <-time.After(5 * time.Second):

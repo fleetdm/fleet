@@ -209,10 +209,10 @@ func getOptionalResource[T string | bool](attributes scim.ResourceAttributes, ke
 	return valPtr, nil
 }
 
-func getComplexResource(attributes scim.ResourceAttributes, key string) (map[string]interface{}, error) {
+func getComplexResource(attributes scim.ResourceAttributes, key string) (map[string]any, error) {
 	valIntf, ok := attributes[key]
 	if ok && valIntf != nil {
-		val, ok := valIntf.(map[string]interface{})
+		val, ok := valIntf.(map[string]any)
 		if !ok {
 			return nil, errors.ScimErrorBadParams([]string{key})
 		}
@@ -221,16 +221,16 @@ func getComplexResource(attributes scim.ResourceAttributes, key string) (map[str
 	return nil, nil
 }
 
-func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]map[string]interface{}, error) {
+func getComplexResourceSlice(attributes scim.ResourceAttributes, key string) ([]map[string]any, error) {
 	valIntf, ok := attributes[key]
 	if ok && valIntf != nil {
-		valSliceIntf, ok := valIntf.([]interface{})
+		valSliceIntf, ok := valIntf.([]any)
 		if !ok {
 			return nil, errors.ScimErrorBadParams([]string{key})
 		}
-		val := make([]map[string]interface{}, 0, len(valSliceIntf))
+		val := make([]map[string]any, 0, len(valSliceIntf))
 		for _, v := range valSliceIntf {
-			valMap, ok := v.(map[string]interface{})
+			valMap, ok := v.(map[string]any)
 			if !ok {
 				return nil, errors.ScimErrorBadParams([]string{key})
 			}
@@ -301,7 +301,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 	if len(user.Groups) > 0 {
 		groups := make([]scim.ResourceAttributes, 0, len(user.Groups))
 		for _, group := range user.Groups {
-			groups = append(groups, map[string]interface{}{
+			groups = append(groups, map[string]any{
 				valueAttr: scimGroupID(group.ID),
 				"$ref":    "Groups/" + scimGroupID(group.ID),
 				"display": group.DisplayName,
@@ -334,10 +334,7 @@ func createUserResource(user *fleet.ScimUser) scim.Resource {
 // totalResults: The total number of results returned by the list or query operation.  The value may be larger than the number of
 // resources returned, such as when returning a single page (see Section 3.4.2.4) of results where multiple pages are available.
 func (u *UserHandler) GetAll(r *http.Request, params scim.ListRequestParams) (scim.Page, error) {
-	startIndex := params.StartIndex
-	if startIndex < 1 {
-		startIndex = 1
-	}
+	startIndex := max(params.StartIndex, 1)
 	count := params.Count
 	if count > maxResults {
 		return scim.Page{}, errors.ScimErrorTooMany
@@ -482,7 +479,7 @@ func (u *UserHandler) Patch(r *http.Request, id string, operations []scim.PatchO
 				level.Info(u.logger).Log("msg", "the 'path' attribute is REQUIRED for 'remove' operations", "op", op.Op)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 			}
-			newValues, ok := op.Value.(map[string]interface{})
+			newValues, ok := op.Value.(map[string]any)
 			if !ok {
 				level.Info(u.logger).Log("msg", "unsupported patch value", "value", op.Value)
 				return scim.Resource{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -625,15 +622,15 @@ func (u *UserHandler) patchEmailsWithPathFiltering(op scim.PatchOperation, user 
 		}
 
 		// For add and replace operations, we need to extract the emails
-		var emailsList []interface{}
+		var emailsList []any
 		// Handle different value formats
 		switch val := op.Value.(type) {
-		case []interface{}:
+		case []any:
 			// Direct array of members
 			emailsList = val
-		case map[string]interface{}:
+		case map[string]any:
 			// Single member as a map
-			emailsList = []interface{}{val}
+			emailsList = []any{val}
 		default:
 			level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
 			return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -759,7 +756,7 @@ func (u *UserHandler) getEmailType(op scim.PatchOperation) (string, error) {
 	return emailType, nil
 }
 
-func getConcreteType[T string | bool](u *UserHandler, v interface{}, name string) (T, error) {
+func getConcreteType[T string | bool](u *UserHandler, v any, name string) (T, error) {
 	concreteType, ok := v.(T)
 	if !ok {
 		var zeroValue T
@@ -769,7 +766,7 @@ func getConcreteType[T string | bool](u *UserHandler, v interface{}, name string
 	return concreteType, nil
 }
 
-func (u *UserHandler) patchFamilyName(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchFamilyName(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr+"."+familyNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -782,7 +779,7 @@ func (u *UserHandler) patchFamilyName(op string, v interface{}, user *fleet.Scim
 	return nil
 }
 
-func (u *UserHandler) patchGivenName(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchGivenName(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr+"."+givenNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -795,7 +792,7 @@ func (u *UserHandler) patchGivenName(op string, v interface{}, user *fleet.ScimU
 	return nil
 }
 
-func (u *UserHandler) patchActive(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchActive(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.Active = nil
 		return nil
@@ -808,7 +805,7 @@ func (u *UserHandler) patchActive(op string, v interface{}, user *fleet.ScimUser
 	return nil
 }
 
-func (u *UserHandler) patchExternalId(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchExternalId(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.ExternalID = nil
 		return nil
@@ -821,7 +818,7 @@ func (u *UserHandler) patchExternalId(op string, v interface{}, user *fleet.Scim
 	return nil
 }
 
-func (u *UserHandler) patchUserName(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchUserName(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove {
 		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", userNameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -838,7 +835,7 @@ func (u *UserHandler) patchUserName(op string, v interface{}, user *fleet.ScimUs
 	return nil
 }
 
-func (u *UserHandler) patchDepartment(op string, v interface{}, user *fleet.ScimUser) error {
+func (u *UserHandler) patchDepartment(op string, v any, user *fleet.ScimUser) error {
 	if op == scim.PatchOperationRemove || v == nil {
 		user.Department = nil
 		return nil
@@ -859,22 +856,22 @@ func clearPrimaryFlagFromEmails(user *fleet.ScimUser) {
 	}
 }
 
-func (u *UserHandler) patchEmails(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+func (u *UserHandler) patchEmails(v any, op scim.PatchOperation, user *fleet.ScimUser) error {
 	if op.Op == scim.PatchOperationRemove {
 		user.Emails = nil
 		return nil
 	}
 
 	// For add and replace operations, we need to extract the emails
-	var emailsList []interface{}
+	var emailsList []any
 	// Handle different value formats
 	switch val := v.(type) {
-	case []interface{}:
+	case []any:
 		// Direct array of members
 		emailsList = val
-	case map[string]interface{}:
+	case map[string]any:
 		// Single member as a map
-		emailsList = []interface{}{val}
+		emailsList = []any{val}
 	default:
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", emailsAttr), "value", op.Value)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -925,8 +922,8 @@ func (u *UserHandler) checkEmailPrimary(userEmails []fleet.ScimUserEmail) (bool,
 	return primaryEmailCount > 0, nil
 }
 
-func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
-	emailMap, ok := emailIntf.(map[string]interface{})
+func (u *UserHandler) extractEmail(emailIntf any, op scim.PatchOperation) (fleet.ScimUserEmail, error) {
+	emailMap, ok := emailIntf.(map[string]any)
 	if !ok {
 		level.Info(u.logger).Log("msg", "email is not a map", "email", emailIntf)
 		return fleet.ScimUserEmail{}, errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
@@ -965,12 +962,12 @@ func (u *UserHandler) extractEmail(emailIntf interface{}, op scim.PatchOperation
 	return userEmail, nil
 }
 
-func (u *UserHandler) patchName(v interface{}, op scim.PatchOperation, user *fleet.ScimUser) error {
+func (u *UserHandler) patchName(v any, op scim.PatchOperation, user *fleet.ScimUser) error {
 	if op.Op == scim.PatchOperationRemove {
 		level.Info(u.logger).Log("msg", "cannot remove required attribute", "attribute", nameAttr)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})
 	}
-	name, ok := v.(map[string]interface{})
+	name, ok := v.(map[string]any)
 	if !ok {
 		level.Info(u.logger).Log("msg", fmt.Sprintf("unsupported '%s' patch value", nameAttr), "value", op.Value)
 		return errors.ScimErrorBadParams([]string{fmt.Sprintf("%v", op)})

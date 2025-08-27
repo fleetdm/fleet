@@ -6,7 +6,7 @@ import (
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
-func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyAppConfig(payload any, opts fleet.ApplySpecOptions) error {
 	verb, path := "PATCH", "/api/latest/fleet/config"
 	var responseBody appConfigResponse
 	return c.authenticatedRequestWithQuery(payload, verb, path, &responseBody, opts.RawQuery())
@@ -23,7 +23,7 @@ func (c *Client) ApplyNoTeamProfiles(profiles []fleet.MDMProfileBatchPayload, op
 		}
 		query += "assume_enabled=true"
 	}
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query)
+	return c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query)
 }
 
 // GetAppConfig fetches the application config from the server API

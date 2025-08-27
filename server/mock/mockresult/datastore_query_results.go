@@ -13,7 +13,7 @@ var _ fleet.QueryResultStore = (*QueryResultStore)(nil)
 
 type WriteResultFunc func(result fleet.DistributedQueryResult) error
 
-type ReadChannelFunc func(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error)
+type ReadChannelFunc func(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan any, error)
 
 type HealthCheckFunc func() error
 
@@ -37,7 +37,7 @@ func (s *QueryResultStore) WriteResult(result fleet.DistributedQueryResult) erro
 	return s.WriteResultFunc(result)
 }
 
-func (s *QueryResultStore) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
+func (s *QueryResultStore) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan any, error) {
 	s.mu.Lock()
 	s.ReadChannelFuncInvoked = true
 	s.mu.Unlock()

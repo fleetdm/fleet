@@ -53,7 +53,7 @@ func (svc *launcherWrapper) RequestConfig(ctx context.Context, nodeKey string) (
 		return "", false, ctxerr.Wrap(ctx, err, "get config for launcher")
 	}
 
-	if options, ok := config["options"].(map[string]interface{}); ok {
+	if options, ok := config["options"].(map[string]any); ok {
 		// Launcher manages plugins so remove them from configuration if they exist.
 		for _, optionName := range []string{"distributed_plugin", "logger_plugin"} {
 			delete(options, optionName)

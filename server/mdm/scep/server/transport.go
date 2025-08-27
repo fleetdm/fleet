@@ -64,7 +64,7 @@ func MakeHTTPHandlerWithIdentifier(e *Endpoints, rootPath string, logger kitlog.
 }
 
 // EncodeSCEPRequest encodes a SCEP HTTP Request. Used by the client.
-func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}) error {
+func EncodeSCEPRequest(ctx context.Context, r *http.Request, request any) error {
 	req := request.(SCEPRequest)
 	params := r.URL.Query()
 	params.Set("operation", req.Operation)
@@ -101,7 +101,7 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 
 const maxPayloadSize = 2 << 20
 
-func decodeSCEPRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func decodeSCEPRequest(ctx context.Context, r *http.Request) (any, error) {
 	msg, err := message(r)
 	if err != nil {
 		return nil, err
@@ -121,7 +121,7 @@ func decodeSCEPRequest(ctx context.Context, r *http.Request) (interface{}, error
 	return request, nil
 }
 
-func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (interface{}, error) {
+func decodeSCEPRequestWithIdentifier(_ context.Context, r *http.Request) (any, error) {
 	msg, err := message(r)
 	if err != nil {
 		return nil, err
@@ -207,7 +207,7 @@ func (e *TimeoutError) Error() string {
 func (e *TimeoutError) StatusCode() int { return http.StatusRequestTimeout }
 
 // EncodeSCEPResponse writes a SCEP response back to the SCEP client.
-func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response any) error {
 	resp := response.(SCEPResponse)
 	if resp.Err != nil {
 		status := http.StatusInternalServerError
@@ -225,7 +225,7 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 }
 
 // DecodeSCEPResponse decodes a SCEP response
-func DecodeSCEPResponse(ctx context.Context, r *http.Response) (interface{}, error) {
+func DecodeSCEPResponse(ctx context.Context, r *http.Response) (any, error) {
 	if r.StatusCode != http.StatusOK && r.StatusCode >= 400 {
 		body, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
 		return nil, fmt.Errorf("http request failed with status %s, msg: %s",

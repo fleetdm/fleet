@@ -94,14 +94,14 @@ func parseCodesignOutput(output []byte) parsedInfo {
 	var info parsedInfo
 	for scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, teamIdentifierPrefix) {
-			info.teamIdentifier = strings.TrimSpace(strings.TrimPrefix(line, teamIdentifierPrefix))
+		if after, ok := strings.CutPrefix(line, teamIdentifierPrefix); ok {
+			info.teamIdentifier = strings.TrimSpace(after)
 			// "not set" is usually displayed on Apple builtin apps.
 			if info.teamIdentifier == "not set" {
 				info.teamIdentifier = ""
 			}
-		} else if strings.HasPrefix(line, cdHashPrefix) {
-			info.cdHash = strings.TrimSpace(strings.TrimPrefix(line, cdHashPrefix))
+		} else if after, ok := strings.CutPrefix(line, cdHashPrefix); ok {
+			info.cdHash = strings.TrimSpace(after)
 		}
 	}
 	return info

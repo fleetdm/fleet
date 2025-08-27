@@ -28,7 +28,7 @@ type addFleetMaintainedAppResponse struct {
 
 func (r addFleetMaintainedAppResponse) Error() error { return r.Err }
 
-func addFleetMaintainedAppEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func addFleetMaintainedAppEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*addFleetMaintainedAppRequest)
 	ctx, cancel := context.WithTimeout(ctx, maintained_apps.InstallerTimeout)
 	defer cancel()

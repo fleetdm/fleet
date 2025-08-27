@@ -9,7 +9,7 @@ import (
 )
 
 func (ds *Datastore) GetLinuxDiskEncryptionSummary(ctx context.Context, teamID *uint) (fleet.MDMLinuxDiskEncryptionSummary, error) {
-	var args []interface{}
+	var args []any
 	var teamFilter string
 	if teamID != nil {
 		teamFilter = "AND h.team_id = ?"

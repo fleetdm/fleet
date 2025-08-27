@@ -262,7 +262,7 @@ func TestActiveHostIDsSet(t *testing.T) {
 
 func createHosts(t *testing.T, ds fleet.Datastore, count int, ts time.Time) []uint {
 	ids := make([]uint, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		host, err := ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: ts,
 			LabelUpdatedAt:  ts,

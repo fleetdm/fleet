@@ -103,7 +103,7 @@ func (r appConfigResponse) MarshalJSON() ([]byte, error) {
 
 func (r appConfigResponse) Error() error { return r.Err }
 
-func getAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getAppConfigEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return nil, errors.New("could not fetch user")
@@ -254,7 +254,7 @@ type modifyAppConfigRequest struct {
 	json.RawMessage
 }
 
-func modifyAppConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func modifyAppConfigEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyAppConfigRequest)
 	appConfig, err := svc.ModifyAppConfig(ctx, req.RawMessage, fleet.ApplySpecOptions{
 		Force:     req.Force,
@@ -2005,7 +2005,7 @@ type applyEnrollSecretSpecResponse struct {
 
 func (r applyEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func applyEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func applyEnrollSecretSpecEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyEnrollSecretSpecRequest)
 	err := svc.ApplyEnrollSecretSpec(
 		ctx, req.Spec, fleet.ApplySpecOptions{
@@ -2059,7 +2059,7 @@ type getEnrollSecretSpecResponse struct {
 
 func (r getEnrollSecretSpecResponse) Error() error { return r.Err }
 
-func getEnrollSecretSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getEnrollSecretSpecEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetEnrollSecretSpec(ctx)
 	if err != nil {
 		return getEnrollSecretSpecResponse{Err: err}, nil
@@ -2090,7 +2090,7 @@ type versionResponse struct {
 
 func (r versionResponse) Error() error { return r.Err }
 
-func versionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func versionEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	info, err := svc.Version(ctx)
 	if err != nil {
 		return versionResponse{Err: err}, nil
@@ -2118,7 +2118,7 @@ type getCertificateResponse struct {
 
 func (r getCertificateResponse) Error() error { return r.Err }
 
-func getCertificateEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getCertificateEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	chain, err := svc.CertificateChain(ctx)
 	if err != nil {
 		return getCertificateResponse{Err: err}, nil

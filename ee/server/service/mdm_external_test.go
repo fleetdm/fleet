@@ -353,7 +353,7 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 			} else {
 				jobTask = string(worker.MacosSetupAssistantProfileChanged)
 			}
-			wantArgs, err := json.Marshal(map[string]interface{}{
+			wantArgs, err := json.Marshal(map[string]any{
 				"task":    jobTask,
 				"team_id": lastTeamID,
 			})

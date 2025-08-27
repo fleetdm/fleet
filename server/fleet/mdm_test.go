@@ -694,7 +694,7 @@ func TestFilterMacOSOnlyProfilesFromIOSIPadOS(t *testing.T) {
 	} {
 		actualProfiles := fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(tc.profiles)
 		require.Equal(t, len(actualProfiles), len(tc.expectedProfiles))
-		for i := 0; i < len(actualProfiles); i++ {
+		for i := range actualProfiles {
 			require.Equal(t, *actualProfiles[i], *tc.expectedProfiles[i])
 		}
 

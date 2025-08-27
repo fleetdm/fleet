@@ -194,7 +194,7 @@ func (ds *Datastore) QueryByName(
 		FROM queries
 		WHERE name = ?
 	`
-	args := []interface{}{name}
+	args := []any{name}
 	whereClause := " AND team_id_char = ''"
 	if teamID != nil {
 		args = append(args, fmt.Sprint(*teamID))
@@ -429,7 +429,7 @@ func (ds *Datastore) deleteQueryResults(ctx context.Context, queryID uint) error
 
 func (ds *Datastore) DeleteQuery(ctx context.Context, teamID *uint, name string) error {
 	selectStmt := "SELECT id FROM queries WHERE name = ?"
-	args := []interface{}{name}
+	args := []any{name}
 	whereClause := " AND team_id_char = ''"
 	if teamID != nil {
 		args = append(args, fmt.Sprint(*teamID))
@@ -612,7 +612,7 @@ func (ds *Datastore) ListQueries(ctx context.Context, opt fleet.ListQueryOptions
 		LEFT JOIN aggregated_stats ag ON (ag.id = q.id AND ag.global_stats = ? AND ag.type = ?)
 	`
 
-	args := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery}
+	args := []any{false, fleet.AggregatedStatsTypeScheduledQuery}
 	whereClauses := "WHERE saved = true"
 
 	switch {
@@ -829,7 +829,7 @@ func (ds *Datastore) ListScheduledQueriesForAgents(ctx context.Context, teamID *
 			)
 		)%s`
 
-	args := []interface{}{}
+	args := []any{}
 	teamSQL := " team_id IS NULL"
 	if teamID != nil {
 		args = append(args, *teamID)
@@ -916,10 +916,10 @@ func (ds *Datastore) UpdateLiveQueryStats(ctx context.Context, queryID uint, sta
 		strings.Repeat(valueStr, len(stats))
 	stmt = strings.TrimSuffix(stmt, ",")
 
-	var args []interface{}
+	var args []any
 	for _, s := range stats {
 		// Handle zero time value
-		var lastExecuted interface{} = s.LastExecuted
+		var lastExecuted any = s.LastExecuted
 		if s.LastExecuted.IsZero() {
 			lastExecuted = nil
 		}

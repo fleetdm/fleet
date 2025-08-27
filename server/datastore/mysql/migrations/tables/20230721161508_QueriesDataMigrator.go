@@ -68,7 +68,7 @@ func _20230719152138_migrate_global_packs(tx *sql.Tx) error {
 	}
 	defer rows.Close()
 
-	var args []interface{}
+	var args []any
 	var nRows int
 
 	for rows.Next() {
@@ -181,7 +181,7 @@ func _20230719152138_migrate_team_packs(tx *sql.Tx) error {
 	}
 	defer rows.Close()
 
-	var args []interface{}
+	var args []any
 	var nRows int
 
 	for rows.Next() {
@@ -302,7 +302,7 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 	}
 	defer rows.Close()
 
-	var args []interface{}
+	var args []any
 	var nRows int
 
 	for rows.Next() {
@@ -318,8 +318,8 @@ func _20230719152138_migrate_non_scheduled(tx *sql.Tx) error {
 		); err != nil {
 			return fmt.Errorf("error executing 'Scan' for non-scheduled queries: %s", err)
 		}
-		teamRoles := strings.Split(query.TeamRoles, ",")
-		for _, teamRole := range teamRoles {
+		teamRoles := strings.SplitSeq(query.TeamRoles, ",")
+		for teamRole := range teamRoles {
 			teamRoleParts := strings.Split(teamRole, ":")
 
 			role := teamRoleParts[1]

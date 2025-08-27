@@ -798,7 +798,7 @@ func (c *GoogleCalendar) StopEventChannel(event *fleet.CalendarEvent) error {
 	return nil
 }
 
-func (c *GoogleCalendar) Get(event *fleet.CalendarEvent, key string) (interface{}, error) {
+func (c *GoogleCalendar) Get(event *fleet.CalendarEvent, key string) (any, error) {
 	if key == "channelID" {
 		details, err := c.unmarshalDetails(event)
 		if err != nil {
