@@ -40,6 +40,8 @@ interface ISoftwareDetailsSummaryProps {
   iconUrl?: string;
   /** Displays OS icon instead of Software icon */
   isOperatingSystem?: boolean;
+  /** Displays an edit CTA to edit the software's icon
+   * Should only be defined for team view of an installable software */
   onClickEditIcon?: () => void;
 }
 

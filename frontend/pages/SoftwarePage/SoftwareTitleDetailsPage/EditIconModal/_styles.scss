@@ -1,4 +1,9 @@
 .edit-icon-modal {
+  h2 {
+    font-size: $medium;
+    font-weight: $regular;
+  }
+
   &__preview-card {
     max-height: 203px;
     overflow: hidden;
@@ -26,18 +31,22 @@
 
   &__self-service-preview {
     position: relative;
-    top: -72px;
-    left: 186px;
+    top: -70px;
+    left: 188px;
     display: flex;
-    gap: $pad-xsmall;
+    gap: $pad-small;
     font-size: 12px;
     align-items: center;
+
+    .software-icon__xsmall {
+      border-radius: $border-radius-small;
+    }
   }
 
   &__mask-overlay {
     position: relative;
     width: 550px;
-    height: 135px;
+
     background: linear-gradient(
       180deg,
       rgba(249, 250, 252, 0) 0%,
@@ -47,9 +56,11 @@
 
     &--fleet {
       bottom: 156px;
+      height: 135px;
     }
     &--self-service {
       bottom: 200px;
+      height: 75px;
     }
   }
 
