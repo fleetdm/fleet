@@ -11,11 +11,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const (
-	// campaignTargetsCleanupBatchSize is the batch size for deleting campaign targets
-	campaignTargetsCleanupBatchSize = 10000
-)
-
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	args := []any{camp.QueryID, camp.Status, camp.UserID}
 
@@ -206,7 +201,38 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 // completed for more than the specified duration. This helps improve campaign performance by
 // cleaning up historical data that is no longer needed.
 func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error) {
-	// First, get the IDs of targets to delete. We select targets from campaigns that:
+	// First, count total eligible targets to determine cleanup limit
+	const countStmt = `
+		SELECT COUNT(*)
+		FROM distributed_query_campaign_targets dqct
+		INNER JOIN distributed_query_campaigns dqc 
+			ON dqc.id = dqct.distributed_query_campaign_id
+		WHERE dqc.status = ?
+		AND dqc.updated_at < ?
+	`
+
+	var totalEligible uint
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &totalEligible, countStmt, fleet.QueryComplete, olderThan)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "counting eligible campaign targets for cleanup")
+	}
+
+	if totalEligible == 0 {
+		return 0, nil
+	}
+
+	// Calculate max to delete: 10% of eligible or minimum 50k, whichever is larger
+	// BUT never more than what actually exists
+	maxToDelete := uint(float64(totalEligible) * fleet.CampaignTargetsCleanupPercentPerRun)
+	if maxToDelete < fleet.CampaignTargetsCleanupMinPerRun {
+		maxToDelete = fleet.CampaignTargetsCleanupMinPerRun
+	}
+	// Don't try to delete more than what exists
+	if maxToDelete > totalEligible {
+		maxToDelete = totalEligible
+	}
+
+	// Select targets to delete. We select targets from campaigns that:
 	// 1. Have status = QueryComplete
 	// 2. Were updated before the olderThan timestamp
 	const selectTargetsStmt = `
@@ -223,10 +249,16 @@ func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderT
 	var totalDeleted uint
 
 	// Process deletions in batches to avoid locking issues and memory problems
-	for {
+	for totalDeleted < maxToDelete {
+		// Adjust batch size if we're close to the max limit
+		batchSize := fleet.CampaignTargetsCleanupBatchSize
+		if remaining := maxToDelete - totalDeleted; remaining < uint(fleet.CampaignTargetsCleanupBatchSize) {
+			batchSize = int(remaining)
+		}
+
 		var targetIDs []uint
 		err := sqlx.SelectContext(ctx, ds.reader(ctx), &targetIDs, selectTargetsStmt,
-			fleet.QueryComplete, olderThan, campaignTargetsCleanupBatchSize)
+			fleet.QueryComplete, olderThan, batchSize)
 		if err != nil {
 			return totalDeleted, ctxerr.Wrap(ctx, err, "selecting campaign targets for cleanup")
 		}
@@ -255,10 +287,13 @@ func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderT
 
 		totalDeleted += uint(deleted) //nolint:gosec // dismiss G115
 
-		// If we deleted less than the batch size, we're done
-		if len(targetIDs) < campaignTargetsCleanupBatchSize {
+		// If we found less than the batch size, we're done (no more rows to delete)
+		if len(targetIDs) < batchSize {
 			break
 		}
+
+		// Sleep briefly between batches to avoid overloading the database.
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	return totalDeleted, nil

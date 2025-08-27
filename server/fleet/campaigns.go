@@ -10,6 +10,19 @@ const (
 	QueryComplete
 )
 
+// Campaign cleanup constants
+const (
+	// CampaignTargetsCleanupBatchSize is the batch size for deleting campaign targets
+	CampaignTargetsCleanupBatchSize int = 10000
+
+	// CampaignTargetsCleanupMinPerRun is the minimum number of targets to delete in a single run
+	CampaignTargetsCleanupMinPerRun uint = 50000
+
+	// CampaignTargetsCleanupPercentPerRun is the percentage of total eligible targets to delete per run
+	// We delete 10% of eligible targets or the minimum, whichever is larger
+	CampaignTargetsCleanupPercentPerRun = 0.10 // 10%
+)
+
 // DistributedQueryCampaign is the basic metadata associated with a distributed
 // query.
 type DistributedQueryCampaign struct {
