@@ -125,8 +125,8 @@ Here are some topics for social media posts:
 - Fleet the product
 - Internal progress
 - Highlighting community contributions
-- Highlighting Fleet and osquery accomplishments
-- Industry news about osquery
+- Highlighting Fleet, osquery, and Mac Admins open-source accomplishments
+- Industry news about osquery 
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
