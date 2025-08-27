@@ -9466,6 +9466,7 @@ Get a list of all software.
         ],
       },
       "app_store_app": null,
+      "in_house_app": null,
       "versions_count": 3,
       "source": "apps",
       "hosts_count": 48,
@@ -9493,6 +9494,7 @@ Get a list of all software.
       "name": "Google Chrome.app",
       "software_package": null,
       "app_store_app": null,
+      "in_house_app": null,
       "versions_count": 5,
       "source": "apps",
       "hosts_count": 345,
@@ -9525,6 +9527,7 @@ Get a list of all software.
       "name": "1Password – Password Manager",
       "software_package": null,
       "app_store_app": null,
+      "in_house_app": null,
       "versions_count": 1,
       "source": "chrome_extensions",
       "browser": "chrome",
@@ -9725,12 +9728,6 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
-    "available_software": {
-      "fleet_maintained_app": {
-        "id": 4
-      },
-      "app_store_app": null
-    },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9768,6 +9765,7 @@ Returns information about the specified software. By default, `versions` are sor
       }
     },
     "app_store_app": null,
+    "in_house_app": null,
     "counts_updated_at": "2024-11-03T22:39:36Z",
     "source": "apps",
     "hosts_count": 48,
@@ -9809,12 +9807,6 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "bundle_identifier": "com.apple.logic10",
-    "available_software": {
-      "fleet_maintained_app": null,
-      "app_store_app": {
-        "app_store_id": "8675309"
-      }
-    },
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
@@ -9838,6 +9830,7 @@ Returns information about the specified software. By default, `versions` are sor
         "failed": 2,
       }
     },
+    "in_house_app": null,
     "source": "apps",
     "hosts_count": 48,
     "versions": [
@@ -9851,6 +9844,51 @@ Returns information about the specified software. By default, `versions` are sor
   }
 }
 ```
+
+#### Example (in-house iOS app)
+
+`GET /api/v1/fleet/software/titles/16`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 16,
+    "name": "MyBetaApp",
+    "bundle_identifier": "com.myapp.test",
+    "software_package": null,
+    "app_store_app": null,
+    "in_house_app": {
+      "package_name": "beta-app-6.44.ipa",
+      "version": "6.44",
+      "platform": "ios",
+      "installer_id": 44,
+      "team_id": 3,
+      "uploaded_at": "2025-08-27T16:33:58Z",
+      "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "status": {
+        "installed": 24,
+        "pending": 2,
+        "failed": 0,
+      }
+    },
+    "source": "ios_apps",
+    "hosts_count": 24,
+    "versions": [
+      {
+        "id": 123,
+        "version": "6.44",
+        "vulnerabilities": [],
+        "hosts_count": 24
+      }
+    ]
+  }
+}
+```
+
 
 ### Get software version
 
