@@ -130,12 +130,9 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 			// > DISABLED are the only allowable values.
 			State: "ACTIVE",
 		}
-		skip, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
+		_, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
-		}
-		if skip {
-			continue
 		}
 
 		// From what I can see in tests, after the PATCH /devices, the device
