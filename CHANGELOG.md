@@ -1,3 +1,9 @@
+## Fleet 4.72.1 (Aug 27, 2025)
+
+### Bug fixes
+
+* Fixes a potential race condition issue, where a host might get released because no profiles has been sent for installation before releasing the device, by checking the currently installed profiles against what is expected.
+
 ## Fleet 4.72.0 (Aug 13, 2025)
 
 ### Security Engineers
