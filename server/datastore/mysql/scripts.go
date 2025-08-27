@@ -2310,13 +2310,13 @@ FROM (
 
   -- If batch is not finished, calculate the host result counts live.
   SELECT
-    COUNT(*)                                AS num_targeted,
+    COUNT(bahr.host_id)                     AS num_targeted,
     COUNT(bahr.error)                       AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
     COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
     COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
     (
-      COUNT(*)
+      COUNT(bahr.host_id)
       - COUNT(bahr.error)
       - COUNT(IF(hsr.exit_code = 0, 1, NULL))
       - COUNT(IF(hsr.exit_code > 0, 1, NULL))
@@ -2333,11 +2333,11 @@ FROM (
     ba.created_at                           AS created_at,
     j.not_before                            AS not_before,
     ba.id                                   AS id
-  FROM batch_activity_host_results bahr
+  FROM batch_activities ba 
+  LEFT JOIN batch_activity_host_results bahr
+         ON ba.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results hsr
          ON bahr.host_execution_id = hsr.execution_id
-  JOIN batch_activities ba
-         ON ba.execution_id = bahr.batch_execution_id
   JOIN scripts s
          ON ba.script_id = s.id
   LEFT JOIN jobs j
