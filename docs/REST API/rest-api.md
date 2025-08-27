@@ -9398,6 +9398,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
+- [Add in-house iOS or iPadOS app](#add-in-house-ios-or-ipados-app)
 - [Install software](#install-software)
 - [Uninstall software](#uninstall-software)
 - [Get software install result](#get-software-install-result)
@@ -10485,6 +10486,151 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```json
 {
   "software_title_id": 234
+}
+```
+
+### Add in-house iOS or iPadOS app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Add an in-house `.ipa` package so it's available for install.
+
+`POST /api/v1/fleet/software/in_house_app`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| software        | file    | form | **Required**. In-house app file (.ipa). |
+| team_id         | integer | form | **Required**. The team ID. Adds a software to the specified team. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+#### Example
+
+`POST /api/v1/fleet/software/in_house_app`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="beta-app-6.44.ipa"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "in_house_app": {
+    "title_id": 123,
+    "name": "MyBetaApp",
+    "version": "6.44",
+    "platform": "darwin",
+    "installer_id": 23,
+    "team_id": 1,
+    "uploaded_at": "2024-04-01T14:22:58Z",
+    "hash_sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "url": "",
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
+```
+
+### Modify in-house iOS or iPadOS app
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+_Available in Fleet Premium._
+
+Update in-house `.ipa` package.
+
+`PATCH /api/v1/fleet/software/:id/in_house_app`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                      |
+| ----            | ------- | ---- | --------------------------------------------     |
+| id              | integer | path | **Required**. ID of the software title being updated. |
+| software        | file    | form | **Required**. In-house app file (.ipa). |
+| team_id         | integer | form | **Required**. The team ID. Adds software to the specified team. |
+| labels_include_any        | array     | form | Target hosts that have any label in the array. |
+| labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
+
+Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+#### Example
+
+`PATCH /api/v1/fleet/software//123/in_house_app`
+
+##### Request header
+
+```http
+Content-Length: 8500
+Content-Type: multipart/form-data; boundary=------------------------d8c247122f594ba0
+```
+
+##### Request body
+
+```http
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="team_id"
+1
+--------------------------d8c247122f594ba0
+Content-Disposition: form-data; name="software"; filename="beta-app-6.50.ipa"
+Content-Type: application/octet-stream
+<BINARY_DATA>
+--------------------------d8c247122f594ba0
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "in_house_app": {
+    "title_id": 123,
+    "name": "MyBetaApp",
+    "version": "6.50",
+    "platform": "darwin",
+    "installer_id": 24,
+    "team_id": 1,
+    "uploaded_at": "2025-04-01T14:22:58Z",
+    "hash_sha256": "5123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "url": "",
+    "labels_include_any": null,
+    "labels_exclude_any": null,
+    "status": {
+      "installed": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  }
 }
 ```
 
