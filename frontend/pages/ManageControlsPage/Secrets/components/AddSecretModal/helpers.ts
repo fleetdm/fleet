@@ -53,9 +53,9 @@ const FORM_VALIDATIONS: IFormValidations = {
       {
         name: "notTooLong",
         isValid: (formData: IAddSecretModalScheduleFormData) => {
-          return formData.name.length <= 256;
+          return formData.name.length <= 255;
         },
-        message: "Name may not exceed 256 characters",
+        message: "Name may not exceed 255 characters",
       },
       {
         name: "doesNotIncludePrefix",
