@@ -28,6 +28,7 @@ import {
 } from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { IPackageFormData } from "pages/SoftwarePage/components/forms/PackageForm/PackageForm";
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
+import { getFileDetails } from "utilities/file/fileUtils";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
 import { getErrorMessage } from "./helpers";
@@ -38,6 +39,8 @@ const baseClass = "edit-icon-modal";
 const ACCEPTED_EXTENSIONS = ".png";
 const UPLOAD_MESSAGE =
   "The icon must be a PNG file and square, with dimensions ranging from 120x120 px to 1024x1024 px.";
+const MIN_DIMENSION = 120;
+const MAX_DIMENSION = 1024;
 
 type IMessageFunc = (formData: any) => string;
 type IValidationMessage = string | IMessageFunc;
@@ -108,6 +111,8 @@ const EditIconModal = ({
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
 
   const [formData, setFormData] = useState<any>();
+  const [iconDimensions, setIconDimensions] = useState<number | null>(null);
+  const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
   const [formValidation, setFormValidation] = useState<any>();
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -115,11 +120,49 @@ const EditIconModal = ({
     if (files && files.length > 0) {
       const file = files[0];
 
-      const newData = { ...formData, software: file };
-      setFormData(newData);
+      // Enforce PNG MIME type
+      if (file.type !== "image/png") {
+        renderFlash("error", "Couldn't edit. Must be a PNG file.");
+        return;
+      }
 
-      // setFormValidation(generateFormValidation(newData));
+      const reader = new FileReader();
+      reader.onload = (e: any) => {
+        const img = new Image();
+        img.onload = () => {
+          const { width, height } = img;
+
+          if (
+            width !== height ||
+            width < MIN_DIMENSION ||
+            width > MAX_DIMENSION
+          ) {
+            renderFlash(
+              "error",
+              `Couldn't edit. Icon must be square, between ${MIN_DIMENSION}x${MIN_DIMENSION}px and ${MAX_DIMENSION}x${MAX_DIMENSION}px.`
+            );
+            return;
+          }
+
+          // All checks passed → update formData & preview
+          const newData = { ...formData, icon: file };
+          setFormData(newData);
+          setIconDimensions(width);
+
+          // create preview url
+          const previewUrl = URL.createObjectURL(file);
+          setIconPreviewUrl(previewUrl);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     }
+  };
+
+  const onDeleteFile = () => {
+    setFormData(null);
+    setIconDimensions(null);
+    setIconPreviewUrl(null);
   };
 
   const onTabChange = (index: number) => {
@@ -222,12 +265,15 @@ const EditIconModal = ({
           className={`${baseClass}__preview-card__fleet`}
         >
           <div className={softwareDetailsBaseClass}>
-            <SoftwareIcon
-              name={software.name}
-              source="apps" // TODO
-              // url={iconUrl} // TODO
-              size="xlarge"
-            />
+            {iconPreviewUrl ? (
+              <img
+                src={iconPreviewUrl}
+                alt="Uploaded icon preview"
+                style={{ width: 96, height: 96 }}
+              />
+            ) : (
+              <SoftwareIcon name={software.name} source="apps" size="xlarge" />
+            )}
             <dl className={infoClass}>
               <h1>{name}</h1>
               <dl className={descriptionListClass}>
@@ -313,11 +359,25 @@ const EditIconModal = ({
             <img
               className={`${baseClass}__preview-img`}
               src={PreviewSelfServiceIcon}
-              alt="Preview self-service icon"
+              alt="Preview icon on Fleet Desktop > Self-service"
             />
           </div>
           <div className={`${baseClass}__self-service-preview`}>
-            <SoftwareIcon /> {previewInfo.name}
+            {iconPreviewUrl ? (
+              <img
+                src={iconPreviewUrl}
+                alt="Uploaded self-service icon"
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                }}
+              />
+            ) : (
+              <SoftwareIcon name={software.name} source="apps" size="xsmall" />
+            )}
+            {previewInfo.name}
           </div>
         </Card>
         <div
@@ -332,6 +392,7 @@ const EditIconModal = ({
       <>
         <FileUploader
           canEdit
+          onDeleteFile={onDeleteFile}
           graphicName="file-png"
           accept={ACCEPTED_EXTENSIONS}
           message={UPLOAD_MESSAGE}
@@ -339,7 +400,14 @@ const EditIconModal = ({
           buttonMessage="Choose file"
           buttonType="link"
           className={`${baseClass}__file-uploader`}
-          // fileDetails={formData ? getFileDetails(formData.icon) : undefined}
+          fileDetails={
+            formData && formData.icon
+              ? {
+                  name: formData.icon.name,
+                  description: `Software icon • ${iconDimensions}x${iconDimensions}px`,
+                }
+              : undefined
+          }
           gitopsCompatible={false}
         />
         <h2>Preview</h2>
