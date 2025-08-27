@@ -41,7 +41,6 @@ After clicking **Save** you will be redirected to https://login.microsoftonline.
 
 After consenting you will be redirected back to Fleet (to `/settings/integrations/conditional-access`). If you don't see a green checkmark in Fleet, please verify that you have a "Fleet conditional access" [group in Entra](#step-3-connect-fleet-to-entra). If you do and you still don't see a green checkmark, please [reach out to support](https://fleetdm.com/support).
 
-If you don't see
 
 ## Step 4: Deploy Company Portal and the Platform SSO configuration profile
 
