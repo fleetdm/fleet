@@ -1,7 +1,7 @@
 # Fleet 4.73.0 | TODO
 
 <div purpose="embedded-content">
-   <iframe src="Linux OS vulnerabilities, schedule scripts, custom variables, and more..." frameborder="0" allowfullscreen></iframe>
+   <iframe src="https://www.youtube.com/embed/NagFKf2BErQ?si=X-iavois5ZU9Bs28" frameborder="0" allowfullscreen></iframe>
 </div>
 
 Fleet 4.73.0 is now available. See the complete [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.73.0) or read on for highlights. For upgrade instructions, visit the [upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in the Fleet docs.
