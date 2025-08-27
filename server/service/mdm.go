@@ -1612,18 +1612,7 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 		RawJSON: data,
 	}
 	if err := cp.ValidateUserProvided(); err != nil {
-		msg := err.Error()
-		if strings.Contains(msg, syncml.DiskEncryptionProfileRestrictionErrMsg) {
-			return nil, ctxerr.Wrap(ctx,
-				&fleet.BadRequestError{Message: msg + " To control these settings use disk encryption endpoint."})
-		}
-
-		// this is not great, but since the validations are shared between the CLI
-		// and the API, we must make some changes to error message here.
-		if ix := strings.Index(msg, "To control these settings,"); ix >= 0 {
-			msg = strings.TrimSpace(msg[:ix])
-		}
-		err := &fleet.BadRequestError{Message: "Couldn't add. " + msg}
+		err := &fleet.BadRequestError{Message: "Couldn't add. " + err.Error()}
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
@@ -1639,10 +1628,6 @@ func (svc *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint,
 	default:
 		// default include all
 		cp.LabelsIncludeAll = labelMap
-	}
-
-	if err := svc.ds.ValidateEmbeddedSecrets(ctx, []string{string(cp.RawJSON)}); err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	newCP, err := svc.ds.NewMDMAndroidConfigProfile(ctx, cp)
