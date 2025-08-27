@@ -863,13 +863,8 @@ func newCleanupsAndAggregationSchedule(
 					return err
 				}
 				if deleted > 0 {
-					logMsg := "cleaned up campaign targets"
-					// Check if we likely hit a limit (either minimum or ended on a round number suggesting percentage)
-					if deleted >= fleet.CampaignTargetsCleanupMinPerRun && deleted%uint(fleet.CampaignTargetsCleanupBatchSize) == 0 {
-						logMsg = "cleaned up campaign targets (limit reached, will continue next hour)"
-					}
 					level.Info(logger).Log(
-						"msg", logMsg,
+						"msg", "cleaned up campaign targets",
 						"deleted", deleted,
 						"duration_ms", time.Since(targetsStart).Milliseconds(),
 					)

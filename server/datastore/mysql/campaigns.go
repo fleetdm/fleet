@@ -11,6 +11,19 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Campaign cleanup constants (private to this package)
+const (
+	// campaignTargetsCleanupBatchSize is the batch size for deleting campaign targets
+	campaignTargetsCleanupBatchSize int = 10000
+
+	// campaignTargetsCleanupMinPerRun is the minimum number of targets to delete in a single run
+	campaignTargetsCleanupMinPerRun uint = 50000
+
+	// campaignTargetsCleanupPercentPerRun is the percentage of total eligible targets to delete per run
+	// We delete 10% of eligible targets or the minimum, whichever is larger
+	campaignTargetsCleanupPercentPerRun = 0.10 // 10%
+)
+
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
 	args := []any{camp.QueryID, camp.Status, camp.UserID}
 
@@ -223,9 +236,9 @@ func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderT
 
 	// Calculate max to delete: 10% of eligible or minimum 50k, whichever is larger
 	// BUT never more than what actually exists
-	maxToDelete := uint(float64(totalEligible) * fleet.CampaignTargetsCleanupPercentPerRun)
-	if maxToDelete < fleet.CampaignTargetsCleanupMinPerRun {
-		maxToDelete = fleet.CampaignTargetsCleanupMinPerRun
+	maxToDelete := uint(float64(totalEligible) * campaignTargetsCleanupPercentPerRun)
+	if maxToDelete < campaignTargetsCleanupMinPerRun {
+		maxToDelete = campaignTargetsCleanupMinPerRun
 	}
 	// Don't try to delete more than what exists
 	if maxToDelete > totalEligible {
@@ -251,8 +264,8 @@ func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderT
 	// Process deletions in batches to avoid locking issues and memory problems
 	for totalDeleted < maxToDelete {
 		// Adjust batch size if we're close to the max limit
-		batchSize := fleet.CampaignTargetsCleanupBatchSize
-		if remaining := maxToDelete - totalDeleted; remaining < uint(fleet.CampaignTargetsCleanupBatchSize) {
+		batchSize := campaignTargetsCleanupBatchSize
+		if remaining := maxToDelete - totalDeleted; remaining < uint(campaignTargetsCleanupBatchSize) {
 			batchSize = int(remaining)
 		}
 
