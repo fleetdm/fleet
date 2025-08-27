@@ -4104,6 +4104,7 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
         }
       },
       "app_store_app": null,
+      "in_house_app": null,
       "source": "apps",
       "status": "failed_install",
       "installed_versions": [
@@ -4136,6 +4137,7 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
         }
       },
       "app_store_app": null,
+      "in_house_app": null,
       "source": "",
       "status": "pending_uninstall",
       "installed_versions": [],
@@ -4155,6 +4157,7 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "installed_at": "2024-05-15T15:23:57Z"
         },
       },
+      "in_house_app": null,
       "source": "apps",
       "status": "installed",
       "installed_versions": [
@@ -6369,6 +6372,7 @@ List software that can or will be automatically installed during macOS setup. If
         "install_during_setup": true
       },
       "app_store_app": null,
+      "in_house_app": null,
       "versions_count": 3,
       "source": "apps",
       "hosts_count": 48,
@@ -10731,7 +10735,7 @@ Body: <blob>
 
 _Available in Fleet Premium._
 
-Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package` or `app_store_app` to be installed.
+Install software (package or App Store app) on a macOS, iOS, iPadOS, Windows, or Linux (Ubuntu) host. Software title must have a `software_package`, `app_store_app` or `in_house_app` to be installed.
 
 Package installs time out after 1 hour.
 
