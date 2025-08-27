@@ -541,7 +541,7 @@ Branch protection is one of the most important settings to configure and the mai
 
 By default, Fleet protects branches with these names: `main`, `patch[_-*]`, `feature[_-*]`, `minor[_-*]`, `rc-minor[_-*]`, `rc-patch[_-*]`, and `fleet-v*`.
 
-To see the rules for protected branches, go tothe Branches section of repository settings.
+To see the rules for protected branches, go to the Branches section of repository settings.
 
 
 ### Scanning tools
@@ -889,7 +889,7 @@ Internet/Intranet/Extranet-related systems are the property of Fleet Device Mana
 - storage media.
 - network accounts providing electronic mail.
 - web browsing.
-- file transfers
+- file transfers.
 
 These systems are to be used for business purposes, serving the interests of the company, and of our clients and customers in the course of normal operations.
 
@@ -1011,6 +1011,8 @@ Fleet policy requires that:
 - Automation with service accounts must be used to configure production systems when technically feasible.
 
 - Use of high privilege accounts must only be performed when absolutely necessary.
+  
+- Customer scan data and associated evidence must only be accessed by Fleet employees assigned to ASV activities.
 
 
 ### Asset management policy
@@ -1187,7 +1189,7 @@ Fleet policy requires that:
 - Data backup must be validated for integrity.
 - The data retention period must be defined and comply with any and all applicable regulatory and contractual requirements.  More specifically, **data and records belonging to Fleet platform customers must be retained per Fleet product terms and conditions and/or specific contractual agreements.**
 - By default, all security documentation and audit trails are kept for a minimum of seven years unless otherwise specified by Fleet data classification, specific regulations, or contractual agreement.
-
+- Customer data and evidence associated with ASV scanning activities is governed by the ASV PCI Scanning Services Policy. This data must be stored separately from all other data. 
 
 ### Data classification model
 
@@ -1213,6 +1215,9 @@ External disclosure of critical data is strictly prohibited without an approved 
 
 - PII (personal identifiable information)
 - ePHI (electronically protected health information)
+- Customer scan data, such as
+    - Case logs, scanning results, work papers, and notes
+    - Any other technical information created and/or obtained in connection with scanning customers for ASV activities
 - Production security data, such as
     - Production secrets, passwords, access keys, certificates, etc.
     - Production security audit logs, events, and incident data
@@ -1280,6 +1285,10 @@ This process is followed when offboarding a customer and deleting all of the pro
 1. `terraform destroy` the infrastructure for the customer. This triggers immediate deletion of the RDS database and all automated snapshots, along with immediate deletion of the ElastiCache Redis instance. Secrets are marked for deletion with a 7 day recovery window. Cloudwatch (server) logs are automatically deleted after the retention window expires.
 2. Manually delete any manual database snapshots. The engineer should verify that there are no manual snapshots remaining for this customer.
 3. Commit a removal of all the Terraform files for the customer.
+
+#### Scan data deletion
+
+Customer scanning and evidence related to ASV activities are governed by the ASV PCI Scanning Services Policy.
 
 
 ## Encryption policy
@@ -1749,6 +1758,7 @@ Fleet policy requires that:
 Fleet policy requires that:
 - Fleet policies must be developed and maintained to meet all applicable compliance requirements and adhere to security best practices, including but not limited to:
   - SOC 2
+  - PCI DSS for Approved Scanning Vendors (ASVs)
 - Fleet must annually review all policies.
   - Fleet maintains all policy changes must be approved by Fleet's CTO or CEO. Additionally:
     - Major changes may require approval by Fleet CEO or designee;
@@ -1949,6 +1959,47 @@ We use [Dependabot](https://github.com/dependabot) to create pull requests to up
 
 We make sure the fixes to vulnerable dependencies are also performed according to our remediation timeline. We fix as many dependencies as possible in a single release.
 
+
+## Approved Scanning Vendors (ASVs) PCI Scanning Services Policy
+
+Fleet is committed to maintaining compliance with the PCI Security Standards Council (PCI SSC) requirements for Approved Scanning Vendors (ASVs). This policy establishes requirements for ASV employee onboarding, training, operations, evidence handling, and oversight to ensure continued qualification and effective delivery of PCI scanning services.   
+
+### Employee Onboarding and Qualification
+- Fleet must maintain a record of all ASV Employee job descriptions, job responsibilities, résumés, current skillsets, training, and evaluation records relevant to vulnerability assessment and PCI DSS requirements.
+- Proof of successful completion of information systems vulnerability assessment training within the last 12 months is required, in accordance with the PCI SSC Continuing Professional Education (CPE) Maintenance Guide.
+- New ASV Employees must complete Fleet’s onboarding process before performing any ASV-related work.
+
+### Roles and Responsibilities
+- Job functions and responsibilities for ASV Employees must be clearly defined and documented, covering technical scanning, quality assurance, report preparation, and customer support.
+- Managers are responsible for assigning qualified staff to each function, verifying training currency, and reviewing deliverables before submission to clients or the PCI SSC.
+- Employees are responsible for maintaining compliance with all requirements of the ASV Program.
+
+### Ongoing Training and Monitoring
+- Fleet provides and requires annual continuing education for ASV Employees in vulnerability management and PCI DSS.
+- Fleet's ASV program must complete the PCI SSC-required annual ASV Lab Scan Test with a passing result.
+- Fleet tracks training status and evaluation results for all ASV Employees to ensure compliance and readiness.
+
+### Monitoring PCI SSC Guidance
+- All ASV Employees must regularly monitor the PCI SSC Website for updates, guidance, and publications relating to the ASV Program.
+- Fleet management will provide summaries of changes and ensure implementation into operational procedures.
+
+### Insurance
+- Fleet will maintain insurance coverage in accordance with PCI SSC Appendix B: Insurance requirements.
+
+### Feedback and Quality Assurance
+- An ASV Feedback Form will be provided to customers and internal stakeholders to collect input on ASV service quality and compliance.
+- Feedback will be reviewed quarterly and incorporated into process improvements.
+- Quality Assurance (QA) guidance for Fleet's ASV scan solution is available in Fleet's ASV PCI QA handbook.
+
+### Evidence Handling and Retention
+- Fleet securely maintains digital and/or hard copies of all case logs, scanning results, work papers, notes, and other technical information created or obtained in connection with PCI Scanning Services for a minimum of three (3) years.
+- All customer scan evidence must be protected in accordance with PCI SSC confidentiality and data protection requirements.
+- Evidence will be made available to PCI SSC and/or its affiliates upon request during the retention period.
+- Fleet’s evidence-retention policy and procedures are documented and available to PCI SSC upon request, in accordance with Appendix C, Evidence Retention – 4.5 Provisions, of the ASV Company Application.
+
+### Fees and Program Compliance
+- Fleet is responsible for timely payment of annual ASV Program Fees as required by the PCI SSC.
+- Failure to maintain compliance with this policy will result in Fleet's removal from ASV duties until corrective action is complete.
 
 ## Trust report
 
