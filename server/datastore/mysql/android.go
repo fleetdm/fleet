@@ -524,5 +524,25 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 }
 
 func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
-	panic("unimplemented")
+	const stmt = `
+	INSERT INTO android_policy_requests
+		(request_uuid, request_name, policy_id, payload, status_code, error_details, applied_policy_version, policy_version)
+	VALUES
+		(?, ?, ?, ?, ?, ?, ?, ?)
+`
+	if req.RequestUUID == "" {
+		req.RequestUUID = uuid.NewString()
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		req.RequestUUID,
+		req.RequestName,
+		req.PolicyID,
+		req.Payload,
+		req.StatusCode,
+		req.ErrorDetails,
+		req.AppliedPolicyVersion,
+		req.PolicyVersion,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
