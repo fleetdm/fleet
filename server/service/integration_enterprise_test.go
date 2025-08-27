@@ -6772,7 +6772,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
@@ -17282,11 +17281,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
 	// check that we created an activity for the policy creation
+	noTeamID := int64(0)
 	wantAct := fleet.ActivityTypeCreatedPolicy{
 		ID:       gotPolicy.ID,
 		Name:     gotPolicy.Name,
-		TeamID:   0,
-		TeamName: ptr.String("No Team"),
+		TeamID:   &noTeamID,
+		TeamName: nil,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
