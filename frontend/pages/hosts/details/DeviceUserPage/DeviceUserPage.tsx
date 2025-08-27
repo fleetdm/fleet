@@ -503,7 +503,10 @@ const DeviceUserPage = ({
                   )}
                   {isPremiumTier && (
                     <Tab>
-                      <TabText count={failingPoliciesCount} redCount>
+                      <TabText
+                        count={failingPoliciesCount}
+                        countVariant="alert"
+                      >
                         Policies
                       </TabText>
                     </Tab>

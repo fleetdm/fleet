@@ -1130,7 +1130,7 @@ const HostDetailsPage = ({
                   // so we add a hidden pseudo element with the same text string
                   return (
                     <Tab key={navItem.title}>
-                      <TabText count={navItem.count} redCount>
+                      <TabText count={navItem.count} countVariant="alert">
                         {navItem.name}
                       </TabText>
                     </Tab>

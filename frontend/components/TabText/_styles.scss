@@ -16,10 +16,10 @@
     font-weight: $bold;
     font-size: $xx-small;
 
-    &__red {
+    &__alert {
       background-color: $core-vibrant-red;
     }
-    &__grey {
+    &__pending {
       background-color: $ui-fleet-black-50;
     }
   }

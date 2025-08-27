@@ -1,14 +1,12 @@
 import React from "react";
 import classnames from "classnames";
 
+type TabCountVariant = "alert" | "pending";
 interface ITabTextProps {
   className?: string;
   children: React.ReactNode;
   count?: number;
-  /** Changes count badge from default purple to red */
-  redCount?: boolean;
-  /** Changes count badge from default purple to grey */
-  greyCount?: boolean;
+  countVariant?: TabCountVariant;
 }
 
 /*
@@ -21,14 +19,13 @@ const TabText = ({
   className,
   children,
   count,
-  redCount = false,
-  greyCount = false,
+  countVariant,
 }: ITabTextProps): JSX.Element => {
   const classNames = classnames(baseClass, className);
 
   const countClassNames = classnames(`${baseClass}__count`, {
-    [`${baseClass}__count__red`]: redCount,
-    [`${baseClass}__count__grey`]: greyCount,
+    [`${baseClass}__count__alert`]: countVariant === "alert",
+    [`${baseClass}__count__pending`]: countVariant === "pending",
   });
 
   const renderCount = () => {
