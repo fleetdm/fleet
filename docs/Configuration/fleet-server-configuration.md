@@ -200,9 +200,7 @@ This setting should not usually be used.
 
 ### mysql_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for MySQL authentication. 
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `mysql_username` and `mysql_password` or `mysql_password_path`.
+Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume when using Identity and Access Management (IAM) for MySQL authentication.
 
 - Default value: `""`
 - Environment variable: `FLEET_MYSQL_STS_ASSUME_ROLE_ARN`
