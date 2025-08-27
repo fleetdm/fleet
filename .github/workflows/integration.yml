@@ -195,6 +195,21 @@ jobs:
       run: |
         chmod +x ./build/fleetctl
         ./build/fleetctl config set --address ${{ needs.gen.outputs.address }}
+        
+        # Wait for Fleet server to be reachable first
+        echo "Waiting for Fleet server to be ready..."
+        ATTEMPT=0
+        until curl -s -o /dev/null -w "%{http_code}" ${{ needs.gen.outputs.address }}/healthz | grep -q "200"; do
+          ATTEMPT=$((ATTEMPT + 1))
+          if [ $ATTEMPT -ge 60 ]; then
+            echo "ERROR: Fleet server not reachable after 5 minutes"
+            exit 1
+          fi
+          echo "Waiting for server... attempt $ATTEMPT/60"
+          sleep 5
+        done
+        echo "Fleet server is responding, attempting login..."
+        
         ATTEMPT=0
         until ./build/fleetctl login --email admin@example.com --password preview1337#; do
           ATTEMPT=$((ATTEMPT + 1))
