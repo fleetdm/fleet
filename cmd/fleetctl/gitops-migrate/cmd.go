@@ -26,6 +26,8 @@ func cmdExec(ctx context.Context, args Args) error {
 	switch strings.ToLower(cmd) {
 	case cmdUsage, cmdHelp:
 		return cmdUsageExec(ctx, args)
+	case cmdFormat:
+		return cmdFormatExec(ctx, args)
 	case cmdMigrate:
 		return cmdMigrateExec(ctx, args)
 	case cmdBackup:

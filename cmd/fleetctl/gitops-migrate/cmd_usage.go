@@ -79,6 +79,8 @@ transformations during the {{ $changeVer }} release.
 
 {{ magenta ">> Commands" }}
 
+   format   Formats all {{ green "Fleet GitOps" }} YAML files!
+   migrate  Migrates a provided directory's {{ $gitops }} files.
    backup   Perform a backup of a target directory, output as a gzipped tarball.
    restore  Restore* a backup produced by the {{ green "backup" }} command.
    usage    Show this help text!
