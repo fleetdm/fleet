@@ -81,13 +81,14 @@ func (svc Service) NewGlobalPolicy(ctx context.Context, p fleet.PolicyPayload) (
 	}
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
+	globalTeamID := int64(-1)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
 			ID:       policy.ID,
 			Name:     policy.Name,
-			TeamID:   -1,
+			TeamID:   &globalTeamID,
 			TeamName: nil,
 		},
 	); err != nil {
@@ -265,13 +266,14 @@ func (svc Service) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint
 	// Note: Issue #4191 proposes that we move to SQL transactions for actions so that we can
 	// rollback an action in the event of an error writing the associated activity
 	for _, id := range deletedIDs {
+		globalTeamID := int64(-1)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
 				ID:       id,
 				Name:     policiesByID[id].Name,
-				TeamID:   -1,
+				TeamID:   &globalTeamID,
 				TeamName: nil,
 			},
 		); err != nil {
