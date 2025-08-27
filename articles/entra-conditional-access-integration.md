@@ -167,10 +167,9 @@ Head to **Policies > Select team > Automations > Conditional access**.
 
 ## Step 6: Add Entra policies
 
-After you add policies in Fleet, you also need to add an Entra "Conditional Access" policy to block end-users access to specific resources when Fleet reports non-compliance.
-[Building a Conditional Access policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) outlines the steps to create a policy in Entra.
+After you add policies in Fleet, you also need to add an Entra "Conditional Access" policy to block end-users access to specific resources when Fleet reports non-compliance. Follow [this Microsoft guide](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) to create the policy.
 
-For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
+As an example, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
 ![Entra ID Conditional Access policy example](../website/assets/images/articles/entra-conditional-access-policy-554x506@2x.png)
 
 Make sure to assign the "Fleet conditional access" group to the Entra policy.
