@@ -3500,7 +3500,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	// Do another batch script execution with the same hosts, and verify that "pending" returns correctly.
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
-	// that have "activated" the script acrivity) and the upcoming_activities table (for hosts that
+	// that have "activated" the script activity) and the upcoming_activities table (for hosts that
 	// have not yet activated the script activity).
 	secondExecID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
