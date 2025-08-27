@@ -20,9 +20,13 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
-	vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
-	if vppApp.IconURL != nil {
-		return nil, nil, nil, &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
+	if icon == nil {
+		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		if vppApp != nil || vppApp.IconURL != nil {
+			return nil, nil, nil, &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
+		} else {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
+		}
 	}
 
 	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)

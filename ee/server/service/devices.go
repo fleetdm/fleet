@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -221,4 +222,35 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 	}
 
 	return nil
+}
+
+func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error) {
+	// can't call the already made GetSoftwareTitleIcon(ctx, teamID, titleID) method
+	// because svc is the concrete open source service implementation despite it being in the ee/directory
+	var err error
+
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID, nil)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+	if icon == nil {
+		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		if vppApp != nil || vppApp.IconURL != nil {
+			return nil, nil, nil, &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
+		} else {
+			return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
+		}
+	}
+
+	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon data")
+	}
+	defer iconData.Close()
+	imageBytes, err := io.ReadAll(iconData)
+	if err != nil {
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "reading icon data")
+	}
+
+	return imageBytes, &size, &icon.Filename, nil
 }
