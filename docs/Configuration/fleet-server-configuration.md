@@ -299,9 +299,7 @@ Use a TLS connection to the Redis server.
 
 ### redis_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for Redis authentication. 
-
-If set, Fleet uses AWS Identity and Access Management (IAM) authentication instead of basic authentication set by `redis_username` and `redis_password` (optional).
+Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume when using Identity and Access Management (IAM) for Redis authentication.
 
 - Default value: `""`
 - Environment variable: `FLEET_REDIS_STS_ASSUME_ROLE_ARN`
