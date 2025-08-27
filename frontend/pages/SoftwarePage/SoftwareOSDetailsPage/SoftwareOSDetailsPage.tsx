@@ -180,7 +180,7 @@ const SoftwareOSDetailsPage = ({
   });
 
   const {
-    data: { os_version: osVersionDetails2, counts_updated_at } = {},
+    data: { os_version: osVersionDetails, counts_updated_at } = {},
     isLoading,
     isError: isOsVersionError,
   } = useQuery<
@@ -213,9 +213,6 @@ const SoftwareOSDetailsPage = ({
     }
   );
 
-  const osVersionDetails = createMockLinuxOSVersion();
-
-  console.log("osVersionDetails", osVersionDetails);
   const onTeamChange = useCallback(
     (teamId: number) => {
       handleTeamChange(teamId);
