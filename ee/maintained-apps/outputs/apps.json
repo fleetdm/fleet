@@ -16,6 +16,13 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+      "description": ""
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -121,6 +128,13 @@
       "description": ""
     },
     {
+      "name": "Logitech Options+",
+      "slug": "logi-options+/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.logi.optionsplus",
+      "description": ""
+    },
+    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
@@ -154,6 +168,20 @@
       "platform": "darwin",
       "unique_identifier": "notion.id",
       "description": "Notion is an all-in-one workspace for writing, planning, collaborating, and organizing."
+    },
+    {
+      "name": "Omnissa Horizon Client",
+      "slug": "omnissa-horizon-client/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.omnissa.horizon.client.mac",
+      "description": ""
+    },
+    {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": ""
     },
     {
       "name": "Postman",

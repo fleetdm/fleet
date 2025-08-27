@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "1.93.755983",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.logi.optionsplus';"
+      },
+      "installer_url": "https://download01.logi.com/web/ftp/pub/techsupport/optionsplus/logioptionsplus_installer.zip",
+      "install_script_ref": "d9ad7899",
+      "uninstall_script_ref": "ffa35097",
+      "sha256": "no_check",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "d9ad7899": "#!/bin/sh\nset -e\nTMPDIR=\"$(mktemp -d /tmp/logiopts_XXXXXX)\"\ncleanup(){ rm -rf \"$TMPDIR\" \u003e/dev/null 2\u003e\u00261 || true; }\ntrap cleanup EXIT\n\nunzip -q \"$INSTALLER_PATH\" -d \"$TMPDIR\"\n\nINNER_BIN=\"$(/usr/bin/find \"$TMPDIR\" -type f -path '*/Logi*Installer*.app/Contents/MacOS/*' -print -quit)\"\n[ -z \"$INNER_BIN\" ] \u0026\u0026 INNER_BIN=\"$(/usr/bin/find \"$TMPDIR\" -type f -path '*/Options+*.app/Contents/MacOS/*' -print -quit)\"\n[ -z \"$INNER_BIN\" ] \u0026\u0026 INNER_BIN=\"$(/usr/bin/find \"$TMPDIR\" -type f -path '*/Install*.app/Contents/MacOS/*' -print -quit)\"\n[ -n \"$INNER_BIN\" ] || { echo \"inner installer not found\"; exit 1; }\n\nif \"$INNER_BIN\" --quiet \u003e/dev/null 2\u003e\u00261; then\n  sudo \"$INNER_BIN\" --quiet\nelse\n  sudo \"$INNER_BIN\"\nfi\necho \"logitech options plus installed\"\n",
+    "ffa35097": "#!/bin/sh\nset -e\nU=\"$(scutil \u003c\u003c\u003c 'show State:/Users/ConsoleUser' | awk '/Name :/ {print $3}')\"\n\nquit_app(){ b=\"$1\"; if osascript -e \"application id \\\"$b\\\" is running\" \u003e/dev/null 2\u003e\u00261; then cu=\"$(stat -f \"%Su\" /dev/console || true)\"; [ \"$cu\" = \"root\" ] \u0026\u0026 return 0; osascript -e \"tell application id \\\"$b\\\" to quit\" \u003e/dev/null 2\u003e\u00261 || true; sleep 2; fi; }\nremove_label(){ l=\"$1\"; launchctl remove \"$l\" \u003e/dev/null 2\u003e\u00261 || true; sudo launchctl remove \"$l\" \u003e/dev/null 2\u003e\u00261 || true; [ -n \"$U\" ] \u0026\u0026 launchctl bootout \"gui/$(id -u \"$U\" 2\u003e/dev/null)\" \"$l\" \u003e/dev/null 2\u003e\u00261 || true; sudo launchctl bootout system \"$l\" \u003e/dev/null 2\u003e\u00261 || true; rm -f \"/Library/LaunchAgents/$l.plist\" \"/Library/LaunchDaemons/$l.plist\" \u003e/dev/null 2\u003e\u00261 || true; }\ntrash_user(){ user=\"$1\"; t=\"$2\"; case \"$t\" in \"~/\"*) t=\"/Users/$user/${t#~/}\";; esac; [ -e \"$t\" ] || return 0; ts=\"$(date +%Y%m%d%H%M%S)\"; r=\"$(od -An -N2 -i /dev/random 2\u003e/dev/null | tr -d ' ')\"; d=\"/Users/$user/.Trash/$(basename \"$t\")_${ts}_${r}\"; mv -f \"$t\" \"$d\" 2\u003e/dev/null || sudo -u \"$user\" mv -f \"$t\" \"$d\" 2\u003e/dev/null || true; }\nforget_pkg(){ pat=\"$1\"; for id in $(pkgutil --pkgs | grep -E \"$pat\"); do sudo pkgutil --forget \"$id\" \u003e/dev/null 2\u003e\u00261 || true; done; }\n\nfor l in com.logi.cp-dev-mgr com.logi.optionsplus com.logi.optionsplus.updater com.logitech.LogiRightSight; do remove_label \"$l\"; done\nfor b in com.logi.cp-dev-mgr com.logi.optionsplus com.logi.optionsplus.driverhost com.logi.optionsplus.updater com.logitech.FirmwareUpdateTool com.logitech.logiaipromptbuilder; do quit_app \"$b\"; done\n\nsudo rm -rf \"/Applications/logioptionsplus.app\" \"/Applications/Utilities/Logi Options+ Driver Installer.bundle\" \"/Library/Application Support/Logitech.localized/LogiOptionsPlus\" \u003e/dev/null 2\u003e\u00261 || true\nrmdir \"/Library/Application Support/Logitech.localized\" \u003e/dev/null 2\u003e\u00261 || true\n\nforget_pkg \"^com\\\\.logitech\\\\.LogiRightSightForWebcams\\\\.pkg$\"\nforget_pkg \"^com\\\\.logi\\\\.\"\n\n[ -n \"$U\" ] \u0026\u0026 {\n  trash_user \"$U\" \"/Users/Shared/logi\"\n  trash_user \"$U\" \"/Users/Shared/LogiOptionsPlus\"\n  trash_user \"$U\" \"~/Library/Application Support/LogiOptionsPlus\"\n  trash_user \"$U\" \"~/Library/Preferences/com.logi.cp-dev-mgr.plist\"\n  trash_user \"$U\" \"~/Library/Preferences/com.logi.optionsplus.driverhost.plist\"\n  trash_user \"$U\" \"~/Library/Preferences/com.logi.optionsplus.plist\"\n  trash_user \"$U\" \"~/Library/Saved Application State/com.logi.optionsplus.savedState\"\n  trash_user \"$U\" \"~/Library/Application Support/com.apple.sharedfilelist/com.apple.LSSharedFileList.ApplicationRecentDocuments/com.logi.optionsplus*.sfl\"\n}\necho \"logitech options plus uninstalled\"\n"
+  }
+}

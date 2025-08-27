@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2506-8.16.0-16536825094",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.omnissa.horizon.client.mac';"
+      },
+      "installer_url": "https://download3.omnissa.com/software/CART26FQ2_MAC_2506/Omnissa-Horizon-Client-2506-8.16.0-16536825094.dmg",
+      "install_script_ref": "b17a16ef",
+      "uninstall_script_ref": "8a1db502",
+      "sha256": "45bb7a2ec1b309e9bf93ccda155ab78890c12eabe52cff3e57cd900662a100c0",
+      "default_categories": [
+        "Productivity"
+      ]
+    }
+  ],
+  "refs": {
+    "8a1db502": "#!/bin/sh\nset -e\nquit_app(){ b=\"$1\"; if osascript -e \"application id \\\"$b\\\" is running\" \u003e/dev/null 2\u003e\u00261; then cu=\"$(stat -f \"%Su\" /dev/console || true)\"; [ \"$cu\" = \"root\" ] \u0026\u0026 return 0; osascript -e \"tell application id \\\"$b\\\" to quit\" \u003e/dev/null 2\u003e\u00261 || true; sleep 2; fi; }\nforget_pkg_like(){ pat=\"$1\"; for id in $(pkgutil --pkgs | grep -E \"$pat\"); do sudo pkgutil --forget \"$id\" \u003e/dev/null 2\u003e\u00261 || true; done; }\n\nAPP1=\"/Applications/VMware Horizon Client.app\"\nAPP2=\"/Applications/Omnissa Horizon Client.app\"\n\nquit_app \"com.omnissa.horizon.client.mac\"\nquit_app \"com.vmware.horizon\"\n\nsudo rm -rf \"$APP1\" \"$APP2\" \u003e/dev/null 2\u003e\u00261 || true\nforget_pkg_like \"(vmware|omnissa).*horizon\"\nrm -f \"/Library/Preferences/com.vmware.horizon.plist\" \u003e/dev/null 2\u003e\u00261 || true\necho \"omnissa horizon client uninstalled\"\n",
+    "b17a16ef": "#!/bin/sh\nset -e\nMOUNT_POINT=\"$(hdiutil attach -nobrowse -readonly \"$INSTALLER_PATH\" | awk '/\\/Volumes\\// {print $3; exit}')\"\n[ -n \"$MOUNT_POINT\" ] || { echo \"failed to mount dmg\"; exit 1; }\ncleanup(){ hdiutil detach \"$MOUNT_POINT\" \u003e/dev/null 2\u003e\u00261 || true; }\ntrap cleanup EXIT\n\nPKG=\"$(/usr/bin/find \"$MOUNT_POINT\" -maxdepth 2 -name '*.pkg' -print -quit)\"\n[ -n \"$PKG\" ] || { echo \"omnissa pkg not found\"; exit 1; }\n\nsudo /usr/sbin/installer -pkg \"$PKG\" -target /\necho \"omnissa horizon client installed\"\n"
+  }
+}

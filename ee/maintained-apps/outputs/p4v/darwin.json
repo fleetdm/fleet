@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2025.2",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v';"
+      },
+      "installer_url": "https://filehost.perforce.com/perforce/r25.2/bin.macosx12u/P4V.dmg",
+      "install_script_ref": "2a04f07c",
+      "uninstall_script_ref": "cd717345",
+      "sha256": "9df7be63e2014cd523ad4f0afc1d97014d53ed1754e701323ab71279687810ce",
+      "default_categories": [
+        "Developer Tools"
+      ]
+    }
+  ],
+  "refs": {
+    "2a04f07c": "#!/bin/sh\nset -e\nAPPDIR=\"/Applications\"\nTMPDIR=\"$(dirname \"$(realpath \"$INSTALLER_PATH\")\")\"\n\nquit_app() {\n  b=\"$1\"\n  if osascript -e \"application id \\\"$b\\\" is running\" \u003e/dev/null 2\u003e\u00261; then\n    cu=\"$(stat -f \"%Su\" /dev/console || true)\"\n    [ \"$cu\" = \"root\" ] \u0026\u0026 return 0\n    osascript -e \"tell application id \\\"$b\\\" to quit\" \u003e/dev/null 2\u003e\u00261 || true\n    sleep 2\n  fi\n}\n\nMOUNT_POINT=\"$(hdiutil attach -nobrowse -readonly \"$INSTALLER_PATH\" | awk '/\\/Volumes\\// {print $3; exit}')\"\n[ -n \"$MOUNT_POINT\" ] || { echo \"failed to mount dmg\"; exit 1; }\n\ncleanup() {\n  hdiutil detach \"$MOUNT_POINT\" \u003e/dev/null 2\u003e\u00261 || true\n}\ntrap cleanup EXIT\n\nfor app in p4v.app p4merge.app p4admin.app; do\n  [ -d \"$MOUNT_POINT/$app\" ] || continue\n  [ \"$app\" = \"p4v.app\" ] \u0026\u0026 quit_app \"com.perforce.p4v\"\n  [ -d \"$APPDIR/$app\" ] \u0026\u0026 sudo mv \"$APPDIR/$app\" \"$TMPDIR/$app.bkp\" || true\n  sudo cp -R \"$MOUNT_POINT/$app\" \"$APPDIR/\"\ndone\necho \"p4v installed\"\n",
+    "cd717345": "#!/bin/sh\nset -e\nAPPDIR=\"/Applications\"\nU=\"$(scutil \u003c\u003c\u003c 'show State:/Users/ConsoleUser' | awk '/Name :/ {print $3}')\"\n\ntrash_user() {\n  user=\"$1\"; t=\"$2\"\n  [ -e \"$t\" ] || return 0\n  ts=\"$(date +%Y%m%d%H%M%S)\"\n  r=\"$(od -An -N2 -i /dev/random 2\u003e/dev/null | tr -d ' ')\"\n  d=\"/Users/$user/.Trash/$(basename \"$t\")_${ts}_${r}\"\n  mv -f \"$t\" \"$d\" 2\u003e/dev/null || sudo -u \"$user\" mv -f \"$t\" \"$d\" 2\u003e/dev/null || true\n}\n\nsudo rm -rf \"$APPDIR/p4v.app\" \"$APPDIR/p4merge.app\" \"$APPDIR/p4admin.app\" || true\n[ -n \"$U\" ] \u0026\u0026 {\n  trash_user \"$U\" \"/Users/$U/Library/Preferences/com.perforce.p4v\"\n  trash_user \"$U\" \"/Users/$U/Library/Preferences/com.perforce.p4v.plist\"\n  trash_user \"$U\" \"/Users/$U/Library/Saved Application State/com.perforce.p4v.savedState\"\n}\necho \"p4v uninstalled\"\n"
+  }
+}

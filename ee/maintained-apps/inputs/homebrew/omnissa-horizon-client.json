@@ -1,0 +1,10 @@
+{
+  "name": "Omnissa Horizon Client",
+  "slug": "omnissa-horizon-client/darwin",
+  "unique_identifier": "com.omnissa.horizon.client.mac",
+  "token": "omnissa-horizon-client",
+  "installer_format": "dmg",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/omnissa-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/omnissa-uninstall.sh"
+}
