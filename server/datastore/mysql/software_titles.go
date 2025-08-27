@@ -400,11 +400,8 @@ WHERE
 		{{end}}
 		{{$additionalWhere}}
 	{{end}}
-	{{with $defFilter := "FALSE"}}
-		-- If teamID is set and PackagesOnly is false, defaults to "a software installer or VPP app exists", and see next condition.
-		{{if and (hasTeamID $) (not $.PackagesOnly) }}
-			{{$defFilter = "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)"}}
-		{{end}}
+	-- If teamID is set, defaults to "a software installer or VPP app exists", and see next condition.
+	{{with $defFilter := yesNo (hasTeamID .) "(si.id IS NOT NULL OR vat.adam_id IS NOT NULL)" "FALSE"}}
 		-- add software installed for hosts if we're not filtering for "available for install" only
 		{{if not $.AvailableForInstall}}
 			{{$defFilter = $defFilter | printf " ( %s OR sthc.hosts_count > 0 ) "}}
