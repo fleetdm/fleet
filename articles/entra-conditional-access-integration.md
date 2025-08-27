@@ -4,6 +4,8 @@ With Fleet, you can integrate with Microsoft Entra ID to enforce conditional acc
 
 When a device fails a Fleet policy, Fleet can mark it as non-compliant in Entra. This allows IT and Security teams to block access to third-party apps until the issue is resolved.
 
+Migrating from your current MDM to Fleet? Head to the [migration instructions](#migration).
+
 [Microsoft](https://learn.microsoft.com/en-us/intune/intune-service/protect/device-compliance-partners) requires that this feature is only supported if you're using Fleet's managed cloud.
 
 - [Step 1: Create a "Fleet conditional access" group in Entra](#step-1-create-a-fleet-conditional-access-group-in-entra)
@@ -167,10 +169,9 @@ Head to **Policies > Select team > Automations > Conditional access**.
 
 ## Step 6: Add Entra policies
 
-After you add policies in Fleet, you also need to add Entra ID "Conditional Access" policies to block end-users access to specific resources when Fleet reports non-compliance.
-[Building a Conditional Access policy](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) outlines the steps to create such policies on Entra ID.
+After you add policies in Fleet, you also need to add Entra "Conditional Access" policies to block end-users access to specific resources when Fleet reports non-compliance. Follow [this Microsoft guide](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-conditional-access-policies) to create these policies.
 
-For instance, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
+As an example, you can create a policy to "block access to Office 365 on macOS devices reported as non-compliant by Fleet":
 ![Entra ID Conditional Access policy example](../website/assets/images/articles/entra-conditional-access-policy-554x506@2x.png)
 
 Make sure to assign Entra users/groups to the created "Conditional Access" policies.
@@ -217,6 +218,16 @@ On Entra, go to **Protection > Conditional Access > Policies**, then select the 
 ### End users turning off MDM in Fleet
 
 If a user turns off MDM by going to **System Settings > Device Management and selecting **Unenroll** on Fleet's enrollment profile then Fleet will report the "MDM turned off" state to Intune and the device will be automatically marked as non-compliant on Entra (even if it's passing all Fleet policies).
+
+## Migration
+
+If you're migrating your macOS hosts from your current MDM solution to Fleet, you can switch to Fleet for conditional access with Entra before your MDM migration. This means you can also use a different MDM solution with Fleet for conditional access. 
+
+When you switch, end users won't have to take any action
+
+Before you switch to Fleet, let your team know that there will be a gap in conditional access coverage while you're setting this up. Microsoft only allows one compliance partner to be configured for macOS hosts.
+
+Ready to switch? Start at the [top of this guide](#conditional-access-entra) and follow all the steps. You can skip [Step 4: Deploy Company Portal and the Platform SSO configuration profile](#step-4-deploy-company-portal-and-the-platform-sso-configuration-profile). Come back to this step when you're migrating your macOS hosts to Fleet because new hosts will need Company Portal and the configuration profile when they enroll to Fleet.
 
 ## GitOps
 
