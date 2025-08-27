@@ -1826,8 +1826,47 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		config.WebhookSettings = *payload.WebhookSettings
 	}
 
-	// Apply other team config settings if needed in the future
-	// For now, only webhook settings are supported for default team config
+	// Apply integrations if provided
+	if payload.Integrations != nil {
+		// Get app config for integration validation (needed even if clearing integrations)
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+		}
+
+		// Always update integrations when provided (even if empty arrays to clear them)
+		config.Integrations.Jira = payload.Integrations.Jira
+		config.Integrations.Zendesk = payload.Integrations.Zendesk
+
+		// Note: GoogleCalendar and ConditionalAccessEnabled are currently not supported for "No team"
+	}
+
+	// Validate mutual exclusivity of automations if either webhooks or integrations were updated
+	if payload.WebhookSettings != nil || payload.Integrations != nil {
+		// must validate that at most only one automation is enabled for each
+		// supported feature - by now the updated payload has been applied to config.
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
+			config.WebhookSettings.FailingPoliciesWebhook,
+			config.Integrations,
+			invalid,
+		)
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
 
 	// Save the configuration
 	if err := svc.ds.SaveDefaultTeamConfig(ctx, config); err != nil {

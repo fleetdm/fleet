@@ -182,16 +182,22 @@ type TeamWebhookSettings struct {
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
-// Structure matches Team to be JSON-compatible with existing tests
 type DefaultTeam struct {
 	ID              uint                       `json:"id"`
 	Name            string                     `json:"name"`
 	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
+	Integrations    DefaultTeamIntegrations    `json:"integrations"`
 }
 
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+// DefaultTeamIntegrations contains only the integrations supported for team ID 0
+type DefaultTeamIntegrations struct {
+	Jira    []*TeamJiraIntegration    `json:"jira"`
+	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
 type TeamSpecSoftwareAsset struct {

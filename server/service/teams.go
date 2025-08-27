@@ -77,29 +77,27 @@ func (r getDefaultTeamResponse) Error() error { return r.Err }
 func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamRequest)
 
-	// Special handling for team ID 0 - return limited fields
-	if req.ID == 0 {
-		team, err := svc.GetTeam(ctx, req.ID)
-		if err != nil {
-			return getDefaultTeamResponse{Err: err}, nil
-		}
+	team, err := svc.GetTeam(ctx, req.ID)
+	if err != nil {
+		return getTeamResponse{Err: err}, nil
+	}
 
-		// Convert to DefaultTeam with limited fields
+	// Special handling for team ID 0 - return DefaultTeam structure
+	if team.ID == 0 {
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
 			WebhookSettings: fleet.DefaultTeamWebhookSettings{
 				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 			},
+			Integrations: fleet.DefaultTeamIntegrations{
+				Jira:    team.Config.Integrations.Jira,
+				Zendesk: team.Config.Integrations.Zendesk,
+			},
 		}
 		return getDefaultTeamResponse{Team: defaultTeam}, nil
 	}
 
-	// Regular team handling
-	team, err := svc.GetTeam(ctx, req.ID)
-	if err != nil {
-		return getTeamResponse{Err: err}, nil
-	}
 	return getTeamResponse{Team: team}, nil
 }
 
@@ -157,21 +155,20 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
-		// For team ID 0, return appropriate error response
-		if req.ID == 0 {
-			return getDefaultTeamResponse{Err: err}, nil
-		}
 		return teamResponse{Err: err}, nil
 	}
 
-	// Special handling for team ID 0 - return limited fields
-	if req.ID == 0 {
-		// Convert to DefaultTeam with limited fields
+	// Special handling for team ID 0 - return DefaultTeam structure
+	if team.ID == 0 {
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
 			WebhookSettings: fleet.DefaultTeamWebhookSettings{
 				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+			},
+			Integrations: fleet.DefaultTeamIntegrations{
+				Jira:    team.Config.Integrations.Jira,
+				Zendesk: team.Config.Integrations.Zendesk,
 			},
 		}
 		return getDefaultTeamResponse{Team: defaultTeam}, nil
