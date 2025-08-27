@@ -4176,7 +4176,31 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
         }
       ]
     },
-  ],
+    {
+      "id": 133,
+      "name": "MyBetaApp",
+      "software_package": null,
+      "app_store_app": null,
+      "in_house_app": {
+        "platform": "ios",
+        "version": "6.44",
+        "last_install": {
+          "command_uuid": "d33cd6f4-37d2-4a36-ac60-b4e9f567aa06",
+          "installed_at": "2025-08-27T12:38:44Z"
+        },
+      },
+      "source": "ios_apps",
+      "status": "installed",
+      "installed_versions": [
+        {
+          "version": "6.44",
+          "bundle_identifier": "com.beta.test",
+          "last_opened_at": null,
+          "vulnerabilities": null,
+          "installed_paths": null,
+      ]
+    }
+  ]
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
@@ -9885,7 +9909,7 @@ Returns information about the specified software. By default, `versions` are sor
       {
         "id": 123,
         "version": "6.44",
-        "vulnerabilities": [],
+        "vulnerabilities": null,
         "hosts_count": 24
       }
     ]
