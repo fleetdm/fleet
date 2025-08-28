@@ -205,5 +205,5 @@ func ListFleetReservedMacOSDeclarationNames() []string {
 // are reserved by Fleet for Android
 // TODO AP Add default Android settings reporting profile name once determined
 func ListFleetReservedAndroidProfileNames() []string {
-	return []string{}
+	return []string{"fleet-android-status-reporting"}
 }

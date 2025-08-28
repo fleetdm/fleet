@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -486,192 +485,116 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 }
 
 func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	counts, err := getMDMAndroidStatusCountsDB(ctx, ds, teamID)
-	if err != nil {
+	stmt := `
+SELECT
+	COUNT(id) AS count,
+	%s AS status
+FROM
+	hosts h
+	INNER JOIN host_mdm hmdm ON h.id=hmdm.host_id
+	%s
+WHERE
+	platform = 'android' AND
+	hmdm.enrolled = 1 AND -- TODO AP Do we need this check? Windows does it, Apple does not
+	 %s
+GROUP BY
+	status HAVING status IS NOT NULL`
+
+	teamFilter := "team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAndroidStatus(), sqlJoinMDMAndroidProfilesStatus(), teamFilter)
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt); err != nil {
 		return nil, err
 	}
 
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s from android profiles summary", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
 	var res fleet.MDMProfilesSummary
-	for _, c := range counts {
-		switch c.Status {
-		case "failed":
-			res.Failed = c.Count
-		case "pending":
-			res.Pending += c.Count
-		case "verifying":
-			res.Verifying = c.Count
-		case "verified":
-			res.Verified = c.Count
-		case "":
-			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d android hosts on team %v with mdm turned on but no profiles", c.Count, teamID))
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
 		default:
-			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm android status count: status=%s, count=%d", c.Status, c.Count))
+			return nil, fmt.Errorf("unknown status %s", s)
 		}
 	}
 
 	return &res, nil
 }
 
-func getMDMAndroidStatusCountsDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
-	var args []interface{}
-	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMAndroidProfilesStatusFailed()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusFailed")
-	}
-	args = append(args, subqueryFailedArgs...)
-	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMAndroidProfilesStatusPending()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusPending")
-	}
-	args = append(args, subqueryPendingArgs...)
-	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMAndroidProfilesStatusVerifying()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusVerifying")
-	}
-	args = append(args, subqueryVeryingingArgs...)
-	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMAndroidProfilesStatusVerified()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusVerified")
-	}
-	args = append(args, subqueryVerifiedArgs...)
-
-	teamFilter := "h.team_id IS NULL"
-	if teamID != nil && *teamID > 0 {
-		teamFilter = "h.team_id = ?"
-		args = append(args, *teamID)
-	}
-
-	stmt := fmt.Sprintf(`
-SELECT
-    CASE
-        WHEN EXISTS (%s) THEN
-            'failed'
-        WHEN EXISTS (%s) THEN
-            'pending'
-        WHEN EXISTS (%s) THEN
-            'verifying'
-        WHEN EXISTS (%s) THEN
-            'verified'
-        ELSE
-            ''
-    END AS final_status,
-    SUM(1) AS count
-FROM
-    hosts h
-    JOIN host_mdm hmdm ON h.id = hmdm.host_id
-WHERE
-    h.platform = 'android' AND
-    hmdm.enrolled = 1 AND
-    %s
-GROUP BY
-    final_status`,
-		subqueryFailed,
-		subqueryPending,
-		subqueryVerifying,
-		subqueryVerified,
-		teamFilter,
+// sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile in the given status category. Separate columns are used for status of the filevault profile
+// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAndroidProfilesStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
 	)
-
-	var counts []statusCounts
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
-	if err != nil {
-		return nil, err
-	}
-	return counts, nil
+	return `
+	LEFT JOIN (
+		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		SELECT
+			host_uuid,
+			MAX( IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS android_prof_pending,
+			MAX( IF(status = ` + failed + `, 1, 0)) AS android_prof_failed,
+			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verifying,
+			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verified
+		FROM
+			host_mdm_android_profiles
+		GROUP BY
+			host_uuid) hmgp ON h.uuid = hmgp.host_uuid
+`
 }
 
-func subqueryHostsMDMAndroidProfilesStatusFailed() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_android_profiles hmap
-            WHERE
-                h.uuid = hmap.host_uuid
-                AND hmap.status = ?
-                AND hmap.profile_name NOT IN(?)`
-	args := []interface{}{
-		fleet.MDMDeliveryFailed,
-		mdm.ListFleetReservedAndroidProfileNames(),
-	}
-
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMAndroidProfilesStatusPending() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_android_profiles hmap
-            WHERE
-                h.uuid = hmap.host_uuid
-                AND (hmap.status IS NULL OR hmap.status = ?)
-				AND hmap.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_android_profiles hmap2
-                    WHERE (h.uuid = hmap2.host_uuid
-                        AND hmap2.status = ?
-                        AND hmap2.profile_name NOT IN(?)))`
-	args := []interface{}{
-		fleet.MDMDeliveryPending,
-		mdm.ListFleetReservedAndroidProfileNames(),
-		fleet.MDMDeliveryFailed,
-		mdm.ListFleetReservedAndroidProfileNames(),
-	}
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMAndroidProfilesStatusVerifying() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_android_profiles hmap
-            WHERE
-                h.uuid = hmap.host_uuid
-                AND hmap.operation_type = ?
-                AND hmap.status = ?
-                AND hmap.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_android_profiles hmap2
-                    WHERE (h.uuid = hmap2.host_uuid
-                        AND hmap2.operation_type = ?
-                        AND hmap2.profile_name NOT IN(?)
-                        AND(hmap2.status IS NULL
-                            OR hmap2.status NOT IN(?))))`
-
-	args := []interface{}{
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerifying,
-		mdm.ListFleetReservedAndroidProfileNames(),
-		fleet.MDMOperationTypeInstall,
-		mdm.ListFleetReservedAndroidProfileNames(),
-		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
-	}
-	return sqlx.In(sql, args...)
-}
-
-func subqueryHostsMDMAndroidProfilesStatusVerified() (string, []interface{}, error) {
-	sql := `
-            SELECT
-                1 FROM host_mdm_android_profiles hmap
-            WHERE
-                h.uuid = hmap.host_uuid
-                AND hmap.operation_type = ?
-                AND hmap.status = ?
-                AND hmap.profile_name NOT IN(?)
-                AND NOT EXISTS (
-                    SELECT
-                        1 FROM host_mdm_android_profiles hmap2
-                    WHERE (h.uuid = hmap2.host_uuid
-                        AND hmap2.operation_type = ?
-                        AND hmap2.profile_name NOT IN(?)
-                        AND(hmap2.status IS NULL
-                            OR hmap2.status != ?)))`
-	args := []interface{}{
-		fleet.MDMOperationTypeInstall,
-		fleet.MDMDeliveryVerified,
-		mdm.ListFleetReservedAndroidProfileNames(),
-		fleet.MDMOperationTypeInstall,
-		mdm.ListFleetReservedAndroidProfileNames(),
-		fleet.MDMDeliveryVerified,
-	}
-	return sqlx.In(sql, args...)
+// sqlCaseMDMAndroidStatus returns a SQL snippet that can be used to determine the status of an Android host
+// based on the status of its profiles. It should be used in conjunction with sqlJoinMDMAndroidProfilesStatus
+// It assumes the hosts table to be aliased as 'h'
+func sqlCaseMDMAndroidStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	CASE WHEN (android_prof_failed) THEN
+		` + failed + `
+	WHEN (android_prof_pending) THEN
+		` + pending + `
+	WHEN (android_prof_verifying) THEN
+		` + verifying + `
+	WHEN (android_prof_verified) THEN
+		` + verified + `
+	END
+`
 }

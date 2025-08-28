@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ func TestAndroid(t *testing.T) {
 		{"NewMDMAndroidConfigProfile", testNewMDMAndroidConfigProfile},
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
 		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
+		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -99,6 +101,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			CPUType:        "cpu_type",
 			HardwareModel:  "hardware_model",
 			HardwareVendor: "hardware_vendor",
+			UUID:           enterpriseSpecificID,
 		},
 		Device: &android.Device{
 			DeviceID:             "device_id",
@@ -507,4 +510,204 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 	require.Equal(t, "testAndroid2", profile2.Name)
+}
+
+func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	checkMDMProfilesSummary := func(t *testing.T, teamID *uint, expected fleet.MDMProfilesSummary) {
+		ps, err := ds.GetMDMAndroidProfilesSummary(ctx, teamID)
+		require.NoError(t, err)
+		require.NotNil(t, ps)
+		require.Equal(t, expected, *ps)
+	}
+
+	checkListHostsFilterOSSettings := func(t *testing.T, teamID *uint, status fleet.OSSettingsStatus, expectedIDs []uint) {
+		gotHosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		require.NoError(t, err)
+		if len(expectedIDs) != len(gotHosts) {
+			gotIDs := make([]uint, len(gotHosts))
+			for i, h := range gotHosts {
+				gotIDs[i] = h.ID
+			}
+			require.Len(t, gotHosts, len(expectedIDs), fmt.Sprintf("status: %s expected: %v got: %v", status, expectedIDs, gotIDs))
+
+		}
+		for _, h := range gotHosts {
+			require.Contains(t, expectedIDs, h.ID)
+		}
+
+		count, err := ds.CountHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{TeamFilter: teamID, OSSettingsFilter: status})
+		require.NoError(t, err)
+		require.Equal(t, len(expectedIDs), count, "status: %s", status)
+	}
+
+	type hostIDsByProfileStatus map[fleet.MDMDeliveryStatus][]uint
+
+	checkExpected := func(t *testing.T, teamID *uint, ep hostIDsByProfileStatus) {
+		checkMDMProfilesSummary(t, teamID, fleet.MDMProfilesSummary{
+			Pending:   uint(len(ep[fleet.MDMDeliveryPending])),
+			Failed:    uint(len(ep[fleet.MDMDeliveryFailed])),
+			Verifying: uint(len(ep[fleet.MDMDeliveryVerifying])),
+			Verified:  uint(len(ep[fleet.MDMDeliveryVerified])),
+		})
+
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerified, ep[fleet.MDMDeliveryVerified])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsVerifying, ep[fleet.MDMDeliveryVerifying])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsFailed, ep[fleet.MDMDeliveryFailed])
+		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, ep[fleet.MDMDeliveryPending])
+	}
+
+	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			stmt := `INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, status, operation_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
+			return err
+		})
+	}
+
+	cleanupTables := func(t *testing.T) {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles`)
+			return err
+		})
+	}
+
+	// Create some hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 5; i++ {
+		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
+		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		require.NoError(t, err)
+		require.NotNil(t, newHost)
+		hosts = append(hosts, newHost.Host)
+	}
+
+	t.Run("profiles summary empty when there are no hosts with statuses", func(t *testing.T) {
+		expected := hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{},
+			fleet.MDMDeliveryVerifying: []uint{},
+			fleet.MDMDeliveryVerified:  []uint{},
+			fleet.MDMDeliveryFailed:    []uint{},
+		}
+		checkExpected(t, nil, expected)
+	})
+
+	t.Run("profiles summary accounts for host profiles with mixed statuses", func(t *testing.T) {
+		for i := 0; i < 5; i++ {
+			// upsert five profiles for hosts[0] with nil statuses
+			upsertHostProfileStatus(t, hosts[0].UUID, fmt.Sprintf("some-android-profile-%d", i), nil)
+			// upsert five profiles for hosts[1] with pending statuses
+			upsertHostProfileStatus(t, hosts[1].UUID, fmt.Sprintf("some-android-profile-%d", i), &fleet.MDMDeliveryPending)
+			// upsert five profiles for hosts[2] with verifying statuses
+			upsertHostProfileStatus(t, hosts[2].UUID, fmt.Sprintf("some-android-profile-%d", i), &fleet.MDMDeliveryVerifying)
+			// upsert five profiles for hosts[3] with verified statuses
+			upsertHostProfileStatus(t, hosts[3].UUID, fmt.Sprintf("some-android-profile-%d", i), &fleet.MDMDeliveryVerified)
+			// upsert five profiles for hosts[4] with failed statuses
+			upsertHostProfileStatus(t, hosts[4].UUID, fmt.Sprintf("some-android-profile-%d", i), &fleet.MDMDeliveryFailed)
+		}
+
+		expected := hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{hosts[0].ID, hosts[1].ID},
+			fleet.MDMDeliveryVerifying: []uint{hosts[2].ID},
+			fleet.MDMDeliveryVerified:  []uint{hosts[3].ID},
+			fleet.MDMDeliveryFailed:    []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		// add some other android hosts that won't be be assigned any profiles
+		otherHosts := make([]*fleet.Host, 0, 5)
+		for i := 0; i < 5; i++ {
+			androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-other-%d", i))
+			newHost, err := ds.NewAndroidHost(ctx, androidHost)
+			require.NoError(t, err)
+			require.NotNil(t, newHost)
+			otherHosts = append(otherHosts, newHost.Host)
+		}
+
+		checkExpected(t, nil, expected)
+
+		// upsert some-profile-0 to failed status for hosts[0:4]
+		for i := 0; i < 5; i++ {
+			upsertHostProfileStatus(t, hosts[i].UUID, "some-android-profile-0", &fleet.MDMDeliveryFailed)
+		}
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{},
+			fleet.MDMDeliveryVerifying: []uint{},
+			fleet.MDMDeliveryVerified:  []uint{},
+			fleet.MDMDeliveryFailed:    []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		// upsert some-profile-0 to pending status for hosts[0:4]
+		for i := 0; i < 5; i++ {
+			upsertHostProfileStatus(t, hosts[i].UUID, "some-android-profile-0", &fleet.MDMDeliveryPending)
+		}
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID},
+			fleet.MDMDeliveryVerifying: []uint{},
+			fleet.MDMDeliveryVerified:  []uint{},
+			fleet.MDMDeliveryFailed:    []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		// upsert some-profile-0 to verifying status for hosts[0:4]
+		for i := 0; i < 5; i++ {
+			upsertHostProfileStatus(t, hosts[i].UUID, "some-android-profile-0", &fleet.MDMDeliveryVerifying)
+		}
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{hosts[0].ID, hosts[1].ID},
+			fleet.MDMDeliveryVerifying: []uint{hosts[2].ID, hosts[3].ID},
+			fleet.MDMDeliveryVerified:  []uint{},
+			fleet.MDMDeliveryFailed:    []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		// upsert some-profile-0 to verified status for hosts[0:4]
+		for i := 0; i < 5; i++ {
+			upsertHostProfileStatus(t, hosts[i].UUID, "some-android-profile-0", &fleet.MDMDeliveryVerified)
+		}
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{hosts[0].ID, hosts[1].ID},
+			fleet.MDMDeliveryVerifying: []uint{hosts[2].ID},
+			fleet.MDMDeliveryVerified:  []uint{hosts[3].ID},
+			fleet.MDMDeliveryFailed:    []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		// create a new team
+		t1, err := ds.NewTeam(ctx, &fleet.Team{Name: uuid.NewString()})
+		require.NoError(t, err)
+		require.NotNil(t, t1)
+
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{},
+			fleet.MDMDeliveryVerifying: []uint{},
+			fleet.MDMDeliveryVerified:  []uint{},
+			fleet.MDMDeliveryFailed:    []uint{},
+		}
+		checkExpected(t, &t1.ID, expected)
+
+		// transfer hosts[1:2] to the team
+		require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&t1.ID, []uint{hosts[1].ID, hosts[2].ID})))
+
+		// hosts[1:2] now counted for the team, hosts[2] is counted as verifying again because
+		// disk encryption is not enabled for the team
+		expectedTeam1 := hostIDsByProfileStatus{
+			fleet.MDMDeliveryPending:   []uint{hosts[1].ID},
+			fleet.MDMDeliveryVerifying: []uint{hosts[2].ID},
+		}
+		checkExpected(t, &t1.ID, expectedTeam1)
+
+		// set MDM to off for hosts[0]
+		require.NoError(t, ds.SetOrUpdateMDMData(ctx, hosts[0].ID, false, false, "", false, "", "", false))
+		// hosts[0] is no longer counted
+		expected = hostIDsByProfileStatus{
+			fleet.MDMDeliveryVerified: []uint{hosts[3].ID},
+			fleet.MDMDeliveryFailed:   []uint{hosts[4].ID},
+		}
+		checkExpected(t, nil, expected)
+
+		cleanupTables(t)
+	})
 }
