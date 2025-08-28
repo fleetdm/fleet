@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -452,6 +453,81 @@ func (svc *Service) GetTransparencyURL(ctx context.Context) (string, error) {
 	}
 
 	return transparencyURL, nil
+}
+
+// ///////////////////////////////////////////////////////////////////////////////
+// Software title icons
+// ///////////////////////////////////////////////////////////////////////////////
+type getDeviceSoftwareIconRequest struct {
+	Token           string `url:"token"`
+	SoftwareTitleID uint   `url:"software_title_id"`
+}
+
+func (r *getDeviceSoftwareIconRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceSoftwareIconResponse struct {
+	Err         error  `json:"error,omitempty"`
+	ImageData   []byte `json:"-"`
+	ContentType string `json:"-"`
+	Filename    string `json:"-"`
+	Size        int64  `json:"-"`
+}
+
+func (r getDeviceSoftwareIconResponse) Error() error { return r.Err }
+
+type getDeviceSoftwareIconRedirectResponse struct {
+	RedirectURL string `json:"-"`
+}
+
+func (r getDeviceSoftwareIconRedirectResponse) Error() error { return nil }
+
+func (r getDeviceSoftwareIconRedirectResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Location", r.RedirectURL)
+	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (r getDeviceSoftwareIconResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", r.ContentType)
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, r.Filename))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size))
+
+	w.Write(r.ImageData)
+}
+
+func getDeviceSoftwareIconEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return getDeviceSoftwareIconResponse{Err: err}, nil
+	}
+
+	req := request.(*getDeviceSoftwareIconRequest)
+	iconData, size, filename, err := svc.GetDeviceSoftwareIconsTitleIcon(ctx, *host.TeamID, req.SoftwareTitleID)
+	if err != nil {
+		var vppErr *fleet.VPPIconAvailableError
+		if errors.As(err, &vppErr) {
+			// 302 redirect to vpp app IconURL
+			return getDeviceSoftwareIconRedirectResponse{RedirectURL: vppErr.IconURL}, nil
+		}
+		return getDeviceSoftwareIconResponse{Err: err}, nil
+	}
+
+	return getDeviceSoftwareIconResponse{
+		ImageData:   iconData,
+		ContentType: "image/png", // only type of icon we currently allow
+		Filename:    *filename,
+		Size:        *size,
+	}, nil
+}
+
+func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, nil, nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

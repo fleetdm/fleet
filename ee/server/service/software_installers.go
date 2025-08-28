@@ -2002,7 +2002,7 @@ func (svc *Service) softwareBatchUpload(
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
 					}
-					p.MaintainedApp.SHA256, err = maintained_apps.SHA256FromInstallerFile(installer.InstallerFile)
+					p.MaintainedApp.SHA256, err = file.SHA256FromTempFileReader(installer.InstallerFile)
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}

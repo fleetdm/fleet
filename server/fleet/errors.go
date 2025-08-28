@@ -683,3 +683,11 @@ func (e ConflictError) StatusCode() int {
 type Errorer interface {
 	Error() error
 }
+
+type VPPIconAvailableError struct {
+	IconURL string
+}
+
+func (e *VPPIconAvailableError) Error() string {
+	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
+}
