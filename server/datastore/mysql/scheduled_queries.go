@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
-	"sort"
 	"strings"
 
 	"github.com/jmoiron/sqlx"

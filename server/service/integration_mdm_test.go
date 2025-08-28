@@ -373,12 +373,12 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 			err = json.Unmarshal(rawBody, &req)
 			require.NoError(s.T(), err)
 
-			resp = 
-				fmt.Appendf(nil, 
+			resp =
+				fmt.Appendf(nil,
 					`{"csr": %q}`,
 					base64.StdEncoding.EncodeToString(req.UnsignedCSRData),
-				),
-			
+				)
+
 		}
 		_, _ = w.Write(resp)
 	}))
@@ -15048,11 +15048,11 @@ type mockDigiCertServer struct {
 }
 
 type certificateReq struct {
-	CSR            string                 `json:"csr"`
-	Profile        map[string]string      `json:"profile"`
-	Seat           map[string]string      `json:"seat"`
-	DeliveryFormat string                 `json:"delivery_format"`
-	Attributes     map[string]any `json:"attributes"`
+	CSR            string            `json:"csr"`
+	Profile        map[string]string `json:"profile"`
+	Seat           map[string]string `json:"seat"`
+	DeliveryFormat string            `json:"delivery_format"`
+	Attributes     map[string]any    `json:"attributes"`
 }
 
 func createMockDigiCertServer(t *testing.T) *mockDigiCertServer {

@@ -3,7 +3,6 @@ package async
 import (
 	"context"
 	"slices"
-	"sort"
 	"sync"
 	"time"
 
