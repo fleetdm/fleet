@@ -38,6 +38,7 @@ func TestSoftware(t *testing.T) {
 		{"HostDuplicates", testSoftwareHostDuplicates},
 		{"DuplicateNameDifferentBundleIdentifier", testSoftwareDuplicateNameDifferentBundleIdentifier},
 		{"DifferentNameSameBundleIdentifier", testSoftwareDifferentNameSameBundleIdentifier},
+		{"CheckForDeletedInstalledSoftware", testCheckForDeletedInstalledSoftware},
 		{"LoadVulnerabilities", testSoftwareLoadVulnerabilities},
 		{"ListSoftwareCPEs", testListSoftwareCPEs},
 		{"NothingChanged", testSoftwareNothingChanged},
@@ -8756,4 +8757,72 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 	software, _, err = ds.ListHostSoftware(ctx, host4, hostInventoryOpts)
 	require.NoError(t, err)
 	require.Len(t, software, 1)
+}
+
+func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+
+	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "")
+	require.NoError(t, err)
+	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "")
+	require.NoError(t, err)
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{*existingSw})
+	require.NoError(t, err)
+
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	softwareInstaller := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:     "hello",
+		PreInstallQuery:   "SELECT",
+		PostInstallScript: "world",
+		UninstallScript:   "goodbye",
+		InstallerFile:     tfr,
+		StorageID:         "storage",
+		Filename:          "file1",
+		Title:             "htop",
+		Version:           "3.4.1-5",
+		Source:            "deb_packages",
+		UserID:            user.ID,
+		TeamID:            &team1.ID,
+		BundleIdentifier:  "",
+		Platform:          "linux",
+		SelfService:       true,
+		ValidatedLabels:   &fleet.LabelIdentsWithScope{},
+	}
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, softwareInstaller)
+	require.NoError(t, err)
+
+	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	require.NoError(t, err)
+
+	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           hostInstall1,
+		InstallScriptExitCode: ptr.Int(0),
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	t.Run("test", func(t *testing.T) {
+		_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+		require.NoError(t, err)
+
+		_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
+		require.NoError(t, err)
+
+		var removed int
+		err = ds.writer(ctx).Get(&removed, `SELECT removed FROM host_software_installs
+			WHERE software_title_name = ? ORDER BY updated_at DESC LIMIT 1`, "htop")
+
+		require.NoError(t, err)
+		require.Equal(t, 0, removed)
+	})
 }
