@@ -21,38 +21,7 @@ const (
 
 var querySearchColumns = []string{"q.name"}
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
-		return ctxerr.Wrap(ctx, err, "apply queries in tx")
-	}
-
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
-	for queryID := range queriesToDiscardResults {
-		queryIDs = append(queryIDs, queryID)
-	}
-	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete query_results")
-	}
-	return nil
-}
-
-func (ds *Datastore) applyQueriesInTx(
-	ctx context.Context,
-	authorID uint,
-	queries []*fleet.Query,
-) (err error) {
-	// First, verify all 'queries' are valid.
-	for _, q := range queries {
-		if err := q.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-	}
-
-	upsertSQL := `
+const upsertQueriesSQL = `
 	INSERT INTO queries (
 		name,
 		description,
@@ -85,11 +54,36 @@ func (ds *Datastore) applyQueriesInTx(
 		logging_type = VALUES(logging_type),
 		discard_data = VALUES(discard_data)`
 
-	selectQuerySQL := `
-       SELECT id, name, team_id
-       FROM queries
-       WHERE %s
-`
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+		return ctxerr.Wrap(ctx, err, "apply queries in tx")
+	}
+
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
+	for queryID := range queriesToDiscardResults {
+		queryIDs = append(queryIDs, queryID)
+	}
+	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete query_results")
+	}
+	return nil
+}
+
+func (ds *Datastore) applyQueriesInTx(
+	ctx context.Context,
+	authorID uint,
+	queries []*fleet.Query,
+) (err error) {
+	// First, verify all 'queries' are valid.
+	for _, q := range queries {
+		if err := q.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
 
 	// 'queries' are uniquely identified by {name, team_id}
 	unqKeyGen := func(name string, teamID *uint) string {
@@ -113,57 +107,55 @@ func (ds *Datastore) applyQueriesInTx(
 			batchGrp[unqKeyGen(q.Name, q.TeamID)] = q
 		}
 
-		if err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			params := make([]string, 0, len(batch))
-			args := make([]interface{}, 0, len(batch)*13)
+		// For upserting
+		pToInsert := make([]string, 0, len(batch))
+		aToInsert := make([]interface{}, 0, len(batch)*13)
 
-			for _, q := range batch {
-				params = append(params, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
-				args = append(args,
-					q.Name,
-					q.Description,
-					q.Query,
-					authorID,
-					q.ObserverCanRun,
-					q.TeamID,
-					q.TeamIDStr(),
-					q.Platform,
-					q.MinOsqueryVersion,
-					q.Interval,
-					q.AutomationsEnabled,
-					q.Logging,
-					q.DiscardData,
-				)
+		// For fetching the ID after the upsert
+		var pToSelect []string
+		var aToSelect []interface{}
+
+		for _, q := range batch {
+			pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+			aToInsert = append(aToInsert,
+				q.Name,
+				q.Description,
+				q.Query,
+				authorID,
+				q.ObserverCanRun,
+				q.TeamID,
+				q.TeamIDStr(),
+				q.Platform,
+				q.MinOsqueryVersion,
+				q.Interval,
+				q.AutomationsEnabled,
+				q.Logging,
+				q.DiscardData,
+			)
+
+			if q.ID == 0 {
+				pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
+				aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
 			}
+		}
+		upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
+		selectStm := fmt.Sprintf(
+			`SELECT id, name, team_id FROM queries WHERE %s`,
+			strings.Join(pToSelect, " OR "),
+		)
 
-			upsertStm := fmt.Sprintf(upsertSQL, strings.Join(params, ","))
-			if _, err = tx.ExecContext(ctx, upsertStm, args...); err != nil {
+		if err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			if _, err = tx.ExecContext(ctx, upsertStm, aToInsert...); err != nil {
 				return ctxerr.Wrap(ctx, err, "bulk upserting queries")
 			}
 
-			// Make sure all queries in the batch have an ID.
-			// Here we are using the fact that there is a functional dependency between
-			// query.ID and (query.team_id_str, query.name) due to the unq constraint on those columns.
-			var toFetchID []*fleet.Query
-			for _, q := range batch {
-				if q.ID == 0 {
-					toFetchID = append(toFetchID, q)
-				}
-			}
-
-			if len(toFetchID) != 0 {
-				params = make([]string, 0, len(toFetchID))
-				args = make([]interface{}, 0, len(toFetchID)*2)
-
-				for _, q := range toFetchID {
-					params = append(params, "(name = ? AND team_id_char = ?)")
-					args = append(args, q.Name, q.TeamIDStr())
-				}
-
-				rows, err := tx.QueryContext(ctx, fmt.Sprintf(selectQuerySQL, strings.Join(params, " OR ")), args...)
+			if len(pToSelect) != 0 {
+				rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "select queries for update")
 				}
+				defer rows.Close()
+
 				for rows.Next() {
 					var id uint
 					var name string
@@ -175,9 +167,6 @@ func (ds *Datastore) applyQueriesInTx(
 				}
 				if err := rows.Err(); err != nil {
 					return ctxerr.Wrap(ctx, err, "fetching query IDs")
-				}
-				if err := rows.Close(); err != nil {
-					return ctxerr.Wrap(ctx, err, "closing query IDs query")
 				}
 			}
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
@@ -335,77 +324,74 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.New(ctx, "updateQueryLabelsInTx called with nil tx")
 	}
 	if len(queries) == 0 {
-		return nil // NOOP
+		return nil
 	}
 
-	queriesByID := make(map[uint]*fleet.Query)
 	queriesIDs := make([]uint, 0, len(queries))
 	for _, q := range queries {
-		queriesByID[q.ID] = q
 		queriesIDs = append(queriesIDs, q.ID)
 	}
 
-	deleteQueryLabelsSQL := `DELETE FROM query_labels WHERE query_id IN (?)`
-	deleteQueryLabelsStm, args, err := sqlx.In(deleteQueryLabelsSQL, queriesIDs)
+	deleteQueryLabelsStm, args, err := sqlx.In(`DELETE FROM query_labels WHERE query_id IN (?)`, queriesIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting old query labels")
+	}
 	if _, err := tx.ExecContext(ctx, deleteQueryLabelsStm, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "removing old query labels")
+		return ctxerr.Wrap(ctx, err, "deleting old query labels")
 	}
 
-	var labelNames []interface{}
+	var lblNames []interface{}
 	for _, q := range queries {
 		for _, lbl := range q.LabelsIncludeAny {
-			labelNames = append(labelNames, lbl.LabelName)
+			lblNames = append(lblNames, lbl.LabelName)
 		}
 	}
-	if len(labelNames) == 0 {
+	if len(lblNames) == 0 {
 		return nil
 	}
 
 	// We need to figure out the label IDs for the labels we're going to add.
-	labelNameToIDMap := make(map[string]uint)
-
-	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, labelNames)
+	stm, args, err := sqlx.In(`SELECT id, name FROM labels WHERE name IN (?)`, lblNames)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
+
 	rows, err := tx.QueryxContext(ctx, stm, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
+	defer rows.Close()
+
+	lblNameToID := make(map[string]uint)
 	for rows.Next() {
 		var id uint
 		var name string
 		if err := rows.Scan(&id, &name); err != nil {
 			return ctxerr.Wrap(ctx, err, "scan existing query")
 		}
-		labelNameToIDMap[name] = id
+		lblNameToID[name] = id
 	}
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching query IDs")
 	}
-	if err := rows.Close(); err != nil {
-		return ctxerr.Wrap(ctx, err, "closing query IDs query")
-	}
 
-	insertLabelSQL := `
-		INSERT INTO query_labels (
-			query_id,
-			label_id
-		) VALUES %s
-	`
-	params := make([]string, 0, len(labelNames))
-	args = make([]interface{}, 0, len(labelNames)*2)
+	params := make([]string, 0, len(lblNames))
+	args = make([]interface{}, 0, len(lblNames)*2)
 	for _, q := range queries {
 		for _, lbl := range q.LabelsIncludeAny {
-			id, ok := labelNameToIDMap[lbl.LabelName]
-			if !ok {
-				return ctxerr.Wrap(ctx, notFound("Label").WithName(lbl.LabelName))
+			if lblID, ok := lblNameToID[lbl.LabelName]; ok {
+				params = append(params, "(?, ?)")
+				args = append(args, q.ID, lblID)
 			}
-			params = append(params, "(?, ?)")
-			args = append(args, q.ID, id)
 		}
 	}
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf(insertLabelSQL, strings.Join(params, ", ")), args...); err != nil {
+
+	if len(params) == 0 {
+		return nil
+	}
+
+	insertSQL := fmt.Sprintf(`INSERT INTO query_labels (query_id, label_id) VALUES %s`, strings.Join(params, ", "))
+	if _, err := tx.ExecContext(ctx, insertSQL, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating query labels")
 	}
 
