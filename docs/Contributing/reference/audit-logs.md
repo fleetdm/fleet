@@ -1468,16 +1468,16 @@ This activity contains the following fields:
 
 ## added_app_store_app
 
-Generated when an App Store app is added to Fleet.
+Generated when an Apple App Store or Android Play Store app is added to Fleet.
 
 This activity contains the following fields:
-- "software_title": Name of the App Store app.
+- "software_title": Name of the App Store or Play Store app.
 - "software_title_id": ID of the added software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
-- "self_service": App installation can be initiated by device owner.
-- "team_name": Name of the team to which this App Store app was added, or `null` if it was added to no team.
-- "team_id": ID of the team to which this App Store app was added, or `null`if it was added to no team.
+- "app_store_id": ID of the app on the Apple App Store or Android Play Store.
+- "platform": Platform of the app (`darwin`, `ios`, `ipados`, or `android`).
+- "self_service": App installation can be initiated by the device owner.
+- "team_name": Name of the team to which this app was added, or `null` if it was added to no team.
+- "team_id": ID of the team to which this app was added, or `null`if it was added to no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 
@@ -1510,11 +1510,11 @@ This activity contains the following fields:
 Generated when an App Store app is deleted from Fleet.
 
 This activity contains the following fields:
-- "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
-- "team_name": Name of the team from which this App Store app was deleted, or `null` if it was deleted from no team.
-- "team_id": ID of the team from which this App Store app was deleted, or `null`if it was deleted from no team.
+- "software_title": Name of the App Store or Play Store app.
+- "app_store_id": ID of the app on the Apple App Store or Android Play Store.
+- "platform": Platform of the app (`darwin`, `ios`, `ipados`, or `android`).
+- "team_name": Name of the team from which this app was deleted, or `null` if it was deleted from no team.
+- "team_id": ID of the team from which this app was deleted, or `null`if it was deleted from no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array
 
@@ -1548,9 +1548,9 @@ This activity contains the following fields:
 - "host_id": ID of the host on which the app was installed.
 - "self_service": App installation was initiated by device owner.
 - "host_display_name": Display name of the host.
-- "software_title": Name of the App Store app.
-- "app_store_id": ID of the app on the Apple App Store.
-- "status": Status of the App Store app installation.
+- "software_title": Name of the App Store or Play Store app.
+- "app_store_id": ID of the app on the Apple App Store or Android Play Store.
+- "status": Status of the app installation.
 - "command_uuid": UUID of the MDM command used to install the app.
 - "policy_id": ID of the policy whose failure triggered the install. Null if no associated policy.
 - "policy_name": Name of the policy whose failure triggered the install. Null if no associated policy.
@@ -1575,13 +1575,13 @@ This activity contains the following fields:
 Generated when an App Store app is updated in Fleet.
 
 This activity contains the following fields:
-- "software_title": Name of the App Store app.
+- "software_title": Name of the App Store or Play Store app.
 - "software_title_id": ID of the updated app's software title.
-- "app_store_id": ID of the app on the Apple App Store.
-- "platform": Platform of the app (`darwin`, `ios`, or `ipados`).
+- "app_store_id": ID of the app on the Apple App Store or Android Play Store.
+- "platform": Platform of the app (`darwin`, `ios`, `ipados`, or `android`).
 - "self_service": App installation can be initiated by device owner.
-- "team_name": Name of the team on which this App Store app was updated, or `null` if it was updated on no team.
-- "team_id": ID of the team on which this App Store app was updated, or `null`if it was updated on no team.
+- "team_name": Name of the team on which this app was updated, or `null` if it was updated on no team.
+- "team_id": ID of the team on which this app was updated, or `null`if it was updated on no team.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
 
