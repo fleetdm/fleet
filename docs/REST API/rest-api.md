@@ -597,7 +597,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), [Smallstep](https://smallstep.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
 `POST /api/v1/fleet/certificate_authorities`
 
@@ -611,6 +611,7 @@ Only one of the objects is allowed in a single request.
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
+| smallstep   | object | body | See [s](#smallstep) |
 
 ##### digicert
 
@@ -656,6 +657,17 @@ Object with the following structure:
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint provided by Hydrant. |
 | client_id | string | **Required**. The client ID provided by Hydrant.|
 | client_secret  | string | **Required**. The client secret provided by Hydrant. |
+
+##### smallstep
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url       | string  | **Required**. The **SCEP URL** from Smallstep. |
+| challenge_url | string | **Required**. The **Webhook URL** from Smallstep.|
+| username  | string | **Required**. The **Challenge Basic Authentication Username** from Smallstep. |
+| password  | string | **Required**. The **Challenge Basic Authentication Password** from Smallstep. |
 
 #### Example
 
@@ -706,6 +718,7 @@ Object with the following structure:
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
+| smallstep   | object | body | See [smallstep](#smallstep) |
 
 See [Add certificate authority](#add-certificate-authority-ca) above for the structure of each CA object.
 
@@ -768,6 +781,11 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
       "id": 4,
       "name": "SCEP_CERTIFICATE_PROD",
       "type": "custom_scep_proxy"
+    },
+    {
+      "id": 5,
+      "name": "SMALLSTEP_WIFI",
+      "type": "smallstep"
     }
   ]
 }
