@@ -64,6 +64,21 @@ func (ds *Datastore) TeamWithoutExtras(ctx context.Context, tid uint) (*fleet.Te
 }
 
 func teamDB(ctx context.Context, q sqlx.QueryerContext, tid uint, withExtras bool) (*fleet.Team, error) {
+	if tid == 0 {
+		if withExtras {
+			return nil, ctxerr.Errorf(ctx, "withExtras argument not supported for team ID 0")
+		}
+		config, err := defaultTeamConfigDB(ctx, q)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "default team config")
+		}
+		return &fleet.Team{
+			ID:     0,
+			Name:   fleet.ReservedNameNoTeam,
+			Config: *config,
+		}, nil
+	}
+
 	stmt := `
 		SELECT ` + teamColumns + ` FROM teams
 			WHERE id = ?

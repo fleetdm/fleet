@@ -145,6 +145,10 @@ func TriggerFailingPoliciesAutomation(
 			}
 
 			if teamCfg.AutomationType == "" {
+				level.Debug(logger).Log("msg", "team automation disabled", "teamID", *policy.TeamID, "policyID", policyID)
+				if err := failingPoliciesSet.RemoveSet(policy.ID); err != nil {
+					level.Error(logger).Log("msg", "failed to remove policy from set", "policyID", policyID, "err", err)
+				}
 				continue
 			}
 
