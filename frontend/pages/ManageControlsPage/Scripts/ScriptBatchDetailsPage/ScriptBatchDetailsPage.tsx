@@ -147,6 +147,7 @@ const ScriptBatchDetailsPage = ({
 
       const newParams = new URLSearchParams(location?.search);
       newParams.set("status", newHostsStatus);
+      newParams.set("page", "0");
       const newQuery = newParams.toString();
 
       router.push(
