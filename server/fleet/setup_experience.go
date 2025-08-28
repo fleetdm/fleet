@@ -189,6 +189,6 @@ func IsSetupExperienceSupported(hostPlatform string) bool {
 	return hostPlatform == "darwin"
 }
 
-type SetupExperienceLinuxStatusPayload struct {
+type SetupExperienceNextStatusPayload struct {
 	Software []*SetupExperienceStatusResult `json:"software,omitempty"`
 }

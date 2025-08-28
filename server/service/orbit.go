@@ -1503,7 +1503,7 @@ func (r orbitSetupExperienceInitResponse) Error() error {
 func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	_, ok := request.(*orbitSetupExperienceInitRequest)
 	if !ok {
-		return nil, fmt.Errorf("invalid request type: %T", request)
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
 	result, err := svc.SetupExperienceInit(ctx)
 	if err != nil {
@@ -1515,67 +1515,51 @@ func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
-	// TODO(lucas): Move to premium.
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
 
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
-	}
-
-	platform := fleet.PlatformFromHost(host.Platform)
-	if platform != "linux" {
-		return nil, ctxerr.Wrap(ctx, badRequest(
-			fmt.Sprintf("invalid platform %q, endpoint only supported on linux hosts", host.Platform),
-		), "failed platform check")
-	}
-
-	var teamID uint
-	if host.TeamID != nil {
-		teamID = *host.TeamID
-	}
-
-	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.Platform, host.UUID, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
-	}
-
-	return &fleet.SetupExperienceInitResult{
-		Enabled: enabled,
-	}, nil
+	return nil, fleet.ErrMissingLicense
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Get Orbit setup experience status for Linux hosts
+// Get orbit setup experience status for non-darwin hosts.
 /////////////////////////////////////////////////////////////////////////////////
 
-type getOrbitSetupExperienceLinuxStatusRequest struct {
+type getOrbitSetupExperienceNextStatusRequest struct {
 	OrbitNodeKey string `json:"orbit_node_key"`
 }
 
-func (r *getOrbitSetupExperienceLinuxStatusRequest) setOrbitNodeKey(nodeKey string) {
+func (r *getOrbitSetupExperienceNextStatusRequest) setOrbitNodeKey(nodeKey string) {
 	r.OrbitNodeKey = nodeKey
 }
 
-func (r *getOrbitSetupExperienceLinuxStatusRequest) orbitHostNodeKey() string {
+func (r *getOrbitSetupExperienceNextStatusRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-type getOrbitSetupExperienceLinuxStatusResponse struct {
-	Results *fleet.SetupExperienceLinuxStatusPayload `json:"setup_experience_results,omitempty"`
-	Err     error                                    `json:"error,omitempty"`
+type getOrbitSetupExperienceNextStatusResponse struct {
+	Results *fleet.SetupExperienceNextStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                                   `json:"error,omitempty"`
 }
 
-func (r getOrbitSetupExperienceLinuxStatusResponse) Error() error { return r.Err }
+func (r getOrbitSetupExperienceNextStatusResponse) Error() error { return r.Err }
 
-func getOrbitSetupExperienceLinuxStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*getOrbitSetupExperienceStatusRequest)
-	results, err := svc.GetOrbitSetupExperienceLinuxStatus(ctx, req.OrbitNodeKey)
-	if err != nil {
-		return &getOrbitSetupExperienceLinuxStatusResponse{Err: err}, nil
+func postOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	if _, ok := request.(*getOrbitSetupExperienceNextStatusRequest); !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
 	}
-	return &getOrbitSetupExperienceLinuxStatusResponse{Results: results}, nil
+	results, err := svc.GetOrbitSetupExperienceNextStatus(ctx)
+	if err != nil {
+		return &getOrbitSetupExperienceNextStatusResponse{Err: err}, nil
+	}
+	return &getOrbitSetupExperienceNextStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetOrbitSetupExperienceLinuxStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceLinuxStatusPayload, error) {
-	// TODO(lucas): Move to premium.
+func (svc *Service) GetOrbitSetupExperienceNextStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
