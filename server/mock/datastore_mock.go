@@ -109,6 +109,8 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
+type CleanupCompletedCampaignTargetsFunc func(ctx context.Context, olderThan time.Time) (deleted uint, err error)
+
 type GetCompletedCampaignsFunc func(ctx context.Context, filter []uint) ([]uint, error)
 
 type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
@@ -1600,6 +1602,9 @@ type DataStore struct {
 
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
+
+	CleanupCompletedCampaignTargetsFunc        CleanupCompletedCampaignTargetsFunc
+	CleanupCompletedCampaignTargetsFuncInvoked bool
 
 	GetCompletedCampaignsFunc        GetCompletedCampaignsFunc
 	GetCompletedCampaignsFuncInvoked bool
@@ -3946,6 +3951,13 @@ func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
+}
+
+func (s *DataStore) CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error) {
+	s.mu.Lock()
+	s.CleanupCompletedCampaignTargetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupCompletedCampaignTargetsFunc(ctx, olderThan)
 }
 
 func (s *DataStore) GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error) {
