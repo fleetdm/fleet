@@ -610,7 +610,7 @@ Setting this will force the Go webserver to attempt HTTP2. By default, HTTP2 sup
 is serving TLS, this setting is ignored if TLS is enabled. This configuration might be required if Fleet is hosted in certain
 cloud providers that have limitations on their API gateways, such as GCP Cloud Run.
 - Default value: false
-- Environment variable: FLEET_SERVER_FORCE_H2C
+- Environment variable: `FLEET_SERVER_FORCE_H2C`
 - Config file format:
   ```yaml
   server:
@@ -624,18 +624,30 @@ This key is required for enabling Apple, Windows, and Android MDM features and/o
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
 - Default value: ""
-- Environment variable: FLEET_SERVER_PRIVATE_KEY
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY`
 - Config file format:
   ```yaml
   server:
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+### server_private_key_arn
+
+Amazon Resource Name (ARN) for the Fleet server private key. 
+
+If set, Fleet reads the private key from AWS Secrets Manager instead of from `server_private_key`.
+
+- Default value: `""`
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_ARN`
+- Config file format:
+  ```yaml
+  server:
+    private_key_arn: TODO
+  ```
+
 ### server_private_key_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for the Fleet server private key authentication. 
-
-If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
+The Amazon Resource Name (ARN) of the AWS IAM role that Fleet uses to get the server's private key via Amazon Secure Token Service (STS).
 
 - Default value: `""`
 - Environment variable: `FLEET_SERVER_PRIVATE_KEY_STS_ASSUME_ROLE_ARN`
@@ -647,7 +659,7 @@ If set, Fleet reads the private key from AWS Secrets Manager instead of directly
 
 ### server_private_key_sts_external_id
 
-AWS Security Token Service (STS) External ID to use for authentication. Specify this with `server_private_key_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+If you're using a third-party to manage AWS resources, this is the AWS IAM role's external ID. `server_private_key_sts_assume_role_arn` is required if `server_private_key_sts_external_id` is set.
 
 ## Auth
 
@@ -2010,6 +2022,22 @@ AWS secret access key to use for SES authentication.
     secret_access_key: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
   ```
 
+### ses_source_arn
+
+This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
+required** when using the SES email backend.
+
+The ARN of the identity that is associated with the sending authorization policy that permits you to send
+for the email address specified in the Source parameter of SendRawEmail.
+
+- Default value: none
+- Environment variable: `FLEET_SES_SOURCE_ARN`
+- Config file format:
+  ```yaml
+  ses:
+    source_arn: TODO
+  ```
+
 ### ses_sts_assume_role_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
@@ -2038,22 +2066,6 @@ conjunction with an STS role ARN to ensure that only the intended AWS account ca
   ```yaml
   ses:
     sts_external_id: your_unique_id
-  ```
-
-### ses_source_arn
-
-This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
-required** when using the SES email backend.
-
-The ARN of the identity that is associated with the sending authorization policy that permits you to send
-for the email address specified in the Source parameter of SendRawEmail.
-
-- Default value: none
-- Environment variable: `FLEET_SES_SOURCE_ARN`
-- Config file format:
-  ```yaml
-  ses:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
   ```
 
 ## S3
