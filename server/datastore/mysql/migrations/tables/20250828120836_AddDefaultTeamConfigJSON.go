@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250820120836, Down_20250820120836)
+	MigrationClient.AddMigration(Up_20250828120836, Down_20250828120836)
 }
 
-func Up_20250820120836(tx *sql.Tx) error {
+func Up_20250828120836(tx *sql.Tx) error {
 	// Create the default_team_config_json table, mirroring app_config_json structure
 	sql := `
 		CREATE TABLE IF NOT EXISTS default_team_config_json (
@@ -103,6 +103,6 @@ func Up_20250820120836(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250820120836(_ *sql.Tx) error {
+func Down_20250828120836(_ *sql.Tx) error {
 	return nil
 }
