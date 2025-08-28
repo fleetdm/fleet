@@ -200,50 +200,6 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	return nil
 }
 
-func (p *ProxyClient) EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-	if p == nil || p.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
-	call := p.mgmt.Enterprises.Get(enterpriseName).Context(ctx)
-	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
-	ent, err := call.Do()
-	if err != nil {
-		// Check if the error is from the proxy returning a 404 (enterprise deleted)
-		// or 403 (enterprise access forbidden) and convert to proper googleapi.Error
-		// so the service layer can handle it correctly
-		var ae *googleapi.Error
-		switch {
-		case errors.As(err, &ae):
-			// Check if this googleapi.Error is a 404 from proxy (enterprise deleted)
-			if ae.Code == http.StatusNotFound {
-				// Convert 404 from proxy to proper googleapi.Error with special marker
-				return nil, &googleapi.Error{
-					Code:    http.StatusNotFound,
-					Message: "PROXY_VERIFIED_DELETED: Enterprise not found (deleted)",
-				}
-			}
-			// Other googleapi.Error, pass through
-			return nil, err
-		case isErrorCode(err, http.StatusNotFound):
-			// Convert 404 from proxy to proper googleapi.Error for service layer
-			// Use special message to indicate this was verified by proxy
-			return nil, &googleapi.Error{
-				Code:    http.StatusNotFound,
-				Message: "PROXY_VERIFIED_DELETED: Enterprise not found (deleted)",
-			}
-		case isErrorCode(err, http.StatusForbidden):
-			// Convert 403 from proxy to proper googleapi.Error for service layer
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Enterprise access forbidden",
-			}
-		default:
-			return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
-		}
-	}
-	return ent, nil
-}
-
 func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")

@@ -230,18 +230,6 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	return nil
 }
 
-func (g *GoogleClient) EnterpriseGet(ctx context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-	if g == nil || g.mgmt == nil {
-		return nil, errors.New("android management service not initialized")
-	}
-	ent, err := g.mgmt.Enterprises.Get(enterpriseName).Context(ctx).Do()
-	if err != nil {
-		// Return the underlying error so callers can inspect specific googleapi error codes.
-		return nil, fmt.Errorf("getting enterprise %s: %w", enterpriseName, err)
-	}
-	return ent, nil
-}
-
 func (g *GoogleClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
 	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")

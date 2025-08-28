@@ -249,7 +249,7 @@ func TestGetEnterprise(t *testing.T) {
 		enterprise, err := svc.GetEnterprise(ctx)
 		require.NoError(t, err)
 		require.NotNil(t, enterprise)
-		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
+		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
 	})
 
 	t.Run("enterprise actually deleted - 403 from GET and enterprise NOT in LIST", func(t *testing.T) {
@@ -272,14 +272,6 @@ func TestGetEnterprise(t *testing.T) {
 			return nil
 		}
 
-		// Override EnterpriseGetFunc to simulate deleted enterprise (403 from Google)
-		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise.",
-			}
-		}
-
 		// Override EnterprisesListFunc to return empty list (enterprise deleted)
 		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
@@ -295,8 +287,7 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 
-		// Verify both API calls were made
-		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
+		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
 
 		// Verify SetAndroidEnabledAndConfigured was called with false
@@ -330,15 +321,7 @@ func TestGetEnterprise(t *testing.T) {
 			return nil
 		}
 
-		// Override EnterpriseGetFunc to simulate permission issue (403 from Google)
-		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise.",
-			}
-		}
-
-		// Override EnterprisesListFunc to return the enterprise (exists but permission issue)
+		// Override EnterprisesListFunc to return the enterprise
 		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
 				{Name: "enterprises/existing-enterprise-id"},
@@ -351,19 +334,14 @@ func TestGetEnterprise(t *testing.T) {
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
-		require.Error(t, err)
-		require.Nil(t, enterprise)
+		require.NoError(t, err) // Should succeed since LIST found the enterprise
+		require.NotNil(t, enterprise)
 
-		// Verify both API calls were made
-		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
+		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
 
-		// Verify SetAndroidEnabledAndConfigured was NOT called
+		// Verify SetAndroidEnabledAndConfigured was NOT called (no deletion detected)
 		assert.False(t, setAndroidCalled)
-
-		// Check that it returns the original 403 error wrapped
-		assert.Contains(t, err.Error(), "verifying enterprise with Google")
-		assert.Contains(t, err.Error(), "Caller is not authorized to manage enterprise")
 	})
 
 	t.Run("LIST API fails - return original 403 error", func(t *testing.T) {
@@ -385,14 +363,6 @@ func TestGetEnterprise(t *testing.T) {
 			return nil
 		}
 
-		// Override EnterpriseGetFunc to simulate 403 from Google
-		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise.",
-			}
-		}
-
 		// Override EnterprisesListFunc to fail
 		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 			return nil, &googleapi.Error{
@@ -409,16 +379,15 @@ func TestGetEnterprise(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, enterprise)
 
-		// Verify both API calls were made
-		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
+		// Verify LIST API was called
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
 
 		// Verify SetAndroidEnabledAndConfigured was NOT called
 		assert.False(t, setAndroidCalled)
 
-		// Check that it returns the original 403 error, not the LIST error
+		// Check that it returns the LIST error
 		assert.Contains(t, err.Error(), "verifying enterprise with Google")
-		assert.Contains(t, err.Error(), "Caller is not authorized to manage enterprise")
+		assert.Contains(t, err.Error(), "Invalid credentials for list operation")
 	})
 
 	t.Run("SetAndroidEnabledAndConfigured fails - still return 404", func(t *testing.T) {
@@ -437,14 +406,6 @@ func TestGetEnterprise(t *testing.T) {
 		fleetDS.Store.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
 			assert.False(t, configured, "Should try to turn off Android configuration")
 			return errors.New("database error")
-		}
-
-		// Override EnterpriseGetFunc to simulate deleted enterprise (403 from Google)
-		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise.",
-			}
 		}
 
 		// Override EnterprisesListFunc to return empty list (enterprise deleted)
@@ -514,10 +475,6 @@ func TestGetEnterprise(t *testing.T) {
 					return nil
 				}
 
-				androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-					return nil, &googleapi.Error{Code: http.StatusForbidden}
-				}
-
 				androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 					return []*androidmanagement.Enterprise{
 						{Name: tc.enterpriseNameInList},
@@ -529,125 +486,21 @@ func TestGetEnterprise(t *testing.T) {
 				require.NoError(t, err)
 
 				enterprise, err := svc.GetEnterprise(ctx)
-				require.Error(t, err)
-				require.Nil(t, enterprise)
 
 				if tc.shouldFindInList {
-					// Enterprise found in list - should be permission issue
+					// Enterprise found in list
+					require.NoError(t, err)
+					require.NotNil(t, enterprise)
 					assert.False(t, setAndroidCalled, "Should not turn off Android when enterprise exists")
-					assert.Contains(t, err.Error(), "verifying enterprise with Google")
 				} else {
 					// Enterprise not found in list - should be deletion
+					require.Error(t, err)
+					require.Nil(t, enterprise)
 					assert.True(t, setAndroidCalled, "Should turn off Android when enterprise deleted")
 					assert.Contains(t, err.Error(), "Android Enterprise has been deleted")
 				}
 			})
 		}
-	})
-
-	t.Run("other error codes - not 403 - should pass through unchanged", func(t *testing.T) {
-		testCases := []struct {
-			name         string
-			errorCode    int
-			errorMessage string
-		}{
-			{
-				name:         "401 unauthorized",
-				errorCode:    http.StatusUnauthorized,
-				errorMessage: "Request had invalid authentication credentials.",
-			},
-			{
-				name:         "500 internal server error",
-				errorCode:    http.StatusInternalServerError,
-				errorMessage: "Internal server error occurred.",
-			},
-			{
-				name:         "404 not found",
-				errorCode:    http.StatusNotFound,
-				errorMessage: "Enterprise not found.",
-			},
-		}
-
-		for _, tc := range testCases {
-			t.Run(tc.name, func(t *testing.T) {
-				androidAPIClient := android_mock.Client{}
-				androidAPIClient.InitCommonMocks()
-
-				fleetDS := InitCommonDSMocks()
-
-				// Track calls to SetAndroidEnabledAndConfigured - should NOT be called
-				setAndroidCalled := false
-				fleetDS.Store.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
-					setAndroidCalled = true
-					return nil
-				}
-
-				// Override EnterpriseGetFunc to simulate the specific error
-				androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-					return nil, &googleapi.Error{
-						Code:    tc.errorCode,
-						Message: tc.errorMessage,
-					}
-				}
-
-				fleetSvc := mockService{}
-				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
-				require.NoError(t, err)
-
-				enterprise, err := svc.GetEnterprise(ctx)
-				require.Error(t, err)
-				require.Nil(t, enterprise)
-
-				// Verify only EnterpriseGet was called, not EnterprisesList
-				assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-				assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
-
-				// Verify SetAndroidEnabledAndConfigured was NOT called
-				assert.False(t, setAndroidCalled)
-
-				// Should be wrapped as verification error
-				assert.Contains(t, err.Error(), "verifying enterprise with Google")
-				assert.Contains(t, err.Error(), tc.errorMessage)
-			})
-		}
-	})
-
-	t.Run("non-googleapi errors", func(t *testing.T) {
-		androidAPIClient := android_mock.Client{}
-		androidAPIClient.InitCommonMocks()
-
-		fleetDS := InitCommonDSMocks()
-
-		// Track calls to SetAndroidEnabledAndConfigured - should NOT be called
-		setAndroidCalled := false
-		fleetDS.Store.SetAndroidEnabledAndConfiguredFunc = func(_ context.Context, configured bool) error {
-			setAndroidCalled = true
-			return nil
-		}
-
-		// Override EnterpriseGetFunc to simulate non-googleapi error
-		androidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, errors.New("network timeout")
-		}
-
-		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
-		require.NoError(t, err)
-
-		enterprise, err := svc.GetEnterprise(ctx)
-		require.Error(t, err)
-		require.Nil(t, enterprise)
-
-		// Verify only EnterpriseGet was called, not EnterprisesList
-		assert.True(t, androidAPIClient.EnterpriseGetFuncInvoked)
-		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
-
-		// Verify SetAndroidEnabledAndConfigured was NOT called
-		assert.False(t, setAndroidCalled)
-
-		// Should be wrapped as verification error
-		assert.Contains(t, err.Error(), "verifying enterprise with Google")
-		assert.Contains(t, err.Error(), "network timeout")
 	})
 
 	t.Run("enterprise not found in database", func(t *testing.T) {
@@ -669,7 +522,7 @@ func TestGetEnterprise(t *testing.T) {
 		require.Nil(t, enterprise)
 
 		// Should not call Google API if enterprise not found in database
-		assert.False(t, androidAPIClient.EnterpriseGetFuncInvoked)
+		assert.False(t, androidAPIClient.EnterprisesListFuncInvoked)
 		assert.Contains(t, err.Error(), "No enterprise found")
 	})
 }

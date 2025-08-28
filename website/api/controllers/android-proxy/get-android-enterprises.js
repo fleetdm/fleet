@@ -21,11 +21,29 @@ module.exports = {
 
     // Extract fleetServerSecret from the Authorization header
     let authHeader = this.req.get('authorization');
+    let fleetServerSecret;
 
     if (authHeader && authHeader.startsWith('Bearer')) {
-      // We extract the token for validation but don't need to use it for LIST endpoint
+      fleetServerSecret = authHeader.replace('Bearer', '').trim();
     } else {
       return this.res.unauthorized('Authorization header with Bearer token is required');
+    }
+
+    let fleetServerUrl = this.req.get('Origin');
+    if (!fleetServerUrl) {
+      return this.res.badRequest('Origin header is required');
+    }
+
+    let thisAndroidEnterprise = await AndroidEnterprise.findOne({
+      fleetServerUrl: fleetServerUrl
+    });
+
+    if (!thisAndroidEnterprise) {
+      return this.res.notFound('No Android enterprise found for this Fleet server');
+    }
+
+    if (thisAndroidEnterprise.fleetServerSecret !== fleetServerSecret) {
+      return this.res.unauthorized('Invalid authentication token');
     }
 
     // Get the Android enterprises list from Google
@@ -59,8 +77,16 @@ module.exports = {
         throw err;
       });
 
-      // Return the enterprises list (or empty list if no enterprises)
-      return enterprisesList || { enterprises: [] };
+      // Filter the results to only include enterprises belonging to this Fleet instance
+      let allEnterprises = (enterprisesList && enterprisesList.enterprises) || [];
+      let filteredEnterprises = allEnterprises.filter(enterprise => {
+        // Extract enterprise ID from the Google enterprise name (format: "enterprises/ENTERPRISE_ID")
+        let enterpriseId = enterprise.name ? enterprise.name.split('/')[1] : null;
+        return enterpriseId === thisAndroidEnterprise.androidEnterpriseId;
+      });
+
+      // Return only the enterprises belonging to this Fleet instance
+      return { enterprises: filteredEnterprises };
 
     } catch (err) {
       throw new Error(`When attempting to list android enterprises, an error occurred. Error: ${err}`);

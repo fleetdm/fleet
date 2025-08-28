@@ -2,7 +2,6 @@ package enterprise_test
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 	"testing"
@@ -17,7 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/api/androidmanagement/v1"
-	"google.golang.org/api/googleapi"
 )
 
 func TestServiceEnterprise(t *testing.T) {
@@ -38,6 +36,10 @@ func (s *enterpriseTestSuite) SetupSuite() {
 func (s *enterpriseTestSuite) SetupTest() {
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = false
 	s.CreateCommonDSMocks()
+	// Override EnterprisesListFunc to return empty list initially (no enterprises exist)
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
 }
 
 func (s *enterpriseTestSuite) TearDownSuite() {
@@ -67,6 +69,13 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Contains(s.T(), string(body), "If this page does not close automatically, please close it manually.")
 	assert.Contains(s.T(), string(body), "window.close()")
 
+	// Update the LIST mock to return the enterprise after "creation"
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
 	// Now enterprise exists and we can retrieve it.
 	resp = android.GetEnterpriseResponse{}
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
@@ -76,6 +85,12 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	s.FleetSvc.On("NewActivity", mock.Anything, mock.Anything, mock.AnythingOfType("fleet.ActivityTypeDisabledAndroidMDM")).Return(nil)
 	s.Do("DELETE", "/api/v1/fleet/android_enterprise", nil, http.StatusOK)
 	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
+
+	// Reset LIST mock to empty after deletion
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{}, nil
+	}
+
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &resp)
 }
 
@@ -131,6 +146,13 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	const enterpriseToken = "enterpriseToken"
 	s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
 
+	// Update LIST mock to return the enterprise after "creation"
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		return []*androidmanagement.Enterprise{
+			{Name: "enterprises/" + tests.EnterpriseID},
+		}, nil
+	}
+
 	// Verify enterprise exists
 	var resp android.GetEnterpriseResponse
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
@@ -139,14 +161,6 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	t := s.T()
 
 	t.Run("enterprise deleted detection - 403 from GET, empty LIST", func(t *testing.T) {
-		// Mock EnterpriseGetFunc to return 403 (forbidden)
-		s.AndroidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise",
-			}
-		}
-
 		// Mock EnterprisesListFunc to return empty list (enterprise deleted)
 		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{}, nil
@@ -156,8 +170,7 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 		var getResp android.GetEnterpriseResponse
 		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusNotFound, &getResp)
 
-		// Verify both API calls were made
-		assert.True(t, s.AndroidAPIClient.EnterpriseGetFuncInvoked)
+		// Verify LIST API was called
 		assert.True(t, s.AndroidAPIClient.EnterprisesListFuncInvoked)
 	})
 
@@ -169,33 +182,20 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 		s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", "enterpriseToken2")
 
 		// Reset invocation flags for clean test
-		s.AndroidAPIClient.EnterpriseGetFuncInvoked = false
 		s.AndroidAPIClient.EnterprisesListFuncInvoked = false
 
-		// Mock EnterpriseGetFunc to return 403 (forbidden)
-		s.AndroidAPIClient.EnterpriseGetFunc = func(_ context.Context, enterpriseName string) (*androidmanagement.Enterprise, error) {
-			return nil, &googleapi.Error{
-				Code:    http.StatusForbidden,
-				Message: "Caller is not authorized to manage enterprise",
-			}
-		}
-
-		// Mock EnterprisesListFunc to return the enterprise (exists but permission issue)
+		// Mock EnterprisesListFunc to return the enterprise
 		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
 				{Name: "enterprises/" + tests.EnterpriseID},
 			}, nil
 		}
 
-		// Attempt to get enterprise - should return a server error (not 404)
-		res := s.DoRawWithHeaders("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusInternalServerError,
-			map[string]string{"Authorization": fmt.Sprintf("Bearer %s", s.Token)})
+		// Attempt to get enterprise - should succeed since LIST found the enterprise
+		var getResp android.GetEnterpriseResponse
+		s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &getResp)
 
-		// Verify it's not a 404 (enterprise wasn't detected as deleted)
-		assert.NotEqual(t, http.StatusNotFound, res.StatusCode)
-
-		// Verify both API calls were made
-		assert.True(t, s.AndroidAPIClient.EnterpriseGetFuncInvoked)
+		// Verify LIST API was called
 		assert.True(t, s.AndroidAPIClient.EnterprisesListFuncInvoked)
 	})
 }
