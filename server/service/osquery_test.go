@@ -3491,15 +3491,21 @@ func TestPolicyWebhooks(t *testing.T) {
 	}
 
 	// Since the host doesn't have a team, DefaultTeamConfig will be called
-	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
-		return &fleet.TeamConfig{
-			WebhookSettings: fleet.TeamWebhookSettings{
-				FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
-					Enable:    true,
-					PolicyIDs: []uint{1, 2, 3},
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		if id == 0 {
+			return &fleet.Team{
+				ID: 0,
+				Config: fleet.TeamConfig{
+					WebhookSettings: fleet.TeamWebhookSettings{
+						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+							Enable:    true,
+							PolicyIDs: []uint{1, 2, 3},
+						},
+					},
 				},
-			},
-		}, nil
+			}, nil
+		}
+		return nil, nil
 	}
 
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
