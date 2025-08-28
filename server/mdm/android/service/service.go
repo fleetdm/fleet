@@ -93,7 +93,7 @@ func newErrResponse(err error) android.DefaultResponse {
 	return android.DefaultResponse{Err: err}
 }
 
-func enterpriseSignupEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+func enterpriseSignupEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
 	result, err := svc.EnterpriseSignup(ctx)
 	if err != nil {
 		return newErrResponse(err)
@@ -210,7 +210,7 @@ func (res enterpriseSignupCallbackResponse) HijackRender(_ context.Context, w ht
 	_, _ = w.Write(enterpriseCallbackHTML)
 }
 
-func enterpriseSignupCallbackEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+func enterpriseSignupCallbackEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
 	req := request.(*enterpriseSignupCallbackRequest)
 	err := svc.EnterpriseSignupCallback(ctx, req.SignupToken, req.EnterpriseToken)
 	return enterpriseSignupCallbackResponse{Err: err}
@@ -356,7 +356,7 @@ func topicIDFromName(name string) (string, error) {
 	return name[lastSlash+1:], nil
 }
 
-func getEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+func getEnterpriseEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
 	enterprise, err := svc.GetEnterprise(ctx)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
@@ -378,7 +378,7 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 	return enterprise, nil
 }
 
-func deleteEnterpriseEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+func deleteEnterpriseEndpoint(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
 	err := svc.DeleteEnterprise(ctx)
 	return android.DefaultResponse{Err: err}
 }
@@ -439,7 +439,7 @@ type enrollmentTokenRequest struct {
 	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
-func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (any, error) {
 	enrollSecret := r.URL.Query().Get("enroll_secret")
 	if enrollSecret == "" {
 		return nil, &fleet.BadRequestError{
@@ -477,7 +477,7 @@ func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request
 	}, nil
 }
 
-func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+func enrollmentTokenEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
 	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
 	if err != nil {
@@ -615,7 +615,7 @@ func (r enterpriseSSEResponse) HijackRender(_ context.Context, w http.ResponseWr
 	}
 }
 
-func enterpriseSSE(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+func enterpriseSSE(ctx context.Context, _ any, svc android.Service) fleet.Errorer {
 	done, err := svc.EnterpriseSignupSSE(ctx)
 	if err != nil {
 		return android.DefaultResponse{Err: err}

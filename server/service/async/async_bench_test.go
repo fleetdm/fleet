@@ -65,7 +65,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 				batch := make([][2]uint, bsize)
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					var count int
 					for {
 						for i := range batch {
@@ -109,7 +109,7 @@ func BenchmarkLabelMembershipInsert(b *testing.B) {
 				insertLabelMembershipBatch(b, ds, batch)
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for b.Loop() {
 					var count int
 					for {
 						count += len(batch)
@@ -161,7 +161,7 @@ func BenchmarkLabelMembershipDelete(b *testing.B) {
 			batch := make([][2]uint, bsize)
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				var count int
 				for {
 					for i := range batch {
@@ -207,7 +207,7 @@ func deleteLabelMembershipBatch(b *testing.B, ds *mysql.Datastore, batch [][2]ui
       lm.label_id = del_list.label_id AND
       lm.host_id = del_list.host_id`, rest)
 
-	vals := make([]interface{}, 0, len(batch)*2)
+	vals := make([]any, 0, len(batch)*2)
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}
@@ -228,7 +228,7 @@ func insertLabelMembershipBatch(b *testing.B, ds *mysql.Datastore, batch [][2]ui
 	sql = strings.TrimSuffix(sql, ",")
 	sql += ` ON DUPLICATE KEY UPDATE updated_at = VALUES(updated_at)`
 
-	vals := make([]interface{}, 0, len(batch)*2)
+	vals := make([]any, 0, len(batch)*2)
 	for _, tup := range batch {
 		vals = append(vals, tup[0], tup[1])
 	}

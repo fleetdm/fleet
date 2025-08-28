@@ -45,7 +45,7 @@ type QueryContent struct {
 
 type PermissiveQueryContent struct {
 	QueryContent
-	Interval interface{} `json:"interval"`
+	Interval any `json:"interval"`
 }
 
 // Queries is a helper which represents the format of a set of queries in a pack.

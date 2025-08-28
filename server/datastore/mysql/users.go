@@ -77,7 +77,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 	return user, nil
 }
 
-func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal interface{}) (*fleet.User, error) {
+func (ds *Datastore) findUser(ctx context.Context, searchCol string, searchVal any) (*fleet.User, error) {
 	sqlStatement := fmt.Sprintf(
 		// everything except `settings`. Since we only want to include user settings on an opt-in basis
 		// from the API perspective (see `include_ui_settings` query param on `GET` `/me` and `GET` `/users/:id`), excluding it here ensures it's only included in API responses
@@ -132,7 +132,7 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 		SELECT * FROM users
 		WHERE TRUE
 	`
-	var params []interface{}
+	var params []any
 	if opt.TeamID != 0 {
 		sqlStatement += " AND id IN (SELECT user_id FROM user_teams WHERE team_id = ?)"
 		params = append(params, opt.TeamID)
@@ -319,7 +319,7 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 
 	// Bulk insert
 	const valueStr = "(?,?,?),"
-	var args []interface{}
+	var args []any
 	for _, userTeam := range user.Teams {
 		args = append(args, user.ID, userTeam.Team.ID, userTeam.Role)
 	}

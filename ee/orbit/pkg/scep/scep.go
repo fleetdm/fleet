@@ -285,9 +285,9 @@ type zerologAdapter struct {
 }
 
 // Log implements the kit/log.Logger interface
-func (a *zerologAdapter) Log(keyvals ...interface{}) error {
+func (a *zerologAdapter) Log(keyvals ...any) error {
 	// Convert key-value pairs to a map
-	fields := make(map[string]interface{})
+	fields := make(map[string]any)
 	for i := 0; i < len(keyvals); i += 2 {
 		if i+1 < len(keyvals) {
 			key, ok := keyvals[i].(string)

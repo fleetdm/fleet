@@ -115,7 +115,7 @@ func addSecretVariable(profiles []fleet.MDMProfileBatchPayload, secretVariable s
 		s = fmt.Sprintf("$FLEET_SECRET_%s", secretVariable)
 	}
 	for i := range profiles {
-		profiles[i].Contents = []byte(fmt.Sprintf(string(profiles[i].Contents), s))
+		profiles[i].Contents = fmt.Appendf(nil, string(profiles[i].Contents), s)
 	}
 	return profiles
 }
@@ -126,10 +126,10 @@ func createRandomScripts(j uint, n int, secretVariable string) []fleet.ScriptPay
 	if secretVariable != "" {
 		s = fmt.Sprintf("${FLEET_SECRET_%s}", secretVariable)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		scripts = append(scripts, fleet.ScriptPayload{
 			Name: fmt.Sprintf("script_%d.sh", i),
-			ScriptContents: []byte(fmt.Sprintf(`#!/bin/bash
+			ScriptContents: fmt.Appendf(nil, `#!/bin/bash
 
 echo "%s"
 echo "Team %d"
@@ -523,7 +523,7 @@ main() {
 }
 
 # Run the main function
-main "$@"`, s, j, i)),
+main "$@"`, s, j, i),
 		})
 	}
 	return scripts
@@ -550,11 +550,11 @@ func createRandomDeclarations(n int, secretVariable string) []fleet.MDMProfileBa
 		if len(payload) > 0 {
 			p = "," + strings.Join(payload, ",")
 		}
-		return []byte(fmt.Sprintf(tmpl, i, i, s, p))
+		return fmt.Appendf(nil, tmpl, i, i, s, p)
 	}
 
 	var decls []fleet.MDMProfileBatchPayload
-	for i := 0; i < n; i++ {
+	for i := range n {
 		decls = append(decls, fleet.MDMProfileBatchPayload{
 			Name:     fmt.Sprintf("Declaration %d", i),
 			Contents: newDeclBytes(i),

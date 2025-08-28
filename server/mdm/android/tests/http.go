@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func (ts *WithServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+func (ts *WithServer) DoJSON(verb, path string, params any, expectedStatusCode int, v any, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.UnmarshalRead(resp.Body, v)
 	require.NoError(ts.T(), err)
@@ -21,7 +21,7 @@ func (ts *WithServer) DoJSON(verb, path string, params interface{}, expectedStat
 	}
 }
 
-func (ts *WithServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
+func (ts *WithServer) Do(verb, path string, params any, expectedStatusCode int, queryParams ...string) *http.Response {
 	j, err := json.Marshal(params)
 	require.NoError(ts.T(), err)
 
@@ -50,6 +50,6 @@ func (ts *WithServer) DoRawWithHeaders(
 	return httptest.DoHTTPReq(ts.T(), client, decodeJSON, verb, rawBytes, ts.Server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
-func decodeJSON(r io.Reader, v interface{}) error {
+func decodeJSON(r io.Reader, v any) error {
 	return json.UnmarshalRead(r, v)
 }

@@ -51,7 +51,7 @@ type ScheduledQuery struct {
 	// default is true.
 	Denylist *bool `json:"denylist"`
 
-	AggregatedStats `json:"stats,omitempty"`
+	AggregatedStats `json:"stats"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into

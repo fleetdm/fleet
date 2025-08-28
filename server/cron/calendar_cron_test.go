@@ -567,7 +567,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	}
 
 	hosts := make([]fleet.HostPolicyMembershipData, 0, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		newHost := fleet.HostPolicyMembershipData{
 			Email:              fmt.Sprintf("user%d@example.com", i),
 			Passing:            i%2 == 0,
@@ -675,7 +675,7 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	require.Len(t, createdCalendarEvents, 500)
 
 	hosts = make([]fleet.HostPolicyMembershipData, 0, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		hosts = append(hosts, fleet.HostPolicyMembershipData{
 			Email:              fmt.Sprintf("user%d@example.com", i),
 			Passing:            true,

@@ -40,12 +40,12 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		if len(payload) > 0 {
 			p = "," + strings.Join(payload, ",")
 		}
-		return []byte(fmt.Sprintf(tmpl, i, i, p))
+		return fmt.Appendf(nil, tmpl, i, i, p)
 	}
 
 	var decls [][]byte
 
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		decls = append(decls, newDeclBytes(i))
 	}
 
@@ -68,7 +68,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	// Types from our list of forbidden types should fail
 	for ft := range fleet.ForbiddenDeclTypes {
 		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
-			{Name: "bad2", Contents: []byte(fmt.Sprintf(`{"Type": "%s"}`, ft))},
+			{Name: "bad2", Contents: fmt.Appendf(nil, `{"Type": "%s"}`, ft)},
 		}}, http.StatusUnprocessableEntity)
 
 		errMsg = extractServerErrorText(res.Body)
@@ -506,11 +506,11 @@ func (s *integrationMDMTestSuite) TestAppleDDMSecretVariables() {
 		if len(payload) > 0 {
 			p = "," + strings.Join(payload, ",")
 		}
-		return []byte(fmt.Sprintf(tmpl, i, i, i, p))
+		return fmt.Appendf(nil, tmpl, i, i, i, p)
 	}
 
 	var decls [][]byte
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		decls = append(decls, newDeclBytes(i))
 	}
 	// Use secrets
@@ -1117,7 +1117,6 @@ func (s *integrationMDMTestSuite) TestDDMUnsupportedDevice() {
 		require.NoError(t, err)
 		out := make(map[string]*fleet.HostMDMAppleProfile, len(profs))
 		for _, p := range profs {
-			p := p
 			out[p.Identifier] = &p
 		}
 
@@ -1296,23 +1295,23 @@ func (s *integrationMDMTestSuite) TestDDMTransactionRecording() {
 }
 
 func declarationForTest(identifier string) []byte {
-	return []byte(fmt.Sprintf(`
+	return fmt.Appendf(nil, `
 {
     "Type": "com.apple.configuration.management.test",
     "Payload": {
         "Echo": "foo"
     },
     "Identifier": "%s"
-}`, identifier))
+}`, identifier)
 }
 
 func declarationForTestWithType(identifier string, dType string) []byte {
-	return []byte(fmt.Sprintf(`
+	return fmt.Appendf(nil, `
 {
     "Type": "%s",
     "Payload": {
         "Echo": "foo"
     },
     "Identifier": "%s"
-}`, dType, identifier))
+}`, dType, identifier)
 }

@@ -53,9 +53,9 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 				"You've been sent this message because the Host status webhook is enabled in your Fleet instance.",
 			percentUnseen, settings.DaysCount,
 		)
-		payload := map[string]interface{}{
+		payload := map[string]any{
 			"text": message,
-			"data": map[string]interface{}{
+			"data": map[string]any{
 				"unseen_hosts": unseenCount,
 				"total_hosts":  total,
 				"days_unseen":  settings.DaysCount,
@@ -63,7 +63,7 @@ func processWebhook(ctx context.Context, ds fleet.Datastore, teamID *uint, setti
 			},
 		}
 		if teamID != nil {
-			payload["data"].(map[string]interface{})["team_id"] = *teamID
+			payload["data"].(map[string]any)["team_id"] = *teamID
 		}
 
 		err = server.PostJSONWithTimeout(ctx, url, &payload)

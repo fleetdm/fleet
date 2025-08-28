@@ -39,7 +39,6 @@ func HostResponseForHostCheap(host *Host) *HostResponse {
 func HostResponsesForHostsCheap(hosts []Host) []HostResponse {
 	hrs := make([]HostResponse, len(hosts))
 	for i, h := range hosts {
-		h := h
 		hrs[i] = *HostResponseForHostCheap(&h)
 	}
 	return hrs

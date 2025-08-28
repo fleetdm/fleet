@@ -179,7 +179,7 @@ func (t *HostLifecycle) turnOnApple(ctx context.Context, opts HostOptions) error
 		nanoEnroll.TokenUpdateTally != 1 {
 		// something unexpected, so we skip the turn on
 		// and log the details for debugging
-		keyvals := []interface{}{"msg", "skipping turn on darwin", "host_uuid", opts.UUID}
+		keyvals := []any{"msg", "skipping turn on darwin", "host_uuid", opts.UUID}
 		if nanoEnroll == nil {
 			keyvals = append(keyvals, "nano_enroll", "nil")
 		} else {

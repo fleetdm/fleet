@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -397,7 +398,7 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 	var userProfiles []*fleet.MDMAppleConfigProfile
 	numHosts := 2
 	profiles := storeDummyConfigProfilesForTest(t, ds, numHosts*2)
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -418,7 +419,7 @@ func testDeleteMDMAppleConfigProfileWithPendingInstalls(t *testing.T, ds *Datast
 
 	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
 
-	for i := 0; i < numHosts; i++ {
+	for i := range numHosts {
 		// insert a device channel profile install and user channel profile install for each host
 		uuid1 := uuid.New().String()
 		rawCmd1 := createRawAppleCmd("InstallProfile", uuid1)
@@ -500,7 +501,7 @@ func testDeleteMDMAppleConfigProfileByTeamAndIdentifier(t *testing.T, ds *Datast
 func storeDummyConfigProfilesForTest(t *testing.T, ds *Datastore, howMany int) []*fleet.MDMAppleConfigProfile {
 	storedCPs := make([]*fleet.MDMAppleConfigProfile, howMany)
 	for i := range howMany {
-		dummyMC := mobileconfig.Mobileconfig([]byte(fmt.Sprintf("DummyTestMobileconfigBytes-%d", i)))
+		dummyMC := mobileconfig.Mobileconfig(fmt.Appendf(nil, "DummyTestMobileconfigBytes-%d", i))
 		dummyCP := fleet.MDMAppleConfigProfile{
 			Name:         fmt.Sprintf("DummyTestName-%d", i),
 			Identifier:   fmt.Sprintf("DummyTestIdentifier-%d", i),
@@ -612,7 +613,7 @@ func testHostDetailsMDMProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// Add profile_identifier and checksum for each profile
-	var args []interface{}
+	var args []any
 	i := 0
 	for _, p := range expectedProfiles0 {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
@@ -750,7 +751,7 @@ func TestIngestMDMAppleDevicesFromDEPSync(t *testing.T) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:        fmt.Sprintf("hostname_%d", i),
 			DetailUpdatedAt: time.Now(),
@@ -1239,7 +1240,7 @@ func expectAppleDeclarations(
 	}
 
 	JSONRemarshal := func(bytes []byte) ([]byte, error) {
-		var ifce interface{}
+		var ifce any
 		err := json.Unmarshal(bytes, &ifce)
 		if err != nil {
 			return nil, err
@@ -1444,7 +1445,7 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 }
 
 func configProfileBytesForTest(name, identifier, uuid string) []byte {
-	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+	return fmt.Appendf(nil, `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -1462,7 +1463,7 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 	<integer>1</integer>
 </dict>
 </plist>
-`, name, identifier, uuid))
+`, name, identifier, uuid)
 }
 
 // If the label name starts with "exclude-", the label is considered an "exclude-any". If it starts
@@ -1506,7 +1507,7 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 		}
 	}`
 
-	declBytes := []byte(fmt.Sprintf(tmpl, identifier, identifier, payloadContent))
+	declBytes := fmt.Appendf(nil, tmpl, identifier, identifier, payloadContent)
 
 	decl := &fleet.MDMAppleDeclaration{
 		RawJSON:    declBytes,
@@ -2248,7 +2249,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	}
 
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -2257,7 +2258,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 
 	// create somes config profiles for no team
 	var noTeamCPs []*fleet.MDMAppleConfigProfile
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), 0), nil)
 		require.NoError(t, err)
 		noTeamCPs = append(noTeamCPs, cp)
@@ -2405,7 +2406,7 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 
 	// create somes config profiles for team
 	var teamCPs []*fleet.MDMAppleConfigProfile
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), team.ID), nil)
 		require.NoError(t, err)
 		teamCPs = append(teamCPs, cp)
@@ -2525,7 +2526,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 	}
 
 	var hosts []*fleet.Host
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -2534,7 +2535,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 
 	// create somes config profiles for no team
 	var noTeamCPs []*fleet.MDMAppleConfigProfile
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), 0), nil)
 		require.NoError(t, err)
 		noTeamCPs = append(noTeamCPs, cp)
@@ -2736,7 +2737,7 @@ func testMDMAppleHostsProfilesStatus(t *testing.T, ds *Datastore) {
 
 	// create somes config profiles for the new team
 	var teamCPs []*fleet.MDMAppleConfigProfile
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		cp, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP(fmt.Sprintf("name%d", i), fmt.Sprintf("identifier%d", i), tm.ID), nil)
 		require.NoError(t, err)
 		teamCPs = append(teamCPs, cp)
@@ -3051,7 +3052,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	// 10 new hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -3318,7 +3319,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 
 	// create some hosts, all enrolled
 	enrolledHosts := make([]*fleet.Host, 3)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
@@ -3652,7 +3653,7 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 
 	// create some enrolled hosts
 	enrolledHosts := make([]*fleet.Host, 4)
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
@@ -4194,7 +4195,7 @@ func testListMDMAppleSerials(t *testing.T, ds *Datastore) {
 
 	// create a mix of DEP-enrolled hosts, non-Fleet-MDM, pending DEP-enrollment
 	hosts := make([]*fleet.Host, 7)
-	for i := 0; i < len(hosts); i++ {
+	for i := range hosts {
 		serial := fmt.Sprintf("serial-%d", i)
 		if i == 6 {
 			serial = ""
@@ -4377,7 +4378,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 
 	// create test hosts
 	var hosts []*fleet.Host
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now().Add(-1*time.Hour))
 		hosts = append(hosts, h)
@@ -5434,7 +5435,7 @@ func testMDMAppleDDMDeclarationsToken(t *testing.T, ds *Datastore) {
 func testMDMAppleSetPendingDeclarationsAs(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 			Identifier: fmt.Sprintf("decl-%d", i),
 			Name:       fmt.Sprintf("decl-%d", i),
@@ -6440,9 +6441,7 @@ func testListIOSAndIPadOSToRefetch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, devices, 2)
 	uuids := []string{devices[0].UUID, devices[1].UUID}
-	sort.Slice(uuids, func(i, j int) bool {
-		return uuids[i] < uuids[j]
-	})
+	slices.Sort(uuids)
 	assert.Equal(t, uuids, []string{"iOS0_UUID", "iPadOS0_UUID"})
 	assert.Empty(t, devices[0].CommandsAlreadySent)
 	assert.Empty(t, devices[1].CommandsAlreadySent)
@@ -6686,7 +6685,7 @@ func testGetEnrollmentIDsWithPendingMDMAppleCommands(t *testing.T, ds *Datastore
 
 	var hosts []*fleet.Host
 	hostUUIDToUserEnrollmentID := make(map[string]string)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now())
 		hosts = append(hosts, h)
@@ -6829,7 +6828,7 @@ func testHostDetailsMDMProfilesIOSIPadOS(t *testing.T, ds *Datastore) {
 		},
 	}
 
-	var args []interface{}
+	var args []any
 	i := 0
 	for _, p := range expectedProfilesIOS {
 		args = append(args, p.HostUUID, p.ProfileUUID, p.CommandUUID, *p.Status, p.OperationType, p.Detail, p.Name,
@@ -7487,7 +7486,7 @@ func testIngestMDMAppleDeviceFromOTAEnrollment(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	createBuiltinLabels(t, ds)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:        fmt.Sprintf("hostname_%d", i),
 			DetailUpdatedAt: time.Now(),
@@ -8353,7 +8352,7 @@ func testAppleMDMSetBatchAsyncLastSeenAt(t *testing.T, ds *Datastore) {
 
 	// create some hosts, all enrolled
 	enrolledHosts := make([]*fleet.Host, 2)
-	for i := 0; i < len(enrolledHosts); i++ {
+	for i := range enrolledHosts {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),

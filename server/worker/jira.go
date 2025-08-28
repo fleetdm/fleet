@@ -317,7 +317,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 		return err
 	}
 
-	attrs := []interface{}{
+	attrs := []any{
 		"msg", "created jira issue for failing policy",
 		"policy_id", args.FailingPolicy.PolicyID,
 		"policy_name", args.FailingPolicy.PolicyName,
@@ -331,7 +331,7 @@ func (j *Jira) runFailingPolicy(ctx context.Context, cli JiraClient, args jiraAr
 	return nil
 }
 
-func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summaryTpl, descTpl *template.Template, args interface{}) (*jira.Issue, error) {
+func (j *Jira) createTemplatedIssue(ctx context.Context, cli JiraClient, summaryTpl, descTpl *template.Template, args any) (*jira.Issue, error) {
 	var buf bytes.Buffer
 	if err := summaryTpl.Execute(&buf, args); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "execute summary template")
@@ -409,7 +409,7 @@ func QueueJiraVulnJobs(
 func QueueJiraFailingPolicyJob(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger,
 	policy *fleet.Policy, hosts []fleet.PolicySetHost,
 ) error {
-	attrs := []interface{}{
+	attrs := []any{
 		"enabled", "true",
 		"failing_policy", policy.ID,
 		"hosts_count", len(hosts),

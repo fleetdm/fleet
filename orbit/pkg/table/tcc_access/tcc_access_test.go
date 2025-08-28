@@ -72,7 +72,7 @@ func overrideCommand(t *testing.T, cmdName string, output string) {
 		os.Setenv("PATH", pathValue)
 	})
 	cmdPath := filepath.Join(tmpDir, cmdName)
-	scriptContent := []byte(fmt.Sprintf("#!/bin/sh\nprintf '%%s' \"%s\"", output))
+	scriptContent := fmt.Appendf(nil, "#!/bin/sh\nprintf '%%s' \"%s\"", output)
 	err := os.WriteFile(cmdPath, scriptContent, 0o744) //nolint:gosec
 	require.NoError(t, err)
 }

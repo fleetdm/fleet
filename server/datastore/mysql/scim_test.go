@@ -1,7 +1,7 @@
 package mysql
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -882,12 +882,8 @@ func testScimGroupCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, len(groupCopy.ScimUsers), len(verify.ScimUsers))
 		if len(groupCopy.ScimUsers) > 0 {
 			// Sort the user IDs for comparison
-			sort.Slice(groupCopy.ScimUsers, func(i, j int) bool {
-				return groupCopy.ScimUsers[i] < groupCopy.ScimUsers[j]
-			})
-			sort.Slice(verify.ScimUsers, func(i, j int) bool {
-				return verify.ScimUsers[i] < verify.ScimUsers[j]
-			})
+			slices.Sort(groupCopy.ScimUsers)
+			slices.Sort(verify.ScimUsers)
 			assert.Equal(t, groupCopy.ScimUsers, verify.ScimUsers)
 		}
 	}
@@ -950,12 +946,8 @@ func testScimGroupByID(t *testing.T, ds *Datastore) {
 		assert.Equal(t, len(tt.ScimUsers), len(returned.ScimUsers))
 		if len(tt.ScimUsers) > 0 {
 			// Sort the user IDs for comparison
-			sort.Slice(tt.ScimUsers, func(i, j int) bool {
-				return tt.ScimUsers[i] < tt.ScimUsers[j]
-			})
-			sort.Slice(returned.ScimUsers, func(i, j int) bool {
-				return returned.ScimUsers[i] < returned.ScimUsers[j]
-			})
+			slices.Sort(tt.ScimUsers)
+			slices.Sort(returned.ScimUsers)
 			assert.Equal(t, tt.ScimUsers, returned.ScimUsers)
 		}
 	}
@@ -999,12 +991,8 @@ func testScimGroupByDisplayName(t *testing.T, ds *Datastore) {
 		assert.Equal(t, len(tt.ScimUsers), len(returned.ScimUsers))
 		if len(tt.ScimUsers) > 0 {
 			// Sort the user IDs for comparison
-			sort.Slice(tt.ScimUsers, func(i, j int) bool {
-				return tt.ScimUsers[i] < tt.ScimUsers[j]
-			})
-			sort.Slice(returned.ScimUsers, func(i, j int) bool {
-				return returned.ScimUsers[i] < returned.ScimUsers[j]
-			})
+			slices.Sort(tt.ScimUsers)
+			slices.Sort(returned.ScimUsers)
 			assert.Equal(t, tt.ScimUsers, returned.ScimUsers)
 		}
 	}
@@ -1093,12 +1081,8 @@ func testReplaceScimGroup(t *testing.T, ds *Datastore) {
 	assert.Equal(t, len(userIDs), len(replacedGroup.ScimUsers))
 
 	// Sort the user IDs for comparison
-	sort.Slice(userIDs, func(i, j int) bool {
-		return userIDs[i] < userIDs[j]
-	})
-	sort.Slice(replacedGroup.ScimUsers, func(i, j int) bool {
-		return replacedGroup.ScimUsers[i] < replacedGroup.ScimUsers[j]
-	})
+	slices.Sort(userIDs)
+	slices.Sort(replacedGroup.ScimUsers)
 	assert.Equal(t, userIDs, replacedGroup.ScimUsers)
 
 	// Test replacing a non-existent group
@@ -2322,7 +2306,7 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	largeUserIDs = append(largeUserIDs, userIDs...) // Add existing users
 
 	// Add some non-existent IDs to test batching with mixed results
-	for i := 0; i < 24990; i++ {
+	for i := range 24990 {
 		largeUserIDs = append(largeUserIDs, uint(1000000)+uint(i)) // nolint:gosec // dismiss G115 integer overflow
 	}
 
@@ -2334,7 +2318,7 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	// This is a bit tricky to test thoroughly without creating thousands of users,
 	// so we'll just verify the function handles a large slice without errors
 	largeExistingIDs := make([]uint, 0, 25000)
-	for i := 0; i < 25000; i++ {
+	for i := range 25000 {
 		largeExistingIDs = append(largeExistingIDs, userIDs[i%len(userIDs)])
 	}
 

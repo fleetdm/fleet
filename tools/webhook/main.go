@@ -18,7 +18,7 @@ func main() {
 			return
 		}
 
-		var v interface{}
+		var v any
 		if err := json.Unmarshal(body, &v); err != nil {
 			log.Printf("failed to parse JSON body: %s", err)
 			return

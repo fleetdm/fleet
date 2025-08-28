@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -76,9 +77,7 @@ func (w *pubSubLogWriter) Write(ctx context.Context, logs []json.RawMessage) err
 			}
 			attributes["name"] = unmarshaled.Name
 			attributes["timestamp"] = time.Unix(unmarshaled.UnixTime, 0).Format(time.RFC3339)
-			for k, v := range unmarshaled.Decorations {
-				attributes[k] = v
-			}
+			maps.Copy(attributes, unmarshaled.Decorations)
 		}
 
 		if len(data)+estimateAttributeSize(attributes) > pubsub.MaxPublishRequestBytes {

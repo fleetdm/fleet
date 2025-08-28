@@ -127,7 +127,7 @@ func (s *Service) Authenticate(r *mdm.Request, message *mdm.Authenticate) error 
 	if err := s.setupRequest(r, &message.Enrollment); err != nil {
 		return err
 	}
-	logs := []interface{}{
+	logs := []any{
 		"msg", "Authenticate",
 	}
 	if message.SerialNumber != "" {
@@ -230,7 +230,7 @@ func (s *Service) CommandAndReportResults(r *mdm.Request, results *mdm.CommandRe
 		return nil, err
 	}
 	logger := ctxlog.Logger(r.Context, s.logger)
-	logs := []interface{}{
+	logs := []any{
 		"status", results.Status,
 	}
 	if results.CommandUUID != "" {

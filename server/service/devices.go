@@ -48,7 +48,7 @@ func (r devicePingResponse) HijackRender(ctx context.Context, w http.ResponseWri
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func devicePingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func devicePingEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return devicePingResponse{}, nil
 }
@@ -81,7 +81,7 @@ func (r *getFleetDesktopRequest) deviceAuthToken() string {
 
 // getFleetDesktopEndpoint is meant to be the only API endpoint used by Fleet Desktop. This
 // endpoint should not include any kind of identifying information about the host.
-func getFleetDesktopEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getFleetDesktopEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	sum, err := svc.GetFleetDesktopSummary(ctx)
 	if err != nil {
 		return fleetDesktopResponse{Err: err}, nil
@@ -123,7 +123,7 @@ type getDeviceHostResponse struct {
 
 func (r getDeviceHostResponse) Error() error { return r.Err }
 
-func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getDeviceHostRequest)
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
@@ -258,7 +258,7 @@ func (r *refetchDeviceHostRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func refetchDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func refetchDeviceHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -284,7 +284,7 @@ func (r *listDeviceHostDeviceMappingRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listDeviceHostDeviceMappingEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -310,7 +310,7 @@ func (r *getDeviceMacadminsDataRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func getDeviceMacadminsDataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceMacadminsDataEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -343,7 +343,7 @@ type listDevicePoliciesResponse struct {
 
 func (r listDevicePoliciesResponse) Error() error { return r.Err }
 
-func listDevicePoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listDevicePoliciesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -379,7 +379,7 @@ func (r *getDeviceMDMCommandResultsRequest) deviceAuthToken() string {
 	return r.Token
 }
 
-func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceMDMCommandResultsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	_, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -423,7 +423,7 @@ func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.Respon
 
 func (r transparencyURLResponse) Error() error { return r.Err }
 
-func transparencyURL(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func transparencyURL(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	transparencyURL, err := svc.GetTransparencyURL(ctx)
 
 	return transparencyURLResponse{RedirectURL: transparencyURL, Err: err}, nil
@@ -493,7 +493,7 @@ type fleetdErrorResponse struct{}
 
 func (r fleetdErrorResponse) Error() error { return nil }
 
-func fleetdError(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func fleetdError(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*fleetdErrorRequest)
 	err := svc.LogFleetdError(ctx, req.FleetdError)
 	if err != nil {
@@ -557,7 +557,7 @@ func (r getDeviceMDMManualEnrollProfileResponse) HijackRender(ctx context.Contex
 
 func (r getDeviceMDMManualEnrollProfileResponse) Error() error { return r.Err }
 
-func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceMDMManualEnrollProfileEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	// this call ensures that the authentication was done, no need to actually
 	// use the host
 	if _, ok := hostctx.FromContext(ctx); !ok {
@@ -637,7 +637,7 @@ func (r deviceMigrateMDMResponse) Error() error { return r.Err }
 
 func (r deviceMigrateMDMResponse) Status() int { return http.StatusNoContent }
 
-func migrateMDMDeviceEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func migrateMDMDeviceEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -674,7 +674,7 @@ func (r triggerLinuxDiskEncryptionEscrowResponse) Error() error { return r.Err }
 
 func (r triggerLinuxDiskEncryptionEscrowResponse) Status() int { return http.StatusNoContent }
 
-func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func triggerLinuxDiskEncryptionEscrowEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -713,7 +713,7 @@ type getDeviceSoftwareResponse struct {
 
 func (r getDeviceSoftwareResponse) Error() error { return r.Err }
 
-func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDeviceSoftwareEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
@@ -759,7 +759,7 @@ type listDeviceCertificatesResponse struct {
 
 func (r listDeviceCertificatesResponse) Error() error { return r.Err }
 
-func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listDeviceCertificatesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	host, ok := hostctx.FromContext(ctx)
 	if !ok {
 		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))

@@ -15,7 +15,7 @@ type QueryResultStore interface {
 	// ReadChannel returns a channel to be read for incoming distributed
 	// query results. Channel values should be either
 	// DistributedQueryResult or error
-	ReadChannel(ctx context.Context, query DistributedQueryCampaign) (<-chan interface{}, error)
+	ReadChannel(ctx context.Context, query DistributedQueryCampaign) (<-chan any, error)
 
 	// HealthCheck returns nil if the store is functioning properly, or an
 	// error describing the problem.

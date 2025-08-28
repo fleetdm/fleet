@@ -133,7 +133,7 @@ func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 
 	// report the output or the error
 	if execErr != nil {
-		output = append(output, []byte(fmt.Sprintf("\nscript execution error: %v", execErr))...)
+		output = append(output, fmt.Appendf(nil, "\nscript execution error: %v", execErr)...)
 	}
 
 	// sanity-check the size of the output sent to the server, the actual

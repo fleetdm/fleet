@@ -105,13 +105,13 @@ type getPackRequest struct {
 }
 
 type getPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
+	Pack packResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 
 func (r getPackResponse) Error() error { return r.Err }
 
-func getPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getPackEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getPackRequest)
 	pack, err := svc.GetPack(ctx, req.ID)
 	if err != nil {
@@ -145,13 +145,13 @@ type createPackRequest struct {
 }
 
 type createPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
+	Pack packResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 
 func (r createPackResponse) Error() error { return r.Err }
 
-func createPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func createPackEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createPackRequest)
 	pack, err := svc.NewPack(ctx, req.PackPayload)
 	if err != nil {
@@ -238,13 +238,13 @@ type modifyPackRequest struct {
 }
 
 type modifyPackResponse struct {
-	Pack packResponse `json:"pack,omitempty"`
+	Pack packResponse `json:"pack"`
 	Err  error        `json:"error,omitempty"`
 }
 
 func (r modifyPackResponse) Error() error { return r.Err }
 
-func modifyPackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func modifyPackEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyPackRequest)
 	pack, err := svc.ModifyPack(ctx, req.ID, req.PackPayload)
 	if err != nil {
@@ -339,7 +339,7 @@ type listPacksResponse struct {
 
 func (r listPacksResponse) Error() error { return r.Err }
 
-func listPacksEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listPacksEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listPacksRequest)
 	packs, err := svc.ListPacks(ctx, fleet.PackListOptions{ListOptions: req.ListOptions, IncludeSystemPacks: false})
 	if err != nil {
@@ -379,7 +379,7 @@ type deletePackResponse struct {
 
 func (r deletePackResponse) Error() error { return r.Err }
 
-func deletePackEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deletePackEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deletePackRequest)
 	err := svc.DeletePack(ctx, req.Name)
 	if err != nil {
@@ -432,7 +432,7 @@ type deletePackByIDResponse struct {
 
 func (r deletePackByIDResponse) Error() error { return r.Err }
 
-func deletePackByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deletePackByIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deletePackByIDRequest)
 	err := svc.DeletePackByID(ctx, req.ID)
 	if err != nil {
@@ -483,7 +483,7 @@ type applyPackSpecsResponse struct {
 
 func (r applyPackSpecsResponse) Error() error { return r.Err }
 
-func applyPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func applyPackSpecsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyPackSpecsRequest)
 	_, err := svc.ApplyPackSpecs(ctx, req.Specs)
 	if err != nil {
@@ -557,7 +557,7 @@ type getPackSpecsResponse struct {
 
 func (r getPackSpecsResponse) Error() error { return r.Err }
 
-func getPackSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getPackSpecsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetPackSpecs(ctx)
 	if err != nil {
 		return getPackSpecsResponse{Err: err}, nil
@@ -584,7 +584,7 @@ type getPackSpecResponse struct {
 
 func (r getPackSpecResponse) Error() error { return r.Err }
 
-func getPackSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getPackSpecEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetPackSpec(ctx, req.Name)
 	if err != nil {

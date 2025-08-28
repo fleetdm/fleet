@@ -252,9 +252,9 @@ func main() {
 
 		// checkToken performs API test calls to enable the "My device" item as
 		// soon as the device auth token is registered by Fleet.
-		checkToken := func() <-chan interface{} {
+		checkToken := func() <-chan any {
 			menuManager.SetConnecting()
-			done := make(chan interface{})
+			done := make(chan any)
 
 			go func() {
 				ticker := time.NewTicker(5 * time.Second)

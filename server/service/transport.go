@@ -15,11 +15,11 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func encodeResponse(ctx context.Context, w http.ResponseWriter, response interface{}) error {
+func encodeResponse(ctx context.Context, w http.ResponseWriter, response any) error {
 	return endpoint_utils.EncodeCommonResponse(ctx, w, response, jsonMarshal)
 }
 
-func jsonMarshal(w http.ResponseWriter, response interface{}) error {
+func jsonMarshal(w http.ResponseWriter, response any) error {
 	enc := json.NewEncoder(w)
 	enc.SetIndent("", "  ")
 	return enc.Encode(response)

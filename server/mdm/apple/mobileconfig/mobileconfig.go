@@ -180,7 +180,7 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	// unmarshal the values we need from the top-level object
 	var tlo struct {
 		IsEncrypted    bool
-		PayloadContent []map[string]interface{}
+		PayloadContent []map[string]any
 		PayloadType    string
 	}
 	_, err := plist.Unmarshal(mcBytes, &tlo)

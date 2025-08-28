@@ -79,7 +79,7 @@ func TestCVE(t *testing.T) {
 	for _, cve := range cases {
 		// run each test twice, one to create the mirror and another to compare
 		label := []string{"CreateSync", "UseExistingSync"}
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			info := fmt.Sprintf("%s/%s", label[i], cve)
 			t.Run(info, func(t *testing.T) {
 				handler.compression = cve.compression()

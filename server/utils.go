@@ -64,7 +64,7 @@ func (e *errWithStatus) StatusCode() int {
 	return e.statusCode
 }
 
-func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
+func PostJSONWithTimeout(ctx context.Context, url string, v any) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
 		return err

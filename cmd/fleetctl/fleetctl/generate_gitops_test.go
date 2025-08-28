@@ -566,7 +566,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
@@ -576,7 +576,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	orgSettingsRaw, err := cmd.generateOrgSettings()
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
-	var orgSettings map[string]interface{}
+	var orgSettings map[string]any
 	b, err := yaml.Marshal(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
@@ -586,7 +586,7 @@ func TestGenerateOrgSettings(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings.yaml")
 	require.NoError(t, err)
-	var expectedAppConfig map[string]interface{}
+	var expectedAppConfig map[string]any
 	err = yaml.Unmarshal(b, &expectedAppConfig)
 	require.NoError(t, err)
 
@@ -607,7 +607,7 @@ func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
@@ -637,7 +637,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
@@ -647,7 +647,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	orgSettingsRaw, err := cmd.generateOrgSettings()
 	require.NoError(t, err)
 	require.NotNil(t, orgSettingsRaw)
-	var orgSettings map[string]interface{}
+	var orgSettings map[string]any
 	b, err := yaml.Marshal(orgSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Org settings raw:\n", string(b)) // Debugging line
@@ -657,7 +657,7 @@ func TestGenerateOrgSettingsInsecure(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedOrgSettings-insecure.yaml")
 	require.NoError(t, err)
-	var expectedAppConfig map[string]interface{}
+	var expectedAppConfig map[string]any
 	err = yaml.Unmarshal(b, &expectedAppConfig)
 	require.NoError(t, err)
 
@@ -676,7 +676,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    nil,
 	}
 
@@ -686,7 +686,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	TeamSettingsRaw, err := cmd.generateTeamSettings("team.yml", team)
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
-	var TeamSettings map[string]interface{}
+	var TeamSettings map[string]any
 	b, err := yaml.Marshal(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
@@ -696,7 +696,7 @@ func TestGenerateTeamSettings(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings.yaml")
 	require.NoError(t, err)
-	var expectedAppConfig map[string]interface{}
+	var expectedAppConfig map[string]any
 	err = yaml.Unmarshal(b, &expectedAppConfig)
 	require.NoError(t, err)
 
@@ -717,7 +717,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(&cli.App{}, flagSet, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    nil,
 	}
 
@@ -727,7 +727,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	TeamSettingsRaw, err := cmd.generateTeamSettings("team.yml", team)
 	require.NoError(t, err)
 	require.NotNil(t, TeamSettingsRaw)
-	var TeamSettings map[string]interface{}
+	var TeamSettings map[string]any
 	b, err := yaml.Marshal(TeamSettingsRaw)
 	require.NoError(t, err)
 	fmt.Println("Team settings raw:\n", string(b)) // Debugging line
@@ -737,7 +737,7 @@ func TestGenerateTeamSettingsInsecure(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSettings-insecure.yaml")
 	require.NoError(t, err)
-	var expectedAppConfig map[string]interface{}
+	var expectedAppConfig map[string]any
 	err = yaml.Unmarshal(b, &expectedAppConfig)
 	require.NoError(t, err)
 
@@ -762,7 +762,7 @@ func TestGenerateControls(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		ScriptList:   make(map[uint]string),
 	}
@@ -781,7 +781,7 @@ func TestGenerateControls(t *testing.T) {
 	controlsRaw, err := cmd.generateControls(nil, "", &mdmConfig)
 	require.NoError(t, err)
 	require.NotNil(t, controlsRaw)
-	var controls map[string]interface{}
+	var controls map[string]any
 	b, err := yaml.Marshal(controlsRaw)
 	require.NoError(t, err)
 	fmt.Println("Controls raw:\n", string(b)) // Debugging line
@@ -791,7 +791,7 @@ func TestGenerateControls(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalControls.yaml")
 	require.NoError(t, err)
-	var expectedControls map[string]interface{}
+	var expectedControls map[string]any
 	err = yaml.Unmarshal(b, &expectedControls)
 	require.NoError(t, err)
 
@@ -908,7 +908,7 @@ func TestGenerateSoftware(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		SoftwareList: make(map[uint]Software),
 	}
@@ -916,7 +916,7 @@ func TestGenerateSoftware(t *testing.T) {
 	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team")
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
-	var software map[string]interface{}
+	var software map[string]any
 	b, err := yaml.Marshal(softwareRaw)
 	require.NoError(t, err)
 	fmt.Println("software raw:\n", string(b)) // Debugging line
@@ -926,7 +926,7 @@ func TestGenerateSoftware(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedTeamSoftware.yaml")
 	require.NoError(t, err)
-	var expectedSoftware map[string]interface{}
+	var expectedSoftware map[string]any
 	err = yaml.Unmarshal(b, &expectedSoftware)
 	require.NoError(t, err)
 
@@ -952,7 +952,7 @@ func TestGenerateSoftware(t *testing.T) {
 	}
 
 	if fileContents, ok := cmd.FilesToWrite["lib/some-team/queries/my-software-package-darwin-preinstallquery.yml"]; ok {
-		require.Equal(t, []map[string]interface{}{{
+		require.Equal(t, []map[string]any{{
 			"query": "SELECT * FROM pre_install_query",
 		}}, fileContents)
 	} else {
@@ -971,7 +971,7 @@ func TestGeneratePolicies(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		SoftwareList: map[uint]Software{
 			1: {
@@ -987,7 +987,7 @@ func TestGeneratePolicies(t *testing.T) {
 	policiesRaw, err := cmd.generatePolicies(nil, "default.yml")
 	require.NoError(t, err)
 	require.NotNil(t, policiesRaw)
-	var policies []map[string]interface{}
+	var policies []map[string]any
 	b, err := yaml.Marshal(policiesRaw)
 	require.NoError(t, err)
 	fmt.Println("policies raw:\n", string(b)) // Debugging line
@@ -997,7 +997,7 @@ func TestGeneratePolicies(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalPolicies.yaml")
 	require.NoError(t, err)
-	var expectedPolicies []map[string]interface{}
+	var expectedPolicies []map[string]any
 	err = yaml.Unmarshal(b, &expectedPolicies)
 	require.NoError(t, err)
 
@@ -1037,14 +1037,14 @@ func TestGenerateQueries(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
 	queriesRaw, err := cmd.generateQueries(nil)
 	require.NoError(t, err)
 	require.NotNil(t, queriesRaw)
-	var queries []map[string]interface{}
+	var queries []map[string]any
 	b, err := yaml.Marshal(queriesRaw)
 	require.NoError(t, err)
 	fmt.Println("queries raw:\n", string(b)) // Debugging line
@@ -1054,7 +1054,7 @@ func TestGenerateQueries(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedGlobalQueries.yaml")
 	require.NoError(t, err)
-	var expectedQueries []map[string]interface{}
+	var expectedQueries []map[string]any
 	err = yaml.Unmarshal(b, &expectedQueries)
 	require.NoError(t, err)
 
@@ -1094,14 +1094,14 @@ func TestGenerateLabels(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 	}
 
 	labelsRaw, err := cmd.generateLabels()
 	require.NoError(t, err)
 	require.NotNil(t, labelsRaw)
-	var labels []map[string]interface{}
+	var labels []map[string]any
 	b, err := yaml.Marshal(labelsRaw)
 	require.NoError(t, err)
 	fmt.Println("labels raw:\n", string(b)) // Debugging line
@@ -1111,7 +1111,7 @@ func TestGenerateLabels(t *testing.T) {
 	// Get the expected org settings YAML.
 	b, err = os.ReadFile("./testdata/generateGitops/expectedLabels.yaml")
 	require.NoError(t, err)
-	var expectedlabels []map[string]interface{}
+	var expectedlabels []map[string]any
 	err = yaml.Unmarshal(b, &expectedlabels)
 	require.NoError(t, err)
 
@@ -1119,7 +1119,7 @@ func TestGenerateLabels(t *testing.T) {
 	require.Equal(t, expectedlabels, labels)
 }
 
-func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{}) {
+func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]any) {
 	macosSetup, ok := controlsRaw["macos_setup"].(string)
 	require.True(t, ok, "Expected macos_setup section to be a string")
 	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
@@ -1142,7 +1142,7 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 		Client:       fleetClient,
 		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
 		Messages:     Messages{},
-		FilesToWrite: make(map[string]interface{}),
+		FilesToWrite: make(map[string]any),
 		AppConfig:    appConfig,
 		ScriptList:   make(map[uint]string),
 	}

@@ -72,7 +72,7 @@ type runLiveQueryOnHostResponse struct {
 
 func (r runLiveQueryOnHostResponse) Error() error { return nil }
 
-func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func runOneLiveQueryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
 
 	// Only allow a host to be specified once in HostIDs
@@ -102,7 +102,7 @@ func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet
 	return res, nil
 }
 
-func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func runLiveQueryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryRequest)
 
 	// Only allow a query to be specified once
@@ -125,7 +125,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return res, nil
 }
 
-func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func runLiveQueryOnHostEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
 	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
@@ -136,7 +136,7 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 	return runLiveQueryOnHost(svc, ctx, host, req.Query)
 }
 
-func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*runLiveQueryOnHostByIDRequest)
 
 	host, err := svc.HostLiteByID(ctx, req.HostID)
@@ -251,7 +251,6 @@ func (svc *Service) RunLiveQueryDeadline(
 	respondedHostIDs := make(map[uint]struct{})
 
 	for _, queryID := range queryIDs {
-		queryID := queryID
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -377,7 +376,7 @@ func (svc *Service) RunLiveQueryDeadline(
 	return results, len(respondedHostIDs), nil
 }
 
-func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error) {
+func (svc *Service) GetCampaignReader(ctx context.Context, campaign *fleet.DistributedQueryCampaign) (<-chan any, context.CancelFunc, error) {
 	// Open the channel from which we will receive incoming query results
 	// (probably from the redis pubsub implementation)
 	cancelCtx, cancelFunc := context.WithCancel(ctx)

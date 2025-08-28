@@ -47,7 +47,7 @@ type applyGroupFunc func(context.Context, *spec.Group) error
 func (r setupResponse) Error() error { return r.Err }
 
 func makeSetupEndpoint(svc fleet.Service, logger kitlog.Logger) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (interface{}, error) {
+	return func(ctx context.Context, request any) (any, error) {
 		req := request.(setupRequest)
 		config := &fleet.AppConfig{}
 		if req.OrgInfo != nil {
@@ -220,7 +220,7 @@ func ApplyStarterLibrary(
 
 		// Remove scripts from AppConfig if present
 		if specs.AppConfig != nil {
-			appConfigMap, ok := specs.AppConfig.(map[string]interface{})
+			appConfigMap, ok := specs.AppConfig.(map[string]any)
 			if ok {
 				// Remove scripts from AppConfig
 				delete(appConfigMap, "scripts")
@@ -229,7 +229,7 @@ func ApplyStarterLibrary(
 	}
 
 	// Log function for ApplyGroup (minimal logging)
-	logf := func(format string, a ...interface{}) {}
+	logf := func(format string, a ...any) {}
 
 	// Assign the real implementation
 	var applyGroupFn applyGroupFunc = func(ctx context.Context, specs *spec.Group) error {
@@ -272,12 +272,12 @@ func ExtractScriptNames(specs *spec.Group) []string {
 
 	// Process team specs
 	for _, teamRaw := range specs.Teams {
-		var teamData map[string]interface{}
+		var teamData map[string]any
 		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
 			continue // Skip if we can't unmarshal
 		}
 
-		if scripts, ok := teamData["scripts"].([]interface{}); ok {
+		if scripts, ok := teamData["scripts"].([]any); ok {
 			for _, script := range scripts {
 				if scriptName, ok := script.(string); ok && !scriptMap[scriptName] {
 					scriptMap[scriptName] = true
@@ -388,18 +388,18 @@ func DownloadAndUpdateScripts(ctx context.Context, specs *spec.Group, scriptName
 
 		// Update the AppConfig with the new script paths
 		if specs.AppConfig != nil {
-			specs.AppConfig.(map[string]interface{})["scripts"] = appScripts
+			specs.AppConfig.(map[string]any)["scripts"] = appScripts
 		}
 	}
 
 	// Update script references in the specs to point to local files
 	for i, teamRaw := range specs.Teams {
-		var teamData map[string]interface{}
+		var teamData map[string]any
 		if err := json.Unmarshal(teamRaw, &teamData); err != nil {
 			continue // Skip if we can't unmarshal
 		}
 
-		if scripts, ok := teamData["scripts"].([]interface{}); ok {
+		if scripts, ok := teamData["scripts"].([]any); ok {
 			for j, script := range scripts {
 				if scriptName, ok := script.(string); ok {
 					// Update the script reference to the local path from our map

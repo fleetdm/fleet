@@ -85,7 +85,7 @@ func (s *FileStorage) StoreAuthTokens(_ context.Context, name string, tokens *cl
 	return json.NewEncoder(f).Encode(tokens)
 }
 
-func decodeJSONfile(filename string, v interface{}) error {
+func decodeJSONfile(filename string, v any) error {
 	f, err := os.Open(filename)
 	if err != nil {
 		return err

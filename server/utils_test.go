@@ -126,20 +126,20 @@ func TestBase64DecodePaddingAgnostic(t *testing.T) {
 
 func TestRemoveDuplicatesFromSlice(t *testing.T) {
 	tests := map[string]struct {
-		input  []interface{}
-		output []interface{}
+		input  []any
+		output []any
 	}{
 		"no duplicates": {
-			input:  []interface{}{34, 56, 1},
-			output: []interface{}{34, 56, 1},
+			input:  []any{34, 56, 1},
+			output: []any{34, 56, 1},
 		},
 		"1 duplicate": {
-			input:  []interface{}{"a", "d", "a"},
-			output: []interface{}{"a", "d"},
+			input:  []any{"a", "d", "a"},
+			output: []any{"a", "d"},
 		},
 		"all duplicates": {
-			input:  []interface{}{true, true, true},
-			output: []interface{}{true},
+			input:  []any{true, true, true},
+			output: []any{true},
 		},
 	}
 	for name, test := range tests {

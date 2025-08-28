@@ -109,7 +109,7 @@ func (c *Client) LiveQueryWithContext(
 
 	err = conn.WriteJSON(ws.JSONMessage{
 		Type: "auth",
-		Data: map[string]interface{}{"token": c.token},
+		Data: map[string]any{"token": c.token},
 	})
 	if err != nil {
 		_ = conn.Close()
@@ -118,7 +118,7 @@ func (c *Client) LiveQueryWithContext(
 
 	err = conn.WriteJSON(ws.JSONMessage{
 		Type: "select_campaign",
-		Data: map[string]interface{}{"campaign_id": responseBody.Campaign.ID},
+		Data: map[string]any{"campaign_id": responseBody.Campaign.ID},
 	})
 	if err != nil {
 		_ = conn.Close()

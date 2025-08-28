@@ -124,20 +124,20 @@ func TestMailService(t *testing.T) {
 }`), fleet.ApplySpecOptions{})
 	require.NoError(t, err)
 
-	getLastMailPitMessage := func() map[string]interface{} {
+	getLastMailPitMessage := func() map[string]any {
 		resp, err := http.Get("http://localhost:8026/api/v1/messages?limit=1")
 		require.NoError(t, err)
 		defer resp.Body.Close()
 		b, err := io.ReadAll(resp.Body)
 		require.NoError(t, err)
-		var m map[string]interface{}
+		var m map[string]any
 		err = json.Unmarshal(b, &m)
 		require.NoError(t, err)
 		require.NotNil(t, m["messages"])
 		require.Len(t, m["messages"], 1)
-		lm := (m["messages"]).([]interface{})[0]
+		lm := (m["messages"]).([]any)[0]
 		require.NotNil(t, lm)
-		lastMessage := lm.(map[string]interface{})
+		lastMessage := lm.(map[string]any)
 		fmt.Printf("%+v\n", lastMessage)
 		return lastMessage
 	}

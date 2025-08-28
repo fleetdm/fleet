@@ -38,7 +38,7 @@ func init() {
 
 type authTestCase struct {
 	user   *fleet.User
-	object interface{}
+	object any
 	action string
 	allow  bool
 }
@@ -1937,17 +1937,17 @@ func TestAuthorizeMDMAppleBootstrapPackage(t *testing.T) {
 	})
 }
 
-func assertAuthorized(t *testing.T, user *fleet.User, object, action interface{}) {
+func assertAuthorized(t *testing.T, user *fleet.User, object, action any) {
 	t.Helper()
 
-	b, _ := json.MarshalIndent(map[string]interface{}{"subject": user, "object": object, "action": action}, "", "  ")
+	b, _ := json.MarshalIndent(map[string]any{"subject": user, "object": object, "action": action}, "", "  ")
 	assert.NoError(t, auth.Authorize(test.UserContext(context.Background(), user), object, action), "should be authorized\n%s", string(b))
 }
 
-func assertUnauthorized(t *testing.T, user *fleet.User, object, action interface{}) {
+func assertUnauthorized(t *testing.T, user *fleet.User, object, action any) {
 	t.Helper()
 
-	b, _ := json.MarshalIndent(map[string]interface{}{"subject": user, "object": object, "action": action}, "", "  ")
+	b, _ := json.MarshalIndent(map[string]any{"subject": user, "object": object, "action": action}, "", "  ")
 	assert.Error(t, auth.Authorize(test.UserContext(context.Background(), user), object, action), "should be unauthorized\n%s", string(b))
 }
 
@@ -1969,10 +1969,8 @@ func runTestCasesGroups(t *testing.T, testCaseGroups []tcGroup) {
 	t.Helper()
 
 	for _, gg := range testCaseGroups {
-		gg := gg
 		t.Run(gg.name, func(t *testing.T) {
 			for _, tt := range gg.testCases {
-				tt := tt
 
 				// build a useful test name from user role, object, action and expected result
 				action := tt.action
@@ -2355,7 +2353,7 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	subject, err := jsonToInterface(&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)})
 	require.NoError(t, err)
 	{
-		subject := subject.(map[string]interface{})
+		subject := subject.(map[string]any)
 		assert.Equal(t, fleet.RoleAdmin, subject["global_role"])
 		assert.Nil(t, subject["teams"])
 	}
@@ -2368,13 +2366,13 @@ func TestJSONToInterfaceUser(t *testing.T) {
 	})
 	require.NoError(t, err)
 	{
-		subject := subject.(map[string]interface{})
+		subject := subject.(map[string]any)
 		assert.Equal(t, nil, subject["global_role"])
 		assert.Len(t, subject["teams"], 2)
-		assert.Equal(t, fleet.RoleObserver, subject["teams"].([]interface{})[0].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("3"), subject["teams"].([]interface{})[0].(map[string]interface{})["id"])
-		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]interface{})[1].(map[string]interface{})["role"])
-		assert.Equal(t, json.Number("42"), subject["teams"].([]interface{})[1].(map[string]interface{})["id"])
+		assert.Equal(t, fleet.RoleObserver, subject["teams"].([]any)[0].(map[string]any)["role"])
+		assert.Equal(t, json.Number("3"), subject["teams"].([]any)[0].(map[string]any)["id"])
+		assert.Equal(t, fleet.RoleMaintainer, subject["teams"].([]any)[1].(map[string]any)["role"])
+		assert.Equal(t, json.Number("42"), subject["teams"].([]any)[1].(map[string]any)["id"])
 	}
 }
 

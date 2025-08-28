@@ -104,7 +104,7 @@ func TestGetVersion(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		tc := tc // capture range variable, needed for parallel tests
+		// capture range variable, needed for parallel tests
 		t.Run(
 			name, func(t *testing.T) {
 				t.Parallel()
@@ -193,7 +193,7 @@ func TestGetAndCompareVersion(t *testing.T) {
 		},
 	}
 	for name, tc := range testCases {
-		tc := tc // capture range variable, needed for parallel tests
+		// capture range variable, needed for parallel tests
 		t.Run(
 			name, func(t *testing.T) {
 				t.Parallel()

@@ -6,7 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
-func (s *MySQLStorage) RetrieveMigrationCheckins(ctx context.Context, c chan<- interface{}) error {
+func (s *MySQLStorage) RetrieveMigrationCheckins(ctx context.Context, c chan<- any) error {
 	// TODO: if a TokenUpdate does not include the latest UnlockToken
 	// then we should synthesize a TokenUpdate to transfer it over.
 	deviceRows, err := s.db.QueryContext(

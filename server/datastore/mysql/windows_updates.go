@@ -40,7 +40,7 @@ func (ds *Datastore) InsertWindowsUpdates(ctx context.Context, hostID uint, upda
 	// new updates were installed since the last sync.
 
 	var lastUpdateEpoch uint
-	var args []interface{}
+	var args []any
 	var placeholders []string
 
 	lastUpdateSmt := `SELECT date_epoch FROM windows_updates WHERE host_id = ? ORDER BY date_epoch DESC LIMIT 1`

@@ -73,7 +73,7 @@ func (ds *Datastore) verifyAppleConfigProfileScopesDoNotConflict(ctx context.Con
 		return nil
 	}
 	incomingProfileIdentifiers := make([]string, 0, len(cps))
-	for i := 0; i < len(cps); i++ {
+	for i := range cps {
 		incomingProfileIdentifiers = append(incomingProfileIdentifiers, cps[i].Identifier)
 	}
 	stmt := `
@@ -844,7 +844,7 @@ func (ds *Datastore) RenewMDMManagedCertificates(ctx context.Context) error {
 	// This will trigger a resend next time profiles are checked
 	updateQuery := `UPDATE host_mdm_apple_profiles SET status = NULL WHERE status IS NOT NULL AND operation_type = ? AND (`
 	hostProfileClause := ``
-	values := []interface{}{fleet.MDMOperationTypeInstall}
+	values := []any{fleet.MDMOperationTypeInstall}
 
 	totalHostCertsToRenew := 0
 	hostCertTypesToRenew := []fleet.CAConfigAssetType{fleet.CAConfigDigiCert, fleet.CAConfigCustomSCEPProxy, fleet.CAConfigNDES}
@@ -1394,7 +1394,7 @@ func updateMDMAppleHostDB(
 ) error {
 	refetchRequested, lastEnrolledAt := mdmHostEnrollFields(mdmHost)
 
-	args := []interface{}{
+	args := []any{
 		mdmHost.HardwareSerial,
 		mdmHost.UUID,
 		mdmHost.HardwareModel,
@@ -1410,7 +1410,7 @@ func updateMDMAppleHostDB(
 	lastEnrolledAtColumn := ""
 	if mdmHost.Platform == "ios" || mdmHost.Platform == "ipados" {
 		lastEnrolledAtColumn = "last_enrolled_at = ?,"
-		args = append([]interface{}{lastEnrolledAt}, args...)
+		args = append([]any{lastEnrolledAt}, args...)
 	}
 
 	updateStmt := fmt.Sprintf(`
@@ -1588,7 +1588,7 @@ func createHostFromMDMDB(
 	}
 
 	var whenCases []string
-	var whenArgs []interface{}
+	var whenArgs []any
 	updateUUIDHosts := map[string]string{}
 	for _, d := range devices {
 		if d.UUID != nil {
@@ -1803,7 +1803,7 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 		  deleted_at = NULL,
 		  abm_token_id = VALUES(abm_token_id)`
 
-	args := []interface{}{}
+	args := []any{}
 	values := []string{}
 	for _, host := range hosts {
 		args = append(args, host.ID, abmTokenID)
@@ -1819,7 +1819,7 @@ func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts [
 }
 
 func upsertHostDisplayNames(ctx context.Context, tx sqlx.ExtContext, hosts ...fleet.Host) error {
-	var args []interface{}
+	var args []any
 	var parts []string
 	for _, h := range hosts {
 		args = append(args, h.ID, h.DisplayName())
@@ -1869,7 +1869,7 @@ func upsertMDMAppleHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, appCfg
 		}
 	}
 
-	args := []interface{}{}
+	args := []any{}
 	parts := []string{}
 	for _, id := range hostIDs {
 		args = append(args, enrolled, serverURL, fromSync, mdmID, false, id, fromPersonalEnrollment)
@@ -1927,7 +1927,7 @@ func upsertMDMAppleHostLabelMembershipDB(ctx context.Context, tx sqlx.ExtContext
 	}
 
 	parts := []string{}
-	args := []interface{}{}
+	args := []any{}
 	for _, h := range hosts {
 		var osLabelID uint
 		switch h.Platform {
@@ -2040,7 +2040,7 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 	})
 }
 
-func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []interface{}) {
+func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []any) {
 	for i, d := range devices {
 		if i == 0 {
 			stmt = "SELECT ? hardware_serial, ? hardware_model, ? platform"
@@ -2193,7 +2193,7 @@ INSERT INTO hosts (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 
 		// Handle zero time values by converting them to nil for SQL NULL
-		var lastEnrolledAt, detailUpdatedAt interface{}
+		var lastEnrolledAt, detailUpdatedAt any
 		if !host.LastEnrolledAt.IsZero() {
 			lastEnrolledAt = host.LastEnrolledAt
 		}
@@ -2201,7 +2201,7 @@ INSERT INTO hosts (
 			detailUpdatedAt = host.DetailUpdatedAt
 		}
 
-		args := []interface{}{
+		args := []any{
 			host.ID,
 			host.UUID,
 			host.HardwareSerial,
@@ -2434,7 +2434,7 @@ ON DUPLICATE KEY UPDATE
 
 	var (
 		stmt                string
-		args                []interface{}
+		args                []any
 		deletedProfileUUIDs []string
 	)
 	// load the profiles that will be deleted, so we can cancel the install immediately
@@ -2732,12 +2732,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	selectProfilesTotalBatches := int(math.Ceil(float64(len(hostUUIDs)) / float64(selectProfilesBatchSize)))
 
 	var wantedProfiles []*fleet.MDMAppleProfilePayload
-	for i := 0; i < selectProfilesTotalBatches; i++ {
+	for i := range selectProfilesTotalBatches {
 		start := i * selectProfilesBatchSize
-		end := start + selectProfilesBatchSize
-		if end > len(hostUUIDs) {
-			end = len(hostUUIDs)
-		}
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
 
 		batchUUIDs := hostUUIDs[start:end]
 
@@ -2814,12 +2811,9 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 `, fmt.Sprintf(appleMDMProfilesDesiredStateQuery, profileHostIn, profileHostIn, profileHostIn, profileHostIn), narrowByProfiles)
 
 	var currentProfiles []*fleet.MDMAppleProfilePayload
-	for i := 0; i < selectProfilesTotalBatches; i++ {
+	for i := range selectProfilesTotalBatches {
 		start := i * selectProfilesBatchSize
-		end := start + selectProfilesBatchSize
-		if end > len(hostUUIDs) {
-			end = len(hostUUIDs)
-		}
+		end := min(start+selectProfilesBatchSize, len(hostUUIDs))
 
 		batchUUIDs := hostUUIDs[start:end]
 
@@ -3814,7 +3808,7 @@ func (ds *Datastore) GetMDMIdPAccountByUUID(ctx context.Context, uuid string) (*
 	return &acct, nil
 }
 
-func subqueryFileVaultVerifying() (string, []interface{}) {
+func subqueryFileVaultVerifying() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3827,7 +3821,7 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
 		  OR
 		  (hmap.status = ? AND hdek.decryptable = 1)
 		)`
-	args := []interface{}{
+	args := []any{
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMOperationTypeInstall,
 		fleet.MDMDeliveryVerified,
@@ -3836,7 +3830,7 @@ func subqueryFileVaultVerifying() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultVerified() (string, []interface{}) {
+func subqueryFileVaultVerified() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3846,7 +3840,7 @@ func subqueryFileVaultVerified() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND hmap.status = ?
                 AND hmap.operation_type = ?`
-	args := []interface{}{
+	args := []any{
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMDeliveryVerified,
 		fleet.MDMOperationTypeInstall,
@@ -3854,7 +3848,7 @@ func subqueryFileVaultVerified() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultActionRequired() (string, []interface{}) {
+func subqueryFileVaultActionRequired() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3865,7 +3859,7 @@ func subqueryFileVaultActionRequired() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND (hmap.status = ? OR hmap.status = ?)
                 AND hmap.operation_type = ?`
-	args := []interface{}{
+	args := []any{
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMDeliveryVerifying,
 		fleet.MDMDeliveryVerified,
@@ -3874,7 +3868,7 @@ func subqueryFileVaultActionRequired() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultEnforcing() (string, []interface{}) {
+func subqueryFileVaultEnforcing() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3884,7 +3878,7 @@ func subqueryFileVaultEnforcing() (string, []interface{}) {
                 AND (hmap.status IS NULL OR hmap.status = ?)
                 AND hmap.operation_type = ?
 		`
-	args := []interface{}{
+	args := []any{
 		mobileconfig.FleetFileVaultPayloadIdentifier,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeInstall,
@@ -3892,7 +3886,7 @@ func subqueryFileVaultEnforcing() (string, []interface{}) {
 	return sql, args
 }
 
-func subqueryFileVaultFailed() (string, []interface{}) {
+func subqueryFileVaultFailed() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3900,11 +3894,11 @@ func subqueryFileVaultFailed() (string, []interface{}) {
 			    h.uuid = hmap.host_uuid
                 AND hmap.profile_identifier = ?
                 AND hmap.status = ?`
-	args := []interface{}{mobileconfig.FleetFileVaultPayloadIdentifier, fleet.MDMDeliveryFailed}
+	args := []any{mobileconfig.FleetFileVaultPayloadIdentifier, fleet.MDMDeliveryFailed}
 	return sql, args
 }
 
-func subqueryFileVaultRemovingEnforcement() (string, []interface{}) {
+func subqueryFileVaultRemovingEnforcement() (string, []any) {
 	sql := `
             SELECT
                 1 FROM host_mdm_apple_profiles hmap
@@ -3913,7 +3907,7 @@ func subqueryFileVaultRemovingEnforcement() (string, []interface{}) {
                 AND hmap.profile_identifier = ?
                 AND (hmap.status IS NULL OR hmap.status = ?)
                 AND hmap.operation_type = ?`
-	args := []interface{}{mobileconfig.FleetFileVaultPayloadIdentifier, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove}
+	args := []any{mobileconfig.FleetFileVaultPayloadIdentifier, fleet.MDMDeliveryPending, fleet.MDMOperationTypeRemove}
 	return sql, args
 }
 
@@ -3950,7 +3944,7 @@ FROM
 WHERE
     h.platform = 'darwin' AND %s`
 
-	var args []interface{}
+	var args []any
 	subqueryVerified, subqueryVerifiedArgs := subqueryFileVaultVerified()
 	args = append(args, subqueryVerifiedArgs...)
 	subqueryVerifying, subqueryVerifyingArgs := subqueryFileVaultVerifying()
@@ -4277,7 +4271,7 @@ JOIN mdm_apple_bootstrap_packages mabs ON
 WHERE
     h.id = ? AND hm.installed_from_dep = 1`
 
-	args := []interface{}{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
+	args := []any{fleet.MDMBootstrapPackageInstalled, fleet.MDMBootstrapPackageFailed, fleet.MDMBootstrapPackagePending, hostID}
 
 	var dest fleet.HostMDMMacOSSetup
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &dest, stmt, args...); err != nil {
@@ -4742,7 +4736,7 @@ SET
 WHERE
 	hardware_serial IN (?)
 `, setABMTokenID)
-	var args []interface{}
+	var args []any
 	var err error
 	if abmTokenID != nil {
 		stmt, args, err = sqlx.In(stmt, abmTokenID, profileUUID, status, serials)
@@ -6720,17 +6714,14 @@ func (ds *Datastore) AddHostMDMCommands(ctx context.Context, commands []fleet.Ho
 
 	for i := 0; i < len(commands); i += addHostMDMCommandsBatchSize {
 		start := i
-		end := i + hostIssuesInsertBatchSize
-		if end > len(commands) {
-			end = len(commands)
-		}
+		end := min(i+hostIssuesInsertBatchSize, len(commands))
 		totalToProcess := end - start
 		const numberOfArgsPerInsert = 2 // number of ? in each VALUES clause
 		values := strings.TrimSuffix(
 			strings.Repeat("(?,?),", totalToProcess), ",",
 		)
 		stmt := fmt.Sprintf(baseStmt, values)
-		args := make([]interface{}, 0, totalToProcess*numberOfArgsPerInsert)
+		args := make([]any, 0, totalToProcess*numberOfArgsPerInsert)
 		for j := start; j < end; j++ {
 			item := commands[j]
 			args = append(

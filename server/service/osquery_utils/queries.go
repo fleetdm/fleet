@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"maps"
 	"net"
 	"net/url"
 	"regexp"
@@ -77,12 +78,7 @@ func (q *DetailQuery) RunsForPlatform(platform string) bool {
 	if len(q.Platforms) == 0 {
 		return true
 	}
-	for _, p := range q.Platforms {
-		if p == platform {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(q.Platforms, platform)
 }
 
 // networkInterfaceQuery is the query to use to ingest a host's "Primary IP" and "Primary MAC".
@@ -2670,12 +2666,8 @@ func GetDetailQueries(
 	teamMDMConfig *fleet.TeamMDM,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
-	for key, query := range hostDetailQueries {
-		generatedMap[key] = query
-	}
-	for key, query := range extraDetailQueries {
-		generatedMap[key] = query
-	}
+	maps.Copy(generatedMap, hostDetailQueries)
+	maps.Copy(generatedMap, extraDetailQueries)
 
 	if features != nil && features.EnableSoftwareInventory {
 		generatedMap["software_macos"] = softwareMacOS
@@ -2725,9 +2717,7 @@ func GetDetailQueries(
 			}
 
 			if enableDiskEncryption && requireTPMPin {
-				for key, query := range tpmPINQueries {
-					generatedMap[key] = query
-				}
+				maps.Copy(generatedMap, tpmPINQueries)
 			}
 		}
 	}

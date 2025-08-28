@@ -41,7 +41,7 @@ type Comment struct {
 
 type FileToWrite struct {
 	Path    string
-	Content map[string]interface{}
+	Content map[string]any
 }
 
 type Software struct {
@@ -95,14 +95,14 @@ func jsonFieldName(t reflect.Type, fieldName string) string {
 }
 
 // Given a dot-separated path, return the value at that key in a map.
-func getValueAtKey(data map[string]interface{}, path string) (interface{}, bool) {
+func getValueAtKey(data map[string]any, path string) (any, bool) {
 	// Split the path into parts.
 	parts := strings.Split(path, ".")
-	var cur interface{} = data
+	var cur any = data
 
 	// Keep traversing the map using the keys in the path.
 	for _, key := range parts {
-		mp, ok := cur.(map[string]interface{})
+		mp, ok := cur.(map[string]any)
 		if !ok {
 			return nil, false
 		}
@@ -118,7 +118,7 @@ type GenerateGitopsCommand struct {
 	Client       generateGitopsClient
 	CLI          *cli.Context
 	Messages     Messages
-	FilesToWrite map[string]interface{}
+	FilesToWrite map[string]any
 	Comments     []Comment
 	AppConfig    *fleet.EnrichedAppConfig
 	SoftwareList map[uint]Software
@@ -178,7 +178,7 @@ func createGenerateGitopsAction(fleetClient generateGitopsClient) func(*cli.Cont
 			Client:       fleetClient,
 			CLI:          c,
 			Messages:     Messages{},
-			FilesToWrite: make(map[string]interface{}),
+			FilesToWrite: make(map[string]any),
 			SoftwareList: make(map[uint]Software),
 			ScriptList:   make(map[uint]string),
 		}
@@ -312,7 +312,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if team != nil {
 			teamFileName = generateFilename(team.Name)
 			fileName = "teams/" + teamFileName + ".yml"
-			cmd.FilesToWrite[fileName] = map[string]interface{}{
+			cmd.FilesToWrite[fileName] = map[string]any{
 				"name": team.Name,
 			}
 		} else {
@@ -339,11 +339,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite["default.yml"] = map[string]interface{}{
+			cmd.FilesToWrite["default.yml"] = map[string]any{
 				"org_settings": orgSettings,
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = cmd.AppConfig.AgentOptions
+			cmd.FilesToWrite[fileName].(map[string]any)["agent_options"] = cmd.AppConfig.AgentOptions
 
 			// Generate labels.
 			labels, err := cmd.generateLabels()
@@ -351,7 +351,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating labels: %s\n", err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
+			cmd.FilesToWrite[fileName].(map[string]any)["labels"] = labels
 
 		} else if team.ID != 0 {
 			// Generate team settings and agent options for the team.
@@ -361,8 +361,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 
-			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
-			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
+			cmd.FilesToWrite[fileName].(map[string]any)["team_settings"] = teamSettings
+			cmd.FilesToWrite[fileName].(map[string]any)["agent_options"] = team.Config.AgentOptions
 
 			mdmConfig = team.Config.MDM
 		}
@@ -375,7 +375,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating controls for %s: %s\n", teamFileName, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["controls"] = controls
+			cmd.FilesToWrite[fileName].(map[string]any)["controls"] = controls
 		}
 
 		// Generate software.
@@ -386,9 +386,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				return ErrGeneric
 			}
 			if software == nil {
-				cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = nil
+				cmd.FilesToWrite[fileName].(map[string]any)["software"] = nil
 			} else {
-				cmd.FilesToWrite[fileName].(map[string]interface{})["software"] = software
+				cmd.FilesToWrite[fileName].(map[string]any)["software"] = software
 			}
 		}
 
@@ -398,7 +398,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating policies for team %s: %s\n", team.Name, err)
 			return ErrGeneric
 		}
-		cmd.FilesToWrite[fileName].(map[string]interface{})["policies"] = policies
+		cmd.FilesToWrite[fileName].(map[string]any)["policies"] = policies
 
 		if team == nil || team.ID != 0 {
 			// Generate queries (except for on No Team).
@@ -407,7 +407,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating queries for team %s: %s\n", team.Name, err)
 				return ErrGeneric
 			}
-			cmd.FilesToWrite[fileName].(map[string]interface{})["queries"] = queries
+			cmd.FilesToWrite[fileName].(map[string]any)["queries"] = queries
 		}
 	}
 
@@ -433,7 +433,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling settings: %s\n", err)
 			return ErrGeneric
 		}
-		var data map[string]interface{}
+		var data map[string]any
 		if err := yaml.Unmarshal(b, &data); err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling settings: %s\n", err)
 			return ErrGeneric
@@ -581,9 +581,9 @@ func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileCont
 	return fileName
 }
 
-func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]interface{}, err error) {
+func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]any, err error) {
 	t := reflect.TypeOf(fleet.EnrichedAppConfig{})
-	orgSettings = map[string]interface{}{
+	orgSettings = map[string]any{
 		jsonFieldName(t, "Features"):           cmd.AppConfig.Features,
 		jsonFieldName(t, "FleetDesktop"):       cmd.AppConfig.FleetDesktop,
 		jsonFieldName(t, "HostExpirySettings"): cmd.AppConfig.HostExpirySettings,
@@ -633,13 +633,13 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 	return orgSettings, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSSOSettings(ssoSettings *fleet.SSOSettings) (map[string]any, error) {
 	if ssoSettings == nil {
 		return map[string]any{}, nil
 	}
 
 	t := reflect.TypeOf(fleet.SSOSettings{})
-	result := map[string]interface{}{
+	result := map[string]any{
 		jsonFieldName(t, "EnableSSO"):         ssoSettings.EnableSSO,
 		jsonFieldName(t, "IDPName"):           ssoSettings.IDPName,
 		jsonFieldName(t, "IDPImageURL"):       ssoSettings.IDPImageURL,
@@ -677,7 +677,7 @@ type GlobalOrTeamIntegrations struct {
 	TeamIntegrations   *fleet.TeamIntegrations `json:"team_integrations,omitempty"`
 }
 
-func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrations *GlobalOrTeamIntegrations) (map[string]any, error) {
 	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
 	// to get the keys we want.
 	b, err := yaml.Marshal(integrations)
@@ -685,15 +685,15 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling integrations: %s\n", err)
 		return nil, err
 	}
-	var result map[string]interface{}
+	var result map[string]any
 	if err := yaml.Unmarshal(b, &result); err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling integrations: %s\n", err)
 		return nil, err
 	}
 	if result["global_integrations"] != nil {
-		result = result["global_integrations"].(map[string]interface{})
+		result = result["global_integrations"].(map[string]any)
 	} else {
-		result = result["team_integrations"].(map[string]interface{})
+		result = result["team_integrations"].(map[string]any)
 
 		// We currently don't support configuring Jira and Zendesk integrations on the team.
 		delete(result, "jira")
@@ -705,9 +705,9 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 	// Obfuscate secrets if not in insecure mode.
 	if !cmd.CLI.Bool("insecure") {
 		if googleCalendar, ok := result["google_calendar"]; ok && googleCalendar != nil {
-			for _, intg := range googleCalendar.([]interface{}) {
-				if apiKeyJson, ok := intg.(map[string]interface{})["api_key_json"]; ok {
-					apiKeyJson.(map[string]interface{})["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
+			for _, intg := range googleCalendar.([]any) {
+				if apiKeyJson, ok := intg.(map[string]any)["api_key_json"]; ok {
+					apiKeyJson.(map[string]any)["private_key"] = cmd.AddComment(filePath, "TODO: Add your Google Calendar API key JSON here")
 					cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 						Filename: "default.yml",
 						Key:      "integrations.google_calendar.api_key_json.private_key",
@@ -716,8 +716,8 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			}
 		}
 		if jira, ok := result["jira"]; ok && jira != nil {
-			for _, intg := range jira.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
+			for _, intg := range jira.([]any) {
+				intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Jira API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.jira.api_token",
@@ -725,8 +725,8 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			}
 		}
 		if zendesk, ok := result["zendesk"]; ok && zendesk != nil {
-			for _, intg := range zendesk.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
+			for _, intg := range zendesk.([]any) {
+				intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Zendesk API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.zendesk.api_token",
@@ -734,8 +734,8 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			}
 		}
 		if digicert, ok := result["digicert"]; ok && digicert != nil {
-			for _, intg := range digicert.([]interface{}) {
-				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
+			for _, intg := range digicert.([]any) {
+				intg.(map[string]any)["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.digicert.api_token",
@@ -743,15 +743,15 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 			}
 		}
 		if ndes_scep_proxy, ok := result["ndes_scep_proxy"]; ok && ndes_scep_proxy != nil {
-			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
+			ndes_scep_proxy.(map[string]any)["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
 				Key:      "integrations.ndes_scep_proxy.password",
 			})
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
-			for _, intg := range custom_scep_proxy.([]interface{}) {
-				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
+			for _, intg := range custom_scep_proxy.([]any) {
+				intg.(map[string]any)["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.custom_scep_proxy.challenge",
@@ -798,9 +798,9 @@ type gitopsMDM struct {
 	EndUserLicenseAgreement string `json:"end_user_license_agreement,omitempty"`
 }
 
-func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]any, error) {
 	t := reflect.TypeOf(gitopsMDM{})
-	result := map[string]interface{}{
+	result := map[string]any{
 		jsonFieldName(t, "AppleServerURL"):        mdm.AppleServerURL,
 		jsonFieldName(t, "EndUserAuthentication"): mdm.EndUserAuthentication,
 	}
@@ -843,14 +843,14 @@ func (cmd *GenerateGitopsCommand) generateMDM(mdm *fleet.MDM) (map[string]interf
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) (map[string]any, error) {
 	// TODC -- come up with a way to export Yara rules.
-	return map[string]interface{}{}, nil
+	return map[string]any{}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fleet.Team) (teamSettings map[string]interface{}, err error) {
+func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fleet.Team) (teamSettings map[string]any, err error) {
 	t := reflect.TypeOf(fleet.TeamConfig{})
-	teamSettings = map[string]interface{}{
+	teamSettings = map[string]any{
 		jsonFieldName(t, "Features"):           team.Config.Features,
 		jsonFieldName(t, "HostExpirySettings"): team.Config.HostExpirySettings,
 		jsonFieldName(t, "WebhookSettings"):    team.Config.WebhookSettings,
@@ -877,9 +877,9 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	return teamSettings, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string, teamMdm *fleet.TeamMDM) (map[string]any, error) {
 	t := reflect.TypeOf(spec.GitOpsControls{})
-	result := map[string]interface{}{}
+	result := map[string]any{}
 
 	if teamId != nil {
 		scripts, err := cmd.generateScripts(teamId, teamName)
@@ -897,13 +897,13 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			return nil, err
 		}
 		if profiles != nil {
-			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+			if len(profiles["apple_profiles"].([]map[string]any)) > 0 {
+				result[jsonFieldName(t, "MacOSSettings")] = map[string]any{
 					"custom_settings": profiles["apple_profiles"],
 				}
 			}
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+			if len(profiles["windows_profiles"].([]map[string]any)) > 0 {
+				result[jsonFieldName(t, "WindowsSettings")] = map[string]any{
 					"custom_settings": profiles["windows_profiles"],
 				}
 			}
@@ -985,7 +985,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string) (map[string]any, error) {
 	// Get profiles.
 	profiles, err := cmd.Client.ListConfigurationProfiles(teamId)
 	if err != nil {
@@ -995,10 +995,10 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	if len(profiles) == 0 {
 		return nil, nil
 	}
-	appleProfilesSlice := make([]map[string]interface{}, 0)
-	windowsProfilesSlice := make([]map[string]interface{}, 0)
+	appleProfilesSlice := make([]map[string]any, 0)
+	windowsProfilesSlice := make([]map[string]any, 0)
 	for _, profile := range profiles {
-		profileSpec := map[string]interface{}{}
+		profileSpec := map[string]any{}
 		// Parse any labels.
 		if profile.LabelsIncludeAll != nil {
 			labels := make([]string, len(profile.LabelsIncludeAll))
@@ -1054,13 +1054,13 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 	}
 
-	return map[string]interface{}{
+	return map[string]any{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
 	}, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string) ([]map[string]any, error) {
 	// Get scripts.
 	query := ""
 	if teamId != nil {
@@ -1075,7 +1075,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 		return nil, nil
 	}
 
-	scriptSlice := make([]map[string]interface{}, len(scripts))
+	scriptSlice := make([]map[string]any, len(scripts))
 	// For each script, get the contents and add a new file for output.
 	for i, script := range scripts {
 		fileName := fmt.Sprintf("scripts/%s", script.Name)
@@ -1096,7 +1096,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 		} else {
 			path = fmt.Sprintf("../%s", fileName)
 		}
-		scriptSlice[i] = map[string]interface{}{
+		scriptSlice[i] = map[string]any{
 			"path": path,
 		}
 		cmd.ScriptList[script.ID] = path
@@ -1104,7 +1104,7 @@ func (cmd *GenerateGitopsCommand) generateScripts(teamId *uint, teamName string)
 	return scriptSlice, nil
 }
 
-func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string) ([]map[string]any, error) {
 	policies, err := cmd.Client.GetPolicies(teamId)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting policies: %s\n", err)
@@ -1114,9 +1114,9 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		return nil, nil
 	}
 	t := reflect.TypeOf(fleet.Policy{})
-	result := make([]map[string]interface{}, len(policies))
+	result := make([]map[string]any, len(policies))
 	for i, policy := range policies {
-		policySpec := map[string]interface{}{
+		policySpec := map[string]any{
 			jsonFieldName(t, "Name"):                     policy.Name,
 			jsonFieldName(t, "Description"):              policy.Description,
 			jsonFieldName(t, "Resolution"):               policy.Resolution,
@@ -1129,11 +1129,11 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle software automation.
 		if policy.InstallSoftware != nil {
 			if software, ok := cmd.SoftwareList[policy.InstallSoftware.SoftwareTitleID]; ok {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": software.Hash + " " + software.Comment,
 				}
 			} else {
-				policySpec["install_software"] = map[string]interface{}{
+				policySpec["install_software"] = map[string]any{
 					"hash_sha256": cmd.AddComment(filePath, "TODO: Add your hash_sha256 here"),
 				}
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
@@ -1145,7 +1145,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 		// Handle script automation.
 		if policy.RunScript != nil {
 			if scriptPath, ok := cmd.ScriptList[policy.RunScript.ID]; ok {
-				policySpec["run_script"] = map[string]interface{}{
+				policySpec["run_script"] = map[string]any{
 					"path": scriptPath,
 				}
 			}
@@ -1170,7 +1170,7 @@ func (cmd *GenerateGitopsCommand) generatePolicies(teamId *uint, filePath string
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]any, error) {
 	queries, err := cmd.Client.GetQueries(teamId, nil)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting queries: %s\n", err)
@@ -1180,9 +1180,9 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 		return nil, nil
 	}
 	t := reflect.TypeOf(fleet.Query{})
-	result := make([]map[string]interface{}, len(queries))
+	result := make([]map[string]any, len(queries))
 	for i, query := range queries {
-		querySpec := map[string]interface{}{
+		querySpec := map[string]any{
 			jsonFieldName(t, "Name"):               query.Name,
 			jsonFieldName(t, "Description"):        query.Description,
 			jsonFieldName(t, "Query"):              query.Query,
@@ -1209,7 +1209,7 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint, teamFilename string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint, teamFilename string) (map[string]any, error) {
 	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamId)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
@@ -1219,11 +1219,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	if len(software) == 0 {
 		return nil, nil
 	}
-	result := make(map[string]interface{})
-	packages := make([]map[string]interface{}, 0)
-	appStoreApps := make([]map[string]interface{}, 0)
+	result := make(map[string]any)
+	packages := make([]map[string]any, 0)
+	appStoreApps := make([]map[string]any, 0)
 	for _, sw := range software {
-		softwareSpec := make(map[string]interface{})
+		softwareSpec := make(map[string]any)
 		switch {
 		case sw.SoftwarePackage != nil:
 			pkgName := ""
@@ -1263,7 +1263,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				script := softwareTitle.SoftwarePackage.InstallScript
 				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-install")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["install_script"] = map[string]interface{}{
+				softwareSpec["install_script"] = map[string]any{
 					"path": path,
 				}
 				cmd.FilesToWrite[fileName] = script
@@ -1273,7 +1273,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				script := softwareTitle.SoftwarePackage.PostInstallScript
 				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-postinstall")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["post_install_script"] = map[string]interface{}{
+				softwareSpec["post_install_script"] = map[string]any{
 					"path": path,
 				}
 				cmd.FilesToWrite[fileName] = script
@@ -1283,7 +1283,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				script := softwareTitle.SoftwarePackage.UninstallScript
 				fileName := fmt.Sprintf("lib/%s/scripts/%s", teamFilename, filenamePrefix+"-uninstall")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["uninstall_script"] = map[string]interface{}{
+				softwareSpec["uninstall_script"] = map[string]any{
 					"path": path,
 				}
 				cmd.FilesToWrite[fileName] = script
@@ -1293,10 +1293,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				query := softwareTitle.SoftwarePackage.PreInstallQuery
 				fileName := fmt.Sprintf("lib/%s/queries/%s", teamFilename, filenamePrefix+"-preinstallquery.yml")
 				path := fmt.Sprintf("../%s", fileName)
-				softwareSpec["pre_install_query"] = map[string]interface{}{
+				softwareSpec["pre_install_query"] = map[string]any{
 					"path": path,
 				}
-				cmd.FilesToWrite[fileName] = []map[string]interface{}{{
+				cmd.FilesToWrite[fileName] = []map[string]any{{
 					"query": query,
 				}}
 			}
@@ -1357,7 +1357,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]any, error) {
 	labels, err := cmd.Client.GetLabels()
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting labels: %s\n", err)
@@ -1367,12 +1367,12 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		return nil, nil
 	}
 	t := reflect.TypeOf(fleet.LabelSpec{})
-	result := make([]map[string]interface{}, 0)
+	result := make([]map[string]any, 0)
 	for _, label := range labels {
 		if label.LabelType != fleet.LabelTypeRegular {
 			continue
 		}
-		labelSpec := map[string]interface{}{
+		labelSpec := map[string]any{
 			jsonFieldName(t, "Name"):                label.Name,
 			jsonFieldName(t, "Description"):         label.Description,
 			jsonFieldName(t, "LabelMembershipType"): label.LabelMembershipType,

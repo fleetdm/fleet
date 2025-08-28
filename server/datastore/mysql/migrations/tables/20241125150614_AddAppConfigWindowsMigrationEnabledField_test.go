@@ -18,13 +18,13 @@ func TestUp_20241125150614(t *testing.T) {
 	err := sqlx.Get(db, &appCfg, `SELECT json_value FROM app_config_json LIMIT 1;`)
 	require.NoError(t, err)
 
-	var config map[string]interface{}
+	var config map[string]any
 	err = json.Unmarshal(appCfg, &config)
 	require.NoError(t, err)
 
 	mdm, ok := config["mdm"]
 	require.True(t, ok)
-	mdmMap, ok := mdm.(map[string]interface{})
+	mdmMap, ok := mdm.(map[string]any)
 	require.True(t, ok)
 
 	_, ok = mdmMap["windows_enabled_and_configured"].(bool)

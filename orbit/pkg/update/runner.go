@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -88,12 +89,7 @@ func (r *Runner) RemoveRunnerOptTarget(target string) {
 func (r *Runner) HasRunnerOptTarget(target string) bool {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for _, t := range r.opt.Targets {
-		if t == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(r.opt.Targets, target)
 }
 
 // NewRunner creates a new runner with the provided options. The runner must be

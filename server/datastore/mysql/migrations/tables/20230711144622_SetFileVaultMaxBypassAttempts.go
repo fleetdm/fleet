@@ -21,18 +21,18 @@ func init() {
 // We intentionally use a map[string]interface{} to make sure we're fully
 // unmarshalling and marshalling the profile without making additional changes.
 func setBypassAttemptsToFileVaultProfile(original []byte) ([]byte, error) {
-	var configuration map[string]interface{}
+	var configuration map[string]any
 	if _, err := plist.Unmarshal(original, &configuration); err != nil {
 		return nil, fmt.Errorf("unmarshalling configuration profile: %w", err)
 	}
 
-	payloadContent, ok := configuration["PayloadContent"].([]interface{})
+	payloadContent, ok := configuration["PayloadContent"].([]any)
 	if !ok {
 		return nil, errors.New("failed to access PayloadContent element")
 	}
 
 	for _, c := range payloadContent {
-		payload, ok := c.(map[string]interface{})
+		payload, ok := c.(map[string]any)
 		if !ok {
 			return nil, errors.New("failed to access Payload element")
 		}

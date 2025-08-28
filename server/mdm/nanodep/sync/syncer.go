@@ -167,7 +167,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 			)
 			// errors are only logged and we just try again during the next cycle
 		} else {
-			logs := []interface{}{
+			logs := []any{
 				"msg", "device sync",
 				"phase", phaseLabel[doFetch],
 				"more", resp.MoreToFollow,
@@ -221,7 +221,7 @@ func (s *Syncer) Run(ctx context.Context) error {
 
 // logCountsForOpTypes tries to aggregate the various device "op_type"
 // attributes so they can be logged.
-func logCountsForOpTypes(isFetch bool, devices []godep.Device) []interface{} {
+func logCountsForOpTypes(isFetch bool, devices []godep.Device) []any {
 	opTypes := map[string]int{"added": 0, "modified": 0, "deleted": 0, "other": 0}
 	var opType string
 	for _, device := range devices {
@@ -238,7 +238,7 @@ func logCountsForOpTypes(isFetch bool, devices []godep.Device) []interface{} {
 		}
 		opTypes[opType] += 1
 	}
-	var logs []interface{}
+	var logs []any
 	for k, v := range opTypes {
 		if v > 0 {
 			logs = append(logs, "op_type_"+k, v)

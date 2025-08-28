@@ -151,7 +151,7 @@ func writeQuerySpecsToFile(filename string, specs []*fleet.QuerySpec) error {
 func mapQueriesToPacks(packs []*fleet.PackSpec, queries []fleet.Query) map[*fleet.PackSpec][]*fleet.Query {
 	queriesByName := make(map[string]*fleet.Query, len(queries))
 	for _, q := range queries {
-		q := q // avoid taking address of iteration var
+		// avoid taking address of iteration var
 		queriesByName[q.Name] = &q
 	}
 
@@ -184,7 +184,7 @@ func upgradePackToQueriesSpecs(packSpec *fleet.PackSpec, packDB *fleet.Pack, pac
 
 	schedByName := make(map[string]*fleet.PackSpecQuery, len(packSpec.Queries))
 	for _, sq := range packSpec.Queries {
-		sq := sq // avoid taking the address of iteration var
+		// avoid taking the address of iteration var
 		schedByName[sq.QueryName] = &sq
 	}
 

@@ -95,7 +95,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		priv    interface{}
+		priv    any
 		sigAlgo x509.SignatureAlgorithm
 	}{
 		{"RSA", testPrivateKey, x509.SHA1WithRSA},

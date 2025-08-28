@@ -246,7 +246,7 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	testCases := []struct {
 		endpoint string
 		verb     string
-		payload  interface{}
+		payload  any
 		burst    int
 		status   int
 	}{
@@ -306,8 +306,8 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	res = s.DoRawNoAuth("POST", "/api/latest/fleet/device/"+token+"/debug/errors", []byte("{},{}"), http.StatusBadRequest)
 	res.Body.Close()
 
-	data := make(map[string]interface{})
-	for i := int64(0); i < (maxFleetdErrorReportSize+1024)/20; i++ {
+	data := make(map[string]any)
+	for i := range (maxFleetdErrorReportSize + 1024) / 20 {
 		key := fmt.Sprintf("key%d", i)
 		value := fmt.Sprintf("value%d", i)
 		data[key] = value
@@ -341,20 +341,20 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	time.Sleep(100 * time.Millisecond) // give time for the error to be saved
 
 	// Check that error was logged.
-	var errors []map[string]interface{}
+	var errors []map[string]any
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 1)
 	expectedCount := 1
 
-	checkError := func(errorItem map[string]interface{}, expectedCount int) {
+	checkError := func(errorItem map[string]any, expectedCount int) {
 		assert.EqualValues(t, expectedCount, errorItem["count"])
-		errChain, ok := errorItem["chain"].([]interface{})
+		errChain, ok := errorItem["chain"].([]any)
 		require.True(t, ok, fmt.Sprintf("%T", errorItem["chain"]))
 		require.Len(t, errChain, 2)
-		errChain0, ok := errChain[0].(map[string]interface{})
+		errChain0, ok := errChain[0].(map[string]any)
 		require.True(t, ok, fmt.Sprintf("%T", errChain[0]))
 		assert.EqualValues(t, "test message", errChain0["message"])
-		errChain1, ok := errChain[1].(map[string]interface{})
+		errChain1, ok := errChain[1].(map[string]any)
 		require.True(t, ok, fmt.Sprintf("%T", errChain[1]))
 
 		// Check that the exact fleetd error can be retrieved.

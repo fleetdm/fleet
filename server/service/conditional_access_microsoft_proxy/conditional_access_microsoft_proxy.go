@@ -189,7 +189,7 @@ func (p *Proxy) GetMessageStatus(
 	return &getMessageStatusResponse, nil
 }
 
-func (p *Proxy) post(path string, request interface{}, response interface{}) error {
+func (p *Proxy) post(path string, request any, response any) error {
 	b, err := json.Marshal(request)
 	if err != nil {
 		return fmt.Errorf("marshal request: %w", err)
@@ -221,7 +221,7 @@ func (p *Proxy) post(path string, request interface{}, response interface{}) err
 	return nil
 }
 
-func (p *Proxy) get(path string, query string, response interface{}) error {
+func (p *Proxy) get(path string, query string, response any) error {
 	getURL := p.uri + path
 	if query != "" {
 		getURL += "?" + url.PathEscape(query)
@@ -251,7 +251,7 @@ func (p *Proxy) get(path string, query string, response interface{}) error {
 	return nil
 }
 
-func (p *Proxy) delete(path string, query string, response interface{}) error {
+func (p *Proxy) delete(path string, query string, response any) error {
 	deleteURL := p.uri + path
 	if query != "" {
 		deleteURL += "?" + url.PathEscape(query)

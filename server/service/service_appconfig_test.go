@@ -429,7 +429,7 @@ func TestService_EmailConfig(t *testing.T) {
 				ctx: test.UserContext(context.Background(), test.UserNoRoles),
 			},
 			want: nil,
-			wantErr: func(tt assert.TestingT, err error, i ...interface{}) bool {
+			wantErr: func(tt assert.TestingT, err error, i ...any) bool {
 				return assert.EqualError(tt, err, "forbidden")
 			},
 		},

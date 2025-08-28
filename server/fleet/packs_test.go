@@ -103,7 +103,7 @@ func TestPack_Marshal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var m map[string]interface{}
+	var m map[string]any
 	err = json.Unmarshal(b, &m)
 	require.NoError(t, err)
 	require.NotNil(t, m["disabled"], "marshalled pack does not contain disabled field: %s", string(b))

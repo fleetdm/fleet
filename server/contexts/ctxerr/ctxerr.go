@@ -111,22 +111,22 @@ func (e *FleetError) LogFields() []any {
 
 // setMetadata adds common metadata attributes to the `data` map provided.
 // NOTE: this will mutate the data provided and override other values with the same keys.
-func setMetadata(ctx context.Context, data map[string]interface{}) map[string]interface{} {
+func setMetadata(ctx context.Context, data map[string]any) map[string]any {
 	if data == nil {
-		data = map[string]interface{}{}
+		data = map[string]any{}
 	}
 
 	data["timestamp"] = nowFn().Format(time.RFC3339)
 
 	if h, ok := host.FromContext(ctx); ok {
-		data["host"] = map[string]interface{}{
+		data["host"] = map[string]any{
 			"platform":        h.Platform,
 			"osquery_version": h.OsqueryVersion,
 		}
 	}
 
 	if v, ok := viewer.FromContext(ctx); ok {
-		vdata := map[string]interface{}{}
+		vdata := map[string]any{}
 		data["viewer"] = vdata
 		vdata["is_logged_in"] = v.IsLoggedIn()
 
@@ -138,7 +138,7 @@ func setMetadata(ctx context.Context, data map[string]interface{}) map[string]in
 	return data
 }
 
-func encodeData(ctx context.Context, data map[string]interface{}, augment bool) json.RawMessage {
+func encodeData(ctx context.Context, data map[string]any, augment bool) json.RawMessage {
 	if augment {
 		data = setMetadata(ctx, data)
 	}
@@ -151,13 +151,13 @@ func encodeData(ctx context.Context, data map[string]interface{}, augment bool) 
 	return encoded
 }
 
-func newError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
+func newError(ctx context.Context, msg string, cause error, data map[string]any) error {
 	stack := newStack(2)
 	edata := encodeData(ctx, data, true)
 	return &FleetError{msg, stack, cause, edata}
 }
 
-func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
+func wrapError(ctx context.Context, msg string, cause error, data map[string]any) error {
 	if cause == nil {
 		return nil
 	}
@@ -182,12 +182,12 @@ func New(ctx context.Context, msg string) error {
 }
 
 // NewWithData creates a new error and attaches additional metadata to it
-func NewWithData(ctx context.Context, msg string, data map[string]interface{}) error {
+func NewWithData(ctx context.Context, msg string, data map[string]any) error {
 	return newError(ctx, msg, nil, data)
 }
 
 // Errorf creates a new error with the given message.
-func Errorf(ctx context.Context, format string, args ...interface{}) error {
+func Errorf(ctx context.Context, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
 	return newError(ctx, msg, nil, nil)
 }
@@ -200,12 +200,12 @@ func Wrap(ctx context.Context, cause error, msgs ...string) error {
 
 // WrapWithData creates a new error with the given message, wrapping another
 // error and attaching the data provided to it.
-func WrapWithData(ctx context.Context, cause error, msg string, data map[string]interface{}) error {
+func WrapWithData(ctx context.Context, cause error, msg string, data map[string]any) error {
 	return wrapError(ctx, msg, cause, data)
 }
 
 // Wrapf creates a new error with the given message, wrapping another error.
-func Wrapf(ctx context.Context, cause error, format string, args ...interface{}) error {
+func Wrapf(ctx context.Context, cause error, format string, args ...any) error {
 	msg := fmt.Sprintf(format, args...)
 	return wrapError(ctx, msg, cause, nil)
 }

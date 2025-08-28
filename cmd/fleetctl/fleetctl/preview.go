@@ -743,7 +743,7 @@ func previewResetCommand() *cli.Command {
 
 func storePidFile(destDir string, pid int) error {
 	pidFilePath := filepath.Join(destDir, "orbit.pid")
-	err := os.WriteFile(pidFilePath, []byte(fmt.Sprint(pid)), os.FileMode(0o644))
+	err := os.WriteFile(pidFilePath, fmt.Append(nil, pid), os.FileMode(0o644))
 	if err != nil {
 		return fmt.Errorf("error writing pidfile %s: %s", pidFilePath, err)
 	}

@@ -50,8 +50,8 @@ We want to remember BREAD and alsoSHORTCAKEare important.
 	mapper := func(s string, startPos, endPos int) (string, bool) {
 		require.Contains(t, expectedPositions, []int{startPos, endPos}, script[startPos:endPos])
 
-		if strings.HasPrefix(s, ServerSecretPrefix) {
-			return envVars[strings.TrimPrefix(s, ServerSecretPrefix)], true
+		if after, ok := strings.CutPrefix(s, ServerSecretPrefix); ok {
+			return envVars[after], true
 		}
 
 		return "", false

@@ -26,7 +26,7 @@ func TestFlatten_Complex2(t *testing.T) {
 
 	dataRaw, err := os.ReadFile(filepath.Join("testdata", "complex2.json"))
 	require.NoError(t, err, "reading file")
-	var dataIn interface{}
+	var dataIn any
 	require.NoError(t, json.Unmarshal(dataRaw, &dataIn), "unmarshalling json")
 
 	var tests = []flattenTestCase{
@@ -62,7 +62,6 @@ func TestFlatten_Complex2(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -78,7 +77,7 @@ func TestFlatten_NestingBug(t *testing.T) {
 
 	dataRaw, err := os.ReadFile(filepath.Join("testdata", "nested.json"))
 	require.NoError(t, err, "reading file")
-	var dataIn interface{}
+	var dataIn any
 	require.NoError(t, json.Unmarshal(dataRaw, &dataIn), "unmarshalling json")
 
 	var tests = []flattenTestCase{
@@ -107,7 +106,6 @@ func TestFlatten_NestingBug(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -228,7 +226,6 @@ func TestFlatten_Jsonl_Complex(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -244,7 +241,7 @@ func TestFlatten_Complex(t *testing.T) {
 	// Do the unmarshaling here, so we don't keep doing it again and again
 	dataRaw, err := os.ReadFile(filepath.Join("testdata", "animals.json"))
 	require.NoError(t, err, "reading file")
-	var dataIn interface{}
+	var dataIn any
 	require.NoError(t, json.Unmarshal(dataRaw, &dataIn), "unmarshalling json")
 
 	// We do a bunch of tests to select this user. So we'll pull
@@ -347,7 +344,6 @@ func TestFlatten_Complex(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -393,7 +389,6 @@ func TestFlatten_ArrayMaps(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -463,7 +458,6 @@ func TestFlatten(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -504,7 +498,6 @@ func TestFlattenJsonlErrors(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.comment, func(t *testing.T) {
 			t.Parallel()
 
@@ -547,14 +540,14 @@ func TestFlattenSliceOfMaps(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		in      interface{}
+		in      any
 		opts    []FlattenOpts
 		out     []Row
 		wantErr bool
 	}{
 		{
 			name: "single",
-			in: []map[string]interface{}{
+			in: []map[string]any{
 				{
 					"id": "a",
 					"v":  1,
@@ -569,7 +562,7 @@ func TestFlattenSliceOfMaps(t *testing.T) {
 		},
 		{
 			name: "multiple",
-			in: []map[string]interface{}{
+			in: []map[string]any{
 				{
 					"id": "a",
 					"v":  1,
@@ -596,7 +589,7 @@ func TestFlattenSliceOfMaps(t *testing.T) {
 		},
 		{
 			name: "error",
-			in: []map[string]interface{}{
+			in: []map[string]any{
 				{
 					"id": []string{"this should cause an error"},
 				},
@@ -607,7 +600,6 @@ func TestFlattenSliceOfMaps(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 

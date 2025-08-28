@@ -345,7 +345,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 			if c.rawDecrypt != nil {
 				rawDecrypt = strconv.Itoa(*c.rawDecrypt)
 			}
-			require.NoError(t, mdmData.Scan([]byte(fmt.Sprintf(`{"raw_decryptable": %s}`, rawDecrypt))))
+			require.NoError(t, mdmData.Scan(fmt.Appendf(nil, `{"raw_decryptable": %s}`, rawDecrypt)))
 
 			host := &fleet.Host{ID: 3, MDM: mdmData, UUID: "abc", Platform: "darwin"}
 			opts := fleet.HostDetailOptions{
@@ -964,7 +964,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			emptyFilter := make(map[string]interface{})
+			emptyFilter := make(map[string]any)
 			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &emptyFilter)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
@@ -1134,7 +1134,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	emptyRequest := &map[string]interface{}{}
+	emptyRequest := &map[string]any{}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, emptyRequest))
 	assert.True(t, ds.ListHostsFuncInvoked)
@@ -1180,7 +1180,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	filter := &map[string]interface{}{"label_id": expectedLabel}
+	filter := &map[string]any{"label_id": expectedLabel}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, filter))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
@@ -1202,7 +1202,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return fleet.MDMProfilesUpdates{}, nil
 	}
 
-	emptyFilter := &map[string]interface{}{}
+	emptyFilter := &map[string]any{}
 
 	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 	assert.True(t, ds.ListHostsFuncInvoked)
@@ -2268,25 +2268,25 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 	// label_id, team_id, status, query) are allowed for bulk operations.
 	tc := []struct {
 		name      string
-		filters   *map[string]interface{}
+		filters   *map[string]any
 		has400Err bool
 	}{
 		{
 			name: "valid status filter",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status": "new",
 			},
 		},
 		{
 			name: "invalid status",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status": "invalid",
 			},
 			has400Err: true,
 		},
 		{
 			name: "empty status is invalid",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status": "",
 			},
 			has400Err: true,
@@ -2294,26 +2294,26 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 
 		{
 			name: "valid team filter",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"team_id": float64(1), // json unmarshals to float64
 			},
 		},
 		{
 			name: "invalid team_id type",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"team_id": "invalid",
 			},
 			has400Err: true,
 		},
 		{
 			name: "valid label_id filter",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"label_id": float64(1),
 			},
 		},
 		{
 			name: "invalid label_id type",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"label_id": "invalid",
 			},
 			has400Err: true,
@@ -2321,38 +2321,38 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 
 		{
 			name: "invalid status type",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status": float64(1),
 			},
 			has400Err: true,
 		},
 		{
 			name:    "empty filter",
-			filters: &map[string]interface{}{},
+			filters: &map[string]any{},
 		},
 		{
 			name: "valid query filter",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"query": "test",
 			},
 		},
 		{
 			name: "invalid query type",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"query": float64(1),
 			},
 			has400Err: true,
 		},
 		{
 			name: "empty query is invalid",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"query": "",
 			},
 			has400Err: true,
 		},
 		{
 			name: "multiple valid filters",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status":  "new",
 				"team_id": float64(1),
 				"query":   "test",
@@ -2360,7 +2360,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 		{
 			name: "mixed valid and invalid filters",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status":  "new",
 				"team_id": "invalid",
 			},
@@ -2368,7 +2368,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 		{
 			name: "mixed invalid filters and valid filters (different order)",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status":  "invalid",
 				"team_id": 1,
 			},
@@ -2376,7 +2376,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 		{
 			name: "mixed valid and unknown filters",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"status":  "new",
 				"unknown": "filter",
 			},
@@ -2384,7 +2384,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 		},
 		{
 			name: "unknown filter",
-			filters: &map[string]interface{}{
+			filters: &map[string]any{
 				"unknown": "filter",
 			},
 			has400Err: true,

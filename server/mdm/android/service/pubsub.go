@@ -23,7 +23,7 @@ type pubSubPushRequest struct {
 	android.PubSubMessage `json:"message"`
 }
 
-func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+func pubSubPushEndpoint(ctx context.Context, request any, svc android.Service) fleet.Errorer {
 	req := request.(*pubSubPushRequest)
 	err := svc.ProcessPubSubPush(ctx, req.Token, &req.PubSubMessage)
 	return android.DefaultResponse{Err: err}

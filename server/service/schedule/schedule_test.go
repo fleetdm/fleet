@@ -389,8 +389,7 @@ func TestJobPanicRecover(t *testing.T) {
 }
 
 func TestScheduleReleaseLock(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	name := "test_sched"
 	instance := "test_instance"
@@ -446,8 +445,7 @@ func TestScheduleReleaseLock(t *testing.T) {
 }
 
 func TestScheduleHoldLock(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	name := "test_schedule_hold_lock"
 	instance := "test_instance"
@@ -504,8 +502,7 @@ func TestScheduleHoldLock(t *testing.T) {
 }
 
 func TestTriggerReleaseLock(t *testing.T) {
-	ctx, cancelFn := context.WithCancel(context.Background())
-	defer cancelFn()
+	ctx := t.Context()
 
 	name := "test_trigger_release_lock"
 	instanceID := "test_instance"
@@ -567,8 +564,7 @@ func TestTriggerReleaseLock(t *testing.T) {
 }
 
 func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	defer cancelFunc()
+	ctx := t.Context()
 
 	name := "test_multiple_schedule_instances_config_change"
 	initialSchedInterval := 1 * time.Hour
@@ -635,8 +631,8 @@ func TestMultipleScheduleInstancesConfigChangesDS(t *testing.T) {
 	}
 	// simulate multiple schedule instances
 	go func() {
-		instanceIDs := strings.Split("abcdefghijklmnopqrstuvwxyz", "")
-		for _, id := range instanceIDs {
+		instanceIDs := strings.SplitSeq("abcdefghijklmnopqrstuvwxyz", "")
+		for id := range instanceIDs {
 			time.Sleep(600 * time.Millisecond)
 			newInstanceWithSchedule(id)
 		}
@@ -771,7 +767,6 @@ func TestTriggerMultipleInstances(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		c := c
 		ctx, cancelFunc := context.WithCancel(context.Background())
 
 		instanceIDs := strings.Split("abcdef", "")

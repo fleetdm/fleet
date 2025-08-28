@@ -1834,7 +1834,6 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	reCache := newRegexpCache()
 
 	for _, tt := range testCases {
-		tt := tt
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)

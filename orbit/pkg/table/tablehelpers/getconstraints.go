@@ -2,6 +2,7 @@
 package tablehelpers
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/osquery/osquery-go/plugin/table"
@@ -75,11 +76,8 @@ func GetConstraints(queryContext table.QueryContext, columnName string, opts ...
 
 		if len(co.allowedValues) > 0 {
 			skip := true
-			for _, v := range co.allowedValues {
-				if v == c.Expression {
-					skip = false
-					break
-				}
+			if slices.Contains(co.allowedValues, c.Expression) {
+				skip = false
 			}
 
 			if skip {

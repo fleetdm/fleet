@@ -112,7 +112,7 @@ func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastor
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "redis HSCAN")
 			}
-			var hashFieldVals []interface{}
+			var hashFieldVals []any
 			if _, err := redigo.Scan(res, &cursor, &hashFieldVals); err != nil {
 				return nil, nil, ctxerr.Wrap(ctx, err, "scan HSCAN result")
 			}

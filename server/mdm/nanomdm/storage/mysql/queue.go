@@ -31,16 +31,13 @@ func enqueue(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *mdm.Com
 	const placeholdersPerInsert = 2
 	const batchSize = mySQLPlaceholderLimit / placeholdersPerInsert
 	for i := 0; i < len(ids); i += batchSize {
-		end := i + batchSize
-		if end > len(ids) {
-			end = len(ids)
-		}
+		end := min(i+batchSize, len(ids))
 		idsBatch := ids[i:end]
 
 		// Process batch
 		query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
 		query += strings.Repeat(", (?, ?)", len(idsBatch)-1)
-		args := make([]interface{}, len(idsBatch)*placeholdersPerInsert)
+		args := make([]any, len(idsBatch)*placeholdersPerInsert)
 		for i, id := range idsBatch {
 			args[i*2] = id
 			args[i*2+1] = cmd.CommandUUID
@@ -57,7 +54,7 @@ type loggerWrapper struct {
 	logger log.Logger
 }
 
-func (l loggerWrapper) Log(keyvals ...interface{}) error {
+func (l loggerWrapper) Log(keyvals ...any) error {
 	l.logger.Info(keyvals...)
 	return nil
 }
@@ -194,7 +191,7 @@ UPDATE
 func (m *MySQLStorage) RetrieveNextCommand(r *mdm.Request, skipNotNow bool) (*mdm.CommandWithSubtype, error) {
 	command := new(mdm.CommandWithSubtype)
 	id := "?"
-	var args []interface{}
+	var args []any
 	// This performance optimization eliminates the prepare statement for this frequent query for macOS devices.
 	// For macOS devices, UDID is a UUID, so we can validate it and use it directly in the query.
 	if err := uuid.Validate(r.ID); err == nil {

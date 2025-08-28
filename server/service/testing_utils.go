@@ -309,7 +309,7 @@ var testUsers = map[string]struct {
 
 func createEnrollSecrets(t *testing.T, count int) []*fleet.EnrollSecret {
 	secrets := make([]*fleet.EnrollSecret, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		secrets[i] = &fleet.EnrollSecret{Secret: fmt.Sprintf("testSecret%d", i)}
 	}
 	return secrets
@@ -625,7 +625,7 @@ func assertBodyContains(t *testing.T, resp *http.Response, expected string) {
 	assert.Contains(t, bodyString, expected)
 }
 
-func getJSON(r *http.Response, target interface{}) error {
+func getJSON(r *http.Response, target any) error {
 	return json.NewDecoder(r.Body).Decode(target)
 }
 

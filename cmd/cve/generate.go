@@ -51,7 +51,7 @@ func main() {
 	if os.Getenv(cleanEnvVar) == "false" {
 		logger.Log("msg", "Downloading latest release")
 		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
+		for i := range maxRetries {
 			err := downloadLatestRelease(*dbDir, *debug, logger)
 			if err == nil {
 				break
@@ -86,7 +86,7 @@ func main() {
 		panic("system date is in the past, cannot continue")
 	}
 	entries := (currentYear - startingYear) + 1
-	for i := 0; i < entries; i++ {
+	for i := range entries {
 		year := startingYear + i
 		suffix := strconv.Itoa(year)
 		fileNameRaw := filepath.Join(*dbDir, fileFmt(suffix, "json", ""))

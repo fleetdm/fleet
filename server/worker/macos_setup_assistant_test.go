@@ -37,7 +37,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 
 	// create a couple hosts for no team, team 1 and team 2 (none for team 3)
 	hosts := make([]*fleet.Host, 6)
-	for i := 0; i < len(hosts); i++ {
+	for i := range hosts {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:       fmt.Sprintf("test-host%d-name", i),
 			OsqueryHostID:  ptr.String(fmt.Sprintf("osquery-%d", i)),

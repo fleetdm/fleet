@@ -66,7 +66,7 @@ func NewZendeskClient(opts *ZendeskOptions) (*Zendesk, error) {
 func (z *Zendesk) GetGroup(ctx context.Context) (*zendesk.Group, error) {
 	var group *zendesk.Group
 
-	op := func() (interface{}, error) {
+	op := func() (any, error) {
 		g, err := z.client.GetGroup(ctx, z.opts.GroupID)
 		group = &g
 		return group, err
@@ -84,7 +84,7 @@ func (z *Zendesk) CreateZendeskTicket(ctx context.Context, ticket *zendesk.Ticke
 	ticket.GroupID = z.opts.GroupID
 
 	var createdTicket *zendesk.Ticket
-	op := func() (interface{}, error) {
+	op := func() (any, error) {
 		t, err := z.client.CreateTicket(ctx, *ticket)
 		createdTicket = &t
 		return &createdTicket, err
@@ -105,7 +105,7 @@ func (z *Zendesk) ZendeskConfigMatches(opts *ZendeskOptions) bool {
 }
 
 // TODO: find approach to consolidate overlapping logic for jira and zendesk retries
-func doZendeskWithRetry(fn func() (interface{}, error)) error {
+func doZendeskWithRetry(fn func() (any, error)) error {
 	op := func() error {
 		_, err := fn()
 		if err == nil {

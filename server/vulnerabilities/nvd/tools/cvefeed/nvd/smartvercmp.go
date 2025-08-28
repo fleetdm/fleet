@@ -90,7 +90,7 @@ func parseVerParts(v string) (int, int, int) {
 // lpad pads s with n '0's
 func lpad(s string, n int) string {
 	var sb strings.Builder
-	for i := 0; i < n; i++ {
+	for range n {
 		sb.WriteByte('0')
 	}
 	sb.WriteString(s)

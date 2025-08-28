@@ -232,7 +232,7 @@ func TestMaybeUpdateSetupExperience(t *testing.T) {
 	vppUUID := "vpp-uuid"
 
 	t.Run("unsupported result type", func(t *testing.T) {
-		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]interface{}{"key": "value"}, true)
+		_, err := maybeUpdateSetupExperienceStatus(ctx, ds, map[string]any{"key": "value"}, true)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unsupported result type")
 	})

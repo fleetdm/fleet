@@ -54,7 +54,7 @@ func (ds *Datastore) UpsertSecretVariables(ctx context.Context, secretVariables 
 		stmt := fmt.Sprintf(`
 		INSERT INTO secret_variables (name, value)
 		VALUES %s`, values)
-		args := make([]interface{}, 0, len(variablesToInsert)*2)
+		args := make([]any, 0, len(variablesToInsert)*2)
 		for _, secretVariable := range variablesToInsert {
 			valueEncrypted, err := encrypt([]byte(secretVariable.Value), ds.serverPrivateKey)
 			if err != nil {

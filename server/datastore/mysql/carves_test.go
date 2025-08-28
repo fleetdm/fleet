@@ -115,7 +115,7 @@ func testCarvesBlocks(t *testing.T, ds *Datastore) {
 
 	// Randomly generate and insert blocks
 	expectedBlocks := make([][]byte, blockCount)
-	for i := int64(0); i < blockCount; i++ {
+	for i := range blockCount {
 		block := make([]byte, blockSize)
 		_, err := rand.Read(block)
 		require.NoError(t, err, "generate block")
@@ -126,7 +126,7 @@ func testCarvesBlocks(t *testing.T, ds *Datastore) {
 	}
 
 	// Verify retrieved blocks match inserted blocks
-	for i := int64(0); i < blockCount; i++ {
+	for i := range blockCount {
 		data, err := ds.GetBlock(context.Background(), carve, i)
 		require.NoError(t, err, "get block %d %v", i, expectedBlocks[i])
 		assert.Equal(t, expectedBlocks[i], data)
@@ -155,7 +155,7 @@ func testCarvesCleanup(t *testing.T, ds *Datastore) {
 
 	// Randomly generate and insert blocks
 	expectedBlocks := make([][]byte, blockCount)
-	for i := int64(0); i < blockCount; i++ {
+	for i := range blockCount {
 		block := make([]byte, blockSize)
 		_, err := rand.Read(block)
 		require.NoError(t, err, "generate block")

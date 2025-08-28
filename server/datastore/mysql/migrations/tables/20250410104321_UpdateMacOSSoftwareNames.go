@@ -55,7 +55,7 @@ func Up_20250410104321(tx *sql.Tx) error {
 	}
 
 	for _, s := range softwareGroups {
-		for _, idStr := range strings.Split(s.IDs, ",") {
+		for idStr := range strings.SplitSeq(s.IDs, ",") {
 			id, err := strconv.ParseUint(idStr, 10, 64)
 			if err != nil {
 				return fmt.Errorf("building duplicate IDs list %q: %w", idStr, err)

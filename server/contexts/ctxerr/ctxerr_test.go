@@ -83,7 +83,7 @@ func TestNewWithData(t *testing.T) {
 	t.Run("with valid data", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": "bar"}
+		data := map[string]any{"foo": "bar"}
 		err := NewWithData(ctx, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
@@ -95,7 +95,7 @@ func TestNewWithData(t *testing.T) {
 	t.Run("with invalid data", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		err := NewWithData(ctx, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -149,7 +149,7 @@ func TestWrapNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		cause := errors.New("cause")
-		data := map[string]interface{}{"foo": "bar"}
+		data := map[string]any{"foo": "bar"}
 		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 
 		require.Equal(t, err.msg, "new")
@@ -162,7 +162,7 @@ func TestWrapNewWithData(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
 		cause := errors.New("cause")
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		err := WrapWithData(ctx, cause, "new", data).(*FleetError)
 		require.Equal(t, err.msg, "new")
 		require.NotEmpty(t, err.stack.List())
@@ -173,7 +173,7 @@ func TestWrapNewWithData(t *testing.T) {
 	t.Run("without message provided", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		data := map[string]interface{}{"foo": make(chan int)}
+		data := map[string]any{"foo": make(chan int)}
 		cause := errors.New("cause")
 		err := WrapWithData(ctx, cause, "", data).(*FleetError)
 		require.Equal(t, err.msg, "")
@@ -185,7 +185,7 @@ func TestWrapNewWithData(t *testing.T) {
 	t.Run("with nil error provided", func(t *testing.T) {
 		ctx, cleanup := setup()
 		defer cleanup()
-		err := WrapWithData(ctx, nil, "msg", map[string]interface{}{"foo": "bar"})
+		err := WrapWithData(ctx, nil, "msg", map[string]any{"foo": "bar"})
 		require.Equal(t, err, nil)
 	})
 }
@@ -219,7 +219,7 @@ func TestMarshalJSON(t *testing.T) {
 	errWrap := Wrap(ctx, errNew, "b").(*FleetError)
 	errWrap.stack = mockStack{[]string{"sb"}}
 
-	errNewWithData := NewWithData(ctx, "c", map[string]interface{}{"f": "c"}).(*FleetError)
+	errNewWithData := NewWithData(ctx, "c", map[string]any{"f": "c"}).(*FleetError)
 	errNewWithData.stack = mockStack{[]string{"sc"}}
 
 	cases := []struct {

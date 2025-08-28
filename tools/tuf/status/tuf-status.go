@@ -185,8 +185,8 @@ func channelVersionCommand() *cli.Command {
 // validVersion performs a loose parsing of a version string, because
 // some components like nudge do not use semantic versioning (e.g. 1.1.10.81462).
 func validVersion(version string) bool {
-	parts := strings.Split(version, ".")
-	for _, part := range parts {
+	parts := strings.SplitSeq(version, ".")
+	for part := range parts {
 		if _, err := strconv.Atoi(part); err != nil {
 			return false
 		}
@@ -211,7 +211,7 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 		selectedComponents[component] = struct{}{}
 	}
 
-	var targetsJSON map[string]interface{}
+	var targetsJSON map[string]any
 	if err := json.Unmarshal(body, &targetsJSON); err != nil {
 		return nil, nil, fmt.Errorf("failed to parse the source targets.json file: %w", err)
 	}
@@ -220,7 +220,7 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 	if signed_ == nil {
 		return nil, nil, errors.New("missing signed key in targets.json file")
 	}
-	signed, ok := signed_.(map[string]interface{})
+	signed, ok := signed_.(map[string]any)
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid signed key in targets.json file: %T, expected map", signed_)
 	}
@@ -228,7 +228,7 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 	if targets_ == nil {
 		return nil, nil, errors.New("missing signed.targets key in targets.json file")
 	}
-	targets, ok := targets_.(map[string]interface{})
+	targets, ok := targets_.(map[string]any)
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid signed.targets key in targets.json file: %T, expected map", targets_)
 	}
@@ -250,7 +250,7 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 			continue
 		}
 
-		metadata, ok := metadata_.(map[string]interface{})
+		metadata, ok := metadata_.(map[string]any)
 		if !ok {
 			return nil, nil, fmt.Errorf("target: %q: invalid metadata field: %T, expected map", target, metadata_)
 		}
@@ -262,7 +262,7 @@ func getComponents(tufURL string, components []string, channel string) (foundCom
 		if hashes_ == nil {
 			return nil, nil, fmt.Errorf("target: %q: missing hashes field", target)
 		}
-		hashes, ok := hashes_.(map[string]interface{})
+		hashes, ok := hashes_.(map[string]any)
 		if !ok {
 			return nil, nil, fmt.Errorf("target: %q: invalid hashes field: %T", target, hashes_)
 		}

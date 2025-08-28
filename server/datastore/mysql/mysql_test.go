@@ -121,75 +121,75 @@ func TestSearchLike(t *testing.T) {
 
 	testCases := []struct {
 		inSQL     string
-		inParams  []interface{}
+		inParams  []any
 		match     string
 		columns   []string
 		outSQL    string
-		outParams []interface{}
+		outParams []any
 	}{
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE TRUE",
-			inParams:  []interface{}{},
+			inParams:  []any{},
 			match:     "foobar",
 			columns:   []string{"hostname"},
 			outSQL:    "SELECT * FROM HOSTS WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{"%foobar%"},
+			outParams: []any{"%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE TRUE",
-			inParams:  []interface{}{3},
+			inParams:  []any{3},
 			match:     "foobar",
 			columns:   []string{},
 			outSQL:    "SELECT * FROM HOSTS WHERE TRUE",
-			outParams: []interface{}{3},
+			outParams: []any{3},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE TRUE",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "foobar",
 			columns:   []string{"hostname"},
 			outSQL:    "SELECT * FROM HOSTS WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{1, "%foobar%"},
+			outParams: []any{1, "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE TRUE",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "foobar",
 			columns:   []string{"hostname", "uuid"},
 			outSQL:    "SELECT * FROM HOSTS WHERE TRUE AND (hostname LIKE ? OR uuid LIKE ?)",
-			outParams: []interface{}{1, "%foobar%", "%foobar%"},
+			outParams: []any{1, "%foobar%", "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE TRUE",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "foobar",
 			columns:   []string{"hostname", "uuid"},
 			outSQL:    "SELECT * FROM HOSTS WHERE TRUE AND (hostname LIKE ? OR uuid LIKE ?)",
-			outParams: []interface{}{1, "%foobar%", "%foobar%"},
+			outParams: []any{1, "%foobar%", "%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "forty_%",
 			columns:   []string{"ipv4", "uuid"},
 			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
-			outParams: []interface{}{1, "%forty\\_\\%%", "%forty\\_\\%%"},
+			outParams: []any{1, "%forty\\_\\%%", "%forty\\_\\%%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "forty_%",
 			columns:   []string{"ipv4", "uuid"},
 			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
-			outParams: []interface{}{1, "%forty\\_\\%%", "%forty\\_\\%%"},
+			outParams: []any{1, "%forty\\_\\%%", "%forty\\_\\%%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "a@b.c",
 			columns:   []string{"ipv4", "uuid"},
 			outSQL:    "SELECT * FROM HOSTS WHERE 1=1 AND (ipv4 LIKE ? OR uuid LIKE ?)",
-			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+			outParams: []any{1, "%a@b.c%", "%a@b.c%"},
 		},
 	}
 
@@ -207,27 +207,27 @@ func TestHostSearchLike(t *testing.T) {
 
 	testCases := []struct {
 		inSQL     string
-		inParams  []interface{}
+		inParams  []any
 		match     string
 		columns   []string
 		outSQL    string
-		outParams []interface{}
+		outParams []any
 	}{
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE TRUE",
-			inParams:  []interface{}{},
+			inParams:  []any{},
 			match:     "foobar",
 			columns:   []string{"hostname"},
 			outSQL:    "SELECT * FROM HOSTS h WHERE TRUE AND (hostname LIKE ?)",
-			outParams: []interface{}{"%foobar%"},
+			outParams: []any{"%foobar%"},
 		},
 		{
 			inSQL:     "SELECT * FROM HOSTS h WHERE 1=1",
-			inParams:  []interface{}{1},
+			inParams:  []any{1},
 			match:     "a@b.c",
 			columns:   []string{"ipv4"},
 			outSQL:    "SELECT * FROM HOSTS h WHERE 1=1 AND (ipv4 LIKE ? OR ( EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))",
-			outParams: []interface{}{1, "%a@b.c%", "%a@b.c%"},
+			outParams: []any{1, "%a@b.c%", "%a@b.c%"},
 		},
 	}
 
@@ -594,7 +594,6 @@ func TestWhereFilterHostsByTeams(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterHostsByTeams(tt.filter, "hosts")
@@ -629,7 +628,6 @@ func TestWhereOmitIDs(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereOmitIDs("id", tt.omits)
@@ -854,7 +852,6 @@ func TestWhereFilterTeams(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			ds := &Datastore{logger: log.NewNopLogger()}
 			sql := ds.whereFilterTeams(tt.filter, "t")
@@ -1239,7 +1236,6 @@ func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
 	}
 
 	for _, tt := range testCases {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			ds := &Datastore{logger: log.NewNopLogger()}
@@ -1255,13 +1251,13 @@ func TestBatchProcessDB(t *testing.T) {
 		value string
 	}
 
-	payload := []interface{}{
+	payload := []any{
 		&testData{id: 1, value: "a"},
 		&testData{id: 2, value: "b"},
 		&testData{id: 3, value: "c"},
 	}
 
-	generateValueArgs := func(item interface{}) (string, []any) {
+	generateValueArgs := func(item any) (string, []any) {
 		p := item.(*testData)
 		valuePart := "(?, ?),"
 		args := []any{p.id, p.value}
@@ -1272,7 +1268,7 @@ func TestBatchProcessDB(t *testing.T) {
 		executeBatch := func(valuePart string, args []any) error {
 			return errors.New("execute shouldn't be called for an empty payload")
 		}
-		err := batchProcessDB([]interface{}{}, 1000, generateValueArgs, executeBatch)
+		err := batchProcessDB([]any{}, 1000, generateValueArgs, executeBatch)
 		require.NoError(t, err)
 	})
 

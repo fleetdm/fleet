@@ -176,7 +176,7 @@ func testCleanupWorkerJobs(t *testing.T, ds *Datastore) {
 
 	// enqueue a few more jobs
 	queuedJobs := make([]*fleet.Job, 0, 4)
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		j := &fleet.Job{Name: "j" + fmt.Sprint(i+1), State: fleet.JobStateQueued}
 		j, err = ds.NewJob(ctx, j)
 		require.NoError(t, err)

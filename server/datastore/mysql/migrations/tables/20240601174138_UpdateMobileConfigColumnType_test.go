@@ -13,7 +13,7 @@ func TestUp_20240601174138(t *testing.T) {
 	// Create a 1mb long string. This will fail at first, but will work with new column type.
 	var b strings.Builder
 	b.Grow(1000000)
-	for i := 0; i < 1000000; i++ {
+	for range 1000000 {
 		b.WriteByte('a')
 	}
 	s := b.String()

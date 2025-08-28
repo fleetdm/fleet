@@ -29,7 +29,7 @@ type Group struct {
 	Software []*fleet.SoftwarePackageSpec
 	// This needs to be interface{} to allow for the patch logic. Otherwise we send a request that looks to the
 	// server like the user explicitly set the zero values.
-	AppConfig              interface{}
+	AppConfig              any
 	EnrollSecret           *fleet.EnrollSecretSpec
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
@@ -94,7 +94,7 @@ func GroupFromBytes(b []byte) (*Group, error) {
 				return nil, errors.New("config defined twice in the same file")
 			}
 
-			var appConfigSpec interface{}
+			var appConfigSpec any
 			if err := yaml.Unmarshal(s.Spec, &appConfigSpec); err != nil {
 				return nil, fmt.Errorf("unmarshaling %s spec: %w", kind, err)
 			}

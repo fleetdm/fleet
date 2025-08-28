@@ -17,7 +17,7 @@ func TestLinuxDiskEncryptionSummary(t *testing.T) {
 
 	// 5 new ubuntu hosts
 	var ubuntuHosts []*fleet.Host
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		h := test.NewHost(t, ds, fmt.Sprintf("foo.local.%d", i), "1.1.1.1",
 			fmt.Sprintf("%d", i), fmt.Sprintf("%d", i), time.Now(), test.WithPlatform("ubuntu"))
 		ubuntuHosts = append(ubuntuHosts, h)

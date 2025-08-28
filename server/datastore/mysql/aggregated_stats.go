@@ -57,7 +57,7 @@ func getPercentileQuery(aggregate fleet.AggregatedStatsType, time string, percen
 }
 
 func setP50AndP95Map(
-	ctx context.Context, tx sqlx.QueryerContext, aggregate fleet.AggregatedStatsType, time string, id uint, statsMap map[string]interface{},
+	ctx context.Context, tx sqlx.QueryerContext, aggregate fleet.AggregatedStatsType, time string, id uint, statsMap map[string]any,
 ) error {
 	var p50, p95 float64
 
@@ -99,7 +99,7 @@ func (ds *Datastore) CalculateAggregatedPerfStatsPercentiles(ctx context.Context
 	// We are using the reader because the below SELECT queries are expensive, and we don't want to impact the performance of the writer.
 	reader := ds.reader(ctx)
 	var totalExecutions int
-	statsMap := make(map[string]interface{})
+	statsMap := make(map[string]any)
 
 	// many queries is not ideal, but getting both values and totals in the same query was a bit more complicated
 	// so I went for the simpler approach first, we can optimize later

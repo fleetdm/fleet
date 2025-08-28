@@ -525,7 +525,7 @@ func createPolicies(t *testing.T, ds *mysql.Datastore, count int) []uint {
 
 	ids := make([]uint, count)
 	mysql.ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			res, err := tx.ExecContext(
 				ctx, `INSERT INTO policies (name, description, query, checksum) VALUES (?, ?, ?, ?)`,
 				fmt.Sprintf("%s-%d", t.Name(), i), t.Name(), "SELECT 1", strconv.Itoa(i),

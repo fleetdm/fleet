@@ -77,7 +77,7 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			label_updated_at = VALUES(label_updated_at),
 			uuid = VALUES(uuid)
 		`
-		result, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
+		result, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]any{
 			"node_key":          host.NodeKey,
 			"hostname":          host.Hostname,
 			"computer_name":     host.ComputerName,
@@ -176,7 +176,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			hardware_vendor = :hardware_vendor
 		WHERE id = :id
 		`
-		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
+		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]any{
 			"id":                host.Host.ID,
 			"team_id":           host.TeamID,
 			"detail_updated_at": host.DetailUpdatedAt,
@@ -335,7 +335,7 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	args := []interface{}{}
+	args := []any{}
 	parts := []string{}
 	for _, id := range hostIDs {
 		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, id)

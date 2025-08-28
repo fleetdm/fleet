@@ -994,7 +994,7 @@ type AppleDevicesToRefetch struct {
 
 type MDMCommandsAlreadySent []string
 
-func (c *MDMCommandsAlreadySent) Scan(src interface{}) error {
+func (c *MDMCommandsAlreadySent) Scan(src any) error {
 	if src == nil {
 		return nil
 	}

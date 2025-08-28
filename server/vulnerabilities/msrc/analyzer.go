@@ -173,7 +173,7 @@ func isOSVulnerable(
 }
 
 func isProductVersionMismatch(feedVersion, osVersion []string) bool {
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		if feedVersion[i] != osVersion[i] {
 			return true
 		}

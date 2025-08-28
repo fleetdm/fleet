@@ -2,6 +2,7 @@ package policytest
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"testing"
 
@@ -101,9 +102,7 @@ func RunFailingBasic(t *testing.T, r fleet.FailingPolicySet) {
 	policyIDs, err = r.ListSets()
 	require.NoError(t, err)
 	require.Len(t, policyIDs, 2)
-	sort.Slice(policyIDs, func(i, j int) bool {
-		return policyIDs[i] < policyIDs[j]
-	})
+	slices.Sort(policyIDs)
 	require.Equal(t, policyID1, policyIDs[0])
 	require.Equal(t, policyID2, policyIDs[1])
 

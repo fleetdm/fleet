@@ -34,7 +34,7 @@ func TestLimitedWithCooldwonDo(t *testing.T) {
 		hash := "foo"
 
 		// failures followed by a success
-		for i := 0; i < 2; i++ {
+		for i := range 2 {
 			err := lwc.Do(hash, func() error {
 				return errors.New("failure")
 			})
@@ -55,7 +55,7 @@ func TestLimitedWithCooldwonDo(t *testing.T) {
 		lwc := NewLimitedWithCooldown(3, cooldown)
 		hash := "foo"
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			err := lwc.Do(hash, func() error {
 				return errors.New("failure")
 			})
@@ -74,7 +74,7 @@ func TestLimitedWithCooldwonDo(t *testing.T) {
 		lwc := NewLimitedWithCooldown(3, 1*time.Millisecond)
 		hash := "foo"
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			err := lwc.Do(hash, func() error {
 				return errors.New("failure")
 			})

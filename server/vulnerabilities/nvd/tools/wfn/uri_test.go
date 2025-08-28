@@ -82,7 +82,7 @@ func TestUnbindURI(t *testing.T) {
 }
 
 func BenchmarkUnbindURI(t *testing.B) {
-	for i := 0; i < t.N; i++ {
+	for t.Loop() {
 		_, _ = UnbindURI("cpe:/a:hp:insight_diagnostics:7.4.0.1570::~~online~win2003~x64~")
 	}
 }
@@ -96,7 +96,6 @@ func TestBindToURI(t *testing.T) {
 		"cpe:/a:hp:insight_diagnostics:7.4.0.1570::~~online~win2003~x64~",
 	}
 	for n, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("case#%d", n), func(t *testing.T) {
 			attr, err := UnbindURI(c)
 			if err != nil {

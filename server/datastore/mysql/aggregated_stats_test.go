@@ -48,7 +48,7 @@ func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, column stri
 func TestAggregatedStats(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
-	var args []interface{}
+	var args []any
 
 	batchSize := 4000
 	hostCount := 10           // 2000
@@ -56,22 +56,22 @@ func TestAggregatedStats(t *testing.T) {
 	queryCount := 30          // 1000
 
 	start := time.Now()
-	for i := 0; i < queryCount; i++ {
+	for i := range queryCount {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO queries(name, query, description) VALUES (?,?,?)`, fmt.Sprint(i), fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
-	for i := 0; i < scheduledQueryCount; i++ {
+	for i := range scheduledQueryCount {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
 	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions, query_type) VALUES %s`
 	scheduledQueryStatsCount := 100 // 1000000
-	for i := 0; i < scheduledQueryStatsCount; i++ {
+	for range scheduledQueryStatsCount {
 		if len(args) > batchSize {
 			values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(args)/6), ",")
 			_, err := ds.writer(context.Background()).Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
 			require.NoError(t, err)
-			args = []interface{}{}
+			args = []any{}
 		}
 		// Occasionally set 0 executions
 		executions := rand.Intn(10000) + 100

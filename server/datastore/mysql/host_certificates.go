@@ -304,7 +304,7 @@ WHERE
 	hc.host_id = ?
 	AND hc.deleted_at IS NULL`
 
-	args := []interface{}{hostID}
+	args := []any{hostID}
 	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
 
 	var certs []*fleet.HostCertificateRecord
@@ -396,7 +396,7 @@ INSERT INTO host_certificates (
 
 	placeholders := make([]string, 0, len(certs))
 	const singleRowPlaceholderCount = 19
-	args := make([]interface{}, 0, len(certs)*singleRowPlaceholderCount)
+	args := make([]any, 0, len(certs)*singleRowPlaceholderCount)
 	for _, cert := range certs {
 		placeholders = append(placeholders, "("+strings.Repeat("?,", singleRowPlaceholderCount-1)+"?)")
 		args = append(args,
@@ -442,7 +442,7 @@ func updateHostMDMManagedCertDetailsDB(ctx context.Context, tx sqlx.ExtContext, 
 
 	for _, certToUpdate := range certs {
 		stmt := `UPDATE host_mdm_managed_certificates SET serial=?, not_valid_before=?, not_valid_after=? WHERE host_uuid = ? AND profile_uuid = ? AND ca_name=?`
-		args := []interface{}{
+		args := []any{
 			certToUpdate.Serial,
 			certToUpdate.NotValidBefore,
 			certToUpdate.NotValidAfter,

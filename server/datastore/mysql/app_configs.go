@@ -230,7 +230,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	// if the insert failed (due to a secret existing at a different team/global
 	// level).
 
-	var args []interface{}
+	var args []any
 	teamWhere := "team_id IS NULL"
 	if teamID != nil {
 		teamWhere = "team_id = ?"
@@ -245,7 +245,6 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	}
 	secretsCreatedAt := make(map[string]*time.Time, len(existingSecrets))
 	for _, es := range existingSecrets {
-		es := es
 		secretsCreatedAt[es.Secret] = &es.CreatedAt
 	}
 
@@ -264,7 +263,7 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 	// if available.
 	const insStmt = `INSERT INTO enroll_secrets (secret, team_id, created_at) VALUES %s`
 	if len(newSecrets) > 0 {
-		var args []interface{}
+		var args []any
 		defaultCreatedAt := time.Now()
 		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?,?,?),`, len(newSecrets)), ","))
 
@@ -291,7 +290,7 @@ func (ds *Datastore) GetEnrollSecrets(ctx context.Context, teamID *uint) ([]*fle
 }
 
 func getEnrollSecretsDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint) ([]*fleet.EnrollSecret, error) {
-	var args []interface{}
+	var args []any
 	sql := "SELECT secret, team_id, created_at FROM enroll_secrets WHERE "
 	// MySQL requires comparing NULL with IS. NULL = NULL evaluates to FALSE.
 	if teamID == nil {
@@ -375,7 +374,7 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 
 	if len(rules) > 0 {
 		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
-		var args []interface{}
+		var args []any
 		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(rules)), ","))
 		for _, r := range rules {
 			args = append(args, r.Name, r.Contents)

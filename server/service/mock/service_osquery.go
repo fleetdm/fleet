@@ -16,7 +16,7 @@ type EnrollAgentFunc func(ctx context.Context, enrollSecret string, hostIdentifi
 
 type AuthenticateHostFunc func(ctx context.Context, nodeKey string) (host *fleet.Host, debug bool, err error)
 
-type GetClientConfigFunc func(ctx context.Context) (config map[string]interface{}, err error)
+type GetClientConfigFunc func(ctx context.Context) (config map[string]any, err error)
 
 type GetDistributedQueriesFunc func(ctx context.Context) (queries map[string]string, discovery map[string]string, accelerate uint, err error)
 
@@ -70,7 +70,7 @@ func (s *TLSService) AuthenticateHost(ctx context.Context, nodeKey string) (host
 	return s.AuthenticateHostFunc(ctx, nodeKey)
 }
 
-func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]interface{}, err error) {
+func (s *TLSService) GetClientConfig(ctx context.Context) (config map[string]any, err error) {
 	s.mu.Lock()
 	s.GetClientConfigFuncInvoked = true
 	s.mu.Unlock()

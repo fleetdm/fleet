@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net/http"
 	"regexp"
+	slices0 "slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -87,7 +89,7 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 // Enroll Agent
 ////////////////////////////////////////////////////////////////////////////////
 
-func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func enrollAgentEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOsqueryAgentRequest)
 	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
@@ -313,12 +315,7 @@ func (svc *Service) debugEnabledForHost(ctx context.Context, id uint) bool {
 		return false
 	}
 
-	for _, hostID := range ac.ServerSettings.DebugHostIDs {
-		if hostID == id {
-			return true
-		}
-	}
-	return false
+	return slices0.Contains(ac.ServerSettings.DebugHostIDs, id)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -334,7 +331,7 @@ func (r *getClientConfigRequest) hostNodeKey() string {
 }
 
 type getClientConfigResponse struct {
-	Config map[string]interface{}
+	Config map[string]any
 	Err    error `json:"error,omitempty"`
 }
 
@@ -356,7 +353,7 @@ func (r *getClientConfigResponse) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &r.Config)
 }
 
-func getClientConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getClientConfigEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	config, err := svc.GetClientConfig(ctx)
 	if err != nil {
 		return getClientConfigResponse{Err: err}, nil
@@ -395,7 +392,7 @@ func (svc *Service) getScheduledQueries(ctx context.Context, teamID *uint) (flee
 	return config, nil
 }
 
-func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}, error) {
+func (svc *Service) GetClientConfig(ctx context.Context) (map[string]any, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -409,7 +406,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		return nil, newOsqueryError("internal error: fetch base config: " + err.Error())
 	}
 
-	config := make(map[string]interface{})
+	config := make(map[string]any)
 	if baseConfig != nil {
 		err = json.Unmarshal(baseConfig, &config)
 		if err != nil {
@@ -501,7 +498,7 @@ func (svc *Service) GetClientConfig(ctx context.Context) (map[string]interface{}
 		ConfigTLSRefresh:    host.ConfigTLSRefresh,
 		LoggerTLSPeriod:     host.LoggerTLSPeriod,
 	}
-	if options, ok := config["options"].(map[string]interface{}); ok {
+	if options, ok := config["options"].(map[string]any); ok {
 		distributedIntervalVal, ok := options["distributed_interval"]
 		distributedInterval, err := cast.ToUintE(distributedIntervalVal)
 		if ok && err == nil && intervals.DistributedInterval != distributedInterval {
@@ -591,7 +588,7 @@ type getDistributedQueriesResponse struct {
 
 func (r getDistributedQueriesResponse) Error() error { return r.Err }
 
-func getDistributedQueriesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getDistributedQueriesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	queries, discovery, accelerate, err := svc.GetDistributedQueries(ctx)
 	if err != nil {
 		return getDistributedQueriesResponse{Err: err}, nil
@@ -619,12 +616,8 @@ func (svc *Service) GetDistributedQueries(ctx context.Context) (queries map[stri
 	if err != nil {
 		return nil, nil, 0, newOsqueryError(err.Error())
 	}
-	for name, query := range detailQueries {
-		queries[name] = query
-	}
-	for name, query := range detailDiscovery {
-		discovery[name] = query
-	}
+	maps.Copy(queries, detailQueries)
+	maps.Copy(discovery, detailDiscovery)
 
 	labelQueries, err := svc.labelQueriesForHost(ctx, host)
 	if err != nil {
@@ -894,7 +887,7 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 type submitDistributedQueryResultsRequestShim struct {
 	NodeKey  string                     `json:"node_key"`
 	Results  map[string]json.RawMessage `json:"queries"`
-	Statuses map[string]interface{}     `json:"statuses"`
+	Statuses map[string]any             `json:"statuses"`
 	Messages map[string]string          `json:"messages"`
 	Stats    map[string]*fleet.Stats    `json:"stats"`
 }
@@ -956,7 +949,7 @@ type submitDistributedQueryResultsResponse struct {
 
 func (r submitDistributedQueryResultsResponse) Error() error { return r.Err }
 
-func submitDistributedQueryResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func submitDistributedQueryResultsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	shim := request.(*submitDistributedQueryResultsRequestShim)
 	req, err := shim.toRequest(ctx)
 	if err != nil {
@@ -2589,7 +2582,7 @@ type submitLogsResponse struct {
 
 func (r submitLogsResponse) Error() error { return r.Err }
 
-func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func submitLogsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*submitLogsRequest)
 
 	var err error
@@ -3145,8 +3138,8 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 
 	// For pattern: pack/Global/Name
 	globalPattern := "pack" + sep + "Global" + sep
-	if strings.HasPrefix(path, globalPattern) {
-		name := strings.TrimPrefix(path, globalPattern)
+	if after, ok := strings.CutPrefix(path, globalPattern); ok {
+		name := after
 		if name == "" {
 			return nil, "", fmt.Errorf("parsing query name: %s", path)
 		}
@@ -3155,8 +3148,8 @@ func getQueryNameAndTeamIDFromResult(path string) (*uint, string, error) {
 
 	// For pattern: pack/team-<ID>/Name
 	teamPattern := "pack" + sep + "team-"
-	if strings.HasPrefix(path, teamPattern) {
-		teamIDAndRest := strings.TrimPrefix(path, teamPattern)
+	if after, ok := strings.CutPrefix(path, teamPattern); ok {
+		teamIDAndRest := after
 		teamIDAndQueryNameParts := strings.SplitN(teamIDAndRest, sep, 2)
 		if len(teamIDAndQueryNameParts) != 2 {
 			return nil, "", fmt.Errorf("parsing team number part: %s", path)
@@ -3203,7 +3196,7 @@ func (r getYaraResponse) HijackRender(ctx context.Context, w http.ResponseWriter
 	_, _ = w.Write([]byte(r.Content))
 }
 
-func getYaraEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getYaraEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	r := request.(*getYaraRequest)
 	rule, err := svc.YaraRuleByName(ctx, r.Name)
 	if err != nil {

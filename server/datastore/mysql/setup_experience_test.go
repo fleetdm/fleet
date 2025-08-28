@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -202,11 +203,8 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		},
 	} {
 		var found bool
-		for _, row := range seRows {
-			if row == tc {
-				found = true
-				break
-			}
+		if slices.Contains(seRows, tc) {
+			found = true
 		}
 		if !found {
 			t.Errorf("Couldn't find entry in setup_experience_status_results table: %#v", tc)
@@ -270,11 +268,8 @@ func testEnqueueSetupExperienceItems(t *testing.T, ds *Datastore) {
 		},
 	} {
 		var found bool
-		for _, row := range seRows {
-			if row == tc {
-				found = true
-				break
-			}
+		if slices.Contains(seRows, tc) {
+			found = true
 		}
 		if !found {
 			t.Errorf("Couldn't find entry in setup_experience_status_results table: %#v", tc)

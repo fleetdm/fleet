@@ -17,7 +17,7 @@ func (s *MySQLStorage) RetrievePushInfo(ctx context.Context, ids []string) (map[
 		return nil, errors.New("no ids provided")
 	}
 	qs := "?" + strings.Repeat(", ?", len(ids)-1)
-	args := make([]interface{}, len(ids))
+	args := make([]any, len(ids))
 	for i, v := range ids {
 		args[i] = v
 	}

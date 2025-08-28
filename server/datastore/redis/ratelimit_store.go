@@ -74,11 +74,9 @@ func (s *ThrottledStore) SetIfNotExistsWithTTL(key string, value int64, ttl time
 	conn := ConfigureDoer(s.Pool, s.Pool.Get())
 	defer conn.Close()
 
-	ttlSeconds := int(ttl.Seconds())
-	// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-	if ttlSeconds < 1 {
-		ttlSeconds = 1
-	}
+	ttlSeconds := max(
+		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
+		int(ttl.Seconds()), 1)
 
 	_, err := redis.String(conn.Do("SET", key, value, "EX", ttlSeconds, "NX"))
 	if err != nil {
@@ -103,11 +101,9 @@ func (s *ThrottledStore) CompareAndSwapWithTTL(key string, old, isNew int64, ttl
 	// must come after BindConn due to redisc restrictions
 	conn = ConfigureDoer(s.Pool, conn)
 
-	ttlSeconds := int(ttl.Seconds())
-	// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-	if ttlSeconds < 1 {
-		ttlSeconds = 1
-	}
+	ttlSeconds := max(
+		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
+		int(ttl.Seconds()), 1)
 
 	script := redis.NewScript(1, compareAndSwapWithTTLScript)
 	swapped, err := redis.Bool(script.Do(conn, key, old, isNew, ttlSeconds))

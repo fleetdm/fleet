@@ -498,7 +498,7 @@ func testQueriesSave(t *testing.T, ds *Datastore) {
 func testQueriesList(t *testing.T, ds *Datastore) {
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// populate platform field of first 4 queries
 		var p string
 		switch i {

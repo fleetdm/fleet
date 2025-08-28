@@ -70,11 +70,11 @@ func TestCapabilityConcurrentWrites(t *testing.T) {
 	numIterations := 1000
 	numGoroutines := 10
 
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			for j := 0; j < numIterations; j++ {
+			for range numIterations {
 				c.PopulateFromString("test,foo,bar")
 			}
 		}()

@@ -164,7 +164,7 @@ UPDATE
 
 func (s *MySQLStorage) storeDeviceTokenUpdate(r *mdm.Request, msg *mdm.TokenUpdate) error {
 	query := `UPDATE nano_devices SET token_update = ?, token_update_at = CURRENT_TIMESTAMP`
-	args := []interface{}{msg.Raw}
+	args := []any{msg.Raw}
 	// separately store the Unlock Token per MDM spec
 	if len(msg.UnlockToken) > 0 {
 		query += `, unlock_token = ?, unlock_token_at = CURRENT_TIMESTAMP`

@@ -23,7 +23,7 @@ func Up_20241125150614(tx *sql.Tx) error {
 		return fmt.Errorf("select app_config_json: %w", err)
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	if err := json.Unmarshal(raw, &config); err != nil {
 		return fmt.Errorf("unmarshal appconfig: %w", err)
 	}
@@ -32,7 +32,7 @@ func Up_20241125150614(tx *sql.Tx) error {
 	if !ok {
 		return errors.New("missing mdm section")
 	}
-	mdmMap, ok := mdm.(map[string]interface{})
+	mdmMap, ok := mdm.(map[string]any)
 	if !ok {
 		return fmt.Errorf("invalid type for mdm: %T", mdm)
 	}

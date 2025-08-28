@@ -103,7 +103,7 @@ func main() {
 		log.Fatalf("failed to marshal os-specific structs: %v", err)
 	}
 
-	var osSpecificNames map[string]interface{}
+	var osSpecificNames map[string]any
 	if err := json.Unmarshal(b, &osSpecificNames); err != nil {
 		log.Fatalf("failed to unmarshal os-specific structs to get the list of keys: %v", err)
 	}

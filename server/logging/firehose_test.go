@@ -208,7 +208,7 @@ func TestFirehoseSplitBatchBySize(t *testing.T) {
 	// Make each record just under 1 MB so that it takes 3 total batches of
 	// just under 4 MB each
 	logs := make([]json.RawMessage, 12)
-	for i := 0; i < len(logs); i++ {
+	for i := range logs {
 		logs[i] = make(json.RawMessage, firehoseMaxSizeOfRecord-1)
 	}
 	callCount := 0
@@ -228,7 +228,7 @@ func TestFirehoseSplitBatchBySize(t *testing.T) {
 func TestFirehoseSplitBatchByCount(t *testing.T) {
 	ctx := context.Background()
 	logs := make([]json.RawMessage, 2000)
-	for i := 0; i < len(logs); i++ {
+	for i := range logs {
 		logs[i] = json.RawMessage(`{}`)
 	}
 	callCount := 0

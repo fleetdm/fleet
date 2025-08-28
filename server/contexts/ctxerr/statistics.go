@@ -73,7 +73,7 @@ func getVitalMetadata(chain []fleetErrorJSON) json.RawMessage {
 			if err = json.Unmarshal(e.Data, &fleetdErr); err != nil || !fleetdErr.Vital {
 				continue
 			}
-			export := map[string]interface{}{
+			export := map[string]any{
 				"error_source":          fleetdErr.ErrorSource,
 				"error_source_version":  fleetdErr.ErrorSourceVersion,
 				"error_message":         fleetdErr.ErrorMessage,

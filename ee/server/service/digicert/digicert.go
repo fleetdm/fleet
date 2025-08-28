@@ -148,7 +148,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 		Bytes: csrBytes,
 	})))
 
-	reqBody := map[string]interface{}{
+	reqBody := map[string]any{
 		"profile": map[string]string{
 			"id": config.ProfileID,
 		},
@@ -156,7 +156,7 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 			"seat_id": config.CertificateSeatID,
 		},
 		"delivery_format": "x509",
-		"attributes": map[string]interface{}{
+		"attributes": map[string]any{
 			"subject": map[string]string{
 				"common_name": config.CertificateCommonName,
 			},
@@ -167,12 +167,12 @@ func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertInteg
 	// https://docs.digicert.com/fr/trust-lifecycle-manager/inventory/certificate-attributes-and-extensions/subject-alternative-name--san--attributes.html
 	// Check that UPNs are present and not empty (we only support 1 as of 2025/03/27)
 	if len(config.CertificateUserPrincipalNames) > 0 && len(strings.TrimSpace(config.CertificateUserPrincipalNames[0])) > 0 {
-		attributes, ok := reqBody["attributes"].(map[string]interface{})
+		attributes, ok := reqBody["attributes"].(map[string]any)
 		if !ok {
 			return nil, ctxerr.Errorf(ctx, "unexpected DigiCert attributes type: %T", reqBody["attributes"])
 		}
-		attributes["extensions"] = map[string]interface{}{
-			"san": map[string]interface{}{
+		attributes["extensions"] = map[string]any{
+			"san": map[string]any{
 				"user_principal_names": config.CertificateUserPrincipalNames,
 			},
 		}

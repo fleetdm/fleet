@@ -136,7 +136,7 @@ func productVariations(s *fleet.Software) []string {
 	sn := sanitizeSoftwareName(s)
 
 	withoutVendorParts := sn
-	for _, p := range strings.Split(s.Vendor, " ") {
+	for p := range strings.SplitSeq(s.Vendor, " ") {
 		pL := strings.ToLower(p)
 		withoutVendorParts = strings.Join(strings.Fields(strings.ReplaceAll(withoutVendorParts, pL, "")), " ")
 	}
@@ -172,7 +172,7 @@ func vendorVariations(s *fleet.Software) []string {
 	}
 
 	if s.Vendor != "" {
-		for _, v := range strings.Split(s.Vendor, " ") {
+		for v := range strings.SplitSeq(s.Vendor, " ") {
 			if !stopWords[v] {
 				rSet[strings.ToLower(v)] = true
 			}
@@ -181,7 +181,7 @@ func vendorVariations(s *fleet.Software) []string {
 		rSet[strings.ToLower(strings.ReplaceAll(s.Vendor, " ", ""))] = true
 	}
 
-	for _, v := range strings.Split(s.BundleIdentifier, ".") {
+	for v := range strings.SplitSeq(s.BundleIdentifier, ".") {
 		if !stopWords[v] {
 			rSet[strings.ToLower(v)] = true
 		}

@@ -623,9 +623,9 @@ func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) Mainta
 }
 
 type SoftwareSpec struct {
-	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
-	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
-	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages"`
+	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

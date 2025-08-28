@@ -69,7 +69,7 @@ func (r EnrollOrbitResponse) HijackRender(ctx context.Context, w http.ResponseWr
 	}
 }
 
-func enrollOrbitEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func enrollOrbitEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOrbitRequest)
 	nodeKey, err := svc.EnrollOrbit(ctx, fleet.OrbitHostInfo{
 		HardwareUUID:      req.HardwareUUID,
@@ -202,7 +202,7 @@ func (svc *Service) EnrollOrbit(ctx context.Context, hostInfo fleet.OrbitHostInf
 	return orbitNodeKey, nil
 }
 
-func getOrbitConfigEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getOrbitConfigEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	cfg, err := svc.GetOrbitConfig(ctx)
 	if err != nil {
 		return orbitGetConfigResponse{Err: err}, nil
@@ -680,7 +680,7 @@ func (r orbitPingResponse) Error() error { return nil }
 // NOTE: we're intentionally not reading the capabilities header in this
 // endpoint as is unauthenticated and we don't want to trust whatever comes in
 // there.
-func orbitPingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func orbitPingEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	svc.DisableAuthForPing(ctx)
 	return orbitPingResponse{}, nil
 }
@@ -708,7 +708,7 @@ type setOrUpdateDeviceTokenResponse struct {
 
 func (r setOrUpdateDeviceTokenResponse) Error() error { return r.Err }
 
-func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func setOrUpdateDeviceTokenEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*setOrUpdateDeviceTokenRequest)
 	if err := svc.SetOrUpdateDeviceAuthToken(ctx, req.DeviceAuthToken); err != nil {
 		return setOrUpdateDeviceTokenResponse{Err: err}, nil
@@ -769,7 +769,7 @@ type orbitGetScriptResponse struct {
 
 func (r orbitGetScriptResponse) Error() error { return r.Err }
 
-func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getOrbitScriptEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitGetScriptRequest)
 	script, err := svc.GetHostScript(ctx, req.ExecutionID)
 	if err != nil {
@@ -832,7 +832,7 @@ type orbitPostScriptResultResponse struct {
 
 func (r orbitPostScriptResultResponse) Error() error { return r.Err }
 
-func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func postOrbitScriptResultEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitPostScriptResultRequest)
 	if err := svc.SaveHostScriptResult(ctx, req.HostScriptResultPayload); err != nil {
 		return orbitPostScriptResultResponse{Err: err}, nil
@@ -994,7 +994,7 @@ type orbitPutDeviceMappingResponse struct {
 
 func (r orbitPutDeviceMappingResponse) Error() error { return r.Err }
 
-func putOrbitDeviceMappingEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func putOrbitDeviceMappingEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitPutDeviceMappingRequest)
 
 	host, ok := hostctx.FromContext(ctx)
@@ -1034,7 +1034,7 @@ type orbitPostDiskEncryptionKeyResponse struct {
 func (r orbitPostDiskEncryptionKeyResponse) Error() error { return r.Err }
 func (r orbitPostDiskEncryptionKeyResponse) Status() int  { return http.StatusNoContent }
 
-func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func postOrbitDiskEncryptionKeyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitPostDiskEncryptionKeyRequest)
 	if err := svc.SetOrUpdateDiskEncryptionKey(ctx, string(req.EncryptionKey), req.ClientError); err != nil {
 		return orbitPostDiskEncryptionKeyResponse{Err: err}, nil
@@ -1138,7 +1138,7 @@ type orbitPostLUKSResponse struct {
 func (r orbitPostLUKSResponse) Error() error { return r.Err }
 func (r orbitPostLUKSResponse) Status() int  { return http.StatusNoContent }
 
-func postOrbitLUKSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func postOrbitLUKSEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitPostLUKSRequest)
 	if err := svc.EscrowLUKSData(ctx, req.Passphrase, req.Salt, req.KeySlot, req.ClientError); err != nil {
 		return orbitPostLUKSResponse{Err: err}, nil
@@ -1294,7 +1294,7 @@ func (r *orbitDownloadSoftwareInstallerRequest) orbitHostNodeKey() string {
 	return r.OrbitNodeKey
 }
 
-func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func orbitDownloadSoftwareInstallerEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitDownloadSoftwareInstallerRequest)
 
 	downloadRequested := req.Alt == "media"
@@ -1343,7 +1343,7 @@ type orbitPostSoftwareInstallResultResponse struct {
 func (r orbitPostSoftwareInstallResultResponse) Error() error { return r.Err }
 func (r orbitPostSoftwareInstallResultResponse) Status() int  { return http.StatusNoContent }
 
-func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func postOrbitSoftwareInstallResultEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*orbitPostSoftwareInstallResultRequest)
 	if err := svc.SaveHostSoftwareInstallResult(ctx, req.HostSoftwareInstallResultPayload); err != nil {
 		return orbitPostSoftwareInstallResultResponse{Err: err}, nil
@@ -1459,7 +1459,7 @@ type getOrbitSetupExperienceStatusResponse struct {
 
 func (r getOrbitSetupExperienceStatusResponse) Error() error { return r.Err }
 
-func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getOrbitSetupExperienceStatusEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getOrbitSetupExperienceStatusRequest)
 	results, err := svc.GetOrbitSetupExperienceStatus(ctx, req.OrbitNodeKey, req.ForceRelease)
 	if err != nil {

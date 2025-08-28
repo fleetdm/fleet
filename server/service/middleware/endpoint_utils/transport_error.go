@@ -110,7 +110,7 @@ func EncodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		// for debugging purposes (and perhaps osquery will use this
 		// error message in the future).
 
-		errMap := map[string]interface{}{
+		errMap := map[string]any{
 			"error": e.Error(),
 			"uuid":  uuid,
 		}

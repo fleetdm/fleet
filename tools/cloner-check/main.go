@@ -196,7 +196,7 @@ func generateStructFieldsList(w io.Writer, t reflect.Type, seenTypes map[string]
 	seenTypes[key] = true
 
 	count := t.NumField()
-	for i := 0; i < count; i++ {
+	for i := range count {
 		field := t.Field(i)
 
 		// if the type is defined as a basic type, add that information to the line.

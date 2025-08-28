@@ -19,7 +19,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func makeDecoder(iface interface{}) kithttp.DecodeRequestFunc {
+func makeDecoder(iface any) kithttp.DecodeRequestFunc {
 	return eu.MakeDecoder(iface, jsonDecode, parseCustomTags, isBodyDecoder, decodeBody)
 }
 
@@ -94,12 +94,12 @@ type endpointer struct {
 	svc fleet.Service
 }
 
-func (e *endpointer) CallHandlerFunc(f eu.HandlerFunc, ctx context.Context, request interface{},
-	svc interface{}) (fleet.Errorer, error) {
+func (e *endpointer) CallHandlerFunc(f eu.HandlerFunc, ctx context.Context, request any,
+	svc any) (fleet.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
-func (e *endpointer) Service() interface{} {
+func (e *endpointer) Service() any {
 	return e.svc
 }
 

@@ -17,8 +17,8 @@ const (
 type Forbidden struct {
 	internal string
 	subject  *fleet.User
-	object   interface{}
-	action   interface{}
+	object   any
+	action   any
 
 	fleet.ErrorWithUUID
 }
@@ -26,7 +26,7 @@ type Forbidden struct {
 // ForbiddenWithInternal creates a new error that will return a simple
 // "forbidden" to the client, logging internally the more detailed message
 // provided.
-func ForbiddenWithInternal(internal string, subject *fleet.User, object, action interface{}) *Forbidden {
+func ForbiddenWithInternal(internal string, subject *fleet.User, object, action any) *Forbidden {
 	return &Forbidden{
 		internal: internal,
 		subject:  subject,
@@ -51,13 +51,13 @@ func (e *Forbidden) Internal() string {
 }
 
 // LogFields allows this error to be logged with subject, object, and action.
-func (e *Forbidden) LogFields() []interface{} {
+func (e *Forbidden) LogFields() []any {
 	// Only logging User's email, and not other details such as Password and Salt.
 	email := "nil"
 	if e.subject != nil {
 		email = e.subject.Email
 	}
-	return []interface{}{
+	return []any{
 		"subject", email,
 		"object", e.object,
 		"action", e.action,
@@ -67,7 +67,7 @@ func (e *Forbidden) LogFields() []interface{} {
 // CheckMissing is the error to return when no authorization check was performed
 // by the service.
 type CheckMissing struct {
-	response interface{}
+	response any
 
 	fleet.ErrorWithUUID
 }
@@ -75,7 +75,7 @@ type CheckMissing struct {
 // CheckMissingWithResponse creates a new error indicating the authorization
 // check was missed, and including the response for further analysis by the error
 // encoder.
-func CheckMissingWithResponse(response interface{}) *CheckMissing {
+func CheckMissingWithResponse(response any) *CheckMissing {
 	return &CheckMissing{response: response}
 }
 
@@ -87,6 +87,6 @@ func (e *CheckMissing) Internal() string {
 	return "Missing authorization check"
 }
 
-func (e *CheckMissing) Response() interface{} {
+func (e *CheckMissing) Response() any {
 	return e.response
 }

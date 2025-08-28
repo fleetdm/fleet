@@ -126,7 +126,6 @@ func main() {
 		for {
 			doneCount := 0
 			for _, team := range teamsToWait {
-				team := team
 				if teamSummary, ok := teamSummaries[team.ID]; ok && summaryDone(teamSummary) {
 					doneCount++
 					continue

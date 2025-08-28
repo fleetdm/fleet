@@ -35,7 +35,7 @@ type listActivitiesResponse struct {
 
 func (r listActivitiesResponse) Error() error { return r.Err }
 
-func listActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listActivitiesRequest)
 	activities, metadata, err := svc.ListActivities(ctx, fleet.ListActivitiesOptions{
 		ListOptions: req.ListOptions,
@@ -158,7 +158,7 @@ type listHostUpcomingActivitiesResponse struct {
 
 func (r listHostUpcomingActivitiesResponse) Error() error { return r.Err }
 
-func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listHostUpcomingActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
 	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
@@ -208,7 +208,7 @@ type listHostPastActivitiesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
-func listHostPastActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listHostPastActivitiesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostPastActivitiesRequest)
 	acts, meta, err := svc.ListHostPastActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
@@ -262,7 +262,7 @@ type cancelHostUpcomingActivityResponse struct {
 func (r cancelHostUpcomingActivityResponse) Error() error { return r.Err }
 func (r cancelHostUpcomingActivityResponse) Status() int  { return http.StatusNoContent }
 
-func cancelHostUpcomingActivityEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func cancelHostUpcomingActivityEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*cancelHostUpcomingActivityRequest)
 	err := svc.CancelHostUpcomingActivity(ctx, req.HostID, req.ActivityID)
 	if err != nil {

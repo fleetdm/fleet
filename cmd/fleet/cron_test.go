@@ -68,7 +68,7 @@ func TestMigrateABMTokenDuringDEPCronJob(t *testing.T) {
 		case "/session":
 			_, _ = w.Write([]byte(`{"auth_session_token": "session123"}`))
 		case "/account":
-			_, _ = w.Write([]byte(fmt.Sprintf(`{"admin_id": "admin123", "org_name": "%s"}`, tokenOrgName)))
+			_, _ = w.Write(fmt.Appendf(nil, `{"admin_id": "admin123", "org_name": "%s"}`, tokenOrgName))
 		case "/profile":
 			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: "profile123"})
 			require.NoError(t, err)

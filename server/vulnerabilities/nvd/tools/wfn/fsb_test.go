@@ -59,7 +59,6 @@ func TestUnbindFmtString(t *testing.T) {
 		},
 	}
 	for _, tc := range cases {
-		tc := tc
 		t.Run(tc.FSB, func(t *testing.T) {
 			attr, err := UnbindFmtString(tc.FSB)
 			if err != nil {
@@ -79,7 +78,7 @@ func TestUnbindFmtString(t *testing.T) {
 }
 
 func BenchmarkUnbindFmtString(t *testing.B) {
-	for i := 0; i < t.N; i++ {
+	for t.Loop() {
 		_, _ = UnbindFmtString("cpe:2.3:a:hp:insight_diagnostics:7.4.0.1570:-:*:*:online:win2003:x64:*")
 	}
 }
@@ -92,7 +91,6 @@ func TestBindToFmtString(t *testing.T) {
 		`cpe:2.3:a:foo\\bar:big\$\*\?money:2010:*:*:*:special:ipod_touch:80gb:*`,
 	}
 	for n, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("case#%d", n), func(t *testing.T) {
 			attr, err := UnbindFmtString(c)
 			if err != nil {

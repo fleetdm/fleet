@@ -46,7 +46,7 @@ func TestMDMConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
@@ -63,7 +63,7 @@ func TestMDMNotConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
@@ -80,7 +80,7 @@ func TestWindowsMDMConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
@@ -97,7 +97,7 @@ func TestWindowsMDMNotConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}
@@ -125,7 +125,7 @@ func TestAppleOrWindowsMDMConfigured(t *testing.T) {
 			svc.mdmConfigured.Store(c.apple)
 			svc.msMdmConfigured.Store(c.windows)
 			nextCalled := false
-			next := func(ctx context.Context, req interface{}) (interface{}, error) {
+			next := func(ctx context.Context, req any) (any, error) {
 				nextCalled = true
 				return struct{}{}, nil
 			}
@@ -143,7 +143,7 @@ func TestAppleOrWindowsMDMNotConfigured(t *testing.T) {
 	mw := NewMDMConfigMiddleware(&svc)
 
 	nextCalled := false
-	next := func(ctx context.Context, req interface{}) (interface{}, error) {
+	next := func(ctx context.Context, req any) (any, error) {
 		nextCalled = true
 		return struct{}{}, nil
 	}

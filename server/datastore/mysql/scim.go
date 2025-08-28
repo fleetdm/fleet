@@ -365,7 +365,7 @@ func insertEmails(ctx context.Context, tx sqlx.ExtContext, user *fleet.ScimUser)
 	if len(user.Emails) > 0 {
 		// Build the batch insert query
 		valueStrings := make([]string, 0, len(user.Emails))
-		valueArgs := make([]interface{}, 0, len(user.Emails)*4)
+		valueArgs := make([]any, 0, len(user.Emails)*4)
 
 		for i := range user.Emails {
 			user.Emails[i].ScimUserID = user.ID
@@ -442,7 +442,7 @@ func (ds *Datastore) ListScimUsers(ctx context.Context, opts fleet.ScimUsersList
 
 	// Add joins and where clauses based on filters
 	var whereClause string
-	var params []interface{}
+	var params []any
 
 	if opts.UserNameFilter != nil {
 		// Filter by username
@@ -693,7 +693,7 @@ func insertScimGroupUsers(ctx context.Context, tx sqlx.ExtContext, groupID uint,
 	return common_mysql.BatchProcessSimple(userIDs, batchSize, func(userIDsInBatch []uint) error {
 		// Build the batch insert query
 		valueStrings := make([]string, 0, len(userIDsInBatch))
-		valueArgs := make([]interface{}, 0, len(userIDsInBatch)*2)
+		valueArgs := make([]any, 0, len(userIDsInBatch)*2)
 		for _, userID := range userIDsInBatch {
 			valueStrings = append(valueStrings, "(?, ?)")
 			valueArgs = append(valueArgs, userID, groupID)
@@ -877,7 +877,7 @@ func (ds *Datastore) ReplaceScimGroup(ctx context.Context, group *fleet.ScimGrou
 		if len(usersToRemove) > 0 {
 			batchSize := 10000
 			err = common_mysql.BatchProcessSimple(usersToRemove, batchSize, func(usersToRemoveInBatch []uint) error {
-				params := make([]interface{}, len(usersToRemoveInBatch)+1)
+				params := make([]any, len(usersToRemoveInBatch)+1)
 				params[0] = group.ID
 				for i, userID := range usersToRemoveInBatch {
 					params[i+1] = userID
@@ -961,7 +961,7 @@ func (ds *Datastore) ListScimGroups(ctx context.Context, opts fleet.ScimGroupsLi
 
 	// Add where clause based on filters
 	var whereClause string
-	var params []interface{}
+	var params []any
 
 	if opts.DisplayNameFilter != nil {
 		whereClause = " WHERE scim_groups.display_name = ?"

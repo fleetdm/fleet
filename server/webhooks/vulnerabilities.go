@@ -64,7 +64,7 @@ func TriggerVulnerabilitiesWebhook(
 }
 
 func sendVulnerabilityHostBatch(ctx context.Context, targetURL string, vuln WebhookPayload, now time.Time) error {
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"timestamp":     now,
 		"vulnerability": vuln,
 	}

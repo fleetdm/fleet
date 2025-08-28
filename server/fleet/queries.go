@@ -320,8 +320,8 @@ func verifyQueryPlatforms(platforms string) error {
 	if emptyString(platforms) {
 		return nil
 	}
-	platformsList := strings.Split(platforms, ",")
-	for _, platform := range platformsList {
+	platformsList := strings.SplitSeq(platforms, ",")
+	for platform := range platformsList {
 		// TODO(jacob) – should we accept these strings with spaces? If not, remove `TrimSpace`
 		switch strings.TrimSpace(platform) {
 		case "windows", "linux", "darwin", "chrome":
@@ -378,7 +378,7 @@ type QuerySpec struct {
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
 	queries := []*Query{}
-	for _, s := range strings.Split(yml, "---") {
+	for s := range strings.SplitSeq(yml, "---") {
 		s = strings.TrimSpace(s)
 		if len(s) == 0 {
 			continue

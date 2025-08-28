@@ -63,7 +63,7 @@ func WithNoUser(ctx context.Context) context.Context {
 }
 
 // WithExtras returns a context with logging.Extras set as the values provided
-func WithExtras(ctx context.Context, extras ...interface{}) context.Context {
+func WithExtras(ctx context.Context, extras ...any) context.Context {
 	if logCtx, ok := FromContext(ctx); ok {
 		logCtx.SetExtras(extras...)
 	}
@@ -85,7 +85,7 @@ type LoggingContext struct {
 
 	StartTime  time.Time
 	Errs       []error
-	Extras     []interface{}
+	Extras     []any
 	SkipUser   bool
 	ForceLevel func(kitlog.Logger) kitlog.Logger
 }
@@ -96,7 +96,7 @@ func (l *LoggingContext) SetForceLevel(level func(kitlog.Logger) kitlog.Logger) 
 	l.ForceLevel = level
 }
 
-func (l *LoggingContext) SetExtras(extras ...interface{}) {
+func (l *LoggingContext) SetExtras(extras ...any) {
 	l.l.Lock()
 	defer l.l.Unlock()
 	l.Extras = append(l.Extras, extras...)
@@ -134,7 +134,7 @@ func (l *LoggingContext) Log(ctx context.Context, logger kitlog.Logger) {
 		logger = level.Debug(logger)
 	}
 
-	var keyvals []interface{}
+	var keyvals []any
 
 	if !l.SkipUser {
 		loggedInUser := "unauthenticated"

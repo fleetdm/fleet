@@ -155,7 +155,7 @@ func (m *GetToken) Validate() error {
 }
 
 // newCheckinMessageForType returns a pointer to a check-in struct for MessageType t
-func newCheckinMessageForType(t string, raw []byte) interface{} {
+func newCheckinMessageForType(t string, raw []byte) any {
 	switch t {
 	case "Authenticate":
 		return &Authenticate{Raw: raw}
@@ -180,12 +180,12 @@ func newCheckinMessageForType(t string, raw []byte) interface{} {
 
 // checkinUnmarshaller facilitates unmarshalling a plist check-in message.
 type checkinUnmarshaller struct {
-	message interface{}
+	message any
 	raw     []byte
 }
 
 // UnmarshalPlist populates the message field of w based on the contents of a plist.
-func (w *checkinUnmarshaller) UnmarshalPlist(f func(interface{}) error) error {
+func (w *checkinUnmarshaller) UnmarshalPlist(f func(any) error) error {
 	onlyType := new(MessageType)
 	err := f(onlyType)
 	if err != nil {
@@ -199,7 +199,7 @@ func (w *checkinUnmarshaller) UnmarshalPlist(f func(interface{}) error) error {
 }
 
 // DecodeCheckin unmarshals rawMessage into a specific check-in struct in message.
-func DecodeCheckin(rawMessage []byte) (message interface{}, err error) {
+func DecodeCheckin(rawMessage []byte) (message any, err error) {
 	w := &checkinUnmarshaller{raw: rawMessage}
 	err = plist.Unmarshal(rawMessage, w)
 	message = w.message

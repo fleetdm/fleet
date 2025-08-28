@@ -56,7 +56,6 @@ func TestMatchOverrides(t *testing.T) {
 	dict.Override(overrides)
 
 	for n, c := range cases {
-		c := c
 		t.Run(fmt.Sprintf("%d", n), func(t *testing.T) {
 			var matchOriginal, matchOverride, matchDict bool
 			if m := dict["TESTVE-2018-0002"].Match(c, false); len(m) > 0 {

@@ -24,12 +24,12 @@ func (nopRedis) Mode() fleet.RedisMode { return fleet.RedisStandalone }
 
 type nopConn struct{}
 
-func (nopConn) Close() error                                       { return nil }
-func (nopConn) Err() error                                         { return nil }
-func (nopConn) Do(_ string, _ ...interface{}) (interface{}, error) { return nil, nil }
-func (nopConn) Send(_ string, _ ...interface{}) error              { return nil }
-func (nopConn) Flush() error                                       { return nil }
-func (nopConn) Receive() (interface{}, error)                      { return nil, nil }
+func (nopConn) Close() error                       { return nil }
+func (nopConn) Err() error                         { return nil }
+func (nopConn) Do(_ string, _ ...any) (any, error) { return nil, nil }
+func (nopConn) Send(_ string, _ ...any) error      { return nil }
+func (nopConn) Flush() error                       { return nil }
+func (nopConn) Receive() (any, error)              { return nil, nil }
 
 func NopRedis() fleet.RedisPool {
 	return nopRedis{}

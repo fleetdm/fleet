@@ -59,9 +59,9 @@ func migrateOptions(tx *sql.Tx) error {
 	// This migration uses the deprecated types in deprecated_types.go
 
 	type configForExport struct {
-		Options    map[string]interface{} `json:"options"`
-		FilePaths  map[string][]string    `json:"file_paths,omitempty"`
-		Decorators decorators             `json:"decorators"`
+		Options    map[string]any      `json:"options"`
+		FilePaths  map[string][]string `json:"file_paths,omitempty"`
+		Decorators decorators          `json:"decorators"`
 	}
 
 	// Migrate pre fleetctl osquery options to the new osquery options
@@ -80,7 +80,7 @@ func migrateOptions(tx *sql.Tx) error {
 	if err := txx.Select(&opts, query); err != nil && err != sql.ErrNoRows {
 		return errors.Wrap(err, "getting options")
 	}
-	optConfig := map[string]interface{}{}
+	optConfig := map[string]any{}
 	for _, opt := range opts {
 		optConfig[opt.Name] = opt.GetValue()
 	}

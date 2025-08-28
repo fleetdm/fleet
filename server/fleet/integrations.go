@@ -20,7 +20,7 @@ type TeamIntegrations struct {
 	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
 	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 	// ConditionalAccessEnabled indicates whether the conditional access feature is enabled on this team.
-	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled,omitempty"`
+	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -197,7 +197,7 @@ func ValidateJiraIntegrations(ctx context.Context, oriJiraIntgsIndexed map[strin
 
 	// collect any deleted integration
 	for key, intg := range oriJiraIntgsIndexed {
-		intg := intg // do not take address of iteration variable
+		// do not take address of iteration variable
 		if _, ok := newIndexed[key]; !ok {
 			deleted = append(deleted, &intg)
 		}
@@ -315,7 +315,7 @@ func ValidateZendeskIntegrations(ctx context.Context, oriZendeskIntgsIndexed map
 
 	// collect any deleted integration
 	for key, intg := range oriZendeskIntgsIndexed {
-		intg := intg // do not take address of iteration variable
+		// do not take address of iteration variable
 		if _, ok := newIndexed[key]; !ok {
 			deleted = append(deleted, &intg)
 		}

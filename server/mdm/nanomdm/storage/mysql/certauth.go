@@ -11,7 +11,7 @@ import (
 )
 
 // Executes SQL statements that return a single COUNT(*) of rows.
-func (s *MySQLStorage) queryRowContextRowExists(ctx context.Context, query string, args ...interface{}) (bool, error) {
+func (s *MySQLStorage) queryRowContextRowExists(ctx context.Context, query string, args ...any) (bool, error) {
 	var ct int
 	err := s.db.QueryRowContext(ctx, query, args...).Scan(&ct)
 	return ct > 0, err

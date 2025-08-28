@@ -18,7 +18,7 @@ import (
 	"github.com/go-kit/kit/endpoint"
 )
 
-func logJSON(logger log.Logger, v interface{}, key string) {
+func logJSON(logger log.Logger, v any, key string) {
 	jsonV, err := json.Marshal(v)
 	if err != nil {
 		level.Debug(logger).Log("err", fmt.Errorf("marshaling %s for debug: %w", key, err))
@@ -28,7 +28,7 @@ func logJSON(logger log.Logger, v interface{}, key string) {
 }
 
 // instrumentHostLogger adds host ID, IP information, and extras to the context logger.
-func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{}) {
+func instrumentHostLogger(ctx context.Context, hostID uint, extras ...any) {
 	remoteAddr, _ := ctx.Value(kithttp.ContextKeyRequestRemoteAddr).(string)
 	xForwardedFor, _ := ctx.Value(kithttp.ContextKeyRequestXForwardedFor).(string)
 	logging.WithExtras(
@@ -42,7 +42,7 @@ func instrumentHostLogger(ctx context.Context, hostID uint, extras ...interface{
 }
 
 func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authDeviceFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authDeviceFunc := func(ctx context.Context, request any) (any, error) {
 		token, err := getDeviceAuthToken(request)
 		if err != nil {
 			return nil, err
@@ -78,7 +78,7 @@ func authenticatedDevice(svc fleet.Service, logger log.Logger, next endpoint.End
 	return middleware_log.Logged(authDeviceFunc)
 }
 
-func getDeviceAuthToken(r interface{}) (string, error) {
+func getDeviceAuthToken(r any) (string, error) {
 	if dat, ok := r.(interface{ deviceAuthToken() string }); ok {
 		return dat.deviceAuthToken(), nil
 	}
@@ -89,7 +89,7 @@ func getDeviceAuthToken(r interface{}) (string, error) {
 // provided in the request, and attaches the corresponding osquery host to the
 // context for the request
 func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authHostFunc := func(ctx context.Context, request any) (any, error) {
 		nodeKey, err := getNodeKey(request)
 		if err != nil {
 			return nil, err
@@ -126,7 +126,7 @@ func authenticatedHost(svc fleet.Service, logger log.Logger, next endpoint.Endpo
 }
 
 func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.Endpoint) endpoint.Endpoint {
-	authHostFunc := func(ctx context.Context, request interface{}) (interface{}, error) {
+	authHostFunc := func(ctx context.Context, request any) (any, error) {
 		nodeKey, err := getOrbitNodeKey(request)
 		if err != nil {
 			return nil, err
@@ -162,14 +162,14 @@ func authenticatedOrbitHost(svc fleet.Service, logger log.Logger, next endpoint.
 	return middleware_log.Logged(authHostFunc)
 }
 
-func getOrbitNodeKey(r interface{}) (string, error) {
+func getOrbitNodeKey(r any) (string, error) {
 	if onk, err := r.(interface{ orbitHostNodeKey() string }); err {
 		return onk.orbitHostNodeKey(), nil
 	}
 	return "", errors.New("error getting orbit node key")
 }
 
-func getNodeKey(r interface{}) (string, error) {
+func getNodeKey(r any) (string, error) {
 	if hnk, ok := r.(interface{ hostNodeKey() string }); ok {
 		return hnk.hostNodeKey(), nil
 	}

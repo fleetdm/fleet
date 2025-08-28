@@ -18,7 +18,7 @@ type calendarWebhookRequest struct {
 }
 
 // DecodeRequest implement requestDecoder interface to take full control of decoding the request
-func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (interface{}, error) {
+func (calendarWebhookRequest) DecodeRequest(_ context.Context, r *http.Request) (any, error) {
 	var req calendarWebhookRequest
 	eventUUID, ok := mux.Vars(r)["event_uuid"]
 	if !ok {
@@ -42,7 +42,7 @@ type calendarWebhookResponse struct {
 
 func (r calendarWebhookResponse) Error() error { return r.Err }
 
-func calendarWebhookEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func calendarWebhookEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*calendarWebhookRequest)
 	err := svc.CalendarWebhook(ctx, req.eventUUID, req.googleChannelID, req.googleResourceState)
 	if err != nil {

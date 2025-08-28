@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -97,9 +98,7 @@ func WithCustomHeaders(headers map[string]string) ClientOption {
 	return func(c *Client) error {
 		// clone the map to prevent any changes in the original affecting the client
 		m := make(map[string]string, len(headers))
-		for k, v := range headers {
-			m[k] = v
-		}
+		maps.Copy(m, headers)
 		c.customHeaders = m
 		return nil
 	}
@@ -137,7 +136,7 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 	return resp, nil
 }
 
-func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params interface{}, headers map[string]string) (*http.Response, error) {
+func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery string, params any, headers map[string]string) (*http.Response, error) {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -156,11 +155,11 @@ func (c *Client) doContextWithHeaders(ctx context.Context, verb, path, rawQuery 
 	return c.doContextWithBodyAndHeaders(ctx, verb, path, rawQuery, bodyBytes, headers)
 }
 
-func (c *Client) Do(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
+func (c *Client) Do(verb, path, rawQuery string, params any) (*http.Response, error) {
 	return c.DoContext(context.Background(), verb, path, rawQuery, params)
 }
 
-func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, params interface{}) (*http.Response, error) {
+func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, params any) (*http.Response, error) {
 	headers := map[string]string{
 		"Content-type": "application/json",
 		"Accept":       "application/json",
@@ -169,7 +168,7 @@ func (c *Client) DoContext(ctx context.Context, verb, path, rawQuery string, par
 	return c.doContextWithHeaders(ctx, verb, path, rawQuery, params, headers)
 }
 
-func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}) (*http.Response, error) {
+func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params any) (*http.Response, error) {
 	if c.token == "" {
 		return nil, errors.New("authentication token is empty")
 	}
@@ -183,7 +182,7 @@ func (c *Client) AuthenticatedDo(verb, path, rawQuery string, params interface{}
 	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
 
-func (c *Client) AuthenticatedDoCustomHeaders(verb, path, rawQuery string, params interface{}, customHeaders map[string]string) (*http.Response, error) {
+func (c *Client) AuthenticatedDoCustomHeaders(verb, path, rawQuery string, params any, customHeaders map[string]string) (*http.Response, error) {
 	if c.token == "" {
 		return nil, errors.New("authentication token is empty")
 	}
@@ -194,9 +193,7 @@ func (c *Client) AuthenticatedDoCustomHeaders(verb, path, rawQuery string, param
 		"Authorization": fmt.Sprintf("Bearer %s", c.token),
 	}
 
-	for key, value := range customHeaders {
-		headers[key] = value
-	}
+	maps.Copy(headers, customHeaders)
 
 	return c.doContextWithHeaders(context.Background(), verb, path, rawQuery, params, headers)
 }
@@ -265,7 +262,7 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	return res, nil
 }
 
-func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, path string, responseDest interface{}, query string) error {
+func (c *Client) authenticatedRequestWithQuery(params any, verb string, path string, responseDest any, query string) error {
 	response, err := c.AuthenticatedDo(verb, path, query, params)
 	if err != nil {
 		return fmt.Errorf("%s %s: %w", verb, path, err)
@@ -275,7 +272,7 @@ func (c *Client) authenticatedRequestWithQuery(params interface{}, verb string, 
 	return c.parseResponse(verb, path, response, responseDest)
 }
 
-func (c *Client) authenticatedRequest(params interface{}, verb string, path string, responseDest interface{}) error {
+func (c *Client) authenticatedRequest(params any, verb string, path string, responseDest any) error {
 	return c.authenticatedRequestWithQuery(params, verb, path, responseDest, "")
 }
 
@@ -472,14 +469,14 @@ func (c *Client) ApplyGroup(
 	viaGitOps bool,
 	specs *spec.Group,
 	baseDir string,
-	logf func(format string, args ...interface{}),
+	logf func(format string, args ...any),
 	appconfig *fleet.EnrichedAppConfig,
 	opts fleet.ApplyClientSpecOptions,
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
 ) (map[string]uint, map[string][]fleet.SoftwarePackageResponse, map[string][]fleet.VPPAppResponse, map[string][]fleet.ScriptResponse, error) {
-	logfn := func(format string, args ...interface{}) {
+	logfn := func(format string, args ...any) {
 		if logf != nil {
 			logf(format, args...)
 		}
@@ -599,12 +596,12 @@ func (c *Client) ApplyGroup(
 					Name:     filepath.Base(f.Path),
 				}
 			}
-			specs.AppConfig.(map[string]interface{})["yara_rules"] = rulePayloads
+			specs.AppConfig.(map[string]any)["yara_rules"] = rulePayloads
 		}
 
 		// Keep any existing GitOps mode config rather than attempting to set via GitOps.
 		if appconfig != nil {
-			specs.AppConfig.(map[string]interface{})["gitops"] = fleet.UIGitOpsModeConfig{
+			specs.AppConfig.(map[string]any)["gitops"] = fleet.UIGitOpsModeConfig{
 				GitopsModeEnabled: appconfig.UIGitOpsMode.GitopsModeEnabled,
 				RepositoryURL:     appconfig.UIGitOpsMode.RepositoryURL,
 			}
@@ -637,7 +634,7 @@ func (c *Client) ApplyGroup(
 			// Figure out if MDM should be enabled.
 			assumeEnabled := false
 			// This cast is safe because we've already checked AppConfig when extracting custom settings
-			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			mdmConfigMap, ok := specs.AppConfig.(map[string]any)["mdm"].(map[string]any)
 			if ok {
 				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
 				if ok {
@@ -1155,11 +1152,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
-	asMap, ok := appCfg.(map[string]interface{})
+	asMap, ok := appCfg.(map[string]any)
 	if !ok {
 		return nil
 	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	mmdm, ok := asMap["mdm"].(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -1171,7 +1168,7 @@ func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
 	}
 
 	// Legacy fleetctl apply
-	mos, ok := mmdm["macos_setup"].(map[string]interface{})
+	mos, ok := mmdm["macos_setup"].(map[string]any)
 	if !ok || mos == nil {
 		return nil
 	}
@@ -1205,12 +1202,12 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
-	asMap, ok := appCfg.(map[string]interface{})
+func extractAppCfgCustomSettings(appCfg any, platformKey string) []fleet.MDMProfileSpec {
+	asMap, ok := appCfg.(map[string]any)
 	if !ok {
 		return nil
 	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
+	mmdm, ok := asMap["mdm"].(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -1222,8 +1219,8 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 }
 
 // legacyExtractAppCfgCustomSettings is used to extract custom settings for legacy fleetctl apply use case
-func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey string) []fleet.MDMProfileSpec {
-	mos, ok := mmdm[platformKey].(map[string]interface{})
+func legacyExtractAppCfgCustomSettings(mmdm map[string]any, platformKey string) []fleet.MDMProfileSpec {
+	mos, ok := mmdm[platformKey].(map[string]any)
 	if !ok || mos == nil {
 		return nil
 	}
@@ -1233,16 +1230,16 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 		return nil
 	}
 
-	csAny, ok := cs.([]interface{})
+	csAny, ok := cs.([]any)
 	if !ok || csAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// custom_settings key was actually provided.
 		return []fleet.MDMProfileSpec{}
 	}
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+	extractLabelField := func(parentMap map[string]any, fieldName string) []string {
 		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+		if labels, ok := parentMap[fieldName].([]any); ok {
 			for _, label := range labels {
 				if strLabel, ok := label.(string); ok {
 					ret = append(ret, strLabel)
@@ -1254,7 +1251,7 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 
 	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
-		if m, ok := v.(map[string]interface{}); ok {
+		if m, ok := v.(map[string]any); ok {
 			var profSpec fleet.MDMProfileSpec
 
 			// extract the Path field
@@ -1281,16 +1278,16 @@ func legacyExtractAppCfgCustomSettings(mmdm map[string]interface{}, platformKey 
 	return csSpecs
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+func extractAppCfgMacOSCustomSettings(appCfg any) []fleet.MDMProfileSpec {
 	return extractAppCfgCustomSettings(appCfg, "macos_settings")
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+func extractAppCfgWindowsCustomSettings(appCfg any) []fleet.MDMProfileSpec {
 	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
-func extractAppCfgScripts(appCfg interface{}) []string {
-	asMap, ok := appCfg.(map[string]interface{})
+func extractAppCfgScripts(appCfg any) []string {
+	asMap, ok := appCfg.(map[string]any)
 	if !ok {
 		return nil
 	}
@@ -1301,7 +1298,7 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 		return nil
 	}
 
-	scriptsAny, ok := scripts.([]interface{})
+	scriptsAny, ok := scripts.([]any)
 	if !ok || scriptsAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// scripts key was actually provided.
@@ -1318,8 +1315,8 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 	return scriptsStrings
 }
 
-func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
-	asMap, ok := appCfg.(map[string]interface{})
+func extractAppCfgYaraRules(appCfg any) ([]fleet.YaraRuleSpec, error) {
+	asMap, ok := appCfg.(map[string]any)
 	if !ok {
 		return nil, errors.New("extract yara rules: app config is not a map")
 	}
@@ -1330,7 +1327,7 @@ func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
 		return []fleet.YaraRuleSpec{}, nil
 	}
 
-	rulesAny, ok := rules.([]interface{})
+	rulesAny, ok := rules.([]any)
 	if !ok || rulesAny == nil {
 		// If nil, return an empty slice so the value will be cleared.
 		return []fleet.YaraRuleSpec{}, nil
@@ -1338,7 +1335,7 @@ func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
 
 	ruleSpecs := make([]fleet.YaraRuleSpec, 0, len(rulesAny))
 	for _, v := range rulesAny {
-		smap, ok := v.(map[string]interface{})
+		smap, ok := v.(map[string]any)
 		if !ok {
 			return nil, errors.New("extract yara rules: rule entry is not a map")
 		}
@@ -1634,7 +1631,7 @@ func (c *Client) DoGitOps(
 	ctx context.Context,
 	config *spec.GitOps,
 	fullFilename string,
-	logf func(format string, args ...interface{}),
+	logf func(format string, args ...any),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
 	appConfig *fleet.EnrichedAppConfig, // pass-by-ref to build lists
@@ -1646,25 +1643,25 @@ func (c *Client) DoGitOps(
 	filename := filepath.Base(fullFilename)
 	var teamAssumptions *fleet.TeamSpecsDryRunAssumptions
 	var err error
-	logFn := func(format string, args ...interface{}) {
+	logFn := func(format string, args ...any) {
 		if logf != nil {
 			logf(format, args...)
 		}
 	}
 	group := spec.Group{}
-	scripts := make([]interface{}, len(config.Controls.Scripts))
+	scripts := make([]any, len(config.Controls.Scripts))
 	for i, script := range config.Controls.Scripts {
 		scripts[i] = *script.Path
 	}
-	var mdmAppConfig map[string]interface{}
-	var team map[string]interface{}
+	var mdmAppConfig map[string]any
+	var team map[string]any
 
 	var postOps []func() error
 
 	if config.TeamName == nil {
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
-		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
+		group.AppConfig.(map[string]any)["agent_options"] = config.AgentOptions
 		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 		var eulaPath string
 
@@ -1701,40 +1698,40 @@ func (c *Client) DoGitOps(
 		}
 
 		// Integrations
-		var integrations interface{}
-		if integrations, ok = group.AppConfig.(map[string]interface{})["integrations"]; !ok || integrations == nil {
-			integrations = map[string]interface{}{}
-			group.AppConfig.(map[string]interface{})["integrations"] = integrations
+		var integrations any
+		if integrations, ok = group.AppConfig.(map[string]any)["integrations"]; !ok || integrations == nil {
+			integrations = map[string]any{}
+			group.AppConfig.(map[string]any)["integrations"] = integrations
 		}
-		integrations, ok = integrations.(map[string]interface{})
+		integrations, ok = integrations.(map[string]any)
 		if !ok {
 			return nil, nil, errors.New("org_settings.integrations config is not a map")
 		}
-		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
-			integrations.(map[string]interface{})["jira"] = []interface{}{}
+		if jira, ok := integrations.(map[string]any)["jira"]; !ok || jira == nil {
+			integrations.(map[string]any)["jira"] = []any{}
 		}
-		if zendesk, ok := integrations.(map[string]interface{})["zendesk"]; !ok || zendesk == nil {
-			integrations.(map[string]interface{})["zendesk"] = []interface{}{}
+		if zendesk, ok := integrations.(map[string]any)["zendesk"]; !ok || zendesk == nil {
+			integrations.(map[string]any)["zendesk"] = []any{}
 		}
-		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
-			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
+		if googleCal, ok := integrations.(map[string]any)["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]any)["google_calendar"] = []any{}
 		}
-		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
-			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		if conditionalAccessEnabled, ok := integrations.(map[string]any)["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]any)["conditional_access_enabled"] = false
 		}
-		if ndesSCEPProxy, ok := integrations.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
+		if ndesSCEPProxy, ok := integrations.(map[string]any)["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
 			// Per backend patterns.md, best practice is to clear a JSON config field with `null`
-			integrations.(map[string]interface{})["ndes_scep_proxy"] = nil
+			integrations.(map[string]any)["ndes_scep_proxy"] = nil
 		} else {
-			if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
+			if _, ok = ndesSCEPProxy.(map[string]any); !ok {
 				return nil, nil, errors.New("org_settings.integrations.ndes_scep_proxy config is not a map")
 			}
 		}
-		if digicertIntegration, ok := integrations.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
-			integrations.(map[string]interface{})["digicert"] = nil
+		if digicertIntegration, ok := integrations.(map[string]any)["digicert"]; !ok || digicertIntegration == nil {
+			integrations.(map[string]any)["digicert"] = nil
 		} else {
 			// We unmarshal DigiCert integration into its dedicated type for additional validation.
-			digicertJSON, err := json.Marshal(integrations.(map[string]interface{})["digicert"])
+			digicertJSON, err := json.Marshal(integrations.(map[string]any)["digicert"])
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.digicert cannot be marshalled into JSON: %w", err)
 			}
@@ -1743,13 +1740,13 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.digicert cannot be parsed: %w", err)
 			}
-			integrations.(map[string]interface{})["digicert"] = digicertData
+			integrations.(map[string]any)["digicert"] = digicertData
 		}
-		if customSCEPIntegration, ok := integrations.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
-			integrations.(map[string]interface{})["custom_scep_proxy"] = nil
+		if customSCEPIntegration, ok := integrations.(map[string]any)["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
+			integrations.(map[string]any)["custom_scep_proxy"] = nil
 		} else {
 			// We unmarshal Custom SCEP integration into its dedicated type for additional validation
-			custonSCEPJSON, err := json.Marshal(integrations.(map[string]interface{})["custom_scep_proxy"])
+			custonSCEPJSON, err := json.Marshal(integrations.(map[string]any)["custom_scep_proxy"])
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be marshalled into JSON: %w", err)
 			}
@@ -1758,7 +1755,7 @@ func (c *Client) DoGitOps(
 			if err != nil {
 				return nil, nil, fmt.Errorf("org_settings.integrations.custom_scep_proxy cannot be parsed: %w", err)
 			}
-			integrations.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
+			integrations.(map[string]any)["custom_scep_proxy"] = customSCEPData
 		}
 
 		// Ensure webhooks settings exists
@@ -1806,34 +1803,34 @@ func (c *Client) DoGitOps(
 		}
 
 		// Ensure mdm config exists
-		mdmConfig, ok := group.AppConfig.(map[string]interface{})["mdm"]
+		mdmConfig, ok := group.AppConfig.(map[string]any)["mdm"]
 		if !ok || mdmConfig == nil {
-			mdmConfig = map[string]interface{}{}
-			group.AppConfig.(map[string]interface{})["mdm"] = mdmConfig
+			mdmConfig = map[string]any{}
+			group.AppConfig.(map[string]any)["mdm"] = mdmConfig
 		}
-		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
+		mdmAppConfig, ok = mdmConfig.(map[string]any)
 		if !ok {
 			return nil, nil, errors.New("org_settings.mdm config is not a map")
 		}
 
 		if _, ok := mdmAppConfig["apple_bm_default_team"]; !ok && appConfig.License.IsPremium() {
 			if _, ok := mdmAppConfig["apple_business_manager"]; !ok {
-				mdmAppConfig["apple_business_manager"] = []interface{}{}
+				mdmAppConfig["apple_business_manager"] = []any{}
 			}
 		}
 
 		// Put in default value for volume_purchasing_program to clear the configuration if it's not set.
 		if v, ok := mdmAppConfig["volume_purchasing_program"]; !ok || v == nil {
-			mdmAppConfig["volume_purchasing_program"] = []interface{}{}
+			mdmAppConfig["volume_purchasing_program"] = []any{}
 		}
 
 		// Put in default values for macos_migration
 		if config.Controls.MacOSMigration != nil {
 			mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
 		} else {
-			mdmAppConfig["macos_migration"] = map[string]interface{}{}
+			mdmAppConfig["macos_migration"] = map[string]any{}
 		}
-		macOSMigration := mdmAppConfig["macos_migration"].(map[string]interface{})
+		macOSMigration := mdmAppConfig["macos_migration"].(map[string]any)
 		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
 			macOSMigration["enable"] = false
 		}
@@ -1866,7 +1863,7 @@ func (c *Client) DoGitOps(
 		}
 		delete(mdmAppConfig, "end_user_license_agreement")
 
-		group.AppConfig.(map[string]interface{})["scripts"] = scripts
+		group.AppConfig.(map[string]any)["scripts"] = scripts
 
 		// we want to apply the EULA only for the global settings
 		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
@@ -1877,7 +1874,7 @@ func (c *Client) DoGitOps(
 		}
 
 	} else if !config.IsNoTeam() {
-		team = make(map[string]interface{})
+		team = make(map[string]any)
 		team["name"] = *config.TeamName
 		team["agent_options"] = config.AgentOptions
 		if hostExpirySettings, ok := config.TeamSettings["host_expiry_settings"]; ok {
@@ -1934,27 +1931,27 @@ func (c *Client) DoGitOps(
 		}
 
 		// Integrations
-		var integrations interface{}
+		var integrations any
 		if integrations, ok = config.TeamSettings["integrations"]; !ok || integrations == nil {
-			integrations = map[string]interface{}{}
+			integrations = map[string]any{}
 		}
 		team["integrations"] = integrations
-		_, ok = integrations.(map[string]interface{})
+		_, ok = integrations.(map[string]any)
 		if !ok {
 			return nil, nil, errors.New("team_settings.integrations config is not a map")
 		}
 
-		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
-			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
+		if googleCal, ok := integrations.(map[string]any)["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]any)["google_calendar"] = map[string]any{}
 		} else {
-			_, ok = googleCal.(map[string]interface{})
+			_, ok = googleCal.(map[string]any)
 			if !ok {
 				return nil, nil, errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
 
-		if conditionalAccessEnabled, ok := integrations.(map[string]interface{})["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
-			integrations.(map[string]interface{})["conditional_access_enabled"] = false
+		if conditionalAccessEnabled, ok := integrations.(map[string]any)["conditional_access_enabled"]; !ok || conditionalAccessEnabled == nil {
+			integrations.(map[string]any)["conditional_access_enabled"] = false
 		} else {
 			_, ok = conditionalAccessEnabled.(bool)
 			if !ok {
@@ -1962,8 +1959,8 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		team["mdm"] = map[string]interface{}{}
-		mdmAppConfig = team["mdm"].(map[string]interface{})
+		team["mdm"] = map[string]any{}
+		mdmAppConfig = team["mdm"].(map[string]any)
 	}
 
 	if !config.IsNoTeam() {
@@ -1980,9 +1977,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.MacOSUpdates != nil {
 			mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
 		} else {
-			mdmAppConfig["macos_updates"] = map[string]interface{}{}
+			mdmAppConfig["macos_updates"] = map[string]any{}
 		}
-		macOSUpdates := mdmAppConfig["macos_updates"].(map[string]interface{})
+		macOSUpdates := mdmAppConfig["macos_updates"].(map[string]any)
 		if minimumVersion, ok := macOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
 			macOSUpdates["minimum_version"] = ""
 		}
@@ -1993,9 +1990,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.IOSUpdates != nil {
 			mdmAppConfig["ios_updates"] = config.Controls.IOSUpdates
 		} else {
-			mdmAppConfig["ios_updates"] = map[string]interface{}{}
+			mdmAppConfig["ios_updates"] = map[string]any{}
 		}
-		iOSUpdates := mdmAppConfig["ios_updates"].(map[string]interface{})
+		iOSUpdates := mdmAppConfig["ios_updates"].(map[string]any)
 		if minimumVersion, ok := iOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
 			iOSUpdates["minimum_version"] = ""
 		}
@@ -2006,9 +2003,9 @@ func (c *Client) DoGitOps(
 		if config.Controls.IPadOSUpdates != nil {
 			mdmAppConfig["ipados_updates"] = config.Controls.IPadOSUpdates
 		} else {
-			mdmAppConfig["ipados_updates"] = map[string]interface{}{}
+			mdmAppConfig["ipados_updates"] = map[string]any{}
 		}
-		iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]interface{})
+		iPadOSUpdates := mdmAppConfig["ipados_updates"].(map[string]any)
 		if minimumVersion, ok := iPadOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
 			iPadOSUpdates["minimum_version"] = ""
 		}
@@ -2034,10 +2031,10 @@ func (c *Client) DoGitOps(
 		if config.Controls.WindowsUpdates != nil {
 			mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
 		} else {
-			mdmAppConfig["windows_updates"] = map[string]interface{}{}
+			mdmAppConfig["windows_updates"] = map[string]any{}
 		}
 		if appConfig.License.IsPremium() {
-			windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
+			windowsUpdates := mdmAppConfig["windows_updates"].(map[string]any)
 			if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
 				windowsUpdates["deadline_days"] = nil
 			}
@@ -2140,7 +2137,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	config *spec.GitOps,
 	baseDir string,
 	appconfig *fleet.EnrichedAppConfig,
-	logFn func(format string, args ...interface{}),
+	logFn func(format string, args ...any),
 	dryRun bool,
 ) ([]fleet.SoftwarePackageResponse, []fleet.VPPAppResponse, error) {
 	if !config.IsNoTeam() || appconfig == nil || !appconfig.License.IsPremium() {
@@ -2247,7 +2244,7 @@ func pluralize(count int, ifSingle string, ifPlural string) string {
 	return ifPlural
 }
 
-func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
+func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...any), dryRun bool) ([]string, error) {
 	persistedLabels, err := c.GetLabels()
 	if err != nil {
 		return nil, err
@@ -2286,7 +2283,7 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 	return labelsToDelete, nil
 }
 
-func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []fleet.SoftwarePackageResponse, teamVPPApps []fleet.VPPAppResponse, teamScripts []fleet.ScriptResponse, logFn func(format string, args ...any), dryRun bool) error {
 	var teamID *uint // Global policies (nil)
 	switch {
 	case config.TeamID != nil: // Team policies
@@ -2405,10 +2402,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		if !dryRun {
 			totalApplied := 0
 			for i := 0; i < len(config.Policies); i += batchSize {
-				end := i + batchSize
-				if end > len(config.Policies) {
-					end = len(config.Policies)
-				}
+				end := min(i+batchSize, len(config.Policies))
 				totalApplied += end - i
 				// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
 				policiesToApply := config.Policies[i:end]
@@ -2446,10 +2440,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		if !dryRun {
 			totalDeleted := 0
 			for i := 0; i < len(policiesToDelete); i += batchSize {
-				end := i + batchSize
-				if end > len(policiesToDelete) {
-					end = len(policiesToDelete)
-				}
+				end := min(i+batchSize, len(policiesToDelete))
 				totalDeleted += end - i
 				var teamID *uint
 				switch {
@@ -2470,7 +2461,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 	return nil
 }
 
-func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...any), dryRun bool) error {
 	batchSize := 100
 	// Get the ids and names of current queries to figure out which ones to delete
 	queries, err := c.GetQueries(config.TeamID, nil)
@@ -2483,10 +2474,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		if !dryRun {
 			appliedCount := 0
 			for i := 0; i < len(config.Queries); i += batchSize {
-				end := i + batchSize
-				if end > len(config.Queries) {
-					end = len(config.Queries)
-				}
+				end := min(i+batchSize, len(config.Queries))
 				appliedCount += end - i
 				// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
@@ -2519,10 +2507,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		if !dryRun {
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
-				end := i + batchSize
-				if end > len(queriesToDelete) {
-					end = len(queriesToDelete)
-				}
+				end := min(i+batchSize, len(queriesToDelete))
 				deleteCount += end - i
 				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting queries: %w", err)
@@ -2534,7 +2519,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	return nil
 }
 
-func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...interface{}), dryRun bool) error {
+func (c *Client) doGitOpsEULA(eulaPath string, logFn func(format string, args ...any), dryRun bool) error {
 	if eulaPath == "" {
 		err := c.DeleteEULAIfNeeded(dryRun)
 		if err != nil {

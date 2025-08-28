@@ -171,7 +171,7 @@ type TeamConfig struct {
 	Integrations       TeamIntegrations      `json:"integrations"`
 	Features           Features              `json:"features"`
 	MDM                TeamMDM               `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts,omitempty"`
+	Scripts            optjson.Slice[string] `json:"scripts"`
 	Software           *SoftwareSpec         `json:"software,omitempty"`
 }
 
@@ -277,8 +277,8 @@ type TeamSpecMDM struct {
 	// custom_settings key is specified but empty, then we need to clear the
 	// value, but if it isn't provided, we need to leave the existing value
 	// unmodified.
-	MacOSSettings map[string]interface{} `json:"macos_settings"`
-	MacOSSetup    MacOSSetup             `json:"macos_setup"`
+	MacOSSettings map[string]any `json:"macos_settings"`
+	MacOSSetup    MacOSSetup     `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
@@ -286,7 +286,7 @@ type TeamSpecMDM struct {
 }
 
 // Scan implements the sql.Scanner interface
-func (t *TeamConfig) Scan(val interface{}) error {
+func (t *TeamConfig) Scan(val any) error {
 	switch v := val.(type) {
 	case []byte:
 		return json.Unmarshal(v, t)
@@ -489,7 +489,7 @@ type TeamSpecIntegrations struct {
 
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
-	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
+	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.

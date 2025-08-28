@@ -96,7 +96,7 @@ func writeConfig(fp string, c configFile) error {
 	return os.WriteFile(fp, b, configFilePerms)
 }
 
-func getConfigValue(configPath, context, key string) (interface{}, error) {
+func getConfigValue(configPath, context, key string) (any, error) {
 	if err := makeConfigIfNotExists(configPath); err != nil {
 		return nil, fmt.Errorf("error verifying that config exists at %s: %w", configPath, err)
 	}
@@ -135,7 +135,7 @@ func getConfigValue(configPath, context, key string) (interface{}, error) {
 	}
 }
 
-func setConfigValue(configPath, context, key string, value interface{}) error {
+func setConfigValue(configPath, context, key string, value any) error {
 	if err := makeConfigIfNotExists(configPath); err != nil {
 		return fmt.Errorf("error verifying that config exists at %s: %w", configPath, err)
 	}

@@ -79,13 +79,13 @@ type configCache struct {
 	err         error
 }
 
-func (oc *OrbitClient) request(verb string, path string, params interface{}, resp interface{}) error {
+func (oc *OrbitClient) request(verb string, path string, params any, resp any) error {
 	return oc.requestWithExternal(verb, path, params, resp, false)
 }
 
 // requestWithExternal is used to make requests to Fleet or external URLs. If external is true, the pathOrURL
 // is used as the full URL to make the request to.
-func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params interface{}, resp interface{}, external bool) error {
+func (oc *OrbitClient) requestWithExternal(verb string, pathOrURL string, params any, resp any, external bool) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {
@@ -260,7 +260,6 @@ func (oc *OrbitClient) RunConfigReceivers() error {
 	wg.Add(len(oc.ConfigReceivers))
 
 	for _, receiver := range oc.ConfigReceivers {
-		receiver := receiver
 		go func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -607,7 +606,7 @@ func (oc *OrbitClient) enrollAndWriteNodeKeyFile() (string, error) {
 	return orbitNodeKey, nil
 }
 
-func (oc *OrbitClient) authenticatedRequest(verb string, path string, params interface{}, resp interface{}) error {
+func (oc *OrbitClient) authenticatedRequest(verb string, path string, params any, resp any) error {
 	nodeKey, err := oc.getNodeKeyOrEnroll()
 	if err != nil {
 		return err

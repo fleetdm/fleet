@@ -55,7 +55,7 @@ func (c *Client) DeleteTeam(teamID uint) error {
 func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOptions) (map[string]uint, error) {
 	verb, path := "POST", "/api/latest/fleet/spec/teams"
 	var responseBody applyTeamSpecsResponse
-	params := map[string]interface{}{"specs": specs}
+	params := map[string]any{"specs": specs}
 	if opts.DryRun && opts.DryRunAssumptions != nil {
 		params["dry_run_assumptions"] = opts.DryRunAssumptions
 	}
@@ -78,7 +78,7 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.WindowsEnabledAndConfigured.Valid {
 		query.Add("assume_enabled", strconv.FormatBool(opts.DryRunAssumptions.WindowsEnabledAndConfigured.Value))
 	}
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
+	return c.authenticatedRequestWithQuery(map[string]any{"profiles": profiles}, verb, path, nil, query.Encode())
 }
 
 // ApplyTeamScripts sends the list of scripts to be applied for the specified
@@ -92,7 +92,7 @@ func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, 
 	query.Add("team_name", tmName)
 
 	var resp batchSetScriptsResponse
-	err = c.authenticatedRequestWithQuery(map[string]interface{}{"scripts": scripts}, verb, path, &resp, query.Encode())
+	err = c.authenticatedRequestWithQuery(map[string]any{"scripts": scripts}, verb, path, &resp, query.Encode())
 	return resp.Scripts, err
 }
 
@@ -125,7 +125,7 @@ func (c *Client) ApplyNoTeamAppStoreAppsAssociation(vppBatchPayload []fleet.VPPB
 func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPayload, query url.Values) ([]fleet.VPPAppResponse, error) {
 	verb, path := "POST", "/api/latest/fleet/software/app_store_apps/batch"
 	var appsResponse batchAssociateAppStoreAppsResponse
-	err := c.authenticatedRequestWithQuery(map[string]interface{}{"app_store_apps": vppBatchPayload}, verb, path, &appsResponse, query.Encode())
+	err := c.authenticatedRequestWithQuery(map[string]any{"app_store_apps": vppBatchPayload}, verb, path, &appsResponse, query.Encode())
 	if err != nil {
 		return nil, err
 	}

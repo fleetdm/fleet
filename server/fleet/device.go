@@ -7,7 +7,7 @@ import "time"
 type DesktopSummary struct {
 	FailingPolicies *uint                `json:"failing_policies_count,omitempty"`
 	SelfService     *bool                `json:"self_service"`
-	Notifications   DesktopNotifications `json:"notifications,omitempty"`
+	Notifications   DesktopNotifications `json:"notifications"`
 	Config          DesktopConfig        `json:"config"`
 }
 
@@ -22,7 +22,7 @@ type DesktopNotifications struct {
 // DesktopConfig is a subset of AppConfig with information relevant to Fleet
 // Desktop to operate.
 type DesktopConfig struct {
-	OrgInfo DesktopOrgInfo   `json:"org_info,omitempty"`
+	OrgInfo DesktopOrgInfo   `json:"org_info"`
 	MDM     DesktopMDMConfig `json:"mdm"`
 }
 

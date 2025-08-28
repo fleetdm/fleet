@@ -53,7 +53,7 @@ func setAPIIDs(ctx context.Context, idFirst string, idCount int) context.Context
 	return context.WithValue(ctx, ctxKeyIDCount{}, idCount)
 }
 
-func ctxKVs(ctx context.Context) (out []interface{}) {
+func ctxKVs(ctx context.Context) (out []any) {
 	id, ok := ctx.Value(ctxKeyIDFirst{}).(string)
 	if ok {
 		out = append(out, "id_first", id)
@@ -86,7 +86,7 @@ func PushHandler(pusher push.Pusher, logger log.Logger) http.HandlerFunc {
 		output := apiResult{
 			Status: make(enrolledAPIResults),
 		}
-		logs := []interface{}{"msg", "push"}
+		logs := []any{"msg", "push"}
 		pushResp, err := pusher.Push(ctx, ids)
 		if err != nil {
 			logs = append(logs, "err", err)
@@ -178,7 +178,7 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 			"command_uuid", command.CommandUUID,
 			"request_type", command.Command.RequestType,
 		)
-		logs := []interface{}{
+		logs := []any{
 			"msg", "enqueue",
 		}
 		idErrs, err := enqueuer.EnqueueCommand(ctx, ids, &mdm.CommandWithSubtype{Command: *command, Subtype: mdm.CommandSubtypeNone})
@@ -238,7 +238,7 @@ func RawCommandEnqueueHandler(enqueuer storage.CommandEnqueuer, pusher push.Push
 				pushCt++
 			}
 		}
-		logs = []interface{}{
+		logs = []any{
 			"msg", "push",
 			"count", pushCt,
 		}
@@ -339,7 +339,7 @@ func StorePushCertHandler(storage storage.PushCertStore, logger log.Logger) http
 		output := &struct {
 			Error    string    `json:"error,omitempty"`
 			Topic    string    `json:"topic,omitempty"`
-			NotAfter time.Time `json:"not_after,omitempty"`
+			NotAfter time.Time `json:"not_after"`
 		}{
 			Topic: topic,
 		}

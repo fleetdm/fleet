@@ -152,7 +152,7 @@ func verifyPolicyPlatforms(platforms string) error {
 	if platforms == "" {
 		return nil
 	}
-	for _, s := range strings.Split(platforms, ",") {
+	for s := range strings.SplitSeq(platforms, ",") {
 		switch strings.TrimSpace(s) {
 		case "windows", "linux", "darwin", "chrome":
 			// OK

@@ -289,7 +289,7 @@ func parseDiskutilLogicalVolumeFamilies(out []byte) ([]map[string]string, error)
 	return rows, nil
 }
 
-func runDiskutilInfo[T interface{}](uuid string) (*T, error) {
+func runDiskutilInfo[T any](uuid string) (*T, error) {
 	var result T
 	cmd := exec.Command("/usr/sbin/diskutil", "coreStorage", "info", "-plist", uuid)
 	out, err := cmd.Output()

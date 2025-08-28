@@ -136,7 +136,6 @@ func (ds *Datastore) GetPackSpecs(ctx context.Context) ([]*fleet.PackSpec, error
 
 		// Load targets
 		for _, spec := range specs {
-			spec := spec
 
 			// Load labels
 			query = `
@@ -161,7 +160,6 @@ WHERE pack_id = ? AND pt.type = ? AND pt.target_id = t.id
 
 		// Load queries
 		for _, spec := range specs {
-			spec := spec
 			query = `
 SELECT
 query_name, name, description, ` + "`interval`" + `,
@@ -293,7 +291,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 
 	// Insert labels
 	if len(pack.LabelIDs) > 0 {
-		var args []interface{}
+		var args []any
 		for _, id := range pack.LabelIDs {
 			args = append(args, pack.ID, fleet.TargetLabel, id)
 		}
@@ -312,7 +310,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 
 	// Insert hosts
 	if len(pack.HostIDs) > 0 {
-		var args []interface{}
+		var args []any
 		for _, id := range pack.HostIDs {
 			args = append(args, pack.ID, fleet.TargetHost, id)
 		}
@@ -331,7 +329,7 @@ func replacePackTargetsDB(ctx context.Context, tx sqlx.ExecerContext, pack *flee
 
 	// Insert teams
 	if len(pack.TeamIDs) > 0 {
-		var args []interface{}
+		var args []any
 		for _, id := range pack.TeamIDs {
 			args = append(args, pack.ID, fleet.TargetTeam, id)
 		}

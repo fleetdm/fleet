@@ -55,7 +55,7 @@ func columnsExists(tx *sql.Tx, table string, columns ...string) bool {
 		return false
 	}
 	inColumns := strings.TrimRight(strings.Repeat("?,", len(columns)), ",")
-	args := make([]interface{}, 0, len(columns)+1)
+	args := make([]any, 0, len(columns)+1)
 	args = append(args, table)
 	for _, column := range columns {
 		args = append(args, column)

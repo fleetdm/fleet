@@ -51,7 +51,7 @@ func main() {
 		stdlog.Fatal(err)
 	}
 
-	checkins := make(chan interface{})
+	checkins := make(chan any)
 	ctx := context.Background()
 	go func() {
 		// dispatch to our storage backend to start sending the checkins
@@ -90,9 +90,9 @@ func main() {
 	}
 }
 
-func logsFromEnrollment(checkin string, e *mdm.Enrollment) []interface{} {
+func logsFromEnrollment(checkin string, e *mdm.Enrollment) []any {
 	r := e.Resolved()
-	logs := []interface{}{
+	logs := []any{
 		"checkin", checkin,
 		"device_id", r.DeviceChannelID,
 	}

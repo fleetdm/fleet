@@ -118,7 +118,7 @@ func NewClient(store ClientStorage, client *http.Client, opts ...ClientOption) *
 	return depClient
 }
 
-func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string, in interface{}, out interface{}) error {
+func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string, in any, out any) error {
 	req, err := c.do(ctx, name, method, path, in, out)
 	if c.afterHook != nil {
 		// ensure the afterHook is always called with the same context as the one
@@ -136,7 +136,7 @@ func (c *Client) doWithAfterHook(ctx context.Context, name, method, path string,
 // should be using the NanoDEP transport (which handles authentication).
 // This frees us to only be concerned about the actual DEP API request.
 // We encode in to JSON and decode any returned body as JSON to out.
-func (c *Client) do(ctx context.Context, name, method, path string, in interface{}, out interface{}) (*http.Request, error) {
+func (c *Client) do(ctx context.Context, name, method, path string, in any, out any) (*http.Request, error) {
 	var body io.Reader
 	if in != nil {
 		bodyBytes, err := json.Marshal(in)

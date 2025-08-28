@@ -104,11 +104,11 @@ func (l *logger) WriteLevel(level zerolog.Level, event []byte) (int, error) {
 }
 
 func processLogEntry(event []byte) ([]Event, error) {
-	var evts []map[string]interface{}
+	var evts []map[string]any
 	dec := json.NewDecoder(bytes.NewReader(event))
 	dec.UseNumber()
 	for {
-		var evt map[string]interface{}
+		var evt map[string]any
 		if err := dec.Decode(&evt); err == io.EOF {
 			break
 		} else if err != nil {

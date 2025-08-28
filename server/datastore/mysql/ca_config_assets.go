@@ -61,7 +61,7 @@ func (ds *Datastore) saveCAConfigAssets(ctx context.Context, tx sqlx.ExtContext,
 		type = VALUES(type)
 	`, strings.TrimSuffix(strings.Repeat("(?,?,?),", len(assets)), ","))
 
-	args := make([]interface{}, 0, len(assets)*3)
+	args := make([]any, 0, len(assets)*3)
 	for _, asset := range assets {
 		encryptedVal, err := encrypt(asset.Value, ds.serverPrivateKey)
 		if err != nil {

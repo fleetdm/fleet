@@ -26,7 +26,6 @@ func TestGenerateSubjectKeyID(t *testing.T) {
 		{"RSA", &rsa.PublicKey{N: big.NewInt(123), E: 65537}},
 		{"ECDSA", ecKey.Public()},
 	} {
-		test := test
 		t.Run(test.testName, func(t *testing.T) {
 			t.Parallel()
 			ski, err := GenerateSubjectKeyID(test.pub)

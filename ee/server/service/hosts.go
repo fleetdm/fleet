@@ -473,7 +473,7 @@ func (svc *Service) enqueueWipeHostRequest(
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{
 			CommandUUID:  wipeCmdUUID,
-			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID, wipeType.String())),
+			RawCommand:   fmt.Appendf(nil, windowsWipeCommand, wipeCmdUUID, wipeType.String()),
 			TargetLocURI: fmt.Sprintf("./Device/Vendor/MSFT/RemoteWipe/%s", wipeType.String()),
 		}
 		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {

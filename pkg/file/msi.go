@@ -144,8 +144,8 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 		make([]uint16, 0, rowCount),
 		make([]uint16, 0, rowCount),
 	}
-	for i := 0; i < 2; i++ {
-		for j := 0; j < rowCount; j++ {
+	for i := range 2 {
+		for range rowCount {
 			var v uint16
 			err := binary.Read(propReader, binary.LittleEndian, &v)
 			if err != nil {
@@ -156,7 +156,7 @@ func decodePropertyTable(propReader io.Reader, table *msiTable, strings []string
 	}
 
 	kv := make(map[string]string, rowCount)
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		kv[strings[cols[0][i]-1]] = strings[cols[1][i]-1]
 	}
 	return kv, nil
@@ -188,8 +188,8 @@ func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTabl
 		make([]uint16, 0, rowCount),
 		make([]uint16, 0, rowCount),
 	}
-	for i := 0; i < 4; i++ {
-		for j := 0; j < rowCount; j++ {
+	for i := range 4 {
+		for range rowCount {
 			var v uint16
 			err := binary.Read(colReader, binary.LittleEndian, &v)
 			if err != nil {
@@ -200,7 +200,7 @@ func decodePropertyTableColumns(colReader io.Reader, strings []string) (*msiTabl
 	}
 
 	var tbl msiTable
-	for i := 0; i < rowCount; i++ {
+	for i := range rowCount {
 		tblID, colNum, colNameID, colAttr := cols[0][i], cols[1][i], cols[2][i], cols[3][i]
 
 		tableName := strings[tblID-1]

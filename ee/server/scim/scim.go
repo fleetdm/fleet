@@ -318,7 +318,7 @@ type scimErrorLogger struct {
 
 var _ scim.Logger = &scimErrorLogger{}
 
-func (l *scimErrorLogger) Error(args ...interface{}) {
+func (l *scimErrorLogger) Error(args ...any) {
 	level.Error(l.Logger).Log(
 		"error", fmt.Sprint(args...),
 	)

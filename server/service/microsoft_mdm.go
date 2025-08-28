@@ -430,7 +430,7 @@ func getSoapResponseFault(relatesTo string, soapFault *mdm_types.SoapFault) mdm_
 }
 
 // NewSoapResponse creates a new SoapRequest struct based on the message type and the message content
-func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse, error) {
+func NewSoapResponse(payload any, relatesTo string) (fleet.SoapResponse, error) {
 	// Sanity check
 	if len(relatesTo) == 0 {
 		return fleet.SoapResponse{}, errors.New("relatesTo is invalid")
@@ -760,7 +760,7 @@ func NewProvisioningDoc(certStoreData mdm_types.Characteristic, applicationData 
 
 // mdmMicrosoftDiscoveryEndpoint handles the Discovery message and returns a valid DiscoveryResponse message
 // DiscoverResponse message contains the Uniform Resource Locators (URLs) of service endpoints required for the following enrollment steps
-func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
 	// Process the discovery request using the Service method which handles validation, logging, and response generation
@@ -777,7 +777,7 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 }
 
 // mdmMicrosoftAuthEndpoint handles the Security Token Service (STS) implementation
-func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftAuthEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	params := request.(*SoapRequestContainer).Params
 
 	// Sanity check on the expected query params
@@ -803,7 +803,7 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 
 // mdmMicrosoftPolicyEndpoint handles the GetPolicies message and returns a valid GetPoliciesResponse message
 // GetPoliciesResponse message contains the certificate policies required for the next enrollment step. For more information about these messages, see [MS-XCEP] sections 3.1.4.1.1.1 and 3.1.4.1.1.2.
-func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
 	// Checking first if GetPolicies message is valid and returning error if this is not the case
@@ -841,7 +841,7 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 
 // mdmMicrosoftEnrollEndpoint handles the RequestSecurityToken message and returns a valid RequestSecurityTokenResponseCollection message
 // RequestSecurityTokenResponseCollection message contains the identity and provisioning information for the device management client.
-func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftEnrollEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	req := request.(*SoapRequestContainer).Data
 
 	// Checking first if RequestSecurityToken message is valid and returning error if this is not the case
@@ -889,7 +889,7 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // SyncML message with protocol commands results and more protocol commands for the calling host
 // Note: This logic needs to be improved with better SyncML message parsing, better message tracking
 // and better security authentication (done through TLS and in-message hash)
-func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftManagementEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
@@ -912,7 +912,7 @@ func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, sv
 }
 
 // mdmMicrosoftTOSEndpoint handles the TOS content for the incoming MDM enrollment request
-func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (mdm_types.Errorer, error) {
+func mdmMicrosoftTOSEndpoint(ctx context.Context, request any, svc fleet.Service) (mdm_types.Errorer, error) {
 	params := request.(*MDMWebContainer).Params
 
 	// Sanity check on the expected query params
@@ -2379,7 +2379,7 @@ func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger ki
 // Windows equivalent of Apple's Commander struct, but I'd like
 // to keep it simpler for now until we understand more.
 func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
-	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
+	rawCommand := fmt.Appendf(nil, `<Atomic>%s</Atomic>`, profileBytes)
 	cmd := new(mdm_types.SyncMLCmd)
 	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
 		return nil, fmt.Errorf("unmarshalling profile: %w", err)

@@ -20,7 +20,7 @@ type TeamConfig20220309133956 struct {
 }
 
 // Scan implements the sql.Scanner interface
-func (t *TeamConfig20220309133956) Scan(val interface{}) error {
+func (t *TeamConfig20220309133956) Scan(val any) error {
 	switch v := val.(type) {
 	case []byte:
 		return json.Unmarshal(v, t)

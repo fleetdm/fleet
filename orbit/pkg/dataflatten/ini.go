@@ -21,9 +21,9 @@ func Ini(rawdata []byte, opts ...FlattenOpts) ([]Row, error) {
 // accepts both files and []byte via the interface{} type.  It also
 // makes heavy use of reflect, so this does some manual iteration to
 // extract things.
-func flattenIni(in interface{}, opts ...FlattenOpts) ([]Row, error) {
+func flattenIni(in any, opts ...FlattenOpts) ([]Row, error) {
 
-	v := map[string]interface{}{}
+	v := map[string]any{}
 
 	iniFile, err := ini.Load(in)
 	if err != nil {
@@ -34,7 +34,7 @@ func flattenIni(in interface{}, opts ...FlattenOpts) ([]Row, error) {
 		// While we can use section.KeysHash() directly, instead we
 		// iterate. This allows us to canonicalize the value to handle
 		// booleans. Everything else we leave as string
-		sectionMap := make(map[string]interface{})
+		sectionMap := make(map[string]any)
 		for _, key := range section.Keys() {
 			asBool, ok := iniToBool(key.Value())
 			if ok {

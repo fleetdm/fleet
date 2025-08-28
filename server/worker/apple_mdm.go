@@ -526,7 +526,7 @@ func QueueAppleMDMJob(
 	useWorkerDeviceRelease bool,
 	enrollmentCommandUUIDs ...string,
 ) error {
-	attrs := []interface{}{
+	attrs := []any{
 		"enabled", "true",
 		appleMDMJobName, task,
 		"host_uuid", hostUUID,

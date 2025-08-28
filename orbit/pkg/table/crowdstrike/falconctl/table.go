@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/dataflatten"
@@ -132,10 +133,5 @@ OUTER:
 }
 
 func optionAllowed(opt string) bool {
-	for _, b := range allowedOptions {
-		if b == opt {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(allowedOptions, opt)
 }

@@ -16,15 +16,15 @@ type Device struct {
 	AssetTag           string    `json:"asset_tag,omitempty"`
 	ProfileStatus      string    `json:"profile_status"`
 	ProfileUUID        string    `json:"profile_uuid,omitempty"`
-	ProfileAssignTime  time.Time `json:"profile_assign_time,omitempty"`
-	ProfilePushTime    time.Time `json:"profile_push_time,omitempty"`
-	DeviceAssignedDate time.Time `json:"device_assigned_date,omitempty"`
+	ProfileAssignTime  time.Time `json:"profile_assign_time"`
+	ProfilePushTime    time.Time `json:"profile_push_time"`
+	DeviceAssignedDate time.Time `json:"device_assigned_date"`
 	DeviceAssignedBy   string    `json:"device_assigned_by,omitempty"`
 	OS                 string    `json:"os,omitempty"`
 	DeviceFamily       string    `json:"device_family,omitempty"`
 	// fetch/sync-only fields
 	OpType string    `json:"op_type,omitempty"`
-	OpDate time.Time `json:"op_date,omitempty"`
+	OpDate time.Time `json:"op_date"`
 }
 
 // deviceRequest corresponds to the Apple DEP API "FetchDeviceRequest" and
@@ -40,7 +40,7 @@ type deviceRequest struct {
 // See https://developer.apple.com/documentation/devicemanagement/fetchdeviceresponse
 type DeviceResponse struct {
 	Cursor       string    `json:"cursor,omitempty"`
-	FetchedUntil time.Time `json:"fetched_until,omitempty"`
+	FetchedUntil time.Time `json:"fetched_until"`
 	MoreToFollow bool      `json:"more_to_follow"`
 	Devices      []Device  `json:"devices,omitempty"`
 }

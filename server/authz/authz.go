@@ -89,7 +89,7 @@ func (a *Authorizer) IsAuthenticatedWith(ctx context.Context, method authz_ctx.A
 // Object type may be dynamic. This method also marks the request authorization
 // context as checked, so that we don't return an error at the end of the
 // request.
-func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) error {
+func (a *Authorizer) Authorize(ctx context.Context, object, action any) error {
 	// Mark the authorization context as checked (otherwise middleware will
 	// error).
 	if authctx, ok := authz_ctx.FromContext(ctx); ok {
@@ -112,7 +112,7 @@ func (a *Authorizer) Authorize(ctx context.Context, object, action interface{}) 
 	}
 
 	// Perform the check via Rego.
-	input := map[string]interface{}{
+	input := map[string]any{
 		"subject": subjectInterface,
 		"object":  objectInterface,
 		"action":  action,
@@ -142,12 +142,12 @@ type AuthzTyper interface {
 // ExtraAuthzer is the interface to implement extra fields for the policy.
 type ExtraAuthzer interface {
 	// ExtraAuthz returns the extra key/value pairs for the type.
-	ExtraAuthz() (map[string]interface{}, error)
+	ExtraAuthz() (map[string]any, error)
 }
 
 // jsonToInterface turns any type that can be JSON (un)marshaled into an
 // map[string]interface{} for evaluation by the OPA engine. Nil is returned as nil.
-func jsonToInterface(in interface{}) (interface{}, error) {
+func jsonToInterface(in any) (any, error) {
 	// Special cases for nil and string.
 	if in == nil {
 		return nil, nil
@@ -167,7 +167,7 @@ func jsonToInterface(in interface{}) (interface{}, error) {
 	// Note input numbers must be represented with json.Number according to
 	// https://pkg.go.dev/github.com/open-policy-agent/opa/rego#example-Rego.Eval-Input
 	d.UseNumber()
-	var out map[string]interface{}
+	var out map[string]any
 	if err := d.Decode(&out); err != nil {
 		return nil, fmt.Errorf("decode input: %w", err)
 	}

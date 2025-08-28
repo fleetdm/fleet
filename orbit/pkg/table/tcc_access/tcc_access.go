@@ -202,8 +202,8 @@ func getUsersInfo() ([][]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	usersInfo := strings.Split(string(out), "\n")
-	for _, userInfo := range usersInfo {
+	usersInfo := strings.SplitSeq(string(out), "\n")
+	for userInfo := range usersInfo {
 		if len(userInfo) > 0 {
 			split := strings.Fields(userInfo)
 			uN := split[0]

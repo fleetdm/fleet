@@ -6,14 +6,14 @@ import (
 )
 
 func (ms *MultiAllStorage) StoreBootstrapToken(r *mdm.Request, msg *mdm.SetBootstrapToken) error {
-	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	_, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return nil, s.StoreBootstrapToken(r, msg)
 	})
 	return err
 }
 
 func (ms *MultiAllStorage) RetrieveBootstrapToken(r *mdm.Request, msg *mdm.GetBootstrapToken) (*mdm.BootstrapToken, error) {
-	val, err := ms.execStores(r.Context, func(s storage.AllStorage) (interface{}, error) {
+	val, err := ms.execStores(r.Context, func(s storage.AllStorage) (any, error) {
 		return s.RetrieveBootstrapToken(r, msg)
 	})
 	return val.(*mdm.BootstrapToken), err

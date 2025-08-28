@@ -7,7 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
-func sendCheckinMessage(e *enrollment, filename string, c chan<- interface{}) {
+func sendCheckinMessage(e *enrollment, filename string, c chan<- any) {
 	msgBytes, err := e.readFile(filename)
 	if err != nil {
 		c <- err
@@ -21,7 +21,7 @@ func sendCheckinMessage(e *enrollment, filename string, c chan<- interface{}) {
 	c <- msg
 }
 
-func (s *FileStorage) RetrieveMigrationCheckins(_ context.Context, c chan<- interface{}) error {
+func (s *FileStorage) RetrieveMigrationCheckins(_ context.Context, c chan<- any) error {
 	for _, userLoop := range []bool{false, true} {
 		entries, err := os.ReadDir(s.path)
 		if err != nil {

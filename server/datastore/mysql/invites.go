@@ -43,7 +43,7 @@ func (ds *Datastore) NewInvite(ctx context.Context, i *fleet.Invite) (*fleet.Inv
 
 		// Bulk insert teams
 		const valueStr = "(?,?,?),"
-		var args []interface{}
+		var args []any
 		for _, userTeam := range i.Teams {
 			args = append(args, i.ID, userTeam.Team.ID, userTeam.Role)
 		}

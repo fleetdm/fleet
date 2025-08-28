@@ -47,9 +47,9 @@ func TestUp_20231004144339(t *testing.T) {
 
 	// simulate the ideal behavior with the oldConfigs
 	for i, config := range wantConfigs {
-		if mdmMap, ok := config["mdm"].(map[string]interface{}); ok {
+		if mdmMap, ok := config["mdm"].(map[string]any); ok {
 			// Delete 'mdm.macos_settings.enable_disk_encryption'
-			if macosSettings, ok := mdmMap["macos_settings"].(map[string]interface{}); ok {
+			if macosSettings, ok := mdmMap["macos_settings"].(map[string]any); ok {
 				delete(macosSettings, "enable_disk_encryption")
 			}
 

@@ -99,7 +99,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 
 		// Create 6 declarations (3 for install, 3 for remove)
 		declarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			declarations[i], err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 				DeclarationUUID: "test-declaration-uuid-" + string(rune('A'+i)),
 				Name:            "Test Declaration " + string(rune('A'+i)),
@@ -109,7 +109,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 		}
 		removeDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			removeDeclarations[i] = &fleet.MDMAppleDeclaration{
 				DeclarationUUID: "test-remove-declaration-uuid-" + string(rune('A'+i)),
 				Name:            "Test Remove Declaration " + string(rune('A'+i)),
@@ -124,7 +124,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 		// Insert 3 remove declarations with verified status
 		// These simulate declarations that were previously installed but no longer
 		// exist in mdm_apple_declarations (hence should be removed)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			// Use a proper hex token for each remove declaration
 			token := fmt.Sprintf("%032x", i+1000) // 32 hex chars = 16 bytes when unhexed
 			insertHostDeclaration(
@@ -144,11 +144,11 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 		require.Contains(t, hostUUIDs, host.UUID)
 
 		// Also verify that the 3 remove declarations have been marked as pending
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			checkDeclarationStatus(t, ds, ctx, host.UUID, removeDeclarations[i].DeclarationUUID, "pending", "remove")
 		}
 		// Verify that the 3 install declarations have been marked as pending
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			checkDeclarationStatus(t, ds, ctx, host.UUID, declarations[i].DeclarationUUID, "pending", "install")
 		}
 	})
@@ -158,7 +158,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 
 		// Create 3 test hosts
 		hosts := make([]*fleet.Host, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			hostUUID := "test-host-uuid-" + string(rune('A'+i))
 			hardwareSerial := "ABC123-" + string(rune('A'+i))
 
@@ -182,7 +182,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 
 		// Create 3 declarations for install operations
 		installDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			var err error
 			installDeclarations[i], err = ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
 				DeclarationUUID: "test-install-decl-" + string(rune('A'+i)),
@@ -195,7 +195,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 
 		// Create 3 declarations for remove operations (without calling NewMDMAppleDeclaration)
 		removeDeclarations := make([]*fleet.MDMAppleDeclaration, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			removeDeclarations[i] = &fleet.MDMAppleDeclaration{
 				DeclarationUUID: "test-remove-decl-" + string(rune('A'+i)),
 				Name:            "Test Remove Declaration " + string(rune('A'+i)),
@@ -216,13 +216,13 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 		}
 
 		installTokens := make([]string, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			installTokens[i] = getToken(installDeclarations[i].DeclarationUUID)
 			installDeclarations[i].Token = installTokens[i]
 		}
 
 		removeTokens := make([]string, 3)
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if i < 2 {
 				// First 2 remove operations use the same tokens as the first 2 install operations
 				removeTokens[i] = installTokens[i]
@@ -237,7 +237,7 @@ func testMDMAppleBatchSetHostDeclarationState(t *testing.T, ds *Datastore) {
 			// We don't add install declarations because they will be added automatically
 
 			// Insert remove declarations
-			for j := 0; j < 3; j++ {
+			for j := range 3 {
 				insertHostDeclaration(
 					t, ds, ctx,
 					host.UUID,

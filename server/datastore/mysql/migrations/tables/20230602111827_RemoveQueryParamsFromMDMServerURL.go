@@ -79,7 +79,7 @@ func Up_20230602111827(tx *sql.Tx) error {
 	// make sure all the new solutions have the right URL
 	if len(uniqs) > 0 {
 		inPart := ""
-		args := []interface{}{}
+		args := []any{}
 		for serverURL, solution := range uniqs {
 			inPart += "(?, ?, ?),"
 			args = append(args, solution.ID, solution.Name, serverURL)

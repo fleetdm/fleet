@@ -30,7 +30,7 @@ type createSecretVariablesResponse struct {
 
 func (r createSecretVariablesResponse) Error() error { return r.Err }
 
-func createSecretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func createSecretVariablesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createSecretVariablesRequest)
 	err := svc.CreateSecretVariables(ctx, req.SecretVariables, req.DryRun)
 	return createSecretVariablesResponse{Err: err}, nil
@@ -91,7 +91,7 @@ type createSecretVariableResponse struct {
 
 func (r createSecretVariableResponse) Error() error { return r.Err }
 
-func createSecretVariableEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func createSecretVariableEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createSecretVariableRequest)
 	id, err := svc.CreateSecretVariable(ctx, req.Name, req.Value)
 	if err != nil {
@@ -164,7 +164,7 @@ type listSecretVariablesResponse struct {
 
 func (r listSecretVariablesResponse) Error() error { return r.Err }
 
-func listSecretVariablesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listSecretVariablesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listSecretVariablesRequest)
 	secretVariables, meta, count, err := svc.ListSecretVariables(ctx, req.ListOptions)
 	return listSecretVariablesResponse{
@@ -220,7 +220,7 @@ type deleteSecretVariableResponse struct {
 
 func (r deleteSecretVariableResponse) Error() error { return r.Err }
 
-func deleteSecretVariableEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteSecretVariableEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSecretVariableRequest)
 	err := svc.DeleteSecretVariable(ctx, req.ID)
 	return deleteSecretVariableResponse{

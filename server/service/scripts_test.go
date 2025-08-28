@@ -896,21 +896,21 @@ func TestBatchScriptExecute(t *testing.T) {
 
 	t.Run("error if both host_ids and filters are specified", func(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, &map[string]interface{}{"foo": "bar"}, nil)
+		_, err := svc.BatchScriptExecute(ctx, 1, []uint{1, 2, 3}, &map[string]any{"foo": "bar"}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "cannot specify both host_ids and filters")
 	})
 
 	t.Run("error if filters are specified but no team_id", func(t *testing.T) {
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"label_id": float64(123)}, nil)
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"label_id": float64(123)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "filters must include a team filter")
 	})
 
 	t.Run("error if filters match too many hosts", func(t *testing.T) {
 		hosts := make([]*fleet.Host, 5001)
-		for i := 0; i < 5001; i++ {
+		for i := range 5001 {
 			hosts[i] = &fleet.Host{ID: uint(i + 1), TeamID: ptr.Uint(1)} // nolint:gosec // ignore G115
 		}
 		ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -926,7 +926,7 @@ func TestBatchScriptExecute(t *testing.T) {
 			return &fleet.Script{ID: id}, nil
 		}
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)}, nil)
+		_, err := svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"team_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "too_many_hosts")
 	})
@@ -963,7 +963,7 @@ func TestBatchScriptExecute(t *testing.T) {
 		require.Equal(t, []uint{1, 2}, requestedHostIds)
 
 		ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]interface{}{"team_id": float64(1)}, nil)
+		_, err = svc.BatchScriptExecute(ctx, 1, nil, &map[string]any{"team_id": float64(1)}, nil)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "ok")
 		require.Equal(t, []uint{3, 4}, requestedHostIds)

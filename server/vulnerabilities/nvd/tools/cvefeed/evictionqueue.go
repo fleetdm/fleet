@@ -70,13 +70,13 @@ func (eh evictionHeap) Swap(i, j int) {
 	eh[i].index, eh[j].index = i, j
 }
 
-func (eh *evictionHeap) Push(x interface{}) {
+func (eh *evictionHeap) Push(x any) {
 	ed := x.(*evictionData)
 	ed.index = len(*eh)
 	*eh = append(*eh, ed)
 }
 
-func (eh *evictionHeap) Pop() interface{} {
+func (eh *evictionHeap) Pop() any {
 	old := *eh
 	ed := old[len(old)-1]
 	*eh = old[:len(old)-1]

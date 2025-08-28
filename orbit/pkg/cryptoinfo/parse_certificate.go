@@ -42,7 +42,7 @@ type certExtract struct {
 
 // parseCertificate parses a certificate from a stream of bytes. We use this, instead of a bare x509.ParseCertificate, to handle some
 // string conversions, and bitfield enumerations.
-func parseCertificate(certBytes []byte) (interface{}, error) {
+func parseCertificate(certBytes []byte) (any, error) {
 	c, err := x509.ParseCertificate(certBytes)
 	if err != nil {
 		return nil, fmt.Errorf("parsing certificate: %w", err)
@@ -51,7 +51,7 @@ func parseCertificate(certBytes []byte) (interface{}, error) {
 	return extractCert(c)
 }
 
-func extractCert(c *x509.Certificate) (interface{}, error) {
+func extractCert(c *x509.Certificate) (any, error) {
 	return &certExtract{
 		CRLDistributionPoints: c.CRLDistributionPoints,
 		DNSNames:              c.DNSNames,

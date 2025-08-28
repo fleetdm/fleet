@@ -128,7 +128,7 @@ func TestWorkerRetries(t *testing.T) {
 
 	// the worker stops a ProcessJobs batch once it receives the same job again,
 	// so run it multiple times to test its retries.
-	for i := 0; i < maxRetries+1; i++ {
+	for i := range maxRetries + 1 {
 		err := w.ProcessJobs(context.Background())
 		require.NoError(t, err)
 

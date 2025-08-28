@@ -37,7 +37,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 		queryTargetLogicCondition, ds.whereFilterHostsByTeams(filter, "h"),
 	)
 
-	query, args, err := sqlx.In(sql, append([]interface{}{now, now, now, now}, queryTargetArgs...)...)
+	query, args, err := sqlx.In(sql, append([]any{now, now, now, now}, queryTargetArgs...)...)
 	if err != nil {
 		return fleet.TargetMetrics{}, ctxerr.Wrap(ctx, err, "sqlx.In CountHostsInTargets")
 	}
@@ -53,7 +53,7 @@ func (ds *Datastore) CountHostsInTargets(ctx context.Context, filter fleet.TeamF
 
 // targetSQLCondAndArgs returns the SQL condition and the arguments for matching whether
 // a host ID is a target of a live query.
-func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interface{}) {
+func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []any) {
 	const queryTargetLogicCondition = `(
 	/* The host was selected explicitly. */
 	id IN (? /* queryHostIDs */)
@@ -114,7 +114,7 @@ func targetSQLCondAndArgs(targets fleet.HostTargets) (sql string, args []interfa
 	labelsSpecified := len(queryLabelIDs) > 1
 	teamsSpecified := len(queryTeamIDs) > 1 || extraTeamIDCondition != ""
 
-	return fmt.Sprintf(queryTargetLogicCondition, extraTeamIDCondition), []interface{}{
+	return fmt.Sprintf(queryTargetLogicCondition, extraTeamIDCondition), []any{
 		queryHostIDs,
 		queryLabelIDs,
 		labelsSpecified, teamsSpecified,

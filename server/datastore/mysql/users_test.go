@@ -314,7 +314,7 @@ func testUsersList(t *testing.T, ds *Datastore) {
 }
 
 func testUsersTeams(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}
@@ -405,7 +405,7 @@ func testUsersTeams(t *testing.T, ds *Datastore) {
 }
 
 func testUsersCreateWithTeams(t *testing.T, ds *Datastore) {
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		_, err := ds.NewTeam(context.Background(), &fleet.Team{Name: fmt.Sprintf("%d", i)})
 		require.NoError(t, err)
 	}

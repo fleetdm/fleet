@@ -251,7 +251,7 @@ func insertHosts(t *testing.T, db *sqlx.DB, numMacOS, numWin, numLinux int) (mac
 	idsToUUIDs = make(map[uint]string, numMacOS+numWin+numLinux)
 
 	for platform, count := range perPlatformCounts {
-		for i := 0; i < count; i++ {
+		for i := range count {
 			// Insert a minimal record into hosts table
 			hostName := fmt.Sprintf("host-%s-%d", platform, i)
 			hostUUID := uuid.NewString()
@@ -292,7 +292,7 @@ func insertHosts(t *testing.T, db *sqlx.DB, numMacOS, numWin, numLinux int) (mac
 
 func insertScriptContents(t *testing.T, db *sqlx.DB, count int) []uint {
 	ids := make([]uint, 0, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		content := fmt.Sprintf(`echo %d`, i)
 		csum := md5ChecksumScriptContent(content)
 		id := execNoErrLastID(t, db, `INSERT INTO script_contents
@@ -307,7 +307,7 @@ func insertSoftwareInstallers(t *testing.T, db *sqlx.DB, count int) (installerID
 	installerIDs = make([]uint, 0, count)
 	titleIDs = make([]uint, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		content := fmt.Sprintf(`install %d`, i)
 		csum := md5ChecksumScriptContent(content)
 		installID := execNoErrLastID(t, db, `INSERT INTO script_contents
@@ -335,7 +335,7 @@ func insertVPPApps(t *testing.T, db *sqlx.DB, count int, platform string) (adamI
 	adamIDs = make([]string, 0, count)
 	titleIDs = make([]uint, 0, count)
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		titleID := execNoErrLastID(t, db, `INSERT INTO software_titles
 			(name, source, browser) VALUES (?, 'apps', '')`, fmt.Sprintf("Bar%d.app", i))
 		adamID := fmt.Sprintf("adam-%d", i)

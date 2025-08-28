@@ -9,7 +9,7 @@ import (
 )
 
 type inmemQueryResults struct {
-	resultChannels map[uint]chan interface{}
+	resultChannels map[uint]chan any
 	channelMutex   sync.Mutex
 }
 
@@ -18,16 +18,16 @@ var _ fleet.QueryResultStore = &inmemQueryResults{}
 // NewInmemQueryResults initializes a new in-memory implementation of the
 // QueryResultStore interface.
 func NewInmemQueryResults() *inmemQueryResults {
-	return &inmemQueryResults{resultChannels: map[uint]chan interface{}{}}
+	return &inmemQueryResults{resultChannels: map[uint]chan any{}}
 }
 
-func (im *inmemQueryResults) getChannel(id uint) chan interface{} {
+func (im *inmemQueryResults) getChannel(id uint) chan any {
 	im.channelMutex.Lock()
 	defer im.channelMutex.Unlock()
 
 	channel, ok := im.resultChannels[id]
 	if !ok {
-		channel = make(chan interface{})
+		channel = make(chan any)
 		im.resultChannels[id] = channel
 	}
 	return channel
@@ -46,7 +46,7 @@ func (im *inmemQueryResults) WriteResult(result fleet.DistributedQueryResult) er
 	return nil
 }
 
-func (im *inmemQueryResults) ReadChannel(ctx context.Context, campaign fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
+func (im *inmemQueryResults) ReadChannel(ctx context.Context, campaign fleet.DistributedQueryCampaign) (<-chan any, error) {
 	channel := im.getChannel(campaign.ID)
 	go func() {
 		<-ctx.Done()

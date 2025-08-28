@@ -326,7 +326,7 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 // as a whole - that is, it is responsible for decoding the body and any url
 // or query argument itself.
 type RequestDecoder interface {
-	DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error)
+	DecodeRequest(ctx context.Context, r *http.Request) (any, error)
 }
 
 // A value that implements requestValidator is called after having the values
@@ -356,19 +356,19 @@ type requestValidator interface {
 // after having decoded any non-body fields (such as url and query parameters)
 // into the struct.
 func MakeDecoder(
-	iface interface{},
+	iface any,
 	jsonUnmarshal func(body io.Reader, req any) error,
 	parseCustomTags func(urlTagValue string, r *http.Request, field reflect.Value) (bool, error),
 	isBodyDecoder func(reflect.Value) bool,
 	decodeBody func(ctx context.Context, r *http.Request, v reflect.Value, body io.Reader) error,
 ) kithttp.DecodeRequestFunc {
 	if iface == nil {
-		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		return func(ctx context.Context, r *http.Request) (any, error) {
 			return nil, nil
 		}
 	}
 	if rd, ok := iface.(RequestDecoder); ok {
-		return func(ctx context.Context, r *http.Request) (interface{}, error) {
+		return func(ctx context.Context, r *http.Request) (any, error) {
 			return rd.DecodeRequest(ctx, r)
 		}
 	}
@@ -378,7 +378,7 @@ func MakeDecoder(
 		panic(fmt.Sprintf("MakeDecoder only understands structs, not %T", iface))
 	}
 
-	return func(ctx context.Context, r *http.Request) (interface{}, error) {
+	return func(ctx context.Context, r *http.Request) (any, error) {
 		v := reflect.New(t)
 		nilBody := false
 
@@ -506,13 +506,13 @@ func WriteBrowserSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 }
 
-type HandlerFunc func(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error)
+type HandlerFunc func(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error)
 
-type AndroidFunc func(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer
+type AndroidFunc func(ctx context.Context, request any, svc android.Service) fleet.Errorer
 
 type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 	EP               Endpointer[H]
-	MakeDecoderFn    func(iface interface{}) kithttp.DecodeRequestFunc
+	MakeDecoderFn    func(iface any) kithttp.DecodeRequestFunc
 	EncodeFn         kithttp.EncodeResponseFunc
 	Opts             []kithttp.ServerOption
 	AuthFunc         func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint
@@ -528,41 +528,41 @@ type CommonEndpointer[H HandlerFunc | AndroidFunc] struct {
 }
 
 type Endpointer[H HandlerFunc | AndroidFunc] interface {
-	CallHandlerFunc(f H, ctx context.Context, request interface{}, svc interface{}) (fleet.Errorer, error)
-	Service() interface{}
+	CallHandlerFunc(f H, ctx context.Context, request any, svc any) (fleet.Errorer, error)
+	Service() any
 }
 
-func (e *CommonEndpointer[H]) POST(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) POST(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "POST")
 }
 
-func (e *CommonEndpointer[H]) GET(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) GET(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "GET")
 }
 
-func (e *CommonEndpointer[H]) PUT(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) PUT(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "PUT")
 }
 
-func (e *CommonEndpointer[H]) PATCH(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) PATCH(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "PATCH")
 }
 
-func (e *CommonEndpointer[H]) DELETE(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) DELETE(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "DELETE")
 }
 
-func (e *CommonEndpointer[H]) HEAD(path string, f H, v interface{}) {
+func (e *CommonEndpointer[H]) HEAD(path string, f H, v any) {
 	e.handleEndpoint(path, f, v, "HEAD")
 }
 
-func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v interface{}, verb string) {
+func (e *CommonEndpointer[H]) handleEndpoint(path string, f H, v any, verb string) {
 	endpoint := e.makeEndpoint(f, v)
 	e.HandleHTTPHandler(path, endpoint, verb)
 }
 
-func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
-	next := func(ctx context.Context, request interface{}) (interface{}, error) {
+func (e *CommonEndpointer[H]) makeEndpoint(f H, v any) http.Handler {
+	next := func(ctx context.Context, request any) (any, error) {
 		return e.EP.CallHandlerFunc(f, ctx, request, e.EP.Service())
 	}
 	endp := e.AuthFunc(e.FleetService, next)
@@ -701,8 +701,8 @@ func (e *CommonEndpointer[H]) HandlePathHandler(path string, pathHandler func(pa
 func EncodeCommonResponse(
 	ctx context.Context,
 	w http.ResponseWriter,
-	response interface{},
-	jsonMarshal func(w http.ResponseWriter, response interface{}) error,
+	response any,
+	jsonMarshal func(w http.ResponseWriter, response any) error,
 ) error {
 	if cs, ok := response.(cookieSetter); ok {
 		cs.SetCookies(ctx, w)

@@ -37,7 +37,7 @@ func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.M
 			panic(err)
 		}
 
-		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
+		return func(ctx context.Context, req any) (response any, err error) {
 			limited, result, err := limiter.RateLimit(keyName, 1)
 			if err != nil {
 				// This can happen if the limit store (e.g. Redis) is unavailable.
@@ -86,7 +86,7 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota, logge
 			panic(err)
 		}
 
-		return func(ctx context.Context, req interface{}) (response interface{}, err error) {
+		return func(ctx context.Context, req any) (response any, err error) {
 			publicIP := publicip.FromContext(ctx)
 			if publicIP == "" {
 				level.Warn(logger).Log("msg", "missing public_ip, skipping rate limit")

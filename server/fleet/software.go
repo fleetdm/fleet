@@ -153,7 +153,7 @@ type VulnSoftwareFilter struct {
 
 type SliceString []string
 
-func (c *SliceString) Scan(v interface{}) error {
+func (c *SliceString) Scan(v any) error {
 	if tv, ok := v.([]byte); ok {
 		return json.Unmarshal(tv, &c)
 	}

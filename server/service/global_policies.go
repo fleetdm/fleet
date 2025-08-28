@@ -43,7 +43,7 @@ type globalPolicyResponse struct {
 
 func (r globalPolicyResponse) Error() error { return r.Err }
 
-func globalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func globalPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*globalPolicyRequest)
 	resp, err := svc.NewGlobalPolicy(ctx, fleet.PolicyPayload{
 		QueryID:          req.QueryID,
@@ -112,7 +112,7 @@ type listGlobalPoliciesResponse struct {
 
 func (r listGlobalPoliciesResponse) Error() error { return r.Err }
 
-func listGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listGlobalPoliciesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listGlobalPoliciesRequest)
 	resp, err := svc.ListGlobalPolicies(ctx, req.Opts)
 	if err != nil {
@@ -144,7 +144,7 @@ type getPolicyByIDResponse struct {
 
 func (r getPolicyByIDResponse) Error() error { return r.Err }
 
-func getPolicyByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getPolicyByIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getPolicyByIDRequest)
 	policy, err := svc.GetPolicyByIDQueries(ctx, req.PolicyID)
 	if err != nil {
@@ -186,7 +186,7 @@ type countGlobalPoliciesResponse struct {
 
 func (r countGlobalPoliciesResponse) Error() error { return r.Err }
 
-func countGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func countGlobalPoliciesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*countGlobalPoliciesRequest)
 	resp, err := svc.CountGlobalPolicies(ctx, req.ListOptions.MatchQuery)
 	if err != nil {
@@ -223,7 +223,7 @@ type deleteGlobalPoliciesResponse struct {
 
 func (r deleteGlobalPoliciesResponse) Error() error { return r.Err }
 
-func deleteGlobalPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteGlobalPoliciesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteGlobalPoliciesRequest)
 	resp, err := svc.DeleteGlobalPolicies(ctx, req.IDs)
 	if err != nil {
@@ -327,7 +327,7 @@ type modifyGlobalPolicyResponse struct {
 
 func (r modifyGlobalPolicyResponse) Error() error { return r.Err }
 
-func modifyGlobalPolicyEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func modifyGlobalPolicyEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyGlobalPolicyRequest)
 	resp, err := svc.ModifyGlobalPolicy(ctx, req.PolicyID, req.ModifyPolicyPayload)
 	if err != nil {
@@ -355,7 +355,7 @@ type resetAutomationResponse struct {
 
 func (r resetAutomationResponse) Error() error { return r.Err }
 
-func resetAutomationEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func resetAutomationEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*resetAutomationRequest)
 	err := svc.ResetAutomation(ctx, req.TeamIDs, req.PolicyIDs)
 	return resetAutomationResponse{Err: err}, nil
@@ -486,7 +486,7 @@ type applyPolicySpecsResponse struct {
 
 func (r applyPolicySpecsResponse) Error() error { return r.Err }
 
-func applyPolicySpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func applyPolicySpecsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyPolicySpecsRequest)
 	err := svc.ApplyPolicySpecs(ctx, req.Specs)
 	if err != nil {
@@ -611,7 +611,7 @@ func (a autofillPoliciesResponse) Error() error {
 	return a.Err
 }
 
-func autofillPoliciesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func autofillPoliciesEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*autofillPoliciesRequest)
 	description, resolution, err := svc.AutofillPolicySql(ctx, req.SQL)
 	return autofillPoliciesResponse{Description: description, Resolution: resolution, Err: err}, nil

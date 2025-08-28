@@ -250,7 +250,7 @@ func main() {
 
 	logger.Info("msg", "starting server", "listen", *flListen)
 	err = http.ListenAndServe(*flListen, mdmhttp.TraceLoggingMiddleware(mux, logger.With("handler", "log"), newTraceID)) //nolint:gosec
-	logs := []interface{}{"msg", "server shutdown"}
+	logs := []any{"msg", "server shutdown"}
 	if err != nil {
 		logs = append(logs, "err", err)
 	}

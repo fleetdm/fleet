@@ -3,6 +3,7 @@ package firmwarepasswd
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"path/filepath"
 	"testing"
@@ -47,7 +48,6 @@ func TestParser(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		parser := New(zerolog.Nop()).parser
 
 		t.Run(tt.input, func(t *testing.T) {
@@ -60,9 +60,7 @@ func TestParser(t *testing.T) {
 
 			result := make(map[string]string)
 			for _, row := range parser.Parse(inputBuffer) {
-				for k, v := range row {
-					result[k] = v
-				}
+				maps.Copy(result, row)
 			}
 
 			require.EqualValues(t, tt.expected, result)

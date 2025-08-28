@@ -50,7 +50,7 @@ func (m *debugAuthenticationMiddleware) Middleware(next http.Handler) http.Handl
 
 func jsonHandler(
 	logger kitlog.Logger,
-	jsonGenerator func(ctx context.Context) (interface{}, error),
+	jsonGenerator func(ctx context.Context) (any, error),
 ) func(rw http.ResponseWriter, r *http.Request) {
 	return func(rw http.ResponseWriter, r *http.Request) {
 		lc := &logging.LoggingContext{SkipUser: true} // The debug handler does not save the logged-in user.
@@ -88,10 +88,10 @@ func MakeDebugHandler(svc fleet.Service, config config.FleetConfig, logger kitlo
 	r.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	r.Handle("/debug/errors", eh)
 	r.PathPrefix("/debug/pprof/").HandlerFunc(func(rw http.ResponseWriter, req *http.Request) { pprof.Index(rw, req) })
-	r.HandleFunc("/debug/migrations", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.MigrationStatus(ctx) }))
-	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.DBLocks(ctx) }))
-	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.InnoDBStatus(ctx) }))
-	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (interface{}, error) { return ds.ProcessList(ctx) }))
+	r.HandleFunc("/debug/migrations", jsonHandler(logger, func(ctx context.Context) (any, error) { return ds.MigrationStatus(ctx) }))
+	r.HandleFunc("/debug/db/locks", jsonHandler(logger, func(ctx context.Context) (any, error) { return ds.DBLocks(ctx) }))
+	r.HandleFunc("/debug/db/innodb-status", jsonHandler(logger, func(ctx context.Context) (any, error) { return ds.InnoDBStatus(ctx) }))
+	r.HandleFunc("/debug/db/process-list", jsonHandler(logger, func(ctx context.Context) (any, error) { return ds.ProcessList(ctx) }))
 
 	mw := &debugAuthenticationMiddleware{
 		service: svc,

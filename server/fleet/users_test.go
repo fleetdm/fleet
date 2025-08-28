@@ -116,7 +116,7 @@ func newTestUser(t *testing.T, password, email string) *User {
 		salt = "test-salt"
 		cost = 10
 	)
-	withSalt := []byte(fmt.Sprintf("%s%s", password, salt))
+	withSalt := fmt.Appendf(nil, "%s%s", password, salt)
 	hashed, _ := bcrypt.GenerateFromPassword(withSalt, cost)
 	return &User{
 		Salt:     salt,
@@ -172,11 +172,11 @@ func TestSaltAndHashPassword(t *testing.T) {
 		hashed, salt, err := saltAndHashPassword(keySize, pwd, cost)
 		require.NoError(t, err)
 
-		saltAndPass := []byte(fmt.Sprintf("%s%s", pwd, salt))
+		saltAndPass := fmt.Appendf(nil, "%s%s", pwd, salt)
 		err = bcrypt.CompareHashAndPassword(hashed, saltAndPass)
 		require.NoError(t, err)
 
-		err = bcrypt.CompareHashAndPassword(hashed, []byte(fmt.Sprint("invalidpassword", salt)))
+		err = bcrypt.CompareHashAndPassword(hashed, fmt.Append(nil, "invalidpassword", salt))
 		require.Error(t, err)
 
 		// too long

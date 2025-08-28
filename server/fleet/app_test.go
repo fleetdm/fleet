@@ -248,7 +248,7 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			// marshalling the fields again doesn't contain deprecated fields
 			acJSON, err := json.Marshal(ac)
 			require.NoError(t, err)
-			var resultMap map[string]interface{}
+			var resultMap map[string]any
 			err = json.Unmarshal(acJSON, &resultMap)
 			require.NoError(t, err)
 
@@ -257,9 +257,9 @@ func TestAppConfigDeprecatedFields(t *testing.T) {
 			require.False(t, exists)
 
 			// mdm.macos_settings.enable_disk_encryption is not present
-			mdm, ok := resultMap["mdm"].(map[string]interface{})
+			mdm, ok := resultMap["mdm"].(map[string]any)
 			require.True(t, ok)
-			macosSettings, ok := mdm["macos_settings"].(map[string]interface{})
+			macosSettings, ok := mdm["macos_settings"].(map[string]any)
 			require.True(t, ok)
 			_, exists = macosSettings["enable_disk_encryption"]
 			require.False(t, exists)

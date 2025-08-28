@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sync"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -141,9 +142,7 @@ func (s *PushService) pushMulti(ctx context.Context, pushInfos []*mdm.Push) (map
 	for i := 0; i < topicPushCt; i++ {
 		feedback := <-feedbackChan
 		// merge feedback responses into main responses map
-		for token, pushResp := range feedback.Responses {
-			responses[token] = pushResp
-		}
+		maps.Copy(responses, feedback.Responses)
 		if finalErr == nil && feedback.Err != nil {
 			finalErr = fmt.Errorf("topic %s: %w", feedback.Topic, feedback.Err)
 		}

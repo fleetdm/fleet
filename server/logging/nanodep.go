@@ -17,15 +17,15 @@ func NewNanoDEPLogger(logger kitlog.Logger) *NanoDEPLogger {
 	}
 }
 
-func (l *NanoDEPLogger) Info(keyvals ...interface{}) {
+func (l *NanoDEPLogger) Info(keyvals ...any) {
 	level.Info(l.logger).Log(keyvals...)
 }
 
-func (l *NanoDEPLogger) Debug(keyvals ...interface{}) {
+func (l *NanoDEPLogger) Debug(keyvals ...any) {
 	level.Debug(l.logger).Log(keyvals...)
 }
 
-func (l *NanoDEPLogger) With(keyvals ...interface{}) nanodep_log.Logger {
+func (l *NanoDEPLogger) With(keyvals ...any) nanodep_log.Logger {
 	newLogger := kitlog.With(l.logger, keyvals...)
 	return &NanoDEPLogger{
 		logger: newLogger,

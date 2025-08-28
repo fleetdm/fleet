@@ -112,7 +112,7 @@ func debugProfileCommand() *cli.Command {
 
 func joinCmdline(cmdline string) string {
 	var tokens []string
-	for _, token := range strings.Split(cmdline, "\x00") {
+	for token := range strings.SplitSeq(cmdline, "\x00") {
 		tokens = append(tokens, fmt.Sprintf("'%s'", token))
 	}
 	return fmt.Sprintf("[%s]", strings.Join(tokens, ", "))

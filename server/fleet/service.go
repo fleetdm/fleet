@@ -46,7 +46,7 @@ type OsqueryService interface {
 	) (nodeKey string, err error)
 	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
 	AuthenticateHost(ctx context.Context, nodeKey string) (host *Host, debug bool, err error)
-	GetClientConfig(ctx context.Context) (config map[string]interface{}, err error)
+	GetClientConfig(ctx context.Context) (config map[string]any, err error)
 	// GetDistributedQueries retrieves the distributed queries to run for the host in
 	// the provided context. These may be (depending on update intervals):
 	//	- detail queries (including additional queries, if any),
@@ -332,7 +332,7 @@ type Service interface {
 	// go-kit RPC style.
 	StreamCampaignResults(ctx context.Context, conn *websocket.Conn, campaignID uint)
 
-	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
+	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan any, context.CancelFunc, error)
 	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
 	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, query string, hostIDs []uint, deadline time.Duration) (
 		[]QueryCampaignResult, int, error,
@@ -376,8 +376,8 @@ type Service interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
-	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
-	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]interface{}) error
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]any) error
+	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]any) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL

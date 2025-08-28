@@ -81,7 +81,6 @@ func TestResolved(t *testing.T) {
 			"appleid@example.com",
 		},
 	} {
-		test := test
 		t.Run(test.testName, func(t *testing.T) {
 			r := test.e.Resolved()
 			if r == nil {

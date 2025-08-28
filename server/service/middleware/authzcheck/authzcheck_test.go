@@ -15,7 +15,7 @@ func TestAuthzCheck(t *testing.T) {
 
 	checker := NewMiddleware()
 
-	check := func(ctx context.Context, req interface{}) (interface{}, error) {
+	check := func(ctx context.Context, req any) (any, error) {
 		authCtx, ok := authz.FromContext(ctx)
 		require.True(t, ok)
 		authCtx.SetChecked()
@@ -32,7 +32,7 @@ func TestAuthzCheckAuthFailed(t *testing.T) {
 
 	checker := NewMiddleware()
 
-	check := func(ctx context.Context, req interface{}) (interface{}, error) {
+	check := func(ctx context.Context, req any) (any, error) {
 		return nil, fleet.NewAuthFailedError("failed")
 	}
 	check = checker.AuthzCheck()(check)
@@ -47,7 +47,7 @@ func TestAuthzCheckAuthRequired(t *testing.T) {
 
 	checker := NewMiddleware()
 
-	check := func(ctx context.Context, req interface{}) (interface{}, error) {
+	check := func(ctx context.Context, req any) (any, error) {
 		return nil, fleet.NewAuthRequiredError("required")
 	}
 	check = checker.AuthzCheck()(check)
@@ -62,7 +62,7 @@ func TestAuthzCheckMissing(t *testing.T) {
 
 	checker := NewMiddleware()
 
-	nocheck := func(context.Context, interface{}) (interface{}, error) { return struct{}{}, nil }
+	nocheck := func(context.Context, any) (any, error) { return struct{}{}, nil }
 	nocheck = checker.AuthzCheck()(nocheck)
 
 	_, err := nocheck(context.Background(), struct{}{})

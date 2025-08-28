@@ -409,7 +409,7 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 }
 
 func syncMLForTest(locURI string) []byte {
-	return []byte(fmt.Sprintf(`
+	return fmt.Appendf(nil, `
 <Add>
   <Item>
     <Target>
@@ -423,7 +423,7 @@ func syncMLForTest(locURI string) []byte {
       <LocURI>%s</LocURI>
     </Target>
   </Item>
-</Replace>`, locURI, locURI))
+</Replace>`, locURI, locURI)
 }
 
 func TestReconcileWindowsProfilesWithFleetVariableError(t *testing.T) {

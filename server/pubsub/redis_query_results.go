@@ -73,7 +73,7 @@ func (r *redisQueryResults) WriteResult(result fleet.DistributedQueryResult) err
 
 // writeOrDone tries to write the item into the channel taking into account context.Done(). If context is done, returns
 // true, otherwise false
-func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) bool {
+func writeOrDone(ctx context.Context, ch chan<- any, item any) bool {
 	select {
 	case ch <- item:
 	case <-ctx.Done():
@@ -86,7 +86,7 @@ func writeOrDone(ctx context.Context, ch chan<- interface{}, item interface{}) b
 // connection over the provided channel. This effectively allows a select
 // statement to run on conn.Receive() (by selecting on outChan that is
 // passed into this function)
-func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- interface{}, logger log.Logger) {
+func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<- any, logger log.Logger) {
 	defer close(outChan)
 
 	for {
@@ -120,9 +120,9 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 	}
 }
 
-func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan interface{}, error) {
-	outChannel := make(chan interface{})
-	msgChannel := make(chan interface{})
+func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.DistributedQueryCampaign) (<-chan any, error) {
+	outChannel := make(chan any)
+	msgChannel := make(chan any)
 
 	// pub-sub can publish and listen on any node in the cluster
 	conn := redis.ReadOnlyConn(r.pool, r.pool.Get())

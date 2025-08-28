@@ -14,7 +14,7 @@ func TestJitterForHost(t *testing.T) {
 
 	histogram := make(map[int64]int)
 	hostCount := 3000
-	for i := 0; i < hostCount; i++ {
+	for range hostCount {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
 		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000)) //nolint:gosec // dismiss G115
@@ -42,7 +42,7 @@ func TestNoJitter(t *testing.T) {
 	jh := newJitterHashTable(0)
 
 	hostCount := 3000
-	for i := 0; i < hostCount; i++ {
+	for range hostCount {
 		hostID, err := crand.Int(crand.Reader, big.NewInt(10000))
 		require.NoError(t, err)
 		jitter := jh.jitterForHost(uint(hostID.Int64() + 10000)) //nolint:gosec // dismiss G115

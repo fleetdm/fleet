@@ -30,7 +30,7 @@ type createLabelResponse struct {
 
 func (r createLabelResponse) Error() error { return r.Err }
 
-func createLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func createLabelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*createLabelRequest)
 
 	label, hostIDs, err := svc.NewLabel(ctx, req.LabelPayload)
@@ -142,7 +142,7 @@ type modifyLabelResponse struct {
 
 func (r modifyLabelResponse) Error() error { return r.Err }
 
-func modifyLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func modifyLabelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*modifyLabelRequest)
 	label, hostIDs, err := svc.ModifyLabel(ctx, req.ID, req.ModifyLabelPayload)
 	if err != nil {
@@ -240,7 +240,7 @@ type getLabelResponse struct {
 
 func (r getLabelResponse) Error() error { return r.Err }
 
-func getLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getLabelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getLabelRequest)
 	label, hostIDs, err := svc.GetLabel(ctx, req.ID)
 	if err != nil {
@@ -281,7 +281,7 @@ type listLabelsResponse struct {
 
 func (r listLabelsResponse) Error() error { return r.Err }
 
-func listLabelsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listLabelsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listLabelsRequest)
 
 	labels, err := svc.ListLabels(ctx, req.ListOptions)
@@ -339,7 +339,7 @@ type getLabelsSummaryResponse struct {
 
 func (r getLabelsSummaryResponse) Error() error { return r.Err }
 
-func getLabelsSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getLabelsSummaryEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	labels, err := svc.LabelsSummary(ctx)
 	if err != nil {
 		return getLabelsSummaryResponse{Err: err}, nil
@@ -364,7 +364,7 @@ type listHostsInLabelRequest struct {
 	ListOptions fleet.HostListOptions `url:"host_options"`
 }
 
-func listHostsInLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func listHostsInLabelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*listHostsInLabelRequest)
 	hosts, err := svc.ListHostsInLabel(ctx, req.ID, req.ListOptions)
 	if err != nil {
@@ -434,7 +434,7 @@ type deleteLabelResponse struct {
 
 func (r deleteLabelResponse) Error() error { return r.Err }
 
-func deleteLabelEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteLabelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteLabelRequest)
 	err := svc.DeleteLabel(ctx, req.Name)
 	if err != nil {
@@ -472,7 +472,7 @@ type deleteLabelByIDResponse struct {
 
 func (r deleteLabelByIDResponse) Error() error { return r.Err }
 
-func deleteLabelByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func deleteLabelByIDEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteLabelByIDRequest)
 	err := svc.DeleteLabelByID(ctx, req.ID)
 	if err != nil {
@@ -521,7 +521,7 @@ type applyLabelSpecsResponse struct {
 
 func (r applyLabelSpecsResponse) Error() error { return r.Err }
 
-func applyLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func applyLabelSpecsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyLabelSpecsRequest)
 	err := svc.ApplyLabelSpecs(ctx, req.Specs)
 	if err != nil {
@@ -619,7 +619,7 @@ type getLabelSpecsResponse struct {
 
 func (r getLabelSpecsResponse) Error() error { return r.Err }
 
-func getLabelSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getLabelSpecsEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	specs, err := svc.GetLabelSpecs(ctx)
 	if err != nil {
 		return getLabelSpecsResponse{Err: err}, nil
@@ -646,7 +646,7 @@ type getLabelSpecResponse struct {
 
 func (r getLabelSpecResponse) Error() error { return r.Err }
 
-func getLabelSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+func getLabelSpecEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getGenericSpecRequest)
 	spec, err := svc.GetLabelSpec(ctx, req.Name)
 	if err != nil {

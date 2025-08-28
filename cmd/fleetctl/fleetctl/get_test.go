@@ -432,7 +432,7 @@ func TestGetHosts(t *testing.T) {
 	assert.ErrorContains(t, err, "MDM features aren't turned on")
 
 	jsonPrettify := func(t *testing.T, v string) string {
-		var i interface{}
+		var i any
 		err := json.Unmarshal([]byte(v), &i)
 		require.NoError(t, err)
 		indented, err := json.MarshalIndent(i, "", "  ")
@@ -440,7 +440,7 @@ func TestGetHosts(t *testing.T) {
 		return string(indented)
 	}
 	yamlPrettify := func(t *testing.T, v string) string {
-		var i interface{}
+		var i any
 		err := yaml.Unmarshal([]byte(v), &i)
 		require.NoError(t, err)
 		indented, err := yaml.Marshal(i)

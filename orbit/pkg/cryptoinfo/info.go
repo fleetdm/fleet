@@ -8,7 +8,7 @@ import (
 type KeyInfo struct {
 	Type     kiType
 	Encoding kiEncoding
-	Data     interface{}
+	Data     any
 	DataName kiDataNames
 	Error    error
 	Headers  map[string]string
@@ -82,7 +82,7 @@ func (ki *KeyInfo) SetDataName(name kiDataNames) *KeyInfo {
 	return ki
 }
 
-func (ki *KeyInfo) SetData(data interface{}, err error) *KeyInfo {
+func (ki *KeyInfo) SetData(data any, err error) *KeyInfo {
 	ki.Data = data
 	ki.Error = err
 	return ki
@@ -96,7 +96,7 @@ func (ki *KeyInfo) MarshalJSON() ([]byte, error) {
 	// this feels somewhat inefficient WRT to allocations and shoving maps around. But it
 	// also feels the simplest way to get consistent behavior without needing to push
 	// the key/value pairs everywhere.
-	ret := map[string]interface{}{
+	ret := map[string]any{
 		"type":     ki.Type,
 		"encoding": ki.Encoding,
 	}

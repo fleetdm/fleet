@@ -463,7 +463,7 @@ func testListScripts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create 5 scripts for no team and team 1
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		_, err = ds.NewScript(ctx, &fleet.Script{
 			Name:           string('a' + byte(i)), // i.e. "a", "b", "c", ...
 			ScriptContents: "echo",

@@ -11,7 +11,7 @@ import (
 
 // Logged wraps an endpoint and adds the error if the context supports it
 func Logged(next endpoint.Endpoint) endpoint.Endpoint {
-	return func(ctx context.Context, request interface{}) (response interface{}, err error) {
+	return func(ctx context.Context, request any) (response any, err error) {
 		res, err := next(ctx, request)
 		if err != nil {
 			logging.WithErr(ctx, err)

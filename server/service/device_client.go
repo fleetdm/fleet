@@ -56,7 +56,7 @@ func (dc *DeviceClient) WithInvalidTokenRetry(fn func() string) {
 // verb to be replaced with the token, or no verb at all if the token is "-"
 // (the pathFmt is used as-is as path). It will retry if the request fails due
 // to an invalid token and the invalidTokenRetryFunc field is set.
-func (dc *DeviceClient) request(verb, pathFmt, token, query string, params interface{}, responseDest interface{}) error {
+func (dc *DeviceClient) request(verb, pathFmt, token, query string, params any, responseDest any) error {
 	const maxAttempts = 4
 	var attempt int
 	for {
@@ -87,7 +87,7 @@ func (dc *DeviceClient) request(verb, pathFmt, token, query string, params inter
 	}
 }
 
-func (dc *DeviceClient) requestAttempt(verb string, path string, query string, params interface{}, responseDest interface{}) error {
+func (dc *DeviceClient) requestAttempt(verb string, path string, query string, params any, responseDest any) error {
 	var bodyBytes []byte
 	var err error
 	if params != nil {

@@ -379,8 +379,8 @@ func (s MacOSSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 	return s.CustomSettings
 }
 
-func (s MacOSSettings) ToMap() map[string]interface{} {
-	return map[string]interface{}{
+func (s MacOSSettings) ToMap() map[string]any {
+	return map[string]any{
 		"custom_settings":        s.CustomSettings,
 		"enable_disk_encryption": s.DeprecatedEnableDiskEncryption,
 	}
@@ -398,12 +398,12 @@ var _ WithMDMProfileSpecs = MacOSSettings{}
 // the map (ie. the key was present even if empty) or an error. If the
 // operation updates an existing team, it should be called on the existing
 // MacOSSettings so that its fields are replaced only if present in the map.
-func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, error) {
+func (s *MacOSSettings) FromMap(m map[string]any) (map[string]bool, error) {
 	set := make(map[string]bool)
 
-	extractLabelField := func(parentMap map[string]interface{}, fieldName string) []string {
+	extractLabelField := func(parentMap map[string]any, fieldName string) []string {
 		var ret []string
-		if labels, ok := parentMap[fieldName].([]interface{}); ok {
+		if labels, ok := parentMap[fieldName].([]any); ok {
 			for _, label := range labels {
 				if strLabel, ok := label.(string); ok {
 					ret = append(ret, strLabel)
@@ -416,11 +416,11 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 	if v, ok := m["custom_settings"]; ok {
 		set["custom_settings"] = true
 
-		vals, ok := v.([]interface{})
+		vals, ok := v.([]any)
 		if v == nil || ok {
 			csSpecs := make([]MDMProfileSpec, 0, len(vals))
 			for _, v := range vals {
-				if m, ok := v.(map[string]interface{}); ok {
+				if m, ok := v.(map[string]any); ok {
 					var spec MDMProfileSpec
 					// extract the Path field
 					if path, ok := m["path"].(string); ok {
@@ -861,7 +861,7 @@ func (d Duration) ValueOr(t time.Duration) time.Duration {
 }
 
 func (d *Duration) UnmarshalJSON(b []byte) error {
-	var v interface{}
+	var v any
 	if err := json.Unmarshal(b, &v); err != nil {
 		return err
 	}
@@ -1311,8 +1311,8 @@ func (e *EnrollSecret) AuthzType() string {
 }
 
 // ExtraAuthz implements authz.ExtraAuthzer.
-func (e *EnrollSecret) ExtraAuthz() (map[string]interface{}, error) {
-	return map[string]interface{}{
+func (e *EnrollSecret) ExtraAuthz() (map[string]any, error) {
+	return map[string]any{
 		"is_global_secret": e.TeamID == nil,
 	}, nil
 }
@@ -1366,7 +1366,7 @@ type LicenseInfo struct {
 	// DeviceCount is the number of licensed devices.
 	DeviceCount int `json:"device_count,omitempty"`
 	// Expiration is when the license expires.
-	Expiration time.Time `json:"expiration,omitempty"`
+	Expiration time.Time `json:"expiration"`
 	// Note is any additional terms of license
 	Note string `json:"note,omitempty"`
 	// AllowDisableTelemetry allows specific customers to not send analytics
@@ -1409,8 +1409,8 @@ type Logging struct {
 }
 
 type EmailConfig struct {
-	Backend string      `json:"backend"`
-	Config  interface{} `json:"config"`
+	Backend string `json:"backend"`
+	Config  any    `json:"config"`
 }
 
 type SESConfig struct {
@@ -1440,8 +1440,8 @@ type VulnerabilitiesConfig struct {
 }
 
 type LoggingPlugin struct {
-	Plugin string      `json:"plugin"`
-	Config interface{} `json:"config"`
+	Plugin string `json:"plugin"`
+	Config any    `json:"config"`
 }
 
 type FilesystemConfig struct {

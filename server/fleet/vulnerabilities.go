@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -151,10 +152,5 @@ func (opt VulnListOptions) HasValidSortColumn() bool {
 	if opt.ListOptions.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
 		return true
 	}
-	for _, c := range opt.ValidSortColumns {
-		if c == opt.ListOptions.OrderKey {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(opt.ValidSortColumns, opt.ListOptions.OrderKey)
 }

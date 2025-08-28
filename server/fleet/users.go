@@ -46,7 +46,7 @@ type UserSettings struct {
 
 // Scan implements the sql.Scanner interface, tells DB driver how to convert MySQL type (json) to
 // custom Go type (UserSettings).
-func (us *UserSettings) Scan(val interface{}) error {
+func (us *UserSettings) Scan(val any) error {
 	switch v := val.(type) {
 	case []byte:
 		return json.Unmarshal(v, us)
@@ -348,7 +348,7 @@ func (p UserPayload) User(keySize, cost int) (*User, error) {
 // to validate it against the hash stored in the database after joining the
 // supplied password with the stored password salt
 func (u *User) ValidatePassword(password string) error {
-	saltAndPass := []byte(fmt.Sprintf("%s%s", password, u.Salt))
+	saltAndPass := fmt.Appendf(nil, "%s%s", password, u.Salt)
 	return bcrypt.CompareHashAndPassword(u.Password, saltAndPass)
 }
 
@@ -444,7 +444,7 @@ func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte
 	}
 
 	salt = salt[:keySize]
-	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
+	withSalt := fmt.Appendf(nil, "%s%s", plaintext, salt)
 	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrPasswordTooLong) {

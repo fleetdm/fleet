@@ -69,7 +69,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		LEFT JOIN vulnerability_host_counts vhc ON vhc.cve = union_cve.cve
 	`
 
-	var args []interface{}
+	var args []any
 	args = append(args, cve, cve)
 
 	if teamID != nil {
@@ -177,7 +177,7 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 }
 
 func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint) (vs []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
-	var args []interface{}
+	var args []any
 	selectStmt := `
 		SELECT
 			s.id,
@@ -265,7 +265,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	}
 
 	// Prepare arguments for the query
-	var args []interface{}
+	var args []any
 	if opt.TeamID == nil {
 		selectStmt += " AND vhc.global_stats = 1"
 	} else {
@@ -319,7 +319,7 @@ func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnLis
 		LEFT JOIN cve_meta cm ON cm.cve = combined.cve
 		WHERE vhc.host_count > 0
 	`
-	var args []interface{}
+	var args []any
 	if opt.TeamID == nil {
 		selectStmt += " AND global_stats = 1"
 	} else {
@@ -398,10 +398,7 @@ func (ds *Datastore) batchFetchVulnerabilityCounts(
 
 	// Process CVEs in batches concurrently
 	for i := 0; i < len(allCVEs); i += batchSize {
-		end := i + batchSize
-		if end > len(allCVEs) {
-			end = len(allCVEs)
-		}
+		end := min(i+batchSize, len(allCVEs))
 
 		batchCVEs := allCVEs[i:end]
 		wg.Add(1)
@@ -589,14 +586,11 @@ func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCou
 	}
 
 	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count, global_stats) VALUES "
-	var insertArgs []interface{}
+	var insertArgs []any
 
 	chunkSize := 100
 	for i := 0; i < len(counts); i += chunkSize {
-		end := i + chunkSize
-		if end > len(counts) {
-			end = len(counts)
-		}
+		end := min(i+chunkSize, len(counts))
 
 		valueStrings := make([]string, 0, chunkSize)
 		for _, count := range counts[i:end] {

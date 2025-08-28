@@ -241,7 +241,7 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	})
 }
 
-func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
+func (ts *withServer) Do(verb, path string, params any, expectedStatusCode int, queryParams ...string) *http.Response {
 	t := ts.s.T()
 
 	j, err := json.Marshal(params)
@@ -266,7 +266,7 @@ func (ts *withServer) DoRawWithHeaders(
 	return fleet_httptest.DoHTTPReq(ts.s.T(), client, decodeJSON, verb, rawBytes, ts.server.URL+path, headers, expectedStatusCode, queryParams...)
 }
 
-func decodeJSON(r io.Reader, v interface{}) error {
+func decodeJSON(r io.Reader, v any) error {
 	return json.NewDecoder(r).Decode(v)
 }
 
@@ -280,7 +280,7 @@ func (ts *withServer) DoRawNoAuth(verb string, path string, rawBytes []byte, exp
 	return ts.DoRawWithHeaders(verb, path, rawBytes, expectedStatusCode, nil, queryParams...)
 }
 
-func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+func (ts *withServer) DoJSON(verb, path string, params any, expectedStatusCode int, v any, queryParams ...string) {
 	resp := ts.Do(verb, path, params, expectedStatusCode, queryParams...)
 	err := json.NewDecoder(resp.Body).Decode(v)
 	require.NoError(ts.s.T(), err)
@@ -289,7 +289,7 @@ func (ts *withServer) DoJSON(verb, path string, params interface{}, expectedStat
 	}
 }
 
-func (ts *withServer) DoJSONWithoutAuth(verb, path string, params interface{}, expectedStatusCode int, v interface{}, queryParams ...string) {
+func (ts *withServer) DoJSONWithoutAuth(verb, path string, params any, expectedStatusCode int, v any, queryParams ...string) {
 	t := ts.s.T()
 	rawBytes, err := json.Marshal(params)
 	require.NoError(t, err)
@@ -374,7 +374,7 @@ func GetToken(t *testing.T, email string, password string, serverURL string) str
 }
 
 func (ts *withServer) applyConfig(spec []byte) {
-	var appConfigSpec interface{}
+	var appConfigSpec any
 	err := yaml.Unmarshal(spec, &appConfigSpec)
 	require.NoError(ts.s.T(), err)
 

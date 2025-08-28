@@ -19,10 +19,10 @@ func JsonlFile(file string, opts ...FlattenOpts) ([]Row, error) {
 
 func Jsonl(r io.Reader, opts ...FlattenOpts) ([]Row, error) {
 	decoder := json.NewDecoder(r)
-	var objects []interface{}
+	var objects []any
 
 	for {
-		var object interface{}
+		var object any
 		err := decoder.Decode(&object)
 
 		switch {

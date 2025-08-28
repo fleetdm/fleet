@@ -31,13 +31,13 @@ func TestFilesystemLogger(t *testing.T) {
 	)
 
 	var logs []json.RawMessage
-	for i := 0; i < logCount; i++ {
+	for range logCount {
 		randInput := make([]byte, logSize)
 		rand.Read(randInput) //nolint:errcheck
 		logs = append(logs, randInput)
 	}
 
-	for i := 0; i < batches; i++ {
+	for range batches {
 		err := lgr.Write(ctx, logs)
 		require.Nil(t, err)
 	}
@@ -89,14 +89,13 @@ func BenchmarkFilesystemLogger(b *testing.B) {
 	}
 
 	var logs []json.RawMessage
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		randInput := make([]byte, 512)
 		rand.Read(randInput) //nolint:errcheck
 		logs = append(logs, randInput)
 	}
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := lgr.Write(ctx, logs)
 		if err != nil {
 			b.Fatal("write failed ", err)
@@ -125,7 +124,7 @@ func benchLumberjack(b *testing.B, compression bool) {
 	}
 
 	var logs []json.RawMessage
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		randInput := make([]byte, 512)
 		rand.Read(randInput) //nolint:errcheck
 		logs = append(logs, randInput)
@@ -136,9 +135,8 @@ func benchLumberjack(b *testing.B, compression bool) {
 	if err != nil {
 		b.Fatal("first write failed ", err)
 	}
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		err := lgr.Write(ctx, logs)
 		if err != nil {
 			b.Fatal("write failed ", err)

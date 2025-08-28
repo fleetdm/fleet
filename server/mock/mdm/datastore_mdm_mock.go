@@ -57,7 +57,7 @@ type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter t
 
 type EnrollmentFromHashFunc func(ctx context.Context, hash string) (string, error)
 
-type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
+type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- any) error
 
 type RetrieveTokenUpdateTallyFunc func(ctx context.Context, id string) (int, error)
 
@@ -301,7 +301,7 @@ func (fs *MDMAppleStore) EnrollmentFromHash(ctx context.Context, hash string) (s
 	return fs.EnrollmentFromHashFunc(ctx, hash)
 }
 
-func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {
+func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- any) error {
 	fs.mu.Lock()
 	fs.RetrieveMigrationCheckinsFuncInvoked = true
 	fs.mu.Unlock()

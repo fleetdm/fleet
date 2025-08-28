@@ -196,8 +196,8 @@ func BenchmarkMatchJSON(b *testing.B) {
 	if err != nil {
 		b.Fatalf("failed to parse the dictionary: %v", err)
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		if mm := items[0].Match(inventory, false); len(mm) == 0 {
 			b.Fatal("expected Match to match, it did not")
 		}

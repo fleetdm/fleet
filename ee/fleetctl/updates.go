@@ -278,8 +278,8 @@ func updatesAddFunc(c *cli.Context) error {
 		// 	- an ".exe" file for target=osqueryd is expected to be called "osqueryd.exe".
 		var dstPath string
 		// check if we are adding extensions, which we namespace as "extensions/<ext_name>"
-		if strings.HasPrefix(name, "extensions/") {
-			dstPath = filepath.Join(name, platform, tag, strings.TrimPrefix(name, "extensions/"))
+		if after, ok := strings.CutPrefix(name, "extensions/"); ok {
+			dstPath = filepath.Join(name, platform, tag, after)
 		} else {
 			dstPath = filepath.Join(name, platform, tag, name)
 		}

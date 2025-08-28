@@ -369,7 +369,7 @@ func (c *Client) prepareWindowsMDMCommand(rawCmd []byte) ([]byte, error) {
 }
 
 func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
-	var commandPayload map[string]interface{}
+	var commandPayload map[string]any
 	if _, err := plist.Unmarshal(rawCmd, &commandPayload); err != nil {
 		return nil, fmt.Errorf("The payload isn't valid XML. Please provide a file with valid XML: %w", err)
 	}

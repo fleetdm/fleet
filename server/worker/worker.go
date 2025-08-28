@@ -88,13 +88,13 @@ func (w *Worker) Register(jobs ...Job) {
 // QueueJob inserts a job to be processed by the worker for the job processor
 // identified by the name (e.g. "jira"). The args value is marshaled as JSON
 // and provided to the job processor when the job is executed.
-func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
+func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args any) (*fleet.Job, error) {
 	return QueueJobWithDelay(ctx, ds, name, args, 0)
 }
 
 // QueueJobWithDelay is like QueueJob but does not make the job available
 // before a specified delay (or no delay if delay is <= 0).
-func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, args interface{}, delay time.Duration) (*fleet.Job, error) {
+func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, args any, delay time.Duration) (*fleet.Job, error) {
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshal args")

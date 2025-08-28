@@ -59,8 +59,8 @@ func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[strin
 	}}, nil
 }
 
-func parseAuthDBReadOutput(out []byte) (map[string]interface{}, error) {
-	var m map[string]interface{}
+func parseAuthDBReadOutput(out []byte) (map[string]any, error) {
+	var m map[string]any
 	if _, err := plist.Unmarshal(out, &m); err != nil {
 		return nil, err
 	}
