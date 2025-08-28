@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"net/http"
 )
 
 type Service interface {
@@ -34,7 +35,7 @@ func (r DefaultResponse) StatusCode() int {
 		}
 	}
 	// Default to 200 OK if no error or no custom status code
-	return 200
+	return http.StatusOK
 }
 
 type GetEnterpriseResponse struct {
