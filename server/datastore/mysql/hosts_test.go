@@ -2479,13 +2479,14 @@ func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Data
 			previousMIACount = summary.MIACount
 		} else {
 			// Compare with previous case
-			if tc.shouldBeMIA && !testCases[i-1].shouldBeMIA {
+			switch {
+			case tc.shouldBeMIA && !testCases[i-1].shouldBeMIA:
 				// Changing from non-MIA to MIA - count should increase by 1
 				assert.Equal(t, previousMIACount+1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
-			} else if !tc.shouldBeMIA && testCases[i-1].shouldBeMIA {
+			case !tc.shouldBeMIA && testCases[i-1].shouldBeMIA:
 				// Changing from MIA to non-MIA - count should decrease by 1
 				assert.Equal(t, previousMIACount-1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
-			} else {
+			default:
 				// No change expected
 				assert.Equal(t, previousMIACount, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
 			}
