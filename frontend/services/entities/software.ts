@@ -384,13 +384,20 @@ export default {
     });
   },
 
-  getSoftwareIcon: ({ softwareId, teamId }: any) => {
-    const endpoint = endpoints.SOFTWARE_ICON(softwareId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
-    const path =
-      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
-
+  getSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
     return sendRequest("GET", path);
+  },
+
+  deleteSoftwareIcon: (softwareId: number, teamId: number) => {
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
+    return sendRequest("DELETE", path);
   },
 
   editSoftwareIcon: (
@@ -398,10 +405,10 @@ export default {
     teamId: number,
     fileObject: any // TODO
   ) => {
-    const endpoint = endpoints.SOFTWARE_ICON(softwareId);
-    const queryString = buildQueryStringFromParams({ team_id: teamId });
-    const path =
-      typeof teamId === "undefined" ? endpoint : `${endpoint}?${queryString}`;
+    const { SOFTWARE_ICON } = endpoints;
+    const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
+      team_id: teamId,
+    });
 
     const formData = new FormData();
     formData.append("icon", fileObject.icon);
