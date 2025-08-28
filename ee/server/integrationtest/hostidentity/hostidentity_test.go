@@ -1385,7 +1385,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	}
 
 	// Create HTTP signature signer
-	signer, err := fleethttpsig.TpmSigner(
+	signer, err := fleethttpsig.Signer(
 		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
 		httpSigner,
 		algo,
@@ -1441,7 +1441,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 	loadedHTTPSigner, err := loadedKey.HTTPSigner()
 	require.NoError(t, err)
 
-	loadedSigner, err := fleethttpsig.TpmSigner(
+	loadedSigner, err := fleethttpsig.Signer(
 		fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
 		loadedHTTPSigner,
 		algo,
@@ -1552,7 +1552,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 			t.Fatalf("Unsupported ECC algorithm from renewed TPM key")
 		}
 
-		renewedSigner, err := fleethttpsig.TpmSigner(
+		renewedSigner, err := fleethttpsig.Signer(
 			fmt.Sprintf("%d", renewedCert.SerialNumber.Uint64()),
 			renewedHTTPSigner,
 			renewedAlgo,
@@ -1575,7 +1575,7 @@ func testRealSecureHWAndSCEP(t *testing.T, s *Suite) {
 		oldConfigReq.Header.Set("Content-Type", "application/json")
 
 		// Create a signer with the old certificate serial but it should fail since the cert was replaced
-		oldSerialSigner, err := fleethttpsig.TpmSigner(
+		oldSerialSigner, err := fleethttpsig.Signer(
 			fmt.Sprintf("%d", cert.SerialNumber.Uint64()),
 			renewedHTTPSigner, // Using new key with old serial
 			renewedAlgo,

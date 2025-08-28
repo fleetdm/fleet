@@ -1022,7 +1022,7 @@ func main() {
 				return fmt.Errorf("invalid ECC algorithm: %v", v)
 			}
 
-			httpSigner, err := fleethttpsig.TpmSigner(certSN, cryptoSigner, signingAlgorithm)
+			httpSigner, err := fleethttpsig.Signer(certSN, cryptoSigner, signingAlgorithm)
 			if err != nil {
 				return fmt.Errorf("failed to create HTTP signer: %w", err)
 			}
