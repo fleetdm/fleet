@@ -49,24 +49,34 @@ module.exports = {
         let authClient = await googleAuth.getClient();
         google.options({auth: authClient});
 
-        // Try to get the enterprise from Google
-        await androidmanagement.enterprises.get({
-          name: `enterprises/${connectionforThisInstanceExists.androidEnterpriseId}`,
+        // Use Google's LIST call to check if enterprise exists
+        let listResponse = await androidmanagement.enterprises.list({
+          projectId: sails.config.custom.androidEnterpriseProjectId,
         });
 
-        // If we got here, enterprise still exists in Google - throw conflict
-        throw 'enterpriseAlreadyExists';
+        let enterprisesList = listResponse.data;
+        let enterprises = (enterprisesList && enterprisesList.enterprises) ? enterprisesList.enterprises : [];
+        let enterpriseExists = enterprises.some(enterprise => {
+          let enterpriseId = connectionforThisInstanceExists.androidEnterpriseId;
+          return enterprise.name === `enterprises/${enterpriseId}` || enterprise.name === enterpriseId;
+        });
 
-      } catch (err) {
-        // Only clean up proxy record if this is a Google API error indicating enterprise deletion
-        if (err && err.code && (err.code === 403 || err.code === 404)) {
-          // 403 or 404 from Google API indicates enterprise doesn't exist - clean up stale proxy record
+        if (enterpriseExists) {
+          // Enterprise still exists in Google - throw conflict
+          throw 'enterpriseAlreadyExists';
+        } else {
+          // Enterprise not found in LIST - clean up stale proxy record
           await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
           // Continue with signup process (don't throw conflict)
-        } else {
-          // For other errors (network, auth, etc), re-throw to let them bubble up
-          throw err;
         }
+
+      } catch (err) {
+        // Handle our own enterpriseAlreadyExists throw
+        if (err === 'enterpriseAlreadyExists') {
+          throw err; // Re-throw to trigger the proper exit
+        }
+        // For all other errors (API, network, auth, etc), re-throw to let them bubble up
+        throw err;
       }
     }
 

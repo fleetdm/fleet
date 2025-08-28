@@ -252,7 +252,7 @@ func TestGetEnterprise(t *testing.T) {
 		assert.True(t, androidAPIClient.EnterprisesListFuncInvoked)
 	})
 
-	t.Run("enterprise actually deleted - 403 from GET and enterprise NOT in LIST", func(t *testing.T) {
+	t.Run("enterprise actually deleted - enterprise NOT in LIST", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
 
@@ -302,7 +302,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 	})
 
-	t.Run("credential/permission issue - 403 from GET but enterprise IS in LIST", func(t *testing.T) {
+	t.Run("enterprise exists - enterprise IS in LIST", func(t *testing.T) {
 		androidAPIClient := android_mock.Client{}
 		androidAPIClient.InitCommonMocks()
 
