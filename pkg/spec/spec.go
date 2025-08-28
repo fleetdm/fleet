@@ -33,7 +33,7 @@ type Group struct {
 	EnrollSecret           *fleet.EnrollSecretSpec
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
-	CertificateAuthorities *fleet.CertificateAuthoritiesSpec
+	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 }
 
 // Metadata holds the metadata for a single YAML section/item.

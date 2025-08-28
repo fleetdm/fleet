@@ -488,14 +488,12 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.CertificateAuthorities != nil {
+		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
+			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
+		}
 		if opts.DryRun {
-			logfn("[!] ignoring certificate authorities, dry run mode only supported for 'config' and 'team' specs\n")
-			// TODO(hca): implement dry run behavior for certificate authorities, add new
-			// assumptions to dry run options?
+			logfn("[+] would've applied certificate authorities\n")
 		} else {
-			if err := c.ApplyCertificateAuthoritiesSpec(specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
-				return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
-			}
 			logfn("[+] applied certificate authorities\n")
 		}
 	}

@@ -1305,7 +1305,7 @@ type Service interface {
 	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
 	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
 	// ApplyCertificateAuthoritiesSpec applies the given certificate authorities spec
-	ApplyCertificateAuthoritiesSpec(ctx context.Context, spec CertificateAuthoritiesSpec, dryRun bool, viaGitOps bool) error
+	ApplyCertificateAuthoritiesSpec(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
 }
 
 type KeyValueStore interface {
