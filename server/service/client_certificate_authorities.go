@@ -14,8 +14,8 @@ func (c *Client) GetCertificateAuthoritiesSpec() (*fleet.CertificateAuthoritiesS
 }
 
 // ApplyCertificateAuthoritiesSpec applies the certificate authorities.
-func (c *Client) ApplyCertificateAuthoritiesSpec(spec *fleet.CertificateAuthoritiesSpec, opts fleet.ApplySpecOptions) error {
-	req := applyCertificateAuthoritiesSpecRequest{Spec: *spec}
+func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.ApplySpecOptions) error {
+	req := applyCertificateAuthoritiesSpecRequest{CertificateAuthorities: groupedCAs, DryRun: opts.DryRun}
 	verb, path := "POST", "/api/latest/fleet/spec/certificate_authorities"
 	var responseBody applyCertificateAuthoritiesSpecResponse
 	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, opts.RawQuery())

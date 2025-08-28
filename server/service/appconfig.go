@@ -940,111 +940,25 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-func (svc *Service) populateDigiCertAPITokens(ctx context.Context, remainingOldCAs []fleet.DigiCertCA) error {
-	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get DigiCert CA config assets")
-	}
-	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
-	for i, ca := range remainingOldCAs {
-		asset, ok := assets[ca.Name]
-		if !ok {
-			continue
-		}
-		remainingOldCAs[i].APIToken = string(asset.Value)
-	}
-	return nil
-}
-
-func (svc *Service) populateCustomSCEPChallenges(ctx context.Context, remainingOldCAs []fleet.CustomSCEPProxyCA) error {
-	assets, err := svc.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
-	if err != nil && !fleet.IsNotFound(err) {
-		return ctxerr.Wrap(ctx, err, "get custom SCEP CA config assets")
-	}
-	// Note: The added/updated assets will be saved to DB in ds.SaveAppConfig method
-	for i, ca := range remainingOldCAs {
-		asset, ok := assets[ca.Name]
-		if !ok {
-			continue
-		}
-		remainingOldCAs[i].Challenge = string(asset.Value)
-	}
-	return nil
-}
-
-// filterDeletedDigiCertCAs identifies deleted DigiCert integrations in the provided configs.
-// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
-func filterDeletedDigiCertCAs(currentSpec *fleet.CertificateAuthoritiesSpec, incomingSpec *fleet.CertificateAuthoritiesSpec,
-	result *appConfigCAStatus,
-) []fleet.DigiCertCA {
-	remainingOldCAs := make([]fleet.DigiCertCA, 0, len(currentSpec.DigiCert.Value))
-	for _, oldCA := range currentSpec.DigiCert.Value {
-		var found bool
-		for _, newCA := range incomingSpec.DigiCert.Value {
-			if oldCA.Name == newCA.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result.digicert[oldCA.Name] = caStatusDeleted
-		} else {
-			remainingOldCAs = append(remainingOldCAs, oldCA)
-		}
-	}
-	return remainingOldCAs
-}
-
-// filterDeletedCustomSCEPCAs identifies deleted custom SCEP integrations in the provided configs.
-// It mutates the provided result to set a deleted status where applicable and returns a list of the remaining (non-deleted) integrations.
-func filterDeletedCustomSCEPCAs(currentSpec *fleet.CertificateAuthoritiesSpec, incomingSpec *fleet.CertificateAuthoritiesSpec,
-	result *appConfigCAStatus,
-) []fleet.CustomSCEPProxyCA {
-	remainingOldCAs := make([]fleet.CustomSCEPProxyCA, 0, len(currentSpec.CustomSCEPProxy.Value))
-	for _, oldCA := range currentSpec.CustomSCEPProxy.Value {
-		var found bool
-		for _, newCA := range incomingSpec.CustomSCEPProxy.Value {
-			if oldCA.Name == newCA.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
-			result.customSCEPProxy[oldCA.Name] = caStatusDeleted
-		} else {
-			remainingOldCAs = append(remainingOldCAs, oldCA)
-		}
-	}
-	return remainingOldCAs
-}
-
-func validateCAName(name string, caType string, allCANames map[string]struct{}, invalid *fleet.InvalidArgumentError) bool {
+func validateCAName(name string, caType string, allCANames map[string]struct{}) error {
 	if name == "NDES" {
-		invalid.Append("certificate_authorities."+caType+".name", "CA name cannot be NDES")
-		return false
+		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be NDES", caType)
 	}
 	if len(name) == 0 {
-		invalid.Append("certificate_authorities."+caType+".name", "CA name cannot be empty")
-		return false
+		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be empty", caType)
 	}
 	if len(name) > 255 {
-		invalid.Append("certificate_authorities."+caType+".name", "CA name cannot be longer than 255 characters")
-		return false
+		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be longer than 255 characters", caType)
 	}
 	if !isAlphanumeric(name) {
-		invalid.Append("certificate_authorities."+caType+".name",
-			fmt.Sprintf("Couldn’t edit certificate authorities.%s. Invalid characters in the \"name\" field. Only letters, "+
-				"numbers and underscores allowed. %s",
-				caType, name))
-		return false
+		return fmt.Errorf("certificate_authorities.%s.name: Couldn’t edit certificate authorities.%s. Invalid characters in the \"name\" field. Only letters, numbers and underscores allowed.",
+			caType, name)
 	}
 	if _, ok := allCANames[name]; ok {
-		invalid.Append("certificate_authorities."+caType+".name", fmt.Sprintf("Couldn’t edit certificate authority. "+
-			"\"%s\" name is already used by another certificate authority. Please choose a different name and try again.", name))
-		return false
+		return fmt.Errorf("certificate_authorities.%s.name: Couldn’t edit certificate authority. \"%s\" name is already used by another certificate authority. Please choose a different name and try again.", caType, name)
 	}
 	allCANames[name] = struct{}{}
-	return true
+	return nil
 }
 
 func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {

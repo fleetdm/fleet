@@ -81,6 +81,7 @@ type CertificateAuthorityPayload struct {
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
 type DigiCertCA struct {
+	ID                            uint     `json:"-"`
 	Name                          string   `json:"name"`
 	URL                           string   `json:"url"`
 	APIToken                      string   `json:"api_token"`
@@ -90,17 +91,8 @@ type DigiCertCA struct {
 	CertificateSeatID             string   `json:"certificate_seat_id"`
 }
 
+// Equals checks if two DigiCertCA instances are equal, including sensitive fields (e.g., APIToken)
 func (d *DigiCertCA) Equals(other *DigiCertCA) bool {
-	return d.Name == other.Name &&
-		d.URL == other.URL &&
-		(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) &&
-		d.ProfileID == other.ProfileID &&
-		d.CertificateCommonName == other.CertificateCommonName &&
-		slices.Equal(d.CertificateUserPrincipalNames, other.CertificateUserPrincipalNames) &&
-		d.CertificateSeatID == other.CertificateSeatID
-}
-
-func (d *DigiCertCA) StrictEquals(other *DigiCertCA) bool {
 	return d.Name == other.Name &&
 		d.URL == other.URL &&
 		d.APIToken == other.APIToken &&
@@ -110,13 +102,6 @@ func (d *DigiCertCA) StrictEquals(other *DigiCertCA) bool {
 		d.CertificateSeatID == other.CertificateSeatID
 }
 
-func (d *DigiCertCA) NeedToVerify(other *DigiCertCA) bool {
-	return d.Name != other.Name ||
-		d.URL != other.URL ||
-		!(d.APIToken == "" || d.APIToken == MaskedPassword || d.APIToken == other.APIToken) ||
-		d.ProfileID != other.ProfileID
-}
-
 func (d *DigiCertCA) Preprocess() {
 	d.Name = Preprocess(d.Name)
 	d.URL = Preprocess(d.URL)
@@ -124,6 +109,7 @@ func (d *DigiCertCA) Preprocess() {
 }
 
 type HydrantCA struct {
+	ID           uint   `json:"-"`
 	Name         string `json:"name"`
 	URL          string `json:"url"`
 	ClientID     string `json:"client_id,omitempty" db:"client_id"`
@@ -146,6 +132,7 @@ func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
 
 // NDESSCEPProxyCA configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyCA struct {
+	ID       uint   `json:"-"`
 	URL      string `json:"url"`
 	AdminURL string `json:"admin_url"`
 	Username string `json:"username"`
@@ -159,6 +146,7 @@ type SCEPConfigService interface {
 }
 
 type CustomSCEPProxyCA struct {
+	ID        uint   `json:"-"`
 	Name      string `json:"name"`
 	URL       string `json:"url"`
 	Challenge string `json:"challenge"`
@@ -333,10 +321,10 @@ func (c *RequestCertificatePayload) AuthzType() string {
 }
 
 type GroupedCertificateAuthorities struct {
-	Hydrant         []HydrantCA
-	DigiCert        []DigiCertCA
-	NDESSCEP        *NDESSCEPProxyCA
-	CustomScepProxy []CustomSCEPProxyCA
+	Hydrant         []HydrantCA         `json:"hydrant"`
+	DigiCert        []DigiCertCA        `json:"digicert"`
+	NDESSCEP        *NDESSCEPProxyCA    `json:"ndes_scep_proxy"`
+	CustomScepProxy []CustomSCEPProxyCA `json:"custom_scep_proxy"`
 }
 
 func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
@@ -351,6 +339,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		switch ca.Type {
 		case string(CATypeDigiCert):
 			grouped.DigiCert = append(grouped.DigiCert, DigiCertCA{
+				ID:                            ca.ID,
 				Name:                          *ca.Name,
 				CertificateCommonName:         *ca.CertificateCommonName,
 				CertificateSeatID:             *ca.CertificateSeatID,
@@ -365,6 +354,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 			}
 
 			grouped.NDESSCEP = &NDESSCEPProxyCA{
+				ID:       ca.ID,
 				URL:      *ca.URL,
 				AdminURL: *ca.AdminURL,
 				Username: *ca.Username,
@@ -373,6 +363,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 
 		case string(CATypeHydrant):
 			grouped.Hydrant = append(grouped.Hydrant, HydrantCA{
+				ID:           ca.ID,
 				Name:         *ca.Name,
 				URL:          *ca.URL,
 				ClientID:     *ca.ClientID,
@@ -380,6 +371,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 			})
 		case string(CATypeCustomSCEPProxy):
 			grouped.CustomScepProxy = append(grouped.CustomScepProxy, CustomSCEPProxyCA{
+				ID:        ca.ID,
 				Name:      *ca.Name,
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
@@ -401,7 +393,8 @@ type CertificateAuthoritiesSpec struct {
 }
 
 // TODO: handle optjson appropriately
-func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*CertificateAuthoritiesSpec, error) {
+func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
+	var groupedCAs GroupedCertificateAuthorities
 	var spec interface{}
 	spec, ok := incoming.(map[string]interface{})
 	if !ok || incoming == nil {
@@ -413,46 +406,81 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*CertificateAutho
 	}
 	spec, ok = spec.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("foobar: org_settings.certificate_authorities config is not a map")
+		return nil, errors.New("org_settings.certificate_authorities config is not a map")
 	}
 
 	if ndesSCEPProxy, ok := spec.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
-		// Per backend patterns.md, best practice is to clear a JSON config field with `null`
-		spec.(map[string]interface{})["ndes_scep_proxy"] = nil
+		// // Per backend patterns.md, best practice is to clear a JSON config field with `null`
+		// spec.(map[string]interface{})["ndes_scep_proxy"] = nil
+		// // TODO(hca): do nothing?
 	} else {
 		if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
 			return nil, errors.New("org_settings.certificate_authorities.ndes_scep_proxy config is not a map")
 		}
+		// We unmarshal NDES SCEP Proxy integration into its dedicated type for additional
+		// validation.
+		var ndesSCEPProxyData NDESSCEPProxyCA
+		ndesSCEPProxyJSON, err := json.Marshal(ndesSCEPProxy)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be marshalled into JSON: %w", err)
+		}
+		err = json.Unmarshal(ndesSCEPProxyJSON, &ndesSCEPProxyData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.ndes_scep_proxy cannot be parsed: %w", err)
+		}
+		groupedCAs.NDESSCEP = &ndesSCEPProxyData
 	}
+
 	if digicertIntegration, ok := spec.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
-		spec.(map[string]interface{})["digicert"] = nil
+		// spec.(map[string]interface{})["digicert"] = nil
+		// // TODO(hca): do nothing?
 	} else {
 		// We unmarshal DigiCert integration into its dedicated type for additional validation.
 		digicertJSON, err := json.Marshal(spec.(map[string]interface{})["digicert"])
 		if err != nil {
 			return nil, fmt.Errorf("org_settings.certificate_authorities.digicert cannot be marshalled into JSON: %w", err)
 		}
-		var digicertData optjson.Slice[DigiCertCA]
+		var digicertData []DigiCertCA
 		err = json.Unmarshal(digicertJSON, &digicertData)
 		if err != nil {
 			return nil, fmt.Errorf("org_settings.certificate_authorities.digicert cannot be parsed: %w", err)
 		}
-		spec.(map[string]interface{})["digicert"] = digicertData
+		groupedCAs.DigiCert = digicertData
 	}
+
 	if customSCEPIntegration, ok := spec.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
-		spec.(map[string]interface{})["custom_scep_proxy"] = nil
+		// spec.(map[string]interface{})["custom_scep_proxy"] = nil
+		// TODO(hca): do nothing?
 	} else {
 		// We unmarshal Custom SCEP integration into its dedicated type for additional validation
-		custonSCEPJSON, err := json.Marshal(spec.(map[string]interface{})["custom_scep_proxy"])
+		customSCEPJSON, err := json.Marshal(spec.(map[string]interface{})["custom_scep_proxy"])
 		if err != nil {
 			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_scep_proxy cannot be marshalled into JSON: %w", err)
 		}
-		var customSCEPData optjson.Slice[CustomSCEPProxyCA]
-		err = json.Unmarshal(custonSCEPJSON, &customSCEPData)
+		var customSCEPData []CustomSCEPProxyCA
+		err = json.Unmarshal(customSCEPJSON, &customSCEPData)
 		if err != nil {
 			return nil, fmt.Errorf("org_settings.certificate_authorities.custom_scep_proxy cannot be parsed: %w", err)
 		}
-		spec.(map[string]interface{})["custom_scep_proxy"] = customSCEPData
+		groupedCAs.CustomScepProxy = customSCEPData
 	}
-	return nil, nil
+
+	if hydrantCA, ok := spec.(map[string]interface{})["hydrant"]; !ok || hydrantCA == nil {
+		// spec.(map[string]interface{})["hydrant"] = nil
+		// TODO(hca): do nothing?
+	} else {
+		// We unmarshal Hydrant CA integration into its dedicated type for additional validation
+		hydrantJSON, err := json.Marshal(spec.(map[string]interface{})["hydrant"])
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.hydrant cannot be marshalled into JSON: %w", err)
+		}
+		var hydrantData []HydrantCA
+		err = json.Unmarshal(hydrantJSON, &hydrantData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.hydrant cannot be parsed: %w", err)
+		}
+		groupedCAs.Hydrant = hydrantData
+	}
+
+	return &groupedCAs, nil
 }

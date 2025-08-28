@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -303,21 +304,6 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 
-	ds.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-		switch assetType {
-		case fleet.CAConfigCustomSCEPProxy:
-			return map[string]fleet.CAConfigAsset{
-				"CustomScepProxy2": {
-					Name:  "CustomScepProxy2",
-					Value: []byte("challenge2"),
-					Type:  fleet.CAConfigCustomSCEPProxy,
-				},
-			}, nil
-		default:
-			return nil, &notFoundError{}
-		}
-	}
-
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
@@ -328,6 +314,35 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	}
 	ds.SetTeamVPPAppsFunc = func(ctx context.Context, teamID *uint, adamIDs []fleet.VPPAppTeam) error {
 		return nil
+	}
+
+	// we'll use to mock datastore persistence
+	var storedCAs fleet.GroupedCertificateAuthorities
+	muStoredCAs := sync.Mutex{}
+
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, delete []*fleet.CertificateAuthority, add []*fleet.CertificateAuthority, update []*fleet.CertificateAuthority) error {
+		muStoredCAs.Lock()
+		defer muStoredCAs.Unlock()
+		if len(delete) > 0 {
+			storedCAs = fleet.GroupedCertificateAuthorities{}
+		}
+		upserts := make([]*fleet.CertificateAuthority, 0, len(add)+len(update))
+		upserts = append(upserts, add...)
+		upserts = append(upserts, update...)
+		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
+		if err != nil {
+			return err
+		}
+		storedCAs = *g
+		return nil
+	}
+
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		require.True(t, includeSecrets) // for gitops flows we expect all calls to include secrets
+
+		muStoredCAs.Lock()
+		defer muStoredCAs.Unlock()
+		return &storedCAs, nil
 	}
 
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -355,7 +370,7 @@ policies:
 labels:
 agent_options:
 org_settings:
-  integrations:
+  certificate_authorities:
     ndes_scep_proxy:
       url: https://ndes.example.com/scep
       admin_url: https://ndes.example.com/admin
@@ -400,48 +415,110 @@ software:
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
+	// Dry run will get existing CAs but won't apply anything
+	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
+	ds.GetGroupedCertificateAuthoritiesFuncInvoked = false
+	assert.False(t, ds.BatchApplyCertificateAuthoritiesFuncInvoked)
+
 	// Real run
 	_ = RunAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
-	// assert.True(t, savedAppConfig.Integrations.NDESSCEPProxy.Valid)
-	// assert.Equal(t, "https://ndes.example.com/scep", savedAppConfig.Integrations.NDESSCEPProxy.Value.URL)
+
 	// GitOps should not overwrite GitOps UI Mode.
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.GitopsModeEnabled, true)
 	assert.Equal(t, savedAppConfig.UIGitOpsMode.RepositoryURL, "https://didsomeonesaygitops.biz")
 
-	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
-	// require.True(t, savedAppConfig.Integrations.DigiCert.Valid)
-	// digicerts := savedAppConfig.Integrations.DigiCert.Value
-	// require.Len(t, digicerts, 2)
-	// assert.Equal(t, "DigiCert", digicerts[0].Name)
-	// assert.Equal(t, "https://one.digicert.com", digicerts[0].URL)
-	// assert.Equal(t, "digicert_api_token", digicerts[0].APIToken)
-	// assert.Equal(t, "digicert_profile_id", digicerts[0].ProfileID)
-	// assert.Equal(t, "digicert_cn", digicerts[0].CertificateCommonName)
-	// assert.Equal(t, []string{"digicert_upn"}, digicerts[0].CertificateUserPrincipalNames)
-	// assert.Equal(t, "digicert_seat_id", digicerts[0].CertificateSeatID)
-	// assert.Equal(t, "DigiCert2", digicerts[1].Name)
-	// assert.Equal(t, "https://two.digicert.com", digicerts[1].URL)
-	// assert.Equal(t, "digicert_api_token2", digicerts[1].APIToken)
-	// assert.Equal(t, "digicert_profile_id2", digicerts[1].ProfileID)
-	// assert.Equal(t, "digicert_cn2", digicerts[1].CertificateCommonName)
-	// assert.Empty(t, digicerts[1].CertificateUserPrincipalNames)
-	// assert.Equal(t, "digicert_seat_id2", digicerts[1].CertificateSeatID)
-
-	// require.True(t, savedAppConfig.Integrations.CustomSCEPProxy.Valid)
-	// sceps := savedAppConfig.Integrations.CustomSCEPProxy.Value
-	// require.Len(t, sceps, 2)
-	// assert.Equal(t, "CustomScepProxy", sceps[0].Name)
-	// assert.Equal(t, "https://custom.scep.proxy.com", sceps[0].URL)
-	// assert.Equal(t, "challenge", sceps[0].Challenge)
-	// assert.Equal(t, "CustomScepProxy2", sceps[1].Name)
-	// assert.Equal(t, "https://custom.scep.proxy.com2", sceps[1].URL)
-	// assert.Equal(t, "challenge2", sceps[1].Challenge)
-
+	// Check MDM settings
 	require.True(t, savedAppConfig.MDM.EnableDiskEncryption.Value)
 	require.True(t, savedAppConfig.MDM.RequireBitLockerPIN.Value)
+
+	// Check certificate authorities
+	assert.True(t, ds.GetGroupedCertificateAuthoritiesFuncInvoked)
+	assert.True(t, ds.BatchApplyCertificateAuthoritiesFuncInvoked)
+	muStoredCAs.Lock()
+	defer muStoredCAs.Unlock()
+
+	// check ndes
+	require.NotNil(t, storedCAs.NDESSCEP)
+	assert.Equal(t, "https://ndes.example.com/scep", storedCAs.NDESSCEP.URL)
+
+	// check digicert
+	assert.True(t, digiCertService.VerifyProfileIDFuncInvoked)
+	assert.Len(t, storedCAs.DigiCert, 2)
+	digicertByName := make(map[string]fleet.DigiCertCA, 2)
+	for _, d := range storedCAs.DigiCert {
+		digicertByName[d.Name] = d
+	}
+	d1, ok := digicertByName["DigiCert"]
+	assert.True(t, ok)
+	assert.Equal(t, "DigiCert", d1.Name)
+	assert.Equal(t, "https://one.digicert.com", d1.URL)
+	assert.Equal(t, "digicert_api_token", d1.APIToken)
+	assert.Equal(t, "digicert_profile_id", d1.ProfileID)
+	assert.Equal(t, "digicert_cn", d1.CertificateCommonName)
+	assert.Equal(t, []string{"digicert_upn"}, d1.CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id", d1.CertificateSeatID)
+	d2, ok := digicertByName["DigiCert2"]
+	assert.True(t, ok)
+	assert.Equal(t, "DigiCert2", d2.Name)
+	assert.Equal(t, "https://two.digicert.com", d2.URL)
+	assert.Equal(t, "digicert_api_token2", d2.APIToken)
+	assert.Equal(t, "digicert_profile_id2", d2.ProfileID)
+	assert.Equal(t, "digicert_cn2", d2.CertificateCommonName)
+	assert.Empty(t, d2.CertificateUserPrincipalNames)
+	assert.Equal(t, "digicert_seat_id2", d2.CertificateSeatID)
+
+	// check custom SCEP proxies
+	assert.Len(t, storedCAs.CustomScepProxy, 2)
+	customSCEPByName := make(map[string]fleet.CustomSCEPProxyCA, 2)
+	for _, scep := range storedCAs.CustomScepProxy {
+		customSCEPByName[scep.Name] = scep
+	}
+	cs1, ok := customSCEPByName["CustomScepProxy"]
+	assert.True(t, ok)
+	assert.Equal(t, "CustomScepProxy", cs1.Name)
+	assert.Equal(t, "https://custom.scep.proxy.com", cs1.URL)
+	assert.Equal(t, "challenge", cs1.Challenge)
+	cs2, ok := customSCEPByName["CustomScepProxy2"]
+	assert.True(t, ok)
+	assert.Equal(t, "CustomScepProxy2", cs2.Name)
+	assert.Equal(t, "https://custom.scep.proxy.com2", cs2.URL)
+	assert.Equal(t, "challenge2", cs2.Challenge)
+
+	// // TODO(hca): if/when we have mock hydrant service, add yaml below to tmpFile and include
+	// // following tests
+	// // ```yaml
+	// // hydrant:
+	// //   - name: Hydrant
+	// //     url: https://hydrant.example.com
+	// //     client_id: hydrant_id
+	// //     client_secret: hydrant_secret
+	// //   - name: Hydrant2
+	// //     url: https://hydrant2.example.com
+	// //     client_id: hydrant2_id
+	// //     client_secret: hydrant2_secret
+	// // ````
+
+	// // check hydrant
+	// assert.Len(t, storedCAs.Hydrant, 2)
+	// hydrantByName := make(map[string]fleet.HydrantCA, 2)
+	// for _, h := range storedCAs.Hydrant {
+	// 	hydrantByName[h.Name] = h
+	// }
+	// h1, ok := hydrantByName["Hydrant"]
+	// assert.True(t, ok)
+	// assert.Equal(t, "Hydrant", h1.Name)
+	// assert.Equal(t, "https://hydrant.example.com", h1.URL)
+	// assert.Equal(t, "hydrant_id", h1.ClientID)
+	// assert.Equal(t, "hydrant_secret", h1.ClientSecret)
+	// h2, ok := hydrantByName["Hydrant2"]
+	// assert.True(t, ok)
+	// assert.Equal(t, "Hydrant2", h2.Name)
+	// assert.Equal(t, "https://hydrant2.example.com", h2.URL)
+	// assert.Equal(t, "hydrant2_id", h2.ClientID)
+	// assert.Equal(t, "hydrant2_secret", h2.ClientSecret)
 }
 
 func TestGitOpsBasicTeam(t *testing.T) {
