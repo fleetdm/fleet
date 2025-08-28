@@ -750,6 +750,8 @@ integrations:
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
+_Available in Fleet Premium._
+
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
@@ -759,7 +761,7 @@ This section lets you configure your [certificate authorities (CA)](https://flee
 ```yaml
 org_settings:
   certificate_authorities:
-    digicert: # Available in Fleet Premium
+    digicert:
       - name: DIGICERT_WIFI
         url: https://one.digicert.com
         api_token: $DIGICERT_API_TOKEN
@@ -768,20 +770,26 @@ org_settings:
         certificate_user_principal_names:
           - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
         certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy: # Available in Fleet Premium
+    ndes_scep_proxy:
       url: https://example.com/certsrv/mscep/mscep.dll
       admin_url: https://example.com/certsrv/mscep_admin/
       username: Administrator@example.com
       password: myPassword
-    custom_scep_proxy: # Available in Fleet Premium
+    custom_scep_proxy:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
-    hydrant: # Available in Fleet Premium
+    hydrant:
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
         client_id: $HYDRANT_CLIENT_ID
         client_secret: $HYDRANT_CLIENT_SECRET
+    smallstep:
+      - name: SMALLSTEP_WIFI
+        url: https://example.scep.smallstep.com/p/agents/integration-fleet
+        challenge_url: https://example.scep.smallstep.com/xr9f4db7-83f1-48ab-8982-8b6870d4fl85/challenge
+        username: $SMALLSTEP_USERNAME
+        password: $SMALLSTEP_PASSWORD
 ```
 
 #### digicert
@@ -821,6 +829,16 @@ org_settings:
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
+
+#### smallstep
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the **SCEP URL** from Smallstep.
+- `challenge_url` is the **Webhook URL** from Smallstep.
+- `username` is the **Challenge Basic Authentication Username** from Smallstep.
+- `password` is the **Challenge Basic Authentication Password** from Smallstep.
 
 ### webhook_settings
 
