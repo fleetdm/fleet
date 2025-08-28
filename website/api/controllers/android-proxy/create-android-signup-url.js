@@ -57,11 +57,16 @@ module.exports = {
         // If we got here, enterprise still exists in Google - throw conflict
         throw 'enterpriseAlreadyExists';
 
-      } catch (unusedErr) {
-        // Enterprise doesn't exist in Google (403/404) - clean up stale proxy record
-        await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
-
-        // Continue with signup process (don't throw conflict)
+      } catch (err) {
+        // Only clean up proxy record if this is a Google API error indicating enterprise deletion
+        if (err && err.code && (err.code === 403 || err.code === 404)) {
+          // 403 or 404 from Google API indicates enterprise doesn't exist - clean up stale proxy record
+          await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
+          // Continue with signup process (don't throw conflict)
+        } else {
+          // For other errors (network, auth, etc), re-throw to let them bubble up
+          throw err;
+        }
       }
     }
 
