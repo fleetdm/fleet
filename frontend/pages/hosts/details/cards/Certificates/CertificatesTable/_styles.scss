@@ -3,7 +3,107 @@
     overflow-x: auto;
   }
 
+  .data-table__table {
+    table-layout: fixed;
+    width: 100%;
+  }
+
+  .data-table__table th,
+  .data-table__table td {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+
+  .data-table__table th.common_name__header,
+  .data-table__table td.common_name__cell {
+    width: 25%;
+    min-width: 120px;
+  }
+
+  .data-table__table th.issuer__header,
+  .data-table__table td.issuer__cell {
+    width: 20%;
+    min-width: 100px;
+  }
+
+  .data-table__table th.source__header,
+  .data-table__table td.source__cell {
+    width: 10%;
+    min-width: 70px;
+  }
+
+  .data-table__table th.not_valid_before__header,
+  .data-table__table td.not_valid_before__cell {
+    width: 15%;
+    min-width: 90px;
+  }
+
+  .data-table__table th.not_valid_after__header,
+  .data-table__table td.not_valid_after__cell {
+    width: 20%;
+    min-width: 120px;
+  }
+
+  .data-table__table th.view-all-hosts__header,
+  .data-table__table td.view-all-hosts__cell {
+    width: 10%;
+    min-width: 90px;
+  }
+
   .cert-table__status-indicator {
     min-width: 160px;
+  }
+
+  // Responsive breakpoints - hide less critical columns on small screens
+  @media (max-width: 990px) {
+    .data-table__table th.issuer__header,
+    .data-table__table td.issuer__cell {
+      display: none;
+    }
+
+    // Redistribute column widths when issuer is hidden
+    .data-table__table th.common_name__header,
+    .data-table__table td.common_name__cell {
+      width: 30%;
+    }
+
+    .data-table__table th.not_valid_after__header,
+    .data-table__table td.not_valid_after__cell {
+      width: 25%;
+    }
+
+    .data-table__table th.not_valid_before__header,
+    .data-table__table td.not_valid_before__cell {
+      width: 20%;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .data-table__table th.not_valid_before__header,
+    .data-table__table td.not_valid_before__cell {
+      display: none;
+    }
+
+    // Further redistribute when issued is also hidden
+    .data-table__table th.common_name__header,
+    .data-table__table td.common_name__cell {
+      width: 40%;
+    }
+
+    .data-table__table th.not_valid_after__header,
+    .data-table__table td.not_valid_after__cell {
+      width: 30%;
+    }
+
+    .data-table__table th.source__header,
+    .data-table__table td.source__cell {
+      width: 15%;
+    }
+
+    .data-table__table th.view-all-hosts__header,
+    .data-table__table td.view-all-hosts__cell {
+      width: 15%;
+    }
   }
 }
