@@ -26,7 +26,6 @@ import {
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
-import { getErrorMessage } from "./helpers";
 import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-service-icon.png";
 
 const baseClass = "edit-icon-modal";
@@ -36,6 +35,7 @@ const UPLOAD_MESSAGE =
   "The icon must be a PNG file and square, with dimensions ranging from 120x120 px to 1024x1024 px.";
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
+const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
 
 interface IIconFormData {
   icon: File;
@@ -136,20 +136,30 @@ const EditIconModal = ({
     setIsUpdatingIcon(true);
 
     try {
-      await softwareAPI.editSoftwareIcon(softwareId, teamIdForApi, formData);
-
-      renderFlash(
-        "success",
-        <>
-          Successfully edited <b>{software?.name}</b>.
-        </>
-      );
+      if (!formData?.icon) {
+        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+        renderFlash(
+          "success",
+          <>
+            Successfully removed icon from <b>{software?.name}</b>.
+          </>
+        );
+      } else {
+        await softwareAPI.editSoftwareIcon(softwareId, teamIdForApi, formData);
+        renderFlash(
+          "success",
+          <>
+            Successfully edited <b>{software?.name}</b>.
+          </>
+        );
+      }
       refetchSoftwareTitle();
       onExit();
     } catch (e) {
-      renderFlash("error", getErrorMessage(e, software as IAppStoreApp));
+      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+    } finally {
+      setIsUpdatingIcon(false);
     }
-    setIsUpdatingIcon(false);
   };
 
   const renderPreviewFleetCard = () => {
