@@ -22,6 +22,9 @@ const (
 	// campaignTargetsCleanupPercentPerRun is the percentage of total eligible targets to delete per run
 	// We delete 10% of eligible targets or the minimum, whichever is larger
 	campaignTargetsCleanupPercentPerRun = 0.10 // 10%
+
+	// campaignTargetsCleanupBatchSleep is the sleep duration between deletion batches to avoid overloading the database
+	campaignTargetsCleanupBatchSleep = 100 * time.Millisecond
 )
 
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
@@ -306,7 +309,7 @@ func (ds *Datastore) CleanupCompletedCampaignTargets(ctx context.Context, olderT
 		}
 
 		// Sleep briefly between batches to avoid overloading the database.
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(campaignTargetsCleanupBatchSleep)
 	}
 
 	return totalDeleted, nil
