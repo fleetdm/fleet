@@ -611,7 +611,7 @@ Only one of the objects is allowed in a single request.
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
-| smallstep   | object | body | See [s](#smallstep) |
+| smallstep   | object | body | See [smallstep](#smallstep) |
 
 ##### digicert
 
