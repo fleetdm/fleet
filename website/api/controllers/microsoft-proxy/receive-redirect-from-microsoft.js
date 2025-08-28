@@ -156,7 +156,7 @@ module.exports = {
       } catch(err){
         sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. full error`, err);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        return {redirect: fleetInstanceUrlToRedirectTo };
+        throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
@@ -184,14 +184,14 @@ module.exports = {
       } catch(err){
         sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. full error`, err);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        return {redirect: fleetInstanceUrlToRedirectTo };
+        throw {redirect: fleetInstanceUrlToRedirectTo };
       }
 
       // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
       if(parsedGroupResponse.value.length === 0){
         sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, `);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});
-        return {redirect: fleetInstanceUrlToRedirectTo };
+        throw {redirect: fleetInstanceUrlToRedirectTo };
       }
 
       let groupId = parsedGroupResponse.value[0].id;
