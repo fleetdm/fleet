@@ -2,7 +2,6 @@ package mysql
 
 import (
 	"slices"
-	"sort"
 	"strings"
 	"testing"
 	"time"
