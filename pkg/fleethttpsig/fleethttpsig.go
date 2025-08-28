@@ -38,3 +38,17 @@ func Signer(metaKeyID string, signer crypto.Signer, signingAlgorithm httpsig.Alg
 		MetaKeyID: metaKeyID,
 	})
 }
+
+// TpmSigner returns a TPM-backed *httpsig.Signer to sign HTTP requests to a Fleet server.
+func TpmSigner(metaKeyID string, signer crypto.Signer, signingAlgorithm httpsig.Algorithm) (*httpsig.Signer, error) {
+	return httpsig.NewSigner(httpsig.SigningProfile{
+		Algorithm: signingAlgorithm,
+		Fields:    requiredFields,
+		Metadata:  requiredMetadata,
+	}, httpsig.SigningKey{
+		Opts: httpsig.SigningKeyOpts{
+			Signer: signer,
+		},
+		MetaKeyID: metaKeyID,
+	})
+}
