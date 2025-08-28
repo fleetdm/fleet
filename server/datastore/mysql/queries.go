@@ -163,7 +163,9 @@ func (ds *Datastore) applyQueriesInTx(
 					if err := rows.Scan(&id, &name, &teamID); err != nil {
 						return ctxerr.Wrap(ctx, err, "scan existing query")
 					}
-					batchGrp[unqKeyGen(name, teamID)].ID = id
+					if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
+						q.ID = id
+					}
 				}
 				if err := rows.Err(); err != nil {
 					return ctxerr.Wrap(ctx, err, "fetching query IDs")
