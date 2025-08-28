@@ -113,7 +113,7 @@ Upon receiving any device, follow these steps to process incoming equipment.
 
 ### Ship approved equipment
 
-Once the Digital Experience department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
+Once the department approves inventory to be shipped from Fleet IT, follow these step to ship the equipment.
 1. Compare the equipment request issue with the ["📦 Warehouse" team](https://dogfood.fleetdm.com/settings/teams/users?team_id=279) and verify physical inventory.
 2. Plug in the device and ensure inventory has been correctly processed and all components are present (e.g. charger cord, power converter).
 3. Package equipment for shipment and include Yubikeys (if requested).
@@ -130,14 +130,14 @@ Certain new team members, especially in go-to-market (GTM) roles, will need paid
 ### Process a tool upgrade request from a team member
 
 - A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through GitHub.
-- Digital Experience will upgrade or add the license seat as needed and let the requesting team member know they did it.
+- IT & Enablement will upgrade or add the license seat as needed and let the requesting team member know they did it.
 
 
 ### Downgrade an unused license seat
 
 - On the first Wednesday of every quarter, the CEO and Head of Digital Workplace & GTM Systems will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
 - During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
-- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to Digital Experience to have their access restored.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a GitHub issue to IT & Enablement to have their access restored.
 - The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
 
 

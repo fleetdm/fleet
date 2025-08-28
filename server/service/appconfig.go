@@ -1751,6 +1751,22 @@ func (svc *Service) validateMDM(
 	if !mdm.WindowsEnabledAndConfigured && mdm.WindowsMigrationEnabled {
 		invalid.Append("mdm.windows_migration_enabled", "Couldn't enable Windows MDM migration, Windows MDM is not enabled.")
 	}
+
+	if !mdm.EnableDiskEncryption.Value {
+		switch {
+		case !oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+			invalid.Append(
+				"mdm.windows_require_bitlocker_pin",
+				fleet.CantEnablePINRequiredIfDiskEncryptionEnabled,
+			)
+		case oldMdm.EnableDiskEncryption.Value && mdm.RequireBitLockerPIN.Value:
+			invalid.Append(
+				"mdm.enable_disk_encryption",
+				fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg,
+			)
+		}
+	}
+
 	return nil
 }
 
