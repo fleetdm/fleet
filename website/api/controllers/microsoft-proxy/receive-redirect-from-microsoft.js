@@ -14,7 +14,8 @@ module.exports = {
     },
     state: {
       type: 'string',
-      description: 'A token used to authenticate this request for a provided entra tenant.'
+      description: 'A token used to authenticate this request for a provided entra tenant.',
+      required: true,
     },
     error: {
       type: 'string',
