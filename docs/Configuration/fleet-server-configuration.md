@@ -2053,7 +2053,7 @@ for the email address specified in the Source parameter of SendRawEmail.
 - Config file format:
   ```yaml
   ses:
-    sts_assume_role_arn: arn:aws:iam::1234567890:role/ses-role
+    ses_source_arn: TODO
   ```
 
 ## S3
