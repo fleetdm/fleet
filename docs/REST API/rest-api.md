@@ -9393,7 +9393,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Add package](#add-package)
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
-- [Add App Store app](#add-app-store-app)
+- [Add store app (Apple and Android)](#add-store-app-apple-and-android)
 - [Modify App Store app](#modify-app-store-app)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
@@ -10208,13 +10208,13 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
 }
 ```
 
-### Add App Store app
+### Add store app (Apple and Android)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 _Available in Fleet Premium._
 
-Add App Store (VPP) app purchased in Apple Business Manager.
+Add Apple App Store (VPP) app purchased in Apple Business Manager or the Android Play Store app.
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10224,7 +10224,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 | ---- | ---- | -- | ----------- |
 | app_store_id   | string | body | **Required.** The ID of App Store app. |
 | team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
-| platform | string | body | The platform of the app (`darwin`, `ios`, or `ipados`). Default is `darwin`. |
+| platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
 | self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
@@ -10233,7 +10233,7 @@ Add App Store (VPP) app purchased in Apple Business Manager.
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
 
-#### Example
+#### Example (Apple App Store app)
 
 `POST /api/v1/fleet/software/app_store_apps`
 
@@ -10256,6 +10256,31 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 ```json
 {
   "software_title_id": 123
+}
+```
+
+#### Example (Android Play Store app)
+
+`POST /api/v1/fleet/software/app_store_apps`
+
+##### Request body
+
+```json
+{
+  "app_store_id": "com.android.chrome",
+  "team_id": 2,
+  "platform": "android",
+  "self_service": true
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title_id": 124
 }
 ```
 
