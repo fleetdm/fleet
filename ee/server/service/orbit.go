@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -313,47 +312,4 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 	return &fleet.SetupExperienceInitResult{
 		Enabled: enabled,
 	}, nil
-}
-
-func (svc *Service) GetOrbitSetupExperienceNextStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
-	// This is an orbit endpoint, not a user-authenticated endpoint.
-	svc.authz.SkipAuthorization(ctx)
-
-	host, ok := hostctx.FromContext(ctx)
-	if !ok {
-		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
-	}
-
-	// Get status of software installs and script execution.
-	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
-	}
-
-	// Mark canceled items as failed.
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host, res)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
-	}
-
-	// Create payload to return to the caller.
-	payload := &fleet.SetupExperienceNextStatusPayload{
-		Software: make([]*fleet.SetupExperienceStatusResult, 0),
-	}
-	for _, r := range res {
-		if r.IsForSoftware() {
-			payload.Software = append(payload.Software, r)
-		}
-	}
-
-	// Continue with next step in setup experience.
-	if _, err = svc.SetupExperienceNextStep(ctx, host.UUID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
-	}
-
-	return payload, nil
-}
-
-func badRequestf(format string, a ...any) error {
-	return &fleet.BadRequestError{Message: fmt.Sprintf(format, a...)}
 }

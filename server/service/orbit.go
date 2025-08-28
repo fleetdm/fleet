@@ -1375,7 +1375,6 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			// TODO: call next step of setup experience?
 			fromSetupExperience = true
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.InstallUUID)
 		}
@@ -1515,48 +1514,6 @@ func orbitSetupExperienceInitEndpoint(ctx context.Context, request interface{}, 
 }
 
 func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
-
-	return nil, fleet.ErrMissingLicense
-}
-
-/////////////////////////////////////////////////////////////////////////////////
-// Get orbit setup experience status for non-darwin hosts.
-/////////////////////////////////////////////////////////////////////////////////
-
-type getOrbitSetupExperienceNextStatusRequest struct {
-	OrbitNodeKey string `json:"orbit_node_key"`
-}
-
-func (r *getOrbitSetupExperienceNextStatusRequest) setOrbitNodeKey(nodeKey string) {
-	r.OrbitNodeKey = nodeKey
-}
-
-func (r *getOrbitSetupExperienceNextStatusRequest) orbitHostNodeKey() string {
-	return r.OrbitNodeKey
-}
-
-type getOrbitSetupExperienceNextStatusResponse struct {
-	Results *fleet.SetupExperienceNextStatusPayload `json:"setup_experience_results,omitempty"`
-	Err     error                                   `json:"error,omitempty"`
-}
-
-func (r getOrbitSetupExperienceNextStatusResponse) Error() error { return r.Err }
-
-func postOrbitSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	if _, ok := request.(*getOrbitSetupExperienceNextStatusRequest); !ok {
-		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
-	}
-	results, err := svc.GetOrbitSetupExperienceNextStatus(ctx)
-	if err != nil {
-		return &getOrbitSetupExperienceNextStatusResponse{Err: err}, nil
-	}
-	return &getOrbitSetupExperienceNextStatusResponse{Results: results}, nil
-}
-
-func (svc *Service) GetOrbitSetupExperienceNextStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)

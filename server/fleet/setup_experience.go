@@ -186,7 +186,7 @@ type SetupExperienceStatusPayload struct {
 }
 
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	return hostPlatform == "darwin"
+	return hostPlatform == "darwin" || IsLinux(hostPlatform)
 }
 
 type SetupExperienceNextStatusPayload struct {

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -775,4 +776,42 @@ func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, sv
 		res = []*fleet.HostCertificatePayload{}
 	}
 	return listDeviceCertificatesResponse{Certificates: res, Meta: meta}, nil
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+// Get setup experience status.
+/////////////////////////////////////////////////////////////////////////////////
+
+type getDeviceSetupExperienceStatusRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *getDeviceSetupExperienceStatusRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type getDeviceSetupExperienceStatusResponse struct {
+	Results *fleet.SetupExperienceNextStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                                   `json:"error,omitempty"`
+}
+
+func (r getDeviceSetupExperienceStatusResponse) Error() error { return r.Err }
+
+func getDeviceSetupExperienceStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	if _, ok := request.(*getDeviceSetupExperienceStatusRequest); !ok {
+		return nil, fmt.Errorf("internal error: invalid request type: %T", request)
+	}
+	results, err := svc.GetDeviceSetupExperienceStatus(ctx)
+	if err != nil {
+		return &getDeviceSetupExperienceStatusResponse{Err: err}, nil
+	}
+	return &getDeviceSetupExperienceStatusResponse{Results: results}, nil
+}
+
+func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }

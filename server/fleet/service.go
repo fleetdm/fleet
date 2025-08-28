@@ -1239,7 +1239,7 @@ type Service interface {
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
 	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
-	GetOrbitSetupExperienceNextStatus(ctx context.Context) (*SetupExperienceNextStatusPayload, error)
+	GetDeviceSetupExperienceStatus(ctx context.Context) (*SetupExperienceNextStatusPayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
