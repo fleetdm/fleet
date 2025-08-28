@@ -9394,7 +9394,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Modify package](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add store app (Apple and Android)](#add-store-app-apple-and-android)
-- [Modify App Store app](#modify-app-store-app)
+- [Modify store app (Apple and Android)](#modify-store-app-apple-and-android)
 - [List Fleet-maintained apps](#list-fleet-maintained-apps)
 - [Get Fleet-maintained app](#get-fleet-maintained-app)
 - [Add Fleet-maintained app](#add-fleet-maintained-app)
@@ -10222,10 +10222,10 @@ Add Apple App Store (VPP) app purchased in Apple Business Manager or the Android
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| app_store_id   | string | body | **Required.** The ID of App Store app. |
-| team_id       | integer | body | **Required**. The team ID. Adds VPP software to the specified team.  |
+| app_store_id   | string | body | **Required.** The ID of the Apple App Store or Android Play Store app. |
+| team_id       | integer | body | **Required**. The team ID. Adds app from the store to the specified team.  |
 | platform | string | body | The platform of the app (`darwin`, `ios`, `ipados`, or `android`). Default is `darwin`. |
-| self_service | boolean | body | Only supported for macOS apps. Specifies whether the app shows up on the **Fleet Desktop > My device** page and is available for install by the end user. |
+| self_service | boolean | body | Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
 | ensure | string | form | For macOS only, if set to "present" (currently the only valid value if set), create a policy that triggers a software install only on hosts missing the software. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
@@ -10284,12 +10284,12 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 }
 ```
 
-### Modify App Store app
+### Modify store app (Apple and Android)
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 _Available in Fleet Premium._
 
-Modify App Store (VPP) app's options.
+Modify Apple App Store (VPP) or Android Play Store app's options.
 
 `PATCH /api/v1/fleet/software/titles/:title_id/app_store_app`
 
@@ -10297,9 +10297,9 @@ Modify App Store (VPP) app's options.
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
-| team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
-| categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
+| team_id       | integer | body | **Required**. The team ID. Edits Apple App Store or Android Play store app from the specified team.  |
+| self_service | boolean | body | Currently supported for macOS and Android apps. Specifies whether the app shows up in self-service and is available for install by the end user. For macOS shows up on **Fleet Desktop > My device** page, and for Android in **Play Store** app in end user's work profile.  |
+| categories | array | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page (currently only macOS). Software with no categories will be still be shown under **All**. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 
