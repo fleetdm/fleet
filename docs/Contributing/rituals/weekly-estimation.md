@@ -49,12 +49,16 @@ Requirements: All user stories and bugs must meet the minimum specification thre
 
 > If the user story requires sub-issues, all components of the user story must be separated into clear and defined sub-issues. Do not create placeholder sub-issues that will get filled in later. They must each contain a summary of the changes required. Full implementation details are not required.
 
+Examples of well specified user stories ready for estimation: [#25549](https://github.com/fleetdm/fleet/issues/25549), [#28631](https://github.com/fleetdm/fleet/issues/28631).
+
 **Bug**
 - Title
 - Fleet version
 - Actual behavior 
 - Steps to reproduce
 - Applicable labels added (`~released bug`, `~frontend`, etc.)
+
+Examples of well specified bugs ready for estimation: 
 
 ### Notes
 The EM is responsible for final point values and ensuring estimates are realistic. These sessions focus on understanding scope, effort, and complexity. Estimation sessions help align the roadmap with business needs by providing realistic timelines for work completion.
