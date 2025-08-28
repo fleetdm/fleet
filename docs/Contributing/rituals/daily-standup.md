@@ -8,16 +8,18 @@ Participants: Full product group.
 
 Facilitator: EM or assigned team member.
 
-### Agenda
-1. Shares screen and open the team's GitHub Projects board. 
+### Format
+1. Share screen and open the team's GitHub Projects board. 
 2. Call on each participant and filters the project board to that assignee. 
-3. Participant answers the questions in the standup agenda below. 
+3. Participant answers the questions in the agenda below. 
 4. Call on the next participant until everyone, including the facilitator, has provided an update. 
 5. Complete incoming bug review.
 6. End the Daily Standup for everyone except those with parking lot issues. 
 7. Go through each parking lot item with the relevant participants and define and assign TODOs to resolve the blocker.
 
-### Standup agenda
+> To determine order of standup, some ideas are alphabetical order, [wheel of names](https://wheelofnames.com/), or random. Facilitator should call on participants and not wait for volunteers.
+
+### Agenda
 - What did you work on yesterday?
 - What are you working on today? 
 - Do you have any blockers? 
@@ -30,7 +32,7 @@ Handbook reference (process and definitions): https://fleetdm.com/handbook/compa
 ## Incoming bug review
 Each bug review should take less than 1 minute. The intent is not to debug, but to acknowledge, assign, and share any immediate context. 
 
-1. Open the [Fleet GitHub issue list filtered to the labels](https://github.com/fleetdm/fleet/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug%20label%3A%3Areproduce) `bug` and `:reprodce`.
+1. Open the [Fleet GitHub issue list filtered to the labels](https://github.com/fleetdm/fleet/issues?q=is%3Aissue%20state%3Aopen%20label%3Abug%20label%3A%3Areproduce) `bug` and `:reproduce`.
 2. Make sure there are no new bugs without a product group label. If there are, add the appropriate product group label.
 3. Filter the list by `bug`, `:reproduce`, and your product group label.
 4. For each item, quickly move through the decision flow chart below.
