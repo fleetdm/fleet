@@ -289,6 +289,32 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'macos-restrictions',
+            description: 'Settings that configures restrictions on a device..',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              {
+                name: 'Disable erase all content and settings.',
+                uniqueSlug: 'macos-disable-erase-content',
+                tooltip: 'If false, the system disables the Erase All Content and Settings option in the Reset UI',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowEraseContentAndSettings',
+                  trueValue: false,
+                  falseValue: true,
+                },
+              },
+            ]
+          }
           // {
           //   subcategoryName: 'FileVault',
           //   subcategorySlug: 'macos-filevault',
