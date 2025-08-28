@@ -1071,6 +1071,82 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	return hosts, nil
 }
 
+func (ds *Datastore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, err error) {
+	countStmt := `
+SELECT COUNT(*)
+FROM
+    hosts h
+	%s
+WHERE
+    %s
+`
+
+	sqlStmt := `
+SELECT
+    h.id,
+    h.hostname as display_name,
+    ? as status,
+	-- pending hosts will have "updated_at" set in the db, but since
+	-- we're using it to mean "executed at" we'll return it as empty.
+	CASE
+		WHEN ? != 'pending' THEN hsr.updated_at
+		ELSE NULL
+	END as updated_at,
+    COALESCE(LEFT(hsr.output, 100), '') as output,
+	COALESCE(hsr.execution_id, '') as execution_id
+FROM
+    hosts h
+	%s
+WHERE
+    %s
+	`
+
+	// Validate the batch status.
+	if !batchScriptExecutionStatus.IsValid() {
+		return nil, nil, 0, errors.New("invalid batch execution status")
+	}
+
+	queryParams := []interface{}{}
+	batchScriptExecutionJoin, batchScriptExecutionFilter, queryParams := ds.getBatchExecutionFilters(queryParams, fleet.HostListOptions{
+		BatchScriptExecutionIDFilter:     &batchScriptExecutionID,
+		BatchScriptExecutionStatusFilter: batchScriptExecutionStatus,
+	})
+
+	// Count the total number of hosts matching the filters.
+	// Do this before we add more "where" params for the main query.
+	countStmt = fmt.Sprintf(countStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
+	dbReader := ds.reader(ctx)
+	if err = sqlx.GetContext(ctx, dbReader, &count, countStmt, queryParams...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch scripts count")
+	}
+
+	// Add in the params for the main query SELECT.
+	queryParams = append([]interface{}{batchScriptExecutionStatus, batchScriptExecutionStatus}, queryParams...) // make a copy so we don't modify the original slice
+	// Add in the paging params.
+	sqlStmt, queryParams = appendListOptionsWithCursorToSQL(sqlStmt, queryParams, &opt)
+
+	// Run the main query to get the list of hosts.
+	sqlStmt = fmt.Sprintf(sqlStmt, batchScriptExecutionJoin, batchScriptExecutionFilter)
+	if err = sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sqlStmt, queryParams...); err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
+	}
+
+	if opt.IncludeMetadata {
+		meta = &fleet.PaginationMetadata{
+			HasPreviousResults: opt.Page > 0,
+			TotalResults:       count,
+		}
+		// `appendListOptionsWithCursorToSQL` used above to build the query statement will cause this discrepancy.
+		// This is intentional so that we can check whether we have another page.
+		if len(hosts) > int(opt.PerPage) { //nolint:gosec // dismiss G115
+			meta.HasNextResults = true
+			hosts = hosts[:len(hosts)-1]
+		}
+	}
+
+	return hosts, meta, count, nil
+}
+
 // TODO(Sarah): Do we need to reconcile mutually exclusive filters?
 func (ds *Datastore) applyHostFilters(
 	ctx context.Context, opt fleet.HostListOptions, sqlStmt string, filter fleet.TeamFilter, selectParams []any,
@@ -1207,29 +1283,9 @@ func (ds *Datastore) applyHostFilters(
 	// BatchScriptExecutionIDFilter is set. This allows us to filter hosts based on the status of
 	// batch script executions.
 	batchScriptExecutionJoin := ""
-	batchScriptExecutionIDFilter := "TRUE"
+	batchScriptExecutionFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
-		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
-		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
-		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
-		if opt.BatchScriptExecutionStatusFilter.IsValid() {
-			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
-			switch opt.BatchScriptExecutionStatusFilter {
-			case fleet.BatchScriptExecutionRan:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
-			case fleet.BatchScriptExecutionPending:
-				// Pending can mean "waiting for execution" or "waiting for results".
-				batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
-				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
-			case fleet.BatchScriptExecutionErrored:
-				// TODO - remove exit code condition when we split up "errored" and "failed"
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
-			case fleet.BatchScriptExecutionIncompatible:
-				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
-			case fleet.BatchScriptExecutionCanceled:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
-			}
-		}
+		batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams = ds.getBatchExecutionFilters(whereParams, opt)
 	}
 
 	sqlStmt += fmt.Sprintf(
@@ -1272,7 +1328,7 @@ func (ds *Datastore) applyHostFilters(
 		softwareFilter,
 		munkiFilter,
 		lowDiskSpaceFilter,
-		batchScriptExecutionIDFilter,
+		batchScriptExecutionFilter,
 	)
 
 	now := ds.clock.Now()
@@ -1319,7 +1375,35 @@ func (ds *Datastore) applyHostFilters(
 	return sqlStmt, params, nil
 }
 
-func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []any) (string, []any) {
+func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.HostListOptions) (batchScriptExecutionJoin string, batchScriptExecutionFilter string, updatedWhereParams []interface{}) {
+	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
+	batchScriptExecutionFilter = `bsehr.batch_execution_id = ?`
+	whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
+	if opt.BatchScriptExecutionStatusFilter.IsValid() {
+		batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
+		switch opt.BatchScriptExecutionStatusFilter {
+		case fleet.BatchScriptExecutionRan:
+			batchScriptExecutionFilter += ` AND hsr.exit_code = 0 AND hsr.canceled = 0`
+		case fleet.BatchScriptExecutionPending:
+			// Pending can mean "waiting for execution" or "waiting for results".
+			// hsr.exit_code IS NULL <- this means the script has not reported back
+			// (hsr.canceled IS NULL OR hsr.canceled = 0) <- this can mean the script is running, or that it hasn't been activated yet,
+			//                      but either way we haven't canceled it.
+			// bsehr.error IS NULL <- this means the batch script framework didn't mark this host as incompatible
+			//                        with this script run.
+			batchScriptExecutionFilter += ` AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)`
+		case fleet.BatchScriptExecutionErrored:
+			batchScriptExecutionFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
+		case fleet.BatchScriptExecutionIncompatible:
+			batchScriptExecutionFilter += ` AND bsehr.error IS NOT NULL`
+		case fleet.BatchScriptExecutionCanceled:
+			batchScriptExecutionFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+		}
+	}
+	return batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams
+}
+
+func filterHostsByTeam(sql string, opt fleet.HostListOptions, params []any) (string, []interface{}) {
 	if opt.TeamFilter == nil {
 		// default "all teams" option
 		return sql, params
@@ -4049,8 +4133,8 @@ func maybeAssociateScimUserWithHostMDMIdP(
 
 	var hostIDs []uint
 	selectFmt := `
-SELECT h.id 
-FROM hosts h 
+SELECT h.id
+FROM hosts h
 JOIN host_mdm_idp_accounts hmia ON h.uuid = hmia.host_uuid
 JOIN mdm_idp_accounts mia ON hmia.account_uuid = mia.uuid
 WHERE %s`
