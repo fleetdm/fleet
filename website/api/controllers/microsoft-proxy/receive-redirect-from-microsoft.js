@@ -40,9 +40,20 @@ module.exports = {
   fn: async function ({tenant, state, error, error_description}) {// eslint-disable-line camelcase
 
     // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
-    if(error || error_description){// eslint-disable-line camelcase
-      throw 'adminDidNotConsent';
-    } else if (!tenant || !state) {
+    if(error || error_description) {// eslint-disable-line camelcase
+      // If an admin did not consent (or a user who started connecting the integration does not have admin permissions), try to match the provided state to a MicrosoftComplianceTenant record, and redirect to that.
+      let newSetupError = 'A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration.';
+      let tenantRecordWithThisState = await MicrosoftComplianceTenant.findOne({stateTokenForAdminConsent: state});
+      // If we couldn't find a MicrosoftComplianceTenant record with this state, return a notFound response.
+      // Note: This can happen if a user visits the conditional access integration page on their Fleet instance.
+      // FUTURE: handle edge cases where the state stored on the database record is regenerated during the admin consent flow.
+      if(!tenantRecordWithThisState) {
+        throw 'noMatchingTenant';
+      } else {
+        await MicrosoftComplianceTenant.updateOne({id: tenantRecordWithThisState.id}).set({setupError: newSetupError});
+        throw {redirect: tenantRecordWithThisState.fleetInstanceUrl + '/settings/integrations/conditional-access'};
+      }
+    } else if (!tenant) {
       throw 'badRequest';
     }
 
