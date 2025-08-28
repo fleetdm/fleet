@@ -24,9 +24,9 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
 		if vppApp != nil || vppApp.IconURL != nil {
 			return nil, nil, nil, &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
-		} else {
-			return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
 		}
+
+		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
 
 	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)
@@ -42,55 +42,51 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	return imageBytes, &size, &icon.Filename, nil
 }
 
-func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
+func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error) {
 	var err error
 	if err = svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
-		return nil, err
+		return fleet.SoftwareTitleIcon{}, err
 	}
 	var softwareInstaller *fleet.SoftwareInstaller
 	var vppApp *fleet.VPPAppStoreApp
 
 	softwareInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &payload.TeamID, payload.TitleID, false)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, ctxerr.Wrap(ctx, err, "getting software installer")
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting software installer")
 	}
 	if softwareInstaller == nil {
 		vppApp, err = svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &payload.TeamID, payload.TitleID)
 		if err != nil && !fleet.IsNotFound(err) {
-			return nil, ctxerr.Wrap(ctx, err, "getting VPP app")
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting VPP app")
 		}
 	}
 	if softwareInstaller == nil && vppApp == nil {
-		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Software title has no software installer or VPP app: %d", payload.TitleID)}
+		return fleet.SoftwareTitleIcon{}, &fleet.BadRequestError{Message: fmt.Sprintf("Software title has no software installer or VPP app: %d", payload.TitleID)}
 	}
 
 	// get sha256 of icon file
 	payload.StorageID, err = file.SHA256FromTempFileReader(payload.IconFile)
 	if err != nil {
-		return nil, err
+		return fleet.SoftwareTitleIcon{}, err
 	}
 
 	// store icon
 	exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "checking if installer exists")
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if installer exists")
 	}
 	if !exists {
-		if _, err := payload.IconFile.Seek(0, 0); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "seeking back to start")
-		}
-
 		if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "storing icon")
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
 		}
 	}
 
 	softwareTitleIcon, err := svc.ds.CreateOrUpdateSoftwareTitleIcon(ctx, payload)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "creating or updating software title icon")
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating or updating software title icon")
 	}
 
-	return softwareTitleIcon, nil
+	return *softwareTitleIcon, nil
 }
 
 func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {
@@ -99,12 +95,7 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 		return err
 	}
 
-	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID, nil)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting software title icon")
-	}
-
-	err = svc.ds.DeleteSoftwareTitleIcon(ctx, icon.ID)
+	err = svc.ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software title icon")
 	}

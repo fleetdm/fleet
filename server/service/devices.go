@@ -493,7 +493,7 @@ func (r getDeviceSoftwareIconResponse) HijackRender(ctx context.Context, w http.
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, r.Filename))
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size))
 
-	w.Write(r.ImageData)
+	_, _ = w.Write(r.ImageData)
 }
 
 func getDeviceSoftwareIconEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -517,17 +517,17 @@ func getDeviceSoftwareIconEndpoint(ctx context.Context, request interface{}, svc
 	return getDeviceSoftwareIconResponse{
 		ImageData:   iconData,
 		ContentType: "image/png", // only type of icon we currently allow
-		Filename:    *filename,
-		Size:        *size,
+		Filename:    filename,
+		Size:        size,
 	}, nil
 }
 
-func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error) {
+func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, nil, nil, fleet.ErrMissingLicense
+	return nil, 0, "", fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////

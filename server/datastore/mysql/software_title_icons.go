@@ -29,6 +29,9 @@ func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payloa
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting last insert id")
 	}
+	if iconInt64 < 0 {
+		return nil, ctxerr.New(ctx, "invalid icon ID")
+	}
 	iconID := uint(iconInt64)
 
 	return &fleet.SoftwareTitleIcon{
@@ -64,12 +67,12 @@ func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return &icon, nil
 }
 
-func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, id uint) error {
+func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {
 	query := `
 		DELETE FROM software_title_icons
-		WHERE id = ?
+		WHERE team_id = ? AND software_title_id = ?
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, query, id)
+	_, err := ds.writer(ctx).ExecContext(ctx, query, teamID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software title icon")
 	}

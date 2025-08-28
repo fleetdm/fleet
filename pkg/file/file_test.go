@@ -22,7 +22,7 @@ func TestCopy(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0644)
+	expectedMode := fs.FileMode(0o644)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
@@ -56,7 +56,7 @@ func TestCopyWithPerms(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0755)
+	expectedMode := fs.FileMode(0o755)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, expectedMode))
 
 	// Test
@@ -206,4 +206,16 @@ func TestExtractFilenameFromURLPath(t *testing.T) {
 		got := file.ExtractFilenameFromURLPath(c.in, "pkg")
 		require.Equalf(t, c.out, got, "for URL %s", c.in)
 	}
+}
+
+func TestSHA256FromInstallerFile(t *testing.T) {
+	tmpFileReader := func(ident string) *fleet.TempFileReader {
+		tfr, err := fleet.NewTempFileReader(strings.NewReader(ident), t.TempDir)
+		require.NoError(t, err)
+		return tfr
+	}
+
+	sha256, err := file.SHA256FromTempFileReader(tmpFileReader("installer1"))
+	require.NoError(t, err)
+	require.Equal(t, "026ac8ee705035f2422eeba7fdea15df563e4f4687ce3abc9a306d2de261f8de", sha256)
 }

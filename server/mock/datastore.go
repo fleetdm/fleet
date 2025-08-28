@@ -42,3 +42,19 @@ func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, er
 	return &fleet.MigrationStatus{}, nil
 }
 func (m *Store) Name() string { return "mock" }
+
+func (m *Store) CleanupUnusedSoftwareTitleIcons(ctx context.Context, softwareTitleIconStore fleet.SoftwareTitleIconStore, removeCreatedBefore time.Time) error {
+	return nil
+}
+
+func (m *Store) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
+	return nil, nil
+}
+
+func (m *Store) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint, storageID *string) (*fleet.SoftwareTitleIcon, error) {
+	return nil, nil
+}
+
+func (m *Store) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {
+	return nil
+}

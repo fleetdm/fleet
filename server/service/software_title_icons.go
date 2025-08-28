@@ -62,7 +62,7 @@ func (r getSoftwareTitleIconsResponse) HijackRender(ctx context.Context, w http.
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, r.Filename))
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", r.Size))
 
-	w.Write(r.ImageData)
+	_, _ = w.Write(r.ImageData)
 }
 
 func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
@@ -202,12 +202,12 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 	}, nil
 }
 
-func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error) {
+func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	return fleet.SoftwareTitleIcon{}, fleet.ErrMissingLicense
 }
 
 func iconValidator(file multipart.File) error {

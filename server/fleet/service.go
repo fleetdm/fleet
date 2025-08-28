@@ -401,7 +401,7 @@ type Service interface {
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
 
-	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error)
+	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints
 	// to bypass authentication, as they are public
@@ -1227,7 +1227,7 @@ type Service interface {
 	// Software title icons
 	//
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error)
-	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (*SoftwareTitleIcon, error)
+	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
 
 	////////////////////////////////////////////////////////////////////////////////

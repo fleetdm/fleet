@@ -834,8 +834,8 @@ func newCleanupsAndAggregationSchedule(
 	config *config.FleetConfig,
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
-	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)

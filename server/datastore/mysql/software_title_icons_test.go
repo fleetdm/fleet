@@ -29,16 +29,16 @@ func TestSoftwareTitleIcons(t *testing.T) {
 	}
 }
 
-func createIcon(ctx context.Context, ds *Datastore, teamID, SoftwareTitleID uint, StorageID string, Filename string) (*fleet.SoftwareTitleIcon, error) {
+func createIcon(ctx context.Context, ds *Datastore, teamID, softwareTitleID uint, storageID string, filename string) (*fleet.SoftwareTitleIcon, error) {
 	icon := &fleet.SoftwareTitleIcon{
 		TeamID:          teamID,
-		SoftwareTitleID: SoftwareTitleID,
-		StorageID:       StorageID,
-		Filename:        Filename,
+		SoftwareTitleID: softwareTitleID,
+		StorageID:       storageID,
+		Filename:        filename,
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)`,
-		teamID, SoftwareTitleID, StorageID, Filename,
+		teamID, softwareTitleID, storageID, filename,
 	)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func createIcon(ctx context.Context, ds *Datastore, teamID, SoftwareTitleID uint
 	if err != nil {
 		return nil, err
 	}
-	iconID := uint(iconInt64)
+	iconID := uint(iconInt64) // #nosec G115 -- test helper
 	icon.ID = iconID
 	return icon, nil
 }
@@ -194,7 +194,7 @@ func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, icon)
 
-	err = ds.DeleteSoftwareTitleIcon(ctx, icon.ID)
+	err = ds.DeleteSoftwareTitleIcon(ctx, *teamID, *titleID)
 	require.NoError(t, err)
 
 	icon, err = ds.GetSoftwareTitleIcon(ctx, *teamID, *titleID, ptr.String("storage-id-1"))
