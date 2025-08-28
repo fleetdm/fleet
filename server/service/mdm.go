@@ -993,27 +993,49 @@ func getMDMProfilesSummaryEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*getMDMProfilesSummaryRequest)
 	res := getMDMProfilesSummaryResponse{}
 
-	as, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
+	appleStatus, err := svc.GetMDMAppleProfilesSummary(ctx, req.TeamID)
 	if err != nil {
 		return &getMDMAppleProfilesSummaryResponse{Err: err}, nil
 	}
 
-	ws, err := svc.GetMDMWindowsProfilesSummary(ctx, req.TeamID)
+	windowsStatus, err := svc.GetMDMWindowsProfilesSummary(ctx, req.TeamID)
 	if err != nil {
 		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	ls, err := svc.GetMDMLinuxProfilesSummary(ctx, req.TeamID)
+	linuxStatus, err := svc.GetMDMLinuxProfilesSummary(ctx, req.TeamID)
 	if err != nil {
 		return &getMDMProfilesSummaryResponse{Err: err}, nil
 	}
 
-	res.Verified = as.Verified + ws.Verified + ls.Verified
-	res.Verifying = as.Verifying + ws.Verifying
-	res.Failed = as.Failed + ws.Failed + ls.Failed
-	res.Pending = as.Pending + ws.Pending + ls.Pending
+	androidStatus, err := svc.GetMDMAndroidProfilesSummary(ctx, req.TeamID)
+	if err != nil {
+		return &getMDMProfilesSummaryResponse{Err: err}, nil
+	}
+
+	res.Verified = appleStatus.Verified + windowsStatus.Verified + linuxStatus.Verified + androidStatus.Verified
+	res.Verifying = appleStatus.Verifying + windowsStatus.Verifying + androidStatus.Verifying
+	res.Failed = appleStatus.Failed + windowsStatus.Failed + linuxStatus.Failed + androidStatus.Failed
+	res.Pending = appleStatus.Pending + windowsStatus.Pending + linuxStatus.Pending + androidStatus.Pending
 
 	return &res, nil
+}
+
+func (svc *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
+	ps, err := svc.ds.GetMDMAndroidProfilesSummary(ctx, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return ps, nil
 }
 
 // authorizeAllHostsTeams is a helper function that loads the hosts
@@ -3199,6 +3221,7 @@ func (svc *Service) BatchResendMDMProfileToHosts(ctx context.Context, profileUUI
 			Message: "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles.",
 		}
 
+	// TODO AP Update this method for Android
 	default:
 		return fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
 	}
@@ -3315,6 +3338,22 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 		}
 		teamID = decl.TeamID
 
+	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
+		if err := svc.VerifyMDMAndroidConfigured(ctx); err != nil {
+			err := fleet.NewInvalidArgumentError("profile_uuid", fleet.AndroidMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, err, "check android MDM enabled")
+		}
+
+		prof, err := svc.ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return fleet.MDMConfigProfileStatus{}, err
+		}
+		if ok := slices.Contains(mdm.ListFleetReservedAndroidProfileNames(), prof.Name); ok {
+			// this endpoint is for custom settings, not fleet-controlled profiles,
+			// return not found if such a profile is requested here.
+			return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
+		}
+		teamID = prof.TeamID
 	default:
 		return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
 	}

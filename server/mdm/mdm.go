@@ -200,3 +200,10 @@ func ListFleetReservedMacOSDeclarationNames() []string {
 		FleetIPadOSUpdatesProfileName,
 	}
 }
+
+// ListFleetReservedAndroidProfileNames returns a list of Profile name strings that
+// are reserved by Fleet for Android
+// TODO AP Add default Android settings reporting profile name once determined
+func ListFleetReservedAndroidProfileNames() []string {
+	return []string{}
+}

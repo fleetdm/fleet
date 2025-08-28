@@ -1795,6 +1795,16 @@ func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, param
 			hwap.host_uuid = h.uuid
 			AND hwap.profile_uuid = ?
 			AND hwap.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAndroidProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_android_profiles hmap
+		WHERE
+			hmap.host_uuid = h.uuid
+			AND hmap.profile_uuid = ?
+			AND hmap.status = ?)`
 		default:
 			return sqlstmt, params
 		}

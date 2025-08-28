@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
@@ -482,4 +483,195 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	counts, err := getMDMAndroidStatusCountsDB(ctx, ds, teamID)
+	if err != nil {
+		return nil, err
+	}
+
+	var res fleet.MDMProfilesSummary
+	for _, c := range counts {
+		switch c.Status {
+		case "failed":
+			res.Failed = c.Count
+		case "pending":
+			res.Pending += c.Count
+		case "verifying":
+			res.Verifying = c.Count
+		case "verified":
+			res.Verified = c.Count
+		case "":
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d android hosts on team %v with mdm turned on but no profiles", c.Count, teamID))
+		default:
+			return nil, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm android status count: status=%s, count=%d", c.Status, c.Count))
+		}
+	}
+
+	return &res, nil
+}
+
+func getMDMAndroidStatusCountsDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
+	var args []interface{}
+	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMAndroidProfilesStatusFailed()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusFailed")
+	}
+	args = append(args, subqueryFailedArgs...)
+	subqueryPending, subqueryPendingArgs, err := subqueryHostsMDMAndroidProfilesStatusPending()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusPending")
+	}
+	args = append(args, subqueryPendingArgs...)
+	subqueryVerifying, subqueryVeryingingArgs, err := subqueryHostsMDMAndroidProfilesStatusVerifying()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusVerifying")
+	}
+	args = append(args, subqueryVeryingingArgs...)
+	subqueryVerified, subqueryVerifiedArgs, err := subqueryHostsMDMAndroidProfilesStatusVerified()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "subqueryHostsMDMAndroidProfilesStatusVerified")
+	}
+	args = append(args, subqueryVerifiedArgs...)
+
+	teamFilter := "h.team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = "h.team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	stmt := fmt.Sprintf(`
+SELECT
+    CASE
+        WHEN EXISTS (%s) THEN
+            'failed'
+        WHEN EXISTS (%s) THEN
+            'pending'
+        WHEN EXISTS (%s) THEN
+            'verifying'
+        WHEN EXISTS (%s) THEN
+            'verified'
+        ELSE
+            ''
+    END AS final_status,
+    SUM(1) AS count
+FROM
+    hosts h
+    JOIN host_mdm hmdm ON h.id = hmdm.host_id
+WHERE
+    h.platform = 'android' AND
+    hmdm.enrolled = 1 AND
+    %s
+GROUP BY
+    final_status`,
+		subqueryFailed,
+		subqueryPending,
+		subqueryVerifying,
+		subqueryVerified,
+		teamFilter,
+	)
+
+	var counts []statusCounts
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &counts, stmt, args...)
+	if err != nil {
+		return nil, err
+	}
+	return counts, nil
+}
+
+func subqueryHostsMDMAndroidProfilesStatusFailed() (string, []interface{}, error) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_android_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.status = ?
+                AND hmap.profile_name NOT IN(?)`
+	args := []interface{}{
+		fleet.MDMDeliveryFailed,
+		mdm.ListFleetReservedAndroidProfileNames(),
+	}
+
+	return sqlx.In(sql, args...)
+}
+
+func subqueryHostsMDMAndroidProfilesStatusPending() (string, []interface{}, error) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_android_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND (hmap.status IS NULL OR hmap.status = ?)
+				AND hmap.profile_name NOT IN(?)
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_android_profiles hmap2
+                    WHERE (h.uuid = hmap2.host_uuid
+                        AND hmap2.status = ?
+                        AND hmap2.profile_name NOT IN(?)))`
+	args := []interface{}{
+		fleet.MDMDeliveryPending,
+		mdm.ListFleetReservedAndroidProfileNames(),
+		fleet.MDMDeliveryFailed,
+		mdm.ListFleetReservedAndroidProfileNames(),
+	}
+	return sqlx.In(sql, args...)
+}
+
+func subqueryHostsMDMAndroidProfilesStatusVerifying() (string, []interface{}, error) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_android_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.operation_type = ?
+                AND hmap.status = ?
+                AND hmap.profile_name NOT IN(?)
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_android_profiles hmap2
+                    WHERE (h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
+                        AND hmap2.profile_name NOT IN(?)
+                        AND(hmap2.status IS NULL
+                            OR hmap2.status NOT IN(?))))`
+
+	args := []interface{}{
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerifying,
+		mdm.ListFleetReservedAndroidProfileNames(),
+		fleet.MDMOperationTypeInstall,
+		mdm.ListFleetReservedAndroidProfileNames(),
+		[]interface{}{fleet.MDMDeliveryVerifying, fleet.MDMDeliveryVerified},
+	}
+	return sqlx.In(sql, args...)
+}
+
+func subqueryHostsMDMAndroidProfilesStatusVerified() (string, []interface{}, error) {
+	sql := `
+            SELECT
+                1 FROM host_mdm_android_profiles hmap
+            WHERE
+                h.uuid = hmap.host_uuid
+                AND hmap.operation_type = ?
+                AND hmap.status = ?
+                AND hmap.profile_name NOT IN(?)
+                AND NOT EXISTS (
+                    SELECT
+                        1 FROM host_mdm_android_profiles hmap2
+                    WHERE (h.uuid = hmap2.host_uuid
+                        AND hmap2.operation_type = ?
+                        AND hmap2.profile_name NOT IN(?)
+                        AND(hmap2.status IS NULL
+                            OR hmap2.status != ?)))`
+	args := []interface{}{
+		fleet.MDMOperationTypeInstall,
+		fleet.MDMDeliveryVerified,
+		mdm.ListFleetReservedAndroidProfileNames(),
+		fleet.MDMOperationTypeInstall,
+		mdm.ListFleetReservedAndroidProfileNames(),
+		fleet.MDMDeliveryVerified,
+	}
+	return sqlx.In(sql, args...)
 }
