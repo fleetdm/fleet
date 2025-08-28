@@ -2337,21 +2337,21 @@ WHERE
 	identifier NOT IN (?)
 `
 
-	const insertNewOrEditedProfile = `
+	insertNewOrEditedProfile := fmt.Sprintf(`
 INSERT INTO
   mdm_apple_configuration_profiles (
     profile_uuid, team_id, identifier, name, scope, mobileconfig, checksum, uploaded_at, secrets_updated_at
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('%s', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
   checksum = VALUES(checksum),
   name = VALUES(name),
   mobileconfig = VALUES(mobileconfig)
-`
+`, fleet.MDMAppleProfileUUIDPrefix)
 
 	// use a profile team id of 0 if no-team
 	var profTeamID uint

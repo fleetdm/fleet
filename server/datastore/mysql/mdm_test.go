@@ -393,17 +393,20 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		newAppleSet []*fleet.MDMAppleConfigProfile,
 		newWindowsSet []*fleet.MDMWindowsConfigProfile,
 		newAppleDeclSet []*fleet.MDMAppleDeclaration,
+		newAndroidSet []*fleet.MDMAndroidConfigProfile,
 		tmID *uint,
 		wantApple []*fleet.MDMAppleConfigProfile,
 		wantWindows []*fleet.MDMWindowsConfigProfile,
 		wantAppleDecl []*fleet.MDMAppleDeclaration,
+		wantAndroid []*fleet.MDMAndroidConfigProfile,
 		wantUpdates fleet.MDMProfilesUpdates,
 	) {
-		updates, err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet, newAppleDeclSet, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, tmID, newAppleSet, newWindowsSet, newAppleDeclSet, newAndroidSet, nil)
 		require.NoError(t, err)
 		expectAppleProfiles(t, ds, tmID, wantApple)
 		expectWindowsProfiles(t, ds, tmID, wantWindows)
 		expectAppleDeclarations(t, ds, tmID, wantAppleDecl)
+		expectAndroidProfiles(t, ds, tmID, wantAndroid)
 		assert.Equal(t, wantUpdates, updates)
 	}
 
@@ -422,14 +425,20 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		return p
 	}
 
-	// empty set for no team (both Apple and Windows)
-	applyAndExpect(nil, nil, nil, nil, nil, nil, nil, fleet.MDMProfilesUpdates{})
+	withTeamIDAndroid := func(p *fleet.MDMAndroidConfigProfile, tmID uint) *fleet.MDMAndroidConfigProfile {
+		p.TeamID = &tmID
+		return p
+	}
 
-	// single Apple and Windows profile set for a specific team
+	// empty set for no team (Apple, Windows and Android)
+	applyAndExpect(nil, nil, nil, nil, nil, nil, nil, nil, nil, fleet.MDMProfilesUpdates{})
+
+	// single Apple, Windows and Android profile set for a specific team
 	applyAndExpect(
 		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
 		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
 		[]*fleet.MDMAppleDeclaration{declForTest("D1", "D1", "foo")},
+		[]*fleet.MDMAndroidConfigProfile{androidConfigProfileForTest(t, "A1", nil)},
 		ptr.Uint(1),
 		[]*fleet.MDMAppleConfigProfile{
 			withTeamIDApple(configProfileForTest(t, "N1", "I1", "a"), 1),
@@ -438,22 +447,25 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			withTeamIDWindows(windowsConfigProfileForTest(t, "W1", "l1"), 1),
 		},
 		[]*fleet.MDMAppleDeclaration{withTeamIDDecl(declForTest("D1", "D1", "foo"), 1)},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		[]*fleet.MDMAndroidConfigProfile{withTeamIDAndroid(androidConfigProfileForTest(t, "A1", nil), 1)},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	// single Apple and Windows profile set for no team
+	// single Apple, Windows and Android profile set for no team
 	applyAndExpect(
 		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
 		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
 		[]*fleet.MDMAppleDeclaration{declForTest("D1", "D1", "foo")},
+		[]*fleet.MDMAndroidConfigProfile{androidConfigProfileForTest(t, "A1", nil)},
 		nil,
 		[]*fleet.MDMAppleConfigProfile{configProfileForTest(t, "N1", "I1", "a")},
 		[]*fleet.MDMWindowsConfigProfile{windowsConfigProfileForTest(t, "W1", "l1")},
 		[]*fleet.MDMAppleDeclaration{declForTest("D1", "D1", "foo")},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		[]*fleet.MDMAndroidConfigProfile{androidConfigProfileForTest(t, "A1", nil)},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	// new Apple and Windows profile sets for a specific team
+	// new Apple, Windows and Android profile sets for a specific team
 	applyAndExpect(
 		[]*fleet.MDMAppleConfigProfile{
 			configProfileForTest(t, "N1", "I1", "a"), // unchanged
@@ -466,6 +478,10 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		[]*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo"), // unchanged
 			declForTest("D2", "D2", "foo"),
+		},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A1", nil), // unchanged
+			androidConfigProfileForTest(t, "A2", nil),
 		},
 		ptr.Uint(1),
 		[]*fleet.MDMAppleConfigProfile{
@@ -480,7 +496,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			withTeamIDDecl(declForTest("D1", "D1", "foo"), 1),
 			withTeamIDDecl(declForTest("D2", "D2", "foo"), 1),
 		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		[]*fleet.MDMAndroidConfigProfile{
+			withTeamIDAndroid(androidConfigProfileForTest(t, "A1", nil), 1),
+			withTeamIDAndroid(androidConfigProfileForTest(t, "A2", nil), 1),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
 	// edited profiles, unchanged profiles, and new profiles for a specific team
@@ -500,6 +520,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			declForTest("D2", "D2", "foo"),         // unchanged
 			declForTest("D3", "D3", "bar"),         // new
 		},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A1", map[string]any{"cameraDisabled": true}), // Content updated
+			androidConfigProfileForTest(t, "A2", nil),                                    // unchanged
+			androidConfigProfileForTest(t, "A3", nil),                                    // new
+		},
 		ptr.Uint(1),
 		[]*fleet.MDMAppleConfigProfile{
 			withTeamIDApple(configProfileForTest(t, "N1", "I1", "a-updated"), 1),
@@ -516,10 +541,15 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			withTeamIDDecl(declForTest("D2", "D2", "foo"), 1),
 			withTeamIDDecl(declForTest("D3", "D3", "bar"), 1),
 		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		[]*fleet.MDMAndroidConfigProfile{
+			withTeamIDAndroid(androidConfigProfileForTest(t, "A1", map[string]any{"cameraDisabled": true}), 1),
+			withTeamIDAndroid(androidConfigProfileForTest(t, "A2", nil), 1),
+			withTeamIDAndroid(androidConfigProfileForTest(t, "A3", nil), 1),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
-	// new Apple and Windows profiles to no team
+	// new Apple, Windows and Android profiles to no team
 	applyAndExpect(
 		[]*fleet.MDMAppleConfigProfile{
 			configProfileForTest(t, "N4", "I4", "d"),
@@ -532,6 +562,10 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 		[]*fleet.MDMAppleDeclaration{
 			declForTest("D5", "D4", "foo"),
 			declForTest("D4", "D5", "foo"),
+		},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A4", nil),
+			androidConfigProfileForTest(t, "A5", nil),
 		},
 		nil,
 		[]*fleet.MDMAppleConfigProfile{
@@ -546,7 +580,11 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			declForTest("D5", "D4", "foo"),
 			declForTest("D4", "D5", "foo"),
 		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A4", nil),
+			androidConfigProfileForTest(t, "A5", nil),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
 	// Apply the same profiles again -- no update should be detected
@@ -563,6 +601,10 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			declForTest("D5", "D4", "foo"),
 			declForTest("D4", "D5", "foo"),
 		},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A4", nil),
+			androidConfigProfileForTest(t, "A5", nil),
+		},
 		nil,
 		[]*fleet.MDMAppleConfigProfile{
 			configProfileForTest(t, "N4", "I4", "d"),
@@ -576,12 +618,16 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 			declForTest("D5", "D4", "foo"),
 			declForTest("D4", "D5", "foo"),
 		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: false},
+		[]*fleet.MDMAndroidConfigProfile{
+			androidConfigProfileForTest(t, "A4", nil),
+			androidConfigProfileForTest(t, "A5", nil),
+		},
+		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: false, AndroidConfigProfile: false},
 	)
 
 	// Test Case 8: Clear profiles for a specific team
-	applyAndExpect(nil, nil, nil, ptr.Uint(1), nil, nil, nil,
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+	applyAndExpect(nil, nil, nil, nil, ptr.Uint(1), nil, nil, nil, nil,
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
 	// create some labels to test batch-setting label-scoped declarations
@@ -603,32 +649,32 @@ func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
 		declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
-	}, nil,
+	}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblExcl, lblExcl2),
 			declForTest("D2", "D2", "foo", lblInclAll, lblInclAll2),
-		},
-		// this removed the apple and windows profiles for no team, so updated is true
-		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true},
+		}, nil,
+		// this removed the apple, windows and android profiles for no team, so updated is true
+		fleet.MDMProfilesUpdates{AppleConfigProfile: true, WindowsConfigProfile: true, AppleDeclaration: true, AndroidConfigProfile: true},
 	)
 
 	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
 		declForTest("D2", "D2", "foo"),
-	}, nil,
+	}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo", lblInclAny, lblInclAny2),
 			declForTest("D2", "D2", "foo"),
-		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true},
+		}, nil,
+		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
 	applyAndExpect(nil, nil, []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "foo"),
-	}, nil,
+	}, nil, nil,
 		nil, nil, []*fleet.MDMAppleDeclaration{
 			declForTest("D1", "D1", "foo"),
-		},
-		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true},
+		}, nil,
+		fleet.MDMProfilesUpdates{AppleConfigProfile: false, WindowsConfigProfile: false, AppleDeclaration: true, AndroidConfigProfile: false},
 	)
 }
 
@@ -1171,6 +1217,7 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 	}
 }
 
+// TODO(AP): FInd a place to verify android config profiles.
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
@@ -1308,6 +1355,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		macGlobalProfiles,
 		winGlobalProfiles,
 		macGlobalDeclarations,
+		nil,
 		nil,
 	)
 	require.NoError(t, err)
@@ -1835,7 +1883,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "T1.1w", "T1.1"),
 		windowsConfigProfileForTest(t, "T1.2w", "T1.2"),
 	}
-	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm1DarwinProfiles, tm1WindowsProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm1DarwinProfiles, tm1WindowsProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
@@ -2048,7 +2096,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "T1.3w", "T1.3"),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
@@ -2217,7 +2265,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "T1.3w", "T1.3"),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, &team1.ID, newTm1DarwinProfiles, newTm1WindowsProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	newTm1Profiles = getProfs(&team1.ID)
 	require.Len(t, newTm1Profiles, 6)
@@ -2388,7 +2436,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// TODO(roberto): add new darwin declarations for this and all subsequent assertions
-	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
@@ -2524,7 +2572,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "G5w", "G5"),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	newGlobalProfiles = getProfs(nil)
 	require.Len(t, newGlobalProfiles, 8)
@@ -2765,7 +2813,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "T2.1w", "T2.1"),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, &team2.ID, tm2DarwinProfiles, tm2WindowsProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, &team2.ID, tm2DarwinProfiles, tm2WindowsProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	tm2Profiles := getProfs(&team2.ID)
 	require.Len(t, tm2Profiles, 2)
@@ -2949,7 +2997,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "G7w", "G7", labels[5]),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, nil, newDarwinGlobalProfiles, newWindowsGlobalProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	newGlobalProfiles = getProfs(nil)
 	require.Len(t, newGlobalProfiles, 12)
@@ -4201,7 +4249,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		windowsConfigProfileForTest(t, "T2.2w", "T2.2", labels[4], labels[5]),
 	}
 
-	updates, err = ds.BatchSetMDMProfiles(ctx, &team2.ID, tm2DarwinProfiles, tm2WindowsProfiles, nil, nil)
+	updates, err = ds.BatchSetMDMProfiles(ctx, &team2.ID, tm2DarwinProfiles, tm2WindowsProfiles, nil, nil, nil)
 	require.NoError(t, err)
 	tm2Profiles = getProfs(&team2.ID)
 	require.Len(t, tm2Profiles, 4)
@@ -5428,6 +5476,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
+// TODO(AP): Figure out where to test this elsewhere.
 func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -5463,7 +5512,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			configProfileForTest(t, "T1.2", "T1.2", "e"),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5504,7 +5553,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_1"})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5586,7 +5635,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_3"})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5679,7 +5728,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		testLabel4, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_4"})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5759,7 +5808,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			configProfileForTest(t, "T5.3", "T5.3", "f"),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5900,7 +5949,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			configProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", "q", excludeUnmatchedLabel),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil, nil, nil, nil)
 		require.NoError(t, err)
 		assert.True(t, updates.AppleConfigProfile)
 		assert.False(t, updates.WindowsConfigProfile)
@@ -5964,7 +6013,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			windowsConfigProfileForTest(t, "T1.2", "T1.2"),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, updates.AppleConfigProfile)
 		assert.True(t, updates.WindowsConfigProfile)
@@ -6005,7 +6054,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_6"})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, updates.AppleConfigProfile)
 		assert.True(t, updates.WindowsConfigProfile)
@@ -6087,7 +6136,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, updates.AppleConfigProfile)
 		assert.True(t, updates.WindowsConfigProfile)
@@ -6180,7 +6229,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 		label, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
 		require.NoError(t, err)
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, updates.AppleConfigProfile)
 		assert.True(t, updates.WindowsConfigProfile)
@@ -6309,7 +6358,7 @@ func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) 
 			windowsConfigProfileForTest(t, "exclude_none_match_prof", "exclude_none_match_prof", excludeUnmatchedLabel),
 		}
 
-		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil)
+		updates, err := ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles, nil, nil, nil)
 		require.NoError(t, err)
 		assert.False(t, updates.AppleConfigProfile)
 		assert.True(t, updates.WindowsConfigProfile)
@@ -6759,6 +6808,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 // could eventually remove the testBatchSetMDMAppleProfilesErr and similar
 // fields from the datastore that add a lot of noise in batch-set apple
 // profiles.
+// Android configuration profiles is not added to this as there is not in-line test verification like the other batch set calls.
 func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -6835,7 +6885,7 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 				windowsConfigProfileForTest(t, "W2", "l2"),
 			}
 			// set the initial profiles without error
-			_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil)
+			_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil, nil)
 			require.NoError(t, err)
 
 			// now ensure all steps are required (add a profile, delete a profile, set labels)
@@ -6851,7 +6901,7 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 			ds.testBatchSetMDMAppleProfilesErr = c.appleErr
 			ds.testBatchSetMDMWindowsProfilesErr = c.windowsErr
 
-			_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil)
+			_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil, nil)
 			require.ErrorContains(t, err, c.wantErr)
 		})
 	}
@@ -7858,12 +7908,13 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 }
 
+// TODO(AP): Come back with enroll android host method
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// create some "exclude" labels
 	var labels []*fleet.Label
-	for i := 0; i < 6; i++ {
+	for i := 0; i < 7; i++ {
 		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-label-" + strconv.Itoa(i), Query: "select 1"})
 		require.NoError(t, err)
 		labels = append(labels, lbl)
@@ -7879,12 +7930,16 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	appleDecls := []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "{}", labels[3], labels[4], labels[5]),
 	}
+	androidProfiles := []*fleet.MDMAndroidConfigProfile{
+		androidConfigProfileForTest(t, "AN1", nil, labels[6]),
+	}
 
-	updates, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, nil)
+	updates, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, androidProfiles, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
+	assert.True(t, updates.AndroidConfigProfile)
 
 	// must reload them to get the profile/declaration uuid
 	getProfs := func(teamID *uint) []*fleet.MDMConfigProfilePayload {
@@ -8352,6 +8407,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profC.ProfileUUID, fleet.MDMDeliveryPending})
 }
 
+// TODO(AP): Come back with Android Enroll method
 func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
@@ -8369,7 +8425,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	appleDeclsNoTm := []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "{}"),
 	}
-	_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfsNoTm, windowsProfsNoTm, appleDeclsNoTm, nil)
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfsNoTm, windowsProfsNoTm, appleDeclsNoTm, nil, nil)
 	require.NoError(t, err)
 
 	// create some Apple and Windows profiles and declaration for the team
@@ -8382,7 +8438,7 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	appleDeclsTm := []*fleet.MDMAppleDeclaration{
 		declForTest("D2", "D2", "{}"),
 	}
-	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, appleProfsTm, windowsProfsTm, appleDeclsTm, nil)
+	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, appleProfsTm, windowsProfsTm, appleDeclsTm, nil, nil)
 	require.NoError(t, err)
 
 	// collect the profiles in a lookup table by name
@@ -8559,7 +8615,7 @@ func testDeleteMDMProfilesCancelsInstalls(t *testing.T, ds *Datastore) {
 		declForTest("D1", "D1", "{}"),
 		declForTest("D2", "D2", "{}"),
 	}
-	_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, nil)
+	_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, windowsProfs, appleDecls, nil, nil)
 	require.NoError(t, err)
 
 	// collect the profiles in a lookup table by name

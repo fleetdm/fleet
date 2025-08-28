@@ -327,7 +327,7 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
-func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, windowsProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
+func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
 	// map to check for duplicate names across all profiles
 	extByName := make(map[string]string, len(macProfiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(macProfiles))
@@ -336,6 +336,7 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 	for platform, profiles := range map[string][]fleet.MDMProfileSpec{
 		"macos":   macProfiles,
 		"windows": windowsProfiles,
+		"android": androidProfiles,
 	} {
 		for _, profile := range profiles {
 			filePath := resolveApplyRelativePath(baseDir, profile.Path)
@@ -409,6 +410,17 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 					}
 				default:
 					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "macOS configuration profiles must be .mobileconfig or .json files.")
+				}
+			}
+
+			if platform == "android" {
+				switch ext {
+				case ".json":
+					if mdm.GetRawProfilePlatform(fileContents) != "android" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Android profiles should include valid JSON.")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Android configuration profiles must be .json files.")
 				}
 			}
 
@@ -527,6 +539,7 @@ func (c *Client) ApplyGroup(
 	if specs.AppConfig != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+		androidCustomSettings := extractAppCfgAndroidCustomSettings(specs.AppConfig)
 
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			switch {
@@ -629,8 +642,8 @@ func (c *Client) ApplyGroup(
 		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
+		if (windowsCustomSettings != nil || macosCustomSettings != nil || androidCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings)+len(androidCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, androidCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, nil, nil, nil, err
 			}
@@ -679,7 +692,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
 		for k, profileSpecs := range tmMDMSettings {
-			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
+			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, profileSpecs.android, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				// TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
@@ -1289,6 +1302,10 @@ func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSp
 	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
+func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "android_settings")
+}
+
 func extractAppCfgScripts(appCfg interface{}) []string {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
@@ -1361,6 +1378,7 @@ func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
 type profileSpecsByPlatform struct {
 	macos   []fleet.MDMProfileSpec
 	windows []fleet.MDMProfileSpec
+	android []fleet.MDMProfileSpec
 }
 
 func extractTeamName(tmSpec json.RawMessage) string {
@@ -1373,7 +1391,7 @@ func extractTeamName(tmSpec json.RawMessage) string {
 	return norm.NFC.String(s.Name)
 }
 
-// returns the custom macOS and Windows settings keyed by team name.
+// returns the custom macOS, Windows and Android settings keyed by team name.
 func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profileSpecsByPlatform {
 	var m map[string]profileSpecsByPlatform
 	for _, tm := range tmSpecs {
@@ -1386,6 +1404,9 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 				WindowsSettings struct {
 					CustomSettings json.RawMessage `json:"custom_settings"`
 				} `json:"windows_settings"`
+				AndroidSettings struct {
+					CustomSettings json.RawMessage `json:"custom_settings"`
+				} `json:"android_settings"`
 			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
@@ -1396,11 +1417,13 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 		if spec.Name != "" {
 			var macOSSettings []fleet.MDMProfileSpec
 			var windowsSettings []fleet.MDMProfileSpec
+			var androidSettings []fleet.MDMProfileSpec
 
 			// to keep existing bahavior, if any of the custom
 			// settings is provided, make the map a non-nil map
 			if len(spec.MDM.MacOSSettings.CustomSettings) > 0 ||
-				len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
+				len(spec.MDM.WindowsSettings.CustomSettings) > 0 ||
+				len(spec.MDM.AndroidSettings.CustomSettings) > 0 {
 				if m == nil {
 					m = make(map[string]profileSpecsByPlatform)
 				}
@@ -1428,6 +1451,17 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 					windowsSettings = []fleet.MDMProfileSpec{}
 				}
 			}
+			if len(spec.MDM.AndroidSettings.CustomSettings) > 0 {
+				if err := json.Unmarshal(spec.MDM.AndroidSettings.CustomSettings, &androidSettings); err != nil {
+					// ignore, will fail in apply team specs call
+					continue
+				}
+				if androidSettings == nil {
+					// to be consistent with the AppConfig custom settings, set it to an
+					// empty slice if the provided custom settings are present but empty.
+					androidSettings = []fleet.MDMProfileSpec{}
+				}
+			}
 
 			// TODO: validate equal names here and API?
 			var result profileSpecsByPlatform
@@ -1437,8 +1471,11 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 			if windowsSettings != nil {
 				result.windows = windowsSettings
 			}
+			if androidSettings != nil {
+				result.android = androidSettings
+			}
 
-			if macOSSettings != nil || windowsSettings != nil {
+			if macOSSettings != nil || windowsSettings != nil || androidSettings != nil {
 				m[spec.Name] = result
 			}
 		}
@@ -1856,6 +1893,13 @@ func (c *Client) DoGitOps(
 			}
 		}
 
+		mdmAppConfig["android_enabled_and_configured"] = config.Controls.AndroidEnabledAndConfigured
+		if config.Controls.AndroidEnabledAndConfigured != nil {
+			mdmAppConfig["android_enabled_and_configured"] = config.Controls.AndroidEnabledAndConfigured
+		} else {
+			mdmAppConfig["android_enabled_and_configured"] = false
+		}
+
 		// check for the eula in the mdmAppConfig. If it exists we want to assign it
 		// to eulaPath so that it will be applied later. We always delete it from
 		// mdmAppConfig so it will not be applied to the group/team though the
@@ -2031,6 +2075,15 @@ func (c *Client) DoGitOps(
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
+		// Put in default values for android_settings
+		if config.Controls.AndroidSettings != nil {
+			mdmAppConfig["android_settings"] = config.Controls.AndroidSettings
+		} else {
+			mdmAppConfig["android_settings"] = fleet.AndroidSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+			}
+		}
+
 		// Put in default values for windows_updates
 		if config.Controls.WindowsUpdates != nil {
 			mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates

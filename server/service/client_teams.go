@@ -69,6 +69,7 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplyTeamSpecOpt
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
 func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplyTeamSpecOptions) error {
+	fmt.Println("ApplyTeamProfiles called with", len(profiles), "profiles for team", tmName)
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {

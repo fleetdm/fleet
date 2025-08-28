@@ -205,6 +205,8 @@ type TeamMDM struct {
 	MacOSSetup           MacOSSetup            `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -246,6 +248,13 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
+	if t.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
+		for i, mps := range t.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
+	}
 	if t.MacOSSetup.Software.Set {
 		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
 		for i, s := range t.MacOSSetup.Software.Value {
@@ -281,6 +290,8 @@ type TeamSpecMDM struct {
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }

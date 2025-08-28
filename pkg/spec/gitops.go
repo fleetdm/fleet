@@ -103,6 +103,9 @@ type GitOpsControls struct {
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
 	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
+	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
+	AndroidSettings             interface{} `json:"android_settings"`
+
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
 

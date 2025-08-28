@@ -225,6 +225,7 @@ type MDMProfilesUpdates struct {
 	AppleConfigProfile   bool
 	WindowsConfigProfile bool
 	AppleDeclaration     bool
+	AndroidConfigProfile bool
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
