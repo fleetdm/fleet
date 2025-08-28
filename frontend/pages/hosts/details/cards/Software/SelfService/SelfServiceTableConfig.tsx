@@ -18,7 +18,7 @@ import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
 import { installStatusSortType } from "../helpers";
 import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
-type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+export type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
 type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
