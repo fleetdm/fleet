@@ -201,7 +201,7 @@ module.exports = {
 
       // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
       if(parsedGroupResponse.value.length === 0){
-        sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, `);
+        sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no "Fleet conditional access" Entra ID group was found on this Entra tenant.`);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});
         throw {redirect: fleetInstanceUrlToRedirectTo };
       }
