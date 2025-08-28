@@ -1115,6 +1115,9 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		profileContentsString := string(profileContents)
 
 		fileName := fmt.Sprintf("profiles/%s", generateProfileFilename(profile, profileContentsString))
+		if fileName == "" {
+			continue // Error logged inside generateProfileFilename
+		}
 		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
