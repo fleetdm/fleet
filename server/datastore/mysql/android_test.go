@@ -531,6 +531,11 @@ func expectAndroidProfiles(
 	wantedProfilesMap := make(map[string]*fleet.MDMAndroidConfigProfile, len(wantedProfiles))
 	for _, profile := range wantedProfiles {
 		wantedProfilesMap[profile.Name] = profile
+
+		// We remarshal the contents here to avoid formatting issues
+		var jsonContent map[string]interface{}
+		json.Unmarshal(profile.RawJSON, &jsonContent)
+		profile.RawJSON, _ = json.Marshal(jsonContent)
 	}
 
 	// compare only the fields we care about, and build the resulting map of
@@ -542,13 +547,21 @@ func expectAndroidProfiles(
 			profile.TeamID = nil
 		}
 
-		// ProfileUUID is non-empty and starts with "a", but otherwise we don't
+		// We do not care about this attribute in test, but it is auto incrementing for merging purposes
+		profile.AutoIncrement = 0
+
+		// ProfileUUID is non-empty and starts with the android prefix, but otherwise we don't
 		// care about it for test assertions.
 		require.NotEmpty(t, profile.ProfileUUID)
 		require.True(t, strings.HasPrefix(profile.ProfileUUID, fleet.MDMAndroidProfileUUIDPrefix))
 		profile.ProfileUUID = ""
 
 		profile.CreatedAt = time.Time{}
+
+		// We remarshal the contents here to avoid formatting issues
+		var jsonContent map[string]interface{}
+		json.Unmarshal(profile.RawJSON, &jsonContent)
+		profile.RawJSON, _ = json.Marshal(jsonContent)
 
 		// if an expected uploaded_at timestamp is provided for this profile, keep
 		// its value, otherwise clear it as we don't care about asserting its
@@ -563,6 +576,9 @@ func expectAndroidProfiles(
 }
 
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
+	if content == nil {
+		content = make(map[string]any)
+	}
 	content["name"] = name
 	rawJSON, err := json.Marshal(content)
 	require.NoError(t, err)

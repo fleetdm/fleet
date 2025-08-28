@@ -2257,6 +2257,7 @@ controls:
   scripts:
     - path: ./script.sh
   windows_enabled_and_configured: true
+  android_enabled_and_configured: true
   macos_settings:
     custom_settings:
     - path: ./config.json

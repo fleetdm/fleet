@@ -61,6 +61,8 @@ spec:
       software:
     windows_settings:
       custom_settings:
+    android_settings:
+      custom_settings:
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""

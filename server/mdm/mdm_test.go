@@ -186,13 +186,23 @@ func TestGetRawProfilePlatform(t *testing.T) {
 		},
 		{
 			name:     "DDM JSON",
-			input:    []byte(`{"foo": "bar"}`),
+			input:    []byte(`{"Type": "bar"}`),
 			expected: "darwin",
 		},
 		{
 			name:     "DDM JSON with whitespace",
-			input:    []byte(`     {"foo": "bar"}`),
+			input:    []byte(`     {"Type": "bar"}`),
 			expected: "darwin",
+		},
+		{
+			name:     "Android JSON",
+			input:    []byte(`{"foo": "bar"}`),
+			expected: "android",
+		},
+		{
+			name:     "Android JSON with whitespace",
+			input:    []byte(`     {"foo": "bar"}`),
+			expected: "android",
 		},
 	}
 

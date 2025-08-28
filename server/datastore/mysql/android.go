@@ -484,6 +484,16 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
+func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtContext, tmID *uint) (int, error) {
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
+	rows, err := res.RowsAffected()
+	return int(rows), ctxerr.Wrap(ctx, err, "deleting all android profiles for team")
+}
+
 func (ds *Datastore) batchSetMDMAndroidProfiles(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -491,7 +501,12 @@ func (ds *Datastore) batchSetMDMAndroidProfiles(
 	profiles []*fleet.MDMAndroidConfigProfile,
 ) (updatedDB bool, err error) {
 	if len(profiles) == 0 {
-		return false, nil
+		rowsAffected, err := ds.deleteAllAndroidProfiles(ctx, tx, tmID)
+		if err != nil {
+			return false, err
+		}
+
+		return rowsAffected > 0, nil
 	}
 
 	// Select and delete profiles that are not incoming so we can cancel the install.
@@ -572,12 +587,17 @@ WHERE
 	`, fleet.MDMAndroidProfileUUIDPrefix)
 
 	for _, p := range profiles {
-		if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON); err != nil {
+		var res sql.Result
+		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "insert or update profile")
+		}
+
+		if insertOnDuplicateDidInsertOrUpdate(res) {
+			updatedDB = true
 		}
 	}
 
 	// TODO(AP): Add label associations
 
-	return true, nil
+	return updatedDB, nil
 }
