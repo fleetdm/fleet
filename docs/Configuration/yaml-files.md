@@ -110,13 +110,6 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
 
-In Fleet Premium you can trigger software installs or script runs on policy failure:
-
-- For software installs, specify either `install_software.package_path` or `install_software.hash_sha256` in your YAML. If `install_software.package_path` only one package can be specified in the package YAML. _Available in Fleet Premium_
-- For script runs, specify `run_script.path`.
-
-> Specifying one package without a list is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use a list instead even if you're only specifying one package. 
-
 ### Example
 
 #### Inline
@@ -359,6 +352,9 @@ controls:
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
+    software:
+      - app_store_id: "1091189122"
+      - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
     enable: true
     mode: voluntary
@@ -422,6 +418,7 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
+- `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first set up.
 
 ### macos_migration
 
@@ -453,10 +450,6 @@ Currently, you can specify `install_software` in the [`policies` YAML](#policies
 software:
   packages:
     - path: ../lib/software-name.package.yml
-      categories:
-        - Browsers
-      self_service: true
-      setup_experience: true
     - path: ../lib/software-name2.package.yml
   app_store_apps:
     - app_store_id: "1091189122"
@@ -476,16 +469,17 @@ software:
         - Productivity
 ```
 
-#### self_service, labels, categories, and setup_experience
+#### Labels and categories
 
-- `self-service` specifies whether end users can install from **Fleet Desktop > Self-service** (default: `false`). Currently, for App Store apps, this setting only applies to macOS and is ignored on other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be available in self-service on macOS workstations but not on iPhones or iPads.
-- `labels_include_any` targets hosts that have **any** of the specified labels. `labels_exclude_any` targets hosts that have **none** of the specified labels. Only one of these fields can be set. If neither is set, all hosts are targeted.
-- `categories` groups self-service software on your end users' **Fleet Desktop > My device** page. If none are set, Fleet-maintained apps get their [default categories](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs) and all other software only appears in the **All** group. Supported values:
-  - `Browsers`: shown as **🌎 Browsers**
-  - `Communication`: shown as **👬 Communication**
-  - `Developer tools`: shown as **🧰 Developer tools**
-  - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software on macOS hosts that automatically enroll via [setup experience](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting only applies to macOS and is ignored on other platforms (default: `false`).
+Use `labels_include_any` to target hosts that have any label or `labels_exclude_any` to target hosts that don't have any label. Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
+
+Use `categories` to group self-service software on your end users' **Fleet Desktop > My device** page. Here are the supported categories:
+- `Browsers`: group under **🌎 Browsers**
+- `Communication`: group under **👬 Communication**
+- `Developer tools`: group under **🧰 Developer tools**
+- `Productivity`: group under **🖥️ Productivity**
+
+Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and `categories` keys are specified in the team YAML (`teams/team-name.yml`, or `teams/no-team.yml`). For custom packages, they keys are specified in the package YAML (`lib/software-name.package.yml`).
 
 ### packages
 
@@ -500,6 +494,9 @@ software:
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
+- `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
+- `categories` is an array of categories. See [supported categories](#labels-and-categories).
+
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
@@ -509,13 +506,16 @@ software:
 `lib/software-name.package.yml`:
 
 ```yaml
-- url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
-  install_script:
-    path: ../lib/software/tailscale-install-script.ps1
-  uninstall_script:
-    path: ../lib/software/tailscale-uninstall-script.ps1
-  post_install_script:
-    path: ../lib/software/tailscale-config-script.ps1
+url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+install_script:
+  path: ../lib/software/tailscale-install-script.ps1
+uninstall_script:
+  path: ../lib/software/tailscale-uninstall-script.ps1
+post_install_script:
+  path: ../lib/software/tailscale-config-script.ps1
+categories:
+  - Browsers
+self_service: true
 ```
 
 ##### Hash
@@ -541,6 +541,8 @@ Currently, one app for each of an App Store app's supported platforms are added.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
 Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+
+Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify `categories` when adding a self-service Fleet-maintained app, the default categories will be used.
 
 ## org_settings and team_settings
 
