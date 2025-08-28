@@ -155,25 +155,12 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
+		// For team ID 0, return appropriate error response
+		if req.ID == 0 {
+			return getDefaultTeamResponse{Err: err}, nil
+		}
 		return teamResponse{Err: err}, nil
 	}
-
-	// Special handling for team ID 0 - return DefaultTeam structure
-	if team.ID == 0 {
-		defaultTeam := &fleet.DefaultTeam{
-			ID:   team.ID,
-			Name: team.Name,
-			WebhookSettings: fleet.DefaultTeamWebhookSettings{
-				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
-			},
-			Integrations: fleet.DefaultTeamIntegrations{
-				Jira:    team.Config.Integrations.Jira,
-				Zendesk: team.Config.Integrations.Zendesk,
-			},
-		}
-		return getDefaultTeamResponse{Team: defaultTeam}, nil
-	}
-
 	return teamResponse{Team: team}, err
 }
 
