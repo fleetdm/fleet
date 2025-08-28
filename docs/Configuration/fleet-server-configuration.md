@@ -212,7 +212,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 
 ### mysql_sts_external_id
 
-AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for MySQL authentication. Specify this with `mysql_sts_assume_role_arn`.
 
 - Default value: `""`
 - Environment variable: `FLEET_MYSQL_STS_EXTERNAL_ID`
