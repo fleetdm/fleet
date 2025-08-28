@@ -2,7 +2,6 @@ name: Check critical vulnerabilities in released docker images
 
 on:
   workflow_dispatch:
-  pull_request:
   schedule:
     - cron: "0 6 * * *"
 

@@ -23,12 +23,12 @@ SELECT 1 FROM apps WHERE bundle_identifier = 'com.adobe.Reader' AND version_comp
 
 3. **Open the software install automation modal**: In the **Policies** tab, click the **Manage automations** button on the top-right, then select **Install software** from the context menu that pops up.
 
-![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage.png)
+![Manage policies](../website/assets/images/articles/automatic-software-install-policies-manage-692x199@2x.png)
 
 4. **Select policy**: Click the checkbox next to your newly created policy's name. To the right of it select from the
    drop-down list the software you would like to be installed upon failure of this policy.
 
-![Install software modal](../website/assets/images/articles/automatic-software-install-install-software.png)
+![Install software modal](../website/assets/images/articles/automatic-software-install-install-software-398x259@2x.png)
 
 When a host fails the selected policy, this will trigger the software to be installed on the host.
 
@@ -42,7 +42,7 @@ If the software install fails, you can reset a software automation and trigger t
 * The policy check mechanism runs on a typical one-hour cadence on all online hosts.
 * Fleet will send install requests to the hosts on the first policy failure (first "No" result for the host) or if a policy goes from "Yes" to "No". Currently, Fleet will not send an install request if a policy is already failing and continues to fail ("No" -> "No"). See the following flowchart for details.
 
-![Flowchart](../website/assets/images/articles/automatic-software-install-workflow.png)
+![Flowchart](../website/assets/images/articles/automatic-software-install-workflow-674x189@2x.png)
 *Detailed flowchart*
 
 App Store (VPP) apps won't be installed if a host has MDM turned off or if you run out of licenses (purchased in Apple Business Manager). Currently, these errors aren't surfaced in Fleet. After turning MDM on for a host or purchasing more licenses, you can retry [installing the app on the host's **Host details** page](https://fleetdm.com/guides/deploy-software-packages#install-the-package). To retry on multiple hosts at once, head to **Policies > Manage Automations** in Fleet and turn the app's policy automation off and back on.
