@@ -79,6 +79,8 @@ func GetRawProfilePlatform(profile []byte) string {
 	return ""
 }
 
+// DetermineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
+// Returns isApple, isAndroid, error.
 func DetermineJSONConfigType(data []byte) (bool, bool, error) {
 	/*
 		Not in this code but endpoint code maybe:

@@ -1494,7 +1494,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	isAppleDeclarationJSON, isAndroidJSON := false, false
 	if isJSON {
-		isAppleDeclarationJSON, isAndroidJSON, err = fleet.DetermineJSONConfigType(data)
+		isAppleDeclarationJSON, isAndroidJSON, err = mdm.DetermineJSONConfigType(data)
 		if err != nil {
 			if strings.Contains(string(data), fleet.ServerSecretPrefix) {
 				// Apple DDM configs allow replacing the entire file's contents via a secret. These
