@@ -633,7 +633,7 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
 
 ### server_private_key_sts_assume_role_arn
 
-Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to use for the Fleet server private key authentication. 
+The Amazon Resource Name (ARN) of the AWS IAM role that Fleet uses to get the server's private key via Amazon Secure Token Service (STS).
 
 If set, Fleet reads the private key from AWS Secrets Manager instead of directly from `server_private_key`.
 
@@ -647,7 +647,7 @@ If set, Fleet reads the private key from AWS Secrets Manager instead of directly
 
 ### server_private_key_sts_external_id
 
-AWS Security Token Service (STS) External ID to use for authentication. Specify this with `server_private_key_sts_assume_role_arn` to ensure that only the intended AWS account can assume the role.
+If you're using a third-party to manage AWS resources, this is the AWS IAM role's external ID. `server_private_key_sts_assume_role_arn` is required if `server_private_key_sts_external_id` is set.
 
 ## Auth
 
