@@ -99,7 +99,8 @@ func TestLimit(t *testing.T) {
 		require.Equal(t, int32(0), l.jobsQueued.Load())
 		require.Equal(t, int32(0), l.jobsConcurrent.Load())
 
-		require.NoError(t, l.WaitContext(t.Context()))
+		// Wait for all jobs to complete
+		l.Wait()
 	})
 }
 

@@ -18,7 +18,11 @@ const (
 	cmdHelp  = "help"
 )
 
-func cmdUsageExec(ctx context.Context, _ Args) error {
+// output is the io.Writer used by the usage commands to output the help text
+// once generated.
+var output = io.Writer(os.Stderr)
+
+func cmdUsageExec(_ context.Context, _ Args) error {
 	showUsageAndExit(0, "")
 	return nil
 }
@@ -29,7 +33,9 @@ func showUsageAndExit(exitCode int, msg string, values ...any) {
 
 	// Format and print the provided message, if we received one.
 	if msg != "" {
-		fmt.Fprint(sb, ansi.Red, "ERROR: ", ansi.Reset, msg, "\n")
+		fmt.Fprint(sb, ansi.Red, "ERROR: ", ansi.Reset)
+		fmt.Fprintf(sb, msg, values...)
+		fmt.Fprintln(sb)
 	}
 
 	// Generate the usage text.
@@ -39,7 +45,7 @@ func showUsageAndExit(exitCode int, msg string, values ...any) {
 	}
 
 	// Print the usage text and exit with the provided exit code.
-	fmt.Println(sb.String())
+	fmt.Fprintln(output, sb.String())
 	os.Exit(exitCode)
 }
 
@@ -48,30 +54,24 @@ type AppDetails struct {
 	Command string
 }
 
-var appDetails = AppDetails{
-	Name:    "Fleet GitOps Migration Tool",
-	Command: "fm",
-}
-
-func colorizer(c string) func(string) string {
-	return func(s string) string {
-		return c + s + ansi.Reset
-	}
+var appDetails = map[string]string{
+	"Name":    "Fleet GitOps Migration Tool",
+	"Command": "fm",
 }
 
 var tmplFuncs = template.FuncMap{
-	"green":   colorizer(ansi.BoldGreen),
-	"magenta": colorizer(ansi.BoldMagenta),
-	"cyan":    colorizer(ansi.BoldCyan),
-	"yellow":  colorizer(ansi.BoldYellow),
+	"green":   ansi.Colorizer(ansi.BoldGreen),
+	"magenta": ansi.Colorizer(ansi.BoldMagenta),
+	"cyan":    ansi.Colorizer(ansi.BoldCyan),
+	"yellow":  ansi.Colorizer(ansi.BoldYellow),
 	"pathJoin": func(parts ...string) string {
 		return filepath.Join(parts...)
 	},
 }
 
-var tmplUsageText = /* TODO: confirm this is going in 4.74 */ `
+var tmplText = `
 {{ $gitops := (green "Fleet GitOps") -}}
-{{- $changeVer := (green "4.74(?)") -}}
+{{- $changeVer := (green "4.74") -}}
 Welcome to the {{ $gitops }} migration utility!
 
 The purpose of this package is to assist with automated GitOps YAML file
@@ -85,8 +85,8 @@ transformations during the {{ $changeVer }} release.
    restore  Restore* a backup produced by the {{ green "backup" }} command.
    usage    Show this help text!
 
-   {{ yellow "* NOTE:" }} Restore _will_ overwrite any existing files in the specified output
-           directory!
+   {{ yellow "* NOTE:" }}  Restore _will_ overwrite any existing files in the specified output
+            directory!
 
 {{ magenta ">> Flags" }}
 
@@ -109,7 +109,7 @@ transformations during the {{ $changeVer }} release.
      - We want to produce a backup gzipped tarball to '{{ $sampleDst }}'.
 
      {{ cyan "$" }} {{ magenta .Command }} backup -f {{ $sampleSrc }} -t {{ $sampleDst }}
-` // TODO: More examples.
+`
 
 func usageText(w io.Writer) error {
 	// Init the template, apply custom template functions.
@@ -118,15 +118,13 @@ func usageText(w io.Writer) error {
 
 	// Parse the template string.
 	var err error
-	tmpl, err = tmpl.Parse(tmplUsageText)
+	tmpl, err = tmpl.Parse(tmplText)
 	if err != nil {
 		return fmt.Errorf("failed to parse 'text/template' template: %w", err)
 	}
 
 	// Exec the template.
-	sb := new(strings.Builder)
-	sb.Grow(len(tmplUsageText))
-	err = tmpl.Execute(sb, appDetails)
+	err = tmpl.Execute(w, appDetails)
 	if err != nil {
 		return fmt.Errorf("failed to execute template: %w", err)
 	}

@@ -198,7 +198,7 @@ func rndFileContent(t *testing.T, sizeMin, sizeMax int) []byte {
 	// Init the "file" byte slice and fill it with random data.
 	file := make([]byte, size)
 	n, err := crand.Reader.Read(file)
-	require.Equal(t, size, int64(n))
+	require.Equal(t, size, n)
 	require.NoError(t, err)
 
 	return file

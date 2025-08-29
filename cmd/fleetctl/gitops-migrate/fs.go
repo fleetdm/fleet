@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	fileModeUserRWX    = 0o700
 	fileModeUserRW     = 0o600
+	fileModeUserRWX    = 0o700
 	fileFlagsOverwrite = os.O_CREATE | os.O_WRONLY | os.O_TRUNC
 	fileFlagsReadWrite = os.O_RDWR
 )

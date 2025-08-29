@@ -33,7 +33,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 		"Destination", output,
 	)
 
-	// Create any requisite parent directories if necessary.
+	// Create any requisite parent directories  if necessary.
 	err := os.MkdirAll(filepath.Dir(to), fileModeUserRWX)
 	if err != nil {
 		if !errors.Is(err, os.ErrExist) {

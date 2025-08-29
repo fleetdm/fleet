@@ -9,18 +9,10 @@ const (
 	OptWithCaller
 )
 
-func (self options) WithLevel() bool {
-	return self&OptWithLevel == OptWithLevel
-}
+func (self options) WithLevel() bool  { return self&OptWithLevel == OptWithLevel }
+func (self *options) SetWithLevel()   { *self |= OptWithLevel }
+func (self *options) UnsetWithLevel() { *self &^= OptWithLevel }
 
-func (self *options) SetWithLevel() {
-	*self |= OptWithLevel
-}
-
-func (self options) WithCaller() bool {
-	return self&OptWithCaller == OptWithCaller
-}
-
-func (self *options) SetWithCaller() {
-	*self |= OptWithCaller
-}
+func (self options) WithCaller() bool  { return self&OptWithCaller == OptWithCaller }
+func (self *options) SetWithCaller()   { *self |= OptWithCaller }
+func (self *options) UnsetWithCaller() { *self &^= OptWithCaller }

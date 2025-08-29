@@ -1,7 +1,5 @@
 package log
 
-import "github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
-
 var Level level
 
 type level uint8
@@ -17,15 +15,15 @@ const (
 func (self level) String() string {
 	switch self {
 	case LevelDebug:
-		return ansi.BoldBlack + "DBG" + ansi.Reset
+		return colorDBG + "DBG" + colorReset
 	case LevelInfo:
-		return ansi.BoldGreen + "INF" + ansi.Reset
+		return colorINF + "INF" + colorReset
 	case LevelWarn:
-		return ansi.BoldYellow + "WRN" + ansi.Reset
+		return colorWRN + "WRN" + colorReset
 	case LevelError:
-		return ansi.BoldRed + "ERR" + ansi.Reset
+		return colorERR + "ERR" + colorReset
 	case LevelFatal:
-		return ansi.BoldRed + "FTL" + ansi.Reset
+		return colorFTL + "FTL" + colorReset
 	default:
 		return ""
 	}

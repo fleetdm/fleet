@@ -2,6 +2,7 @@ package log
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"strings"
@@ -10,54 +11,93 @@ import (
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
 )
 
+// The default number of stack frames to skip when we grab the program counter
+// and produce caller details.
+//
+// This package offers the ability to produce the 'caller' as part of the
+// output. Considering we have paths with varying call stack depth to get to the
+// point where we _actually generate_ the caller, we need to track the number of
+// frames to skip when we get there.
 const defaultSkip = 2
 
+// Log an debug-level message, with optional variadic key-value pairs.
 func Debug(msg string, pairs ...any) {
 	log(LevelDebug, defaultSkip, msg, pairs...)
 }
 
+// Log a printf debug-level message.
 func Debugf(msg string, values ...any) {
 	logf(LevelDebug, defaultSkip, msg, values...)
 }
 
+// Log an info-level message, with optional variadic key-value pairs.
 func Info(msg string, pairs ...any) {
 	log(LevelInfo, defaultSkip, msg, pairs...)
 }
 
+// Log a printf info-level message.
 func Infof(msg string, values ...any) {
 	logf(LevelInfo, defaultSkip, msg, values...)
 }
 
+// Log an warn-level message, with optional variadic key-value pairs.
 func Warn(msg string, pairs ...any) {
 	log(LevelWarn, defaultSkip, msg, pairs...)
 }
 
+// Log a printf warn-level message.
 func Warnf(msg string, values ...any) {
 	logf(LevelWarn, defaultSkip, msg, values...)
 }
 
+// Log an error-level message, with optional variadic key-value pairs.
 func Error(msg string, pairs ...any) {
-	logf(LevelError, defaultSkip, msg, pairs...)
+	log(LevelError, defaultSkip, msg, pairs...)
 }
 
+// Log a printf error-level message.
 func Errorf(msg string, values ...any) {
 	logf(LevelError, defaultSkip, msg, values...)
 }
 
+// Log an fatal-level message, with optional variadic key-value pairs, followed
+// by a call to 'os.Exit(1)'.
 func Fatal(msg string, pairs ...any) {
-	logf(LevelFatal, defaultSkip, msg, pairs...)
+	log(LevelFatal, defaultSkip, msg, pairs...)
 	os.Exit(1)
 }
 
+// Log a printf fatal-level message, followed by a call to 'os.Exit(1)'.
 func Fatalf(msg string, values ...any) {
 	logf(LevelFatal, defaultSkip, msg, values...)
 	os.Exit(1)
 }
 
-func Panic(msg string, values ...any) {
+// Panic with the provided message and optional variadic key-value pairs.
+func Panic(msg string, pairs ...any) {
+	sb := builderPool.Get().(builder)
+	defer builderPool.Put(sb)
+	defer sb.Reset()
+	sb.WriteString(msg)
+	writePairs(sb, pairs...)
+	panic(sb.String())
+}
+
+// Panic with the provided printf message.
+func Panicf(msg string, values ...any) {
 	panic(fmt.Sprintf(msg, values...))
 }
 
+// If we want to tweak the io.Writer returned by 'builderPool' (currently
+// '*strings.Builder') we can simply update this alias, which is implemented
+// at all the 'builderPool' call sites for the assertion when getting from the
+// pool.
+type builder = *strings.Builder
+
+// To avoid races with concurrent calls to this package we use
+// 'strings.Builder's to buffer our writes then send it to the package-level
+// io.Writer ('output'). Creating and destroying buffers is expensive so,
+// instead, we can grab and reinsert from this pool.
 var builderPool = &sync.Pool{
 	New: func() any {
 		sb := new(strings.Builder)
@@ -66,15 +106,17 @@ var builderPool = &sync.Pool{
 	},
 }
 
-const (
-	brackL       = ansi.BoldBlack + "[" + ansi.Reset
-	brackR       = ansi.BoldBlack + "]" + ansi.Reset
-	arrow        = ansi.BoldMagenta + "=>" + ansi.Reset
-	rowMiddle    = ansi.BoldMagenta + "┣━━ " + ansi.Reset
-	rowBottom    = ansi.BoldMagenta + "┗━━ " + ansi.Reset
+var (
+	brackL    = ansi.BoldBlack + "[" + ansi.Reset
+	brackR    = ansi.BoldBlack + "]" + ansi.Reset
+	arrow     = ansi.BoldMagenta + "=>" + ansi.Reset
+	rowMiddle = ansi.BoldMagenta + "╞═ " + ansi.Reset
+	rowBottom = ansi.BoldMagenta + "╰─ " + ansi.Reset
+	// Placeholder value for where len(pairs) % 2 != 0.
 	valueMissing = "<NOVALUE>"
 )
 
+// log formats and writes a log entry to the package-level io.Writer ('output').
 func log(l level, skip int, msg string, pairs ...any) {
 	if l < Level {
 		return
@@ -82,7 +124,7 @@ func log(l level, skip int, msg string, pairs ...any) {
 
 	// Grab a string builder from the pool, defer it's reset and return to
 	// the pool.
-	b := builderPool.Get().(*strings.Builder)
+	b := builderPool.Get().(builder)
 	defer builderPool.Put(b)
 	defer b.Reset()
 
@@ -102,14 +144,25 @@ func log(l level, skip int, msg string, pairs ...any) {
 	fmt.Fprint(output, b.String())
 }
 
-func writeLevel(b *strings.Builder, l level) {
+// logf simply formats the printf message before sending to 'log'.
+func logf(l level, skip int, msg string, values ...any) {
+	msg = fmt.Sprintf(msg, values...)
+	log(l, skip+1, msg)
+}
+
+// Write the log level (ex: 'INF').
+func writeLevel(w io.Writer, l level) {
+	if l < Level {
+		return
+	}
 	// Write the log level, if the appropriate configuration is set.
 	if Options.WithLevel() {
-		fmt.Fprintf(b, "%s ", l)
+		fmt.Fprintf(w, "%s ", l)
 	}
 }
 
-func writeCaller(b *strings.Builder, skip int) {
+// Write the caller in 'short_file:line_number' format.
+func writeCaller(w io.Writer, skip int) {
 	// Write the caller if the appropriate configuration is set.
 	if Options.WithCaller() {
 		// Init an array to send to the caller functions.
@@ -127,40 +180,42 @@ func writeCaller(b *strings.Builder, skip int) {
 		if i := strings.LastIndexByte(file, '/'); i >= 0 && i <= len(file)-1 {
 			file = file[i+1:]
 		}
-		fmt.Fprintf(b, "%s[%s:%d]%s ", ansi.BoldWhite, file, line, ansi.Reset)
+		fmt.Fprintf(w, "%s[%s:%d]%s ", colorCaller, file, line, colorReset)
 	}
 }
 
+// Write variadic 'pairs' in a 'key=value' format.
+//
+// The standard log functions ('Info', 'Warn', etc.) allow for variadic pairs
+// (like slog) which are treated as key-value pairs. Here we iterate them in
+// groups of two and output them as formatted log artifact rows.
 func writePairs(b *strings.Builder, pairs ...any) {
 	for i := 0; i < len(pairs); i += 2 {
 		// Grab the key + value.
+		//
+		// We default to 'valueMissing' for the value, only assigning the actual
+		// value in the 'pairs' slice once we've successfully bounds checked the
+		// index.
 		key := fmt.Sprint(pairs[i])
-		var val string
-		if i+1 > len(pairs) {
-			val = valueMissing
-		} else {
+		val := valueMissing
+		if i+1 < len(pairs) {
 			val = fmt.Sprint(pairs[i+1])
 		}
 
 		// Write the prefixed box characters.
-		if i < len(pairs)-2 {
-			b.WriteString(rowMiddle)
-		} else {
+		if i+1 >= len(pairs)-1 {
 			b.WriteString(rowBottom)
+		} else {
+			b.WriteString(rowMiddle)
 		}
 
 		// Write the key.
-		b.WriteString(brackL + ansi.BoldWhite + key + ansi.Reset + brackR)
+		b.WriteString(brackL + colorKey + key + colorReset + brackR)
 
 		// Write the '=>'.
 		b.WriteString(arrow)
 
 		// Write the value, followed by a newline.
-		b.WriteString(brackL + ansi.BoldWhite + val + ansi.Reset + brackR + "\n")
+		b.WriteString(brackL + colorVal + val + colorReset + brackR + "\n")
 	}
-}
-
-func logf(l level, skip int, msg string, values ...any) {
-	msg = fmt.Sprintf(msg, values...)
-	log(l, skip+1, msg)
 }

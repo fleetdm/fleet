@@ -98,7 +98,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// Look for a 'software' key.
 		software, ok := team[keySoftware].(map[string]any)
 		if !ok {
-			log.Warn("Team file contains no software.", "File", item.Path)
+			log.Debug("Skipping non-team YAML file.", "File", item.Path)
 			continue
 		}
 
@@ -133,12 +133,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			// Look for a 'path' key in the package map, assert it as a 'string'.
 			packagePath, ok := pkg[keyPath].(string)
 			if !ok || packagePath == "" {
-				log.Error(
-					"Team YAML file has package with no 'path' key.",
-					"Team File", item.Path,
-					"Package Index", i,
+				log.Debugf(
+					"The software package at index [%d] has no 'path' key, skipping.",
+					i,
 				)
-				failed += 1
 				continue
 			}
 
@@ -168,7 +166,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				packageFile, err := os.OpenFile(absPath, fileFlagsReadWrite, 0)
 				if err != nil {
 					log.Error(
-						"Failed to get a readable handle to package file.",
+						"Failed to get a read-writable handle to package file.",
 						"Team File", item.Path,
 						"Error", err,
 					)
@@ -190,6 +188,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				}
 
 				// Record and delete the fields we care about.
+
 				if v, ok := pkg[keySelfService]; ok {
 					if b, ok := v.(bool); ok {
 						state[keySelfService] = b

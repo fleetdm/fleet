@@ -1,0 +1,3 @@
+software:
+  packages:
+    - path: mozilla-firefox.yml
