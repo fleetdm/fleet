@@ -163,7 +163,8 @@ To configure software to be installed during setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
-2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal.
+2. Click **Add software**, then select or search for the software you want installed during the setup experience.
+3. Press **Save** to save your selection.
 
 ### Run script
 
