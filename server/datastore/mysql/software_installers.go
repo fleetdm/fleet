@@ -744,6 +744,14 @@ WHERE
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
 		}
 		dest.AutomaticInstallPolicies = policies
+
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			dest.IconUrl = ptr.String(icon.IconUrl())
+		}
 	}
 
 	return &dest, nil

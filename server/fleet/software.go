@@ -182,7 +182,7 @@ type SoftwareTitle struct {
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
 	// IconUrl is the URL for the software title.
-	IconUrl *string `json:"icon_url,omitempty" db:"-"`
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -224,7 +224,7 @@ type SoftwareTitleListResult struct {
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
 	// IconUrl is the URL for the software title.
-	IconUrl *string `json:"icon_url,omitempty" db:"-"`
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")

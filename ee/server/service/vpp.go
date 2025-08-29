@@ -232,6 +232,14 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		adamIDs = append(adamIDs, a.AdamID)
 	}
 
+	var iconsByAdamId map[string]fleet.SoftwareTitleIcon
+	if teamID != nil {
+		iconsByAdamId, err = svc.ds.GetSoftwareTitleIconsByTeamAndAdamIDs(ctx, *teamID, adamIDs)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetching software title icons")
+		}
+	}
+
 	assetMetadata, err := itunes.GetAssetMetadata(adamIDs, &itunes.AssetMetadataFilter{Entity: "software"})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching VPP asset metadata")
@@ -267,6 +275,9 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 				IconURL:          m.ArtworkURL,
 				Name:             m.TrackName,
 				LatestVersion:    m.Version,
+			}
+			if icon, ok := iconsByAdamId[a.AdamID]; ok {
+				app.IconURL = icon.IconUrl()
 			}
 
 			if appFleet, ok := assignedApps[vppAppID]; ok {

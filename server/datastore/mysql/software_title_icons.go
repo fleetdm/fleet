@@ -72,6 +72,43 @@ func (ds *Datastore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, team
 	return icons, nil
 }
 
+func (ds *Datastore) GetSoftwareTitleIconsByTeamAndAdamIDs(ctx context.Context, teamID uint, adamIDs []string) (map[string]fleet.SoftwareTitleIcon, error) {
+	var args []interface{}
+
+	query := `
+		SELECT
+			software_title_icons.team_id,
+			software_title_icons.software_title_id,
+			software_title_icons.storage_id,
+			software_title_icons.filename,
+			vpp_apps.adam_id
+		FROM software_title_icons
+		JOIN vpp_apps ON vpp_apps.title_id = software_title_icons.software_title_id
+		JOIN vpp_apps_teams ON vpp_apps_teams.vpp_app_id = vpp_apps.id
+		WHERE vpp_apps.adam_id IN (?) AND vpp_apps_teams.team_id = ? AND software_title_icons.team_id = ?
+	`
+	query, args, err := sqlx.In(query, adamIDs, teamID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for get software title icons")
+	}
+
+	type IconsWithAdamId struct {
+		fleet.SoftwareTitleIcon
+		AdamID string `db:"adam_id"`
+	}
+	var iconsWithAdamId []IconsWithAdamId
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &iconsWithAdamId, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software title icons")
+	}
+
+	icons := make(map[string]fleet.SoftwareTitleIcon, len(iconsWithAdamId))
+	for _, icon := range iconsWithAdamId {
+		icons[icon.AdamID] = icon.SoftwareTitleIcon
+	}
+
+	return icons, nil
+}
+
 func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {
 	query := `
 		DELETE FROM software_title_icons
