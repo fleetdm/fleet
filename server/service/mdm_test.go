@@ -599,7 +599,7 @@ func TestMDMCommonAuthorization(t *testing.T) {
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true, AndroidEnabledAndConfigured: true}}, nil
 	}
 
 	ds.GetMDMAppleFileVaultSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleFileVaultSummary, error) {
@@ -609,6 +609,9 @@ func TestMDMCommonAuthorization(t *testing.T) {
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 	ds.GetMDMWindowsProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+	ds.GetMDMAndroidProfilesSummaryFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 		return &fleet.MDMProfilesSummary{}, nil
 	}
 
@@ -629,10 +632,40 @@ func TestMDMCommonAuthorization(t *testing.T) {
 
 	ds.GetMDMAppleConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAppleConfigProfile, error) {
 		var tid uint
-		if pid == "a-team-1-profile" {
+		if pid == fleet.MDMAppleProfileUUIDPrefix+"-team-1-profile" {
 			tid = 1
 		}
 		return &fleet.MDMAppleConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetMDMAppleDeclarationFunc = func(ctx context.Context, did string) (*fleet.MDMAppleDeclaration, error) {
+		var tid uint
+		if did == fleet.MDMAppleDeclarationUUIDPrefix+"-team-1-declaration" {
+			tid = 1
+		}
+		return &fleet.MDMAppleDeclaration{
+			DeclarationUUID: did,
+			TeamID:          &tid,
+		}, nil
+	}
+	ds.GetMDMAndroidConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMAndroidConfigProfile, error) {
+		var tid uint
+		if pid == fleet.MDMAndroidProfileUUIDPrefix+"-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMAndroidConfigProfile{
+			ProfileUUID: pid,
+			TeamID:      &tid,
+		}, nil
+	}
+	ds.GetMDMWindowsConfigProfileFunc = func(ctx context.Context, pid string) (*fleet.MDMWindowsConfigProfile, error) {
+		var tid uint
+		if pid == fleet.MDMWindowsProfileUUIDPrefix+"-team-1-profile" {
+			tid = 1
+		}
+		return &fleet.MDMWindowsConfigProfile{
 			ProfileUUID: pid,
 			TeamID:      &tid,
 		}, nil
@@ -741,7 +774,16 @@ func TestMDMCommonAuthorization(t *testing.T) {
 			checkShouldFail(err, tt.shouldFailGlobal)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
-			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-no-team-profile")
+			_, err = svc.GetMDMAndroidProfilesSummary(ctx, nil)
+			checkShouldFail(err, tt.shouldFailGlobal)
+			// Apple profile summary tested in apple_mdm_test.go so not tested here
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAppleProfileUUIDPrefix+"-no-team-profile")
+			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAppleDeclarationUUIDPrefix+"-no-team-declaration")
+			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAndroidProfileUUIDPrefix+"-no-team-profile")
+			checkShouldFail(err, tt.shouldFailGlobal)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMWindowsProfileUUIDPrefix+"-no-team-profile")
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz for MDM summary endpoints (team 1)
@@ -749,7 +791,15 @@ func TestMDMCommonAuthorization(t *testing.T) {
 			checkShouldFail(err, tt.shouldFailTeam)
 			_, err = svc.GetMDMWindowsProfilesSummary(ctx, ptr.Uint(1))
 			checkShouldFail(err, tt.shouldFailTeam)
-			_, err = svc.GetMDMConfigProfileStatus(ctx, "a-team-1-profile")
+			_, err = svc.GetMDMAndroidProfilesSummary(ctx, ptr.Uint(1))
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAppleProfileUUIDPrefix+"-team-1-profile")
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAppleDeclarationUUIDPrefix+"-team-1-declaration")
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMAndroidProfileUUIDPrefix+"-team-1-profile")
+			checkShouldFail(err, tt.shouldFailTeam)
+			_, err = svc.GetMDMConfigProfileStatus(ctx, fleet.MDMWindowsProfileUUIDPrefix+"-team-1-profile")
 			checkShouldFail(err, tt.shouldFailTeam)
 		})
 	}

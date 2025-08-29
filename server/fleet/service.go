@@ -1129,10 +1129,16 @@ type Service interface {
 
 	// NewMDMAndroidConfigProfile creates a new Android configuration profile
 	NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode MDMLabelsMode) (*MDMAndroidConfigProfile, error)
+
 	// DeleteMDMAndroidConfigProfile deletes the specified Android profile.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
+
 	// GetMDMAndroidConfigProfile returns the specified Android profile.
 	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
+
+	// GetMDMAndroidProfilesSummary summarizes the current state of MDM configuration profiles on each Android
+	// host in the specified team (or, if no team is specified, each host that is not assigned to any team).
+	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
