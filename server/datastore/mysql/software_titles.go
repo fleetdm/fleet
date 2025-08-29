@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 	"github.com/jmoiron/sqlx"
 )
@@ -208,14 +209,16 @@ func (ds *Datastore) ListSoftwareTitles(
 				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
 			}
+			title.IconUrl = title.VPPAppIconURL
 		}
 
 		titleIDs[i] = title.ID
 		titleIndex[title.ID] = i
 	}
 
-	// Grab the automatic install policies, if any exist.
+	// Grab the automatic install policies & software title icons, if any exist.
 	// Skip for "All teams" titles because automatic install policies are set on teams/No-team.
+	// Skip software title icons for "All teams" as they also require a team id to exist.
 	if opt.TeamID != nil {
 		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, titleIDs, *opt.TeamID)
 		if err != nil {
@@ -240,6 +243,17 @@ func (ds *Datastore) ListSoftwareTitles(
 						"msg", "policy should have an associated VPP application or software package",
 					)
 				}
+			}
+		}
+
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, *opt.TeamID, titleIDs)
+		if err != nil {
+			return nil, 0, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		for _, icon := range icons {
+			if i, ok := titleIndex[icon.SoftwareTitleID]; ok {
+				softwareList[i].IconUrl = ptr.String(icon.IconUrl())
 			}
 		}
 	}
