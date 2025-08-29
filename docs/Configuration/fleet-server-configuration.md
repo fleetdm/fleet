@@ -2062,7 +2062,7 @@ If set, Fleet uses AWS Identity and Access Management (IAM) authentication inste
 - Config file format:
   ```yaml
   ses:
-    ses_source_arn: arn:aws:iam::1234567890:role/ses-role
+    ses_source_arn: arn:aws:ses:us-east-1:123456789012:identity/example.com
   ```
 
 ### ses_sts_assume_role_arn
