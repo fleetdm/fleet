@@ -1993,6 +1993,27 @@ This activity contains the following fields:
 }
 ```
 
+## edited_setup_experience_software
+
+Generated setup experience software is edited.
+
+This activity contains the following fields:
+- "team_id": The ID of the team (`null` for "No team").
+- "team_name": The name of the team (empty for "No team").
+- "platform": The platform for which setup experience software was modified.
+- "software_title_ids": Updated list of software titles to install during setup.
+
+#### Example
+
+```json
+{
+	"team_id": 5,
+  "team_name": "Workstations",
+  "platform": "macos",
+  "software_title_ids": [1,2,3]
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
