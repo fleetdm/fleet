@@ -485,37 +485,60 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 }
 
 func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, scriptContents string) (*fleet.Script, error) {
-	const stmt = `
-UPDATE script_contents
-INNER JOIN
-  scripts ON scripts.script_content_id = script_contents.id
-SET
-  contents = ?,
-  md5_checksum = UNHEX(?)
-WHERE
-  scripts.id = ?
-`
-	md5Checksum := md5ChecksumScriptContent(scriptContents)
-
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, stmt, scriptContents, md5Checksum, scriptID)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		// Get the current script_content_id
+		var oldContentID int64
+		getCurrentStmt := `SELECT script_content_id FROM scripts WHERE id = ?`
+		err := sqlx.GetContext(ctx, tx, &oldContentID, getCurrentStmt, scriptID)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating script_contents")
+			return ctxerr.Wrap(ctx, err, "getting current script content id")
 		}
 
-		if _, err := tx.ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID); err != nil {
-			return ctxerr.Wrap(ctx, err, "updating script updated_at time")
+		// Insert or get existing content (insertScriptContents handles deduplication)
+		scRes, err := insertScriptContents(ctx, tx, scriptContents)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting/getting script contents")
+		}
+		newContentID, _ := scRes.LastInsertId()
+
+		// Update the script to point to the new content
+		if newContentID != oldContentID {
+			updateStmt := `
+				UPDATE scripts 
+				SET script_content_id = ?
+				WHERE id = ?
+			`
+			_, err = tx.ExecContext(ctx, updateStmt, newContentID, scriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating script content reference")
+			}
+
+			// Try to clean up the old content if no longer used
+			// Don't fail the transaction if cleanup fails; just log it
+			if err := ds.cleanupScriptContent(ctx, tx, uint(oldContentID)); err != nil { //nolint:gosec
+				level.Error(ds.logger).Log("msg", "failed to cleanup orphaned script content",
+					"script_id", scriptID, "old_content_id", oldContentID, "err", err)
+				ctxerr.Handle(ctx, err)
+			}
+		} else {
+			// Just update the timestamp
+			_, err = tx.ExecContext(ctx, "UPDATE scripts SET updated_at = NOW() WHERE id = ?", scriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "updating script updated_at time")
+			}
 		}
 
+		// Cancel pending executions
 		if err := ds.cancelUpcomingScriptActivities(ctx, tx, scriptID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting upcoming script executions")
+			return ctxerr.Wrap(ctx, err, "canceling upcoming script executions")
 		}
 
 		return nil
-	}); err != nil {
+	})
+
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "updating script contents")
 	}
-
 	return ds.Script(ctx, scriptID)
 }
 
@@ -607,6 +630,43 @@ func md5ChecksumBytes(b []byte) string {
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
+func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContext, contentID uint) error {
+	// Check if this content is still being used anywhere
+	var usageCount int
+	stmt := `
+		SELECT COUNT(*) FROM (
+			SELECT 1 FROM scripts WHERE script_content_id = ?
+			UNION ALL
+			SELECT 1 FROM setup_experience_scripts WHERE script_content_id = ?
+			UNION ALL
+			SELECT 1 FROM software_installers WHERE 
+				install_script_content_id = ? 
+				OR uninstall_script_content_id = ?
+				OR post_install_script_content_id = ?
+			UNION ALL
+			SELECT 1 FROM script_upcoming_activities WHERE script_content_id = ?
+			UNION ALL
+			SELECT 1 FROM host_script_results WHERE script_content_id = ?
+		) t
+	`
+	err := sqlx.GetContext(ctx, tx, &usageCount, stmt,
+		contentID, contentID, contentID, contentID, contentID, contentID, contentID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking script content usage for cleanup")
+	}
+
+	if usageCount == 0 {
+		// Not being used, safe to delete
+		deleteStmt := `DELETE FROM script_contents WHERE id = ?`
+		_, err = tx.ExecContext(ctx, deleteStmt, contentID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting unused script content")
+		}
+	}
+
+	return nil
+}
+
 func (ds *Datastore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
 	return ds.getScriptDB(ctx, ds.reader(ctx), id)
 }
@@ -641,10 +701,9 @@ SELECT
   sc.contents
 FROM
   script_contents sc
-  JOIN scripts s
+  JOIN scripts s ON s.script_content_id = sc.id
 WHERE
-  s.script_content_id = sc.id
-  AND s.id = ?;
+  s.id = ?
 `
 	var contents []byte
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &contents, getStmt, id); err != nil {
