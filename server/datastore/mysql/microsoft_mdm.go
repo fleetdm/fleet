@@ -2100,100 +2100,20 @@ ON DUPLICATE KEY UPDATE
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
 	}
 
-	// build a list of labels so the associations can be batch-set all at once
-	// TODO: with minor changes this chunk of code could be shared
-	// between macOS and Windows, but at the time of this
-	// implementation we're under tight time constraints.
-	incomingLabels := []fleet.ConfigurationProfileLabel{}
-	var profsWithoutLabel []string
-	var currentProfiles []*fleet.MDMWindowsConfigProfile
-	if len(incomingNames) > 0 {
-		// load current profiles (both new and updated) that match the incoming profiles by name to grab their uuids
-		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inreselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
-			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
-			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
-		}
-
-		for _, currentProfile := range currentProfiles {
-			incomingProf, ok := incomingProfs[currentProfile.Name]
-			if !ok {
-				return false, ctxerr.Errorf(ctx, "profile %q is in the database but was not incoming", currentProfile.Name)
-			}
-
-			var profHasLabel bool
-			for _, label := range incomingProf.LabelsIncludeAll {
-				label.ProfileUUID = currentProfile.ProfileUUID
-				label.Exclude = false
-				label.RequireAll = true
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			for _, label := range incomingProf.LabelsIncludeAny {
-				label.ProfileUUID = currentProfile.ProfileUUID
-				label.Exclude = false
-				label.RequireAll = false
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			for _, label := range incomingProf.LabelsExcludeAny {
-				label.ProfileUUID = currentProfile.ProfileUUID
-				label.Exclude = true
-				label.RequireAll = false
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			if !profHasLabel {
-				profsWithoutLabel = append(profsWithoutLabel, currentProfile.ProfileUUID)
-			}
-		}
+	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
+	for _, p := range profiles {
+		mappedIncomingProfiles = append(mappedIncomingProfiles, &BatchSetAssociationIncomingProfile{
+			Name:             p.Name,
+			ProfileUUID:      p.ProfileUUID,
+			LabelsIncludeAll: p.LabelsIncludeAll,
+			LabelsIncludeAny: p.LabelsIncludeAny,
+			LabelsExcludeAny: p.LabelsExcludeAny,
+		})
 	}
 
-	// insert/delete the label associations
-	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabel,
-		"windows"); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "labels") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-		}
-		return false, ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
-	}
-
-	// save fleet variables associated with Windows profiles (both new and updated)
-	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
-	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
-	if len(currentProfiles) > 0 {
-		// build a lookup map for variables by profile name (Windows profiles use Name as identifier)
-		lookupVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
-		for _, pv := range profilesVariablesByIdentifier {
-			// Windows profiles use Name as the identifier in the validateFleetVariables function
-			lookupVariablesByName[pv.Identifier] = pv.FleetVariables
-		}
-
-		// collect ALL profile UUIDs, including those without variables (to clear stale associations)
-		var profilesVarsToUpsert []fleet.MDMProfileUUIDFleetVariables
-		for _, p := range currentProfiles {
-			vars := lookupVariablesByName[p.Name] // defaults to nil/empty slice if not found
-			// Include every profile, even those without variables, so the helper can clear old associations
-			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
-				ProfileUUID:    p.ProfileUUID,
-				FleetVariables: vars, // may be empty/nil, which will clear associations
-			})
-		}
-
-		if len(profilesVarsToUpsert) > 0 {
-			if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
-				return false, ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
-			}
-		}
+	updatedLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "windows", tmID, mappedIncomingProfiles, profilesVariablesByIdentifier)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}
 
 	return updatedDB || updatedLabels, nil
