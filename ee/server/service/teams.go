@@ -1828,6 +1828,7 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 
 	// Apply integrations if provided
 	if payload.Integrations != nil {
+		// Note: GoogleCalendar and ConditionalAccessEnabled are currently not supported for "No team"
 		// Reject unsupported fields for "No team"
 		if payload.Integrations.GoogleCalendar != nil ||
 			payload.Integrations.ConditionalAccessEnabled.Set {
@@ -1856,8 +1857,6 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 		// Always update integrations when provided (even if empty arrays to clear them)
 		config.Integrations.Jira = payload.Integrations.Jira
 		config.Integrations.Zendesk = payload.Integrations.Zendesk
-
-		// Note: GoogleCalendar and ConditionalAccessEnabled are currently not supported for "No team"
 	}
 
 	// Validate mutual exclusivity of automations if either webhooks or integrations were updated
