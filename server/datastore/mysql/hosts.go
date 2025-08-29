@@ -1203,7 +1203,9 @@ func (ds *Datastore) applyHostFilters(
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
-		// TODO Do we need an android settings filter?
+	}
+
+	if opt.OSSettingsFilter.IsValid() {
 		mdmAndroidProfilesStatusJoin = sqlJoinMDMAndroidProfilesStatus()
 	}
 

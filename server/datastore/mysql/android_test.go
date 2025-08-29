@@ -617,13 +617,11 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		// add some other android hosts that won't be be assigned any profiles
-		otherHosts := make([]*fleet.Host, 0, 5)
 		for i := 0; i < 5; i++ {
 			androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-other-%d", i))
 			newHost, err := ds.NewAndroidHost(ctx, androidHost)
 			require.NoError(t, err)
 			require.NotNil(t, newHost)
-			otherHosts = append(otherHosts, newHost.Host)
 		}
 
 		checkExpected(t, nil, expected)
