@@ -1683,7 +1683,7 @@ This activity contains the following fields:
 
 ```json
 {
-  "name": "SMALLSTEP_WIFI"
+  "name": "SECTIGO_WIFI"
 }
 ```
 
