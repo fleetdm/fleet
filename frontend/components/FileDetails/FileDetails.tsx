@@ -20,6 +20,8 @@ interface IFileDetailsProps {
     | IFileDetailsSupportedGraphicNames[];
   fileDetails: IFileDetails;
   canEdit: boolean;
+  /** If present, will show a trash icon */
+  onDeleteFile?: () => void;
   onFileSelect?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   accept?: string;
   progress?: number;
@@ -34,6 +36,7 @@ const FileDetails = ({
   graphicNames,
   fileDetails,
   canEdit,
+  onDeleteFile,
   onFileSelect,
   accept,
   progress,
@@ -55,9 +58,9 @@ const FileDetails = ({
         />
         <div className={`${baseClass}__content`}>
           <div className={`${baseClass}__name`}>{fileDetails.name}</div>
-          {fileDetails.platform && (
-            <div className={`${baseClass}__platform`}>
-              {fileDetails.platform}
+          {fileDetails.description && (
+            <div className={`${baseClass}__description`}>
+              {fileDetails.description}
             </div>
           )}
         </div>
@@ -105,6 +108,19 @@ const FileDetails = ({
             />
           </div>
         ))}
+      {!progress && onDeleteFile && (
+        <div className={`${baseClass}__delete`}>
+          <Button
+            className={`${baseClass}__delete-button`}
+            variant="icon"
+            onClick={onDeleteFile}
+          >
+            <label htmlFor="delete-file">
+              <Icon name="trash" color="ui-fleet-black-75" />
+            </label>
+          </Button>
+        </div>
+      )}
       {!!progress && (
         <div className={`${baseClass}__progress-wrapper`}>
           <div className={`${baseClass}__progress-bar`}>

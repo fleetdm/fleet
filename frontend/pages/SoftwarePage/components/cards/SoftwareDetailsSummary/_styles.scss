@@ -16,6 +16,9 @@
     font-size: $pad-large;
     font-weight: bold;
     margin-bottom: $pad-medium;
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
   }
 
   &__description-list {

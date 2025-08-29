@@ -45,19 +45,19 @@ describe("fileUtils", () => {
     const testCases = [
       {
         fileName: "test.pkg",
-        expectedDetails: { name: "test.pkg", platform: "macOS" },
+        expectedDetails: { name: "test.pkg", description: "macOS" },
       },
       {
         fileName: "test.exe",
-        expectedDetails: { name: "test.exe", platform: "Windows" },
+        expectedDetails: { name: "test.exe", description: "Windows" },
       },
       {
         fileName: "test.tar.gz",
-        expectedDetails: { name: "test.tar.gz", platform: "Linux" },
+        expectedDetails: { name: "test.tar.gz", description: "Linux" },
       },
       {
         fileName: "unknown.file",
-        expectedDetails: { name: "unknown.file", platform: undefined },
+        expectedDetails: { name: "unknown.file", description: undefined },
       },
     ];
 
@@ -94,7 +94,7 @@ describe("fileUtils", () => {
   it("should handle empty filenames gracefully", () => {
     const file = new File([""], "");
     expect(getPlatformDisplayName(file)).toBeUndefined();
-    expect(getFileDetails(file)).toEqual({ name: "", platform: undefined });
+    expect(getFileDetails(file)).toEqual({ name: "", description: undefined });
   });
 
   it("should handle files with no extension gracefully", () => {
@@ -102,7 +102,7 @@ describe("fileUtils", () => {
     expect(getPlatformDisplayName(file)).toBeUndefined();
     expect(getFileDetails(file)).toEqual({
       name: "no_extension",
-      platform: undefined,
+      description: undefined,
     });
   });
 
@@ -111,7 +111,7 @@ describe("fileUtils", () => {
     expect(getPlatformDisplayName(file)).toEqual("macOS");
     expect(getFileDetails(file)).toEqual({
       name: "my.file.name.pkg",
-      platform: "macOS",
+      description: "macOS",
     });
   });
 });

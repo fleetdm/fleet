@@ -17,6 +17,7 @@ const createMockDeviceUser = (
 const DEFAULT_DEVICE_SOFTWARE_MOCK: IDeviceSoftware = {
   id: 1,
   name: "mock software 1.app",
+  icon_url: null,
   source: "apps",
   bundle_identifier: "com.app.mock",
   status: null,

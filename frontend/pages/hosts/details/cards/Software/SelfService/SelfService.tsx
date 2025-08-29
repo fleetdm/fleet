@@ -82,6 +82,9 @@ const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
 const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
 
+export const SELF_SERVICE_SUBHEADER =
+  "Install organization-approved apps provided by your IT department.";
+
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
   deviceToken: string;
@@ -756,7 +759,7 @@ const SoftwareSelfService = ({
           header="Self-service"
           subheader={
             <>
-              Install organization-approved apps provided by your IT department.{" "}
+              {SELF_SERVICE_SUBHEADER}{" "}
               {contactUrl && (
                 <span>
                   If you need help,{" "}

@@ -16,9 +16,15 @@ export const ICON_SIZES_BASE14 = {
   "extra-large": "42",
 };
 
-export type SoftwareIconSizes = "small" | "medium" | "large" | "xlarge";
+export type SoftwareIconSizes =
+  | "xsmall"
+  | "small"
+  | "medium"
+  | "large"
+  | "xlarge";
 
 export const SOFTWARE_ICON_SIZES: Record<SoftwareIconSizes, string> = {
+  xsmall: "20",
   small: "24",
   medium: "40",
   large: "64",

@@ -30,6 +30,7 @@ interface IViewYamlModalProps {
 interface HandleDownloadParams {
   evt: React.MouseEvent;
   content?: string;
+  downloadUrl?: string;
   filename: string;
   filetype: string;
   errorMsg: string;
@@ -52,6 +53,7 @@ const ViewYamlModal = ({
     install_script: installScript,
     post_install_script: postInstallScript,
     uninstall_script: uninstallScript,
+    icon_url: iconUrl,
   } = softwarePackage;
 
   const packageYaml = createPackageYaml({
@@ -64,22 +66,34 @@ const ViewYamlModal = ({
     installScript,
     postInstallScript,
     uninstallScript,
+    iconUrl,
   });
 
   // Generic download handler
-  const handleDownload = ({
+  const handleDownload = async ({
     evt,
     content,
+    downloadUrl,
     filename,
     filetype,
     errorMsg,
   }: HandleDownloadParams) => {
     evt.preventDefault();
 
-    if (content) {
-      const file = new window.File([content], filename, { type: filetype });
-      FileSaver.saveAs(file);
-    } else {
+    try {
+      if (content) {
+        const file = new File([content], filename, { type: filetype });
+        FileSaver.saveAs(file);
+      } else if (downloadUrl) {
+        const response = await fetch(downloadUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        FileSaver.saveAs(blob, filename);
+      } else {
+        throw new Error("No content or URL provided");
+      }
+    } catch (err) {
+      console.error(err);
       renderFlash("error", errorMsg);
     }
     return false;
@@ -134,6 +148,17 @@ const ViewYamlModal = ({
     });
   };
 
+  const onDownloadIcon = (evt: React.MouseEvent) => {
+    handleDownload({
+      evt,
+      downloadUrl: iconUrl || undefined,
+      filename: `${hyphenatedSoftwareTitle}-icon.png`,
+      filetype: "image/png",
+      errorMsg:
+        "Your icon could not be downloaded. Please download the image  manually.",
+    });
+  };
+
   return (
     <Modal className={baseClass} title="YAML" onExit={onExit}>
       <>
@@ -174,6 +199,7 @@ const ViewYamlModal = ({
             installScript,
             postInstallScript,
             uninstallScript,
+            iconUrl,
             onClickPreInstallQuery: preInstallQuery
               ? onDownloadPreInstallQuery
               : undefined,
@@ -186,6 +212,7 @@ const ViewYamlModal = ({
             onClickUninstallScript: uninstallScript
               ? onDownloadUninstallScript
               : undefined,
+            onClickIcon: iconUrl ? onDownloadIcon : undefined,
           })}
         </p>
         <div className="modal-cta-wrap">

@@ -430,7 +430,7 @@ const TableContainer = <T,>({
             >
               {renderCount && !disableCount && (
                 <div
-                  className={`${baseClass}__results-count ${
+                  className={`${baseClass}__results-count  ${
                     stackControls ? "stack-table-controls" : ""
                   }`}
                   style={opacity}
