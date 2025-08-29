@@ -263,7 +263,7 @@ INSERT INTO
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
 		}, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
@@ -2447,15 +2447,6 @@ ON DUPLICATE KEY UPDATE
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
 
-		fmt.Println("\ndidInsertOrUpdate\n", p.Identifier, didInsertOrUpdate)
-
-		var existingProf []*fleet.MDMAppleConfigProfile
-		if err := sqlx.SelectContext(ctx, tx, &existingProf, loadExistingProfiles, profTeamID, p.Identifier); err != nil {
-			return false, ctxerr.Wrapf(ctx, err, "load existing profile with identifier %q", p.Identifier)
-		}
-		for _, ep := range existingProf {
-			fmt.Println("existingProf", ep.Identifier, ep.TeamID)
-		}
 		updatedDB = updatedDB || didInsertOrUpdate
 	}
 

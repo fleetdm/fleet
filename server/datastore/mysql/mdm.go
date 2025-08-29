@@ -1829,9 +1829,9 @@ func batchSetProfileVariableAssociationsDB(
 	tx sqlx.ExtContext,
 	profileVariablesByUUID []fleet.MDMProfileUUIDFleetVariables,
 	platform string,
-) error {
+) (didUpdate bool, err error) {
 	if len(profileVariablesByUUID) == 0 {
-		return nil
+		return false, nil
 	}
 
 	var platformPrefix string
@@ -1841,9 +1841,9 @@ func batchSetProfileVariableAssociationsDB(
 	case "windows":
 		platformPrefix = "windows"
 	case "android":
-		return nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
+		return false, nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
-		return fmt.Errorf("unsupported platform %s", platform)
+		return false, fmt.Errorf("unsupported platform %s", platform)
 	}
 
 	// collect the profile uuids to clear
@@ -1861,14 +1861,19 @@ func batchSetProfileVariableAssociationsDB(
 	clearVarsForProfilesStmt := fmt.Sprintf(`DELETE FROM mdm_configuration_profile_variables WHERE %s_profile_uuid IN (?)`, platformPrefix)
 	clearVarsForProfilesStmt, args, err := sqlx.In(clearVarsForProfilesStmt, profileUUIDsToDelete)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
+		return false, ctxerr.Wrap(ctx, err, "sqlx.In delete variables for profiles")
 	}
-	if _, err := tx.ExecContext(ctx, clearVarsForProfilesStmt, args...); err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting variables for profiles")
+	var res sql.Result
+	if res, err = tx.ExecContext(ctx, clearVarsForProfilesStmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "deleting variables for profiles")
+	}
+	rowsDeleted, err := res.RowsAffected()
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "rows affected for deleting variables for profiles")
 	}
 
 	if !varsToSet {
-		return nil
+		return rowsDeleted > 0, nil
 	}
 
 	// load fleet variables to map them to their IDs
@@ -1881,7 +1886,7 @@ func batchSetProfileVariableAssociationsDB(
 	var varDefs []varDef
 	const varsStmt = `SELECT id, name, is_prefix FROM fleet_variables`
 	if err := sqlx.SelectContext(ctx, tx, &varDefs, varsStmt); err != nil {
-		return fmt.Errorf("failed to load fleet variables: %w", err)
+		return false, fmt.Errorf("failed to load fleet variables: %w", err)
 	}
 
 	// map the variables to their IDs (this looks terrible with the nested fors
@@ -1934,9 +1939,9 @@ func batchSetProfileVariableAssociationsDB(
 
 	err = batchProcessDB(profVars, batchSize, generateValueArgs, executeUpsertBatch)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "upserting profile variables")
+		return false, ctxerr.Wrap(ctx, err, "upserting profile variables")
 	}
-	return nil
+	return true, nil
 }
 
 func (ds *Datastore) BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters fleet.BatchResendMDMProfileFilters) (int64, error) {
@@ -2267,11 +2272,6 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 		return false, ctxerr.Wrap(ctx, err, "select current profiles")
 	}
 
-	fmt.Println("Found ", len(currentProfiles), " current profiles in the database")
-	for _, p := range currentProfiles {
-		fmt.Println("Current profile:", p.Name, p.ProfileUUID)
-	}
-
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	var profsWithoutLabels []string
 
@@ -2334,11 +2334,12 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 	}
 
 	if len(profilesVarsToUpsert) > 0 {
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform); err != nil {
+		var didUpdateVariableAssociations bool
+		if didUpdateVariableAssociations, err = batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, platform); err != nil {
 			return false, ctxerr.Wrap(ctx, err, fmt.Sprintf("inserting %s profile variable associations", platform))
 		}
 
-		return true, nil
+		return didUpdateVariableAssociations, nil
 	}
 
 	return didUpdateLabels, nil

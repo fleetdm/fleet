@@ -2905,7 +2905,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	}
 
 	// both profiles have no variable
-	err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+	_, err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: globalProfiles[0], FleetVariables: nil},
 		{ProfileUUID: globalProfiles[1], FleetVariables: nil},
 	}, "windows")
@@ -2915,7 +2915,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	checkProfileVariables(globalProfiles[1], 0, nil)
 
 	// add some variables
-	err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+	_, err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: globalProfiles[0], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
 		{ProfileUUID: globalProfiles[1], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
 	}, "windows")
