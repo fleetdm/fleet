@@ -161,7 +161,7 @@ To replace the Fleet logo with your organization's logo:
 
 To configure software to be installed during setup experience:
 
-1. Click on the "Controls" tab in the main navigation bar. Click on "Setup experience", and then on "4. Install software".
+1. Click on the **Controls** tab in the main navigation bar,  then **Setup experience** > **4. Install software**.
 
 2. Click the "Add software" button. In the modal, select the software that you want to have installed during the setup experience. You can search the list of software by using the search bar in the modal. Click "Save" to save your selection and close the modal.
 
