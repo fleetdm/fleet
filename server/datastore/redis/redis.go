@@ -276,12 +276,9 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 	}
 
 	// Auto-detect ElastiCache and use IAM auth if no password is provided
-	useIAMAuth := false
+	tryIAMAuth := false
 	if conf.Password == "" && isElastiCacheEndpoint(conf.Server) {
-		useIAMAuth = true
-		// IAM auth requires TLS
-		conf.UseTLS = true
-
+		tryIAMAuth = true
 		region, cacheName, err := parseElastiCacheEndpoint(conf.Server)
 		if err != nil {
 			return nil, err
@@ -296,22 +293,11 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 	}
 
 	if conf.UseTLS {
-		tlsCfg := config.TLS{
-			TLSCA:         conf.TLSCA,
-			TLSCert:       conf.TLSCert,
-			TLSKey:        conf.TLSKey,
-			TLSServerName: conf.TLSServerName,
-		}
-		cfg, err := tlsCfg.ToTLSConfig()
+		var err error
+		opts, err = addTlsConfigOptions(opts, conf)
 		if err != nil {
 			return nil, err
 		}
-		cfg.InsecureSkipVerify = conf.TLSSkipVerify
-
-		opts = append(opts,
-			redis.DialTLSConfig(cfg),
-			redis.DialUseTLS(true),
-			redis.DialTLSHandshakeTimeout(conf.TLSHandshakeTimeout))
 	}
 
 	dialFn := redis.Dial
@@ -335,29 +321,68 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 					var conn redis.Conn
 					op := func() error {
 						dialOpts := opts
-						if useIAMAuth {
-							token, err := awsIAMTokenGen.generateAuthToken(context.Background())
-							if err != nil {
-								return fmt.Errorf("failed to generate IAM auth token: %w", err)
-							}
-							dialOpts = append(dialOpts, redis.DialPassword(token))
-						}
-
-						c, err := dialFn("tcp", server, dialOpts...)
-
 						var netErr net.Error
+
+						pc, err := dialFn("tcp", server, dialOpts...)
+
 						if errors.As(err, &netErr) {
 							if netErr.Temporary() || netErr.Timeout() {
 								// retryable error
 								return err
 							}
 						}
+
+						// Probe the connection to detect auth errors.
+						if err == nil && tryIAMAuth { // "maybe-no-auth" mode
+							if perr := probePingWithShortTimeout(pc, server, dialFn, dialOpts, 5*time.Second); perr != nil {
+								// Probe failed (NOAUTH, TLS mismatch -> timeout, etc.): close and trigger IAM
+								_ = pc.Close()
+								err = perr
+							} else {
+								// Probe succeeded quickly: keep this connection
+								conn = pc
+								return nil
+							}
+						}
+
+						var c redis.Conn
+						if err != nil && tryIAMAuth {
+							var token string
+							token, err = awsIAMTokenGen.generateAuthToken(context.Background())
+							if err != nil {
+								return fmt.Errorf("failed to generate IAM auth token: %w", err)
+							}
+							dialOpts = append(dialOpts, redis.DialPassword(token))
+							// If the user didn't specify TLS, add it.
+							if !conf.UseTLS {
+								dialOpts, err = addTlsConfigOptions(dialOpts, conf)
+								// This is not retryable.
+								if err != nil {
+									return backoff.Permanent(err)
+								}
+							}
+							c, err = dialFn("tcp", server, dialOpts...)
+							if errors.As(err, &netErr) {
+								if netErr.Temporary() || netErr.Timeout() {
+									// retryable error
+									return err
+								}
+							}
+						}
+
 						if err != nil {
 							// at this point, this is a non-retryable error
 							return backoff.Permanent(err)
 						}
 
 						// success, store the connection to use
+						if tryIAMAuth {
+							conf.UseTLS = true
+							opts, err = addTlsConfigOptions(opts, conf)
+							if err != nil {
+								return backoff.Permanent(err)
+							}
+						}
 						conn = c
 						return nil
 					}
@@ -384,6 +409,29 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 			}, nil
 		},
 	}, nil
+}
+
+func addTlsConfigOptions(curOpts []redis.DialOption, conf PoolConfig) (opts []redis.DialOption, err error) {
+	// Make a copy of the current options
+	opts = append(opts, curOpts...)
+	tlsCfg := config.TLS{
+		TLSCA:         conf.TLSCA,
+		TLSCert:       conf.TLSCert,
+		TLSKey:        conf.TLSKey,
+		TLSServerName: conf.TLSServerName,
+	}
+	cfg, err := tlsCfg.ToTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+	cfg.InsecureSkipVerify = conf.TLSSkipVerify
+
+	opts = append(opts,
+		redis.DialTLSConfig(cfg),
+		redis.DialUseTLS(true),
+		redis.DialTLSHandshakeTimeout(conf.TLSHandshakeTimeout))
+
+	return opts, nil
 }
 
 func isClusterDisabled(err error) bool {
@@ -433,4 +481,56 @@ func ScanKeys(pool fleet.RedisPool, pattern string, count int) ([]string, error)
 		return nil, err
 	}
 	return keys, nil
+}
+
+func probePingWithShortTimeout(
+	c redis.Conn,
+	server string,
+	dialFn func(network, address string, options ...redis.DialOption) (redis.Conn, error),
+	dialOpts []redis.DialOption, // the options you used for `c` (TLS, etc.)
+	probeTimeout time.Duration, // e.g., 1*time.Second
+) error {
+	// 1) Prefer per-call timeout if the conn supports it.
+	type connDoTimeout interface {
+		DoWithTimeout(timeout time.Duration, commandName string, args ...interface{}) (reply interface{}, err error)
+	}
+	if pc, ok := c.(connDoTimeout); ok {
+		reply, err := pc.DoWithTimeout(probeTimeout, "PING")
+		if err != nil {
+			return err
+		}
+		if s, ok := reply.(string); ok && s == "PONG" {
+			return nil
+		}
+		return fmt.Errorf("unexpected PING response: %#v", reply)
+	}
+
+	// 2) Fallback: one-off probe connection with tiny timeouts, then close it.
+	probeOpts := append([]redis.DialOption{}, dialOpts...) // copy
+	probeOpts = append(probeOpts,
+		redis.DialConnectTimeout(5*time.Second),
+		redis.DialReadTimeout(probeTimeout),
+		redis.DialWriteTimeout(probeTimeout),
+	)
+
+	pc, err := dialFn("tcp", server, probeOpts...)
+	if err != nil {
+		return err
+	}
+	defer pc.Close()
+
+	if err := pc.Send("PING"); err != nil {
+		return err
+	}
+	if err := pc.Flush(); err != nil {
+		return err
+	}
+	reply, err := pc.Receive() // uses the short read timeout above
+	if err != nil {
+		return err
+	}
+	if s, ok := reply.(string); ok && s == "PONG" {
+		return nil
+	}
+	return fmt.Errorf("unexpected PING response: %#v", reply)
 }

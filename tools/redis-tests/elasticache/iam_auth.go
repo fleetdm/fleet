@@ -22,22 +22,27 @@ func main() {
 	if *addrFlag == "" {
 		log.Fatal("ElastiCache address is required (-addr flag)")
 	}
-	if *userFlag == "" {
-		log.Fatal("Username is required (-user flag)")
-	}
+	// if *userFlag == "" {
+	// 	log.Fatal("Username is required (-user flag)")
+	// }
 
 	log.Printf("Connecting to ElastiCache at %s with IAM auth for user %s", *addrFlag, *userFlag)
 	if *assumeRoleFlag != "" {
 		log.Printf("Using assume role: %s", *assumeRoleFlag)
 	}
 
-	pool, err := redis.NewPool(redis.PoolConfig{
-		Server:           *addrFlag,
-		Username:         *userFlag,
-		UseTLS:           true,
+	config := redis.PoolConfig{
+		Server: *addrFlag,
+		// UseTLS:           true,
 		StsAssumeRoleArn: *assumeRoleFlag,
 		StsExternalID:    *externalIDFlag,
-	})
+	}
+
+	if userFlag != nil && *userFlag != "" {
+		config.Username = *userFlag
+	}
+
+	pool, err := redis.NewPool(config)
 	if err != nil {
 		log.Fatalf("Failed to create Redis pool: %v", err)
 	}
