@@ -9219,9 +9219,7 @@ func (s *integrationMDMTestSuite) runWorkerUntilDone() {
 	// Retry checking for pending jobs
 	require.Eventually(s.T(), func() bool {
 		pending, err := s.ds.GetQueuedJobs(s.T().Context(), 1, time.Time{})
-		if err != nil {
-			return false
-		}
+		require.NoError(s.T(), err)
 		if len(pending) == 0 {
 			return true
 		}
