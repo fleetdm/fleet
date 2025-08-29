@@ -648,7 +648,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.FleetDesktop.TransparencyURL = ""
 	}
 
-	if err := svc.ds.SaveAppConfig(ctxdb.RequirePrimary(ctx, true), appConfig); err != nil {
+	if err := svc.ds.SaveAppConfig(ctx, appConfig); err != nil {
 		return nil, err
 	}
 
