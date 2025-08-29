@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 jobs:
-  test-go:
+  check-signatures:
     strategy:
       matrix:
         os: [ubuntu-latest]
@@ -164,7 +164,7 @@ jobs:
         with:
           payload: |
             {
-              "text": "${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head.html_url }}",
+              "text": "${{ job.status }},
               "blocks": [
                 {
                   "type": "section",
