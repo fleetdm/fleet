@@ -297,9 +297,9 @@ parasails.registerPage('configuration-builder', {
             docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
             payloads: [
               {
-                name: 'Disable erase all content and settings.',
+                name: 'Allow erasing all content and settings',
                 uniqueSlug: 'macos-disable-erase-content',
-                tooltip: 'If false, the system disables the Erase All Content and Settings option in the Reset UI',
+                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI',
                 category: 'Restrictions',
                 payload: 'Restrictions',
                 payloadType: 'com.apple.applicationaccess',
@@ -309,8 +309,81 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'boolean',
                   settingKey: 'allowEraseContentAndSettings',
-                  trueValue: false,
-                  falseValue: true,
+                },
+              },
+              {
+                name: 'Allow device name modification',
+                uniqueSlug: 'macos-enable-device-name-modification',
+                tooltip: 'If false, the system prevents the user from changing the device name.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowDeviceNameModification',
+                },
+              },
+              {
+                name: 'Allow UI configuration profile installation',
+                uniqueSlug: 'macos-allow-configuration-profile-installation',
+                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowUIConfigurationProfileInstallation',
+                },
+              },
+              {
+                name: 'Allow content caching',
+                uniqueSlug: 'macos-allow-content-caching',
+                tooltip: 'If false, the system disables content caching.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowContentCaching',
+                },
+              },
+              {
+                name: 'Allow camera',
+                uniqueSlug: 'macos-allow-camera',
+                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in macOS 10.11 and later. Support for this restriction on unsupervised devices is deprecated.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowCamera',
+                },
+              },
+              {
+                name: 'Allow AirDrop',
+                uniqueSlug: 'macos-allow-airdrop',
+                tooltip: 'If false, the system disables AirDrop. Available in macOS 10.13 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowAirDrop',
                 },
               },
             ]
@@ -1204,8 +1277,137 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'ios-restrictions',
+            description: 'Settings that configures restrictions on a device.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+            payloads: [
+              {
+                name: 'Allow erasing all content and settings',
+                uniqueSlug: 'ios-disable-erase-content',
+                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI. Available in iOS 8 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowEraseContentAndSettings',
+                },
+              },
+              {
+                name: 'Allow device name modification',
+                uniqueSlug: 'ios-enable-device-name-modification',
+                tooltip: 'If false, the system prevents the user from changing the device name. Available in iOS 9 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowDeviceNameModification',
+                },
+              },
+              {
+                name: 'Allow UI configuration profile installation',
+                uniqueSlug: 'ios-allow-configuration-profile-installation',
+                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.  Available in iOS 6 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowUIConfigurationProfileInstallation',
+                },
+              },
+              {
+                name: 'Allow camera',
+                uniqueSlug: 'ios-allow-camera',
+                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in iOS 4 and later. Support for this restriction on unsupervised devices is deprecated.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowCamera',
+                },
+              },
+              {
+                name: 'Allow AirDrop',
+                uniqueSlug: 'ios-allow-airdrop',
+                tooltip: 'If false, the system disables AirDrop. Available in iOS 12 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowAirDrop',
+                },
+              },
+              {
+                name: 'Allow opening documents created by managed apps in unmanaged apps.',
+                uniqueSlug: 'ios-allow-open-from-managed',
+                tooltip: 'If false, documents in managed apps and accounts open only in other managed apps and accounts. Available in iOS 7 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowOpenFromManagedToUnmanaged',
+                },
+              },
+              {
+                name: 'Allow opening documents created by unmanaged apps in managed apps.',
+                uniqueSlug: 'ios-allow-open-from-unmanaged',
+                tooltip: 'If false, documents in unmanaged apps and accounts open only in other unmanaged apps and accounts. Available in iOS 7 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowOpenFromUnmanagedToManaged',
+                },
+              },
+              {
+                name: 'Apply managed app restrictions to clipboard functionality.',
+                uniqueSlug: 'ios-managed-clipboard',
+                tooltip: 'If true, copy-and-paste functionality is limited by the "Allow opening documents created by unmanaged apps in managed apps" and "Allow opening documents created by managed apps in unmanaged apps." restrictions.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'requireManagedPasteboard',
+                },
+              },
+            ]
+          },
         ]
       },
+
       {
         categoryName: 'Network',
         categorySlug: 'ios-network',
