@@ -229,14 +229,14 @@ func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID 
 	// because svc is the concrete open source service implementation despite it being in the ee/directory
 	var err error
 
-	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID, nil)
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
 	if icon == nil {
 		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
-		if vppApp != nil || vppApp.IconURL != nil {
-			return nil, 0, "", &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
+		if vppApp != nil && vppApp.IconURL != nil {
+			return nil, 0, "", &fleet.VPPIconAvailable{IconURL: *vppApp.IconURL}
 		}
 
 		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")

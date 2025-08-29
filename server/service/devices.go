@@ -506,7 +506,7 @@ func getDeviceSoftwareIconEndpoint(ctx context.Context, request interface{}, svc
 	req := request.(*getDeviceSoftwareIconRequest)
 	iconData, size, filename, err := svc.GetDeviceSoftwareIconsTitleIcon(ctx, *host.TeamID, req.SoftwareTitleID)
 	if err != nil {
-		var vppErr *fleet.VPPIconAvailableError
+		var vppErr *fleet.VPPIconAvailable
 		if errors.As(err, &vppErr) {
 			// 302 redirect to vpp app IconURL
 			return getDeviceSoftwareIconRedirectResponse{RedirectURL: vppErr.IconURL}, nil

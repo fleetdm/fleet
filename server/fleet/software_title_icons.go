@@ -15,7 +15,6 @@ type UploadSoftwareTitleIconPayload struct {
 }
 
 type SoftwareTitleIcon struct {
-	ID              uint   `db:"id"`
 	TeamID          uint   `db:"team_id"`
 	SoftwareTitleID uint   `db:"software_title_id"`
 	StorageID       string `db:"storage_id"`

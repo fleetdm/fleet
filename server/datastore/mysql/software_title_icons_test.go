@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/require"
 )
@@ -36,26 +35,20 @@ func createIcon(ctx context.Context, ds *Datastore, teamID, softwareTitleID uint
 		StorageID:       storageID,
 		Filename:        filename,
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx,
+	_, err := ds.writer(ctx).ExecContext(ctx,
 		`INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)`,
 		teamID, softwareTitleID, storageID, filename,
 	)
 	if err != nil {
 		return nil, err
 	}
-	iconInt64, err := res.LastInsertId()
-	if err != nil {
-		return nil, err
-	}
-	iconID := uint(iconInt64) // #nosec G115 -- test helper
-	icon.ID = iconID
 	return icon, nil
 }
 
-func createTeamAndSoftwareTitle(t *testing.T, ctx context.Context, ds *Datastore) (*uint, *uint, error) {
+func createTeamAndSoftwareTitle(t *testing.T, ctx context.Context, ds *Datastore) (uint, uint, error) {
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	if err != nil {
-		return nil, nil, err
+		return 0, 0, err
 	}
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	software1 := []fleet.Software{
@@ -63,20 +56,20 @@ func createTeamAndSoftwareTitle(t *testing.T, ctx context.Context, ds *Datastore
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
 	if err != nil {
-		return nil, nil, err
+		return 0, 0, err
 	}
 	var titles []struct{ ID uint }
 	err = ds.writer(ctx).Select(&titles, `SELECT id from software_titles`)
 	if err != nil {
-		return nil, nil, err
+		return 0, 0, err
 	}
-	return ptr.Uint(tm.ID), ptr.Uint(titles[0].ID), nil
+	return tm.ID, titles[0].ID, nil
 }
 
 func testCreateOrUpdateSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID *uint
+	var teamID, titleID uint
 	var err error
 	testCases := []struct {
 		name     string
@@ -88,34 +81,42 @@ func testCreateOrUpdateSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
 			icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
-				TeamID:    *teamID,
-				TitleID:   *titleID,
+				TeamID:    teamID,
+				TitleID:   titleID,
 				StorageID: "storage-id-1",
 				Filename:  "test-icon.png",
 			})
 			require.NoError(t, err)
 			require.NotNil(t, icon)
-			require.Equal(t, *teamID, icon.TeamID)
-			require.Equal(t, *titleID, icon.SoftwareTitleID)
+			require.Equal(t, teamID, icon.TeamID)
+			require.Equal(t, titleID, icon.SoftwareTitleID)
 			require.Equal(t, "storage-id-1", icon.StorageID)
 			require.Equal(t, "test-icon.png", icon.Filename)
 		}},
 		{"Update existing icon", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 			require.NoError(t, err)
-			_, err = createIcon(ctx, ds, *teamID, *titleID, "storage-id-1", "test-icon.png")
+			_, err = createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
 			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
 			icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
-				TeamID:    *teamID,
-				TitleID:   *titleID,
+				TeamID:    teamID,
+				TitleID:   titleID,
 				StorageID: "storage-id-2",
 				Filename:  "test-icon-updated.png",
 			})
 			require.NoError(t, err)
 			require.NotNil(t, icon)
-			require.Equal(t, *teamID, icon.TeamID)
-			require.Equal(t, *titleID, icon.SoftwareTitleID)
+			require.Equal(t, teamID, icon.TeamID)
+			require.Equal(t, titleID, icon.SoftwareTitleID)
+			require.Equal(t, "storage-id-2", icon.StorageID)
+			require.Equal(t, "test-icon-updated.png", icon.Filename)
+
+			icon, err = ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+			require.NotNil(t, icon)
+			require.Equal(t, teamID, icon.TeamID)
+			require.Equal(t, titleID, icon.SoftwareTitleID)
 			require.Equal(t, "storage-id-2", icon.StorageID)
 			require.Equal(t, "test-icon-updated.png", icon.Filename)
 		}},
@@ -135,7 +136,7 @@ func testCreateOrUpdateSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID *uint
+	var teamID, titleID uint
 	var err error
 	testCases := []struct {
 		name     string
@@ -144,28 +145,16 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	}{
 		{"Icon doesn't exist", func(ds *Datastore) {
 		}, func(t *testing.T, ds *Datastore) {
-			_, err := ds.GetSoftwareTitleIcon(ctx, 1, 1, nil)
+			_, err := ds.GetSoftwareTitleIcon(ctx, 1, 1)
 			require.Error(t, err)
 		}},
 		{"Icon exists", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 			require.NoError(t, err)
-			_, err = createIcon(ctx, ds, *teamID, *titleID, "storage-id-1", "test-icon.png")
+			_, err = createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
 			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
-			icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, *titleID, nil)
-			require.NoError(t, err)
-			require.NotNil(t, icon)
-		}},
-		{"Filter by storage id", func(ds *Datastore) {
-			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
-			require.NoError(t, err)
-			_, err = createIcon(ctx, ds, *teamID, *titleID, "storage-id-123", "test-icon.png")
-			require.NoError(t, err)
-		}, func(t *testing.T, ds *Datastore) {
-			_, err = ds.GetSoftwareTitleIcon(ctx, *teamID, *titleID, ptr.String("storage-id-1"))
-			require.Error(t, err)
-			icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, *titleID, ptr.String("storage-id-123"))
+			icon, err := ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
 			require.NoError(t, err)
 			require.NotNil(t, icon)
 		}},
@@ -185,19 +174,19 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	var teamID, titleID *uint
+	var teamID, titleID uint
 	var err error
 	teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 	require.NoError(t, err)
 
-	icon, err := createIcon(ctx, ds, *teamID, *titleID, "storage-id-1", "test-icon.png")
+	icon, err := createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
 	require.NoError(t, err)
 	require.NotNil(t, icon)
 
-	err = ds.DeleteSoftwareTitleIcon(ctx, *teamID, *titleID)
+	err = ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
 	require.NoError(t, err)
 
-	icon, err = ds.GetSoftwareTitleIcon(ctx, *teamID, *titleID, ptr.String("storage-id-1"))
+	icon, err = ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
 	require.Error(t, err)
 	require.Nil(t, icon)
 }

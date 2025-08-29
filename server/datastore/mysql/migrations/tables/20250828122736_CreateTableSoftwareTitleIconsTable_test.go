@@ -16,18 +16,14 @@ func TestUp_20250828122736(t *testing.T) {
 		INSERT INTO software_titles (name, source)
 		VALUES (?, ?)
 	`
-	_, err := db.Exec(query, "Banana software title", "apps")
-	require.NoError(t, err)
-	var softwareTitleID int
-	err = db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&softwareTitleID)
-	require.NoError(t, err)
+	softwareTitleID := execNoErrLastID(t, db, query, "Banana software title", "apps")
 
 	// team
 	query = `
 		INSERT INTO teams (name, description)
 		VALUES (?, ?)
 	`
-	_, err = db.Exec(query, "Banana team", "Bananas are yellow")
+	_, err := db.Exec(query, "Banana team", "Bananas are yellow")
 	require.NoError(t, err)
 	var teamID int
 	err = db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&teamID)
@@ -63,7 +59,7 @@ func TestUp_20250828122736(t *testing.T) {
 		VALUES (?, ?, ?, ?)
 	`
 	// unique constraint error
-	_, err = db.Exec(query, teamID, softwareTitleID, "storage_id_1", "icon_filename_1")
+	_, err = db.Exec(query, teamID, softwareTitleID, "storage_id_2", "icon_filename_2")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "Duplicate entry")
 }

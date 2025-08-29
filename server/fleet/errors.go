@@ -684,10 +684,10 @@ type Errorer interface {
 	Error() error
 }
 
-type VPPIconAvailableError struct {
+type VPPIconAvailable struct {
 	IconURL string
 }
 
-func (e *VPPIconAvailableError) Error() string {
+func (e *VPPIconAvailable) Error() string {
 	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }

@@ -10,36 +10,36 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error) {
+func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
 	var err error
 	if err = svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: teamID}, fleet.ActionRead); err != nil {
-		return nil, nil, nil, err
+		return nil, 0, "", err
 	}
 
-	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID, nil)
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
 	if err != nil && !fleet.IsNotFound(err) {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
 	if icon == nil {
 		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
-		if vppApp != nil || vppApp.IconURL != nil {
-			return nil, nil, nil, &fleet.VPPIconAvailableError{IconURL: *vppApp.IconURL}
+		if vppApp != nil && vppApp.IconURL != nil {
+			return nil, 0, "", &fleet.VPPIconAvailable{IconURL: *vppApp.IconURL}
 		}
 
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon")
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
 
 	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)
 	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "getting software title icon data")
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon data")
 	}
 	defer iconData.Close()
 	imageBytes, err := io.ReadAll(iconData)
 	if err != nil {
-		return nil, nil, nil, ctxerr.Wrap(ctx, err, "reading icon data")
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "reading icon data")
 	}
 
-	return imageBytes, &size, &icon.Filename, nil
+	return imageBytes, size, icon.Filename, nil
 }
 
 func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error) {

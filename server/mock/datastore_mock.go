@@ -1289,7 +1289,7 @@ type HasSelfServiceSoftwareInstallersFunc func(ctx context.Context, platform str
 
 type CreateOrUpdateSoftwareTitleIconFunc func(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (*fleet.SoftwareTitleIcon, error)
 
-type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint, storageID *string) (*fleet.SoftwareTitleIcon, error)
+type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error)
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
@@ -8098,11 +8098,11 @@ func (s *DataStore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload
 	return s.CreateOrUpdateSoftwareTitleIconFunc(ctx, payload)
 }
 
-func (s *DataStore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint, storageID *string) (*fleet.SoftwareTitleIcon, error) {
+func (s *DataStore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error) {
 	s.mu.Lock()
 	s.GetSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetSoftwareTitleIconFunc(ctx, teamID, titleID, storageID)
+	return s.GetSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
 func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {

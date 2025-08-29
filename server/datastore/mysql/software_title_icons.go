@@ -16,26 +16,16 @@ func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payloa
 	query = `
 		INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
 		VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE
-		id = LAST_INSERT_ID(id), storage_id = VALUES(storage_id), filename = VALUES(filename)
+		storage_id = VALUES(storage_id), filename = VALUES(filename)
 	`
 	args = []interface{}{payload.TeamID, payload.TitleID, payload.StorageID, payload.Filename}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, query, args...)
+	_, err := ds.writer(ctx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "upserting software title icon")
 	}
 
-	iconInt64, err := res.LastInsertId()
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last insert id")
-	}
-	if iconInt64 < 0 {
-		return nil, ctxerr.New(ctx, "invalid icon ID")
-	}
-	iconID := uint(iconInt64)
-
 	return &fleet.SoftwareTitleIcon{
-		ID:              iconID,
 		TeamID:          payload.TeamID,
 		SoftwareTitleID: payload.TitleID,
 		StorageID:       payload.StorageID,
@@ -43,18 +33,13 @@ func (ds *Datastore) CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payloa
 	}, nil
 }
 
-func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint, storageID *string) (*fleet.SoftwareTitleIcon, error) {
+func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error) {
 	args := []interface{}{teamID, titleID}
 	query := `
-		SELECT id, team_id, software_title_id, storage_id, filename
+		SELECT team_id, software_title_id, storage_id, filename
 		FROM software_title_icons
 		WHERE team_id = ? AND software_title_id = ?
 	`
-	if storageID != nil && *storageID != "" {
-		query += " AND storage_id = ?"
-		args = append(args, storageID)
-	}
-
 	var icon fleet.SoftwareTitleIcon
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &icon, query, args...)
 	if err != nil {

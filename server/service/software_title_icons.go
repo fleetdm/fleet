@@ -77,7 +77,7 @@ func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc
 
 	iconData, size, filename, err := svc.GetSoftwareTitleIcon(ctx, *req.TeamID, req.TitleID)
 	if err != nil {
-		var vppErr *fleet.VPPIconAvailableError
+		var vppErr *fleet.VPPIconAvailable
 		if errors.As(err, &vppErr) {
 			// 302 redirect to vpp app IconURL
 			return getSoftwareTitleIconsRedirectResponse{RedirectURL: vppErr.IconURL}, nil
@@ -88,17 +88,17 @@ func getSoftwareTitleIconsEndpoint(ctx context.Context, request interface{}, svc
 	return getSoftwareTitleIconsResponse{
 		ImageData:   iconData,
 		ContentType: "image/png", // only type of icon we currently allow
-		Filename:    *filename,
-		Size:        *size,
+		Filename:    filename,
+		Size:        size,
 	}, nil
 }
 
-func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, *int64, *string, error) {
+func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, nil, nil, fleet.ErrMissingLicense
+	return nil, 0, "", fleet.ErrMissingLicense
 }
 
 type putSoftwareTitleIconRequest struct {
