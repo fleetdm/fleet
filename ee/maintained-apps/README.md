@@ -132,6 +132,13 @@ Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the follo
 
    Make sure you replace the `<PR-branch-name>` and `<repository-name>`
 
+By default, Fleet refreshes the maintained apps catalog on a schedule.  
+To fetch your branch’s catalog immediately (without waiting), run:
+
+```bash
+fleetctl trigger --name maintained_apps
+```
+
 Test criteria:
 
 - [X] App adds successfully to team's library
