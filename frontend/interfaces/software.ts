@@ -44,10 +44,13 @@ export interface ISoftware {
   installed_paths?: string[];
   browser?: string;
   vendor?: string;
-  icon_url?: string; // Only available on team view if an admin uploaded an icon to a team's software
+  icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
-export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
+export type IVulnerabilitySoftware = Omit<
+  ISoftware,
+  "vulnerabilities" | "icon_url"
+> & {
   resolved_in_version: string;
 };
 

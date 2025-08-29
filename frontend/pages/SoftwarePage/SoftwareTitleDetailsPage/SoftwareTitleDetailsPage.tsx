@@ -10,7 +10,7 @@ import paths from "router/paths";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { AppContext } from "context/app";
 import { ignoreAxiosError } from "interfaces/errors";
-import { ISoftwareTitleDetails, isSoftwarePackage } from "interfaces/software";
+import { ISoftwareTitleDetails } from "interfaces/software";
 import {
   APP_CONTEXT_ALL_TEAMS_ID,
   APP_CONTEXT_NO_TEAM_ID,

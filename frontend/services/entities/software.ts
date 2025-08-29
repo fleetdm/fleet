@@ -403,7 +403,7 @@ export default {
   editSoftwareIcon: (
     softwareId: number,
     teamId: number,
-    fileObject: any // TODO
+    fileObject: { icon: File }
   ) => {
     const { SOFTWARE_ICON } = endpoints;
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
