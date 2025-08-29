@@ -9519,6 +9519,35 @@ Get a list of all software.
       "hash_sha256": "ca30af561de15bb26186efcbcc59f3936c67d81e071e96fa8afa1e867a67a04f"
     },
     {
+      "id": 2123,
+      "name": "Zoom Workplace",
+      "application_id": "us.zoom.videomeetings",
+      "software_package": null,
+      "app_store_app": {
+        "app_store_id": "us.zoom.videomeetings",
+        "version": "latest",
+        "icon_url": "https://lh3.googleusercontent.com/yZsmiNjmji3ZoOuLthoVvptLB9cZ0vCmitcky4OUXNcEFV3IEQkrBD2uu5kuWRF5_ERA",
+        "team_id": 3,
+        "platform": "android",
+        "automatic_install_policies": null,
+        "last_install": {
+          "command_uuid": "b02c4972-edf9-4d41-a836-6fcd457d7d36",
+          "installed_at": "2025-08-20T18:23:19Z"
+        },
+        "last_uninstall": null,
+      },
+      "versions_count": 1,
+      "source": "android_apps",
+      "hosts_count": 72,
+      "versions": [
+        {
+          "id": 331,
+          "version": "6.5.10.32613",
+          "vulnerabilities": null
+        }
+      ],
+    },
+    {
       "id": 32,
       "name": "1Password – Password Manager",
       "software_package": null,
@@ -9723,12 +9752,6 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 12,
     "name": "Falcon.app",
     "bundle_identifier": "crowdstrike.falcon.Agent",
-    "available_software": {
-      "fleet_maintained_app": {
-        "id": 4
-      },
-      "app_store_app": null
-    },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9807,12 +9830,6 @@ Returns information about the specified software. By default, `versions` are sor
     "id": 15,
     "name": "Logic Pro",
     "bundle_identifier": "com.apple.logic10",
-    "available_software": {
-      "fleet_maintained_app": null,
-      "app_store_app": {
-        "app_store_id": "8675309"
-      }
-    },
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",
@@ -9843,6 +9860,54 @@ Returns information about the specified software. By default, `versions` are sor
         "id": 123,
         "version": "2.04",
         "vulnerabilities": [],
+        "hosts_count": 24
+      }
+    ]
+  }
+}
+```
+
+#### Example (Play Store app)
+
+`GET /api/v1/fleet/software/titles/16`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_title": {
+    "id": 16,
+    "name": "Zoom Workplace",
+    "application_id": "us.zoom.videomeetings",
+    "counts_updated_at": "2025-08-29T10:23:48Z",
+    "software_package": null,
+    "app_store_app": {
+      "app_store_id": "us.zoom.videomeetings",
+      "platform": "android",
+      "name": "Zoom Workplace",
+      "icon_url": "https://lh3.googleusercontent.com/yZsmiNjmji3ZoOuLthoVvptLB9cZ0vCmitcky4OUXNcEFV3IEQkrBD2uu5kuWRF5_ERA",
+      "status": {
+        "installed": 1,
+        "pending": 0,
+        "failed": 0
+      },
+      "self_service": false,
+      "automatic_install_policies": null,
+      "labels_include_any": null,
+      "labels_exclude_any": null,
+      "created_at": "2025-08-15T00:55:03.96954Z",
+      "categories": null
+    },
+    "source": "android_apps",
+    "hosts_count": 72,
+    "versions_count": 1,
+    "versions": [
+      {
+        "id": 333,
+        "version": "6.5.10.32613",
+        "vulnerabilities": null,
         "hosts_count": 24
       }
     ]
