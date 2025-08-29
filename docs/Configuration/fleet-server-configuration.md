@@ -2083,7 +2083,7 @@ Optionally, when using Identity and Access Management (IAM) authentication, this
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`.
 
-Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `ses_sts_assume_role_arn`.
+Optionally, if you're using a third-party to manage AWS resources, this is the AWS Security Token Service (STS) External ID to use for IAM authentication. Specify this with `ses_source_arn` and `ses_sts_assume_role_arn`.
 
 
 - Default value: none
