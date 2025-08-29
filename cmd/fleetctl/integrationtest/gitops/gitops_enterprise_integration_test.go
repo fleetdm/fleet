@@ -1318,7 +1318,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestEnvSubstitutionInProfiles() {
 
 	// Write the profile to a file
 	profilePath := filepath.Join(tempDir, "test-profile.mobileconfig")
-	err := os.WriteFile(profilePath, []byte(profileContent), 0644) //nolint:gosec // test code
+	err := os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec // test code
 	require.NoError(t, err)
 
 	// Create a GitOps config file that references the profile
@@ -1344,7 +1344,7 @@ policies: []
 `, s.Server.URL, profilePath)
 
 	configPath := filepath.Join(tempDir, "gitops.yml")
-	err = os.WriteFile(configPath, []byte(gitopsConfig), 0644) //nolint:gosec // test code
+	err = os.WriteFile(configPath, []byte(gitopsConfig), 0o644) //nolint:gosec // test code
 	require.NoError(t, err)
 
 	// Create a GitOps user
@@ -1457,7 +1457,7 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestFleetSecretInDataTag() {
 
 	// Write the profile to a file
 	profilePath := filepath.Join(tempDir, "rootcert-secret.mobileconfig")
-	err = os.WriteFile(profilePath, []byte(profileContent), 0644) //nolint:gosec
+	err = os.WriteFile(profilePath, []byte(profileContent), 0o644) //nolint:gosec
 	require.NoError(t, err)
 
 	// Create a team GitOps config file that references the profile
@@ -1481,7 +1481,7 @@ software:
 `, team.Name, profilePath)
 
 	configPath := filepath.Join(tempDir, "team-gitops.yml")
-	err = os.WriteFile(configPath, []byte(teamConfig), 0644) //nolint:gosec
+	err = os.WriteFile(configPath, []byte(teamConfig), 0o644) //nolint:gosec
 	require.NoError(t, err)
 
 	// Create a GitOps user

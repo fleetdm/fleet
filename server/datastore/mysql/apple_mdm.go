@@ -2446,6 +2446,16 @@ ON DUPLICATE KEY UPDATE
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
+
+		fmt.Println("\ndidInsertOrUpdate\n", p.Identifier, didInsertOrUpdate)
+
+		var existingProf []*fleet.MDMAppleConfigProfile
+		if err := sqlx.SelectContext(ctx, tx, &existingProf, loadExistingProfiles, profTeamID, p.Identifier); err != nil {
+			return false, ctxerr.Wrapf(ctx, err, "load existing profile with identifier %q", p.Identifier)
+		}
+		for _, ep := range existingProf {
+			fmt.Println("existingProf", ep.Identifier, ep.TeamID)
+		}
 		updatedDB = updatedDB || didInsertOrUpdate
 	}
 

@@ -2245,13 +2245,18 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 		return false, ctxerr.Errorf(ctx, "unsupported platform %q", platform)
 	}
 
+	var profTeamID uint
+	if teamID != nil {
+		profTeamID = *teamID
+	}
+
 	var incomingNames []string
 	incomingProfilesMap := make(map[string]*BatchSetAssociationIncomingProfile)
 	for _, p := range incomingProfiles {
 		incomingNames = append(incomingNames, p.Name)
 		incomingProfilesMap[p.Name] = p
 	}
-	stmt, args, err := sqlx.In(currentProfilesQuery, teamID, incomingNames)
+	stmt, args, err := sqlx.In(currentProfilesQuery, profTeamID, incomingNames)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "prepare current profiles query")
 	}
@@ -2260,6 +2265,11 @@ func (ds *Datastore) batchSetLabelAndVariableAssociations(ctx context.Context, t
 	var currentProfiles []*batchSetAssociationCurrentProfile
 	if err := sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "select current profiles")
+	}
+
+	fmt.Println("Found ", len(currentProfiles), " current profiles in the database")
+	for _, p := range currentProfiles {
+		fmt.Println("Current profile:", p.Name, p.ProfileUUID)
 	}
 
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
