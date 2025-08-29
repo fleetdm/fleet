@@ -1910,7 +1910,6 @@ func (svc *Service) BatchSetMDMProfiles(
 	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
 	assumeEnabled *bool, noCache bool,
 ) error {
-	fmt.Println("BatchSetMDMProfiles called with", len(profiles), "profiles")
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
@@ -2081,12 +2080,20 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
 
-	// TODO(AP): Set pending status for android profiles.
+	androidProfUUIDs := []string{}
+	for _, p := range androidProfiles {
+		androidProfUUIDs = append(androidProfUUIDs, p.ProfileUUID)
+	}
+	androidUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, nil, androidProfUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
+	}
 
 	updates := fleet.MDMProfilesUpdates{
-		AppleConfigProfile:   profUpdates.AppleConfigProfile || winUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
-		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile || appleUpdates.WindowsConfigProfile,
-		AppleDeclaration:     profUpdates.AppleDeclaration || winUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AppleConfigProfile:   profUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AndroidConfigProfile: profUpdates.AndroidConfigProfile || androidUpdates.AndroidConfigProfile,
 	}
 
 	if updates.AppleConfigProfile {
@@ -2114,6 +2121,15 @@ func (svc *Service) BatchSetMDMProfiles(
 				TeamName: tmName,
 			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+		}
+	}
+	if updates.AndroidConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
 
@@ -2493,10 +2509,8 @@ func getAndroidProfiles(ctx context.Context,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
 ) (map[int]*fleet.MDMAndroidConfigProfile, error) {
 	profs := make(map[int]*fleet.MDMAndroidConfigProfile, len(profiles))
-	fmt.Println("getAndroidProfiles called with", len(profiles), "profiles")
 	for i, profile := range profiles {
 		if mdm.GetRawProfilePlatform(profile.Contents) != "android" {
-			fmt.Println("Skipping non-android profile:", profile.Name)
 			continue
 		}
 		fmt.Println("Processing android profile:", profile.Name)

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -1302,6 +1303,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured:        true,
 				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
 			},
 		}, nil
 	}
@@ -1548,6 +1550,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N4", Contents: mobileconfigForTest("N4", "I1")},
 				{Name: "N5", Contents: mobileconfigForTest("N5", "I2")},
 				{Name: "N6", Contents: mobileconfigForTest("N6", "I3")},
+				{Name: "N7", Contents: androidConfigProfileForTest(t, "A1", nil).RawJSON},
+				{Name: "N8", Contents: androidConfigProfileForTest(t, "A2", nil).RawJSON},
 			},
 			``,
 		},
@@ -1642,6 +1646,40 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			},
 			"Fleet variable",
 		},
+		{
+			"fleet variable in android config is ignored",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
+			},
+			"",
+		},
+		{
+			"fleet variable in android config is ignored",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "$FLEET_VAR_BOZO", nil).RawJSON},
+			},
+			"",
+		},
+		{
+			"duplicate android config profile names",
+			&fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			false,
+			nil,
+			nil,
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A1", nil).RawJSON},
+				{Name: "N1", Contents: androidConfigProfileForTest(t, "A2", nil).RawJSON},
+			},
+			"duplicate json by name",
+		},
 	}
 
 	for _, tt := range testCases {
@@ -1687,6 +1725,13 @@ func TestValidateProfiles(t *testing.T) {
 			name: "Valid Windows Profile",
 			profiles: []fleet.MDMProfileBatchPayload{
 				{Name: "windowsProfile", Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid Android Profile",
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "androidProfile", Contents: androidConfigProfileForTest(t, "Profile1", nil).RawJSON},
 			},
 			wantErr: false,
 		},
@@ -2063,6 +2108,7 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured:        true,
 				WindowsEnabledAndConfigured: true,
+				AndroidEnabledAndConfigured: true,
 			},
 		}, nil
 	}
@@ -2230,6 +2276,22 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 			Contents:         declarationForTest("DExclAny"),
 			LabelsExcludeAny: []string{"a", "b"},
 		},
+		// Android
+		{
+			Name:             "AIncAll",
+			Contents:         androidConfigProfileForTest(t, "AIncAll", nil).RawJSON,
+			LabelsIncludeAll: []string{"a", "b"},
+		},
+		{
+			Name:             "AIncAny",
+			Contents:         androidConfigProfileForTest(t, "AIncAny", nil).RawJSON,
+			LabelsIncludeAny: []string{"a", "b"},
+		},
+		{
+			Name:             "AExclAny",
+			Contents:         androidConfigProfileForTest(t, "AExclAny", nil).RawJSON,
+			LabelsExcludeAny: []string{"a", "b"},
+		},
 	}
 
 	authCtx := test.UserContext(ctx, test.UserAdmin)
@@ -2248,6 +2310,10 @@ func TestBatchSetMDMProfilesLabels(t *testing.T) {
 	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["DIncAll"])
 	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["DIncAny"])
 	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["DExclAny"])
+
+	assert.Equal(t, ProfileLabels{IncludeAll: true}, *profileLabels["AIncAll"])
+	assert.Equal(t, ProfileLabels{IncludeAny: true}, *profileLabels["AIncAny"])
+	assert.Equal(t, ProfileLabels{ExcludeAny: true}, *profileLabels["AExclAny"])
 
 	// Test that a bad label doesn't pass validation...
 	err = svc.BatchSetMDMProfiles(authCtx, ptr.Uint(1), nil, []fleet.MDMProfileBatchPayload{{
@@ -2414,4 +2480,31 @@ func TestValidateWindowsProfileFleetVariables(t *testing.T) {
 			}
 		})
 	}
+}
+
+func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
+	if content == nil {
+		content = make(map[string]any)
+	}
+	content["name"] = name
+	rawJSON, err := json.Marshal(content)
+	require.NoError(t, err)
+
+	prof := &fleet.MDMAndroidConfigProfile{
+		Name:    name,
+		RawJSON: rawJSON,
+	}
+
+	for _, lbl := range labels {
+		switch {
+		case strings.HasPrefix(lbl.Name, "exclude-"):
+			prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		case strings.HasPrefix(lbl.Name, "include-any-"):
+			prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		default:
+			prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
+	}
+
+	return prof
 }
