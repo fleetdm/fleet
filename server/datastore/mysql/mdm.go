@@ -1840,6 +1840,8 @@ func batchSetProfileVariableAssociationsDB(
 		platformPrefix = "apple"
 	case "windows":
 		platformPrefix = "windows"
+	case "android":
+		return nil // Early return here, to avoid failing but still utilizing the shared batchSet method.
 	default:
 		return fmt.Errorf("unsupported platform %s", platform)
 	}

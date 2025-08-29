@@ -2006,16 +2006,10 @@ ON DUPLICATE KEY UPDATE
 	if len(incomingNames) > 0 {
 		// load existing profiles that match the incoming profiles by name
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "select") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "load existing profiles")
 		}
 	}
@@ -2051,17 +2045,10 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "indelete") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
-		if result, err = tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr,
-			"delete") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+		if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 		}
 	} else {
@@ -2070,10 +2057,7 @@ ON DUPLICATE KEY UPDATE
 		}
 
 		if result, err = tx.ExecContext(ctx, deleteAllProfilesForTeam,
-			profTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "delete") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+			profTeamID); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "delete all profiles for team")
 		}
 	}
@@ -2091,10 +2075,7 @@ ON DUPLICATE KEY UPDATE
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name,
-			p.SyncML); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "insert") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
-			}
+			p.SyncML); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)

@@ -529,7 +529,6 @@ WHERE
 	// Create list of names from profiles
 	incomingNames := make([]string, len(profiles))
 	for i, p := range profiles {
-		fmt.Printf("Profile %d: %+v\n", i, p)
 		incomingNames[i] = p.Name
 	}
 
@@ -613,5 +612,5 @@ WHERE
 		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}
 
-	return updatedDB && didUpdateLabels, nil
+	return updatedDB || didUpdateLabels, nil
 }

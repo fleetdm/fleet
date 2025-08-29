@@ -40,7 +40,6 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
 		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
-		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
 		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
 		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
@@ -6799,112 +6798,6 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		})
 		require.Error(t, err)
 	})
-}
-
-// This test was added to check for this bug report:
-// https://github.com/fleetdm/fleet/issues/16273 I believe it turned out there
-// was no transaction issue (see
-// https://github.com/fleetdm/fleet/pull/16449#discussion_r1471486335), so we
-// could eventually remove the testBatchSetMDMAppleProfilesErr and similar
-// fields from the datastore that add a lot of noise in batch-set apple
-// profiles.
-// Android configuration profiles is not added to this as there is not in-line test verification like the other batch set calls.
-func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "label", Query: "select 1"})
-	require.NoError(t, err)
-
-	cases := []struct {
-		windowsErr string
-		appleErr   string
-		wantErr    string
-	}{
-		{"select:a", "", "batch set windows profiles: load existing profiles: select:a"},
-		{"insert:b", "", ": insert:b"},
-		{"delete:c", "", "batch set windows profiles: delete obsolete profiles: delete:c"},
-		{"reselect:d", "", "batch set windows profiles: load newly inserted profiles: reselect:d"},
-		{
-			"labels:e",
-			"",
-			"batch set windows profiles: inserting windows profile label associations: labels:e",
-		},
-		{
-			"inselect:k",
-			"",
-			"batch set windows profiles: build query to load existing profiles: inselect:k",
-		},
-		{
-			"indelete:l",
-			"",
-			"batch set windows profiles: build statement to delete obsolete profiles: indelete:l",
-		},
-		{
-			"inreselect:m",
-			"",
-			"batch set windows profiles: build query to load newly inserted profiles: inreselect:m",
-		},
-		{"", "select:f", "batch set apple profiles: load existing profiles: select:f"},
-		{"", "insert:g", ": insert:g"},
-		{"", "delete:h", "batch set apple profiles: delete obsolete profiles: delete:h"},
-		{"", "reselect:i", "batch set apple profiles: load newly inserted profiles: reselect:i"},
-		{
-			"",
-			"labels:j",
-			"batch set apple profiles: inserting apple profile label associations: labels:j",
-		},
-		{
-			"",
-			"inselect:n",
-			"batch set apple profiles: build query to load existing profiles: inselect:n",
-		},
-		{
-			"",
-			"indelete:o",
-			"batch set apple profiles: build statement to delete obsolete profiles: indelete:o",
-		},
-		{
-			"",
-			"inreselect:p",
-			"batch set apple profiles: build query to load newly inserted profiles: inreselect:p",
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
-			t.Cleanup(func() {
-				ds.testBatchSetMDMAppleProfilesErr = ""
-				ds.testBatchSetMDMWindowsProfilesErr = ""
-			})
-
-			appleProfs := []*fleet.MDMAppleConfigProfile{
-				configProfileForTest(t, "N1", "I1", "a"),
-				configProfileForTest(t, "N2", "I2", "b"),
-			}
-			winProfs := []*fleet.MDMWindowsConfigProfile{
-				windowsConfigProfileForTest(t, "W1", "l1"),
-				windowsConfigProfileForTest(t, "W2", "l2"),
-			}
-			// set the initial profiles without error
-			_, err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil, nil)
-			require.NoError(t, err)
-
-			// now ensure all steps are required (add a profile, delete a profile, set labels)
-			appleProfs = []*fleet.MDMAppleConfigProfile{
-				configProfileForTest(t, "N1", "I1", "aa"),
-				configProfileForTest(t, "N3", "I3", "c", lbl),
-			}
-			winProfs = []*fleet.MDMWindowsConfigProfile{
-				windowsConfigProfileForTest(t, "W1", "l11"),
-				windowsConfigProfileForTest(t, "W3", "l3", lbl),
-			}
-			// setup the expected errors
-			ds.testBatchSetMDMAppleProfilesErr = c.appleErr
-			ds.testBatchSetMDMWindowsProfilesErr = c.windowsErr
-
-			_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs, nil, nil, nil)
-			require.ErrorContains(t, err, c.wantErr)
-		})
-	}
 }
 
 func testMDMEULA(t *testing.T, ds *Datastore) {
