@@ -86,7 +86,7 @@ module.exports = {
       return allEnterprises;
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept
-        throw err;
+        return err;
       });
 
       // Filter the results to only include enterprises belonging to this Fleet instance
