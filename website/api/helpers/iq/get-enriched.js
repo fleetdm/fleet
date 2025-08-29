@@ -107,7 +107,7 @@ module.exports = {
           apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.warn(`When searching for enrichment information for a user (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
           return [];
         });
         linkedinPersonIdOrUrlSlug = matchingLinkedinPersonIds[0];
@@ -123,7 +123,7 @@ module.exports = {
         apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.warn(`When retrieving enrichment information for a user (LinkedIn Id or Slug: ${linkedinPersonIdOrUrlSlug}), the Coresignal API responded with an error: `, err);
         return undefined;
       });
 
@@ -204,7 +204,7 @@ module.exports = {
           apikey: `${sails.config.custom.iqSecret}`,
           'content-type': 'application/json'
         }).tolerate((err)=>{
-          sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+          sails.log.warn(`When searching for enrichment information for a user's organization (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
           return [];
         });
 
@@ -217,7 +217,7 @@ module.exports = {
             apikey: `${sails.config.custom.iqSecret}`,
             'content-type': 'application/json'
           }).tolerate((err)=>{
-            sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+            sails.log.warn(`When searching for enrichment information for a user's organization (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}) the Coresignal API responded with an error: `, err);
             return [];
           });
         }//ﬁ
@@ -233,7 +233,7 @@ module.exports = {
         apikey: `${sails.config.custom.iqSecret}`,
         'content-type': 'application/json'
       }).tolerate((err)=>{
-        sails.log.info(`Failed to enrich (${emailAddress},${linkedinUrl},${firstName},${lastName},${organization}):`,err);
+        sails.log.warn(`When retrieving enrichment information about a user's organization (LinkedIn page ID: ${matchingLinkedinCompanyPageId}) the Coresignal API responded with an error: `, err);
         return undefined;
       });
       if (matchingCompanyPageInfo) {
