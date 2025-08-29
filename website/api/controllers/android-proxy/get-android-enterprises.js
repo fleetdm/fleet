@@ -67,23 +67,23 @@ module.exports = {
         google.options({auth: authClient});
 
         // List all enterprises accessible to this service account
-      let allEnterprises = [];
-      let tokenForNextPageOfEnterprises;
-      await sails.helpers.flow.until(async ()=>{
-        let listEnterprisesResponse = await androidmanagement.enterprises.list({
-          projectId: sails.config.custom.androidEnterpriseProjectId,
-          pageSize: 100,
-          pageToken: tokenForNextPageOfEnterprises,
+        let allEnterprises = [];
+        let tokenForNextPageOfEnterprises;
+        await sails.helpers.flow.until(async ()=>{
+          let listEnterprisesResponse = await androidmanagement.enterprises.list({
+            projectId: sails.config.custom.androidEnterpriseProjectId,
+            pageSize: 100,
+            pageToken: tokenForNextPageOfEnterprises,
+          });
+          tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
+          allEnterprises = allEnterprises.concat(listEnterprisesResponse.data.enterprises);
+
+          if(!listEnterprisesResponse.data.nextPageToken){
+            return true;
+          }
         });
-        tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
-        allEnterprises = allEnterprises.concat(listEnterprisesResponse.data.enterprises);
 
-        if(!listEnterprisesResponse.data.nextPageToken){
-          return true;
-        }
-      });
-
-      return allEnterprises;
+        return allEnterprises;
       }).intercept((err)=>{
         // Re-throw the error for handling outside the intercept
         return err;

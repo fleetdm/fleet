@@ -50,21 +50,21 @@ module.exports = {
         google.options({auth: authClient});
 
         // Use Google's LIST call to check if enterprise exists
-      let enterprises = [];
-      let tokenForNextPageOfEnterprises;
-      await sails.helpers.flow.until(async ()=>{
-        let listEnterprisesResponse = await androidmanagement.enterprises.list({
-          projectId: sails.config.custom.androidEnterpriseProjectId,
-          pageSize: 100,
-          pageToken: tokenForNextPageOfEnterprises,
-        });
-        tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
-        enterprises = enterprises.concat(listEnterprisesResponse.data.enterprises);
+        let enterprises = [];
+        let tokenForNextPageOfEnterprises;
+        await sails.helpers.flow.until(async ()=>{
+          let listEnterprisesResponse = await androidmanagement.enterprises.list({
+            projectId: sails.config.custom.androidEnterpriseProjectId,
+            pageSize: 100,
+            pageToken: tokenForNextPageOfEnterprises,
+          });
+          tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
+          enterprises = enterprises.concat(listEnterprisesResponse.data.enterprises);
 
-        if(!listEnterprisesResponse.data.nextPageToken){
-          return true;
-        }
-      });
+          if(!listEnterprisesResponse.data.nextPageToken){
+            return true;
+          }
+        });
         let enterpriseExists = enterprises.some(enterprise => {
           let enterpriseId = connectionforThisInstanceExists.androidEnterpriseId;
           return enterprise.name === `enterprises/${enterpriseId}` || enterprise.name === enterpriseId;
