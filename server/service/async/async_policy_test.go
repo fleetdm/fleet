@@ -229,12 +229,14 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 
 			// run the collection
 			var stats collectorExecStats
-			task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
-				AsyncHostInsertBatch:        batchSizes,
-				AsyncHostUpdateBatch:        batchSizes,
-				AsyncHostDeleteBatch:        batchSizes,
-				AsyncHostRedisPopCount:      batchSizes,
-				AsyncHostRedisScanKeysCount: 10,
+			task := NewTask(nil, nil, clock.C, &config.FleetConfig{
+				Osquery: config.OsqueryConfig{
+					AsyncHostInsertBatch:        batchSizes,
+					AsyncHostUpdateBatch:        batchSizes,
+					AsyncHostDeleteBatch:        batchSizes,
+					AsyncHostRedisPopCount:      batchSizes,
+					AsyncHostRedisScanKeysCount: 10,
+				},
 			})
 			err := task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 			require.NoError(t, err)
@@ -277,12 +279,14 @@ func testCollectPolicyQueryExecutions(t *testing.T, ds *mysql.Datastore, pool fl
 	// update host 1, policy 1, already existing
 	setupTest(t, map[int]map[int]*bool{1: {1: nil}})
 	var stats collectorExecStats
-	task := NewTask(nil, nil, clock.C, config.OsqueryConfig{
-		AsyncHostInsertBatch:        batchSizes,
-		AsyncHostUpdateBatch:        batchSizes,
-		AsyncHostDeleteBatch:        batchSizes,
-		AsyncHostRedisPopCount:      batchSizes,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(nil, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			AsyncHostInsertBatch:        batchSizes,
+			AsyncHostUpdateBatch:        batchSizes,
+			AsyncHostDeleteBatch:        batchSizes,
+			AsyncHostRedisPopCount:      batchSizes,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 	err := task.collectPolicyQueryExecutions(ctx, ds, pool, &stats)
 	require.NoError(t, err)
@@ -312,7 +316,7 @@ func testRecordPolicyQueryExecutionsSync(t *testing.T, ds *mock.Store, pool flee
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
+	task := NewTask(ds, pool, clock.C, nil)
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
@@ -355,13 +359,15 @@ func testRecordPolicyQueryExecutionsAsync(t *testing.T, ds *mock.Store, pool fle
 	results := map[uint]*bool{1: &yes, 2: &yes, 3: &no, 4: nil}
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
-		EnableAsyncHostProcessing:   "true",
-		AsyncHostInsertBatch:        3,
-		AsyncHostUpdateBatch:        3,
-		AsyncHostDeleteBatch:        3,
-		AsyncHostRedisPopCount:      3,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostUpdateBatch:        3,
+			AsyncHostDeleteBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
@@ -424,7 +430,7 @@ func testRecordPolicyQueryExecutionsNoPoliciesSync(t *testing.T, ds *mock.Store,
 	var emptyResults map[uint]*bool
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{})
+	task := NewTask(ds, pool, clock.C, nil)
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
 	require.True(t, policyReportedAt.Equal(lastYear))
@@ -465,13 +471,15 @@ func testRecordPolicyQueryExecutionsNoPoliciesAsync(t *testing.T, ds *mock.Store
 	var emptyResults map[uint]*bool
 	keyList, keyTs := fmt.Sprintf(policyPassHostKey, host.ID), fmt.Sprintf(policyPassReportedKey, host.ID)
 
-	task := NewTask(ds, pool, clock.C, config.OsqueryConfig{
-		EnableAsyncHostProcessing:   "true",
-		AsyncHostInsertBatch:        3,
-		AsyncHostUpdateBatch:        3,
-		AsyncHostDeleteBatch:        3,
-		AsyncHostRedisPopCount:      3,
-		AsyncHostRedisScanKeysCount: 10,
+	task := NewTask(ds, pool, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{
+			EnableAsyncHostProcessing:   "true",
+			AsyncHostInsertBatch:        3,
+			AsyncHostUpdateBatch:        3,
+			AsyncHostDeleteBatch:        3,
+			AsyncHostRedisPopCount:      3,
+			AsyncHostRedisScanKeysCount: 10,
+		},
 	})
 
 	policyReportedAt := task.GetHostPolicyReportedAt(ctx, host)
