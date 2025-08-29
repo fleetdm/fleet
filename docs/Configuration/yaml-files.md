@@ -35,6 +35,8 @@ You may also wish to create specialized API-Only users which may modify configur
 
 ## labels
 
+Labels can be specified in your `default.yml` file using inline configuration or references to separate files in your `lib/` folder.
+
 - `name` specifies the label's name.
 - `description` specifies the label's description.
 - `platform` specifies platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
