@@ -183,8 +183,12 @@ type TeamWebhookSettings struct {
 
 // DefaultTeam represents the limited team information returned for team ID 0
 type DefaultTeam struct {
-	ID              uint                       `json:"id"`
-	Name            string                     `json:"name"`
+	ID     uint              `json:"id"`
+	Name   string            `json:"name"`
+	Config DefaultTeamConfig `json:"-"`
+}
+
+type DefaultTeamConfig struct {
 	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
 	Integrations    DefaultTeamIntegrations    `json:"integrations"`
 }

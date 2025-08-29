@@ -87,12 +87,14 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			WebhookSettings: fleet.DefaultTeamWebhookSettings{
-				FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
-			},
-			Integrations: fleet.DefaultTeamIntegrations{
-				Jira:    team.Config.Integrations.Jira,
-				Zendesk: team.Config.Integrations.Zendesk,
+			Config: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
+					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+				},
+				Integrations: fleet.DefaultTeamIntegrations{
+					Jira:    team.Config.Integrations.Jira,
+					Zendesk: team.Config.Integrations.Zendesk,
+				},
 			},
 		}
 		return getDefaultTeamResponse{Team: defaultTeam}, nil
@@ -161,6 +163,26 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		}
 		return teamResponse{Err: err}, nil
 	}
+
+	// Special handling for team ID 0 - return limited fields
+	if req.ID == 0 {
+		// Convert to DefaultTeam with limited fields
+		defaultTeam := &fleet.DefaultTeam{
+			ID:   team.ID,
+			Name: team.Name,
+			Config: fleet.DefaultTeamConfig{
+				WebhookSettings: fleet.DefaultTeamWebhookSettings{
+					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
+				},
+				Integrations: fleet.DefaultTeamIntegrations{
+					Jira:    team.Config.Integrations.Jira,
+					Zendesk: team.Config.Integrations.Zendesk,
+				},
+			},
+		}
+		return getDefaultTeamResponse{Team: defaultTeam}, nil
+	}
+
 	return teamResponse{Team: team}, err
 }
 
