@@ -172,7 +172,9 @@ To configure a script to run during setup experience:
 
 1. Click on the **Controls** tab in the main navigation bar, then **Setup experience** > **5. Run script**.
 
-2. Click "Upload" and select a script (.sh file) from the file picker modal. Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
+2. Click **Upload** and select a script (.sh file) from the file picker modal. 
+
+> Once the script is uploaded, you can use the buttons on the script in the web UI to download or delete the script.
 
 ## macOS Setup Assistant
 
