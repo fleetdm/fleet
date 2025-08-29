@@ -465,6 +465,7 @@ func parseNoTeamSettings(raw json.RawMessage, result *GitOps, filePath string, m
 	}
 
 	// For No Team, only webhook_settings is allowed in team_settings
+	// Jira/Zendesk integrations are not supported in gitops: https://github.com/fleetdm/fleet/issues/20287
 	// Check for any other keys and error if found
 	for key := range teamSettingsMap {
 		if key != "webhook_settings" {

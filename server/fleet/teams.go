@@ -327,6 +327,49 @@ func (t TeamConfig) Value() (driver.Value, error) {
 	return json.Marshal(t)
 }
 
+// Copy creates a deep copy of the TeamConfig
+func (t *TeamConfig) Copy() *TeamConfig {
+	if t == nil {
+		return nil
+	}
+
+	clone := *t
+
+	// Deep copy AgentOptions if present
+	if t.AgentOptions != nil {
+		agentOptionsCopy := make(json.RawMessage, len(*t.AgentOptions))
+		copy(agentOptionsCopy, *t.AgentOptions)
+		clone.AgentOptions = &agentOptionsCopy
+	}
+
+	// Deep copy integrations
+	clone.Integrations = t.Integrations.Copy()
+
+	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
+	clone.MDM = *t.MDM.Copy()
+
+	// Deep copy Scripts slice
+	if t.Scripts.Set && len(t.Scripts.Value) > 0 {
+		clone.Scripts = optjson.Slice[string]{
+			Set:   true,
+			Value: make([]string, len(t.Scripts.Value)),
+		}
+		copy(clone.Scripts.Value, t.Scripts.Value)
+	}
+
+	// Deep copy Software if present
+	if t.Software != nil {
+		clone.Software = t.Software.Copy()
+	}
+
+	return &clone
+}
+
+// Clone implements the Cloner interface for cache support
+func (t *TeamConfig) Clone() (Cloner, error) {
+	return t.Copy(), nil
+}
+
 type TeamSummary struct {
 	ID          uint   `json:"id"`
 	Name        string `json:"name"`
