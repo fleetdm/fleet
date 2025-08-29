@@ -174,9 +174,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedDeclarationProfile{},
 	ActivityTypeEditedDeclarationProfile{},
 
-	ActivityTypeCreatedAndroidProfile{},
-	ActivityTypeEditedAndroidProfile{},
-	ActivityTypeDeletedAndroidProfile{},
+	// TODO(AP): Enable these for auto doc-gen
+	// ActivityTypeCreatedAndroidProfile{},
+	// ActivityTypeEditedAndroidProfile{},
+	// ActivityTypeDeletedAndroidProfile{},
 
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
