@@ -4,7 +4,7 @@ quit_application() {
   local bundle_id="$1"
   local timeout_duration=10
 
-  if ! osascript -e "application id \"$bundle_id\" is running" 2>/dev/null; then
+  if ! osascript -e "application id \"$bundle_id\" is running" >/dev/null 2>&1; then
     return
   fi
 
@@ -28,15 +28,18 @@ quit_application() {
   echo "'$bundle_id' did not quit."
 }
 
+[[ -n "$INSTALLER_PATH" && -f "$INSTALLER_PATH" ]] || { echo "missing installer"; exit 1; }
+
 quit_application "com.adobe.acc.AdobeCreativeCloud"
 
-MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Volumes\// {print $3; exit}')"
-[ -n "$MOUNT_POINT" ] || { echo "failed to mount dmg"; exit 1; }
-trap "hdiutil detach \"$MOUNT_POINT\" >/dev/null 2>&1 || true" EXIT
+MOUNT_POINT="$(hdiutil attach -nobrowse -readonly "$INSTALLER_PATH" | awk '/\/Volumes\//{print $3; exit}')"
+[[ -n "$MOUNT_POINT" ]] || { echo "failed to mount dmg"; exit 1; }
 
-BIN="$(/usr/bin/find "$MOUNT_POINT" -type f -path '*/Install.app/Contents/MacOS/Install' -print -quit)"
-[ -z "$BIN" ] && BIN="$(/usr/bin/find "$MOUNT_POINT" -type f -path '*/Creative Cloud Installer.app/Contents/MacOS/Install' -print -quit)"
-[ -n "$BIN" ] || { echo "installer binary not found"; exit 1; }
+INSTALL_APP="$(/usr/bin/find "$MOUNT_POINT" -maxdepth 2 -type d \( -name "Install.app" -o -name "*Install*.app" \) -print -quit)"
+[[ -d "$INSTALL_APP" ]] || { echo "Install.app not found"; hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1; exit 1; }
 
-sudo "$BIN" --mode=silent
+"$INSTALL_APP/Contents/MacOS/Install" --mode=silent >/dev/null 2>&1 || true
+
+hdiutil detach "$MOUNT_POINT" >/dev/null 2>&1 || true
+
 echo "adobe creative cloud installed"
