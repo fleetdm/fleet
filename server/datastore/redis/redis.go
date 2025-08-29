@@ -323,7 +323,15 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 						dialOpts := opts
 						var netErr net.Error
 
+						// Initial dial. If we're using a username and password
+						// and this connection is successful, we'll return it.
 						pc, err := dialFn("tcp", server, dialOpts...)
+
+						if err == nil && !tryIAMAuth {
+							// Initial dial succeeded: keep this connection.
+							conn = pc
+							return nil
+						}
 
 						if errors.As(err, &netErr) {
 							if netErr.Temporary() || netErr.Timeout() {
@@ -332,21 +340,23 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 							}
 						}
 
-						// Probe the connection to detect auth errors.
+						// If the connection was successful but no password was
+						// supplied, probe it first to verify that we really
+						// can talk to it.
 						if err == nil && tryIAMAuth { // "maybe-no-auth" mode
 							if perr := probePingWithShortTimeout(pc, server, dialFn, dialOpts, 5*time.Second); perr != nil {
-								// Probe failed (NOAUTH, TLS mismatch -> timeout, etc.): close and trigger IAM
+								// Probe failed -- we'll try to connect with IAM auth instead.
 								_ = pc.Close()
 								err = perr
 							} else {
-								// Probe succeeded quickly: keep this connection
+								// Probe succeeded -- keep this connection.
 								conn = pc
 								return nil
 							}
 						}
 
 						var c redis.Conn
-						if err != nil && tryIAMAuth {
+						if tryIAMAuth {
 							var token string
 							token, err = awsIAMTokenGen.generateAuthToken(context.Background())
 							if err != nil {
