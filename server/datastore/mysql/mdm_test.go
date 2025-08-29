@@ -5475,7 +5475,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-// TODO(AP): Figure out where to test this elsewhere.
+// TODO(AP): Come back to this once host_mdm_android_profiles is populated.
 func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -7801,7 +7801,7 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 }
 
-// TODO(AP): Come back with enroll android host method
+// TODO(AP): Come back to this once host_mdm_android_profiles is populated.
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -8299,7 +8299,7 @@ func testBatchResendProfileToHosts(t *testing.T, ds *Datastore) {
 		hostProfileStatus{profC.ProfileUUID, fleet.MDMDeliveryPending})
 }
 
-// TODO(AP): Come back with Android Enroll method
+// TODO(AP): Should be updated by #32031
 func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 
