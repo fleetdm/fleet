@@ -495,7 +495,7 @@ FROM
 	%s
 WHERE
 	platform = 'android' AND
-	hmdm.enrolled = 1 AND -- TODO AP Do we need this check? Windows does it, Apple does not
+	hmdm.enrolled = 1 AND
 	 %s
 GROUP BY
 	status HAVING status IS NOT NULL`
