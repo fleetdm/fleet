@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -709,5 +710,38 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 		checkExpected(t, nil, expected)
 
 		cleanupTables(t)
+	})
+}
+
+// TODO Is there a better way to create an android profile for test(i.e. better keys to set)?
+func androidProfileForTest(name string, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
+	payload := `{
+		"maximumTimeToLock": "1234"
+	}`
+
+	profile := &fleet.MDMAndroidConfigProfile{
+		RawJSON: []byte(payload),
+		Name:    name,
+	}
+
+	for _, l := range labels {
+		switch {
+		case strings.HasPrefix(l.Name, "exclude-"):
+			profile.LabelsExcludeAny = append(profile.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		case strings.HasPrefix(l.Name, "inclany-"):
+			profile.LabelsIncludeAny = append(profile.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		default:
+			profile.LabelsIncludeAll = append(profile.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
+		}
+	}
+
+	return profile
+}
+
+func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt := `INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, status, operation_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+		_, err := q.ExecContext(context.Background(), stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
+		return err
 	})
 }

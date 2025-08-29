@@ -835,14 +835,6 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		nanoEnrollAndSetHostMDMData(t, ds, h, false)
 	}
 
-	upsertAndroidHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, status, operation_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(context.Background(), stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
-			return err
-		})
-	}
-
 	// Add a couple of Android hosts(creation path is slightly different)
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
@@ -893,8 +885,8 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	}))
 
 	// Insert a "verifying" profile for Android host 20(team 2) and a failed profile for Android host 21(no team)
-	upsertAndroidHostProfileStatus(t, hosts[20].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryVerifying)
-	upsertAndroidHostProfileStatus(t, hosts[21].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryFailed)
+	upsertAndroidHostProfileStatus(t, ds, hosts[20].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryVerifying)
+	upsertAndroidHostProfileStatus(t, ds, hosts[21].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryFailed)
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[0]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0) // wrong team
@@ -1009,13 +1001,6 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 	// Add a couple of Android hosts. One we will create profiles on, another as a control
 	hosts := []*fleet.Host{}
-	upsertAndroidHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
-		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid, status, operation_type) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(context.Background(), stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
-			return err
-		})
-	}
 	for i := 0; i < 2; i++ {
 		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
 		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
@@ -1036,7 +1021,7 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(fleet.MDMDeliveryVerified)}, 0)
 
 	for _, v := range statuses {
-		upsertAndroidHostProfileStatus(t, hosts[0].UUID, profUUID, v)
+		upsertAndroidHostProfileStatus(t, ds, hosts[0].UUID, profUUID, v)
 		expectedStatus := fleet.MDMDeliveryPending
 		if v != nil {
 			expectedStatus = *v
