@@ -117,7 +117,13 @@ func MakeHandler(
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled {
 		if config.Logging.TracingType == "opentelemetry" {
-			r.Use(otmiddleware.Middleware("fleet"))
+			r.Use(otmiddleware.Middleware(
+				"service",
+				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
+					// Use the guideline for span names: {method} {target}
+					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+					return r.Method + " " + route
+				})))
 		} else {
 			apmgorilla.Instrument(r)
 		}
