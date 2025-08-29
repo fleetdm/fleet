@@ -34,40 +34,52 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	if ca.ClientSecret == nil {
 		return nil, &fleet.BadRequestError{Message: "Certificate authority does not have a client secret configured."}
 	}
-	if p.IDPClientID == nil || p.IDPToken == nil || p.IDPOauthURL == nil {
-		return nil, &fleet.BadRequestError{Message: "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate."}
-	}
-
-	introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
-	if err != nil {
-		level.Error(svc.logger).Log("msg", "Failed to introspect IDP token during certificate request", "idp_url", *p.IDPOauthURL, "err", err)
-		return nil, InvalidIDPTokenError{}
-	}
-	if !introspectionResponse.Active {
-		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to inactive IDP token", "idp_url", *p.IDPOauthURL)
-		return nil, InvalidIDPTokenError{}
-	}
-	// This field is technically optional in the spec though its omittance may indicate an incompatible IDP or setup
-	if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
-		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to missing username in IDP token introspection response")
-		return nil, InvalidIDPTokenError{}
-	}
-	_, csrEmail, csrUsername, err := svc.parseCSR(ctx, p.CSR)
+	certificateRequest, err := svc.parseCSR(ctx, p.CSR)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to parse CSR during certificate request", "err", err)
 		return nil, InvalidCSRError{}
 	}
 
-	// the email should either equal the username or include it as a prefix, i.e.
-	// email=username@example.com and username=username
-	if !strings.HasPrefix(csrEmail, csrUsername) {
-		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
-		return nil, InvalidCSRError{}
-	}
-	if csrEmail != *introspectionResponse.Username {
-		level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
-		// The email in the CSR must match the username from the IDP token introspection
-		return nil, InvalidIDPTokenError{}
+	idpUsername := ""
+	if p.IDPClientID != nil || p.IDPToken != nil || p.IDPOauthURL != nil {
+		if p.IDPClientID == nil || p.IDPToken == nil || p.IDPOauthURL == nil {
+			return nil, &fleet.BadRequestError{Message: "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate."}
+		}
+
+		csrEmail, csrUsername, err := svc.extractCSRUserInfo(ctx, certificateRequest)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "CSR did not have expected format for IDP verification", "err", err)
+			return nil, InvalidCSRError{}
+		}
+
+		introspectionResponse, err := svc.introspectIDPToken(ctx, *p.IDPClientID, *p.IDPToken, *p.IDPOauthURL)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "Failed to introspect IDP token during certificate request", "idp_url", *p.IDPOauthURL, "err", err)
+			return nil, InvalidIDPTokenError{}
+		}
+		if !introspectionResponse.Active {
+			level.Error(svc.logger).Log("msg", "Failing Certificate Request due to inactive IDP token", "idp_url", *p.IDPOauthURL)
+			return nil, InvalidIDPTokenError{}
+		}
+		// This field is technically optional in the spec though its omittance may indicate an incompatible IDP or setup
+		if introspectionResponse.Username == nil || len(*introspectionResponse.Username) == 0 {
+			level.Error(svc.logger).Log("msg", "Failing Certificate Request due to missing username in IDP token introspection response")
+			return nil, InvalidIDPTokenError{}
+		}
+
+		idpUsername = *introspectionResponse.Username
+
+		// the email should either equal the username or include it as a prefix, i.e.
+		// email=username@example.com and username=username
+		if !strings.HasPrefix(csrEmail, csrUsername) {
+			level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and UPN", "csr_email", csrEmail, "csr_upn", csrUsername)
+			return nil, InvalidCSRError{}
+		}
+		if csrEmail != *introspectionResponse.Username {
+			level.Error(svc.logger).Log("msg", "Failing Certificate Request due to mismatch between CSR email and IDP token username", "csr_email", csrEmail, "idp_username", *introspectionResponse.Username)
+			// The email in the CSR must match the username from the IDP token introspection
+			return nil, InvalidIDPTokenError{}
+		}
 	}
 
 	csrForRequest := strings.ReplaceAll(p.CSR, "-----BEGIN CERTIFICATE REQUEST-----", "")
@@ -81,14 +93,14 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 		ClientSecret: *ca.ClientSecret,
 	}, csrForRequest)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "Hydrant certificate request failed", "csr_email", csrEmail, "error", err)
+		level.Error(svc.logger).Log("msg", "Hydrant certificate request failed", "ca_id", ca.ID, "error", err)
 		// Bad request may seem like a strange error here but there are many cases where a malformed
 		// CSR can cause this error and Hydrant's API often returns a 5XX error even in these cases
 		// so it is not always possible to distinguish between an error caused by a bad request or
 		// an internal CA error.
 		return nil, &fleet.BadRequestError{Message: fmt.Sprintf("Hydrant certificate request failed: %s", err.Error())}
 	}
-	level.Info(svc.logger).Log("msg", "Successfully retrieved a certificate from Hydrant", "csr_email", csrEmail)
+	level.Info(svc.logger).Log("msg", "Successfully retrieved a certificate from Hydrant", "ca_id", ca.ID, "idp_username", idpUsername)
 	// Wrap the certificate in a PEM block for easier consumption by the client
 	return ptr.String("-----BEGIN CERTIFICATE-----\n" + string(certificate.Certificate) + "\n-----END CERTIFICATE-----\n"), nil
 }
@@ -122,35 +134,42 @@ func (svc *Service) introspectIDPToken(ctx context.Context, idpClientID, idpToke
 	return oauthIntrospectionResponse, nil
 }
 
-func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.CertificateRequest, string, string, error) {
+func (svc *Service) parseCSR(ctx context.Context, csr string) (*x509.CertificateRequest, error) {
 	// unescape newlines
 	block, _ := pem.Decode([]byte(strings.ReplaceAll(csr, "\\n", "\n")))
 	if block == nil {
-		return nil, "", "", ctxerr.New(ctx, "invalid CSR format")
+		return nil, ctxerr.New(ctx, "invalid CSR format")
 	}
 
 	req, err := x509.ParseCertificateRequest(block.Bytes)
 	if err != nil {
-		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to parse CSR")
+		return nil, ctxerr.Wrap(ctx, err, "failed to parse CSR")
 	}
+
+	return req, nil
+}
+
+// Extract email and UPN fields from the provided CSR. Assumes there is exactly 1 email and that there is a UPN SAN extension, will
+// error otherwise
+func (svc *Service) extractCSRUserInfo(ctx context.Context, req *x509.CertificateRequest) (string, string, error) {
 	if len(req.EmailAddresses) < 1 {
-		return nil, "", "", ctxerr.New(ctx, "CSR does not contain an email address")
+		return "", "", ctxerr.New(ctx, "CSR does not contain an email address")
 	}
 
 	if len(req.EmailAddresses) > 1 {
-		return nil, "", "", ctxerr.Errorf(ctx, "CSR contains %d email addresses, only 1 is supported", len(req.EmailAddresses))
+		return "", "", ctxerr.Errorf(ctx, "CSR contains %d email addresses, only 1 is supported", len(req.EmailAddresses))
 	}
 	csrEmail := req.EmailAddresses[0]
 
 	upn, err := extractCSRUPN(req)
 	if err != nil {
-		return nil, "", "", ctxerr.Wrap(ctx, err, "failed to extract UPN from CSR")
+		return "", "", ctxerr.Wrap(ctx, err, "failed to extract UPN from CSR")
 	}
 	if upn == nil {
-		return nil, "", "", ctxerr.New(ctx, "CSR does not contain a UPN")
+		return "", "", ctxerr.New(ctx, "CSR does not contain a UPN")
 	}
 
-	return req, csrEmail, *upn, nil
+	return csrEmail, *upn, nil
 }
 
 // The go standard library does not provide a way to extract the UPN from a CSR, so we must do it
