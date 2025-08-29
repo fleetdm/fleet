@@ -67,12 +67,12 @@ type getTeamResponse struct {
 
 func (r getTeamResponse) Error() error { return r.Err }
 
-type getDefaultTeamResponse struct {
+type defaultTeamResponse struct {
 	Team *fleet.DefaultTeam `json:"team"`
 	Err  error              `json:"error,omitempty"`
 }
 
-func (r getDefaultTeamResponse) Error() error { return r.Err }
+func (r defaultTeamResponse) Error() error { return r.Err }
 
 func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getTeamRequest)
@@ -87,7 +87,7 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			Config: fleet.DefaultTeamConfig{
+			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 				},
@@ -97,7 +97,7 @@ func getTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Service
 				},
 			},
 		}
-		return getDefaultTeamResponse{Team: defaultTeam}, nil
+		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
 	return getTeamResponse{Team: team}, nil
@@ -166,7 +166,7 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 		defaultTeam := &fleet.DefaultTeam{
 			ID:   team.ID,
 			Name: team.Name,
-			Config: fleet.DefaultTeamConfig{
+			DefaultTeamConfig: fleet.DefaultTeamConfig{
 				WebhookSettings: fleet.DefaultTeamWebhookSettings{
 					FailingPoliciesWebhook: team.Config.WebhookSettings.FailingPoliciesWebhook,
 				},
@@ -176,7 +176,7 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 				},
 			},
 		}
-		return getDefaultTeamResponse{Team: defaultTeam}, nil
+		return defaultTeamResponse{Team: defaultTeam}, nil
 	}
 
 	return teamResponse{Team: team}, err
