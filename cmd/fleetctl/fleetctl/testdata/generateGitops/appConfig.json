@@ -287,6 +287,10 @@
         "windows_settings": {
             "custom_settings": []
         },
+        "android_enabled_and_configured": true,
+        "android_settings": {
+            "custom_settings": []
+        },
         "volume_purchasing_program": [
             {
                 "location": "Fleet Device Management Inc.",
@@ -297,8 +301,7 @@
                     "📱🔐 Personal mobile devices"
                 ]
             }
-        ],
-        "android_enabled_and_configured": true
+        ]
     },
     "gitops": {
         "gitops_mode_enabled": false,
