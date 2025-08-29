@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -507,4 +509,99 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 	require.Equal(t, "testAndroid2", profile2.Name)
+}
+
+func expectAndroidProfiles(
+	t *testing.T,
+	ds *Datastore,
+	tmID *uint,
+	wantedProfiles []*fleet.MDMAndroidConfigProfile,
+) map[string]string {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+
+	var gotProfiles []*fleet.MDMAndroidConfigProfile
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		ctx := t.Context()
+		return sqlx.SelectContext(ctx, q, &gotProfiles, `SELECT * FROM mdm_android_configuration_profiles WHERE team_id = ?`, tmID)
+	})
+
+	// create map of expected profiles keyed by name
+	wantedProfilesMap := make(map[string]*fleet.MDMAndroidConfigProfile, len(wantedProfiles))
+	for _, profile := range wantedProfiles {
+		wantedProfilesMap[profile.Name] = profile
+
+		// We remarshal the contents here to avoid formatting issues
+		var jsonContent map[string]interface{}
+		err := json.Unmarshal(profile.RawJSON, &jsonContent)
+		require.NoError(t, err)
+		profile.RawJSON, err = json.Marshal(jsonContent)
+		require.NoError(t, err)
+	}
+
+	// compare only the fields we care about, and build the resulting map of
+	// profile name as key to profile UUID as value
+	m := make(map[string]string)
+	for _, profile := range gotProfiles {
+		m[profile.Name] = profile.ProfileUUID
+		if profile.TeamID != nil && *profile.TeamID == 0 {
+			profile.TeamID = nil
+		}
+
+		// We do not care about this attribute in test, but it is auto incrementing for merging purposes
+		profile.AutoIncrement = 0
+
+		// ProfileUUID is non-empty and starts with the android prefix, but otherwise we don't
+		// care about it for test assertions.
+		require.NotEmpty(t, profile.ProfileUUID)
+		require.True(t, strings.HasPrefix(profile.ProfileUUID, fleet.MDMAndroidProfileUUIDPrefix))
+		profile.ProfileUUID = ""
+
+		profile.CreatedAt = time.Time{}
+
+		// We remarshal the contents here to avoid formatting issues
+		var jsonContent map[string]interface{}
+		err := json.Unmarshal(profile.RawJSON, &jsonContent)
+		require.NoError(t, err)
+		profile.RawJSON, err = json.Marshal(jsonContent)
+		require.NoError(t, err)
+
+		// if an expected uploaded_at timestamp is provided for this profile, keep
+		// its value, otherwise clear it as we don't care about asserting its
+		// value.
+		if wantedProfile := wantedProfilesMap[profile.Name]; wantedProfile == nil || wantedProfile.UploadedAt.IsZero() {
+			profile.UploadedAt = time.Time{}
+		}
+	}
+	// order is not guaranteed
+	require.ElementsMatch(t, wantedProfiles, gotProfiles)
+	return m
+}
+
+func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
+	if content == nil {
+		content = make(map[string]any)
+	}
+	content["name"] = name
+	rawJSON, err := json.Marshal(content)
+	require.NoError(t, err)
+
+	prof := &fleet.MDMAndroidConfigProfile{
+		Name:    name,
+		RawJSON: rawJSON,
+	}
+
+	for _, lbl := range labels {
+		switch {
+		case strings.HasPrefix(lbl.Name, "exclude-"):
+			prof.LabelsExcludeAny = append(prof.LabelsExcludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		case strings.HasPrefix(lbl.Name, "include-any-"):
+			prof.LabelsIncludeAny = append(prof.LabelsIncludeAny, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		default:
+			prof.LabelsIncludeAll = append(prof.LabelsIncludeAll, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+		}
+	}
+
+	return prof
 }

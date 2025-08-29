@@ -63,6 +63,9 @@
 				},
 				"windows_settings": {
 					"custom_settings": null
+				},
+				"android_settings": {
+					"custom_settings": null
 				}
 			},
 			"scripts": null,
@@ -150,6 +153,9 @@
 					"manual_agent_install": null
 				},
 				"windows_settings": {
+					"custom_settings": null
+				},
+				"android_settings": {
 					"custom_settings": null
 				}
 			},
