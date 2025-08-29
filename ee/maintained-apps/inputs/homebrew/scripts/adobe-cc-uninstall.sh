@@ -1,52 +1,36 @@
 #!/bin/sh
-set -e
-U="$(scutil <<< 'show State:/Users/ConsoleUser' | awk '/Name :/ {print $3}')"
 
-bootout(){ l="$1"; launchctl remove "$l" >/dev/null 2>&1 || true; sudo launchctl remove "$l" >/dev/null 2>&1 || true; [ -n "$U" ] && launchctl bootout "gui/$(id -u "$U" 2>/dev/null)" "$l" >/dev/null 2>&1 || true; sudo launchctl bootout system "$l" >/dev/null 2>&1 || true; }
-quit_app(){ b="$1"; if osascript -e "application id \"$b\" is running" >/dev/null 2>&1; then cu="$(stat -f "%Su" /dev/console || true)"; [ "$cu" = "root" ] && return 0; osascript -e "tell application id \"$b\" to quit" >/dev/null 2>&1 || true; sleep 2; fi; }
+quit_application() {
+  local bundle_id="$1"
+  local timeout_duration=10
+  if ! osascript -e "application id \"$bundle_id\" is running" >/dev/null 2>&1; then return; fi
+  local console_user; console_user=$(stat -f "%Su" /dev/console)
+  if [[ $EUID -eq 0 && "$console_user" == "root" ]]; then return; fi
+  SECONDS=0
+  while (( SECONDS < timeout_duration )); do
+    osascript -e "tell application id \"$bundle_id\" to quit" >/dev/null 2>&1 || true
+    if ! pgrep -f "$bundle_id" >/dev/null 2>&1; then break; fi
+    sleep 1
+  done
+}
 
-UNINST="/Applications/Utilities/Adobe Creative Cloud/Utils/Creative Cloud Uninstaller.app/Contents/MacOS/Creative Cloud Uninstaller"
-if [ -x "$UNINST" ]; then
-  "$UNINST" -u >/dev/null 2>&1 && sudo "$UNINST" -u || "$UNINST" --force >/dev/null 2>&1 && sudo "$UNINST" --force || sudo "$UNINST"
-fi
+quit_application "com.adobe.acc.AdobeCreativeCloud"
 
-pluginkit -r "/Applications/Utilities/Adobe Sync/CoreSync/Core Sync.app/Contents/PlugIns/ACCFinderSync.appex" >/dev/null 2>&1 || true
+rm -rf "/Applications/Creative Cloud.app" \
+       "/Applications/Adobe Creative Cloud.app" \
+       "/Applications/Utilities/Adobe Creative Cloud/ACC/Creative Cloud.app" >/dev/null 2>&1 || true
 
-for l in Adobe_Genuine_Software_Integrity_Service com.adobe.AdobeCreativeCloud com.adobe.acc.installer com.adobe.acc.installer.v2 com.adobe.ccxprocess; do bootout "$l"; done
+rm -rf "/Library/Application Support/Adobe/Creative Cloud" \
+       "/Library/Application Support/Adobe/Adobe Desktop Common" >/dev/null 2>&1 || true
+rm -f  "/Library/Preferences/com.adobe.acc.AdobeCreativeCloud.plist" >/dev/null 2>&1 || true
+rm -f  /var/db/receipts/com.adobe.acc*.{bom,plist} >/dev/null 2>&1 || true
 
-quit_app "com.adobe.acc.AdobeCreativeCloud"
-osascript -e 'tell application "System Events" to delete login item "Adobe Creative Cloud"' >/dev/null 2>&1 || true
-pkill -f "Adobe Desktop Service|AdobeIPCBroker|AdobeCRDaemon" >/dev/null 2>&1 || true
+for udir in /Users/* /var/root; do
+  [[ -d "$udir/Library" ]] || continue
+  rm -rf "$udir/Library/Application Support/Adobe/Creative Cloud" \
+         "$udir/Library/Caches/com.adobe.acc.AdobeCreativeCloud" \
+         "$udir/Library/Logs/Adobe/Creative Cloud" >/dev/null 2>&1 || true
+  rm -f  "$udir/Library/Preferences/com.adobe.acc.AdobeCreativeCloud.plist" >/dev/null 2>&1 || true
+done
 
-sudo rm -rf "/Applications/Adobe Creative Cloud" \
-            "/Applications/Utilities/Adobe Application Manager" \
-            "/Applications/Utilities/Adobe Creative Cloud"* \
-            "/Applications/Utilities/Adobe Installers/.Uninstall"* \
-            "/Applications/Utilities/Adobe Sync" \
-            "/Library/Internet Plug-Ins/AdobeAAMDetect.plugin" \
-            "/Library/Logs/CreativeCloud" >/dev/null 2>&1 || true
-
-sudo rm -rf "/Library/Application Support/Adobe/Adobe Desktop Common" \
-            "/Library/Application Support/Adobe/AdobeApplicationManager" \
-            "/Library/Application Support/Adobe/AdobeGC"* \
-            "/Library/Application Support/Adobe/Creative Cloud Libraries" \
-            "/Library/Application Support/Adobe/Extension Manager CC" \
-            "/Library/Application Support/Adobe/OOBE" \
-            "/Library/Application Support/Adobe/CEP/extensions/CC_*" \
-            "/Library/Application Support/Adobe/CEP/extensions/com.adobe.ccx.*" \
-            "/Library/Application Support/regid.*.com.adobe" >/dev/null 2>&1 || true
-
-if [ -n "$U" ]; then
-  H="/Users/$U"
-  rm -rf "$H/Creative Cloud Files" \
-         "$H/Library/Application Support/Adobe/OOBE" \
-         "$H/Library/Application Support/Adobe/ExtensibilityLibrary" \
-         "$H/Library/Logs/CreativeCloud" \
-         "$H/Library/Logs/AdobeDownload.log" \
-         "$H/Library/Logs/AdobeIPCBroker"* \
-         "$H/Library/Logs/CoreSyncInstall.log" \
-         "$H/Library/LaunchAgents/com.adobe.ccxprocess.plist" \
-         "$H/Library/Application Scripts/com.adobe.accmac.ACCFinderSync" \
-         "$H/Library/*/com.adobe.acc"* >/dev/null 2>&1 || true
-fi
 echo "adobe creative cloud uninstalled"
