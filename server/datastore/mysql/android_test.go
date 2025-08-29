@@ -534,8 +534,10 @@ func expectAndroidProfiles(
 
 		// We remarshal the contents here to avoid formatting issues
 		var jsonContent map[string]interface{}
-		json.Unmarshal(profile.RawJSON, &jsonContent)
-		profile.RawJSON, _ = json.Marshal(jsonContent)
+		err := json.Unmarshal(profile.RawJSON, &jsonContent)
+		require.NoError(t, err)
+		profile.RawJSON, err = json.Marshal(jsonContent)
+		require.NoError(t, err)
 	}
 
 	// compare only the fields we care about, and build the resulting map of
@@ -560,8 +562,10 @@ func expectAndroidProfiles(
 
 		// We remarshal the contents here to avoid formatting issues
 		var jsonContent map[string]interface{}
-		json.Unmarshal(profile.RawJSON, &jsonContent)
-		profile.RawJSON, _ = json.Marshal(jsonContent)
+		err := json.Unmarshal(profile.RawJSON, &jsonContent)
+		require.NoError(t, err)
+		profile.RawJSON, err = json.Marshal(jsonContent)
+		require.NoError(t, err)
 
 		// if an expected uploaded_at timestamp is provided for this profile, keep
 		// its value, otherwise clear it as we don't care about asserting its

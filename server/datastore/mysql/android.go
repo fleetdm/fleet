@@ -490,8 +490,14 @@ func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtCo
 		teamID = *tmID
 	}
 	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "deleting all android profiles for team")
+	}
 	rows, err := res.RowsAffected()
-	return int(rows), ctxerr.Wrap(ctx, err, "deleting all android profiles for team")
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting rows affected when deleting all android profiles for team")
+	}
+	return int(rows), nil
 }
 
 func (ds *Datastore) batchSetMDMAndroidProfiles(

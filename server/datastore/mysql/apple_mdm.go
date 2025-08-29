@@ -2440,7 +2440,6 @@ ON DUPLICATE KEY UPDATE
 	// that did insert or update, as we will need to update their variables (if
 	// the profile did not change, its variables cannot have changed since the
 	// contents is the same as it was already).
-	var profileIdentsInsertedOrUpdated []string
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Scope,
 			p.Mobileconfig, p.SecretsUpdatedAt); err != nil {
@@ -2448,10 +2447,6 @@ ON DUPLICATE KEY UPDATE
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
 		updatedDB = updatedDB || didInsertOrUpdate
-
-		if didInsertOrUpdate {
-			profileIdentsInsertedOrUpdated = append(profileIdentsInsertedOrUpdated, p.Identifier)
-		}
 	}
 
 	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
