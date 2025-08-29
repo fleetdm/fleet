@@ -157,10 +157,6 @@ func modifyTeamEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	req := request.(*modifyTeamRequest)
 	team, err := svc.ModifyTeam(ctx, req.ID, req.TeamPayload)
 	if err != nil {
-		// For team ID 0, return appropriate error response
-		if req.ID == 0 {
-			return getDefaultTeamResponse{Err: err}, nil
-		}
 		return teamResponse{Err: err}, nil
 	}
 

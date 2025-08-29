@@ -1828,6 +1828,13 @@ func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.T
 
 	// Apply integrations if provided
 	if payload.Integrations != nil {
+		// Reject unsupported fields for "No team"
+		if payload.Integrations.GoogleCalendar != nil ||
+			payload.Integrations.ConditionalAccessEnabled.Set {
+			return nil, fleet.NewInvalidArgumentError("integrations",
+				"google_calendar and conditional_access_enabled are not supported for \"No team\"")
+		}
+
 		// Get app config for integration validation (needed even if clearing integrations)
 		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
