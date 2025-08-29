@@ -9,6 +9,8 @@ import {
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
   isSoftwarePackage,
+  ISoftwarePackage,
+  IAppStoreApp,
 } from "interfaces/software";
 
 import Card from "components/Card";
@@ -24,7 +26,7 @@ interface ISoftwareSummaryCard {
   isLoading?: boolean;
   router: InjectedRouter;
   refetchSoftwareTitle: () => void;
-  softwareInstaller?: any;
+  softwareInstaller?: ISoftwarePackage | IAppStoreApp;
 }
 
 const baseClass = "software-summary-card";
@@ -48,6 +50,9 @@ const SoftwareSummaryCard = ({
   };
 
   const canEditIcon = softwareInstaller && teamId;
+  const iconUrl = title.app_store_app
+    ? title.app_store_app.icon_url
+    : undefined;
 
   return (
     <>
@@ -64,10 +69,8 @@ const SoftwareSummaryCard = ({
           }}
           name={title.name}
           source={title.source}
-          iconUrl={
-            title.app_store_app ? title.app_store_app.icon_url : undefined
-          }
-          onClickEditIcon={canEditIcon && onClickEditIcon}
+          iconUrl={iconUrl}
+          onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
         />
         {showVersionsTable && (
           <TitleVersionsTable
@@ -81,7 +84,7 @@ const SoftwareSummaryCard = ({
           />
         )}
       </Card>
-      {showEditIconModal && teamId && (
+      {showEditIconModal && teamId && softwareInstaller && (
         <EditIconModal
           softwareId={softwareId}
           teamIdForApi={teamId}
@@ -94,6 +97,8 @@ const SoftwareSummaryCard = ({
           previewInfo={{
             name: title.name,
             type: formatSoftwareType(title),
+            source: title.source,
+            currentIconUrl: iconUrl,
             versions: title.versions?.length ?? 0,
             countsUpdatedAt: title.counts_updated_at,
           }}

@@ -13,16 +13,11 @@ import TabText from "components/TabText";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
-import DataSet from "components/DataSet";
 import TableCount from "components/TableContainer/TableCount";
 import CardHeader from "components/CardHeader";
-import { resultsCountClass } from "components/TableContainer/TableContainer";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 
-import {
-  baseClass as softwareDetailsBaseClass,
-  descriptionListClass,
-  infoClass,
-} from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
+import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
 
 import { TitleVersionsLastUpdatedInfo } from "../SoftwareSummaryCard/TitleVersionsTable/TitleVersionsTable";
@@ -50,6 +45,8 @@ interface IEditIconModalProps {
   previewInfo: {
     type?: string;
     versions?: number;
+    source?: string;
+    currentIconUrl?: string;
     name: string;
     countsUpdatedAt?: string;
   };
@@ -64,6 +61,7 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
+  console.log("NAMEEE", previewInfo.name);
   const { renderFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";
@@ -163,7 +161,15 @@ const EditIconModal = ({
   };
 
   const renderPreviewFleetCard = () => {
-    const { name, type, versions, countsUpdatedAt } = previewInfo;
+    const {
+      name,
+      type,
+      versions,
+      source,
+      currentIconUrl,
+      countsUpdatedAt,
+    } = previewInfo;
+
     return (
       <Card
         borderRadiusSize="medium"
@@ -175,28 +181,17 @@ const EditIconModal = ({
           borderRadiusSize="xxlarge"
           className={`${baseClass}__preview-card__fleet`}
         >
-          <div className={softwareDetailsBaseClass}>
-            {iconPreviewUrl ? (
-              <img
-                src={iconPreviewUrl}
-                alt="Uploaded icon preview"
-                style={{ width: 96, height: 96 }}
-              />
-            ) : (
-              <SoftwareIcon name={software.name} source="apps" size="xlarge" />
-            )}
-            <dl className={infoClass}>
-              <h1>{name}</h1>
-              <dl className={descriptionListClass}>
-                {!!type && <DataSet title="Type" value={type} />}
-
-                {!!previewInfo.versions && (
-                  <DataSet title="Versions" value={versions} />
-                )}
-              </dl>
-            </dl>
-          </div>
-          <div className={resultsCountClass}>
+          <SoftwareDetailsSummary
+            title={name}
+            name={name}
+            type={type}
+            source={source}
+            iconUrl={currentIconUrl}
+            versions={versions}
+            hosts={0} // required field but not shown in isPreview
+            iconPreviewUrl={iconPreviewUrl || null}
+          />
+          <div className={`${baseClass}__preview-results-count`}>
             <TableCount name="versions" count={versions} />
             {countsUpdatedAt && TitleVersionsLastUpdatedInfo(countsUpdatedAt)}
           </div>
@@ -233,7 +228,7 @@ const EditIconModal = ({
                         data-for="86"
                       >
                         <span className="text-cell w250 italic-cell">
-                          620 vulnerabilities
+                          20 vulnerabilities
                         </span>
                       </div>
                     </td>
@@ -288,7 +283,7 @@ const EditIconModal = ({
             ) : (
               <SoftwareIcon name={software.name} source="apps" size="xsmall" />
             )}
-            {previewInfo.name}
+            <TooltipTruncatedText value={previewInfo.name} />
           </div>
         </Card>
         <div

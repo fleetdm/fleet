@@ -126,8 +126,6 @@ interface ITableContainerProps<T = any> {
 }
 
 const baseClass = "table-container";
-/** Styling reused in software edit icon preview modal */
-export const resultsCountClass = "table-container__results-count";
 
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
@@ -361,7 +359,7 @@ const TableContainer = <T,>({
           <div className="stackable-header">
             {renderCount && !disableCount && (
               <div
-                className={`${resultsCountClass} ${
+                className={`${baseClass}__results-count ${
                   stackControls ? "stack-table-controls" : ""
                 }`}
                 style={opacity}
@@ -432,7 +430,7 @@ const TableContainer = <T,>({
             >
               {renderCount && !disableCount && (
                 <div
-                  className={`${resultsCountClass}  ${
+                  className={`${baseClass}__results-count  ${
                     stackControls ? "stack-table-controls" : ""
                   }`}
                   style={opacity}

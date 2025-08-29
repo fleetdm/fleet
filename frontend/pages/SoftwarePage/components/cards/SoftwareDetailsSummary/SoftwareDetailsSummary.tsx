@@ -20,20 +20,17 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
 
-/** This class are re-used on a edit icon modal > preview */
-export const baseClass = "software-details-summary";
-/** This class are re-used on a edit icon modal > preview */
-export const infoClass = `${baseClass}__info`;
-/** This class are re-used on a edit icon modal > preview */
-export const descriptionListClass = `${baseClass}__description-list`;
+const baseClass = "software-details-summary";
 
 interface ISoftwareDetailsSummaryProps {
   title: string;
   type?: string;
   hosts: number;
   countsUpdatedAt?: string;
-  /** The query param that will be added when user clicks on the host count */
-  queryParams: QueryParams;
+  /** The query param that will be added when user clicks on the host count
+   * Optional as isPreview mode doesn't have host count/link
+   */
+  queryParams?: QueryParams;
   name?: string;
   source?: string;
   versions?: number;
@@ -43,6 +40,8 @@ interface ISoftwareDetailsSummaryProps {
   /** Displays an edit CTA to edit the software's icon
    * Should only be defined for team view of an installable software */
   onClickEditIcon?: () => void;
+  /** undefined unless previewing icon, in which case is string or null */
+  iconPreviewUrl?: string | null;
 }
 
 const SoftwareDetailsSummary = ({
@@ -57,10 +56,31 @@ const SoftwareDetailsSummary = ({
   iconUrl,
   isOperatingSystem,
   onClickEditIcon,
+  iconPreviewUrl,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
-  // Remove host count for tgz_packages only
-  const showHostCount = source !== "tgz_packages";
+
+  // Remove host count for tgz_packages only and if viewing details summary from edit icon preview modal
+  const showHostCount =
+    source !== "tgz_packages" && iconPreviewUrl === undefined;
+
+  const renderSoftwareIcon = () => {
+    console.log("name", name);
+    console.log("source", source);
+    console.log("iconUrl", iconUrl);
+    if (typeof iconPreviewUrl === "string") {
+      return (
+        <img
+          src={iconPreviewUrl}
+          alt="Uploaded icon preview"
+          style={{ width: 96, height: 96 }}
+        />
+      );
+    }
+    return (
+      <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
+    );
+  };
 
   return (
     <>
@@ -68,14 +88,9 @@ const SoftwareDetailsSummary = ({
         {isOperatingSystem ? (
           <OSIcon name={name} size="xlarge" />
         ) : (
-          <SoftwareIcon
-            name={name}
-            source={source}
-            url={iconUrl}
-            size="xlarge"
-          />
+          renderSoftwareIcon()
         )}
-        <dl className={infoClass}>
+        <dl className={`${baseClass}__info`}>
           <h1>
             {title}
             {onClickEditIcon && (
@@ -97,7 +112,7 @@ const SoftwareDetailsSummary = ({
               </div>
             )}
           </h1>
-          <dl className={descriptionListClass}>
+          <dl className={`${baseClass}__description-list`}>
             {!!type && <DataSet title="Type" value={type} />}
 
             {!!versions && <DataSet title="Versions" value={versions} />}

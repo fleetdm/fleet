@@ -13,30 +13,50 @@
       width: 500px;
     }
 
+    &__fleet {
+      h1 {
+        width: 400px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+
     &__self-service {
       height: 350px;
 
       img {
-        width: 160%;
+        width: 124%;
       }
+    }
+  }
+
+  &__preview-results-count {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+    height: 40px;
+
+    > span:first-child {
+      font-weight: $bold;
     }
   }
 
   &__preview-table {
     width: 520px;
     height: 100px;
-    margin-bottom: -32px;
     border-top-right-radius: 0;
   }
 
   &__self-service-preview {
     position: relative;
-    top: -70px;
+    top: -76px;
     left: 188px;
     display: flex;
     gap: $pad-small;
     font-size: 12px;
     align-items: center;
+    max-width: 210px;
 
     .software-icon__xsmall {
       border-radius: $border-radius-small;

@@ -30,6 +30,7 @@ const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   vulnerabilities: null,
   last_opened_at: null,
   bundle_identifier: "com.app.mock",
+  icon_url: null,
 };
 
 export const createMockSoftware = (
