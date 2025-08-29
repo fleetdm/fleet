@@ -195,10 +195,9 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 	if err != nil {
 		return putSoftwareTitleIconResponse{Err: err}, nil
 	}
-	iconURL := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
 
 	return putSoftwareTitleIconResponse{
-		IconUrl: iconURL,
+		IconUrl: softwareTitleIcon.IconUrl(),
 	}, nil
 }
 

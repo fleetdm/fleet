@@ -493,6 +493,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	IconUrl           *string                         `json:"icon_url"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
