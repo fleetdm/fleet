@@ -77,7 +77,7 @@ const SoftwareSummaryCard = ({
           }}
           name={title.name}
           source={title.source}
-          iconUrl={iconUrl}
+          iconUrl={title.icon_url}
           onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
         />
         {showVersionsTable && (
@@ -106,7 +106,7 @@ const SoftwareSummaryCard = ({
             name: title.name,
             type: formatSoftwareType(title),
             source: title.source,
-            currentIconUrl: iconUrl,
+            currentIconUrl: title.icon_url,
             versions: title.versions?.length ?? 0,
             countsUpdatedAt: title.counts_updated_at,
           }}

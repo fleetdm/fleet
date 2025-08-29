@@ -389,7 +389,7 @@ export default {
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
       team_id: teamId,
     });
-    return sendRequest("GET", path);
+    return sendRequest("GET", path, undefined, "blob");
   },
 
   deleteSoftwareIcon: (softwareId: number, teamId: number) => {

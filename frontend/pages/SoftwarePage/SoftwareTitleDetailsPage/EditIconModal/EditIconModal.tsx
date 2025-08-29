@@ -259,7 +259,7 @@ const EditIconModal = ({
             header="Self-service"
             subheader={SELF_SERVICE_SUBHEADER}
           />
-          <div>
+          <div className={`${baseClass}__preview-img-container`}>
             <img
               className={`${baseClass}__preview-img`}
               src={PreviewSelfServiceIcon}
@@ -279,7 +279,12 @@ const EditIconModal = ({
                 }}
               />
             ) : (
-              <SoftwareIcon name={software.name} source="apps" size="xsmall" />
+              <SoftwareIcon
+                name={software.name}
+                source="apps"
+                url={previewInfo.currentIconUrl}
+                size="xsmall"
+              />
             )}
             <TooltipTruncatedText value={previewInfo.name} />
           </div>
