@@ -597,7 +597,7 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), any custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server, and any custom [EST](https://en.wikipedia.org/wiki/Enrollment_over_Secure_Transport) server.
 
 `POST /api/v1/fleet/certificate_authorities`
 
@@ -610,7 +610,9 @@ Only one of the objects is allowed in a single request.
 | digicert   | object | body | See [digicert](#digicert) |
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
+
 
 ##### digicert
 
@@ -646,6 +648,15 @@ Object with the following structure:
 | name | string | **Required**. Name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed. |
 | url | string | **Required**. URL of the Simple Certificate Enrollment Protocol (SCEP) server |
 | challenge | string | **Required**. Static challenge password used to authenticate requests to SCEP server. |
+
+##### custom_est_proxy
+
+Object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint's URL. |
+| password  | string | **Required**. The password used to authenticate the EST endpoint. |
 
 ##### hydrant
 
@@ -705,6 +716,7 @@ Object with the following structure:
 | digicert   | object | body | See [digicert](#digicert) |
 | ndes_scep_proxy   | object | body | See [ndes_scep_proxy](#ndes-scep-proxy) |
 | custom_scep_proxy   | object | body | See [custom_scep_proxy](#custom-scep-proxy) |
+| custom_est_proxy   | object | body | See [custom_est_proxy](#custom-est-proxy) |
 | hydrant   | object | body | See [hydrant](#hydrant) |
 
 See [Add certificate authority](#add-certificate-authority-ca) above for the structure of each CA object.
@@ -768,6 +780,11 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
       "id": 4,
       "name": "SCEP_CERTIFICATE_PROD",
       "type": "custom_scep_proxy"
+    },
+    {
+      "id": 6,
+      "name": "SECTIGO_WIFI",
+      "type": "custom_est_proxy"
     }
   ]
 }
@@ -835,7 +852,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 ### Request certificate
 
-Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for the [Hydrant](#integrations-hydrant) certificate authority (CA). DigiCert, NDES, and custom SCEP coming soon.
+Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom_est_proxy) certificate authorities (CAs). DigiCert, NDES, and custom SCEP coming soon.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
