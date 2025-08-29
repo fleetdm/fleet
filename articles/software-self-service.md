@@ -33,7 +33,7 @@ How to view, update, install, or uninstall self-service software:
 3. Open the **Software > Library** tab and select **Self-service** in the dropdown.
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
-**Update** appears for [eligible updates](#how-updates-works), regardless of whether the app is set to self-service.
+**Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
 
 Tips:
 
