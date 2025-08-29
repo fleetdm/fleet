@@ -161,7 +161,7 @@ func (j *Jira) getClient(ctx context.Context, args jiraArgs) (JiraClient, error)
 	// configuration has changed since it was created.
 	var opts *externalsvc.JiraOptions
 	if useTeamCfg {
-		tm, err := j.Datastore.Team(ctx, teamID)
+		tm, err := j.Datastore.TeamWithoutExtras(ctx, teamID)
 		if err != nil {
 			return nil, err
 		}
