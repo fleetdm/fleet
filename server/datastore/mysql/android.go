@@ -546,8 +546,7 @@ GROUP BY
 // sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
 // host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
 // it derives a boolean value for each status category. The value will be 1 if the host has any
-// profile in the given status category. Separate columns are used for status of the filevault profile
-// vs. all other profiles. The snippet assumes the hosts table to be aliased as 'h'.
+// profile in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
 func sqlJoinMDMAndroidProfilesStatus() string {
 	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
 	// complicate usage in other queries (e.g., list hosts).
