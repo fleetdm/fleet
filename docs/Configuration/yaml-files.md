@@ -39,7 +39,7 @@ Labels can be specified in your `default.yml` file using inline configuration or
 
 - `name` specifies the label's name.
 - `description` specifies the label's description.
-- `platform` specifies platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
+- `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
 - `hosts` is the list of host identifiers (`id`, `hardware_serial`, or `uuid`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
@@ -62,6 +62,7 @@ The `hostname` host identifier is deprecated. Please use a host's `id`, `hardwar
 ```yaml
 labels:
   - name: Arm64
+    platform: darwin,windows
     description: Hosts on the Arm64 architecture
     query: "SELECT 1 FROM system_info WHERE cpu_type LIKE 'arm64%' OR cpu_type LIKE 'aarch64%'"
     label_membership_type: dynamic
