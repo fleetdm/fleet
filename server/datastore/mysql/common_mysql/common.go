@@ -49,19 +49,11 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 	// Auto-detect RDS and use IAM auth if no password is provided
 	var iamTokenGen *awsIAMAuthTokenGenerator
 	useIAMAuth := false
-	if conf.Password == "" && conf.PasswordPath == "" {
-		// Check if this is an RDS endpoint
-		if isRDSEndpoint(host) {
-			useIAMAuth = true
-			region, err := extractRDSRegion(host)
-			if err != nil {
-				return nil, err
-			}
-
-			iamTokenGen, err = newAWSIAMAuthTokenGenerator(host, conf.Username, port, region, conf.StsAssumeRoleArn, conf.StsExternalID)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
-			}
+	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
+		useIAMAuth = true
+		iamTokenGen, err = newAWSIAMAuthTokenGenerator(host, conf.Username, port, conf.Region, conf.StsAssumeRoleArn, conf.StsExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
 		}
 	}
 
@@ -146,15 +138,10 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	if host == "" {
 		host = conf.Address
 	}
-	if conf.Password == "" && conf.PasswordPath == "" && isRDSEndpoint(host) {
-		// RDS Proxy uses public certificates, while direct RDS connections use rdsmysql
-		if isRDSProxyEndpoint(conf.Address) {
-			params.Set("tls", "true")
-		} else {
-			params.Set("tls", "rdsmysql")
-		}
+	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
 		params.Set("allowCleartextPasswords", "true")
-	} else if conf.TLSConfig != "" {
+	}
+	if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {

@@ -279,7 +279,7 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 
 	// Auto-detect ElastiCache and use IAM auth if no password is provided
 	useIAMAuth := false
-	if conf.Password == "" && isElastiCacheEndpoint(conf.Server) && conf.Region != "" && conf.CacheName != "" {
+	if conf.Password == "" && conf.Region != "" && conf.CacheName != "" {
 		useIAMAuth = true
 		var err error
 		region := conf.Region
@@ -288,7 +288,6 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to create AWS IAM token generator: %w", err)
 		}
-		conf.UseTLS = true
 	} else if conf.Password != "" {
 		opts = append(opts, redis.DialPassword(conf.Password))
 	}
@@ -311,9 +310,6 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 			redis.DialTLSConfig(cfg),
 			redis.DialUseTLS(true),
 			redis.DialTLSHandshakeTimeout(conf.TLSHandshakeTimeout))
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	dialFn := redis.Dial

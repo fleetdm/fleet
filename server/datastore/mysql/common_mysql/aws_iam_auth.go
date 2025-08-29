@@ -65,40 +65,6 @@ func (g *awsIAMAuthTokenGenerator) newToken(ctx context.Context) (string, error)
 	return authToken, nil
 }
 
-// isRDSEndpoint checks if the given endpoint is an RDS endpoint
-func isRDSEndpoint(endpoint string) bool {
-	return strings.Contains(endpoint, ".rds.amazonaws.")
-}
-
-// extractRDSRegion extracts the AWS region from an RDS endpoint
-func extractRDSRegion(endpoint string) (string, error) {
-	// RDS endpoint formats:
-	// - instance-name.abcdefg.region.rds.amazonaws.com (regular RDS)
-	// - cluster-name.cluster-abcdefg.region.rds.amazonaws.com (Aurora cluster endpoint)
-	// - cluster-name.cluster-ro-abcdefg.region.rds.amazonaws.com (Aurora read-only endpoint)
-	// - proxy-name.proxy-abcdefg.region.rds.amazonaws.com (RDS Proxy endpoint)
-	// - instance-name.abcdefg.region.rds.amazonaws.com.cn (China regions)
-
-	parts := strings.Split(endpoint, ".")
-	if len(parts) < 5 {
-		return "", fmt.Errorf("invalid RDS endpoint format for IAM auth: %s", endpoint)
-	}
-
-	// Check if it's an RDS endpoint
-	if !strings.Contains(endpoint, ".rds.amazonaws.com") {
-		return "", fmt.Errorf("endpoint does not appear to be an RDS endpoint: %s", endpoint)
-	}
-
-	// Find the region - it's always before "rds.amazonaws.com"
-	for i := 0; i < len(parts)-3; i++ {
-		if parts[i+1] == "rds" && parts[i+2] == "amazonaws" && (parts[i+3] == "com" || parts[i+3] == "com.cn") {
-			return parts[i], nil
-		}
-	}
-
-	return "", fmt.Errorf("could not extract region from RDS endpoint: %s", endpoint)
-}
-
 // awsIAMAuthConnector implements driver.Connector for IAM authentication
 type awsIAMAuthConnector struct {
 	driverName string
@@ -132,10 +98,4 @@ func (c *awsIAMAuthConnector) Connect(ctx context.Context) (driver.Conn, error) 
 // Driver implements driver.Connector
 func (c *awsIAMAuthConnector) Driver() driver.Driver {
 	return mysql.MySQLDriver{}
-}
-
-// isRDSProxyEndpoint checks if the given address is an RDS Proxy endpoint
-func isRDSProxyEndpoint(address string) bool {
-	// RDS Proxy endpoints have the format: proxy-name.proxy-xxxxxxxxx.region.rds.amazonaws.com
-	return strings.Contains(address, ".proxy-") && strings.Contains(address, ".rds.amazonaws.")
 }

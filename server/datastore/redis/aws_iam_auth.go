@@ -90,19 +90,3 @@ func (g *awsIAMAuthTokenGenerator) generateNewToken(ctx context.Context) (string
 
 	return authToken, nil
 }
-
-// isNumericSuffix checks if a string contains only digits
-func isNumericSuffix(s string) bool {
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
-
-// isElastiCacheEndpoint checks if the given endpoint is an ElastiCache endpoint
-func isElastiCacheEndpoint(endpoint string) bool {
-	// Check for ElastiCache endpoint patterns
-	return strings.Contains(endpoint, ".cache.amazonaws.")
-}

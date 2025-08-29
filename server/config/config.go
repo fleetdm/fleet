@@ -50,6 +50,7 @@ type MysqlConfig struct {
 	MaxIdleConns     int    `yaml:"max_idle_conns"`
 	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
 	SQLMode          string `yaml:"sql_mode"`
+	Region           string `yaml:"region"`
 	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
 	StsExternalID    string `yaml:"sts_external_id"`
 }
@@ -60,6 +61,8 @@ type RedisConfig struct {
 	Username                  string
 	Password                  string
 	Database                  int
+	Region                    string
+	CacheName                 string
 	UseTLS                    bool          `yaml:"use_tls"`
 	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
 	StsExternalID             string        `yaml:"sts_external_id"`
@@ -1049,6 +1052,7 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".region", "true", "RDS region for AWS authentication"+usageSuffix)
 		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
 		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}
@@ -1063,6 +1067,10 @@ func (man Manager) addConfigs() {
 		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
+	man.addConfigString("redis.cache_name", "",
+		"Redis server Elasticache cache name")
+	man.addConfigString("redis.region", "",
+		"Redis server Elasticache region")
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
@@ -1497,6 +1505,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
 			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
 			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			Region:           man.getConfigString(prefix + ".region"),
 			StsAssumeRoleArn: man.getConfigString(prefix + ".sts_assume_role_arn"),
 			StsExternalID:    man.getConfigString(prefix + ".sts_external_id"),
 		}
@@ -1510,6 +1519,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
+			Region:                    man.getConfigString("redis.region"),
+			CacheName:                 man.getConfigString("redis.cache_name"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
 			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
 			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
