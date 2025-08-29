@@ -5,8 +5,7 @@ Fleet gathers information from an [osquery](https://github.com/osquery/osquery) 
 Fleet creates a host record when a device is enrolled. Note that “enrolled” and “MDM turned on” are not always the same action.
 
 - For macOS, Windows, and Linux: installing Fleet’s agent (fleetd) creates the host record in Fleet (enrollment). Turning on MDM is a separate step that can be performed after fleetd is installed.
- - For iOS, iPadOS, and Android: hosts enroll into Fleet through the MDM enrollment. In other words, enrollment and enabling MDM happen at the same time — when the host is enrolled into MDM, the host record is created in Fleet, and MDM is turned on.
-
+- For iOS, iPadOS, and Android: hosts enroll into Fleet through the MDM enrollment. In other words, enrollment and enabling MDM happen at the same time — when the host is enrolled into MDM, the host record is created in Fleet, and MDM is turned on.
 
 You can enroll macOS, Windows, and Linux hosts via the [CLI](#cli) or [UI](#ui). You can enroll iOS, iPadOS, and Android hostsvia the [UI](#ui).
 
