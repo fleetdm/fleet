@@ -174,7 +174,7 @@ As an example, you can create a policy to "block access to Office 365 on macOS d
 
 Then assign the policy to the "Fleet conditional access" group.
 
-**Start with a pilot**, then expand gradually. Begin by adding users—maybe your IT team or a specific department to this group. As you gain confidence with the setup, expand the "Fleet conditional access" group to include more users.
+**Start with a pilot**, then expand gradually. Begin by adding test users—maybe your IT team or a department—to this group. As you gain confidence with the setup, expand the "Fleet conditional access" group to include more users.
 
 **Your end goal should be to include everyone.** For the broadest protection, add all users who access your protected applications to the "Fleet conditional access" group. 
 
