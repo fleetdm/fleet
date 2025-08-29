@@ -567,6 +567,10 @@ type Datastore interface {
 	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
 	// are being deleted from the global configuration.
 	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
+	// DefaultTeamConfig returns the configuration for "No Team" hosts.
+	DefaultTeamConfig(ctx context.Context) (*TeamConfig, error)
+	// SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
+	SaveDefaultTeamConfig(ctx context.Context, config *TeamConfig) error
 	// TeamExists returns true if a team with the given id exists.
 	TeamExists(ctx context.Context, teamID uint) (bool, error)
 

@@ -931,14 +931,14 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
 
 - Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
-  - "Yeah, we use Nudge"
-  - "Introducing our friend Skimbleshanks"
+  - "Yeah, we use Nudge."
+  - "Introducing our friend Skimbleshanks."
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
-  - "MDM commands in Fleet are available over a REST API that returns JSON"
+  - "MDM commands in Fleet are available over a REST API that returns JSON."
 - Stylizations _("macOS", "osquery", "MySQL", "APNs")
-  - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
-  - "Zach is the co-creator of osquery"
+  - "Although 'macOS' is a proper noun, macOS uses its own [style guide from Apple](https://developer.apple.com/design/human-interface-guidelines), to which we adhere."
+  - "Zach is the co-creator of osquery."
   - "Does it work with MySQL?"
   - "Does it use APNs (the Apple Push Notification service)?"
 
