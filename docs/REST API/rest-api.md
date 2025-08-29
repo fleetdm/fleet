@@ -663,7 +663,7 @@ Object with the following structure:
 
 ##### Request body
 
-``json
+```json
 {
   "digicert": {
     "name": "WIFI_CERTIFICATE",
@@ -677,6 +677,7 @@ Object with the following structure:
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
 }
+```
 
 ##### Default response
 
