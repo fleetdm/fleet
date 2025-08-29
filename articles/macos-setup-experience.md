@@ -4,7 +4,7 @@ _Available in Fleet Premium_
 
 In Fleet, you can customize the out-of-the-box macOS setup.
 
-Here's you can configure to happen, and in what order, to your macOS hosts during setup:
+Here's what you can configure, and in what order each happen, to your macOS hosts during setup:
 
 1. Require [end users to authenticate](#end-user-authentication-and-end-user-license-agreement-eula) with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new Mac.
 
