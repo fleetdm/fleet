@@ -189,3 +189,9 @@ func IsSetupExperienceSupported(hostPlatform string) bool {
 	// TODO: confirm we aren't supporting any other Apple platforms
 	return hostPlatform == "darwin"
 }
+
+// SetupExperienceInitPayload is the payload returned when the orbit client manually initiates
+// setup experience for non-darwin platforms
+type SetupExperienceInitPayload struct {
+	EnabledForTeam bool `json:"enable_for_team"`
+}

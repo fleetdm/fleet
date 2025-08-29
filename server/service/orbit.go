@@ -1475,3 +1475,22 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 
 	return nil, fleet.ErrMissingLicense
 }
+
+type initSetupExperienceRequest struct {
+	OrbitNodeKey string `json:"orbit_node_key"`
+}
+
+func (r *initSetupExperienceRequest) setOrbitNodeKey(nodeKey string) {
+	r.OrbitNodeKey = nodeKey
+}
+
+func (r *initSetupExperienceRequest) orbitHostNodeKey() string {
+	return r.OrbitNodeKey
+}
+
+type initSetupExperienceResponse struct {
+	Result *fleet.SetupExperienceInitPayload `json:"setup_experience_init,omitempty"`
+	Err    error                             `json:"error,omitempty"`
+}
+
+func (r initSetupExperienceResponse) Error() error { return r.Err }
