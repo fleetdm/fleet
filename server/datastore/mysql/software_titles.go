@@ -80,6 +80,19 @@ GROUP BY
 		return nil, ctxerr.Wrap(ctx, err, "get software title version")
 	}
 
+	if title.AppStoreApp != nil {
+		title.IconUrl = title.AppStoreApp.IconURL
+	}
+	if teamID != nil {
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, id)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			title.IconUrl = ptr.String(icon.IconUrl())
+		}
+	}
+
 	title.VersionsCount = uint(len(title.Versions))
 	return &title, nil
 }
