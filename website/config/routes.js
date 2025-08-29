@@ -996,7 +996,7 @@ module.exports.routes = {
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
   'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
-  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises', csrf: false},
+  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises'},
   'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
