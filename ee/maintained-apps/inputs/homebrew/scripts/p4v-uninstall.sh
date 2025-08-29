@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 quit_application() {
   local bundle_id="$1"
