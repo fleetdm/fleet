@@ -11,9 +11,13 @@ import (
 
 var (
 	addrFlag       = flag.String("addr", "", "ElastiCache endpoint address, including port")
-	userFlag       = flag.String("user", "", "Username for IAM authentication")
+	userFlag       = flag.String("user", "", "Username for authentication")
+	passwordFlag   = flag.String("pass", "", "Password for authentication")
+	useTLS         = flag.Bool("tls", false, "Whether or not to use TLS")
 	assumeRoleFlag = flag.String("assume-role", "", "STS assume role ARN (optional)")
 	externalIDFlag = flag.String("external-id", "", "STS external ID (optional)")
+	regionFlag     = flag.String("region", "", "AWS region (optional)")
+	cacheNameFlag  = flag.String("cache-name", "", "ElastiCache cluster name (optional)")
 )
 
 func main() {
@@ -22,9 +26,6 @@ func main() {
 	if *addrFlag == "" {
 		log.Fatal("ElastiCache address is required (-addr flag)")
 	}
-	// if *userFlag == "" {
-	// 	log.Fatal("Username is required (-user flag)")
-	// }
 
 	log.Printf("Connecting to ElastiCache at %s with IAM auth for user %s", *addrFlag, *userFlag)
 	if *assumeRoleFlag != "" {
@@ -40,6 +41,18 @@ func main() {
 
 	if userFlag != nil && *userFlag != "" {
 		config.Username = *userFlag
+	}
+	if passwordFlag != nil && *passwordFlag != "" {
+		config.Password = *passwordFlag
+	}
+	if useTLS != nil && *useTLS {
+		config.UseTLS = true
+	}
+	if regionFlag != nil && *regionFlag != "" {
+		config.Region = *regionFlag
+	}
+	if cacheNameFlag != nil && *cacheNameFlag != "" {
+		config.CacheName = *cacheNameFlag
 	}
 
 	pool, err := redis.NewPool(config)

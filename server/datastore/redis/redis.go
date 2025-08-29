@@ -62,6 +62,8 @@ func (p *clusterPool) Mode() fleet.RedisMode {
 // PoolConfig holds the redis pool configuration options.
 type PoolConfig struct {
 	Server                    string
+	CacheName                 string // for ElastiCache IAM auth
+	Region                    string // for ElastiCache IAM auth
 	Username                  string
 	Password                  string
 	Database                  int
@@ -279,11 +281,9 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 	tryIAMAuth := false
 	if conf.Password == "" && isElastiCacheEndpoint(conf.Server) {
 		tryIAMAuth = true
-		region, cacheName, err := parseElastiCacheEndpoint(conf.Server)
-		if err != nil {
-			return nil, err
-		}
-
+		var err error
+		region := conf.Region
+		cacheName := conf.CacheName
 		awsIAMTokenGen, err = newAWSIAMAuthTokenGenerator(cacheName, conf.Username, region, conf.StsAssumeRoleArn, conf.StsExternalID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create AWS IAM token generator: %w", err)
