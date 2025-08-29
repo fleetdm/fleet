@@ -1672,6 +1672,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_custom_est
+
+Generated when a custom EST certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## deleted_custom_est
+
+Generated when a custom EST certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SECTIGO_WIFI"
+}
+```
+
+## edited_custom_est
+
+Generated when a custom EST certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SECTIGO_WIFI"
+}
+```
+
 ## added_digicert
 
 Generated when DigiCert certificate authority configuration is added in Fleet.
