@@ -9210,6 +9210,26 @@ func (s *integrationMDMTestSuite) runWorker() {
 	require.Empty(s.T(), pending)
 }
 
+// runWorkerUntilDone runs queued jobs until there are no more pending jobs
+// this method handles the case when jobs could be queued asynchronously, such as during MDM enrollment
+func (s *integrationMDMTestSuite) runWorkerUntilDone() {
+	err := s.worker.ProcessJobs(s.T().Context())
+	require.NoError(s.T(), err)
+
+	// Retry checking for pending jobs
+	require.Eventually(s.T(), func() bool {
+		pending, err := s.ds.GetQueuedJobs(s.T().Context(), 1, time.Time{})
+		require.NoError(s.T(), err)
+		if len(pending) == 0 {
+			return true
+		}
+		// Process any newly queued jobs
+		s.T().Logf("Pending job: %s", pending[0].Name)
+		err = s.worker.ProcessJobs(s.T().Context())
+		return err == nil && len(pending) == 0
+	}, 5*time.Second, 100*time.Millisecond, "jobs still pending after processing")
+}
+
 func (s *integrationMDMTestSuite) runDEPSchedule() {
 	ctx := context.Background()
 	fleetSyncer := apple_mdm.NewDEPService(s.ds, s.depStorage, s.logger)
