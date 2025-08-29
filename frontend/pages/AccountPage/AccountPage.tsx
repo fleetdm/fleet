@@ -185,6 +185,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
                 url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
                 text="API-only user"
                 newTab
+                variant="banner-link"
               />
               &nbsp;instead.
             </p>

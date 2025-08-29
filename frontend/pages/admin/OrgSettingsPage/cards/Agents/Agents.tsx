@@ -107,6 +107,7 @@ const Agents = ({
                 url="https://fleetdm.com/docs/using-fleet/teams"
                 text="Learn more about teams"
                 newTab
+                variant="banner-link"
               />
             </InfoBanner>
           )}
