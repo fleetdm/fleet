@@ -431,6 +431,10 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
 
+type DefaultTeamConfigFunc func(ctx context.Context) (*fleet.TeamConfig, error)
+
+type SaveDefaultTeamConfigFunc func(ctx context.Context, config *fleet.TeamConfig) error
+
 type TeamExistsFunc func(ctx context.Context, teamID uint) (bool, error)
 
 type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
@@ -2085,6 +2089,12 @@ type DataStore struct {
 
 	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
 	DeleteIntegrationsFromTeamsFuncInvoked bool
+
+	DefaultTeamConfigFunc        DefaultTeamConfigFunc
+	DefaultTeamConfigFuncInvoked bool
+
+	SaveDefaultTeamConfigFunc        SaveDefaultTeamConfigFunc
+	SaveDefaultTeamConfigFuncInvoked bool
 
 	TeamExistsFunc        TeamExistsFunc
 	TeamExistsFuncInvoked bool
@@ -5078,6 +5088,20 @@ func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntg
 	s.DeleteIntegrationsFromTeamsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
+}
+
+func (s *DataStore) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	s.mu.Lock()
+	s.DefaultTeamConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.DefaultTeamConfigFunc(ctx)
+}
+
+func (s *DataStore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	s.mu.Lock()
+	s.SaveDefaultTeamConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveDefaultTeamConfigFunc(ctx, config)
 }
 
 func (s *DataStore) TeamExists(ctx context.Context, teamID uint) (bool, error) {
