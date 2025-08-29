@@ -3126,6 +3126,7 @@ func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
 	if softwareTitleRecord.VPPAppPlatform != nil {
 		softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
 	}
+	softwareTitleRecord.IconUrl = softwareTitleRecord.VPPAppIconURL
 
 	// promote the last install info to the proper destination fields
 	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
@@ -4164,6 +4165,16 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
 		}
 
+		icons, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, softwareTitleIds)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
+		iconsBySoftwareTitleID := make(map[uint]fleet.SoftwareTitleIcon, len(icons))
+		for _, icon := range icons {
+			iconsBySoftwareTitleID[icon.SoftwareTitleID] = icon
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4320,6 +4331,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						"msg", "software title record should have an associated VPP application or software package",
 					)
 				}
+			}
+
+			if icon, ok := iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+				softwareTitleRecord.IconUrl = ptr.String(icon.IconUrl())
 			}
 
 			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {

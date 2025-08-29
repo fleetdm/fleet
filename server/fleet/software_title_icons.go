@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"time"
 )
@@ -23,6 +24,10 @@ type SoftwareTitleIcon struct {
 
 func (s *SoftwareTitleIcon) AuthzType() string {
 	return "installable_entity"
+}
+
+func (s *SoftwareTitleIcon) IconUrl() string {
+	return fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", s.SoftwareTitleID, s.TeamID)
 }
 
 type SoftwareTitleIconStore interface {

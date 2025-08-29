@@ -1291,6 +1291,10 @@ type CreateOrUpdateSoftwareTitleIconFunc func(ctx context.Context, payload *flee
 
 type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error)
 
+type GetSoftwareIconsByTeamAndTitleIdsFunc func(ctx context.Context, teamID uint, titleIDs []uint) ([]fleet.SoftwareTitleIcon, error)
+
+type GetSoftwareTitleIconsByTeamAndAdamIDsFunc func(ctx context.Context, teamID uint, adamIDs []string) (map[string]fleet.SoftwareTitleIcon, error)
+
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
 type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
@@ -3381,6 +3385,12 @@ type DataStore struct {
 
 	GetSoftwareTitleIconFunc        GetSoftwareTitleIconFunc
 	GetSoftwareTitleIconFuncInvoked bool
+
+	GetSoftwareIconsByTeamAndTitleIdsFunc        GetSoftwareIconsByTeamAndTitleIdsFunc
+	GetSoftwareIconsByTeamAndTitleIdsFuncInvoked bool
+
+	GetSoftwareTitleIconsByTeamAndAdamIDsFunc        GetSoftwareTitleIconsByTeamAndAdamIDsFunc
+	GetSoftwareTitleIconsByTeamAndAdamIDsFuncInvoked bool
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
@@ -8103,6 +8113,20 @@ func (s *DataStore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	s.GetSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) ([]fleet.SoftwareTitleIcon, error) {
+	s.mu.Lock()
+	s.GetSoftwareIconsByTeamAndTitleIdsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareIconsByTeamAndTitleIdsFunc(ctx, teamID, titleIDs)
+}
+
+func (s *DataStore) GetSoftwareTitleIconsByTeamAndAdamIDs(ctx context.Context, teamID uint, adamIDs []string) (map[string]fleet.SoftwareTitleIcon, error) {
+	s.mu.Lock()
+	s.GetSoftwareTitleIconsByTeamAndAdamIDsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareTitleIconsByTeamAndAdamIDsFunc(ctx, teamID, adamIDs)
 }
 
 func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {
