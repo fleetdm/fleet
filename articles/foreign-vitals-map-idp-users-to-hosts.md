@@ -6,7 +6,7 @@ _Available in Fleet Premium._
 
 To add IdP host vitals, like the end user's groups, department, and full name, follow steps for your IdP.
 
-Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process.  
+Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process. Also, fleet gathers IdP username for BYOD iOS and iPadOS hosts when end users enroll via link from **Hosts > Add host > iOS & iPadOS** and log in with their IdP credentials. This is coming soon for Android.
 
 By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles to, for example, [deploy a WiFi certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet).
 
