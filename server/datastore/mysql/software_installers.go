@@ -746,7 +746,7 @@ WHERE
 		dest.AutomaticInstallPolicies = policies
 
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
 		}
 		if icon != nil {
