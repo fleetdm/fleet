@@ -1052,7 +1052,7 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
-		man.addConfigString(prefix+".region", "true", "RDS region for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".region", "", "RDS region for AWS authentication"+usageSuffix)
 		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
 		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}

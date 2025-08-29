@@ -140,8 +140,10 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 	}
 	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
 		params.Set("allowCleartextPasswords", "true")
-	}
-	if conf.TLSConfig != "" {
+		if conf.TLSConfig == "" {
+			params.Set("tls", "rdsmysql")
+		}
+	} else if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {
