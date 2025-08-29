@@ -45,6 +45,14 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the free Android Enterprise subscription is required for Android MDM features.
 
+## Manual enrollment (BYOD)
+
+Learn how to [enroll Android hosts](https://fleetdm.com/guides/enroll-hosts#ui).
+
+## Migration
+
+To migrate hosts from other MDM solution, you must first unenroll hosts, and [enroll Android hosts](https://fleetdm.com/guides/enroll-hosts#ui).
+
 ## Turn off
 
 1. In Fleet, head to **Settings > Integrations > MDM**.
