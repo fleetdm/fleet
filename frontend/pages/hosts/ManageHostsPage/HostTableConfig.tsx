@@ -6,7 +6,11 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isAndroid, isMobilePlatform } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isMobilePlatform,
+} from "interfaces/platform";
 import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Checkbox from "components/forms/fields/Checkbox";
@@ -235,9 +239,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // Show "---" for ABM devices with Pending enrollment status
       if (
         cellProps.row.original.mdm?.enrollment_status === "Pending" &&
-        (cellProps.row.original.platform === "darwin" ||
-          cellProps.row.original.platform === "ios" ||
-          cellProps.row.original.platform === "ipados")
+        isAppleDevice(cellProps.row.original.platform)
       ) {
         const tooltip = {
           tooltipText: getHostStatusTooltipText("---"),
