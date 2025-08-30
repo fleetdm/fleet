@@ -120,7 +120,7 @@ func restore(ctx context.Context, from string, to string) error {
 
 		// Construct the output path for this item.
 		output := filepath.Join(to, filepath.Clean(header.Name))
-		log.Infof("Decompressing restore archive item: %s.", output)
+		log.Debugf("Decompressing restore archive item: %s.", output)
 
 		// Handle the fs op based on the header type.
 		switch header.Typeflag {

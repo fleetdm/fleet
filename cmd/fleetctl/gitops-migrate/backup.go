@@ -143,7 +143,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 			continue
 		}
 
-		log.Info(
+		log.Debug(
 			"Compressing file.",
 			"File Path", file.Path,
 			"Archive Path", filePathRelative,

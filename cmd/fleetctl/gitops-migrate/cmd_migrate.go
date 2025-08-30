@@ -105,7 +105,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// Look for a 'packages' key.
 		packagesObjects, ok := software[keyPackages].([]any)
 		if !ok {
-			log.Warn(
+			log.Debug(
 				"Team file's software object contains no packages.",
 				"Team File", item.Path,
 			)
