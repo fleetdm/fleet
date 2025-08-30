@@ -262,7 +262,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				}
 
 				// Serialize the package file back to disk.
-				err = yaml.NewEncoder(packageFile).Encode(pkg)
+				enc := yaml.NewEncoder(packageFile)
+				enc.SetIndent(2)
+				err = enc.Encode(pkg)
 				if err != nil {
 					log.Error(
 						"Failed to re-encode package file.",
@@ -361,7 +363,9 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			}
 
 			// Serialize the team file back to disk.
-			err = yaml.NewEncoder(teamFile).Encode(team)
+			enc := yaml.NewEncoder(teamFile)
+			enc.SetIndent(2)
+			err = enc.Encode(team)
 			if err != nil {
 				log.Error(
 					"Failed to YAML-encode updated team file back to disk.",
