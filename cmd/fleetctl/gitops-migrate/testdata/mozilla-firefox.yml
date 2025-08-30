@@ -1,0 +1,9 @@
+url: https://fleetdm.com
+self_service: true
+setup_experience: true
+categories:
+  - Browsers
+labels_include_any:
+  - Hello
+labels_exclude_any:
+  - World
