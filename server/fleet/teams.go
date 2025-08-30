@@ -214,7 +214,10 @@ type TeamSpecAppStoreApp struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
-	Categories         []string     `json:"categories"`
+	Categories []string `json:"categories"`
+	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
+	// if not supplied (Valid field is false) then the server-side value for setup experience membership
+	// is not changed, for compatibility with the old fleetctl apply format
 	InstallDuringSetup optjson.Bool `json:"setup_experience"`
 }
 

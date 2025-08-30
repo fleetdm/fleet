@@ -203,9 +203,11 @@ func TestValidGitOpsYaml(t *testing.T) {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsIncludeAny, "a")
 							assert.Contains(t, pkg.Categories, "Communication")
+							assert.Empty(t, pkg.LabelsExcludeAny)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
 							assert.Contains(t, pkg.LabelsExcludeAny, "a")
+							assert.Empty(t, pkg.LabelsIncludeAny)
 						}
 					}
 					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
