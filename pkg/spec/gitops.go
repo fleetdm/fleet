@@ -161,6 +161,16 @@ type SoftwarePackage struct {
 	fleet.SoftwarePackageSpec
 }
 
+func (spec SoftwarePackage) HydrateToPackageLevel(packageLevel fleet.SoftwarePackageSpec) fleet.SoftwarePackageSpec {
+	packageLevel.Categories = spec.Categories
+	packageLevel.LabelsIncludeAny = spec.LabelsIncludeAny
+	packageLevel.LabelsExcludeAny = spec.LabelsExcludeAny
+	packageLevel.InstallDuringSetup = spec.InstallDuringSetup
+	packageLevel.SelfService = spec.SelfService
+
+	return packageLevel
+}
+
 type Software struct {
 	Packages            []SoftwarePackage           `json:"packages"`
 	AppStoreApps        []fleet.TeamSpecAppStoreApp `json:"app_store_apps"`
@@ -1186,65 +1196,71 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}
-	for _, item := range software.FleetMaintainedApps {
-		item := item
-		if item.Slug == "" {
+	for _, maintainedAppSpec := range software.FleetMaintainedApps {
+		if maintainedAppSpec.Slug == "" {
 			multiError = multierror.Append(multiError, errors.New("fleet maintained app slug is required"))
 			continue
 		}
 
-		if len(item.LabelsExcludeAny) > 0 && len(item.LabelsIncludeAny) > 0 {
-			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, item.Slug))
+		if len(maintainedAppSpec.LabelsExcludeAny) > 0 && len(maintainedAppSpec.LabelsIncludeAny) > 0 {
+			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for fleet maintained app %q`, maintainedAppSpec.Slug))
 			continue
 		}
 
-		item = item.ResolveSoftwarePackagePaths(baseDir)
+		maintainedAppSpec = maintainedAppSpec.ResolveSoftwarePackagePaths(baseDir)
 
 		// handle secrets
-		if item.InstallScript.Path != "" {
-			if err := gatherFileSecrets(result, item.InstallScript.Path); err != nil {
+		if maintainedAppSpec.InstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.InstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
 		}
-		if item.PostInstallScript.Path != "" {
-			if err := gatherFileSecrets(result, item.PostInstallScript.Path); err != nil {
+		if maintainedAppSpec.PostInstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.PostInstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
 		}
-		if item.UninstallScript.Path != "" {
-			if err := gatherFileSecrets(result, item.UninstallScript.Path); err != nil {
+		if maintainedAppSpec.UninstallScript.Path != "" {
+			if err := gatherFileSecrets(result, maintainedAppSpec.UninstallScript.Path); err != nil {
 				multiError = multierror.Append(multiError, err)
 				continue
 			}
 		}
 
-		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &item)
+		result.Software.FleetMaintainedApps = append(result.Software.FleetMaintainedApps, &maintainedAppSpec)
 	}
-	for _, item := range software.Packages {
+	for _, teamLevelPackage := range software.Packages {
 		var softwarePackageSpec fleet.SoftwarePackageSpec
-		if item.Path != nil {
-			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *item.Path)
+		if teamLevelPackage.Path != nil {
+			softwarePackageSpec.ReferencedYamlPath = resolveApplyRelativePath(baseDir, *teamLevelPackage.Path)
 			fileBytes, err := os.ReadFile(softwarePackageSpec.ReferencedYamlPath)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read software package file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			if err := YamlUnmarshal(fileBytes, &softwarePackageSpec); err != nil {
-				multiError = multierror.Append(multiError, MaybeParseTypeError(*item.Path, []string{"software", "packages"}, err))
+				multiError = multierror.Append(multiError, MaybeParseTypeError(*teamLevelPackage.Path, []string{"software", "packages"}, err))
 				continue
 			}
 
 			softwarePackageSpec = softwarePackageSpec.ResolveSoftwarePackagePaths(filepath.Dir(softwarePackageSpec.ReferencedYamlPath))
+
+			if softwarePackageSpec.IncludesFieldsDisallowedInPackageFile() {
+				multiError = multierror.Append(multiError, fmt.Errorf("labels, categories, setup_experience, and self_service values must be specified at the team level; package-level specified in %s", *teamLevelPackage.Path))
+				continue
+			}
+
+			softwarePackageSpec = teamLevelPackage.HydrateToPackageLevel(softwarePackageSpec)
 		} else {
-			softwarePackageSpec = item.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
+			softwarePackageSpec = teamLevelPackage.SoftwarePackageSpec.ResolveSoftwarePackagePaths(baseDir)
 		}
 		if softwarePackageSpec.InstallScript.Path != "" {
 			if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {

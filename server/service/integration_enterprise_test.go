@@ -11917,26 +11917,30 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
 		{
-			URL:               "http://foo.com",
-			SelfService:       true,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			URL:                "http://foo.com",
+			SelfService:        true,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			URL:               "http://bar.com",
-			SelfService:       false,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			URL:                "http://bar.com",
+			SelfService:        false,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
 		{
-			AppStoreID: "1234",
+			AppStoreID:         "1234",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			AppStoreID: "5678",
+			AppStoreID:         "5678",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 
