@@ -467,6 +467,12 @@ software:
         - Communication
   fleet_maintained_apps:
     - slug: slack/darwin
+      install_script:
+        path: ../lib/software/slack-install-script.ps1
+      uninstall_script:
+        path: ../lib/software/slack-uninstall-script.ps1
+      post_install_script:
+        path: ../lib/software/slack-config-script.ps1
       self_service: true
       labels_include_any:
         - Design
@@ -541,6 +547,18 @@ Currently, one app for each of an App Store app's supported platforms are added.
 - `fleet_maintained_apps` is a list of Fleet-maintained apps. Provide the `slug` field to include a Fleet-maintained app on a team. To find the `slug`, head to **Software > Add software** and select a Fleet-maintained app, then select **Show details**. You can also see the [list of app slugs on GitHub](https://github.com/fleetdm/fleet/blob/main/ee/maintained-apps/outputs/apps.json).
 
 Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
+
+The below fields are all optional.
+
+- `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
+- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
+
+The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+
+- `install_script.path` specifies the command Fleet will run on hosts to install software.
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
+- `categories` is an array of categories, from [supported categories](#labels-and-categories).
 
 ## org_settings and team_settings
 
