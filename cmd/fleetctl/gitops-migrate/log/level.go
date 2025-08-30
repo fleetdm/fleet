@@ -1,6 +1,6 @@
 package log
 
-var Level level
+var Level level = LevelInfo
 
 type level uint8
 
@@ -15,15 +15,15 @@ const (
 func (self level) String() string {
 	switch self {
 	case LevelDebug:
-		return colorDBG + "DBG" + colorReset
+		return "DBG"
 	case LevelInfo:
-		return colorINF + "INF" + colorReset
+		return "INF"
 	case LevelWarn:
-		return colorWRN + "WRN" + colorReset
+		return "WRN"
 	case LevelError:
-		return colorERR + "ERR" + colorReset
+		return "ERR"
 	case LevelFatal:
-		return colorFTL + "FTL" + colorReset
+		return "FTL"
 	default:
 		return ""
 	}

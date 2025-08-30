@@ -107,11 +107,11 @@ var builderPool = &sync.Pool{
 }
 
 var (
-	brackL    = ansi.BoldBlack + "[" + ansi.Reset
-	brackR    = ansi.BoldBlack + "]" + ansi.Reset
-	arrow     = ansi.BoldMagenta + "=>" + ansi.Reset
-	rowMiddle = ansi.BoldMagenta + "╞═ " + ansi.Reset
-	rowBottom = ansi.BoldMagenta + "╰─ " + ansi.Reset
+	brackL    = ansi.Blue + "[" + ansi.Reset
+	brackR    = ansi.Blue + "]" + ansi.Reset
+	arrow     = ansi.BoldBlack + "=>" + ansi.Reset
+	rowMiddle = ansi.Magenta + "┣━ " + ansi.Reset
+	rowBottom = ansi.Magenta + "┗━ " + ansi.Reset
 	// Placeholder value for where len(pairs) % 2 != 0.
 	valueMissing = "<NOVALUE>"
 )
@@ -155,10 +155,28 @@ func writeLevel(w io.Writer, l level) {
 	if l < Level {
 		return
 	}
-	// Write the log level, if the appropriate configuration is set.
+	// Write the log level, if the appropriate configuration is set, otherwise
+	// just prefix the line with a caret.
+	pfx := ">"
 	if Options.WithLevel() {
-		fmt.Fprintf(w, "%s ", l)
+		pfx = l.String()
 	}
+	var color string
+	switch l {
+	case LevelDebug:
+		color = colorDBG
+	case LevelInfo:
+		color = colorINF
+	case LevelWarn:
+		color = colorWRN
+	case LevelError:
+		color = colorERR
+	case LevelFatal:
+		color = colorFTL
+	default:
+		color = colorDBG
+	}
+	fmt.Fprintf(w, "%s%s%s ", color, pfx, colorReset)
 }
 
 // Write the caller in 'short_file:line_number' format.
