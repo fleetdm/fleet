@@ -30,7 +30,7 @@ func restore(ctx context.Context, from string, to string) error {
 	log.Info(
 		"Performing Fleet GitOps restore.",
 		"Archive Path", from,
-		"Archive", to,
+		"Restore Path", to,
 	)
 
 	// Create the output directory, if necessary.

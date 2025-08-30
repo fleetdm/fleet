@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 )
@@ -9,7 +10,18 @@ import (
 const cmdBackup = "backup"
 
 func cmdBackupExec(ctx context.Context, args Args) error {
-	archivePath, err := backup(ctx, args.From, args.To)
+	// Grab the backup "source" path and the archive output path.
+	if len(args.Commands) < 2 {
+		return fmt.Errorf(
+			"expected a positional argument specifying the path to your GitOps " +
+				"files for backup",
+		)
+	}
+	from := args.Commands[0]
+	to := args.Commands[1]
+
+	// Perform the backup.
+	archivePath, err := backup(ctx, from, to)
 	if err != nil {
 		return err
 	}

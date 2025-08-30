@@ -9,13 +9,21 @@ import (
 const cmdRestore = "restore"
 
 func cmdRestoreExec(ctx context.Context, args Args) error {
-	err := restore(ctx, args.From, args.To)
+	if len(args.Commands) < 2 {
+		showUsageAndExit(
+			1,
+			"expected two positional args to command 'restore': the path to the "+
+				"archive, and the directory we want to restore the archive to",
+		)
+	}
+	from, to := args.Commands[0], args.Commands[1]
+	err := restore(ctx, from, to)
 	if err != nil {
 		return err
 	}
 	log.Info(
 		"Fleet GitOps restore completed successfully.",
-		"Restored To", args.To,
+		"Restored To", to,
 	)
 
 	return nil

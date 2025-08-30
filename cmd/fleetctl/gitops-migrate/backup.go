@@ -18,14 +18,11 @@ import (
 // backup creates a backup of the path provided via 'from', to a gzipped tarball
 // in the directory specified by 'to'.
 func backup(ctx context.Context, from string, to string) (string, error) {
-	// Construct the full output archive path.
-	now := time.Now()
-	output := filepath.Join(
-		to, fmt.Sprintf(
-			"fleet-gitops-backup-%d-%d-%d_%d-%d-%d.tar.gz",
-			now.Month(), now.Day(), now.Year(), now.Hour(), now.Minute(), now.Second(),
-		),
-	)
+	// Resolve and validate the backup archive output path.
+	output, err := resolveBackupTarget(to)
+	if err != nil {
+		return "", err
+	}
 
 	log.Info(
 		"Performing Fleet GitOps file backup.",
@@ -33,18 +30,7 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 		"Destination", output,
 	)
 
-	// Create any requisite parent directories  if necessary.
-	err := os.MkdirAll(filepath.Dir(to), fileModeUserRWX)
-	if err != nil {
-		if !errors.Is(err, os.ErrExist) {
-			return "", fmt.Errorf(
-				"failed to create backup output directory(%s): %w",
-				to, err,
-			)
-		}
-	}
-
-	// Get a writable handle to the output archive.
+	// Get a writable handle to the output archive file.
 	//
 	//nolint:gosec,G304 // 'output' is a trusted input.
 	f, err := os.OpenFile(output, fileFlagsOverwrite, fileModeUserRW)
@@ -120,11 +106,14 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 
 		// Construct the relative file path.
 		filePathRelative := strings.TrimPrefix(file.Path, from)
-		filePathRelative = strings.TrimPrefix(filePathRelative, string(os.PathSeparator))
+		filePathRelative = strings.TrimPrefix(
+			filePathRelative,
+			string(os.PathSeparator),
+		)
 
 		// Fix up the tar header.
 		//
-		// See 'tar.FileInfoHeader' docs for more on this.
+		// See 'tar.FileInfoHeader' docs for more on why we need to set this twice.
 		header.Name = filePathRelative
 		// If the item is a directory, zero the size.
 		if file.Stats.IsDir() {
@@ -189,6 +178,55 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 	}
 
 	return output, nil
+}
+
+// resolveBackupTarget evaluates the type of path 'path' points to.
+//
+// If 'path' is a FILE, the parent directory is created if it doesn't exist and
+// the path is returned unchanged.
+//
+// If 'path' is a DIRECTORY, the directory is created if it doesn't exist, a
+// random file name is generated and concatenated to the end of 'path',
+// finally returning the result.
+func resolveBackupTarget(path string) (string, error) {
+	// Attempt to identify if 'path' is a file or directory path by the presence
+	// of a file extension.
+	if filepath.Ext(path) == "" {
+		// 'path' is a directory.
+		//
+		// Create 'path' if it doesn't exist.
+		err := os.MkdirAll(path, fileModeUserRWX)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			return "", fmt.Errorf(
+				"failed to create all or part of the provided path(%s): %w",
+				path, err,
+			)
+		}
+
+		now := time.Now()
+		// Generate a randomized file name.
+		fileName := fmt.Sprintf(
+			"fleet-gitops-backup-%d-%d-%d_%d-%d-%d.tar.gz",
+			now.Month(), now.Day(), now.Year(), now.Hour(), now.Minute(), now.Second(),
+		)
+
+		// Concatenate the file name to the directory path and return.
+		return filepath.Join(path, fileName), nil
+	} else {
+		// 'path' is a file.
+		//
+		// Create 'path' if it doesn't exist.
+		err := os.MkdirAll(filepath.Dir(path), fileModeUserRWX)
+		if err != nil && !errors.Is(err, os.ErrExist) {
+			return "", fmt.Errorf(
+				"failed to create all or part of the provided path(%s): %w",
+				path, err,
+			)
+		}
+
+		// Return the file path, unchanged.
+		return path, nil
+	}
 }
 
 func mkBackupDir() (string, error) {

@@ -8,8 +8,6 @@ import (
 )
 
 type Args struct {
-	From     string
-	To       string
 	Debug    bool
 	Help     bool
 	Commands []string
@@ -25,14 +23,6 @@ func parseArgs() Args {
 			log.Fatal("Failed to write usage text to stderr :|.")
 		}
 	}
-
-	// --from, -f
-	flag.StringVar(&args.From, "from", "", "")
-	flag.StringVar(&args.From, "f", "", "")
-
-	// --to, -t
-	flag.StringVar(&args.To, "to", "", "")
-	flag.StringVar(&args.To, "t", "", "")
 
 	// --debug
 	flag.BoolVar(&args.Debug, "debug", false, "")

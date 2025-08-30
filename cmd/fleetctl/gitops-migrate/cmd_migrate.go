@@ -27,6 +27,15 @@ const (
 )
 
 func cmdMigrateExec(ctx context.Context, args Args) error {
+	if len(args.Commands) < 1 {
+		showUsageAndExit(
+			1,
+			"expected positional argument specifying the path to your Fleet GitOps "+
+				"YAML files",
+		)
+	}
+	from := args.Commands[0]
+
 	// Create a temp directory to which we'll write the backup archive.
 	tmpDir, err := mkBackupDir()
 	if err != nil {
@@ -34,7 +43,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	}
 
 	// Backup the provided migration target.
-	archivePath, err := backup(ctx, args.From, tmpDir)
+	archivePath, err := backup(ctx, from, tmpDir)
 	if err != nil {
 		return err
 	}
@@ -49,7 +58,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	// Track successful/failed conversions.
 	success := 0
 	failed := 0
-	for item, err := range fsEnum(args.From) {
+	for item, err := range fsEnum(from) {
 		// Handle any iterator errors.
 		if err != nil {
 			log.Errorf("Encountered error in file system enumeration: %s.", err)

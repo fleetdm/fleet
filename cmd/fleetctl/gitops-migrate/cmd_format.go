@@ -24,9 +24,8 @@ func cmdFormatExec(ctx context.Context, args Args) error {
 	if len(args.Commands) == 0 {
 		return errors.New("received no path to 'format' command")
 	}
+	fmtPath := args.Commands[0]
 
-	// Grab the 'input' path.
-	path := args.Commands[0]
 	log.Info("Formatting GitOps YAML files.")
 
 	// Init a limiter with a concurrency allowance equal to number of host machine
@@ -36,7 +35,7 @@ func cmdFormatExec(ctx context.Context, args Args) error {
 	// Enumerate the file system, format all YAML files.
 	pass := int32(0)
 	fail := int32(0)
-	for file, err := range fsEnum(path) {
+	for file, err := range fsEnum(fmtPath) {
 		// Handle errors.
 		if err != nil {
 			return fmt.Errorf("encountered error in file system enumeration: %w", err)

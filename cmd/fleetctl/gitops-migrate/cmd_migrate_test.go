@@ -7,20 +7,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 )
 
-func init() {
-	log.Options.SetWithCaller()
-	log.Options.SetWithLevel()
-}
-
 var (
 	// The software+team YAML files.
 	//
-	//go:embed testdata/*
+	//go:embed testdata
 	testdata embed.FS
 	// These only exist here for the purposes of compile-time guarantees that
 	// these files exist.
@@ -129,7 +123,7 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 
 func gitopsMigrate(t *testing.T, testDir string) {
 	cmdMigrateExec(t.Context(), Args{
-		From: testDir,
+		Commands: []string{testDir},
 	})
 }
 
