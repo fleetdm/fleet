@@ -56,7 +56,7 @@ type AppDetails struct {
 
 var appDetails = map[string]string{
 	"Name":    "Fleet GitOps Migration Tool",
-	"Command": "fm",
+	"Command": "gitops-migrate",
 }
 
 var tmplFuncs = template.FuncMap{
@@ -75,7 +75,8 @@ var tmplText = `
 Welcome to the {{ $gitops }} migration utility!
 
 The purpose of this package is to assist with automated GitOps YAML file
-transformations during the {{ $changeVer }} release.
+transformations during the {{ $changeVer }} release. See [LINK TODO] for more
+details.
 
 {{ magenta ">> Commands" }}
 
@@ -83,32 +84,36 @@ transformations during the {{ $changeVer }} release.
    migrate  Migrates a provided directory's {{ $gitops }} files.
    backup   Perform a backup of a target directory, output as a gzipped tarball.
    restore  Restore* a backup produced by the {{ green "backup" }} command.
-   usage    Show this help text!
+   usage    Show this help text (analogous to the {{ magenta "--help" }} flag)!
 
-   {{ yellow "* NOTE:" }}  Restore _will_ overwrite any existing files in the specified output
-            directory!
+   {{ yellow "* NOTE:" }}  Restore _will_ overwrite any existing files with the same name in
+            the specified output directory!
 
 {{ magenta ">> Flags" }}
 
-   --from, -f  The {{ yellow "input" }} directory, or archive, path for all commands.
-   --to,   -t  The {{ yellow "output" }} directory path for all commands.
-   --debug     Enables additional log output during any command executions.
-   --help      Show this help text!
+   --debug     Enables additional log output.
+   --help      Show this help text (analogous to the {{ magenta "usage" }} command)!
 
 {{ magenta ">> Examples" }}
 
-   {{ $sampleSrc := (pathJoin "." "fleet" "gitops") -}}
-   {{- $sampleDst := (pathJoin "." "fleet" "backups") -}}
+   {{ $sampleSrc := (pathJoin "." "fleet_gitops") -}}
+   {{- $sampleArchivePath := (pathJoin "." "fleet_backups") -}}
    To perform a {{ $gitops }} migration where:
      - {{ $gitops }} files reside in directory: '{{ $sampleSrc }}'.
 
-     {{ cyan "$" }} {{ magenta .Command }} migrate -f {{ $sampleSrc }}
+     {{ cyan "$" }} {{ magenta .Command }} migrate {{ $sampleSrc }}
 
    To perform a backup of {{ $gitops }} files, where:
      - {{ $gitops }} files reside in directory: '{{ $sampleSrc }}'.
-     - We want to produce a backup gzipped tarball to '{{ $sampleDst }}'.
+     - We want to produce a backup archive to '{{ $sampleArchivePath }}'.
 
-     {{ cyan "$" }} {{ magenta .Command }} backup -f {{ $sampleSrc }} -t {{ $sampleDst }}
+     {{ cyan "$" }} {{ magenta .Command }} backup {{ $sampleSrc }} {{ $sampleArchivePath }}
+
+   To restore a backup of {{ $gitops }} files, where:
+     - The backup archive is at: '{{ $sampleArchivePath }}'.
+     - We want to restore the backup archive to: '{{ $sampleSrc }}'.
+
+     {{ cyan "$" }} {{ magenta .Command }} restore {{ $sampleArchivePath }} {{ $sampleSrc }}
 `
 
 func usageText(w io.Writer) error {

@@ -37,7 +37,7 @@ You can verify the installation was successful by running `gitops-migrate usage`
 
 The migration will unfold in two primary steps: `format` and `migrate`.
 
-> [!WARNING]
+> [!IMPORTANT]
 > If your GitOps files are version-controlled (stored in GitHub or similar) it is recommended to perform these steps in order, opening a pull request, moving through your standard review process and merging that pull request **before** moving to the next step.
 
 ## Step 1: Format
@@ -50,68 +50,68 @@ a: []
 c: []
 b: []
 ```
-Becomes:
+Will become:
 ```yaml
 a: []
 b: []
 c: []
 ```
 
-This can mean, if your GitOps files are version-controlled (stored in GitHub or similar), you could see a very large number of changed lines which might make it more difficult to spot the **actual** transformations.
+This _can_ mean, if your GitOps files are version-controlled (stored in GitHub or similar), you could see a very large number of changed lines which might make it more difficult to spot the **actual** transformations.
 
-Considering the above, we recommend running the `gitops-migrate` `format` command first **before** performing the migration.
+Considering the above, we recommend running the `gitops-migrate` `format` command **before** performing the migration.
 
 ### Steps
 
-Run the `gitops-migrate` tool, specifying the `format` command followed by the path to your GitOps YAML _team_ files.
+Run the `gitops-migrate` tool, specifying the `format` command followed by the path to your GitOps YAML files.
 
 **Linux/Mac:**
 ```bash
 # If 'gitops-migrate' is in the current working directory.
-$ ./gitops-migrate format ./teams
+$ ./gitops-migrate format ./fleet_gitops
 # If 'gitops-migrate' is on PATH.
-$ gitops-migrate format ./teams
+$ gitops-migrate format ./fleet_gitops
 ```
 
 **Windows:**
 ```powershell
 # If 'gitops-migrate' is in the current working directory.
-PS> .\gitops-migrate format .\teams
+PS> .\gitops-migrate format .\fleet_gitops
 # If 'gitops-migrate' is on PATH.
-PS> gitops-migrate format .\teams
+PS> gitops-migrate format .\fleet_gitops
 ```
 
 Your YAML files should now all be alphabetized!
 
-> [!WARNING]
+> [!TIP]
 > It's recommended to pause here, open a pull request for the formatting changes _only_, then move onto the next section once that pull request has been reviewed and merged.
 
 ## Step 2: Migrate
 
 ### Overview
 
-This step we'll run the `gitops-migrate` `migrate` command which will:
+Now we'll run the `gitops-migrate` `migrate` command which will:
 - Perform a backup of your GitOps files, outputting an archive to your operating system's `TEMP` directory (**the path to this backup will be shown at the start of the output of the command, be sure to take note of it**).
 - Migrate all YAML files in the provided directory (changes outlined [above](#474-yaml-changes)).
 
 ### Steps
 
-Run the `gitops-migrate` tool, specifying the `migrate` command and the path to your GitOps _team_ YAML files.
+Run the `gitops-migrate` tool, specifying the `migrate` command and the path to your GitOps YAML files.
 
 **Linux/Mac**:
 ```bash
 # If 'gitops-migrate' is in the current working directory.
-$ ./gitops-migrate format ./teams
+$ ./gitops-migrate migrate ./gitops_files
 # If 'gitops-migrate' is on PATH.
-$ gitops-migrate format ./teams
+$ gitops-migrate migrate ./gitops_files
 ```
 
 **Windows:**
 ```powershell
 # If 'gitops-migrate' is in the current working directory.
-PS> .\gitops-migrate migrate .\teams
+PS> .\gitops-migrate migrate .\gitops_files
 # If 'gitops-migrate' is on PATH.
-PS> gitops-migrate migrate .\teams
+PS> gitops-migrate migrate .\gitops_files
 ```
 
 ### Did it work?
@@ -123,7 +123,7 @@ PS> gitops-migrate migrate .\teams
 ┗━ [Count]=>[39]
 ```
 
-You can spot-check these files and if they previously referenced files containing the fields described [above](#474-yaml-changes), these fields should now be present on the team file's appropriate `software->packages` array items.
+In cases where the _team_ file previously contained software packages which referenced software files containing the fields [described above](#474-yaml-changes), you can spot-check the results by confirming these fields are now present in the software packages array items, right alongside the `path` key(s).
 
 **When looking at a `git diff`** you should see changes similar to the following:
 
@@ -138,7 +138,7 @@ url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-
 -  - "Debian-based Linux hosts"
 ```
 
-**Team File:**
+**Team File (`my_team.yml`):**
 ```diff
 software:
   packages:
@@ -153,4 +153,30 @@ software:
 
 ### Help, something has gone wrong!
 
-`TODO`
+In the event you've attempted the migration and encounter any issues, you can quickly revert your GitOps file states by simply restoring the backup taken automatically during the `migrate` process.
+
+To do this, locate the backup archive path in the log output:
+
+```bash
+> Performing Fleet GitOps file backup.
+┣━ [Source]=>[fleet_gitops]
+┗━ [Destination]=>[/tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz] # <-- Here
+```
+
+Then simply run the `gitops-migrate` `restore` command to restore this backup, specifying the **archive** path as the first arg and the path to restore the archive **to** as the second arg:
+
+**Linux/Mac**:
+```bash
+# If 'gitops-migrate' is in the current working directory.
+$ ./gitops-migrate restore /tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz ./fleet_gitops
+# If 'gitops-migrate' is on PATH.
+$ gitops-migrate restore /tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz ./fleet_gitops
+```
+
+**Windows:**
+```powershell
+# If 'gitops-migrate' is in the current working directory.
+PS> .\gitops-migrate restore 'C:\Users\am\AppData\Local\Temp\fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz' .\fleet_gitops
+# If 'gitops-migrate' is on PATH.
+PS> gitops-migrate restore 'C:\Users\am\AppData\Local\Temp\fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz' .\fleet_gitops
+```
