@@ -58,8 +58,6 @@ func TestGitopsMigrate(t *testing.T) {
 func gitopsMigratePre(t *testing.T, testDir string) {
 	t.Helper()
 
-	t.Helper()
-
 	// Validate expectations for the software file.
 	//
 	// Read the file.
@@ -122,9 +120,9 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 }
 
 func gitopsMigrate(t *testing.T, testDir string) {
-	cmdMigrateExec(t.Context(), Args{
+	require.NoError(t, cmdMigrateExec(t.Context(), Args{
 		Commands: []string{testDir},
-	})
+	}))
 }
 
 func gitopsMigratePost(t *testing.T, testDir string) {

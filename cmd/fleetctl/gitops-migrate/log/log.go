@@ -112,6 +112,10 @@ var (
 	arrow     = ansi.BoldBlack + "=>" + ansi.Reset
 	rowMiddle = ansi.Magenta + "┣━ " + ansi.Reset
 	rowBottom = ansi.Magenta + "┗━ " + ansi.Reset
+
+	// The line prefix used when the 'WithLevel' option is _not_ set.
+	linePrefix = ">"
+
 	// Placeholder value for where len(pairs) % 2 != 0.
 	valueMissing = "<NOVALUE>"
 )
@@ -157,7 +161,7 @@ func writeLevel(w io.Writer, l level) {
 	}
 	// Write the log level, if the appropriate configuration is set, otherwise
 	// just prefix the line with a caret.
-	pfx := ">"
+	pfx := linePrefix
 	if Options.WithLevel() {
 		pfx = l.String()
 	}

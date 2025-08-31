@@ -99,7 +99,7 @@ func expectLog(t *testing.T, buffer testBuffer, l level, input string, pairs ...
 		}
 
 		// Assert the message first.
-		require.Equal(t, input, lines[0])
+		require.Equal(t, linePrefix+" "+input, lines[0])
 
 		// If we have no pairs we're done here.
 		if len(pairs) == 0 {
@@ -184,7 +184,7 @@ func expectLogf(t *testing.T, buffer testBuffer, l level, input string, values .
 		//
 		// Slice off the newline to simplify comparison below.
 		output = strings.TrimRight(output, "\n")
-		require.Equal(t, fmt.Sprintf(input, values...), output)
+		require.Equal(t, linePrefix+" "+fmt.Sprintf(input, values...), output)
 	}
 }
 
