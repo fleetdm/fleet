@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -34,7 +35,13 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				"YAML files",
 		)
 	}
-	from := args.Commands[0]
+	from, err := filepath.Abs(args.Commands[0])
+	if err != nil {
+		return fmt.Errorf(
+			"failed to derive absolute input path(%s): %w",
+			args.Commands[0], err,
+		)
+	}
 
 	// Create a temp directory to which we'll write the backup archive.
 	tmpDir, err := mkBackupDir()
