@@ -189,6 +189,15 @@ func backup(ctx context.Context, from string, to string) (string, error) {
 // random file name is generated and concatenated to the end of 'path',
 // finally returning the result.
 func resolveBackupTarget(path string) (string, error) {
+	// Resolve the absolute file path.
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf(
+			"failed to identify absolute file path from [%s]: %w",
+			path, err,
+		)
+	}
+
 	// Attempt to identify if 'path' is a file or directory path by the presence
 	// of a file extension.
 	if filepath.Ext(path) == "" {
