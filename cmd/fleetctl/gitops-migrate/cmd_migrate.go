@@ -102,6 +102,13 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		team := make(map[string]any)
 		err = yaml.NewDecoder(teamFile).Decode(&team)
 		if err != nil {
+			if isYAMLUnmarshalSeqError(err) {
+				log.Debugf(
+					"Skipping file with array item(s) at the root: %s.",
+					item.Path,
+				)
+				continue
+			}
 			log.Error(
 				"Failed to unmarshal file.",
 				"Team File", item.Path,
@@ -453,4 +460,28 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	}
 
 	return nil
+}
+
+// isYAMLUnmarshalSeqError simply reports whether the provided error (returned
+// by 'yaml.NewDecoder().Decode' or 'yaml.Unmarshal') is in fact a
+// 'yaml.TypeError' which contains a single message regarding a failed unmarshal
+// of a sequence (array) to a map.
+//
+// Certain GitOps YAML files (ex: 'it-and-security\lib\windows\queries\all-x86-hosts.yml')
+// use an array as the outermost data type. These cases are rare but exist, and
+// this will break the YAML unmarshal since we expect objects at the outermost
+// level for the purposes of this tool. This function just reports whether an
+// encountered error is one such case.
+func isYAMLUnmarshalSeqError(err error) bool {
+	var typeErr *yaml.TypeError
+	if errors.As(err, &typeErr) {
+		// This sure is an ugly way to check error conditions, but in the case of
+		// this package it builds a slice of errors as strings so we have no choice.
+		if len(typeErr.Errors) == 1 && strings.Contains(
+			typeErr.Errors[0], "cannot unmarshal !!seq into map[string]interface",
+		) {
+			return true
+		}
+	}
+	return false
 }
