@@ -26,6 +26,7 @@ func main() {
 	// Execute the command.
 	err := cmdExec(ctx, args)
 	if err != nil {
+		//nolint:gocritic // We need to set a non-zero exit code.
 		log.Fatal(
 			"Failed to execute command.",
 			"Command", args.Commands,

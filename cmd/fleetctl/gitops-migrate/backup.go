@@ -221,7 +221,7 @@ func resolveBackupTarget(path string) (string, error) {
 
 		// Concatenate the file name to the directory path and return.
 		return filepath.Join(path, fileName), nil
-	} else {
+	} else { //nolint:revive // 'else' block makes control flow more explicit.
 		// 'path' is a file.
 		//
 		// Create 'path' if it doesn't exist.

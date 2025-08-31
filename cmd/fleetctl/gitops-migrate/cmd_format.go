@@ -30,6 +30,8 @@ func cmdFormatExec(ctx context.Context, args Args) error {
 
 	// Init a limiter with a concurrency allowance equal to number of host machine
 	// logical processors.
+	//
+	//nolint:gosec,G115 // Not until we have 2147483648-core CPUs!
 	l := limit.New(int32(runtime.NumCPU()))
 
 	// Enumerate the file system, format all YAML files.
@@ -75,12 +77,12 @@ func cmdFormatExec(ctx context.Context, args Args) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	if err := l.WaitContext(ctx); err != nil {
-		return fmt.Errorf("hung Goroutine in limiter")
+		return errors.New("hung Goroutine in limiter")
 	}
 
 	log.Info("Format run complete.", "Successful", pass, "Failed", fail)
 	if fail > 0 {
-		return fmt.Errorf("encountered format job failures")
+		return errors.New("encountered format job failures")
 	}
 
 	return nil

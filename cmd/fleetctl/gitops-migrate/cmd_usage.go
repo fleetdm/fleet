@@ -60,13 +60,11 @@ var appDetails = map[string]string{
 }
 
 var tmplFuncs = template.FuncMap{
-	"green":   ansi.Colorizer(ansi.BoldGreen),
-	"magenta": ansi.Colorizer(ansi.BoldMagenta),
-	"cyan":    ansi.Colorizer(ansi.BoldCyan),
-	"yellow":  ansi.Colorizer(ansi.BoldYellow),
-	"pathJoin": func(parts ...string) string {
-		return filepath.Join(parts...)
-	},
+	"green":    ansi.Colorizer(ansi.BoldGreen),
+	"magenta":  ansi.Colorizer(ansi.BoldMagenta),
+	"cyan":     ansi.Colorizer(ansi.BoldCyan),
+	"yellow":   ansi.Colorizer(ansi.BoldYellow),
+	"pathJoin": filepath.Join,
 }
 
 var tmplText = `

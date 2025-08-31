@@ -23,36 +23,36 @@ func New(maxConcurrentJobs int32) *limiter {
 	}
 }
 
-func (self *limiter) Go(fn func()) {
-	self.jobsQueued.Add(1)
+func (l *limiter) Go(fn func()) {
+	l.jobsQueued.Add(1)
 	go func() {
-		self.waitOne()
-		self.jobsQueued.Add(-1)
-		self.jobsConcurrent.Add(1)
+		l.waitOne()
+		l.jobsQueued.Add(-1)
+		l.jobsConcurrent.Add(1)
 		fn()
-		self.jobsConcurrent.Add(-1)
+		l.jobsConcurrent.Add(-1)
 	}()
 }
 
-func (self *limiter) Wait() {
-	for self.jobsConcurrent.Load() > 0 {
+func (l *limiter) Wait() {
+	for l.jobsConcurrent.Load() > 0 {
 		<-time.After(time.Millisecond)
 	}
-	for self.jobsQueued.Load() > 0 {
+	for l.jobsQueued.Load() > 0 {
 		<-time.After(time.Millisecond)
 	}
 }
 
-func (self *limiter) WaitContext(ctx context.Context) error {
+func (l *limiter) WaitContext(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
 			return context.DeadlineExceeded
 		case <-time.After(time.Millisecond):
-			if self.jobsConcurrent.Load() > 0 {
+			if l.jobsConcurrent.Load() > 0 {
 				continue
 			}
-			if self.jobsQueued.Load() > 0 {
+			if l.jobsQueued.Load() > 0 {
 				continue
 			}
 			return nil
@@ -60,8 +60,8 @@ func (self *limiter) WaitContext(ctx context.Context) error {
 	}
 }
 
-func (self *limiter) waitOne() {
-	for self.jobsConcurrent.Load() >= self.jobsConcurrentMax {
+func (l *limiter) waitOne() {
+	for l.jobsConcurrent.Load() >= l.jobsConcurrentMax {
 		<-time.After(time.Millisecond)
 	}
 }

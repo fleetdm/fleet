@@ -1,6 +1,6 @@
 package log
 
-var Level level = LevelInfo
+var Level = LevelInfo
 
 type level uint8
 
@@ -12,8 +12,8 @@ const (
 	LevelFatal
 )
 
-func (self level) String() string {
-	switch self {
+func (l level) String() string {
+	switch l {
 	case LevelDebug:
 		return "DBG"
 	case LevelInfo:

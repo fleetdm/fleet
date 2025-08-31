@@ -86,7 +86,7 @@ func expectLog(t *testing.T, buffer testBuffer, l level, input string, pairs ...
 		// an empty buffer.
 		require.Empty(t, buffer.String())
 		return
-	} else {
+	} else { //nolint:revive // 'else' block makes control flow more explicit here.
 		// Otherwise, assert expected buffer contents.
 		//
 		// Split the lines we wrote.
@@ -174,7 +174,7 @@ func expectLogf(t *testing.T, buffer testBuffer, l level, input string, values .
 		// an empty buffer.
 		require.Empty(t, buffer.String())
 		return
-	} else {
+	} else { //nolint:revive // 'else' block makes control flow more explicit here.
 		// Produce the string, slicing off newlines.
 		output := buffer.String()
 		// Expect a trailing newline.
