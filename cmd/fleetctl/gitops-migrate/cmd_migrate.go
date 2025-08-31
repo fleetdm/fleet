@@ -146,7 +146,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			// Attempt to assert the 'packages' YAML-array item as a map.
 			pkg, ok := packagesObject.(map[string]any)
 			if !ok {
-				log.Warn(
+				log.Debug(
 					"Software->packages object is nil.",
 					"Team File", item.Path,
 				)
@@ -154,8 +154,8 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			}
 
 			// Look for a 'path' key in the package map, assert it as a 'string'.
-			packagePath, ok := pkg[keyPath].(string)
-			if !ok || packagePath == "" {
+			pkgPath, ok := pkg[keyPath].(string)
+			if !ok || pkgPath == "" {
 				log.Debugf(
 					"The software package at index [%d] has no 'path' key, skipping.",
 					i,
@@ -166,14 +166,14 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			// Construct an absolute path from the 'path' key's value.
 			absPath := filepath.Join(
 				filepath.Dir(item.Path),
-				packagePath,
+				pkgPath,
 			)
 			absPath, err = filepath.Abs(absPath)
 			if err != nil {
 				log.Error(
 					"Failed to construct absolute path to referenced package package.",
 					"File Path", item.Path,
-					"Package Path", packagePath,
+					"Package Path", pkgPath,
 				)
 				failed += 1
 				continue
@@ -202,8 +202,8 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 				err = yaml.NewDecoder(packageFile).Decode(pkg)
 				if err != nil {
 					log.Error(
-						"failed to decode package file",
-						"Package File",
+						"Failed to decode package file.",
+						"Package File", item.Path,
 						"Error", err,
 					)
 					failed += 1
@@ -277,7 +277,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					log.Error(
 						"Failed to seek to file start for re-encode.",
 						"Team File", item.Path,
-						"Package File", packagePath,
+						"Package File", pkgPath,
 						"Error", err,
 					)
 					failed += 1
@@ -292,7 +292,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					log.Error(
 						"Failed to re-encode package file.",
 						"Team File", item.Path,
-						"Package File", packagePath,
+						"Package File", pkgPath,
 						"Error", err,
 					)
 					failed += 1
@@ -305,7 +305,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					log.Error(
 						"Failed to seek after package file re-encode.",
 						"Team File", item.Path,
-						"Package File", packagePath,
+						"Package File", pkgPath,
 						"Error", err,
 					)
 					failed += 1
@@ -318,7 +318,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					log.Error(
 						"Failed to truncate package file after re-encode.",
 						"Team File", item.Path,
-						"Package File", packagePath,
+						"Package File", pkgPath,
 						"Error", err,
 					)
 					failed += 1
@@ -331,7 +331,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					log.Error(
 						"Failed to close package file after re-encode.",
 						"Team File", item.Path,
-						"Package File", packagePath,
+						"Package File", pkgPath,
 						"Error", err,
 					)
 					failed += 1
@@ -443,7 +443,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			log.Info(
 				"Successfully applied transforms to team file.",
 				"Team File", item.Path,
-				"Count", changeCount,
+				"Migrated Fields", changeCount,
 			)
 			success += 1
 		}
