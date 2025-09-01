@@ -806,6 +806,21 @@ the way that the Fleet server works.
 							"using local filesystem software installer store, this is not suitable for production use", "directory",
 							installerDir)
 					}
+
+					iconDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+						iconDir = dir
+					}
+					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
+						softwareTitleIconStore = fleet.FailingSoftwareTitleIconStore{}
+					} else {
+						softwareTitleIconStore = iconStore
+						level.Info(logger).Log("msg",
+							"using local filesystem software title icon store, this is not suitable for production use", "directory",
+							iconDir)
+					}
 				}
 
 				distributedLock = redis_lock.NewLock(redisPool)

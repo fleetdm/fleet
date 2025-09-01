@@ -33,8 +33,8 @@ func TestUp_20250828122736(t *testing.T) {
 	require.NoError(t, err)
 
 	type SoftwareTitleIconResult struct {
-		TeamID          int
-		SoftwareTitleID int
+		TeamID          int64
+		SoftwareTitleID int64
 		StorageID       string
 		Filename        string
 	}

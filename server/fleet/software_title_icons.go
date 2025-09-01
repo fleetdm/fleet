@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"io"
 	"time"
 )
@@ -31,6 +32,28 @@ type SoftwareTitleIconStore interface {
 	Exists(ctx context.Context, iconID string) (bool, error)
 	Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, iconID string) (string, error)
+}
+
+type FailingSoftwareTitleIconStore struct{}
+
+func (FailingSoftwareTitleIconStore) Get(ctx context.Context, iconID string) (io.ReadCloser, int64, error) {
+	return nil, 0, errors.New("software title icon store not properly configured")
+}
+
+func (FailingSoftwareTitleIconStore) Put(ctx context.Context, iconID string, content io.ReadSeeker) error {
+	return errors.New("software title icon store not properly configured")
+}
+
+func (FailingSoftwareTitleIconStore) Exists(ctx context.Context, iconID string) (bool, error) {
+	return false, errors.New("software title icon store not properly configured")
+}
+
+func (FailingSoftwareTitleIconStore) Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error) {
+	return 0, nil
+}
+
+func (FailingSoftwareTitleIconStore) Sign(_ context.Context, _ string) (string, error) {
+	return "", errors.New("software title icon store not properly configured")
 }
 
 type SoftwareTitleIconActivity struct {

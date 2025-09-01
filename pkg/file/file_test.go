@@ -22,7 +22,7 @@ func TestCopy(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0o644)
+	expectedMode := fs.FileMode(0644)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, os.ModePerm)) //nolint:gosec // allow write file with 0o777
 	require.NoError(t, os.WriteFile(dstPath, []byte("this should be overwritten"), expectedMode))
 
@@ -56,7 +56,7 @@ func TestCopyWithPerms(t *testing.T) {
 	originalPath := filepath.Join(tmp, "original")
 	dstPath := filepath.Join(tmp, "copy")
 	expectedContents := []byte("foo")
-	expectedMode := fs.FileMode(0o755)
+	expectedMode := fs.FileMode(0755)
 	require.NoError(t, os.WriteFile(originalPath, expectedContents, expectedMode))
 
 	// Test
