@@ -28,7 +28,7 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
 
-	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "prefix")
+	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
 	svc.softwareTitleIconStore = mockIconStore
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
