@@ -198,6 +198,21 @@ This setting should not usually be used.
     sql_mode: ANSI
   ```
 
+### mysql_region
+
+AWS region to use for Identity and Access Management (IAM) authentication of an Amazon Relational Database Service (RDS) MySQL connection. This flag only has effect if all of the following are true:
+
+- `redis_password` is not set
+- `redis_cache_name` is set
+
+- Default value: none
+- Environment variable: `FLEET_REDIS_REGION`
+- Config file format:
+  ```yaml
+  redis:
+    region: ca-central-1
+  ```
+
 ### mysql_sts_assume_role_arn
 
 Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the AWS Security Token Service (STS) role to assume.
