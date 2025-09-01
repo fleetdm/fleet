@@ -299,7 +299,7 @@ Use a TLS connection to the Redis server.
 
 ### redis_region
 
-AWS region to use for IAM authentication of an Elasticache connection. This flag only has effect if one of the following is true:
+AWS region to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
 
 - `redis_password` is not set
 - `redis_cache_name` is set
@@ -314,7 +314,7 @@ AWS region to use for IAM authentication of an Elasticache connection. This flag
 
 ### redis_cache_name
 
-Cache name to use for IAM authentication of an Elasticache connection. This flag only has effect if one of the following is true:
+Cache name to use for IAM authentication of an Elasticache connection. This flag only has effect if all of the following are true:
 
 - `redis_password` is not set
 - `redis_region` is set
