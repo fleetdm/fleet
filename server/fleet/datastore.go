@@ -2031,6 +2031,7 @@ type Datastore interface {
 	CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (*SoftwareTitleIcon, error)
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error
+	ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (SoftwareTitleIconActivity, error)
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
 	GetAssignedVPPApps(ctx context.Context, teamID *uint) (map[VPPAppID]VPPAppTeam, error)

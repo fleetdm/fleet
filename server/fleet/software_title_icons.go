@@ -32,3 +32,16 @@ type SoftwareTitleIconStore interface {
 	Cleanup(ctx context.Context, usedIconIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, iconID string) (string, error)
 }
+
+type SoftwareTitleIconActivity struct {
+	SoftwareInstallerID *uint                   `db:"software_installer_id"`
+	AdamID              *string                 `db:"adam_id"`
+	SoftwareTitle       string                  `db:"software_title"`
+	Filename            string                  `db:"filename"`
+	TeamName            string                  `db:"team_name"`
+	TeamID              uint                    `db:"team_id"`
+	SelfService         bool                    `db:"self_service"`
+	SoftwareTitleID     uint                    `db:"software_title_id"`
+	LabelsIncludeAny    []ActivitySoftwareLabel `db:"-"`
+	LabelsExcludeAny    []ActivitySoftwareLabel `db:"-"`
+}

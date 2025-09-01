@@ -27,22 +27,14 @@ type getSoftwareTitleIconsResponse struct {
 	Size        int64  `json:"-"`
 }
 
+func (r getSoftwareTitleIconsResponse) Error() error { return r.Err }
+
 type getSoftwareTitleIconsRedirectResponse struct {
 	Err         error  `json:"error,omitempty"`
 	RedirectURL string `json:"-"`
 }
 
-func (r getSoftwareTitleIconsResponse) Error() error {
-	return r.Err
-}
-
-func (r getSoftwareTitleIconsRedirectResponse) Error() error {
-	return r.Err
-}
-
-func (r getSoftwareTitleIconsRedirectResponse) Status() int {
-	return http.StatusFound // 302
-}
+func (r getSoftwareTitleIconsRedirectResponse) Error() error { return r.Err }
 
 func (r getSoftwareTitleIconsRedirectResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	if r.Err != nil {
@@ -143,7 +135,7 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		TeamID:  &teamIDUint,
 	}
 
-	err = r.ParseMultipartForm(512 * units.MiB)
+	err = r.ParseMultipartForm(6 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
 			Message:     "failed to parse multipart form",
@@ -226,7 +218,7 @@ func iconValidator(file multipart.File) error {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("icon must be at least %dx%d pixels", minWidth, minHeight)}
 	}
 	if config.Width != config.Height {
-		return &fleet.BadRequestError{Message: fmt.Sprintf("icon must be a square image (%dx%d pixels)", config.Width, config.Height)}
+		return &fleet.BadRequestError{Message: fmt.Sprintf("icon must be a square image (detected %dx%d pixels)", config.Width, config.Height)}
 	}
 
 	if _, err := file.Seek(0, 0); err != nil {

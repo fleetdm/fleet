@@ -23,17 +23,13 @@ func TestUp_20250828122736(t *testing.T) {
 		INSERT INTO teams (name, description)
 		VALUES (?, ?)
 	`
-	_, err := db.Exec(query, "Banana team", "Bananas are yellow")
-	require.NoError(t, err)
-	var teamID int
-	err = db.QueryRow("SELECT LAST_INSERT_ID()").Scan(&teamID)
-	require.NoError(t, err)
+	teamID := execNoErrLastID(t, db, query, "Banana team", "Bananas are yellow")
 
 	query = `
 		INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename)
 		VALUES (?, ?, ?, ?)
 	`
-	_, err = db.Exec(query, teamID, softwareTitleID, "storage_id_1", "icon_filename_1")
+	_, err := db.Exec(query, teamID, softwareTitleID, "storage_id_1", "icon_filename_1")
 	require.NoError(t, err)
 
 	type SoftwareTitleIconResult struct {

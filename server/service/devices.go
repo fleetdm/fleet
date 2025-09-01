@@ -419,7 +419,7 @@ type transparencyURLResponse struct {
 
 func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.RedirectURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(http.StatusFound)
 }
 
 func (r transparencyURLResponse) Error() error { return r.Err }
@@ -478,14 +478,19 @@ type getDeviceSoftwareIconResponse struct {
 func (r getDeviceSoftwareIconResponse) Error() error { return r.Err }
 
 type getDeviceSoftwareIconRedirectResponse struct {
+	Err         error  `json:"error,omitempty"`
 	RedirectURL string `json:"-"`
 }
 
-func (r getDeviceSoftwareIconRedirectResponse) Error() error { return nil }
+func (r getDeviceSoftwareIconRedirectResponse) Error() error { return r.Err }
 
 func (r getDeviceSoftwareIconRedirectResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
+	if r.Err != nil {
+		return
+	}
+
 	w.Header().Set("Location", r.RedirectURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(http.StatusFound)
 }
 
 func (r getDeviceSoftwareIconResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {

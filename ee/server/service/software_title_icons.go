@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -44,11 +45,17 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error) {
 	var err error
+	activityType := "create"
 	if err = svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return fleet.SoftwareTitleIcon{}, err
 	}
 	var softwareInstaller *fleet.SoftwareInstaller
 	var vppApp *fleet.VPPAppStoreApp
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.SoftwareTitleIcon{}, fleet.ErrNoContext
+	}
 
 	softwareInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &payload.TeamID, payload.TitleID, false)
 	if err != nil && !fleet.IsNotFound(err) {
@@ -70,20 +77,61 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		return fleet.SoftwareTitleIcon{}, err
 	}
 
-	// store icon
-	exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
-	if err != nil {
-		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if installer exists")
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
-	if !exists {
-		if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
-			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
+	if icon == nil || icon.StorageID != payload.StorageID {
+		activityType = "update"
+		exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
+		if err != nil {
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if installer exists")
+		}
+		if !exists {
+			if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
+				return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
+			}
 		}
 	}
 
 	softwareTitleIcon, err := svc.ds.CreateOrUpdateSoftwareTitleIcon(ctx, payload)
 	if err != nil {
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating or updating software title icon")
+	}
+
+	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
+	if err != nil {
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
+	}
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
+	if activityType == "create" {
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
+			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+			IconURL:          &iconUrl,
+			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+		}); err != nil {
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating activity for added software")
+		}
+	} else {
+		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedSoftware{
+			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwarePackage:  &activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			IconURL:          &iconUrl,
+			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+		}); err != nil {
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating activity for updated software")
+		}
 	}
 
 	return *softwareTitleIcon, nil

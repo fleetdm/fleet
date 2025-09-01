@@ -77,3 +77,79 @@ func (ds *Datastore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, iconSt
 	_, err := iconStore.Cleanup(ctx, storageIDs, removeCreatedBefore)
 	return ctxerr.Wrap(ctx, err, "cleanup unused software title icons")
 }
+
+func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.SoftwareTitleIconActivity, error) {
+	var details fleet.SoftwareTitleIconActivity
+	query := `
+		SELECT
+			software_installer.id AS software_installer_id,
+			vpp_apps.adam_id AS adam_id,
+			software_titles.name AS software_title,
+			software_installers.filename AS filename,
+			teams.name AS team_name,
+			teams.id AS team_id,
+			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
+			software_titles.id AS software_title_id
+		FROM software_title_icons
+		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
+		INNER JOIN teams ON software_title_icons.team_id = teams.id
+		LEFT JOIN software_installers ON software_title_icons.software_title_id = software_installers.id
+		LEFT JOIN vpp_apps ON software_title_icons.software_title_id = vpp_apps.id
+		LEFT JOIN vpp_apps_teams ON software_title_icons.software_title_id = vpp_apps_teams.vpp_app_id
+		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
+	`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)
+	type ActivitySoftwareLabel struct {
+		ID      uint   `db:"id"`
+		Name    string `db:"name"`
+		Exclude bool   `db:"exclude"`
+	}
+	if err != nil {
+		return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting activity details for software title icon")
+	}
+
+	var labels []ActivitySoftwareLabel
+	if details.SoftwareInstallerID != nil {
+		labelQuery := `
+			SELECT
+				labels.id AS id,
+				labels.name AS name,
+				software_installer_labels.exclude AS exclude
+			FROM software_installer_labels
+			INNER JOIN labels ON software_installer_labels.label_id = labels.id
+			WHERE software_installer_id = ?
+		`
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.SoftwareInstallerID); err != nil {
+			return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+		}
+	}
+	if details.AdamID != nil {
+		labelQuery := `
+			SELECT
+				labels.id AS id,
+				labels.name AS name,
+				vpp_app_labels.exclude AS exclude
+			FROM vpp_app_labels
+			INNER JOIN labels ON vpp_app_labels.label_id = labels.id
+			WHERE vpp_app_id = ?
+		`
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.AdamID); err != nil {
+			return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+		}
+	}
+	for _, l := range labels {
+		if l.Exclude {
+			details.LabelsExcludeAny = append(details.LabelsExcludeAny, fleet.ActivitySoftwareLabel{
+				ID:   l.ID,
+				Name: l.Name,
+			})
+		} else {
+			details.LabelsIncludeAny = append(details.LabelsIncludeAny, fleet.ActivitySoftwareLabel{
+				ID:   l.ID,
+				Name: l.Name,
+			})
+		}
+	}
+
+	return details, nil
+}
