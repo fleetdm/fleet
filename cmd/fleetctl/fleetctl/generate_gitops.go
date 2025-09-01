@@ -7,6 +7,7 @@ import (
 	pathUtils "path"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -311,7 +312,6 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			var teamFileName string
 			if team.Filename != nil && *team.Filename != "" {
 				teamFileName = *team.Filename
 			} else {
@@ -484,6 +484,9 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
+
+		// Unescape any unicode chars added by the YAML marshaler.
+		b = unescapeUnicodeU8(b)
 
 		// If --print is set, print the file to stdout.
 		if cmd.CLI.Bool("print") {
@@ -1409,6 +1412,19 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		result = append(result, labelSpec)
 	}
 	return result, nil
+}
+
+var uniEscape = regexp.MustCompile(`\\U([0-9A-Fa-f]{8})`)
+
+// Utility function to unescape Unicode U+XXXX sequences added by the YAML marshaler.
+func unescapeUnicodeU8(b []byte) []byte {
+	return uniEscape.ReplaceAllFunc(b, func(m []byte) []byte {
+		v, err := strconv.ParseUint(string(m[2:]), 16, 32)
+		if err != nil {
+			return m
+		}
+		return []byte(string(rune(v)))
+	})
 }
 
 var _ generateGitopsClient = (*service.Client)(nil)
