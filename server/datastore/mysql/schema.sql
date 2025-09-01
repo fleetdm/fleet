@@ -2386,7 +2386,7 @@ CREATE TABLE `software_title_icons` (
   `team_id` int unsigned NOT NULL,
   `software_title_id` int unsigned NOT NULL,
   `storage_id` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `filename` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `filename` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_unique_team_id_title_id_storage_id` (`team_id`,`software_title_id`),
