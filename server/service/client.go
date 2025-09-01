@@ -62,6 +62,10 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		}
 	}
 
+	if client.errWriter == nil {
+		client.errWriter = os.Stderr
+	}
+
 	return client, nil
 }
 
