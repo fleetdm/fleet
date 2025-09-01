@@ -123,7 +123,8 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return nil
 }
 
-func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Host) (bool, error) {
+	hostUUID := fleet.HostUUIDForSetupExperience(host)
 	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience status results for next step")
@@ -161,19 +162,6 @@ func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string
 			}
 		}
 	}
-
-	// This step is called internally, not by a user
-	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	hosts, err := svc.ds.ListHostsLiteByUUIDs(ctx, filter, []string{hostUUID})
-	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "fetching host details using UUID")
-	}
-
-	if len(hosts) == 0 {
-		return false, ctxerr.Errorf(ctx, "could not find host id for host UUID %q", hostUUID)
-	}
-
-	host := hosts[0]
 
 	switch {
 	case len(installersPending) > 0:

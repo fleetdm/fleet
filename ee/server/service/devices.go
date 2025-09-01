@@ -241,7 +241,7 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	}
 
 	// Mark canceled items as failed.
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), results)
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, hostUUID, host.DisplayName(), results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
 	}
@@ -254,7 +254,7 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 	}
 
 	// Continue with next step in setup experience.
-	if _, err = svc.SetupExperienceNextStep(ctx, hostUUID); err != nil {
+	if _, err = svc.SetupExperienceNextStep(ctx, host); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}
 

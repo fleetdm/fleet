@@ -35,7 +35,7 @@ type EnterpriseOverrides struct {
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
-	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
@@ -1237,7 +1237,7 @@ type Service interface {
 	// SetupExperienceNextStep is a callback that processes the
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
-	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
 
 	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
 	// This is used for the "Setup experience" on non-darwin devices.

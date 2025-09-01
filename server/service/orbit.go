@@ -871,7 +871,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 		} else if updated {
 			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", host.UUID, "execution_id", result.ExecutionID)
 			fromSetupExperience = true
-			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host.UUID)
+			_, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, host)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 			}
@@ -1367,9 +1367,8 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	}
 	var fromSetupExperience bool
 	if fleet.IsSetupExperienceSupported(host.Platform) {
-		// This might be a setup experience software install result, so we attempt to update the "Setup experience"
-		// status for that item.
-		//
+		// This might be a setup experience software install result, so we attempt to update the
+		// "Setup experience" status for that item.
 		hostUUID := fleet.HostUUIDForSetupExperience(host)
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
 			HostUUID:        hostUUID,
@@ -1378,11 +1377,9 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", hostUUID, "execution_id", result.InstallUUID)
+			// TODO: call next step of setup experience?
 			fromSetupExperience = true
-			if _, err := svc.EnterpriseOverrides.SetupExperienceNextStep(ctx, hostUUID); err != nil {
-				return ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
-			}
+			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", hostUUID, "execution_id", result.InstallUUID)
 		}
 	}
 

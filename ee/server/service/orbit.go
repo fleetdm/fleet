@@ -167,7 +167,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)
+	_, err = svc.SetupExperienceNextStep(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}

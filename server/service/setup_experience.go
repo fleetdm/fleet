@@ -225,7 +225,7 @@ func (svc *Service) DeleteSetupExperienceScript(ctx context.Context, teamID *uin
 	return fleet.ErrMissingLicense
 }
 
-func (svc *Service) SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error) {
+func (svc *Service) SetupExperienceNextStep(ctx context.Context, host *fleet.Host) (bool, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -253,7 +253,6 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 
 	case fleet.SetupExperienceSoftwareInstallResult:
 		status := v.SetupExperienceStatus()
-		fmt.Println(status)
 		if !status.IsValid() {
 			return false, fmt.Errorf("invalid status: %s", status)
 		} else if requireTerminalStatus && !status.IsTerminalStatus() {
