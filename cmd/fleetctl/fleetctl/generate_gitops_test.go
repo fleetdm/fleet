@@ -65,7 +65,7 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 	teams := []fleet.Team{
 		{
 			ID:     1,
-			Name:   "Team A",
+			Name:   "Team A 👍",
 			Config: config,
 			Secrets: []*fleet.EnrollSecret{
 				{

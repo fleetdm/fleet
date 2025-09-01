@@ -273,9 +273,10 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If a specific team is requested, find it.
 		if cmd.CLI.String("team") != "" {
 			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
+			permissiveTransformedSelectedName := generatePermissiveFilename(cmd.CLI.String("team"))
 			for _, team := range teams {
 				transformedTeamName := generateFilename(team.Name)
-				if transformedSelectedName == transformedTeamName {
+				if *team.Filename == cmd.CLI.String("team") || transformedSelectedName == transformedTeamName || permissiveTransformedSelectedName == generatePermissiveFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
 						ID:   &team.ID,
 						Team: &team,
@@ -310,7 +311,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			teamFileName = generateFilename(team.Name)
+			var teamFileName string
+			if team.Filename != nil && *team.Filename != "" {
+				teamFileName = *team.Filename
+			} else {
+				teamFileName = generatePermissiveFilename(team.Name)
+			}
 			fileName = "teams/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
@@ -546,9 +552,17 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+func generateFilename(name string) string {
+	return filenameGenerator(name, false)
+}
+
+func generatePermissiveFilename(name string) string {
+	return filenameGenerator(name, true)
+}
+
 // Given a name, generate a filename by replacing spaces with dashes and
 // removing any non-alphanumeric characters.
-func generateFilename(name string) string {
+func filenameGenerator(name string, permissive bool) string {
 	fileName := strings.Map(func(r rune) rune {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
@@ -556,6 +570,9 @@ func generateFilename(name string) string {
 		case unicode.IsSpace(r):
 			return '-'
 		default:
+			if permissive {
+				return r
+			}
 			return -1
 		}
 	}, name)
