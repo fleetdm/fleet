@@ -34,6 +34,7 @@ func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fl
 	if platform == "" || platform == "macos" {
 		platform = "darwin"
 	}
+
 	err := svc.SetSetupExperienceSoftware(ctx, platform, req.TeamID, req.TitleIDs)
 	if err != nil {
 		return &putSetupExperienceSoftwareResponse{Err: err}, nil
@@ -72,6 +73,7 @@ func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fl
 	if platform == "" || platform == "macos" {
 		platform = "darwin"
 	}
+
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil

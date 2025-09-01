@@ -7,10 +7,11 @@ import (
 	"net/http"
 	"path/filepath"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/go-kit/kit/log/level"
+	"github.com/go-kit/log/level"
 )
 
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
@@ -18,8 +19,33 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 		return err
 	}
 
+	// TODO(lucas): Verify platorm is darwin or linux
+
+	var teamName string
+	if teamID == 0 {
+		teamName = ""
+	} else {
+		team, err := svc.ds.Team(ctx, teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "load team")
+		}
+		teamName = team.Name
+	}
+
 	if err := svc.ds.SetSetupExperienceSoftwareTitles(ctx, platform, teamID, titleIDs); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting setup experience titles")
+	}
+
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityEditedSetupExperienceSoftware{
+			Platform: platform,
+			TeamID:   teamID,
+			TeamName: teamName,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for set setup experience software")
 	}
 
 	return nil
@@ -31,6 +57,8 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 	}, fleet.ActionRead); err != nil {
 		return nil, 0, nil, err
 	}
+
+	// TODO(lucas): Verify platorm is darwin or linux
 
 	titles, count, meta, err := svc.ds.ListSetupExperienceSoftwareTitles(ctx, platform, teamID, opts)
 	if err != nil {
