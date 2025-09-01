@@ -21,7 +21,38 @@ const (
 
 var querySearchColumns = []string{"q.name"}
 
-const upsertQueriesSQL = `
+func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
+	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
+		return ctxerr.Wrap(ctx, err, "apply queries in tx")
+	}
+
+	// Opportunistically delete associated query_results.
+	//
+	// TODO(lucas): We should run this on a transaction but we found
+	// performance issues and deadlocks at scale.
+	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
+	for queryID := range queriesToDiscardResults {
+		queryIDs = append(queryIDs, queryID)
+	}
+	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete query_results")
+	}
+	return nil
+}
+
+func (ds *Datastore) applyQueriesInTx(
+	ctx context.Context,
+	authorID uint,
+	queries []*fleet.Query,
+) (err error) {
+	// First, verify all 'queries' are valid.
+	for _, q := range queries {
+		if err := q.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	const upsertQueriesSQL = `
 	INSERT INTO queries (
 		name,
 		description,
@@ -54,37 +85,6 @@ const upsertQueriesSQL = `
 		logging_type = VALUES(logging_type),
 		discard_data = VALUES(discard_data)`
 
-func (ds *Datastore) ApplyQueries(ctx context.Context, authorID uint, queries []*fleet.Query, queriesToDiscardResults map[uint]struct{}) error {
-	if err := ds.applyQueriesInTx(ctx, authorID, queries); err != nil {
-		return ctxerr.Wrap(ctx, err, "apply queries in tx")
-	}
-
-	// Opportunistically delete associated query_results.
-	//
-	// TODO(lucas): We should run this on a transaction but we found
-	// performance issues and deadlocks at scale.
-	queryIDs := make([]uint, 0, len(queriesToDiscardResults))
-	for queryID := range queriesToDiscardResults {
-		queryIDs = append(queryIDs, queryID)
-	}
-	if err := ds.deleteMultipleQueryResults(ctx, queryIDs); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete query_results")
-	}
-	return nil
-}
-
-func (ds *Datastore) applyQueriesInTx(
-	ctx context.Context,
-	authorID uint,
-	queries []*fleet.Query,
-) (err error) {
-	// First, verify all 'queries' are valid.
-	for _, q := range queries {
-		if err := q.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-	}
-
 	// 'queries' are uniquely identified by {name, team_id}
 	unqKeyGen := func(name string, teamID *uint) string {
 		if teamID == nil {
@@ -112,8 +112,8 @@ func (ds *Datastore) applyQueriesInTx(
 		aToInsert := make([]interface{}, 0, len(batch)*13)
 
 		// For fetching the ID after the upsert
-		var pToSelect []string
-		var aToSelect []interface{}
+		pToSelect := make([]string, 0, len(batch))
+		aToSelect := make([]interface{}, 0, len(batch)*2)
 
 		for _, q := range batch {
 			pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
@@ -133,10 +133,8 @@ func (ds *Datastore) applyQueriesInTx(
 				q.DiscardData,
 			)
 
-			if q.ID == 0 {
-				pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
-				aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
-			}
+			pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
+			aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
 		}
 		upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
 		selectStm := fmt.Sprintf(
@@ -149,27 +147,25 @@ func (ds *Datastore) applyQueriesInTx(
 				return ctxerr.Wrap(ctx, err, "bulk upserting queries")
 			}
 
-			if len(pToSelect) != 0 {
-				rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "select queries for update")
-				}
-				defer rows.Close()
+			rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "select queries for update")
+			}
+			defer rows.Close()
 
-				for rows.Next() {
-					var id uint
-					var name string
-					var teamID *uint
-					if err := rows.Scan(&id, &name, &teamID); err != nil {
-						return ctxerr.Wrap(ctx, err, "scan existing query")
-					}
-					if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
-						q.ID = id
-					}
+			for rows.Next() {
+				var id uint
+				var name string
+				var teamID *uint
+				if err := rows.Scan(&id, &name, &teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "scan existing query")
 				}
-				if err := rows.Err(); err != nil {
-					return ctxerr.Wrap(ctx, err, "fetching query IDs")
+				if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
+					q.ID = id
 				}
+			}
+			if err := rows.Err(); err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching query IDs")
 			}
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
 		}); err != nil {
