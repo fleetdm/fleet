@@ -151,8 +151,6 @@ func (ds *Datastore) applyQueriesInTx(
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "select queries for update")
 			}
-			defer rows.Close()
-
 			for rows.Next() {
 				var id uint
 				var name string
@@ -167,6 +165,10 @@ func (ds *Datastore) applyQueriesInTx(
 			if err := rows.Err(); err != nil {
 				return ctxerr.Wrap(ctx, err, "fetching query IDs")
 			}
+			if err := rows.Close(); err != nil {
+				return ctxerr.Wrap(ctx, err, "closing query rows")
+			}
+
 			return ds.updateQueryLabelsInTx(ctx, batch, tx)
 		}); err != nil {
 			return ctxerr.Wrap(ctx, err, "error applying queries in batch")
@@ -358,7 +360,6 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
-	defer rows.Close()
 
 	lblNameToID := make(map[string]uint)
 	for rows.Next() {
@@ -371,6 +372,9 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	}
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching query IDs")
+	}
+	if err := rows.Close(); err != nil {
+		return ctxerr.Wrap(ctx, err, "closing query IDs")
 	}
 
 	params := make([]string, 0, len(lblNames))
