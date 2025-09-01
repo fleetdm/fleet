@@ -1238,8 +1238,12 @@ type Service interface {
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
 	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
+
+	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
+	// This is used for the "Setup experience" on non-darwin devices.
 	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
-	GetDeviceSetupExperienceStatus(ctx context.Context) (*SetupExperienceNextStatusPayload, error)
+	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
+	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps

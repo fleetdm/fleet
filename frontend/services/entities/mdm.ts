@@ -377,7 +377,11 @@ const mdmService = {
   ) => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
 
     return sendRequest("PUT", path, {
       team_id: teamId,

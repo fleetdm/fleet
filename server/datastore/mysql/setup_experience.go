@@ -13,12 +13,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-// TODO(lucas): Update to use host.ID for Linux.
 func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform string, hostUUID string, teamID uint) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ?`
 
+	// stmtSoftwareInstallers query currently supports installers for macOS and Linux.
 	stmtSoftwareInstallers := `
 INSERT INTO setup_experience_status_results (
 	host_uuid,
@@ -36,17 +36,23 @@ INNER JOIN software_titles st
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND (
+	-- installer platform matches the host's fleet platform (linux or darwin)
 	si.platform = ?
-	AND 
+	AND
 	(
+		-- platform is 'darwin', so nothing else to check.
 		si.platform = 'darwin'
-		OR 
+		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
+		OR
 		(
+			-- tar.gz can be installed on any Linux distribution
 			si.extension = 'tar.gz'
-			OR 
+			OR
 			(
+				-- deb packages can only be installed on Ubuntu hosts.
 				(si.extension = 'deb' AND ? = 'ubuntu')
 				OR
+				-- rpm packages can only be installed on Fedora hosts.
 				(si.extension = 'rpm' AND ? = 'rhel')
 			)
 		)
@@ -132,12 +138,12 @@ WHERE global_or_team_id = ?`
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
 
-		// Only run setup experience on hosts that have something configured.
-		//
-		// TODO(lucas): Check if we need to do something like this for Linux.
-		if totalInsertions > 0 && fleetPlatform == "darwin" {
-			if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
-				return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+		// Set setup experience on darwin hosts only if they have something configured.
+		if fleetPlatform == "darwin" {
+			if totalInsertions > 0 {
+				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
+					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
+				}
 			}
 		}
 

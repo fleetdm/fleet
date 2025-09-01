@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -224,8 +223,8 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 	return nil
 }
 
-func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
-	// This is an orbit endpoint, not a user-authenticated endpoint.
+func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error) {
+	// This is a device endpoint, not a user-authenticated endpoint.
 	svc.authz.SkipAuthorization(ctx)
 
 	host, ok := hostctx.FromContext(ctx)
@@ -233,36 +232,33 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
 	}
 
-	// Get status of software installs and script execution.
-	res, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, host.UUID)
+	hostUUID := fleet.HostUUIDForSetupExperience(host)
+
+	// Get current status of the setup experience.
+	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
 	// Mark canceled items as failed.
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host, res)
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), results)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
 	}
 
-	// Create payload to return to the caller.
-	payload := &fleet.SetupExperienceNextStatusPayload{
-		Software: make([]*fleet.SetupExperienceStatusResult, 0),
-	}
-	for _, r := range res {
-		if r.IsForSoftware() {
-			payload.Software = append(payload.Software, r)
+	var software []*fleet.SetupExperienceStatusResult
+	for _, result := range results {
+		if result.IsForSoftware() {
+			software = append(software, result)
 		}
 	}
 
 	// Continue with next step in setup experience.
-	if _, err = svc.SetupExperienceNextStep(ctx, host.UUID); err != nil {
+	if _, err = svc.SetupExperienceNextStep(ctx, hostUUID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}
 
-	return payload, nil
-}
-
-func badRequestf(format string, a ...any) error {
-	return &fleet.BadRequestError{Message: fmt.Sprintf(format, a...)}
+	return &fleet.DeviceSetupExperienceStatusPayload{
+		Software: software,
+	}, nil
 }

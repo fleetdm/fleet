@@ -779,7 +779,7 @@ func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, sv
 }
 
 /////////////////////////////////////////////////////////////////////////////////
-// Get setup experience status.
+// Get "Setup experience" status.
 /////////////////////////////////////////////////////////////////////////////////
 
 type getDeviceSetupExperienceStatusRequest struct {
@@ -791,8 +791,8 @@ func (r *getDeviceSetupExperienceStatusRequest) deviceAuthToken() string {
 }
 
 type getDeviceSetupExperienceStatusResponse struct {
-	Results *fleet.SetupExperienceNextStatusPayload `json:"setup_experience_results,omitempty"`
-	Err     error                                   `json:"error,omitempty"`
+	Results *fleet.DeviceSetupExperienceStatusPayload `json:"setup_experience_results,omitempty"`
+	Err     error                                     `json:"error,omitempty"`
 }
 
 func (r getDeviceSetupExperienceStatusResponse) Error() error { return r.Err }
@@ -808,7 +808,7 @@ func getDeviceSetupExperienceStatusEndpoint(ctx context.Context, request interfa
 	return &getDeviceSetupExperienceStatusResponse{Results: results}, nil
 }
 
-func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.SetupExperienceNextStatusPayload, error) {
+func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
