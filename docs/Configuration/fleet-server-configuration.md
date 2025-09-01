@@ -23,7 +23,7 @@ periodically.
 
 For the address of the MySQL server that Fleet should connect to, include the hostname and port.
 
-If an Amazon Relational Database Service (RDS) endpoint is specified and neither `mysql_password` nor `mysql_password_path` is specified, Identity and Access Management (IAM) authentication is automatically used.
+If an Amazon Relational Database Service (RDS) endpoint is specified and `mysql_region` is set instead of `mysql_password` or `mysql_password_path`, Identity and Access Management (IAM) authentication is automatically used.
 
 - Default value: `localhost:3306`
 - Environment variable: `FLEET_MYSQL_ADDRESS`
