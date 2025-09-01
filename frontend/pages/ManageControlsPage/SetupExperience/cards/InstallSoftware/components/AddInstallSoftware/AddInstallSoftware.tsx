@@ -4,6 +4,8 @@ import PATHS from "router/paths";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
+import { SetupExperiencePlatform } from "interfaces/platform";
+
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import { ISoftwareTitle } from "interfaces/software";
@@ -23,6 +25,7 @@ interface IAddInstallSoftwareProps {
   hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
+  platform: SetupExperiencePlatform;
 }
 
 const AddInstallSoftware = ({

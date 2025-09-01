@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
@@ -11,10 +12,13 @@ import { ISoftwareTitle } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import { SetupExperiencePlatform } from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
+import TabNav from "components/TabNav";
+import TabText from "components/TabText";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -28,12 +32,24 @@ const baseClass = "install-software";
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
 
+const DEFAULT_PLATFORM: SetupExperiencePlatform = "darwin";
+
+export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
+  "darwin",
+  "windows",
+  "linux",
+];
+
 interface IInstallSoftwareProps {
   currentTeamId: number;
 }
 
 const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
+  const [
+    selectedPlatform,
+    setSelectedPlatform,
+  ] = useState<SetupExperiencePlatform>(DEFAULT_PLATFORM);
 
   const {
     data: softwareTitles,
@@ -80,13 +96,17 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     refetchSoftwareTitles();
   };
 
+  const handleTabChange = useCallback((index: number) => {
+    setSelectedPlatform(PLATFORM_BY_INDEX[index]);
+  }, []);
+
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
     globalConfig,
     teamConfig
   );
 
-  const renderContent = () => {
+  const renderTabContent = (platform: SetupExperiencePlatform) => {
     if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
@@ -103,6 +123,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
             hasManualAgentInstall={hasManualAgentInstall}
             softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
+            platform={platform}
           />
           <InstallSoftwarePreview />
         </SetupExperienceContentContainer>
@@ -115,7 +136,27 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   return (
     <section className={baseClass}>
       <SectionHeader title="Install software" />
-      <>{renderContent()}</>
+      <TabNav>
+        <Tabs
+          selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
+          onSelect={handleTabChange}
+        >
+          <TabList>
+            <Tab>
+              <TabText>macOS</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Windows</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Linux</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[0])}</TabPanel>
+          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[1])}</TabPanel>
+          <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
+        </Tabs>
+      </TabNav>
       {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}
