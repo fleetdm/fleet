@@ -276,8 +276,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
 			permissiveTransformedSelectedName := generatePermissiveFilename(cmd.CLI.String("team"))
 			for _, team := range teams {
-				transformedTeamName := generateFilename(team.Name)
-				if *team.Filename == cmd.CLI.String("team") || transformedSelectedName == transformedTeamName || permissiveTransformedSelectedName == generatePermissiveFilename(team.Name) {
+				if transformedSelectedName == generateFilename(team.Name) || permissiveTransformedSelectedName == generatePermissiveFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
 						ID:   &team.ID,
 						Team: &team,
@@ -312,11 +311,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			if team.Filename != nil && *team.Filename != "" {
-				teamFileName = *team.Filename
-			} else {
-				teamFileName = generatePermissiveFilename(team.Name)
-			}
+			teamFileName = generatePermissiveFilename(team.Name)
 			fileName = "teams/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
