@@ -262,7 +262,7 @@ const mdmService = {
   },
 
   updateSetupExperienceSettings: (updateData: IUpdateSetupExperienceBody) => {
-    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE } = endpoints;
     const body = {
       ...updateData,
     };
@@ -271,11 +271,11 @@ const mdmService = {
       delete body.team_id;
     }
 
-    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
+    return sendRequest("PATCH", MDM_MACOS_SETUP_EXPERIENCE, body);
   },
 
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
-    const { MDM_SETUP_EXPERIENCE } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE } = endpoints;
 
     const body: IUpdateSetupExperienceBody = {
       enable_release_device_manually: isEnabled,
@@ -285,7 +285,7 @@ const mdmService = {
       body.team_id = teamId;
     }
 
-    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
+    return sendRequest("PATCH", MDM_MACOS_SETUP_EXPERIENCE, body);
   },
 
   getSetupEnrollmentProfile: (teamId?: number) => {
@@ -357,12 +357,12 @@ const mdmService = {
     );
   },
 
-  getSetupExperienceSoftware: (
+  getMacSetupExperienceSoftware: (
     params: IGetSetupExperienceSoftwareParams
   ): Promise<IGetSetupExperienceSoftwareResponse> => {
-    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+    const path = `${MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
       {
         ...params,
       }
@@ -375,9 +375,9 @@ const mdmService = {
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
-    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+    const path = `${MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
       {
         team_id: teamId,
       }
@@ -392,9 +392,9 @@ const mdmService = {
   getSetupExperienceScript: (
     teamId: number
   ): Promise<IGetSetupExperienceScriptResponse> => {
-    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
-    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    let path = MDM_MACOS_SETUP_EXPERIENCE_SCRIPT;
     if (teamId) {
       path += `?${buildQueryStringFromParams({ team_id: teamId })}`;
     }
@@ -403,16 +403,16 @@ const mdmService = {
   },
 
   downloadSetupExperienceScript: (teamId: number) => {
-    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
-    let path = MDM_SETUP_EXPERIENCE_SCRIPT;
+    let path = MDM_MACOS_SETUP_EXPERIENCE_SCRIPT;
     path += `?${buildQueryStringFromParams({ team_id: teamId, alt: "media" })}`;
 
     return sendRequest("GET", path);
   },
 
   uploadSetupExperienceScript: (file: File, teamId: number) => {
-    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     const formData = new FormData();
     formData.append("script", file);
@@ -421,15 +421,17 @@ const mdmService = {
       formData.append("team_id", teamId.toString());
     }
 
-    return sendRequest("POST", MDM_SETUP_EXPERIENCE_SCRIPT, formData);
+    return sendRequest("POST", MDM_MACOS_SETUP_EXPERIENCE_SCRIPT, formData);
   },
 
   deleteSetupExperienceScript: (teamId: number) => {
-    const { MDM_SETUP_EXPERIENCE_SCRIPT } = endpoints;
+    const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams({
-      team_id: teamId,
-    })}`;
+    const path = `${MDM_MACOS_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
 
     return sendRequest("DELETE", path);
   },

@@ -66,7 +66,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
   >(
     ["install-software", currentTeamId],
     () =>
-      mdmAPI.getSetupExperienceSoftware({
+      mdmAPI.getMacSetupExperienceSoftware({
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),

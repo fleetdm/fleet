@@ -32,10 +32,10 @@ const baseClass = "install-software";
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
 
-const DEFAULT_PLATFORM: SetupExperiencePlatform = "darwin";
+const DEFAULT_PLATFORM: SetupExperiencePlatform = "macos";
 
 export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
-  "darwin",
+  "macos",
   "windows",
   "linux",
 ];
@@ -52,10 +52,10 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   ] = useState<SetupExperiencePlatform>(DEFAULT_PLATFORM);
 
   const {
-    data: softwareTitles,
-    isLoading,
-    isError,
-    refetch: refetchSoftwareTitles,
+    data: macOSSoftwareTitles,
+    isLoading: isLoadingMacSW,
+    isError: isErrorMacSW,
+    refetch: refetchMacSWTitles,
   } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
@@ -63,7 +63,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   >(
     ["install-software", currentTeamId],
     () =>
-      mdmAPI.getSetupExperienceSoftware({
+      mdmAPI.getMacSetupExperienceSoftware({
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
@@ -93,7 +93,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
   const onSave = async () => {
     setShowSelectSoftwareModal(false);
-    refetchSoftwareTitles();
+    refetchMacSWTitles();
   };
 
   const handleTabChange = useCallback((index: number) => {
@@ -107,21 +107,21 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   );
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
+    if (isLoadingMacSW || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
 
-    if (isError) {
+    if (isErrorMacSW) {
       return <DataError />;
     }
 
-    if (softwareTitles || softwareTitles === null) {
+    if (macOSSoftwareTitles || macOSSoftwareTitles === null) {
       return (
         <SetupExperienceContentContainer>
           <AddInstallSoftware
             currentTeamId={currentTeamId}
             hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={softwareTitles}
+            softwareTitles={macOSSoftwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
@@ -157,10 +157,10 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
           <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
         </Tabs>
       </TabNav>
-      {showSelectSoftwareModal && softwareTitles && (
+      {showSelectSoftwareModal && macOSSoftwareTitles && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}
-          softwareTitles={softwareTitles}
+          softwareTitles={macOSSoftwareTitles}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
         />

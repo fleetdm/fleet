@@ -33,6 +33,7 @@ const AddInstallSoftware = ({
   hasManualAgentInstall,
   softwareTitles,
   onAddSoftware,
+  platform,
 }: IAddInstallSoftwareProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const installSoftwareDuringSetupCount = getInstallSoftwareDuringSetupCount(
@@ -43,15 +44,16 @@ const AddInstallSoftware = ({
     if (noSoftwareUploaded) {
       return (
         <>
-          No software available to add. Please{" "}
+          No {platform === "macos" ? "macOS" : platform} software available. You
+          can add software on the{" "}
           <LinkWithContext
             to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
             currentQueryParams={{ team_id: currentTeamId }}
             withParams={{ type: "query", names: ["team_id"] }}
           >
-            upload software
-          </LinkWithContext>{" "}
-          to be able to add during setup experience.
+            Software page
+          </LinkWithContext>
+          .
         </>
       );
     }
@@ -60,7 +62,7 @@ const AddInstallSoftware = ({
       "No software added."
     ) : (
       <>
-        {installSoftwareDuringSetupCount} software will be{" "}
+        {installSoftwareDuringSetupCount} software items will be{" "}
         <TooltipWrapper tipContent="Software order will vary.">
           installed during setup
         </TooltipWrapper>
@@ -69,18 +71,7 @@ const AddInstallSoftware = ({
     );
   };
 
-  const getButtonText = () => {
-    if (noSoftwareUploaded) {
-      return "Add software";
-    }
-
-    return installSoftwareDuringSetupCount === 0
-      ? "Add software"
-      : "Show selected software";
-  };
-
   const addedText = getAddedText();
-  const buttonText = getButtonText();
   const manuallyInstallTooltipText = (
     <>
       Disabled because you manually install Fleet&apos;s agent (
@@ -120,7 +111,7 @@ const AddInstallSoftware = ({
                   disableChildren || hasManualAgentInstall || noSoftwareUploaded
                 }
               >
-                {buttonText}
+                Select software
               </Button>
             </TooltipWrapper>
           )}

@@ -209,7 +209,7 @@ export const isOsSettingsDisplayPlatform = (
 };
 
 export const SETUP_EXPERIENCE_PLATFORMS = [
-  "darwin",
+  "macos",
   "windows",
   "linux",
 ] as const;
