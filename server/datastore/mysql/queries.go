@@ -377,28 +377,33 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 		return ctxerr.Wrap(ctx, err, "closing query IDs")
 	}
 
+	if len(lblNameToID) < len(lblNames) {
+		return ctxerr.New(ctx, "not all labels found for query")
+	}
+
 	params := make([]string, 0, len(lblNames))
 	args = make([]interface{}, 0, len(lblNames)*2)
 	for _, q := range queries {
+		lblIdents := make([]fleet.LabelIdent, 0, len(q.LabelsIncludeAny))
 		for _, lbl := range q.LabelsIncludeAny {
 			if lblID, ok := lblNameToID[lbl.LabelName]; ok {
 				params = append(params, "(?, ?)")
 				args = append(args, q.ID, lblID)
+
+				lblIdents = append(lblIdents, fleet.LabelIdent{
+					LabelID:   lblID,
+					LabelName: lbl.LabelName,
+				})
 			}
 		}
-	}
-
-	if len(params) == 0 {
-		return nil
+		if len(lblIdents) != 0 {
+			q.LabelsIncludeAny = lblIdents
+		}
 	}
 
 	insertSQL := fmt.Sprintf(`INSERT INTO query_labels (query_id, label_id) VALUES %s`, strings.Join(params, ", "))
 	if _, err := tx.ExecContext(ctx, insertSQL, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating query labels")
-	}
-
-	if err := loadLabelsForQueries(ctx, tx, queries); err != nil {
-		return ctxerr.Wrap(ctx, err, "loading label names for inserted query")
 	}
 
 	return nil
