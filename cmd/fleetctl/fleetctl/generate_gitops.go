@@ -274,9 +274,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		// If a specific team is requested, find it.
 		if cmd.CLI.String("team") != "" {
 			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
-			permissiveTransformedSelectedName := generatePermissiveFilename(cmd.CLI.String("team"))
 			for _, team := range teams {
-				if transformedSelectedName == generateFilename(team.Name) || permissiveTransformedSelectedName == generatePermissiveFilename(team.Name) {
+				if transformedSelectedName == generateFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
 						ID:   &team.ID,
 						Team: &team,
@@ -311,7 +310,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		}
 		// If it's a real team, start the filename with the team name.
 		if team != nil {
-			teamFileName = generatePermissiveFilename(team.Name)
+			teamFileName = generateFilename(team.Name)
 			fileName = "teams/" + teamFileName + ".yml"
 			cmd.FilesToWrite[fileName] = map[string]interface{}{
 				"name": team.Name,
@@ -550,17 +549,9 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
-func generateFilename(name string) string {
-	return filenameGenerator(name, false)
-}
-
-func generatePermissiveFilename(name string) string {
-	return filenameGenerator(name, true)
-}
-
 // Given a name, generate a filename by replacing spaces with dashes and
 // removing any non-alphanumeric characters.
-func filenameGenerator(name string, permissive bool) string {
+func generateFilename(name string) string {
 	fileName := strings.Map(func(r rune) rune {
 		switch {
 		case unicode.IsLetter(r) || unicode.IsDigit(r):
@@ -568,10 +559,7 @@ func filenameGenerator(name string, permissive bool) string {
 		case unicode.IsSpace(r):
 			return '-'
 		default:
-			if permissive {
-				return r
-			}
-			return -1
+			return r
 		}
 	}, name)
 	// Strip any leading/trailing dashes using regex.
