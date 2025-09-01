@@ -202,11 +202,11 @@ This setting should not usually be used.
 
 AWS region to use for Identity and Access Management (IAM) authentication of an Amazon Relational Database Service (RDS) MySQL connection. This flag only has effect if all of the following are true:
 
-- `redis_password` is not set
-- `redis_cache_name` is set
+- `mysql_password` is not set
+- `mysql_password_path` is not set
 
 - Default value: none
-- Environment variable: `FLEET_REDIS_REGION`
+- Environment variable: `FLEET_MYSQL_REGION`
 - Config file format:
   ```yaml
   redis:
