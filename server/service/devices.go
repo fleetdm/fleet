@@ -419,7 +419,7 @@ type transparencyURLResponse struct {
 
 func (r transparencyURLResponse) HijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.RedirectURL)
-	w.WriteHeader(http.StatusFound)
+	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
 func (r transparencyURLResponse) Error() error { return r.Err }
