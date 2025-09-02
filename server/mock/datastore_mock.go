@@ -1397,6 +1397,8 @@ type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *an
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
+type AndroidHostLiteByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.AndroidHost, error)
+
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
 type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fleet.AndroidHost, error)
@@ -1412,6 +1414,8 @@ type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string
 type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
 
 type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -3537,6 +3541,9 @@ type DataStore struct {
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
 
+	AndroidHostLiteByHostIDFunc        AndroidHostLiteByHostIDFunc
+	AndroidHostLiteByHostIDFuncInvoked bool
+
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
@@ -3560,6 +3567,9 @@ type DataStore struct {
 
 	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
 	GetMDMAndroidProfilesSummaryFuncInvoked bool
+
+	NewAndroidPolicyRequestFunc        NewAndroidPolicyRequestFunc
+	NewAndroidPolicyRequestFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -8466,6 +8476,13 @@ func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID st
 	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
+func (s *DataStore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteByHostIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteByHostIDFunc(ctx, hostID)
+}
+
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
 	s.mu.Lock()
 	s.BulkSetAndroidHostsUnenrolledFuncInvoked = true
@@ -8520,6 +8537,13 @@ func (s *DataStore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *ui
 	s.GetMDMAndroidProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+	s.mu.Lock()
+	s.NewAndroidPolicyRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidPolicyRequestFunc(ctx, req)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

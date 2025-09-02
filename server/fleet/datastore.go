@@ -2207,10 +2207,13 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
 
-	// GetMDMWindowsProfilesSummary summarizes the current state of Android profiles on each
+	// GetMDMAndroidProfilesSummary summarizes the current state of Android profiles on each
 	// Android host in the specified team (or, if no team is specified, each host that is not
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
+	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2311,6 +2314,7 @@ type Datastore interface {
 type AndroidDatastore interface {
 	android.Datastore
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
+	AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error

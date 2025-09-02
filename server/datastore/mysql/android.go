@@ -236,8 +236,9 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		ad.host_id,
 		ad.device_id,
 		ad.enterprise_specific_id,
-		ad.android_policy_id,
-		ad.last_policy_sync_time
+		ad.last_policy_sync_time,
+		ad.applied_policy_id,
+		ad.applied_policy_version
 		FROM android_devices ad
 		JOIN hosts h ON ad.host_id = h.id
 		WHERE ad.enterprise_specific_id = ?`
@@ -257,6 +258,44 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		Device: host.Device,
 	}
 	result.SetNodeKey(enterpriseSpecificID)
+	return result, nil
+}
+
+func (ds *Datastore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*fleet.AndroidHost, error) {
+	type liteHost struct {
+		TeamID *uint `db:"team_id"`
+		*android.Device
+	}
+	stmt := `SELECT
+		h.team_id,
+		ad.id,
+		ad.host_id,
+		ad.device_id,
+		ad.enterprise_specific_id,
+		ad.last_policy_sync_time,
+		ad.applied_policy_id,
+		ad.applied_policy_version
+		FROM android_devices ad
+		JOIN hosts h ON ad.host_id = h.id
+		WHERE ad.host_id = ?`
+	var host liteHost
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostID)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return nil, common_mysql.NotFound("Android device").WithID(hostID)
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "getting android device by host ID")
+	}
+	result := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			ID:     host.Device.HostID,
+			TeamID: host.TeamID,
+		},
+		Device: host.Device,
+	}
+	if host.Device.EnterpriseSpecificID != nil {
+		result.SetNodeKey(*host.Device.EnterpriseSpecificID)
+	}
 	return result, nil
 }
 
@@ -484,6 +523,7 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
+<<<<<<< HEAD
 func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	stmt := `
 SELECT
@@ -596,4 +636,28 @@ func sqlCaseMDMAndroidStatus() string {
 		` + verified + `
 	END
 `
+}
+
+func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+	const stmt = `
+	INSERT INTO android_policy_requests
+		(request_uuid, request_name, policy_id, payload, status_code, error_details, applied_policy_version, policy_version)
+	VALUES
+		(?, ?, ?, ?, ?, ?, ?, ?)
+`
+	if req.RequestUUID == "" {
+		req.RequestUUID = uuid.NewString()
+	}
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt,
+		req.RequestUUID,
+		req.RequestName,
+		req.PolicyID,
+		req.Payload,
+		req.StatusCode,
+		req.ErrorDetails,
+		req.AppliedPolicyVersion,
+		req.PolicyVersion,
+	)
+	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }

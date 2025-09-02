@@ -18,7 +18,7 @@ import Icon from "components/Icon";
 import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import TargetLabelSelector from "components/TargetLabelSelector";
-import ProfileGraphic from "../AddProfileGraphic";
+import ProfileGraphic from "../ProfileGraphic";
 
 import {
   DEFAULT_ERROR_MESSAGE,
@@ -40,7 +40,18 @@ interface IFileChooserProps {
 
 const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
   <div className={`${baseClass}__file-chooser`}>
-    <ProfileGraphic baseClass={baseClass} showMessage />
+    <ProfileGraphic
+      baseClass={baseClass}
+      message={
+        <>
+          <b>Upload configuration profile</b>
+          <br />
+          .mobileconfig and .json for Apple (macOS/iOS,iPadOS),
+          <br />
+          .xml for Windows, .json for Android.
+        </>
+      }
+    />
     <Button
       className={`${baseClass}__upload-button`}
       variant="text-icon"
