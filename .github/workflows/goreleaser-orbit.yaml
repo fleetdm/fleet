@@ -204,7 +204,6 @@ jobs:
     needs: goreleaser-windows
     uses: ./.github/workflows/code-sign-windows.yml
     with:
-      attest: 'true'
       filename: orbit.exe
       upload_name: orbit-windows
     secrets:
