@@ -823,7 +823,8 @@ org_settings:
 
 - `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint's URL.
-- `password` is the password used to authenticate the EST endpoint.
+- `username` is the username used to authenticate with the EST endpoint.
+- `password` is the password used to authenticate with the EST endpoint.
 
 #### hydrant
 
