@@ -159,7 +159,7 @@ func (ds *Datastore) applyQueriesInTx(
 				if err := rows.Err(); err != nil {
 					return ctxerr.Wrap(ctx, err, "fetching query IDs")
 				}
-				if err := rows.Close(); err != nil {
+				if err := rows.Close(); err != nil { //nolint:sqlclosecheck
 					return ctxerr.Wrap(ctx, err, "closing query rows")
 				}
 
@@ -181,8 +181,7 @@ func (ds *Datastore) applyQueriesInTx(
 					return ctxerr.Wrap(ctx, err, "error applying queries in batch")
 				}
 			}
-
-			backoffTime := time.Duration(1<<attempt) * time.Millisecond * time.Duration(rand.Intn(100))
+			backoffTime := time.Duration(1<<attempt) * time.Millisecond * time.Duration(rand.Intn(100)) // nolint: gosec
 			time.Sleep(backoffTime)
 		}
 	}
@@ -385,7 +384,7 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	if err := rows.Err(); err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching query IDs")
 	}
-	if err := rows.Close(); err != nil {
+	if err := rows.Close(); err != nil { //nolint:sqlclosecheck
 		return ctxerr.Wrap(ctx, err, "closing query IDs")
 	}
 
