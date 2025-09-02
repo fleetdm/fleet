@@ -786,7 +786,7 @@ Get details of the certificate authority.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of certificate authority. |
+| id   | integer | body | **Required**. The ID of the certificate authority. |
 
 #### Example
 
