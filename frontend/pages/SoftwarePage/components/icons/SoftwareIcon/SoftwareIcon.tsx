@@ -51,7 +51,11 @@ const SoftwareIcon = ({
   const shouldFetch =
     isApiUrl && typeof softwareId === "number" && typeof teamId === "number";
 
-  const { data: iconBlob } = useQuery<Blob | undefined, AxiosError, string>(
+  const { data: iconBlob, isLoading } = useQuery<
+    Blob | undefined,
+    AxiosError,
+    string
+  >(
     ["softwareIcon", softwareId, teamId],
     () => softwareAPI.getSoftwareIcon(softwareId as number, teamId as number), // safe to assert here
     {
@@ -60,6 +64,10 @@ const SoftwareIcon = ({
       select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
     }
   );
+
+  if (isLoading && shouldFetch) {
+    return <></>;
+  }
 
   let iconSrc: string | null = null;
   if (isApiUrl && iconBlob) {

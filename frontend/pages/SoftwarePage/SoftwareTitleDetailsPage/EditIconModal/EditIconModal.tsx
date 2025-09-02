@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
@@ -70,6 +70,38 @@ const EditIconModal = ({
   const [iconDimensions, setIconDimensions] = useState<number | null>(null);
   const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
   const [navTabIndex, setNavTabIndex] = useState(0);
+
+  console.log("formData", formData);
+  useEffect(() => {
+    // Only run if there's an API URL and no file already selected
+    if (
+      !formData &&
+      software.icon_url &&
+      software.icon_url.startsWith("/api/")
+    ) {
+      // Fetch the existing icon data as blob (if needed for preview)
+      fetch(software.icon_url)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const previewUrl = URL.createObjectURL(blob);
+
+          // You may want to create a pseudo File object
+          // For demonstration, assume file details can be extracted/guessed
+          setFormData({
+            icon: new File([blob], "what-should-this-be-named.png", {
+              type: "image/png",
+            }),
+          });
+
+          // Extract dimensions needed for display
+          const img = new Image();
+          img.onload = () => {
+            setIconDimensions(img.width);
+          };
+          img.src = previewUrl;
+        });
+    }
+  }, [software.icon_url, formData]);
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -283,7 +315,6 @@ const EditIconModal = ({
                 name={software.name}
                 source="apps"
                 url={previewInfo.currentIconUrl}
-                size="xsmall"
               />
             )}
             <TooltipTruncatedText value={previewInfo.name} />
@@ -297,6 +328,17 @@ const EditIconModal = ({
   };
 
   const renderForm = () => {
+    const fileDetails =
+      formData && formData.icon
+        ? {
+            name: formData.icon.name,
+            description: `Software icon • ${iconDimensions || "?"}x${
+              iconDimensions || "?"
+            } px`,
+          }
+        : undefined;
+
+    console.log("fileDetails", fileDetails);
     return (
       <>
         <FileUploader
@@ -309,14 +351,7 @@ const EditIconModal = ({
           buttonMessage="Choose file"
           buttonType="link"
           className={`${baseClass}__file-uploader`}
-          fileDetails={
-            formData && formData.icon
-              ? {
-                  name: formData.icon.name,
-                  description: `Software icon • ${iconDimensions}x${iconDimensions}px`,
-                }
-              : undefined
-          }
+          fileDetails={fileDetails}
           gitopsCompatible={false}
         />
         <h2>Preview</h2>

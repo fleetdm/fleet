@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -100,6 +100,10 @@ export const FileUploader = ({
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+
+  useEffect(() => {
+    setIsFileSelected(!!fileDetails);
+  }, [fileDetails]);
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
