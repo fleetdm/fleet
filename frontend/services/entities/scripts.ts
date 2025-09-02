@@ -129,6 +129,7 @@ export interface IScriptBatchHostCountsV1 {
   ran: number;
   pending: number;
   errored: number;
+  incompatible: number;
   canceled: number;
 }
 export type ScriptBatchHostCountV1 = keyof IScriptBatchHostCountsV1;

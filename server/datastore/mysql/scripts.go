@@ -2215,18 +2215,20 @@ func (ds *Datastore) RunScheduledBatchActivity(ctx context.Context, executionID 
 func (ds *Datastore) BatchExecuteSummary(ctx context.Context, executionID string) (*fleet.BatchActivity, error) {
 	stmtExecutions := `
 SELECT
-	COUNT(*) as num_targeted,
+	COUNT(bsehr.host_id) as num_targeted,
 	COUNT(bsehr.error) as num_did_not_run,
 	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
 	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
 	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
 FROM
-	batch_activity_host_results bsehr
+  batch_activities ba
+LEFT JOIN batch_activity_host_results bsehr
+		ON ba.execution_id = bsehr.batch_execution_id
 LEFT JOIN
 	host_script_results hsr
 		ON bsehr.host_execution_id = hsr.execution_id
 WHERE
-	bsehr.batch_execution_id = ?`
+	ba.execution_id = ?`
 
 	stmtScriptDetails := `
 SELECT
@@ -2260,7 +2262,8 @@ WHERE
 	summary.NumRan = &temp_summary.NumSucceeded
 	// NumErrored is the number of hosts that errored out, which includes
 	// both failed and did not run.
-	summary.NumErrored = ptr.Uint(temp_summary.NumFailed + temp_summary.NumDidNotRun)
+	summary.NumErrored = &temp_summary.NumFailed
+	summary.NumIncompatible = &temp_summary.NumDidNotRun
 	// NumFailed is the number of hosts that were canceled before execution.
 	summary.NumCanceled = &temp_summary.NumCancelled
 	// NumPending is the number of hosts that are pending execution.
@@ -2429,16 +2432,16 @@ UPDATE batch_activities AS ba
 JOIN (
   SELECT
     ba2.id AS batch_id,
-    COUNT(*)                                                   AS num_targeted,
+    COUNT(bahr.host_id)                                        AS num_targeted,
     COUNT(bahr.error)                                          AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
     COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
     COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
-  FROM batch_activity_host_results AS bahr
+  FROM batch_activities AS ba2
+  LEFT JOIN batch_activity_host_results AS bahr
+	  ON ba2.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results AS hsr
-         ON bahr.host_execution_id = hsr.execution_id
-  JOIN batch_activities AS ba2
-         ON ba2.execution_id = bahr.batch_execution_id
+	  ON bahr.host_execution_id = hsr.execution_id
   WHERE ba2.status = 'started'
   GROUP BY ba2.id
   HAVING (num_incompatible + num_ran + num_errored + num_canceled) >= num_targeted
