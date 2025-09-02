@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"sort"
 	"strings"
 	"time"
 
@@ -106,12 +105,6 @@ func (ds *Datastore) applyQueriesInTx(
 			end = len(queries)
 		}
 		batch := queries[i:end]
-
-		sort.Slice(batch, func(i, j int) bool {
-			keyI := unqKeyGen(batch[i].Name, batch[i].TeamID)
-			keyJ := unqKeyGen(batch[j].Name, batch[j].TeamID)
-			return keyI < keyJ
-		})
 
 		// Group queries by their 'key' to make lookups more efficient.
 		batchGrp := make(map[string]*fleet.Query, len(batch))
