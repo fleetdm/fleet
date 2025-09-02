@@ -2017,16 +2017,15 @@ GROUP BY
 		return counts, err
 	}
 
-	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, row := range rows {
 		switch row.Status {
-		case "failed":
+		case string(fleet.MDMDeliveryFailed):
 			counts.Failed = row.Count
-		case "pending":
+		case string(fleet.MDMDeliveryPending):
 			counts.Pending += row.Count
-		case "verifying":
+		case string(fleet.MDMDeliveryVerifying):
 			counts.Verifying = row.Count
-		case "verified":
+		case string(fleet.MDMDeliveryVerified):
 			counts.Verified = row.Count
 		case "":
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d android hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
