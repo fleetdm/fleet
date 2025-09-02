@@ -61,8 +61,8 @@ type RedisConfig struct {
 	Username                  string
 	Password                  string
 	Database                  int
-	Region                    string
-	CacheName                 string
+	Region                    string        `yaml:"region"`
+	CacheName                 string        `yaml:"cache_name"`
 	UseTLS                    bool          `yaml:"use_tls"`
 	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
 	StsExternalID             string        `yaml:"sts_external_id"`
