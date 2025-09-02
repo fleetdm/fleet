@@ -5167,8 +5167,8 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
 	groupedCAs := &fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
-			getDigiCertIntegration("https://example.com", "caName"),
-			getDigiCertIntegration("https://example.com", "caName2"),
+			newMockDigicertCA("https://example.com", "caName"),
+			newMockDigicertCA("https://example.com", "caName2"),
 		},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			newMockCustomSCEPProxyCA("https://example.com", "scepName"),

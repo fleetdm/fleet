@@ -14500,7 +14500,7 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
 	defer cleanup()
 
-	caBad := getDigiCertIntegration(testServer.URL, "ca")
+	caBad := newMockDigicertCA(testServer.URL, "ca")
 	certPayload := createCertificateAuthorityRequest{
 		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
 			DigiCert: &caBad,
@@ -14510,11 +14510,11 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
 
 	// Add 3 DigiCert integrations
-	ca0 := getDigiCertIntegration(digiCertServer.server.URL, "ca0")
+	ca0 := newMockDigicertCA(digiCertServer.server.URL, "ca0")
 	ca0.APIToken = "api_token0"
-	ca1 := getDigiCertIntegration(digiCertServer.server.URL, "ca1")
+	ca1 := newMockDigicertCA(digiCertServer.server.URL, "ca1")
 	ca1.APIToken = "api_token1"
-	ca2 := getDigiCertIntegration(digiCertServer.server.URL, "ca2")
+	ca2 := newMockDigicertCA(digiCertServer.server.URL, "ca2")
 	ca2.APIToken = "api_token2"
 	certPayload.CertificateAuthorityPayload.DigiCert = &ca0
 	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
@@ -14678,7 +14678,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert config
-	ca := getDigiCertIntegration(digiCertServer.server.URL, "my_CA")
+	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
 	certPayload := createCertificateAuthorityRequest{
 		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
@@ -14785,7 +14785,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 	// ////////////////////////////////
 	// Try a DigiCert CA that will fail
-	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
+	caFail := newMockDigicertCA(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
 	certPayload = createCertificateAuthorityRequest{
 		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
