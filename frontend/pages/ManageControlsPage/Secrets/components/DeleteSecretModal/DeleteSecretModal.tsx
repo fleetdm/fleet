@@ -1,7 +1,7 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { IPaginatedListHandle } from "components/PaginatedList";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { ISecret } from "interfaces/secrets";
 import { NotificationContext } from "context/notification";
 
@@ -58,7 +58,11 @@ const DeleteSecretModal = ({
     >
       <>
         <p>
-          This will delete the <b>{secret?.name}</b> custom variable.
+          This will delete the{" "}
+          <b>
+            <TooltipTruncatedText value={secret?.name} />
+          </b>{" "}
+          custom variable.
         </p>
         <div className="modal-cta-wrap">
           <Button
