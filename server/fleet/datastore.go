@@ -13,6 +13,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/types"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -2209,6 +2210,10 @@ type Datastore interface {
 
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
 	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
+
+	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
+	// their configuration profiles (Android policy) sent.
+	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
