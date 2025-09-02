@@ -3348,11 +3348,6 @@ func (svc *Service) GetMDMConfigProfileStatus(ctx context.Context, profileUUID s
 		if err != nil {
 			return fleet.MDMConfigProfileStatus{}, err
 		}
-		if ok := slices.Contains(mdm.ListFleetReservedAndroidProfileNames(), prof.Name); ok {
-			// this endpoint is for custom settings, not fleet-controlled profiles,
-			// return not found if such a profile is requested here.
-			return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
-		}
 		teamID = prof.TeamID
 	default:
 		return fleet.MDMConfigProfileStatus{}, fleet.NewInvalidArgumentError("profile_uuid", "unknown profile").WithStatus(http.StatusNotFound)
