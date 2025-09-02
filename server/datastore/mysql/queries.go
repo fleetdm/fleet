@@ -3,9 +3,15 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"math/rand"
+	"sort"
 	"strings"
+	"time"
 
+	"github.com/VividCortex/mysqlerr"
+	"github.com/go-sql-driver/mysql"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -45,45 +51,38 @@ func (ds *Datastore) applyQueriesInTx(
 	authorID uint,
 	queries []*fleet.Query,
 ) (err error) {
-	// First, verify all 'queries' are valid.
-	for _, q := range queries {
-		if err := q.Verify(); err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-	}
-
 	const upsertQueriesSQL = `
-	INSERT INTO queries (
-		name,
-		description,
-		query,
-		author_id,
-		saved,
-		observer_can_run,
-		team_id,
-		team_id_char,
-		platform,
-		min_osquery_version,
-		schedule_interval,
-		automations_enabled,
-		logging_type,
-		discard_data
-	) VALUES %s
-	ON DUPLICATE KEY UPDATE
-		name = VALUES(name),
-		description = VALUES(description),
-		query = VALUES(query),
-		author_id = VALUES(author_id),
-		saved = VALUES(saved),
-		observer_can_run = VALUES(observer_can_run),
-		team_id = VALUES(team_id),
-		team_id_char = VALUES(team_id_char),
-		platform = VALUES(platform),
-		min_osquery_version = VALUES(min_osquery_version),
-		schedule_interval = VALUES(schedule_interval),
-		automations_enabled = VALUES(automations_enabled),
-		logging_type = VALUES(logging_type),
-		discard_data = VALUES(discard_data)`
+		INSERT INTO queries (
+			name,
+			description,
+			query,
+			author_id,
+			saved,
+			observer_can_run,
+			team_id,
+			team_id_char,
+			platform,
+			min_osquery_version,
+			schedule_interval,
+			automations_enabled,
+			logging_type,
+			discard_data
+		) VALUES %s
+		ON DUPLICATE KEY UPDATE
+			name = VALUES(name),
+			description = VALUES(description),
+			query = VALUES(query),
+			author_id = VALUES(author_id),
+			saved = VALUES(saved),
+			observer_can_run = VALUES(observer_can_run),
+			team_id = VALUES(team_id),
+			team_id_char = VALUES(team_id_char),
+			platform = VALUES(platform),
+			min_osquery_version = VALUES(min_osquery_version),
+			schedule_interval = VALUES(schedule_interval),
+			automations_enabled = VALUES(automations_enabled),
+			logging_type = VALUES(logging_type),
+			discard_data = VALUES(discard_data)`
 
 	// 'queries' are uniquely identified by {name, team_id}
 	unqKeyGen := func(name string, teamID *uint) string {
@@ -93,7 +92,7 @@ func (ds *Datastore) applyQueriesInTx(
 		return fmt.Sprintf("%d:%s", *teamID, name)
 	}
 
-	batchSize := 25
+	batchSize := 50
 	for i := 0; i < len(queries); i += batchSize {
 		end := i + batchSize
 		if end > len(queries) {
@@ -101,77 +100,90 @@ func (ds *Datastore) applyQueriesInTx(
 		}
 		batch := queries[i:end]
 
+		sort.Slice(batch, func(i, j int) bool {
+			keyI := unqKeyGen(batch[i].Name, batch[i].TeamID)
+			keyJ := unqKeyGen(batch[j].Name, batch[j].TeamID)
+			return keyI < keyJ
+		})
+
 		// Group queries by their 'key' to make lookups more efficient.
 		batchGrp := make(map[string]*fleet.Query, len(batch))
 		for _, q := range batch {
 			batchGrp[unqKeyGen(q.Name, q.TeamID)] = q
 		}
 
-		// For upserting
-		pToInsert := make([]string, 0, len(batch))
-		aToInsert := make([]interface{}, 0, len(batch)*13)
+		processBatch := func() error {
+			return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+				// For upserting
+				pToInsert := make([]string, 0, len(batch))
+				aToInsert := make([]interface{}, 0, len(batch)*13)
 
-		// For fetching the ID after the upsert
-		pToSelect := make([]string, 0, len(batch))
-		aToSelect := make([]interface{}, 0, len(batch)*2)
+				// For fetching the ID after the upsert
+				pToSelect := make([]string, 0, len(batch))
+				aToSelect := make([]interface{}, 0, len(batch)*2)
 
-		for _, q := range batch {
-			pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
-			aToInsert = append(aToInsert,
-				q.Name,
-				q.Description,
-				q.Query,
-				authorID,
-				q.ObserverCanRun,
-				q.TeamID,
-				q.TeamIDStr(),
-				q.Platform,
-				q.MinOsqueryVersion,
-				q.Interval,
-				q.AutomationsEnabled,
-				q.Logging,
-				q.DiscardData,
-			)
+				for _, q := range batch {
+					pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+					aToInsert = append(aToInsert, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun, q.TeamID,
+						q.TeamIDStr(), q.Platform, q.MinOsqueryVersion, q.Interval, q.AutomationsEnabled, q.Logging,
+						q.DiscardData)
 
-			pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
-			aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
+					pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
+					aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
+				}
+
+				upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
+				if _, err = tx.ExecContext(ctx, upsertStm, aToInsert...); err != nil {
+					return ctxerr.Wrap(ctx, err, "bulk upserting queries")
+				}
+
+				selectStm := fmt.Sprintf(
+					`SELECT id, name, team_id FROM queries WHERE %s`,
+					strings.Join(pToSelect, " OR "),
+				)
+				rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "select queries for update")
+				}
+				for rows.Next() {
+					var id uint
+					var name string
+					var teamID *uint
+					if err := rows.Scan(&id, &name, &teamID); err != nil {
+						return ctxerr.Wrap(ctx, err, "scan existing query")
+					}
+					if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
+						q.ID = id
+					}
+				}
+				if err := rows.Err(); err != nil {
+					return ctxerr.Wrap(ctx, err, "fetching query IDs")
+				}
+				if err := rows.Close(); err != nil {
+					return ctxerr.Wrap(ctx, err, "closing query rows")
+				}
+
+				return ds.updateQueryLabelsInTx(ctx, batch, tx)
+			})
 		}
-		upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
-		selectStm := fmt.Sprintf(
-			`SELECT id, name, team_id FROM queries WHERE %s`,
-			strings.Join(pToSelect, " OR "),
-		)
 
-		if err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			if _, err = tx.ExecContext(ctx, upsertStm, aToInsert...); err != nil {
-				return ctxerr.Wrap(ctx, err, "bulk upserting queries")
+		const maxRetries = 5
+		for attempt := 0; attempt < maxRetries; attempt++ {
+			err := processBatch()
+			if err == nil {
+				return nil
 			}
 
-			rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "select queries for update")
-			}
-			for rows.Next() {
-				var id uint
-				var name string
-				var teamID *uint
-				if err := rows.Scan(&id, &name, &teamID); err != nil {
-					return ctxerr.Wrap(ctx, err, "scan existing query")
-				}
-				if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
-					q.ID = id
+			base := ctxerr.Cause(err)
+			var mysqlErr *mysql.MySQLError
+			if errors.As(base, &mysqlErr) {
+				if mysqlErr.Number != mysqlerr.ER_LOCK_DEADLOCK && mysqlErr.Number != mysqlerr.ER_LOCK_WAIT_TIMEOUT {
+					return ctxerr.Wrap(ctx, err, "error applying queries in batch")
 				}
 			}
-			if err := rows.Err(); err != nil {
-				return ctxerr.Wrap(ctx, err, "fetching query IDs")
-			}
-			if err := rows.Close(); err != nil {
-				return ctxerr.Wrap(ctx, err, "closing query rows")
-			}
 
-			return ds.updateQueryLabelsInTx(ctx, batch, tx)
-		}); err != nil {
-			return ctxerr.Wrap(ctx, err, "error applying queries in batch")
+			backoffTime := time.Duration(1<<attempt) * time.Millisecond * time.Duration(rand.Intn(100))
+			time.Sleep(backoffTime)
 		}
 	}
 
