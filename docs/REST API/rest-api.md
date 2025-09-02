@@ -697,7 +697,7 @@ Object with the following structure:
 
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
-> **Note:** When editing a CA specify only the object and it's fields that you want to update.
+> **Note:** When editing a CA, specify one object and only its fields that you want to update.
 
 #### Parameters
 
