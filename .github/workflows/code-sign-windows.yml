@@ -36,8 +36,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write # required for attestations
-  attestations: write # required for attestations
 
 jobs:
   code-sign-windows:
