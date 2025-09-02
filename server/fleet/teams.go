@@ -182,16 +182,26 @@ type TeamWebhookSettings struct {
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
-// Structure matches Team to be JSON-compatible with existing tests
 type DefaultTeam struct {
-	ID              uint                       `json:"id"`
-	Name            string                     `json:"name"`
+	ID                uint   `json:"id"`
+	Name              string `json:"name"`
+	DefaultTeamConfig        // Embedded struct - fields appear at top level in JSON
+}
+
+type DefaultTeamConfig struct {
 	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
+	Integrations    DefaultTeamIntegrations    `json:"integrations"`
 }
 
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+// DefaultTeamIntegrations contains only the integrations supported for team ID 0
+type DefaultTeamIntegrations struct {
+	Jira    []*TeamJiraIntegration    `json:"jira"`
+	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
 type TeamSpecSoftwareAsset struct {
@@ -336,8 +346,21 @@ func (t *TeamConfig) Copy() *TeamConfig {
 		clone.AgentOptions = &agentOptionsCopy
 	}
 
+	// Deep copy WebhookSettings
+	if t.WebhookSettings.HostStatusWebhook != nil {
+		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
+		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
+		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
+		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	}
+
 	// Deep copy integrations
 	clone.Integrations = t.Integrations.Copy()
+
+	// Deep copy Features
+	clone.Features = *t.Features.Copy()
 
 	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
 	clone.MDM = *t.MDM.Copy()

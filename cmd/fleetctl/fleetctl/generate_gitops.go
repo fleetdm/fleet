@@ -707,6 +707,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["team_integrations"].(map[string]interface{})
 
 		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		// https://github.com/fleetdm/fleet/issues/20287
 		delete(result, "jira")
 		delete(result, "zendesk")
 
@@ -863,11 +864,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	t := reflect.TypeOf(fleet.TeamConfig{})
 
 	// For "No Team" (team ID 0), only include webhook settings
+	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
+	// See https://github.com/fleetdm/fleet/issues/20287
 	if team.ID == 0 {
-		webhookSettings := map[string]interface{}{
+		webhookSettings := map[string]any{
 			"failing_policies_webhook": team.Config.WebhookSettings.FailingPoliciesWebhook,
 		}
-		teamSettings = map[string]interface{}{
+		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): webhookSettings,
 		}
 		return teamSettings, nil
