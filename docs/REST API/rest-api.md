@@ -656,6 +656,7 @@ Object with the following structure:
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | url       | string  | **Required**. The EST (Enrollment Over Secure Transport) endpoint's URL. |
+| username  | string | **Required**. The username used to authenticate the EST endpoint. |
 | password  | string | **Required**. The password used to authenticate the EST endpoint. |
 
 ##### hydrant
