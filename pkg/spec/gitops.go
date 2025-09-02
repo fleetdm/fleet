@@ -1301,6 +1301,14 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for software URL %q`, softwarePackageSpec.URL))
 				continue
 			}
+			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
+				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
+				continue
+			}
+			if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
+				multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+				continue
+			}
 			if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
 				multiError = multierror.Append(multiError, fmt.Errorf("software URL %q is too long, must be %d characters or less", softwarePackageSpec.URL, fleet.SoftwareInstallerURLMaxLength))
 				continue
@@ -1320,15 +1328,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 					multiError = multierror.Append(multiError, fmt.Errorf("software URL %s refers to a .tar.gz archive, which requires both install_script and uninstall_script", softwarePackageSpec.URL))
 					continue
 				}
-			}
-
-			if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
-				multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
-				continue
-			}
-			if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
-				multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
-				continue
 			}
 
 			result.Software.Packages = append(result.Software.Packages, softwarePackageSpec)
