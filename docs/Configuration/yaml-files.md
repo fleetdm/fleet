@@ -780,7 +780,8 @@ org_settings:
     custom_est_proxy: # Available in Fleet Premium
       - name: SECTIGO_WIFI
         url: https://example.com/.well-known/est/abc123
-        password: $SECTIGO_PASSWORD
+        username: $SECTIGO_USERNAME_PASSWORD
+        password: $SECTIGO_WIFI_PASSWORD
     hydrant: # Available in Fleet Premium
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
