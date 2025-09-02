@@ -2910,8 +2910,7 @@ spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin, linux, windows
   description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
-  query: |
-    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  query: SELECT u.username, vs.* FROM users u JOIN vscode_extensions vs ON u.uid = vs.uid;
   bash: echo "username,extension_name" && for u in /Users/*; do [ -d "$u/.vscode/extensions" ] && for ext in "$u/.vscode/extensions"/*; do [ -d "$ext" ] && echo "$(basename "$u"),$(basename "$ext")"; done; done
   powershell: >
     $users = @(
