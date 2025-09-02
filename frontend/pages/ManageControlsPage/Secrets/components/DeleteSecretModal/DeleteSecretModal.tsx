@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import { IPaginatedListHandle } from "components/PaginatedList";
 import { ISecret } from "interfaces/secrets";
 import { NotificationContext } from "context/notification";
 
@@ -9,16 +10,16 @@ import secretsAPI from "services/entities/secrets";
 
 interface DeleteSecretModalProps {
   secret: ISecret | undefined;
-  onCancel: () => void;
-  onDelete: () => void;
+  onExit: () => void;
+  paginatedListRef: React.RefObject<IPaginatedListHandle<ISecret>>;
 }
 
 const baseClass = "fleet-delete-secret-modal";
 
 const DeleteSecretModal = ({
   secret,
-  onCancel,
-  onDelete,
+  onExit,
+  paginatedListRef,
 }: DeleteSecretModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -32,7 +33,7 @@ const DeleteSecretModal = ({
     try {
       await secretsAPI.deleteSecret(secret.id);
       renderFlash("success", "Variable successfully deleted.");
-      onDelete();
+      paginatedListRef.current?.reload(); // update the list
     } catch (error) {
       const errorObject = formatErrorResponse(error);
       const isInUseError =
@@ -45,13 +46,14 @@ const DeleteSecretModal = ({
       renderFlash("error", message);
     } finally {
       setIsDeleting(false);
+      onExit();
     }
   };
 
   return (
     <Modal
       title="Delete custom variable?"
-      onExit={onCancel}
+      onExit={onExit}
       className={baseClass}
     >
       <>
@@ -67,7 +69,7 @@ const DeleteSecretModal = ({
           >
             Delete
           </Button>
-          <Button variant="inverse-alert" onClick={onCancel}>
+          <Button variant="inverse-alert" onClick={onExit}>
             Cancel
           </Button>
         </div>
