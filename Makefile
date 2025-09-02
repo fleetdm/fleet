@@ -697,10 +697,23 @@ endif
 	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 ifneq ($(codesign-identity),)
-	@echo "Replacing swift dialog signatures"
+	@echo "Replacing Swift Dialog signatures"
 	codesign --force --verbose --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
+ifeq ($(notarize), true)
+	@echo "Notarizing now-signed swift dialog"
+	xcrun notarytool store-credentials "notarytool-profile" --apple-id "${AC_USERNAME}" --team-id "${AC_TEAM_ID}" --password "${AC_PASSWORD}"
+	ditto -c -k --keepParent $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app "notarization.zip"
+	xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
+	xcrun stapler staple $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app "notarization.zip"
+	@echo "Successfully notarized Swift Dialog"
+else
+	@echo "Skipping notarization of swift dialog"
+endif
 else
 	@echo "Skipping signing swift dialog"
+ifeq ($(notarize), true)
+	@echo "Skipping requested notarization of swift dialog since signing was skipped"
+endif
 endif
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
