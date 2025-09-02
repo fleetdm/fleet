@@ -17,7 +17,7 @@ describe("AddInstallSoftware", () => {
         softwareTitles={null}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
-        platform="darwin"
+        platform="macos"
       />
     );
 
@@ -32,7 +32,7 @@ describe("AddInstallSoftware", () => {
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
-        platform="darwin"
+        platform="macos"
       />
     );
 
@@ -61,7 +61,7 @@ describe("AddInstallSoftware", () => {
         ]}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
-        platform="darwin"
+        platform="macos"
       />
     );
 
