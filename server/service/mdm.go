@@ -1601,6 +1601,19 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 	return profLabels, nil
 }
 
+type batchModifyMDMConfigProfilesRequest struct {
+	TeamID   *uint   `json:"-" query:"team_id,optional"`
+	TeamName *string `json:"-" query:"team_name,optional"`
+	DryRun   bool    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	//TODO: change type here to new payload type
+	ConfigurationProfiles []fleet.MDMProfileBatchPayload `json:"configuration_profiles"`
+}
+
+func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchModifyMDMConfigProfilesRequest)
+
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Batch Replace MDM Profiles
 ////////////////////////////////////////////////////////////////////////////////
