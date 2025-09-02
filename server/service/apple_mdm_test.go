@@ -2901,16 +2901,18 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		return appCfg, nil
 	}
 
-	// TODO: Mock this to enable NDES
-	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
-		return []*fleet.CertificateAuthority{}, nil
-	}
+	// TODO(hca): Mock this to enable NDES?
+	// ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+	// 	return []*fleet.CertificateAuthority{}, nil
+	// }
+
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		assert.Empty(t, payload)
 		return nil
 	}
 
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
 	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURL), func(t *testing.T) {
 		var upsertCount int
 		failedCall = false
@@ -2936,7 +2938,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
-		checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2944,6 +2946,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
 	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
@@ -2963,7 +2966,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
-		checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2971,6 +2974,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
 	t.Run("bad $FLEET_VAR", func(t *testing.T) {
 		var failedCount int
 		failedCall = false
@@ -3024,7 +3028,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 4, failedCount, "number of profiles with bad content")
-		checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
