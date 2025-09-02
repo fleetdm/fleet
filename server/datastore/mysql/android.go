@@ -712,10 +712,10 @@ const androidApplicableProfilesQuery = `
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
-		h.platform = 'android' AND 
+		h.platform = 'android' AND
 		( %s )
 	GROUP BY
-		macp.profile_uuid, macp.name, h.uuid
+		macp.profile_uuid, macp.name, h.uuid, h.id
 	HAVING
 		count_profile_labels > 0 AND count_host_labels = count_profile_labels
 
@@ -753,7 +753,7 @@ const androidApplicableProfilesQuery = `
 		h.platform = 'android' AND
 		( %s )
 	GROUP BY
-		macp.profile_uuid, macp.name, h.uuid
+		macp.profile_uuid, macp.name, h.uuid, h.id
 	HAVING
 		-- considers only the profiles with labels, without any broken label, with results reported after all labels were
 		-- created and with the host not in any label
@@ -785,10 +785,10 @@ const androidApplicableProfilesQuery = `
 			LEFT OUTER JOIN label_membership lm
 				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
 	WHERE
-		h.platform = 'android' AND 
+		h.platform = 'android' AND
 		( %s )
 	GROUP BY
-		macp.profile_uuid, macp.name, h.uuid
+		macp.profile_uuid, macp.name, h.uuid, h.id
 	HAVING
 		count_profile_labels > 0 AND count_host_labels >= 1
 `
@@ -817,7 +817,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	var result []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		hostsWithChangesStmt := fmt.Sprintf(`
-	WITH (%s) AS ds
+	WITH ds AS ( %s )
 
 	SELECT
 		DISTINCT ds.host_uuid
@@ -841,8 +841,10 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	SELECT
 		DISTINCT hmap.host_uuid
 	FROM host_mdm_android_profiles hmap
+		INNER JOIN hosts h
+			ON h.uuid = hmap.host_uuid
 		INNER JOIN android_devices ad
-			ON ad.host_id = ds.host_id
+			ON ad.host_id = h.id
 		LEFT OUTER JOIN ds
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
@@ -874,10 +876,10 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.name as profile_name,
 		ds.host_uuid,
 		COALESCE(hmap.request_fail_count, 0) as request_fail_count
-	FROM ( %s ) AS ds
+	FROM ( %s ) ds
 		LEFT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
-)`, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
+`, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
 
 		query, args, err := sqlx.In(listHostProfilesStmt, hostUUIDs, hostUUIDs, hostUUIDs, hostUUIDs)
 		if err != nil {

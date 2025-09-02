@@ -33,6 +33,7 @@ func TestAndroid(t *testing.T) {
 		{"GetMDMAndroidConfigProfile", testGetMDMAndroidConfigProfile},
 		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
+		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -755,4 +756,197 @@ func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 		_, err := q.ExecContext(context.Background(), stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
 		return err
 	})
+}
+
+func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create some hosts
+	hosts := make([]*fleet.Host, 2)
+	for i := range hosts {
+		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
+		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		require.NoError(t, err)
+		hosts[i] = newHost.Host
+	}
+
+	// without any profile, should return empty
+	profs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, profs)
+
+	// create a couple profiles for no team, and one for a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
+	require.NoError(t, err)
+
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-1"))
+	require.NoError(t, err)
+	p2, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-2"))
+	require.NoError(t, err)
+	tmP3 := androidProfileForTest("team-1")
+	tmP3.TeamID = &tm.ID
+	p3, err := ds.NewMDMAndroidConfigProfile(ctx, *tmP3)
+	require.NoError(t, err)
+
+	// both no-team profiles should be applicable to both hosts
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p2.Name},
+	}, profs)
+
+	// transfer host 1 to the team
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[1].ID}))
+	require.NoError(t, err)
+
+	// profiles for host 1 change to p3
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// test the include all labels condition
+	lblIncAll1, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-1", Query: "select 1"})
+	require.NoError(t, err)
+	lblIncAll2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-2", Query: "select 1"})
+	require.NoError(t, err)
+	p4, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-4", lblIncAll1, lblIncAll2))
+	require.NoError(t, err)
+
+	// no change, host is not a member of both labels
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// make host[0] a member of only one of the labels
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// no change, host is not a member of both labels
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 3)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// make host[0] a member of the other label
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAll2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// now p4 is applicable to host 0
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// test the include any labels condition
+	lblIncAny1, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-1", Query: "select 1"})
+	require.NoError(t, err)
+	lblIncAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-2", Query: "select 1"})
+	require.NoError(t, err)
+	p5, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-5", lblIncAny1, lblIncAny2))
+	require.NoError(t, err)
+
+	// no change, host 0 not a member yet
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// make host[0] a member of one of the labels
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblIncAny1.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// now p5 is applicable to host 0
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 5)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// test the exclude any labels condition
+	lblExclAny1, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-1", Query: "select 1"})
+	require.NoError(t, err)
+	lblExclAny2, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-2", Query: "select 1"})
+	require.NoError(t, err)
+	p6, err := ds.NewMDMAndroidConfigProfile(ctx, *androidProfileForTest("no-team-6", lblExclAny1, lblExclAny2))
+	require.NoError(t, err)
+
+	// no change, label membership was not updated after labels created
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 5)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// update the timestamp of when host label membership was updated
+	hosts[0].LabelUpdatedAt = time.Now().UTC().Add(time.Second) // just to be extra safe in tests
+	hosts[0].PolicyUpdatedAt = time.Now().UTC()
+	err = ds.UpdateHost(ctx, hosts[0])
+	require.NoError(t, err)
+
+	// host 0 is _not_ a member of the excluded labels, so p6 is applicable
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 6)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p6.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p6.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// make host[0] a member of one of the exclude labels
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lblExclAny2.ID, []uint{hosts[0].ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// p6 is not applicable anymore
+	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Len(t, profs, 5)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
 }
