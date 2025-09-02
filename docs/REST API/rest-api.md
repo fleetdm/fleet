@@ -672,7 +672,7 @@ Object with the following structure:
     "profile_id": "b416e058-1bdc-4844-9c3f-7c71d58d0eff",
     "certificate_common_name": "$FLEET_VAR_HOST_HARDWARE_SERIAL",
     "certificate_user_principal_names": [
-      "$FLEET_VAR_HOST_HARDWARE_SERIAL",
+      "$FLEET_VAR_HOST_HARDWARE_SERIAL"
     ],
     "certificate_seat_id": "$FLEET_VAR_HOST_END_USER_EMAIL_IDP"
   }
