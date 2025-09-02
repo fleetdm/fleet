@@ -3,14 +3,9 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
-	"math/rand"
 	"strings"
-	"time"
 
-	"github.com/VividCortex/mysqlerr"
-	"github.com/go-sql-driver/mysql"
 	"golang.org/x/text/unicode/norm"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -112,77 +107,59 @@ func (ds *Datastore) applyQueriesInTx(
 			batchGrp[unqKeyGen(q.Name, q.TeamID)] = q
 		}
 
-		processBatch := func() error {
-			return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-				// For upserting
-				pToInsert := make([]string, 0, len(batch))
-				aToInsert := make([]interface{}, 0, len(batch)*13)
+		if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// For upserting
+			pToInsert := make([]string, 0, len(batch))
+			aToInsert := make([]interface{}, 0, len(batch)*13)
 
-				// For fetching the ID after the upsert
-				pToSelect := make([]string, 0, len(batch))
-				aToSelect := make([]interface{}, 0, len(batch)*2)
+			// For fetching the ID after the upsert
+			pToSelect := make([]string, 0, len(batch))
+			aToSelect := make([]interface{}, 0, len(batch)*2)
 
-				for _, q := range batch {
-					pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
-					aToInsert = append(aToInsert, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun, q.TeamID,
-						q.TeamIDStr(), q.Platform, q.MinOsqueryVersion, q.Interval, q.AutomationsEnabled, q.Logging,
-						q.DiscardData)
+			for _, q := range batch {
+				pToInsert = append(pToInsert, "( ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+				aToInsert = append(aToInsert, q.Name, q.Description, q.Query, authorID, q.ObserverCanRun, q.TeamID,
+					q.TeamIDStr(), q.Platform, q.MinOsqueryVersion, q.Interval, q.AutomationsEnabled, q.Logging,
+					q.DiscardData)
 
-					pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
-					aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
-				}
-
-				upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
-				if _, err = tx.ExecContext(ctx, upsertStm, aToInsert...); err != nil {
-					return ctxerr.Wrap(ctx, err, "bulk upserting queries")
-				}
-
-				selectStm := fmt.Sprintf(
-					`SELECT id, name, team_id FROM queries WHERE %s`,
-					strings.Join(pToSelect, " OR "),
-				)
-				rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "select queries for update")
-				}
-				for rows.Next() {
-					var id uint
-					var name string
-					var teamID *uint
-					if err := rows.Scan(&id, &name, &teamID); err != nil {
-						return ctxerr.Wrap(ctx, err, "scan existing query")
-					}
-					if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
-						q.ID = id
-					}
-				}
-				if err := rows.Err(); err != nil {
-					return ctxerr.Wrap(ctx, err, "fetching query IDs")
-				}
-				if err := rows.Close(); err != nil { //nolint:sqlclosecheck
-					return ctxerr.Wrap(ctx, err, "closing query rows")
-				}
-
-				return ds.updateQueryLabelsInTx(ctx, batch, tx)
-			})
-		}
-
-		const maxRetries = 5
-		for attempt := 0; attempt < maxRetries; attempt++ {
-			err := processBatch()
-			if err == nil {
-				return nil
+				pToSelect = append(pToSelect, "(name = ? AND team_id_char = ?)")
+				aToSelect = append(aToSelect, q.Name, q.TeamIDStr())
 			}
 
-			base := ctxerr.Cause(err)
-			var mysqlErr *mysql.MySQLError
-			if errors.As(base, &mysqlErr) {
-				if mysqlErr.Number != mysqlerr.ER_LOCK_DEADLOCK && mysqlErr.Number != mysqlerr.ER_LOCK_WAIT_TIMEOUT {
-					return ctxerr.Wrap(ctx, err, "error applying queries in batch")
+			upsertStm := fmt.Sprintf(upsertQueriesSQL, strings.Join(pToInsert, ","))
+			if _, err = tx.ExecContext(ctx, upsertStm, aToInsert...); err != nil {
+				return ctxerr.Wrap(ctx, err, "bulk upserting queries")
+			}
+
+			selectStm := fmt.Sprintf(
+				`SELECT id, name, team_id FROM queries WHERE %s`,
+				strings.Join(pToSelect, " OR "),
+			)
+			rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "select queries for update")
+			}
+			for rows.Next() {
+				var id uint
+				var name string
+				var teamID *uint
+				if err := rows.Scan(&id, &name, &teamID); err != nil {
+					return ctxerr.Wrap(ctx, err, "scan existing query")
+				}
+				if q, ok := batchGrp[unqKeyGen(name, teamID)]; ok {
+					q.ID = id
 				}
 			}
-			backoffTime := time.Duration(1<<attempt) * time.Millisecond * time.Duration(rand.Intn(100)) // nolint: gosec
-			time.Sleep(backoffTime)
+			if err := rows.Err(); err != nil {
+				return ctxerr.Wrap(ctx, err, "fetching query IDs")
+			}
+			if err := rows.Close(); err != nil { //nolint:sqlclosecheck
+				return ctxerr.Wrap(ctx, err, "closing query rows")
+			}
+
+			return ds.updateQueryLabelsInTx(ctx, batch, tx)
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "updating query labels")
 		}
 	}
 
