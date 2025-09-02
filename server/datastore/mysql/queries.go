@@ -136,6 +136,7 @@ func (ds *Datastore) applyQueriesInTx(
 				strings.Join(pToSelect, " OR "),
 			)
 			rows, err := tx.QueryContext(ctx, selectStm, aToSelect...)
+			defer rows.Close()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "select queries for update")
 			}
@@ -345,6 +346,7 @@ func (ds *Datastore) updateQueryLabelsInTx(ctx context.Context, queries []*fleet
 	}
 
 	rows, err := tx.QueryxContext(ctx, stm, args...)
+	defer rows.Close()
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching label IDs")
 	}
