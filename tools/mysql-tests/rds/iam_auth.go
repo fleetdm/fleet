@@ -20,6 +20,7 @@ var (
 	portFlag       = flag.String("port", "3306", "Database port")
 	userFlag       = flag.String("user", "fleet_iam_user", "Username for IAM authentication")
 	dbNameFlag     = flag.String("db", "fleet", "Database name")
+	regionFlag     = flag.String("region", "", "AWS region")
 	assumeRoleFlag = flag.String("assume-role", "", "STS assume role ARN (optional)")
 	externalIDFlag = flag.String("external-id", "", "STS external ID (optional)")
 )
@@ -44,6 +45,10 @@ func main() {
 		Database:         *dbNameFlag,
 		StsAssumeRoleArn: *assumeRoleFlag,
 		StsExternalID:    *externalIDFlag,
+	}
+
+	if regionFlag != nil && *regionFlag != "" {
+		mysqlConfig.Region = *regionFlag
 	}
 
 	dbOpts := &common_mysql.DBOptions{

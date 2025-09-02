@@ -16,8 +16,8 @@ var (
 	useTLS         = flag.Bool("tls", false, "Whether or not to use TLS")
 	assumeRoleFlag = flag.String("assume-role", "", "STS assume role ARN (optional)")
 	externalIDFlag = flag.String("external-id", "", "STS external ID (optional)")
-	regionFlag     = flag.String("region", "", "AWS region (optional)")
-	cacheNameFlag  = flag.String("cache-name", "", "ElastiCache cluster name (optional)")
+	regionFlag     = flag.String("region", "", "AWS region")
+	cacheNameFlag  = flag.String("cache-name", "", "ElastiCache cluster name")
 )
 
 func main() {
