@@ -1544,67 +1544,7 @@ func TestModifyEnableAnalytics(t *testing.T) {
 	}
 }
 
-type configCASuite struct {
-	ctx          context.Context
-	svc          *Service
-	appConfig    *fleet.AppConfig
-	newAppConfig *fleet.AppConfig
-	oldAppConfig *fleet.AppConfig
-	invalid      *fleet.InvalidArgumentError
-}
-
-func addMockDatastoreForCA(t *testing.T, s configCASuite) {
-	mockDS := &mock.Store{}
-	s.svc.ds = mockDS
-	mockDS.GetAllCAConfigAssetsByTypeFunc = func(ctx context.Context, assetType fleet.CAConfigAssetType) (map[string]fleet.CAConfigAsset, error) {
-		switch assetType {
-		case fleet.CAConfigDigiCert:
-			return map[string]fleet.CAConfigAsset{
-				"WIFI": {
-					Name:  "WIFI",
-					Value: []byte("api_token"),
-					Type:  fleet.CAConfigDigiCert,
-				},
-			}, nil
-		case fleet.CAConfigCustomSCEPProxy:
-			return map[string]fleet.CAConfigAsset{
-				"SCEP_WIFI": {
-					Name:  "SCEP_WIFI",
-					Value: []byte("challenge"),
-					Type:  fleet.CAConfigCustomSCEPProxy,
-				},
-			}, nil
-		default:
-			t.Fatalf("unexpected asset type: %s", assetType)
-		}
-		return nil, nil
-	}
-}
-
-func checkExpectedCAValidationError(t *testing.T, invalid *fleet.InvalidArgumentError, status appConfigCAStatus, contains ...string) {
-	assert.Len(t, invalid.Errors, 1)
-	for _, expected := range contains {
-		assert.Contains(t, invalid.Error(), expected)
-	}
-	assert.Empty(t, status.ndes)
-	assert.Empty(t, status.digicert)
-	assert.Empty(t, status.customSCEPProxy)
-}
-
-// func getAppConfigWithDigiCertIntegration(url string, name string) *fleet.AppConfig {
-// 	newAppConfig := &fleet.AppConfig{
-// 		Integrations: fleet.Integrations{
-// 			DigiCert: optjson.Slice[fleet.DigiCertCA]{
-// 				Set:   true,
-// 				Valid: true,
-// 				Value: []fleet.DigiCertCA{getDigiCertIntegration(url, name)},
-// 			},
-// 		},
-// 	}
-// 	return newAppConfig
-// }
-
-func getDigiCertIntegration(url string, name string) fleet.DigiCertCA {
+func newMockDigicertCA(url string, name string) fleet.DigiCertCA {
 	digiCertCA := fleet.DigiCertCA{
 		Name:                          name,
 		URL:                           url,
@@ -1616,19 +1556,6 @@ func getDigiCertIntegration(url string, name string) fleet.DigiCertCA {
 	}
 	return digiCertCA
 }
-
-// func getAppConfigWithSCEPIntegration(url string, name string) *fleet.AppConfig {
-// 	newAppConfig := &fleet.AppConfig{
-// 		Integrations: fleet.Integrations{
-// 			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCA]{
-// 				Set:   true,
-// 				Valid: true,
-// 				Value: []fleet.CustomSCEPProxyCA{getCustomSCEPIntegration(url, name)},
-// 			},
-// 		},
-// 	}
-// 	return newAppConfig
-// }
 
 func newMockCustomSCEPProxyCA(url string, name string) fleet.CustomSCEPProxyCA {
 	challenge, _ := server.GenerateRandomText(6)

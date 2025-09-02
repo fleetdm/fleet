@@ -3,811 +3,1034 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"net/http/httptest"
+	"regexp"
+	"strings"
 	"testing"
 
+	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/service/integrationtest/scep_server"
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 )
 
 func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 	t := s.T()
 
-	ndesSCEPServer := eeservice.NewTestSCEPServer(t)
+	// TODO(hca): test each CA type activities once implemented
 
-	// TODO(hca); add mechanism to check that validation endpoints were called
+	// 	TODO(hca) test each CA type cannot configure without private key?
+
+	// TODO(hca); add mechanisms for each CA type to check that external validation endpoints are called for
+	// new/modified CAs and that they are not called if nothing changes?
+
+	// TODO(hca): test free version disallows batch endpoint
+
+	ndesSCEPServer := eeservice.NewTestSCEPServer(t)
 	ndesAdminServer := eeservice.NewTestNDESAdminServer(t, "mscep_admin_password", http.StatusOK)
 
-	scepURL := ndesSCEPServer.URL + "/scep"
-	adminURL := ndesAdminServer.URL + "/mscep_admin/"
-	username := "user"
-	password := "password"
+	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
+	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+		matches := pathRegex.FindStringSubmatch(r.URL.Path)
+		if len(matches) != 2 {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		profileID := matches[1]
+		resp := map[string]string{
+			"id":     profileID,
+			"name":   "Test CA",
+			"status": "Active",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(resp)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(mockDigiCertServer.Close)
 
-	makeTestPayload := func(ndes *fleet.NDESSCEPProxyCA, dryRun bool) applyCertificateAuthoritiesSpecRequest {
-		return applyCertificateAuthoritiesSpecRequest{
-			CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-				NDESSCEP: ndes,
-			},
-			DryRun: dryRun,
+	mockHydrantServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet && r.URL.Path == "/cacerts" {
+			w.Header().Set("Content-Type", "application/pkcs7-mime")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("Imagine if there was actually CA cert data here..."))
+			require.NoError(t, err)
+			return
+		}
+
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}))
+	t.Cleanup(mockHydrantServer.Close)
+
+	mockSCEPServer := scep_server.StartTestSCEPServer(t)
+	t.Cleanup(mockSCEPServer.Close)
+
+	// goodNDESSCEPCA is a base object for testing with a valid NDES SCEP CA. Copy it to override specific fields in tests.
+	goodNDESSCEPCA := fleet.NDESSCEPProxyCA{
+		URL:      ndesSCEPServer.URL + "/scep",
+		AdminURL: ndesAdminServer.URL + "/mscep_admin/",
+		Username: "user",
+		Password: "password",
+	}
+
+	// goodDigiCertCA is a base object for testing with a valid DigiCert CA. Copy it to override specific fields in tests.
+	goodDigiCertCA := fleet.DigiCertCA{
+		Name:                          "VALID_DIGICERT_CA",
+		URL:                           mockDigiCertServer.URL,
+		APIToken:                      "token",
+		ProfileID:                     "valid-profile-id",
+		CertificateCommonName:         "common-name",
+		CertificateUserPrincipalNames: []string{"user1@example.com"},
+		CertificateSeatID:             "seat-id",
+	}
+
+	// goodCustomSCEPCA is a base object for testing with a valid Custom SCEP CA. Copy it to override specific fields in tests.
+	goodCustomSCEPCA := fleet.CustomSCEPProxyCA{
+		Name:      "VALID_CUSTOM_SCEP",
+		URL:       mockSCEPServer.URL + "/scep",
+		Challenge: "challenge",
+	}
+
+	// goodHydrantCA is a base object for testing with a valid Hydrant CA. Copy it to override specific fields in tests.
+	goodHydrantCA := fleet.HydrantCA{
+		Name:         "VALID_HYDRANT",
+		URL:          mockHydrantServer.URL, // TODO: implement a test server?
+		ClientID:     "client-id",
+		ClientSecret: "client-secret",
+	}
+
+	// newApplyRequest creates a new applyCertificateAuthoritiesSpecRequest. The given payload
+	// should be one of fleet.DigiCertCA, fleet.CustomSCEPProxyCA, fleet.HydrantCA, or fleet.NDESSCEPProxyCA.
+	newApplyRequest := func(p interface{}, dryRun bool) (applyCertificateAuthoritiesSpecRequest, error) {
+		switch v := p.(type) {
+		case fleet.CustomSCEPProxyCA:
+			return applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{v},
+				},
+				DryRun: dryRun,
+			}, nil
+		case fleet.HydrantCA:
+			return applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					Hydrant: []fleet.HydrantCA{v},
+				},
+				DryRun: dryRun,
+			}, nil
+		case fleet.NDESSCEPProxyCA:
+			return applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					NDESSCEP: &v,
+				},
+				DryRun: dryRun,
+			}, nil
+		case fleet.DigiCertCA:
+			return applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert: []fleet.DigiCertCA{v},
+				},
+				DryRun: dryRun,
+			}, nil
+		default:
+			return applyCertificateAuthoritiesSpecRequest{}, errors.New("invalid usage of newApplyRequest")
 		}
 	}
 
-	type ndesCases struct {
+	// common invalid name test cases for DigiCert, Custom SCEP, and Hydrant
+	invalidNameTestCases := []struct {
+		testName   string
 		name       string
-		payload    interface{}
-		status     int
 		errMessage string
+	}{
+		{
+			testName:   "empty",
+			name:       "",
+			errMessage: "name cannot be empty",
+		},
+		{
+			testName:   "NDES",
+			name:       "NDES",
+			errMessage: "CA name cannot be NDES",
+		},
+		{
+			testName:   "too long",
+			name:       strings.Repeat("a", 256),
+			errMessage: "CA name cannot be longer than ",
+		},
+		{
+			testName:   "invalid characters",
+			name:       "a/b",
+			errMessage: "Only letters, numbers and underscores allowed",
+		},
 	}
 
-	for _, tc := range []ndesCases{
+	// common invalid URL test cases for DigiCert, Custom SCEP, and Hydrant
+	invalidURLTestCases := []struct {
+		testName   string
+		url        string
+		errMessage string
+	}{
 		{
-			name: "invalid SCEP URL",
-			payload: makeTestPayload(&fleet.NDESSCEPProxyCA{
-				URL:      "://invalid-url",
-				AdminURL: adminURL,
-				Username: username,
-				Password: password,
-			}, false),
-			status:     http.StatusUnprocessableEntity,
-			errMessage: "Invalid NDES SCEP URL",
+			testName:   "empty",
+			url:        "",
+			errMessage: "Invalid URL",
 		},
 		{
-			name: "wrong SCEP URL",
-			payload: makeTestPayload(&fleet.NDESSCEPProxyCA{
-				URL:      "https://new2.com/mscep/mscep.dll",
-				AdminURL: adminURL,
-				Username: username,
-				Password: password,
-			}, false),
-			status:     http.StatusBadRequest,
-			errMessage: "Invalid SCEP URL",
+			testName:   "non-http",
+			url:        "nonhttp://bad.com",
+			errMessage: "URL scheme must be https or http",
 		},
-		{
-			name: "empty password",
-			payload: makeTestPayload(&fleet.NDESSCEPProxyCA{
-				URL:      scepURL,
-				AdminURL: adminURL,
-				Username: username,
-				// Password omitted, should fail validation
-			}, false),
-			status:     http.StatusUnprocessableEntity,
-			errMessage: "NDES SCEP password cannot be empty.",
-		},
-		{
-			name: "happy path",
-			payload: makeTestPayload(&fleet.NDESSCEPProxyCA{
-				URL:      scepURL,
-				AdminURL: adminURL,
-				Username: username,
-				Password: password,
-			}, false),
-			status:     http.StatusOK,
-			errMessage: "",
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			// confirm no existing CAs
+	}
+
+	t.Run("ndes", func(t *testing.T) {
+		type ndesCases struct {
+			name       string
+			payload    interface{}
+			status     int
+			errMessage string
+		}
+
+		checkNDESApplied := func(t *testing.T, expectNDES *fleet.NDESSCEPProxyCA) {
+			// p, ok := tc.payload.(applyCertificateAuthoritiesSpecRequest)
+			// require.True(t, ok)
+
 			cas, err := s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
 			require.NoError(t, err)
-			require.Nil(t, cas.NDESSCEP)
 
-			// apply test case
-			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", tc.payload, tc.status)
-			if tc.errMessage != "" {
-				errMsg := extractServerErrorText(res.Body)
-				require.Contains(t, errMsg, tc.errMessage)
-			} else {
-				require.Equal(t, http.StatusOK, res.StatusCode)
-				// confirm the expected payload was applied
-				p, ok := tc.payload.(applyCertificateAuthoritiesSpecRequest)
-				require.True(t, ok)
-				cas, err = s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
-				require.NoError(t, err)
+			if expectNDES != nil {
 				require.NotNil(t, cas.NDESSCEP)
 				require.NotZero(t, cas.NDESSCEP.ID)
-				require.Equal(t, *p.CertificateAuthorities.NDESSCEP, fleet.NDESSCEPProxyCA{
-					URL:      cas.NDESSCEP.URL,
-					AdminURL: cas.NDESSCEP.AdminURL,
-					Username: cas.NDESSCEP.Username,
-					Password: cas.NDESSCEP.Password,
+				require.Equal(t, expectNDES.URL, cas.NDESSCEP.URL)
+				require.Equal(t, expectNDES.AdminURL, cas.NDESSCEP.AdminURL)
+				require.Equal(t, expectNDES.Username, cas.NDESSCEP.Username)
+				require.Equal(t, expectNDES.Password, cas.NDESSCEP.Password)
+
+			} else {
+				require.Nil(t, cas.NDESSCEP)
+			}
+		}
+
+		t.Run("invalid SCEP URL", func(t *testing.T) {
+			testCopy := goodNDESSCEPCA
+			testCopy.URL = "://invalid-url"
+
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
+			require.Contains(t, errMsg, "Invalid NDES SCEP URL")
+			checkNDESApplied(t, nil)
+		})
+
+		t.Run("wrong SCEP URL", func(t *testing.T) {
+			testCopy := goodNDESSCEPCA
+			testCopy.URL = "https://new2.com/mscep/mscep.dll"
+
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusBadRequest)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
+			require.Contains(t, errMsg, "Invalid SCEP URL")
+			checkNDESApplied(t, nil)
+		})
+
+		t.Run("empty password", func(t *testing.T) {
+			testCopy := goodNDESSCEPCA
+			testCopy.Password = ""
+
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.ndes_scep_proxy")
+			require.Contains(t, errMsg, "NDES SCEP password cannot be empty.")
+			checkNDESApplied(t, nil)
+		})
+
+		t.Run("delete", func(t *testing.T) {
+			t.Run("nil NDES deletes existing", func(t *testing.T) {
+				// create a CA to delete
+				req, err := newApplyRequest(goodNDESSCEPCA, false)
+				require.NoError(t, err)
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA)
+
+				// try dry run of deletion by making an apply request where NDES is nil and dry run is true
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+						NDESSCEP: nil,
+					},
+					DryRun: true,
+				}, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
+
+				// now delete it by making an apply request where NDES is nil and dry run is false
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+						NDESSCEP: nil,
+					},
+					DryRun: false,
+				}, http.StatusOK)
+				checkNDESApplied(t, nil) // prior ndes deleted
+			})
+
+			t.Run("empty NDES deletes existing", func(t *testing.T) {
+				// create a CA to delete
+				req, err := newApplyRequest(goodNDESSCEPCA, false)
+				require.NoError(t, err)
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA)
+
+				// try dry run of deletion by making an apply request where NDES is an empty struct and dry run is true
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+						NDESSCEP: &fleet.NDESSCEPProxyCA{},
+					},
+					DryRun: true,
+				}, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
+
+				// now delete it by making an apply request where NDES is an empty struct
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+						NDESSCEP: &fleet.NDESSCEPProxyCA{},
+					},
+					DryRun: false,
+				}, http.StatusOK)
+				checkNDESApplied(t, nil) // prior ndes deleted
+			})
+
+			t.Run("json null NDES deletes existing", func(t *testing.T) {
+				// create a CA to delete
+				req, err := newApplyRequest(goodNDESSCEPCA, false)
+				require.NoError(t, err)
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA)
+
+				// mock apply request where API user sends json null
+				r := map[string]interface{}{
+					"certificate_authorities": map[string]interface{}{
+						"ndes_scep_proxy": nil,
+					},
+					"dry_run": true,
+				}
+
+				// first try a dry run
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", r, http.StatusOK)
+				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
+
+				// now make a non-dry run apply request where NDES is nil, which should delete the
+				// existing CA
+				r["dry_run"] = false
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", r, http.StatusOK)
+				checkNDESApplied(t, nil) // prior ndes should be deleted
+			})
+		})
+
+		t.Run("happy path add then update then delete", func(t *testing.T) {
+			checkNDESApplied(t, nil)
+
+			req, err := newApplyRequest(goodNDESSCEPCA, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkNDESApplied(t, nil) // dry run
+			req.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkNDESApplied(t, &goodNDESSCEPCA)
+
+			// update
+			testCopy := goodNDESSCEPCA
+			testCopy.Password = "new-password"
+			req, err = newApplyRequest(testCopy, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkNDESApplied(t, &goodNDESSCEPCA) // dry run should not change anything
+			req.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkNDESApplied(t, &testCopy)
+
+			// delete
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			checkNDESApplied(t, &testCopy) // dry run should not change anything
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			checkNDESApplied(t, nil) // prior ndes should be deleted
+		})
+	})
+
+	t.Run("digicert", func(t *testing.T) {
+		t.Run("invalid name", func(t *testing.T) {
+			// run common invalid name test cases
+			for _, tc := range invalidNameTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodDigiCertCA
+					testCopy.Name = tc.name
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.digicert")
+					require.Contains(t, errMsg, tc.errMessage)
 				})
 			}
 		})
 
-		// cleanup after each sub-test
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (('NDES', 'ndes_scep_proxy'))`
-			_, err := q.ExecContext(context.Background(), stmt)
-			return err
-		})
-	}
-
-	for _, tc := range []ndesCases{
-		{
-			name:    "nil NDES deletes existing",
-			payload: makeTestPayload(nil, false),
-			status:  http.StatusOK,
-		},
-		{
-			name:    "empty NDES deletes existing",
-			payload: makeTestPayload(&fleet.NDESSCEPProxyCA{}, false),
-			status:  http.StatusOK,
-		},
-		{
-			name:    "dry run does not delete existing",
-			payload: makeTestPayload(nil, true),
-			status:  http.StatusOK,
-		},
-		{
-			name:    "json null NDES deletes existing",
-			payload: map[string]interface{}{"certificate_authorities": map[string]interface{}{"ndes_scep_proxy": nil}, "dry_run": false},
-			status:  http.StatusOK,
-		},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			// confirm no existing CAs
-			cas, err := s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
-			require.NoError(t, err)
-			require.Nil(t, cas.NDESSCEP)
-
-			// create a CA to delete
-			existingCA := fleet.NDESSCEPProxyCA{
-				URL:      scepURL,
-				AdminURL: adminURL,
-				Username: username,
-				Password: password,
+		// run common invalid URL test cases
+		t.Run("invalid url", func(t *testing.T) {
+			for _, tc := range invalidURLTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodDigiCertCA
+					testCopy.URL = tc.url
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.digicert")
+					if tc.errMessage == "Invalid URL" {
+						require.Contains(t, errMsg, "Invalid DigiCert URL")
+					} else {
+						require.Contains(t, errMsg, tc.errMessage)
+					}
+				})
 			}
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", makeTestPayload(&existingCA, false), http.StatusOK)
+		})
 
-			// confirm it exists
-			cas, err = s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
-			require.NoError(t, err)
-			require.NotNil(t, cas.NDESSCEP)
-			require.NotZero(t, cas.NDESSCEP.ID)
-			require.Equal(t, existingCA, fleet.NDESSCEPProxyCA{
-				URL:      cas.NDESSCEP.URL,
-				AdminURL: cas.NDESSCEP.AdminURL,
-				Username: cas.NDESSCEP.Username,
-				Password: cas.NDESSCEP.Password,
+		// run additional duplicate name scenarios
+		t.Run("duplicate names", func(t *testing.T) {
+			// create one of each CA
+			req := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
 			})
 
-			// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			// 	mysql.DumpTable(t, q, "certificate_authorities")
-			// 	return nil
-			// })
-			// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			// 	stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (('NDES', 'ndes_scep_proxy'))`
-			// 	r, err := q.ExecContext(context.Background(), stmt)
-			// 	if err != nil {
-			// 		return err
-			// 	}
-			// 	rows, _ := r.RowsAffected()
-			// 	t.Logf("deleted %d rows from certificate_authorities", rows)
-			// 	return err
-			// })
-			// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			// 	mysql.DumpTable(t, q, "certificate_authorities")
-			// 	return nil
-			// })
-			// now delete it
-
-			// b, err := json.Marshal(tc.payload)
-			// require.NoError(t, err)
-			// fmt.Println("payload:", string(b))
-
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", tc.payload, tc.status)
-
-			// confirm expected results basd on dry run or not
-			p, ok := tc.payload.(applyCertificateAuthoritiesSpecRequest)
-			if !ok {
-				// try map form
-				m, mok := tc.payload.(map[string]interface{})
-				require.True(t, mok)
-				b, err := json.Marshal(m)
-				require.NoError(t, err)
-				err = json.Unmarshal(b, &p)
-				require.NoError(t, err)
+			// try to create digicert with same name as another digicert
+			testCopy := goodDigiCertCA
+			testCopy.CertificateSeatID = "some-other-seat-id"
+			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
 			}
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
 
-			if p.DryRun {
-				// confirm it was not deleted
-				cas, err = s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
-				require.NoError(t, err)
-				require.NotNil(t, cas.NDESSCEP)
-			} else {
-				// confirm it was deleted
-				cas, err = s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
-				require.NoError(t, err)
-				require.Nil(t, cas.NDESSCEP)
+			// try to create digicert with same name as another custom scep
+			testCopy = goodDigiCertCA
+			testCopy.Name = goodCustomSCEPCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
 
-				// TODO(hca): check delete again is no-op (i.e. no activity created)?
+			// try to create digicert with same name as another hydrant
+			testCopy = goodDigiCertCA
+			testCopy.Name = goodHydrantCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+		})
+
+		t.Run("digicert more than 1 user principal name", func(t *testing.T) {
+			testCopy := goodDigiCertCA
+			testCopy.CertificateUserPrincipalNames = []string{"user1", "user2"}
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "only one item can be added to certificate_user_principal_names")
+		})
+
+		t.Run("digicert empty user principal name", func(t *testing.T) {
+			testCopy := goodDigiCertCA
+			testCopy.CertificateUserPrincipalNames = []string{" "}
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "certificate_user_principal_name cannot be empty if specified")
+		})
+
+		t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
+			// allowed usage
+			testCopy := goodDigiCertCA
+			testCopy.CertificateUserPrincipalNames = []string{"$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"}
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// disallowed usage
+			testCopy.CertificateUserPrincipalNames = []string{"$FLEET_VAR_BOZO"}
+			req, err = newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+		})
+
+		t.Run("digicert Fleet vars in common name", func(t *testing.T) {
+			// allowed usage
+			testCopy := goodDigiCertCA
+			testCopy.CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// disallowed usage
+			testCopy.CertificateCommonName = "$FLEET_VAR_BOZO"
+			req, err = newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+		})
+
+		t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
+			// allowed usage
+			testCopy := goodDigiCertCA
+			testCopy.CertificateSeatID = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// disallowed usage
+			testCopy.CertificateSeatID = "$FLEET_VAR_BOZO"
+			req, err = newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "FLEET_VAR_BOZO is not allowed")
+		})
+
+		t.Run("digicert API token not set", func(t *testing.T) {
+			testCopy := goodDigiCertCA
+			testCopy.APIToken = ""
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "Invalid API token. Please correct and try again.")
+
+			// try again with masked password, same as if it was not set
+			testCopy.APIToken = fleet.MaskedPassword
+			req, err = newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "Invalid API token. Please correct and try again.")
+		})
+
+		t.Run("digicert common name not set", func(t *testing.T) {
+			testCopy := goodDigiCertCA
+			testCopy.CertificateCommonName = ""
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "Common Name (CN) cannot be empty")
+		})
+
+		t.Run("digicert seat id not set", func(t *testing.T) {
+			testCopy := goodDigiCertCA
+			testCopy.CertificateSeatID = ""
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.digicert")
+			require.Contains(t, errMsg, "Seat ID cannot be empty")
+		})
+
+		t.Run("digicert happy path add then delete", func(t *testing.T) {
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+
+			req, err := newApplyRequest(goodDigiCertCA, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run should not change anything
+			req.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // now it should be applied
+
+			// sending empty CAs deletes existing one
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
+		})
+
+		t.Run("digicert happy path add one, delete one, modify one", func(t *testing.T) {
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+
+			// setup the test by creating two CAs
+			test1 := goodDigiCertCA
+			test2 := goodDigiCertCA
+			test2.Name = "VALID_DIGICERT_CA_2"
+			initialReq := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert: []fleet.DigiCertCA{test1, test2},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", initialReq, http.StatusOK)
+			checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities)
+
+			// add third
+			test3 := goodDigiCertCA
+			test3.Name = "VALID_DIGICERT_CA_3"
+			// modify first
+			test1.CertificateCommonName = "new-common-name"
+
+			// new request will modify test1, add test3, and delete test2
+			modifiedReq := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert: []fleet.DigiCertCA{test1, test3},
+				},
+				DryRun: true,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", modifiedReq, http.StatusOK)
+			checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities) // dry run should not change anything
+			modifiedReq.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", modifiedReq, http.StatusOK)
+			checkAppliedCAs(t, s.ds, modifiedReq.CertificateAuthorities) // now it should be applied
+
+			// delete the rest
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", fleet.GroupedCertificateAuthorities{}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+		})
+	})
+
+	t.Run("custom_scep_proxy", func(t *testing.T) {
+		// run common invalid name test cases
+		t.Run("invalid name", func(t *testing.T) {
+			for _, tc := range invalidNameTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodCustomSCEPCA
+					testCopy.Name = tc.name
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+					require.Contains(t, errMsg, tc.errMessage)
+				})
+			}
+		})
+		// run common invalid url test cases
+		t.Run("invalid url", func(t *testing.T) {
+			for _, tc := range invalidURLTestCases {
+				testCopy := goodCustomSCEPCA
+				testCopy.URL = tc.url
+
+				req, err := newApplyRequest(testCopy, false)
+				require.NoError(t, err)
+				res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+				errMsg := extractServerErrorText(res.Body)
+				require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+				if tc.errMessage == "Invalid URL" {
+					require.Contains(t, errMsg, "Invalid SCEP URL")
+				} else {
+					require.Contains(t, errMsg, tc.errMessage)
+				}
 			}
 		})
 
-		// cleanup after each sub-test
-		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (('NDES', 'ndes_scep_proxy'))`
-			_, err := q.ExecContext(context.Background(), stmt)
-			return err
+		// run additional duplicate name scenarios
+		t.Run("duplicate names", func(t *testing.T) {
+			// create one of each CA
+			req := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// try to create custom scep with same name as another custom scep
+			testCopy := goodCustomSCEPCA
+			testCopy.URL = "https://example.com"
+			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+
+			// try to create custom scep with same name as another digicert
+			testCopy = goodCustomSCEPCA
+			testCopy.Name = goodDigiCertCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+
+			// try to create custom scep with same name as another hydrant
+			testCopy = goodCustomSCEPCA
+			testCopy.Name = goodHydrantCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
 		})
-	}
+
+		t.Run("custom_scep challenge not set", func(t *testing.T) {
+			testCopy := goodCustomSCEPCA
+			testCopy.Challenge = ""
+			req, err := newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+			require.Contains(t, errMsg, "Custom SCEP Proxy challenge cannot be empty")
+
+			// try with masked password, same as if it was not set
+			testCopy.Challenge = fleet.MaskedPassword
+			req, err = newApplyRequest(testCopy, false)
+			require.NoError(t, err)
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
+			require.Contains(t, errMsg, "Custom SCEP Proxy challenge cannot be empty")
+		})
+
+		t.Run("custom scep happy path add then delete", func(t *testing.T) {
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+
+			req, err := newApplyRequest(goodDigiCertCA, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run
+			req.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			// sending empty CAs deletes existing one
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+		})
+
+		t.Run("custom scep happy path add one, delete one, modify one", func(t *testing.T) {
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+
+			// setup the test by creating two CAs
+			test1 := goodCustomSCEPCA
+			test2 := goodCustomSCEPCA
+			test2.Name = "VALID_CUSTOM_SCEP_CA_2"
+			req := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{test1, test2},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			// add third
+			test3 := goodCustomSCEPCA
+			test3.Name = "VALID_CUSTOM_SCEP_CA_3"
+			// modify first
+			test1.Challenge = "new-challenge"
+
+			// new request will modify test1, add test3, and delete test2
+			req2 := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{test1, test3},
+				},
+				DryRun: true,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			req2.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req2.CertificateAuthorities)
+
+			// delete the rest
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", fleet.GroupedCertificateAuthorities{}, http.StatusOK)
+			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+		})
+	})
+
+	t.Run("hydrant", func(t *testing.T) {
+		// run common invalid name test cases
+		t.Run("invalid name", func(t *testing.T) {
+			for _, tc := range invalidNameTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodHydrantCA
+					testCopy.Name = tc.name
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.hydrant")
+					require.Contains(t, errMsg, tc.errMessage)
+				})
+			}
+		})
+		// run common invalid url test cases
+		t.Run("invalid url", func(t *testing.T) {
+			for _, tc := range invalidURLTestCases {
+				t.Run(tc.testName, func(t *testing.T) {
+					testCopy := goodHydrantCA
+					testCopy.URL = tc.url
+					req, err := newApplyRequest(testCopy, false)
+					require.NoError(t, err)
+					res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
+					errMsg := extractServerErrorText(res.Body)
+					require.Contains(t, errMsg, "certificate_authorities.hydrant")
+					if tc.errMessage == "Invalid URL" {
+						require.Contains(t, errMsg, "Invalid Hydrant URL")
+					} else {
+						require.Contains(t, errMsg, tc.errMessage)
+					}
+				})
+			}
+		})
+
+		// run additional duplicate name scenarios
+		t.Run("duplicate names", func(t *testing.T) {
+			// create one of each CA
+			req := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
+				},
+				DryRun: false,
+			}
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+
+			t.Cleanup(func() {
+				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+					_, _ = q.ExecContext(context.Background(), "DELETE FROM certificate_authorities")
+					return nil
+				})
+			})
+
+			// try to create hydrant with same name as another hydrant
+			testCopy := goodHydrantCA
+			testCopy.ClientID = "some-other-client-id"
+			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+				},
+				DryRun: false,
+			}
+			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.hydrant")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+
+			// try to create hydrant with same name as another digicert
+			testCopy = goodHydrantCA
+			testCopy.Name = goodDigiCertCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.hydrant")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+
+			// try to create hydrant with same name as another custom scep
+			testCopy = goodHydrantCA
+			testCopy.Name = goodCustomSCEPCA.Name
+			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
+					Hydrant:         []fleet.HydrantCA{goodHydrantCA, testCopy},
+				},
+				DryRun: false,
+			}
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "certificate_authorities.hydrant")
+			require.Contains(t, errMsg, "name is already used by another certificate authority")
+		})
+
+		// TODO(hca): hydrant happy path and other specific tests
+	})
 }
 
-// TODO(hca): test dry runs?
+func checkAppliedCAs(t *testing.T, ds fleet.Datastore, expectedCAs fleet.GroupedCertificateAuthorities) {
+	gotCAs, err := ds.GetGroupedCertificateAuthorities(context.Background(), true)
+	require.NoError(t, err)
 
-// TODO(hca): test update existing ndes
+	if len(expectedCAs.DigiCert) != 0 {
+		assert.Len(t, gotCAs.DigiCert, len(expectedCAs.DigiCert))
+		wantByName := make(map[string]fleet.DigiCertCA)
+		gotByName := make(map[string]fleet.DigiCertCA)
+		for _, ca := range expectedCAs.DigiCert {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.DigiCert {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.DigiCert)
+	}
 
-// TODO(hca): test activities once implemented
+	if len(expectedCAs.CustomScepProxy) != 0 {
+		assert.Len(t, gotCAs.CustomScepProxy, len(expectedCAs.CustomScepProxy))
+		wantByName := make(map[string]fleet.CustomSCEPProxyCA)
+		gotByName := make(map[string]fleet.CustomSCEPProxyCA)
+		for _, ca := range expectedCAs.CustomScepProxy {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.CustomScepProxy {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.CustomScepProxy)
+	}
 
-// TODO(hca): test no external validation if no changes
+	if len(expectedCAs.Hydrant) != 0 {
+		assert.Len(t, gotCAs.Hydrant, len(expectedCAs.Hydrant))
+		wantByName := make(map[string]fleet.HydrantCA)
+		gotByName := make(map[string]fleet.HydrantCA)
+		for _, ca := range expectedCAs.Hydrant {
+			wantByName[ca.Name] = ca
+		}
+		for _, ca := range gotCAs.Hydrant {
+			ca.ID = 0 // ignore IDs when comparing
+			gotByName[ca.Name] = ca
+		}
+		assert.Equal(t, wantByName, gotByName)
+	} else {
+		assert.Empty(t, gotCAs.Hydrant)
+	}
 
-// 	TODO(hca) test cannot configure NDES without private key?
-
-// func TestAppConfigCAs(t *testing.T) {
-// 	t.Parallel()
-
-// 	pathRegex := regexp.MustCompile(`^/mpki/api/v2/profile/([a-zA-Z0-9_-]+)$`)
-// 	mockDigiCertServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-// 		if r.Method != http.MethodGet {
-// 			w.WriteHeader(http.StatusMethodNotAllowed)
-// 			return
-// 		}
-
-// 		matches := pathRegex.FindStringSubmatch(r.URL.Path)
-// 		if len(matches) != 2 {
-// 			w.WriteHeader(http.StatusBadRequest)
-// 			return
-// 		}
-// 		profileID := matches[1]
-
-// 		resp := map[string]string{
-// 			"id":     profileID,
-// 			"name":   "Test CA",
-// 			"status": "Active",
-// 		}
-// 		w.Header().Set("Content-Type", "application/json")
-// 		err := json.NewEncoder(w).Encode(resp)
-// 		require.NoError(t, err)
-// 	}))
-// 	defer mockDigiCertServer.Close()
-
-// 	setUpDigiCert := func() configCASuite {
-// 		mt := configCASuite{
-// 			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
-// 			invalid:      &fleet.InvalidArgumentError{},
-// 			newAppConfig: getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, "WIFI"),
-// 			oldAppConfig: &fleet.AppConfig{},
-// 			appConfig:    &fleet.AppConfig{},
-// 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
-// 		}
-// 		mt.svc.config.Server.PrivateKey = "exists"
-// 		mt.svc.digiCertService = digicert.NewService()
-// 		addMockDatastoreForCA(t, mt)
-// 		return mt
-// 	}
-// 	setUpCustomSCEP := func() configCASuite {
-// 		mt := configCASuite{
-// 			ctx:          license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium}),
-// 			invalid:      &fleet.InvalidArgumentError{},
-// 			newAppConfig: getAppConfigWithSCEPIntegration("https://example.com", "SCEP_WIFI"),
-// 			oldAppConfig: &fleet.AppConfig{},
-// 			appConfig:    &fleet.AppConfig{},
-// 			svc:          &Service{logger: log.NewLogfmtLogger(os.Stdout)},
-// 		}
-// 		mt.svc.config.Server.PrivateKey = "exists"
-// 		scepConfig := &scep_mock.SCEPConfigService{}
-// 		scepConfig.ValidateSCEPURLFunc = func(_ context.Context, _ string) error { return nil }
-// 		mt.svc.scepConfigService = scepConfig
-// 		addMockDatastoreForCA(t, mt)
-// 		return mt
-// 	}
-
-// 	t.Run("free license", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
-// 		mt.newAppConfig = &fleet.AppConfig{}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.ndes)
-// 		assert.Empty(t, status.digicert)
-// 		assert.Empty(t, status.customSCEPProxy)
-
-// 		mt.invalid = &fleet.InvalidArgumentError{}
-// 		mt.newAppConfig = &fleet.AppConfig{}
-// 		mt.newAppConfig.Integrations.DigiCert.Set = true
-// 		mt.newAppConfig.Integrations.DigiCert.Valid = true
-// 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "digicert", ErrMissingLicense.Error())
-
-// 		mt.invalid = &fleet.InvalidArgumentError{}
-// 		mt.newAppConfig = &fleet.AppConfig{}
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Set = true
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Valid = true
-// 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "custom_scep_proxy", ErrMissingLicense.Error())
-// 	})
-
-// 	t.Run("digicert keep old value", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-// 		mt.oldAppConfig = mt.newAppConfig
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig = &fleet.AppConfig{}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.ndes)
-// 		assert.Empty(t, status.digicert)
-// 		assert.Empty(t, status.customSCEPProxy)
-// 		assert.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
-// 	})
-
-// 	t.Run("custom_scep keep old value", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.ctx = license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
-// 		mt.oldAppConfig = mt.newAppConfig
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig = &fleet.AppConfig{}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.ndes)
-// 		assert.Empty(t, status.digicert)
-// 		assert.Empty(t, status.customSCEPProxy)
-// 		assert.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
-// 	})
-
-// 	t.Run("missing server private key", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.svc.config.Server.PrivateKey = ""
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert", "private key")
-
-// 		mt = setUpCustomSCEP()
-// 		mt.svc.config.Server.PrivateKey = ""
-// 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy", "private key")
-// 	})
-
-// 	t.Run("invalid integration name", func(t *testing.T) {
-// 		testCases := []struct {
-// 			testName      string
-// 			name          string
-// 			errorContains []string
-// 		}{
-// 			{
-// 				testName:      "empty",
-// 				name:          "",
-// 				errorContains: []string{"CA name cannot be empty"},
-// 			},
-// 			{
-// 				testName:      "NDES",
-// 				name:          "NDES",
-// 				errorContains: []string{"CA name cannot be NDES"},
-// 			},
-// 			{
-// 				testName:      "too long",
-// 				name:          strings.Repeat("a", 256),
-// 				errorContains: []string{"CA name cannot be longer than"},
-// 			},
-// 			{
-// 				testName:      "invalid characters",
-// 				name:          "a/b",
-// 				errorContains: []string{"Only letters, numbers and underscores allowed"},
-// 			},
-// 		}
-
-// 		for _, tc := range testCases {
-// 			t.Run(tc.testName, func(t *testing.T) {
-// 				baseErrorContains := tc.errorContains
-// 				mt := setUpDigiCert()
-// 				mt.newAppConfig = getAppConfigWithDigiCertIntegration(mockDigiCertServer.URL, tc.name)
-// 				status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 				require.NoError(t, err)
-// 				errorContains := baseErrorContains
-// 				errorContains = append(errorContains, "integrations.digicert.name")
-// 				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
-
-// 				mt = setUpCustomSCEP()
-// 				mt.newAppConfig = getAppConfigWithSCEPIntegration("https://example.com", tc.name)
-// 				status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 				require.NoError(t, err)
-// 				errorContains = baseErrorContains
-// 				errorContains = append(errorContains, "integrations.custom_scep_proxy.name")
-// 				checkExpectedCAValidationError(t, mt.invalid, status, errorContains...)
-// 			})
-// 		}
-// 	})
-
-// 	t.Run("invalid digicert URL", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = ""
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
-// 			"empty url")
-
-// 		mt = setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "nonhttp://bad.com"
-// 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.url",
-// 			"URL must be https or http")
-// 	})
-
-// 	t.Run("invalid custom_scep URL", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = ""
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
-// 			"empty url")
-
-// 		mt = setUpCustomSCEP()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "nonhttp://bad.com"
-// 		status, err = mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.url",
-// 			"URL must be https or http")
-// 	})
-
-// 	t.Run("duplicate digicert integration name", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value = append(mt.newAppConfig.Integrations.DigiCert.Value,
-// 			mt.newAppConfig.Integrations.DigiCert.Value[0])
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.name",
-// 			"name is already used by another certificate authority")
-// 	})
-
-// 	t.Run("duplicate custom_scep integration name", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.newAppConfig.Integrations.CustomSCEPProxy.Value,
-// 			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
-// 			"name is already used by another certificate authority")
-// 	})
-
-// 	t.Run("same digicert and custom_scep integration name", func(t *testing.T) {
-// 		mtSCEP := setUpCustomSCEP()
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy = mtSCEP.newAppConfig.Integrations.CustomSCEPProxy
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name = mt.newAppConfig.Integrations.DigiCert.Value[0].Name
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.name",
-// 			"name is already used by another certificate authority")
-// 	})
-
-// 	t.Run("digicert more than 1 user principal name", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = append(mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames,
-// 			"another")
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-// 			"one certificate user principal name")
-// 	})
-
-// 	t.Run("digicert empty user principal name", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames = []string{" "}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-// 			"user principal name cannot be empty")
-// 	})
-
-// 	t.Run("digicert Fleet vars in user principal name", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " ${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
-// 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateUserPrincipalNames[0] = "$FLEET_VAR_BOZO"
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_user_principal_names",
-// 			"FLEET_VAR_BOZO is not allowed")
-// 	})
-
-// 	t.Run("digicert Fleet vars in common name", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}"
-// 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "$FLEET_VAR_BOZO"
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name",
-// 			"FLEET_VAR_BOZO is not allowed")
-// 	})
-
-// 	t.Run("digicert Fleet vars in seat id", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + " $FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial)
-// 		_, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "$FLEET_VAR_BOZO"
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id",
-// 			"FLEET_VAR_BOZO is not allowed")
-// 	})
-
-// 	t.Run("digicert API token not set", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = fleet.MaskedPassword
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set")
-// 	})
-
-// 	t.Run("custom_scep challenge not set", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = fleet.MaskedPassword
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge", "Custom SCEP challenge must be set")
-// 	})
-
-// 	t.Run("digicert common name not set", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateCommonName = "\n\t"
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_common_name", "Common Name (CN) cannot be empty")
-// 	})
-
-// 	t.Run("digicert seat id not set", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].CertificateSeatID = "\t\n"
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.certificate_seat_id", "Seat ID cannot be empty")
-// 	})
-
-// 	t.Run("digicert happy path -- add one", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.customSCEPProxy)
-// 		require.Len(t, status.digicert, 1)
-// 		assert.Equal(t, caStatusAdded, status.digicert[mt.newAppConfig.Integrations.DigiCert.Value[0].Name])
-// 		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 1)
-// 		assert.True(t, mt.newAppConfig.Integrations.DigiCert.Value[0].Equals(&mt.appConfig.Integrations.DigiCert.Value[0]))
-// 	})
-
-// 	t.Run("digicert happy path -- delete one", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.oldAppConfig = mt.newAppConfig
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig = &fleet.AppConfig{
-// 			Integrations: fleet.Integrations{
-// 				DigiCert: optjson.Slice[fleet.DigiCertCA]{
-// 					Set:   true,
-// 					Valid: true,
-// 				},
-// 			},
-// 		}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.customSCEPProxy)
-// 		require.Len(t, status.digicert, 1)
-// 		assert.Equal(t, caStatusDeleted, status.digicert[mt.oldAppConfig.Integrations.DigiCert.Value[0].Name])
-// 		assert.False(t, mt.appConfig.Integrations.DigiCert.Valid)
-// 	})
-
-// 	t.Run("digicert API token not set on modify", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.oldAppConfig.Integrations.DigiCert.Value = append(mt.oldAppConfig.Integrations.DigiCert.Value,
-// 			mt.newAppConfig.Integrations.DigiCert.Value[0])
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].URL = "https://new.com"
-// 		mt.newAppConfig.Integrations.DigiCert.Value[0].APIToken = ""
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.digicert.api_token", "DigiCert API token must be set when modifying")
-// 	})
-
-// 	t.Run("digicert happy path -- add one, delete one, modify one", func(t *testing.T) {
-// 		mt := setUpDigiCert()
-// 		mt.newAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertCA]{
-// 			Set:   true,
-// 			Valid: true,
-// 			Value: []fleet.DigiCertCA{
-// 				{
-// 					Name:                          "add",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "common_name",
-// 					CertificateUserPrincipalNames: []string{"user_principal_name"},
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 				{
-// 					Name:                          "modify",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "common_name",
-// 					CertificateUserPrincipalNames: nil,
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 				{
-// 					Name:                          "same",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "other_cn",
-// 					CertificateUserPrincipalNames: nil,
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 			},
-// 		}
-// 		mt.oldAppConfig.Integrations.DigiCert = optjson.Slice[fleet.DigiCertCA]{
-// 			Set:   true,
-// 			Valid: true,
-// 			Value: []fleet.DigiCertCA{
-// 				{
-// 					Name:                          "delete",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "common_name",
-// 					CertificateUserPrincipalNames: []string{"user_principal_name"},
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 				{
-// 					Name:                          "modify",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "common_name",
-// 					CertificateUserPrincipalNames: []string{"user_principal_name"},
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 				{
-// 					Name:                          "same",
-// 					URL:                           mockDigiCertServer.URL,
-// 					APIToken:                      "api_token",
-// 					ProfileID:                     "profile_id",
-// 					CertificateCommonName:         "other_cn",
-// 					CertificateUserPrincipalNames: nil,
-// 					CertificateSeatID:             "seat_id",
-// 				},
-// 			},
-// 		}
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.customSCEPProxy)
-// 		require.Len(t, status.digicert, 3)
-// 		assert.Equal(t, caStatusAdded, status.digicert["add"])
-// 		assert.Equal(t, caStatusEdited, status.digicert["modify"])
-// 		assert.Equal(t, caStatusDeleted, status.digicert["delete"])
-// 		require.Len(t, mt.appConfig.Integrations.DigiCert.Value, 3)
-// 	})
-
-// 	t.Run("custom_scep happy path -- add one", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.digicert)
-// 		require.Len(t, status.customSCEPProxy, 1)
-// 		assert.Equal(t, caStatusAdded, status.customSCEPProxy[mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
-// 		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 1)
-// 		assert.True(t, mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Equals(&mt.appConfig.Integrations.CustomSCEPProxy.Value[0]))
-// 	})
-
-// 	t.Run("custom_scep happy path -- delete one", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.oldAppConfig = mt.newAppConfig
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig = &fleet.AppConfig{
-// 			Integrations: fleet.Integrations{
-// 				CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyCA]{
-// 					Set:   true,
-// 					Valid: true,
-// 				},
-// 			},
-// 		}
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.digicert)
-// 		require.Len(t, status.customSCEPProxy, 1)
-// 		assert.Equal(t, caStatusDeleted, status.customSCEPProxy[mt.oldAppConfig.Integrations.CustomSCEPProxy.Value[0].Name])
-// 		assert.False(t, mt.appConfig.Integrations.CustomSCEPProxy.Valid)
-// 	})
-
-// 	t.Run("custom_scep API token not set on modify", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.oldAppConfig.Integrations.CustomSCEPProxy.Value = append(mt.oldAppConfig.Integrations.CustomSCEPProxy.Value,
-// 			mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0])
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].URL = "https://new.com"
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy.Value[0].Challenge = ""
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		checkExpectedCAValidationError(t, mt.invalid, status, "integrations.custom_scep_proxy.challenge",
-// 			"Custom SCEP challenge must be set when modifying")
-// 	})
-
-// 	t.Run("custom_scep happy path -- add one, delete one, modify one", func(t *testing.T) {
-// 		mt := setUpCustomSCEP()
-// 		mt.newAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyCA]{
-// 			Set:   true,
-// 			Valid: true,
-// 			Value: []fleet.CustomSCEPProxyCA{
-// 				{
-// 					Name:      "add",
-// 					URL:       "https://example.com",
-// 					Challenge: "challenge",
-// 				},
-// 				{
-// 					Name:      "modify",
-// 					URL:       "https://example.com",
-// 					Challenge: "challenge",
-// 				},
-// 				{
-// 					Name:      "SCEP_WIFI", // same
-// 					URL:       "https://example.com",
-// 					Challenge: "challenge",
-// 				},
-// 			},
-// 		}
-// 		mt.oldAppConfig.Integrations.CustomSCEPProxy = optjson.Slice[fleet.CustomSCEPProxyCA]{
-// 			Set:   true,
-// 			Valid: true,
-// 			Value: []fleet.CustomSCEPProxyCA{
-// 				{
-// 					Name:      "delete",
-// 					URL:       "https://example.com",
-// 					Challenge: "challenge",
-// 				},
-// 				{
-// 					Name:      "modify",
-// 					URL:       "https://modify.com",
-// 					Challenge: "challenge",
-// 				},
-// 				{
-// 					Name:      "SCEP_WIFI", // same
-// 					URL:       "https://example.com",
-// 					Challenge: fleet.MaskedPassword,
-// 				},
-// 			},
-// 		}
-// 		mt.appConfig = mt.oldAppConfig.Copy()
-// 		status, err := mt.svc.processAppConfigCAs(mt.ctx, mt.newAppConfig, mt.oldAppConfig, mt.appConfig, mt.invalid)
-// 		require.NoError(t, err)
-// 		assert.Empty(t, mt.invalid.Errors)
-// 		assert.Empty(t, status.digicert)
-// 		require.Len(t, status.customSCEPProxy, 3)
-// 		assert.Equal(t, caStatusAdded, status.customSCEPProxy["add"])
-// 		assert.Equal(t, caStatusEdited, status.customSCEPProxy["modify"])
-// 		assert.Equal(t, caStatusDeleted, status.customSCEPProxy["delete"])
-// 		require.Len(t, mt.appConfig.Integrations.CustomSCEPProxy.Value, 3)
-// 	})
-// }
+	if expectedCAs.NDESSCEP != nil {
+		assert.NotNil(t, gotCAs.NDESSCEP)
+		gotCAs.NDESSCEP.ID = 0 // ignore ID when comparing
+		assert.Equal(t, expectedCAs.NDESSCEP, gotCAs.NDESSCEP)
+	} else {
+		assert.Empty(t, gotCAs.NDESSCEP)
+	}
+}
