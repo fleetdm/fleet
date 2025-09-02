@@ -19,7 +19,7 @@ func md5ChecksumBytes(b []byte) string {
 
 func TestUp_20250811084533(t *testing.T) {
 	db := applyUpToPrev(t)
-	var appConfigJSON fleet.AppConfig
+	var legacyIntegrations LegacyIntegrationsWithCertAuthorties
 	const (
 		digicertCA1Name   = "DigiCert_CA_1"
 		digicertCA2Name   = "DigiCert_CA_2"
@@ -66,20 +66,20 @@ func TestUp_20250811084533(t *testing.T) {
 		Name:      customSCEPCA2Name,
 		Challenge: fleet.MaskedPassword,
 	}}
-	// // TODO(hca): fix this to use the legacy integrations structure
-	// appConfigJSON.Integrations.CustomSCEPProxy.Value = customSCEPProxyCAs
-	// appConfigJSON.Integrations.CustomSCEPProxy.Set = true
-	// appConfigJSON.Integrations.CustomSCEPProxy.Valid = true
-	// appConfigJSON.Integrations.NDESSCEPProxy.Value = ndesCA
-	// appConfigJSON.Integrations.NDESSCEPProxy.Set = true
-	// appConfigJSON.Integrations.NDESSCEPProxy.Valid = true
-	// appConfigJSON.Integrations.DigiCert.Value = digicertCAs
-	// appConfigJSON.Integrations.DigiCert.Set = true
-	// appConfigJSON.Integrations.DigiCert.Valid = true
 
-	jsonBytes, err := json.Marshal(&appConfigJSON)
+	legacyIntegrations.CustomSCEPProxy.Value = customSCEPProxyCAs
+	legacyIntegrations.CustomSCEPProxy.Set = true
+	legacyIntegrations.CustomSCEPProxy.Valid = true
+	legacyIntegrations.NDESSCEPProxy.Value = ndesCA
+	legacyIntegrations.NDESSCEPProxy.Set = true
+	legacyIntegrations.NDESSCEPProxy.Valid = true
+	legacyIntegrations.DigiCert.Value = digicertCAs
+	legacyIntegrations.DigiCert.Set = true
+	legacyIntegrations.DigiCert.Valid = true
+
+	jsonBytes, err := json.Marshal(&legacyIntegrations)
 	if err != nil {
-		t.Fatalf("failed to marshal appConfigJSON: %v", err)
+		t.Fatalf("failed to marshal legacyIntegrations: %v", err)
 	}
 
 	insertNDESPasswordStmt := `INSERT INTO mdm_config_assets (name, value, md5_checksum) VALUES (?, ?, UNHEX(?))` // nolint:gosec // just test data, not hardcoded credentials
@@ -96,7 +96,7 @@ func TestUp_20250811084533(t *testing.T) {
 	require.NoError(t, err, "failed to insert ca_config_assets")
 
 	_, err = db.Exec(
-		`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
+		`UPDATE app_config_json SET json_value = (SELECT JSON_SET(json_value, '$.integrations', ?))`,
 		jsonBytes,
 	)
 	if err != nil {

@@ -395,14 +395,12 @@ type CertificateAuthoritiesSpec struct {
 func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
 	var groupedCAs GroupedCertificateAuthorities
 	var spec interface{}
-	spec, ok := incoming.(map[string]interface{})
-	if !ok || incoming == nil {
-		// substitute with empty map
+	if incoming == nil {
 		spec = map[string]interface{}{}
 	} else {
-		spec = incoming.(map[string]interface{})
+		spec = incoming
 	}
-	spec, ok = spec.(map[string]interface{})
+	spec, ok := spec.(map[string]interface{})
 	if !ok {
 		return nil, errors.New("org_settings.certificate_authorities config is not a map")
 	}

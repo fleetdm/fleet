@@ -472,7 +472,7 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
-func (mc MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
 	res := fleet.GroupedCertificateAuthorities{
 		DigiCert: []fleet.DigiCertCA{
 			{

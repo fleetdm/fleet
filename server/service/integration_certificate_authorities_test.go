@@ -191,17 +191,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 	}
 
 	t.Run("ndes", func(t *testing.T) {
-		type ndesCases struct {
-			name       string
-			payload    interface{}
-			status     int
-			errMessage string
-		}
-
 		checkNDESApplied := func(t *testing.T, expectNDES *fleet.NDESSCEPProxyCA) {
-			// p, ok := tc.payload.(applyCertificateAuthoritiesSpecRequest)
-			// require.True(t, ok)
-
 			cas, err := s.ds.GetGroupedCertificateAuthorities(context.Background(), true)
 			require.NoError(t, err)
 
