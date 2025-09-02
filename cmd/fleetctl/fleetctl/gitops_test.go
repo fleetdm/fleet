@@ -1596,6 +1596,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete, toAdd, toUpdate []*fleet.CertificateAuthority) error {
+		return nil
+	}
 
 	createFakeITunesAndVPPServices(t)
 
@@ -1903,6 +1906,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return []*fleet.ABMToken{}, nil
 	}
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
+		return nil
+	}
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete, toAdd, toUpdate []*fleet.CertificateAuthority) error {
 		return nil
 	}
 

@@ -3,14 +3,12 @@ package service
 import "github.com/fleetdm/fleet/v4/server/fleet"
 
 // GetCertificateAuthoritiesSpec fetches the certificate authorities stored on the server
-func (c *Client) GetCertificateAuthoritiesSpec() (*fleet.CertificateAuthoritiesSpec, error) {
-	// verb, path := "GET", "/api/latest/fleet/spec/certificate_authorities"
-	// var responseBody getCertificateAuthoritiesSpecResponse
-	// err := c.authenticatedRequest(nil, verb, path, &responseBody)
-	// return responseBody.Spec, err
-
-	// TODO(hca): use the new endpoints to get certs?
-	return nil, nil
+func (c *Client) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	req := getCertificateAuthoritiesSpecRequest{IncludeSecrets: includeSecrets}
+	verb, path := "GET", "/api/latest/fleet/spec/certificate_authorities"
+	var responseBody getCertificateAuthoritiesSpecResponse
+	err := c.authenticatedRequest(req, verb, path, &responseBody)
+	return responseBody.CertificateAuthorities, err
 }
 
 // ApplyCertificateAuthoritiesSpec applies the certificate authorities.

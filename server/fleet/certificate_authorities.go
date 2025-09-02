@@ -392,14 +392,13 @@ type CertificateAuthoritiesSpec struct {
 	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
 }
 
-// TODO: handle optjson appropriately
 func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
 	var groupedCAs GroupedCertificateAuthorities
 	var spec interface{}
 	spec, ok := incoming.(map[string]interface{})
 	if !ok || incoming == nil {
+		// substitute with empty map
 		spec = map[string]interface{}{}
-		fmt.Println("org_settings.certificate_authorities config is not a map, using empty map")
 	} else {
 		spec = incoming.(map[string]interface{})
 	}

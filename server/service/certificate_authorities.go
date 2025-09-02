@@ -201,7 +201,44 @@ func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interf
 }
 
 func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
-	// skipauth: No authorization check needed due to implementation returning only license error.
-	svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO(hca): ok to allow free version to include empty certificate authorities as no-op gitops?
+	if incoming.NDESSCEP == nil && len(incoming.DigiCert) == 0 && len(incoming.CustomScepProxy) == 0 && len(incoming.Hydrant) == 0 {
+		return nil
+	}
+
 	return fleet.ErrMissingLicense
+}
+
+type getCertificateAuthoritiesSpecRequest struct {
+	IncludeSecrets bool `url:"include_secrets"`
+}
+
+type getCertificateAuthoritiesSpecResponse struct {
+	CertificateAuthorities *fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
+	Err                    error                                `json:"error,omitempty"`
+}
+
+func (r getCertificateAuthoritiesSpecResponse) Error() error { return r.Err }
+
+func getCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*getCertificateAuthoritiesSpecRequest)
+
+	certificateAuthorities, err := svc.GetGroupedCertificateAuthorities(ctx, req.IncludeSecrets)
+	if err != nil {
+		return &getCertificateAuthoritiesSpecResponse{Err: err}, nil
+	}
+
+	return &getCertificateAuthoritiesSpecResponse{CertificateAuthorities: certificateAuthorities}, nil
+}
+
+func (svc *Service) GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return svc.ds.GetGroupedCertificateAuthorities(ctx, includeSecrets)
 }
