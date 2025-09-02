@@ -175,6 +175,30 @@ func TestRequestCertificate(t *testing.T) {
 		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
 	})
 
+	t.Run("Request a certificate - Happy path, no IDP", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: goodCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+	})
+
+	t.Run("Request a certificate - Happy path, no IDP, UPN does not match IDP info(should pass)", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+
+		cert, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:  hydrantCA.ID,
+			CSR: badCSR,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, cert)
+		require.Equal(t, "-----BEGIN CERTIFICATE-----\n"+hydrantSimpleEnrollResponse+"\n-----END CERTIFICATE-----\n", *cert)
+	})
+
 	t.Run("Request a certificate - CA returns error", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		hydrantSimpleEnrollResponse = "Oh no! Something bad happened"
@@ -243,7 +267,7 @@ func TestRequestCertificate(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          digicertCA.ID,
-			CSR:         "test-csr",
+			CSR:         goodCSR,
 			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
@@ -255,7 +279,7 @@ func TestRequestCertificate(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          999,
-			CSR:         "test-csr",
+			CSR:         goodCSR,
 			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-idp-client-id"),
@@ -267,39 +291,51 @@ func TestRequestCertificate(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
-			CSR:         "test-csr",
+			CSR:         goodCSR,
 			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: nil, // Missing client ID
 		})
-		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate.")
+		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.")
 	})
 
 	t.Run("Request certificate - missing IDP token", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
-			CSR:         "test-csr",
+			CSR:         goodCSR,
 			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
 			IDPToken:    nil, // Missing IDP token
 			IDPClientID: ptr.String("test-client-id"),
 		})
-		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate.")
+		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.")
 	})
 
 	t.Run("Request certificate - missing IDP oauth URL", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
-			CSR:         "test-csr",
+			CSR:         goodCSR,
 			IDPOauthURL: nil,
 			IDPToken:    ptr.String("test-idp-token"),
 			IDPClientID: ptr.String("test-client-id"), // Missing client ID
 		})
-		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL must be provided for requesting a certificate.")
+		require.ErrorContains(t, err, "IDP Client ID, Token, and OAuth URL all must be provided, if any are provided when requesting a certificate.")
 	})
 
-	t.Run("Request certificate - CSR is not a CSR", func(t *testing.T) {
+	t.Run("Request certificate - CSR email and UPN do not match", func(t *testing.T) {
+		svc, ctx := baseSetupForTests()
+		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
+			ID:          hydrantCA.ID,
+			CSR:         badCSR,
+			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
+			IDPToken:    ptr.String("test-idp-token"),
+			IDPClientID: ptr.String("test-client-id"), // Missing client ID
+		})
+		require.ErrorAs(t, err, &invalidCSR)
+	})
+
+	t.Run("Request certificate - CSR is not a CSR, IDP provided", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
 			ID:          hydrantCA.ID,
@@ -311,14 +347,12 @@ func TestRequestCertificate(t *testing.T) {
 		require.ErrorAs(t, err, &invalidCSR)
 	})
 
-	t.Run("Request certificate - CSR email and UPN do not match", func(t *testing.T) {
+	t.Run("Request a certificate - CSR is not a CSR, no IDP provided", func(t *testing.T) {
 		svc, ctx := baseSetupForTests()
+
 		_, err := svc.RequestCertificate(ctx, fleet.RequestCertificatePayload{
-			ID:          hydrantCA.ID,
-			CSR:         badCSR,
-			IDPOauthURL: ptr.String(mockOauthServer.URL + "/oauth2/v1/introspect"),
-			IDPToken:    ptr.String("test-idp-token"),
-			IDPClientID: ptr.String("test-client-id"), // Missing client ID
+			ID:  hydrantCA.ID,
+			CSR: "I am not a CSR",
 		})
 		require.ErrorAs(t, err, &invalidCSR)
 	})
