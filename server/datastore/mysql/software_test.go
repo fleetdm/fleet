@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/rand"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -8761,18 +8762,18 @@ func testInventoryPendingSoftware(t *testing.T, ds *Datastore) {
 
 func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID})))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 
 	existingSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.0-2", "deb_packages", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 	updateSw, err := fleet.SoftwareFromOsqueryRow("htop", "3.4.1-5", "deb_packages", "", "", "", "", "", "", "", "")
 	require.NoError(t, err)
 
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{*existingSw})
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, []fleet.Software{*existingSw})
 	require.NoError(t, err)
 
 	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
@@ -8798,25 +8799,18 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, softwareInstaller)
 	require.NoError(t, err)
 
-	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
-	require.NoError(t, err)
-
-	_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
-		HostID:                host.ID,
-		InstallUUID:           hostInstall1,
-		InstallScriptExitCode: ptr.Int(0),
-	})
-	require.NoError(t, err)
-
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-
-	t.Run("test", func(t *testing.T) {
-		_, err = ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+	t.Run("host_software_installs row isnt removed", func(t *testing.T) {
+		hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installerID, fleet.HostSoftwareInstallOptions{})
 		require.NoError(t, err)
 
-		_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
+		_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+			HostID:                host1.ID,
+			InstallUUID:           hostInstall1,
+			InstallScriptExitCode: ptr.Int(0),
+		})
+		require.NoError(t, err)
+
+		_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
 		require.NoError(t, err)
 
 		var removed int
@@ -8825,5 +8819,40 @@ func testCheckForDeletedInstalledSoftware(t *testing.T, ds *Datastore) {
 
 		require.NoError(t, err)
 		require.Equal(t, 0, removed)
+	})
+
+	numHosts := 5
+	var installHosts []*fleet.Host
+	for i := range 5 {
+		host := test.NewHost(t, ds, "host-"+strconv.Itoa(i), "", "key"+strconv.Itoa(i), "uuid"+strconv.Itoa(i), time.Now())
+		err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
+		require.NoError(t, err)
+		installHosts = append(installHosts, host)
+	}
+
+	t.Run("installer host count is correct", func(t *testing.T) {
+		for _, host := range installHosts {
+			_, err = ds.UpdateHostSoftware(ctx, host.ID, []fleet.Software{*existingSw})
+			require.NoError(t, err)
+
+		}
+		for _, host := range installHosts {
+			hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host.ID, installerID, fleet.HostSoftwareInstallOptions{})
+			require.NoError(t, err)
+
+			_, err = ds.SetHostSoftwareInstallResult(ctx, &fleet.HostSoftwareInstallResultPayload{
+				HostID:                host.ID,
+				InstallUUID:           hostInstall1,
+				InstallScriptExitCode: ptr.Int(0),
+			})
+			require.NoError(t, err)
+
+			_, err = ds.applyChangesForNewSoftwareDB(ctx, host.ID, []fleet.Software{*updateSw})
+			require.NoError(t, err)
+		}
+
+		counts, err := ds.GetSummaryHostSoftwareInstalls(ctx, installerID)
+		require.NoError(t, err)
+		require.Equal(t, numHosts+1, int(counts.Installed)) // include first host's install
 	})
 }
