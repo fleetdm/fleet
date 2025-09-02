@@ -60,9 +60,9 @@ jobs:
 
       - name: Generate and sign swiftDialog.app.tar.gz
         env:
-          AC_USERNAME: ${{ secrets.APPLE_USERNAME }}
-          AC_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          AC_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARIZATION_USERNAME: ${{ secrets.APPLE_USERNAME }}
+          NOTARIZATION_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
         run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=. codesign-identity=${CODESIGN_IDENTITY} notarize=true
 

@@ -698,13 +698,13 @@ endif
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 ifneq ($(codesign-identity),)
 	@echo "Replacing Swift Dialog signatures"
-	codesign --force --verbose --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
+	codesign --force --options runtime --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
 ifeq ($(notarize), true)
 	@echo "Notarizing now-signed swift dialog"
-	xcrun notarytool store-credentials "notarytool-profile" --apple-id "${AC_USERNAME}" --team-id "${AC_TEAM_ID}" --password "${AC_PASSWORD}"
+	xcrun notarytool store-credentials "notarytool-profile" --apple-id "${NOTARIZATION_USERNAME}" --team-id "${NOTARIZATION_TEAM_ID}" --password "${NOTARIZATION_PASSWORD}"
 	ditto -c -k --keepParent $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app "notarization.zip"
 	xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
-	xcrun stapler staple $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app "notarization.zip"
+	xcrun stapler staple $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app
 	@echo "Successfully notarized Swift Dialog"
 else
 	@echo "Skipping notarization of swift dialog"
