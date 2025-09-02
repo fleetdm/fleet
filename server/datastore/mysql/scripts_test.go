@@ -43,6 +43,9 @@ func TestScripts(t *testing.T) {
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 		{"UpdateScriptContents", testUpdateScriptContents},
+		{"UpdateScriptToDuplicateContent", testUpdateScriptToDuplicateContent},
+		{"UpdateSharedScriptContent", testUpdateSharedScriptContent},
+		{"UpdateScriptToSameContent", testUpdateScriptToSameContent},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
 		{"BatchExecuteWithStatus", testBatchExecuteWithStatus},
@@ -1709,9 +1712,10 @@ func testUpdateScriptContents(t *testing.T, ds *Datastore) {
 	updatedScript, err := ds.UpdateScriptContents(ctx, originalScript.ID, "updated script")
 	require.NoError(t, err)
 	require.Equal(t, originalScript.ID, updatedScript.ID)
-	require.Equal(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
+	// With the fix, the script should get a new content ID since content changed
+	require.NotEqual(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
 
-	updatedContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	updatedContents, err := ds.GetScriptContents(ctx, updatedScript.ID)
 	require.NoError(t, err)
 	require.Equal(t, "updated script", string(updatedContents))
 	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
@@ -2784,4 +2788,127 @@ func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[1])
 	checkUpcomingActivities(t, ds, hosts[2])
 	checkUpcomingActivities(t, ds, hosts[3])
+}
+
+// Test updating a script to match another script's contents
+func testUpdateScriptToDuplicateContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two scripts with different content
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hello",
+	})
+	require.NoError(t, err)
+
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: "echo world",
+	})
+	require.NoError(t, err)
+
+	// Get initial content IDs
+	s1, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	initialContentID1 := s1.ScriptContentID
+	initialContentID2 := s2.ScriptContentID
+	require.NotEqual(t, initialContentID1, initialContentID2)
+
+	// Update script2 to have the same content as script1
+	// This should NOT cause a duplicate key error
+	_, err = ds.UpdateScriptContents(ctx, script2.ID, "echo hello")
+	require.NoError(t, err)
+	// ScriptContents is not populated from the DB, check via GetScriptContents
+	// GetScriptContents takes a script ID, not script_content_id
+	updatedContents, err := ds.GetScriptContents(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo hello", string(updatedContents))
+
+	// Verify both scripts now share the same content ID
+	s1After, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2After, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, s1After.ScriptContentID, s2After.ScriptContentID)
+	require.Equal(t, initialContentID1, s2After.ScriptContentID)
+
+	// Verify the old content ID was cleaned up
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM script_contents WHERE id = ?`, initialContentID2)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "old script content should be deleted")
+}
+
+// Test modifying a script whose content currently matches another script's content
+func testUpdateSharedScriptContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two scripts with the SAME content
+	sharedContent := "echo shared"
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: sharedContent,
+	})
+	require.NoError(t, err)
+
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: sharedContent,
+	})
+	require.NoError(t, err)
+
+	// Verify they share the same content ID
+	s1, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, s1.ScriptContentID, s2.ScriptContentID)
+
+	// Update script1 to different content
+	updated, err := ds.UpdateScriptContents(ctx, script1.ID, "echo modified")
+	require.NoError(t, err)
+	// ScriptContents is not populated from the DB, check via GetScriptContents
+	// GetScriptContents takes a script ID, not script_content_id
+	updatedContents, err := ds.GetScriptContents(ctx, script1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo modified", string(updatedContents))
+
+	// CRITICAL: Verify script2 still has the original content
+	s2After, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	s2Contents, err := ds.GetScriptContents(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, sharedContent, string(s2Contents))
+	require.NotEqual(t, updated.ScriptContentID, s2After.ScriptContentID)
+}
+
+// Test updating script to same content -- a no-op case
+func testUpdateScriptToSameContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a script
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo hello",
+	})
+	require.NoError(t, err)
+
+	s, err := ds.Script(ctx, script.ID)
+	require.NoError(t, err)
+	originalContentID := s.ScriptContentID
+
+	// Update with the same content
+	_, err = ds.UpdateScriptContents(ctx, script.ID, "echo hello")
+	require.NoError(t, err)
+	updatedContents, err := ds.GetScriptContents(ctx, script.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo hello", string(updatedContents))
+
+	// Verify content ID hasn't changed
+	sAfter, err := ds.Script(ctx, script.ID)
+	require.NoError(t, err)
+	require.Equal(t, originalContentID, sAfter.ScriptContentID)
 }

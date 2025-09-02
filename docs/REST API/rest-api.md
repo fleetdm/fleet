@@ -508,10 +508,6 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| query | string | query | Search query keywords. Searchable fields include `user_name` and `user_email`.
-| activity_type | string | query | Indicates the activity `type` to filter by. See available activity types on the [Audit logs page](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
-| start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
-| end_created_at | string | query | Filters to include only activities that happened before this date. If not specified, set to now.
 
 #### Example
 
@@ -1413,9 +1409,11 @@ Modifies the Fleet's configuration with the supplied information.
 | authentication_method             | string  | The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
 | domain                            | string  | The domain for the SMTP server.                                                                                                                                       |
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enable_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
 <br/>
+
+> The Fleet server relies on the host operating system's trust store to validate TLS certificates. If your email server uses a private or self-signed certificate, you’ll need to add the certificate to the OS trust store on the server running Fleet. Fleet doesn't currently support uploading custom CA certificates via the UI or API.
 
 ##### Example request body
 
@@ -1426,7 +1424,7 @@ Modifies the Fleet's configuration with the supplied information.
     "sender_address": "",
     "server": "localhost",
     "port": 1025,
-    "authentication_type": "authtype_username_none",
+    "authentication_type": "none",
     "user_name": "",
     "password": "",
     "enable_ssl_tls": true,
@@ -4114,7 +4112,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
-              "team_identifier": "EQHXZ8M8AV"
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b"
             }
           ]
         }
@@ -4165,7 +4164,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": ""
+              "team_identifier": "",
+              "hash_sha256": null
             }
           ]
         }

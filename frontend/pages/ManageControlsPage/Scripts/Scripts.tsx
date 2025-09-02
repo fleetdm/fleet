@@ -20,6 +20,7 @@ export interface ScriptsLocation {
   query: {
     team_id?: string;
     status?: string;
+    page?: string;
   };
 }
 interface IScriptsProps {

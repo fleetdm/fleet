@@ -1,6 +1,6 @@
 # Fleet 4.20.0 | Aggregate Munki issues, test features on canary teams, improved macOS vulnerability detection
 
-![Fleet 4.20.0](../website/assets/images/articles/fleet-4.20.0-1600x900.jpg)
+![Fleet 4.20.0](../website/assets/images/articles/fleet-4.20.0-800x450@2x.jpg)
 
 Fleet 4.20.0 is up and running. Check out the full [changelog](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.20.0) or continue reading to get the highlights.
 
@@ -14,7 +14,7 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 ## Aggregate Munki issues
 **Available in Fleet Free and Fleet Premium**
 
-![Aggregate Munki issues](../website/assets/images/articles/aggregate-munki-1600x900.jpg)
+![Aggregate Munki issues](../website/assets/images/articles/aggregate-munki-800x450@2x.jpg)
 
 Fleet 4.20.0 adds the ability to see a list of all Munki warnings and errors (issues) across all your hosts. 
 
@@ -23,7 +23,7 @@ To see this in action, head to the **Home > macOS** page and view the **Munki** 
 ## Test features on canary teams
 **Available in Fleet Premium**
 
-![Aggregate Munki issues](../website/assets/images/articles/canaries-1600x900.jpg)
+![Aggregate Munki issues](../website/assets/images/articles/canaries-800x450@2x.jpg)
 
 You can now test features like software inventory on a subset of your hosts.
 
@@ -114,4 +114,4 @@ Visit our [Update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in 
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="publishedOn" value="2022-09-09">
 <meta name="articleTitle" value="Fleet 4.20.0 | Aggregate Munki issues, test features on canary teams, improved macOS vulnerability detection">
-<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.20.0-1600x900.jpg">
+<meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.20.0-800x450@2x.jpg">

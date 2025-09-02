@@ -1,0 +1,1 @@
+* Updated httpsig-go library to 1.2.0 (for host identity certificates and HTTP message signatures).
