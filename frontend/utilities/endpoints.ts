@@ -39,6 +39,9 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_ICON: (token: string, titleId: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/software/titles/${titleId}/icon`;
+  },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
@@ -208,6 +211,8 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
   EDIT_SOFTWARE_VPP: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
+  SOFTWARE_ICON: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
