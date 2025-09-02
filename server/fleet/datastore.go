@@ -2069,7 +2069,6 @@ type Datastore interface {
 
 	SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
 	ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
-	HasSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint) (bool, error)
 
 	// SetHostAwaitingConfiguration sets a boolean indicating whether or not the given host is
 	// in the setup experience flow (which runs during macOS Setup Assistant).

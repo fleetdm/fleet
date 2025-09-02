@@ -337,16 +337,6 @@ func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, plat
 	return titles, count, meta, nil
 }
 
-func (ds *Datastore) HasSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint) (bool, error) {
-	var count int
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count,
-		`SELECT COUNT(*) FROM software_installers WHERE install_during_setup AND platform = ? AND global_or_team_id = ?;`,
-		platform, teamID); err != nil {
-		return false, ctxerr.Wrap(ctx, err, "check platform and team have setup experience software titles")
-	}
-	return count > 0, nil
-}
-
 type idPlatformTuple struct {
 	ID       uint   `db:"id"`
 	TitleID  uint   `db:"title_id"`

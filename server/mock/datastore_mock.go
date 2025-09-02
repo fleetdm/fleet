@@ -1321,8 +1321,6 @@ type SetSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform str
 
 type ListSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error)
 
-type HasSetupExperienceSoftwareTitlesFunc func(ctx context.Context, platform string, teamID uint) (bool, error)
-
 type SetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string, inSetupExperience bool) error
 
 type GetHostAwaitingConfigurationFunc func(ctx context.Context, hostUUID string) (bool, error)
@@ -3426,9 +3424,6 @@ type DataStore struct {
 
 	ListSetupExperienceSoftwareTitlesFunc        ListSetupExperienceSoftwareTitlesFunc
 	ListSetupExperienceSoftwareTitlesFuncInvoked bool
-
-	HasSetupExperienceSoftwareTitlesFunc        HasSetupExperienceSoftwareTitlesFunc
-	HasSetupExperienceSoftwareTitlesFuncInvoked bool
 
 	SetHostAwaitingConfigurationFunc        SetHostAwaitingConfigurationFunc
 	SetHostAwaitingConfigurationFuncInvoked bool
@@ -8208,13 +8203,6 @@ func (s *DataStore) ListSetupExperienceSoftwareTitles(ctx context.Context, platf
 	s.ListSetupExperienceSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListSetupExperienceSoftwareTitlesFunc(ctx, platform, teamID, opts)
-}
-
-func (s *DataStore) HasSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint) (bool, error) {
-	s.mu.Lock()
-	s.HasSetupExperienceSoftwareTitlesFuncInvoked = true
-	s.mu.Unlock()
-	return s.HasSetupExperienceSoftwareTitlesFunc(ctx, platform, teamID)
 }
 
 func (s *DataStore) SetHostAwaitingConfiguration(ctx context.Context, hostUUID string, inSetupExperience bool) error {
