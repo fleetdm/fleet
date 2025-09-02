@@ -8369,7 +8369,14 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	appleDeclsNoTm := []*fleet.MDMAppleDeclaration{
 		declForTest("D1", "D1", "{}"),
 	}
+	// Create an android profile for No Team
+	androidProfilesNoTm := []*fleet.MDMAndroidConfigProfile{
+		androidProfileForTest("G1"),
+	}
 	_, err = ds.BatchSetMDMProfiles(ctx, nil, appleProfsNoTm, windowsProfsNoTm, appleDeclsNoTm, nil)
+	require.NoError(t, err)
+
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *androidProfilesNoTm[0])
 	require.NoError(t, err)
 
 	// create some Apple and Windows profiles and declaration for the team
@@ -8382,7 +8389,14 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	appleDeclsTm := []*fleet.MDMAppleDeclaration{
 		declForTest("D2", "D2", "{}"),
 	}
+	androidProfilesTm := []*fleet.MDMAndroidConfigProfile{
+		androidProfileForTest("G2"),
+	}
+	androidProfilesTm[0].TeamID = &team.ID
 	_, err = ds.BatchSetMDMProfiles(ctx, &team.ID, appleProfsTm, windowsProfsTm, appleDeclsTm, nil)
+	require.NoError(t, err)
+
+	_, err = ds.NewMDMAndroidConfigProfile(ctx, *androidProfilesTm[0])
 	require.NoError(t, err)
 
 	// collect the profiles in a lookup table by name
@@ -8428,18 +8442,36 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	windowsEnroll(t, ds, host8)
 
+	androidHost9 := createAndroidHost("enterprise-id-9")
+	newHost, err := ds.NewAndroidHost(context.Background(), androidHost9)
+	require.NoError(t, err)
+	require.NotNil(t, newHost)
+	host9 := newHost.Host
+
+	androidHost10 := createAndroidHost("enterprise-id-10")
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost10)
+	require.NoError(t, err)
+	require.NotNil(t, newHost)
+	host10 := newHost.Host
+
+	androidHost11 := createAndroidHost("enterprise-id-11")
+	newHost, err = ds.NewAndroidHost(context.Background(), androidHost11)
+	require.NoError(t, err)
+	require.NotNil(t, newHost)
+	host11 := newHost.Host
+
 	for _, h := range []*fleet.Host{host1, host2, host3, host4, host5, host6, host7, host8} {
 		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "https://fleetdm.com", false, fleet.WellKnownMDMFleet, "", false)
 		require.NoError(t, err)
 	}
 
-	// host 4, 5 and 8 are on team
-	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID, host5.ID, host8.ID}))
+	// host 4, 5, 8, 10, 11 are on team
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host4.ID, host5.ID, host8.ID, host10.ID, host11.ID}))
 	require.NoError(t, err)
-	_, _, _ = host1, host2, host3
+	_, _, _, _ = host1, host2, host3, host11
 
 	// currently no status for any profile
-	for _, name := range []string{"A1", "W1", "D1", "A2", "W2", "D2"} {
+	for _, name := range []string{"A1", "W1", "D1", "A2", "W2", "D2", "G1", "G2"} {
 		status, err := ds.GetMDMConfigProfileStatus(ctx, profNameToProf[name].ProfileUUID)
 		require.NoError(t, err, name)
 		require.Equal(t, fleet.MDMConfigProfileStatus{}, status, name)
@@ -8528,6 +8560,68 @@ func testGetMDMConfigProfileStatus(t *testing.T, ds *Datastore) {
 				forceSetWindowsHostProfileStatus(t, ds, host8.UUID, winW2, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending)
 			},
 			want: fleet.MDMConfigProfileStatus{Pending: 1},
+		},
+		{
+			desc:        "android no team G1 profile failed",
+			profileUUID: profNameToProf["G1"].ProfileUUID,
+			setup: func(t *testing.T) {
+				androidG1 := profNameToProf["G1"]
+				upsertAndroidHostProfileStatus(t, ds, host9.UUID, androidG1.ProfileUUID, &fleet.MDMDeliveryFailed)
+			},
+			want: fleet.MDMConfigProfileStatus{Failed: 1},
+		},
+		{
+			desc:        "android team G2 profile nil=pending",
+			profileUUID: profNameToProf["G2"].ProfileUUID,
+			setup: func(t *testing.T) {
+				androidG2 := profNameToProf["G2"]
+				upsertAndroidHostProfileStatus(t, ds, host10.UUID, androidG2.ProfileUUID, nil)
+			},
+			want: fleet.MDMConfigProfileStatus{Pending: 1},
+		},
+		{
+			desc:        "android team G2 profile nil + pending = 2 pending",
+			profileUUID: profNameToProf["G2"].ProfileUUID,
+			setup: func(t *testing.T) {
+				androidG2 := profNameToProf["G2"]
+				upsertAndroidHostProfileStatus(t, ds, host10.UUID, androidG2.ProfileUUID, nil)
+				upsertAndroidHostProfileStatus(t, ds, host11.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryPending)
+			},
+			want: fleet.MDMConfigProfileStatus{Pending: 2},
+		},
+		{
+			desc:        "android team G2 profile pending + verifying",
+			profileUUID: profNameToProf["G2"].ProfileUUID,
+			setup: func(t *testing.T) {
+				androidG2 := profNameToProf["G2"]
+				upsertAndroidHostProfileStatus(t, ds, host10.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryVerifying)
+				upsertAndroidHostProfileStatus(t, ds, host11.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryPending)
+			},
+			want: fleet.MDMConfigProfileStatus{Pending: 1, Verifying: 1},
+		},
+		{
+			desc:        "android team G2 profile verified + verifying",
+			profileUUID: profNameToProf["G2"].ProfileUUID,
+			setup: func(t *testing.T) {
+				androidG2 := profNameToProf["G2"]
+				upsertAndroidHostProfileStatus(t, ds, host10.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryVerified)
+				upsertAndroidHostProfileStatus(t, ds, host11.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryVerifying)
+			},
+			want: fleet.MDMConfigProfileStatus{Verifying: 1, Verified: 1},
+		},
+		{
+			desc:        "android team G2 profile failed + verified",
+			profileUUID: profNameToProf["G2"].ProfileUUID,
+			setup: func(t *testing.T) {
+				// Set an unrelated profile status on another team just to ensure isolation
+				androidG1 := profNameToProf["G1"]
+				upsertAndroidHostProfileStatus(t, ds, host9.UUID, androidG1.ProfileUUID, &fleet.MDMDeliveryPending)
+
+				androidG2 := profNameToProf["G2"]
+				upsertAndroidHostProfileStatus(t, ds, host10.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryVerified)
+				upsertAndroidHostProfileStatus(t, ds, host11.UUID, androidG2.ProfileUUID, &fleet.MDMDeliveryFailed)
+			},
+			want: fleet.MDMConfigProfileStatus{Failed: 1, Verified: 1},
 		},
 	}
 	for _, c := range cases {

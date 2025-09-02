@@ -1192,16 +1192,22 @@ func (ds *Datastore) applyHostFilters(
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		connectedToFleetJoin = `
 				LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
+				LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?
+				LEFT JOIN android_devices ad ON ad.host_id = h.id`
 		whereParams = append(whereParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
 	mdmAppleProfilesStatusJoin := ""
 	mdmAppleDeclarationsStatusJoin := ""
+	mdmAndroidProfilesStatusJoin := ""
 	if opt.OSSettingsFilter.IsValid() ||
 		opt.MacOSSettingsFilter.IsValid() {
 		mdmAppleProfilesStatusJoin = sqlJoinMDMAppleProfilesStatus()
 		mdmAppleDeclarationsStatusJoin = sqlJoinMDMAppleDeclarationsStatus()
+	}
+
+	if opt.OSSettingsFilter.IsValid() {
+		mdmAndroidProfilesStatusJoin = sqlJoinMDMAndroidProfilesStatus()
 	}
 
 	// Join on the batch_activity_host_results and host_script_results tables if the
@@ -1250,6 +1256,7 @@ func (ds *Datastore) applyHostFilters(
     %s
     %s
     %s
+    %s
 	%s
 		WHERE TRUE AND %s AND %s AND %s AND %s AND %s
     `,
@@ -1266,6 +1273,7 @@ func (ds *Datastore) applyHostFilters(
 		connectedToFleetJoin,
 		mdmAppleProfilesStatusJoin,
 		mdmAppleDeclarationsStatusJoin,
+		mdmAndroidProfilesStatusJoin,
 		batchScriptExecutionJoin,
 
 		// Conditions
@@ -1486,6 +1494,7 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	sqlFmt := ` AND (
 		(h.platform = 'windows' AND mwe.host_uuid IS NOT NULL AND hmdm.enrolled = 1) -- windows
 		OR (h.platform IN ('darwin', 'ios', 'ipados') AND ne.id IS NOT NULL AND hmdm.enrolled = 1) -- apple
+		OR (h.platform = 'android' AND hmdm.enrolled = 1 AND ad.host_id IS NOT NULL) -- android
 		OR ` + includeLinuxCond + `
 	)`
 
@@ -1494,11 +1503,12 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 		// filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		sqlFmt += ` AND h.team_id IS NULL`
 	}
-	var whereMacOS, whereWindows, whereLinux string
+	var whereMacOS, whereWindows, whereLinux, whereAndroid string
 	sqlFmt += `
 AND (
 	(h.platform = 'windows' AND (%s))
 	OR ((h.platform = 'darwin' OR h.platform = 'ios' OR h.platform = 'ipados') AND (%s))
+	OR (h.platform = 'android' AND (%s))
 	OR (` + includeLinuxCond + ` AND (%s))
 )`
 
@@ -1509,6 +1519,10 @@ AND (
 	// construct the WHERE for linux
 	whereLinux = fmt.Sprintf(`(%s) = ?`, sqlCaseLinuxOSSettingsStatus())
 	paramsLinux := []any{opt.OSSettingsFilter}
+
+	// Construct the where for Android
+	whereAndroid = fmt.Sprintf(`(%s) = ?`, sqlCaseMDMAndroidStatus())
+	paramsAndroid := []any{opt.OSSettingsFilter}
 
 	// construct the WHERE for windows
 	whereWindows = `hmdm.is_server = 0`
@@ -1619,9 +1633,10 @@ AND (
 	paramsWindows = append(paramsWindows, opt.OSSettingsFilter)
 	params = append(params, paramsWindows...)
 	params = append(params, paramsMacOS...)
+	params = append(params, paramsAndroid...)
 	params = append(params, paramsLinux...)
 
-	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereLinux), params, nil
+	return sql + fmt.Sprintf(sqlFmt, whereWindows, whereMacOS, whereAndroid, whereLinux), params, nil
 }
 
 func (ds *Datastore) filterHostsByOSSettingsDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}, diskEncryptionConfig fleet.DiskEncryptionConfig) (string, []interface{}) {
@@ -1795,6 +1810,16 @@ func filterHostsByProfileStatus(sqlstmt string, opt fleet.HostListOptions, param
 			hwap.host_uuid = h.uuid
 			AND hwap.profile_uuid = ?
 			AND hwap.status = ?)`
+		case strings.HasPrefix(*opt.ProfileUUIDFilter, fleet.MDMAndroidProfileUUIDPrefix):
+			sqlstmt += ` AND EXISTS (
+		SELECT
+			1
+		FROM
+			host_mdm_android_profiles hmap
+		WHERE
+			hmap.host_uuid = h.uuid
+			AND hmap.profile_uuid = ?
+			AND hmap.status = ?)`
 		default:
 			return sqlstmt, params
 		}
