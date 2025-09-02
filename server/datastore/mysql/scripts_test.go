@@ -2435,6 +2435,29 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
+
+	// Edge case -- batch activity with no hosts.
+	// In reality this could happen if all the hosts in a batch get deleted.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO batch_activities (execution_id, status, script_id, activity_type) VALUES (?, ?, ?, ?)",
+			"abc123", fleet.ScheduledBatchExecutionStarted, script.ID, "script")
+		return err
+	})
+
+	// Mark activities as completed
+	err = ds.MarkActivitiesAsCompleted(ctx)
+	require.NoError(t, err)
+
+	// First activity should be marked as finished and updated accordingly.
+	batchActivity, err = ds.GetBatchActivity(ctx, "abc123")
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(0), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumRan)
+	require.Equal(t, uint(0), *batchActivity.NumErrored)
+	require.Equal(t, uint(0), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(0), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
 }
 
 func testBatchScriptCancel(t *testing.T, ds *Datastore) {
