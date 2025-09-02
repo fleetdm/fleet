@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -30,6 +32,10 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 
 	mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
 	svc.softwareTitleIconStore = mockIconStore
+	defer func() {
+		_, err := mockIconStore.Cleanup(ctx, []string{}, time.Now().Add(time.Hour))
+		require.NoError(t, err)
+	}()
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -71,6 +77,10 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 		{
 			name: "existing software title icon",
 			before: func() {
+				iconData := []byte("mock-icon-data")
+				storageID := "mock-storage-id"
+				err := mockIconStore.Put(ctx, storageID, bytes.NewReader(iconData))
+				require.NoError(t, err)
 			},
 			testFunc: func(t *testing.T) {
 				imageBytes, size, filename, err := svc.GetSoftwareTitleIcon(ctx, 1, 1)
