@@ -18,8 +18,6 @@ jobs:
     runs-on: macos-latest
     permissions:
       contents: write
-      id-token: write
-      attestations: write
       packages: write
     steps:
       - name: Harden Runner
@@ -81,8 +79,6 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-      id-token: write
-      attestations: write
       packages: write
     steps:
       - name: Harden Runner
@@ -126,8 +122,6 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-      id-token: write
-      attestations: write
       packages: write
     steps:
       - name: Harden Runner
@@ -168,8 +162,6 @@ jobs:
     runs-on: windows-2022
     permissions:
       contents: write
-      id-token: write
-      attestations: write
       packages: write
     steps:
       - name: Harden Runner
@@ -217,8 +209,6 @@ jobs:
     runs-on: windows-2022
     permissions:
       contents: write
-      id-token: write
-      attestations: write
       packages: write
     steps:
       - name: Harden Runner
@@ -253,7 +243,6 @@ jobs:
     needs: goreleaser-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     with:
-      attest: 'true'
       filename: orbit.exe
       upload_name: orbit-windows-arm64
       download_name: unsigned-windows-arm64
