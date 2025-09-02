@@ -54,7 +54,6 @@ const SoftwareSummaryCard = ({
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
   const canEditIcon = softwareInstaller && teamId && hasEditPermissions;
-  const iconUrl = title.icon_url;
 
   const [showEditIconModal, setShowEditIconModal] = useState(false);
 

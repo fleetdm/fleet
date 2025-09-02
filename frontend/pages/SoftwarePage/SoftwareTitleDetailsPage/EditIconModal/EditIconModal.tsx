@@ -1,4 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
@@ -30,6 +32,21 @@ const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
 const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION.toString()}x${MIN_DIMENSION.toString()} px to ${MAX_DIMENSION.toString()}x${MAX_DIMENSION.toString()} px.`;
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
+
+const getFilenameFromContentDisposition = (header: string | null) => {
+  if (!header) return null;
+  // Try to match extended encoding (RFC 5987) first
+  const matchExtended = header.match(/filename\*\s*=\s*([^;]+)/);
+  if (matchExtended) {
+    // RFC 5987: filename*=UTF-8''something.png
+    const value = matchExtended[1].trim().replace(/^UTF-8''/, "");
+    return decodeURIComponent(value);
+  }
+  // Then standard quoted (or unquoted) filename param
+  const matchStandard = header.match(/filename\s*=\s*["']?([^"';]+)["']?/);
+  if (matchStandard) return matchStandard[1];
+  return null;
+};
 
 interface IIconFormData {
   icon: File;
@@ -72,36 +89,50 @@ const EditIconModal = ({
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   console.log("formData", formData);
-  useEffect(() => {
-    // Only run if there's an API URL and no file already selected
-    if (
-      !formData &&
-      software.icon_url &&
-      software.icon_url.startsWith("/api/")
-    ) {
-      // Fetch the existing icon data as blob (if needed for preview)
-      fetch(software.icon_url)
-        .then((res) => res.blob())
-        .then((blob) => {
-          const previewUrl = URL.createObjectURL(blob);
-
-          // You may want to create a pseudo File object
-          // For demonstration, assume file details can be extracted/guessed
-          setFormData({
-            icon: new File([blob], "what-should-this-be-named.png", {
-              type: "image/png",
-            }),
-          });
-
-          // Extract dimensions needed for display
-          const img = new Image();
-          img.onload = () => {
-            setIconDimensions(img.width);
-          };
-          img.src = previewUrl;
-        });
+  // If there's an API URL and no file already selected, fetch the existing icon
+  const { data: iconBlobUrl, isLoading, error } = useQuery<
+    Blob | undefined,
+    AxiosError,
+    string
+  >(
+    ["softwareIcon", softwareId, teamIdForApi],
+    () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
+    {
+      enabled:
+        !!previewInfo.currentIconUrl &&
+        previewInfo.currentIconUrl.startsWith("/api/"),
+      retry: false,
+      select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
     }
-  }, [software.icon_url, formData]);
+  );
+
+  useEffect(() => {
+    if (iconBlobUrl && !formData) {
+      const img = new Image();
+      img.onload = () => setIconDimensions(img.width);
+      img.src = iconBlobUrl;
+
+      // Fetch the blob again to get the filename from headers
+      fetch(iconBlobUrl)
+        .then((res) => {
+          const header = res.headers.get("Content-Disposition");
+          let filename = "icon.png";
+          console.log("res", res);
+          if (header) {
+            console.log("header", header);
+            const matchQuoted = header.match(/filename=["']?([^"';]+)["']?/);
+            if (matchQuoted) filename = matchQuoted[1];
+          }
+          return res.blob().then((blob) => ({ blob, filename }));
+        })
+        .then(({ blob, filename }) => {
+          setFormData({
+            icon: new File([blob], filename, { type: "image/png" }),
+          });
+        });
+      setIconPreviewUrl(iconBlobUrl);
+    }
+  }, [iconBlobUrl, formData]);
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -177,7 +208,7 @@ const EditIconModal = ({
         renderFlash(
           "success",
           <>
-            Successfully edited <b>{software?.name}</b>.
+            Successfully edited <b>{previewInfo.name}</b>.
           </>
         );
       }
