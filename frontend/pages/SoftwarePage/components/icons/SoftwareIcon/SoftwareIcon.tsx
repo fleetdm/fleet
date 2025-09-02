@@ -40,7 +40,7 @@ const SoftwareIcon = ({
 }: ISoftwareIconProps) => {
   const classNames = classnames(baseClass, `${baseClass}__${size}`);
 
-  const isApiUrl = url?.startsWith("/api/");
+  const isApiUrl = url?.startsWith("/api/") || false;
   let softwareId: number | undefined;
   let teamId: number | undefined;
   if (isApiUrl && url) {
@@ -48,10 +48,10 @@ const SoftwareIcon = ({
   }
 
   // Only run useQuery if both IDs are numbers
-  const shouldFetch =
+  const shouldFetchCustomIcon =
     isApiUrl && typeof softwareId === "number" && typeof teamId === "number";
 
-  const { data: iconBlob, isLoading } = useQuery<
+  const { data: currentCustomIconBlob, isLoading } = useQuery<
     Blob | undefined,
     AxiosError,
     string
@@ -59,28 +59,30 @@ const SoftwareIcon = ({
     ["softwareIcon", softwareId, teamId],
     () => softwareAPI.getSoftwareIcon(softwareId as number, teamId as number), // safe to assert here
     {
-      enabled: shouldFetch,
+      enabled: shouldFetchCustomIcon,
       retry: false,
       select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
     }
   );
 
-  if (isLoading && shouldFetch) {
-    return <></>;
+  const imgClasses = classnames(
+    `${baseClass}__software-img`,
+    `${baseClass}__software-img-${size}`
+  );
+
+  // Return empty div while loading custom icon so component size doesn't jump
+  if (isLoading && shouldFetchCustomIcon) {
+    return <div className={classNames} />;
   }
 
   let iconSrc: string | null = null;
-  if (isApiUrl && iconBlob) {
-    iconSrc = iconBlob;
+  if (isApiUrl && currentCustomIconBlob) {
+    iconSrc = currentCustomIconBlob;
   } else if (url) {
     iconSrc = url;
   }
 
   if (iconSrc) {
-    const imgClasses = classnames(
-      `${baseClass}__software-img`,
-      `${baseClass}__software-img-${size}`
-    );
     return (
       <div className={classNames}>
         <img className={imgClasses} src={iconSrc} alt="" />

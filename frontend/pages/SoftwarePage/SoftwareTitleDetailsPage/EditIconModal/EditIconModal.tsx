@@ -89,8 +89,14 @@ const EditIconModal = ({
   const [navTabIndex, setNavTabIndex] = useState(0);
 
   console.log("formData", formData);
+
+  const shouldFetchCustomIcon =
+    !!previewInfo.currentIconUrl &&
+    previewInfo.currentIconUrl.startsWith("/api/");
+
+  console.log("shouldGetIconFromApi", shouldFetchCustomIcon);
   // If there's an API URL and no file already selected, fetch the existing icon
-  const { data: iconBlobUrl, isLoading, error } = useQuery<
+  const { data: customIconBlob, isLoading, error } = useQuery<
     Blob | undefined,
     AxiosError,
     string
@@ -98,22 +104,21 @@ const EditIconModal = ({
     ["softwareIcon", softwareId, teamIdForApi],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
-      enabled:
-        !!previewInfo.currentIconUrl &&
-        previewInfo.currentIconUrl.startsWith("/api/"),
+      enabled: shouldFetchCustomIcon,
       retry: false,
       select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
     }
   );
 
+  // On mount, if we have an icon URL from the API, load it into state
   useEffect(() => {
-    if (iconBlobUrl && !formData) {
+    if (customIconBlob) {
       const img = new Image();
       img.onload = () => setIconDimensions(img.width);
-      img.src = iconBlobUrl;
+      img.src = customIconBlob;
 
       // Fetch the blob again to get the filename from headers
-      fetch(iconBlobUrl)
+      fetch(customIconBlob)
         .then((res) => {
           const header = res.headers.get("Content-Disposition");
           let filename = "icon.png";
@@ -130,9 +135,9 @@ const EditIconModal = ({
             icon: new File([blob], filename, { type: "image/png" }),
           });
         });
-      setIconPreviewUrl(iconBlobUrl);
+      setIconPreviewUrl(customIconBlob);
     }
-  }, [iconBlobUrl, formData]);
+  }, []);
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -247,7 +252,11 @@ const EditIconModal = ({
             name={name}
             type={type}
             source={source}
-            iconUrl={currentIconUrl}
+            iconUrl={
+              !previewInfo.currentIconUrl && software.icon_url
+                ? software.icon_url
+                : null
+            } // Rely on iconPreviewwUrl or uploaded file so if we "trash" a custom icon we want to see a preview of the default icon
             versions={versions}
             hosts={0} // required field but not shown in isPreview
             iconPreviewUrl={iconPreviewUrl || null}
@@ -344,8 +353,8 @@ const EditIconModal = ({
             ) : (
               <SoftwareIcon
                 name={software.name}
-                source="apps"
-                url={previewInfo.currentIconUrl}
+                source={previewInfo.source}
+                url={isSoftwarePackage ? undefined : software.icon_url}
               />
             )}
             <TooltipTruncatedText value={previewInfo.name} />

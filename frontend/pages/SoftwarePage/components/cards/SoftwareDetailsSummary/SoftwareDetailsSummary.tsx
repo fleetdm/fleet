@@ -74,6 +74,7 @@ const SoftwareDetailsSummary = ({
         />
       );
     }
+    console.log("iconUrl", iconUrl);
     return (
       <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
     );

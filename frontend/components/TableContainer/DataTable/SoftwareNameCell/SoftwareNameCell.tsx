@@ -139,7 +139,7 @@ interface ISoftwareNameCellProps {
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
   /** e.g. app_store_app's override default icons with URLs */
-  iconUrl?: string;
+  iconUrl?: string | null;
 }
 
 const SoftwareNameCell = ({

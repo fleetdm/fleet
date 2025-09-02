@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 import { InjectedRouter } from "react-router";
 
-import {
+import software, {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
@@ -76,7 +76,7 @@ const SoftwareSummaryCard = ({
           }}
           name={title.name}
           source={title.source}
-          iconUrl={title.icon_url}
+          iconUrl={title.icon_url || softwareInstaller?.icon_url || null} // fallback to installer icon if title icon is null
           onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
         />
         {showVersionsTable && (
