@@ -825,7 +825,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of the certificate authority. |
+| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 
 #### Example
 
