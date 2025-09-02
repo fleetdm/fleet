@@ -1293,7 +1293,7 @@ type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uin
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
-type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.SoftwareTitleIconActivity, error)
+type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error)
 
 type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
 
@@ -8117,7 +8117,7 @@ func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.SoftwareTitleIconActivity, error) {
+func (s *DataStore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
 	s.mu.Lock()
 	s.ActivityDetailsForSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()

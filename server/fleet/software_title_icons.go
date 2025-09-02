@@ -56,15 +56,17 @@ func (FailingSoftwareTitleIconStore) Sign(_ context.Context, _ string) (string, 
 	return "", errors.New("software title icon store not properly configured")
 }
 
-type SoftwareTitleIconActivity struct {
+type DetailsForSoftwareIconActivity struct {
 	SoftwareInstallerID *uint                   `db:"software_installer_id"`
 	AdamID              *string                 `db:"adam_id"`
+	VPPAppTeamID        *uint                   `db:"vpp_app_team_id"`
 	SoftwareTitle       string                  `db:"software_title"`
-	Filename            string                  `db:"filename"`
+	Filename            *string                 `db:"filename"`
 	TeamName            string                  `db:"team_name"`
 	TeamID              uint                    `db:"team_id"`
 	SelfService         bool                    `db:"self_service"`
 	SoftwareTitleID     uint                    `db:"software_title_id"`
+	Platform            *AppleDevicePlatform    `json:"platform"`
 	LabelsIncludeAny    []ActivitySoftwareLabel `db:"-"`
 	LabelsExcludeAny    []ActivitySoftwareLabel `db:"-"`
 }

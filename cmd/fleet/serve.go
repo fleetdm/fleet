@@ -817,7 +817,7 @@ the way that the Fleet server works.
 						softwareTitleIconStore = fleet.FailingSoftwareTitleIconStore{}
 					} else {
 						softwareTitleIconStore = iconStore
-						level.Info(logger).Log("msg",
+						level.Warn(logger).Log("msg",
 							"using local filesystem software title icon store, this is not suitable for production use", "directory",
 							iconDir)
 					}

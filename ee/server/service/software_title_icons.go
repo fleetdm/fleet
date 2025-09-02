@@ -45,7 +45,6 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 
 func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.UploadSoftwareTitleIconPayload) (fleet.SoftwareTitleIcon, error) {
 	var err error
-	activityType := "create"
 	if err = svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: payload.TeamID}, fleet.ActionWrite); err != nil {
 		return fleet.SoftwareTitleIcon{}, err
 	}
@@ -56,6 +55,7 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	if !ok {
 		return fleet.SoftwareTitleIcon{}, fleet.ErrNoContext
 	}
+	user := vc.User
 
 	softwareInstaller, err = svc.ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &payload.TeamID, payload.TitleID, false)
 	if err != nil && !fleet.IsNotFound(err) {
@@ -82,7 +82,6 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
 	if icon == nil || icon.StorageID != payload.StorageID {
-		activityType = "update"
 		exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
 		if err != nil {
 			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if installer exists")
@@ -99,39 +98,14 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating or updating software title icon")
 	}
 
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
 	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
 	if err != nil {
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
 	}
-	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
-	if activityType == "create" {
-		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeAddedSoftware{
-			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
-			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
-			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
-			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
-			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
-			IconURL:          &iconUrl,
-			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
-			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
-		}); err != nil {
-			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating activity for added software")
-		}
-	} else {
-		if err := svc.NewActivity(ctx, vc.User, fleet.ActivityTypeEditedSoftware{
-			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
-			SoftwarePackage:  &activityDetailsForSoftwareTitleIcon.Filename,
-			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
-			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
-			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			IconURL:          &iconUrl,
-			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
-			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
-			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
-		}); err != nil {
-			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating activity for updated software")
-		}
+	err = generateEditActivityForSoftwareTitleIcon(ctx, svc, user, iconUrl, activityDetailsForSoftwareTitleIcon)
+	if err != nil {
+		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "generating edit activity for software title icon")
 	}
 
 	return *softwareTitleIcon, nil
@@ -143,10 +117,70 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 		return err
 	}
 
-	err = svc.ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+	user := vc.User
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, teamID)
+	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
 	if err != nil {
+		return ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
+	}
+
+	err = svc.ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
 		return ctxerr.Wrap(ctx, err, "deleting software title icon")
 	}
 
+	// since delete is idempotent, we only want to generate an activity if the
+	// software title icon was actually deleted.
+	if err == nil {
+		err = generateEditActivityForSoftwareTitleIcon(ctx, svc, user, iconUrl, activityDetailsForSoftwareTitleIcon)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating edit activity for software title icon")
+		}
+	}
+
 	return nil
+}
+
+func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service, user *fleet.User, iconUrl string, activityDetailsForSoftwareTitleIcon fleet.DetailsForSoftwareIconActivity) error {
+	if activityDetailsForSoftwareTitleIcon.AdamID != nil {
+		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
+			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+			AppStoreID:       *activityDetailsForSoftwareTitleIcon.AdamID,
+			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
+			Platform:         *activityDetailsForSoftwareTitleIcon.Platform,
+			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
+		}
+
+		return nil
+	}
+
+	if activityDetailsForSoftwareTitleIcon.SoftwareInstallerID != nil {
+		if err := svc.NewActivity(ctx, user, fleet.ActivityTypeEditedSoftware{
+			SoftwareTitle:    activityDetailsForSoftwareTitleIcon.SoftwareTitle,
+			SoftwarePackage:  activityDetailsForSoftwareTitleIcon.Filename,
+			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
+			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
+			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			IconURL:          &iconUrl,
+			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
+			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
+			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,
+		}); err != nil {
+			return ctxerr.Wrap(ctx, err, "creating activity for software title icon")
+		}
+
+		return nil
+	}
+
+	return ctxerr.New(ctx, "no software installer or VPP app found for software title icon")
 }

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,29 +21,13 @@ func TestSoftwareTitleIcons(t *testing.T) {
 		{"CreateOrUpdateSoftwareTitleIcon", testCreateOrUpdateSoftwareTitleIcon},
 		{"GetSoftwareTitleIcon", testGetSoftwareTitleIcon},
 		{"DeleteSoftwareTitleIcon", testDeleteSoftwareTitleIcon},
+		{"ActivityDetailsForSoftwareTitleIcon", testActivityDetailsForSoftwareTitleIcon},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			c.fn(t, ds)
 		})
 	}
-}
-
-func createIcon(ctx context.Context, ds *Datastore, teamID, softwareTitleID uint, storageID string, filename string) (*fleet.SoftwareTitleIcon, error) {
-	icon := &fleet.SoftwareTitleIcon{
-		TeamID:          teamID,
-		SoftwareTitleID: softwareTitleID,
-		StorageID:       storageID,
-		Filename:        filename,
-	}
-	_, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO software_title_icons (team_id, software_title_id, storage_id, filename) VALUES (?, ?, ?, ?)`,
-		teamID, softwareTitleID, storageID, filename,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return icon, nil
 }
 
 func createTeamAndSoftwareTitle(t *testing.T, ctx context.Context, ds *Datastore) (uint, uint, error) {
@@ -52,7 +37,7 @@ func createTeamAndSoftwareTitle(t *testing.T, ctx context.Context, ds *Datastore
 	}
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.3", Source: "apps", BundleIdentifier: "foo.bundle.id"},
 	}
 	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
 	if err != nil {
@@ -96,7 +81,12 @@ func testCreateOrUpdateSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 		{"Update existing icon", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 			require.NoError(t, err)
-			_, err = createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon.png",
+			})
 			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
 			icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
@@ -151,7 +141,12 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 		{"Icon exists", func(ds *Datastore) {
 			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 			require.NoError(t, err)
-			_, err = createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon.png",
+			})
 			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
 			icon, err := ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
@@ -173,13 +168,19 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 
 func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
+	defer TruncateTables(t, ds)
 
 	var teamID, titleID uint
 	var err error
 	teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 	require.NoError(t, err)
 
-	icon, err := createIcon(ctx, ds, teamID, titleID, "storage-id-1", "test-icon.png")
+	icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID:    teamID,
+		TitleID:   titleID,
+		StorageID: "storage-id-1",
+		Filename:  "test-icon.png",
+	})
 	require.NoError(t, err)
 	require.NotNil(t, icon)
 
@@ -189,4 +190,167 @@ func testDeleteSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	icon, err = ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
 	require.Error(t, err)
 	require.Nil(t, icon)
+
+	err = ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
+	require.ErrorContains(t, err, "software title icon not found")
+}
+
+func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var teamID, titleID, installerID uint
+	var err error
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{"software installer", func(ds *Datastore) {
+			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+			require.NoError(t, err)
+
+			// create a software installer associated to the title
+			tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+			require.NoError(t, err)
+			installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "hello",
+				InstallerFile:    tfr1,
+				StorageID:        "storage1",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &teamID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+			var softwareInstallerTitleIds []struct {
+				ID uint `db:"title_id"`
+			}
+			err = ds.writer(ctx).Select(&softwareInstallerTitleIds, `SELECT title_id from software_installers`)
+			require.NoError(t, err)
+			require.Len(t, softwareInstallerTitleIds, 1)
+			require.Equal(t, titleID, softwareInstallerTitleIds[0].ID)
+
+			// add some labels
+			label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+			require.NoError(t, err)
+			label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+			require.NoError(t, err)
+			// Insert exclude label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
+				installerID, label1.ID, true)
+			require.NoError(t, err)
+			// Insert include label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO software_installer_labels (software_installer_id, label_id, exclude) VALUES (?, ?, ?)",
+				installerID, label2.ID, false)
+			require.NoError(t, err)
+
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon-updated.png",
+			})
+			require.NoError(t, err)
+		}, func(t *testing.T, ds *Datastore) {
+			activity, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+
+			require.Equal(t, installerID, *activity.SoftwareInstallerID)
+			require.Nil(t, activity.AdamID)
+			require.Nil(t, activity.VPPAppTeamID)
+			require.Equal(t, "foo", activity.SoftwareTitle)
+			require.Equal(t, "foo.pkg", *activity.Filename)
+			require.Equal(t, "team1", activity.TeamName)
+			require.Equal(t, teamID, activity.TeamID)
+			require.False(t, activity.SelfService)
+			require.Equal(t, titleID, activity.SoftwareTitleID)
+			require.Len(t, activity.LabelsExcludeAny, 1)
+			require.Nil(t, activity.Platform)
+			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAny, 1)
+			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+		}},
+		{"vpp app", func(ds *Datastore) {
+			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+			require.NoError(t, err)
+
+			dataToken, err := test.CreateVPPTokenData(time.Now().Add(24*time.Hour), "Test org"+t.Name(), "Test location"+t.Name())
+			require.NoError(t, err)
+			tok1, err := ds.InsertVPPToken(ctx, dataToken)
+			require.NoError(t, err)
+			_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
+			require.NoError(t, err)
+
+			vppApp := &fleet.VPPApp{Name: "foo", TitleID: titleID, VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "foo.bundle.id"}
+			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
+			require.NoError(t, err)
+
+			var vppAppsTitleIds []struct {
+				ID uint `db:"title_id"`
+			}
+			err = ds.writer(ctx).Select(&vppAppsTitleIds, `SELECT title_id from vpp_apps`)
+			require.NoError(t, err)
+			require.Len(t, vppAppsTitleIds, 1)
+			require.Equal(t, titleID, vppAppsTitleIds[0].ID)
+
+			// add some labels
+			label1, err := ds.NewLabel(ctx, &fleet.Label{Name: "label1"})
+			require.NoError(t, err)
+			label2, err := ds.NewLabel(ctx, &fleet.Label{Name: "label2"})
+			require.NoError(t, err)
+
+			// Insert exclude label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
+				vppApp.VPPAppTeam.AppTeamID, label1.ID, true)
+			require.NoError(t, err)
+			// Insert include label
+			_, err = ds.writer(ctx).ExecContext(ctx,
+				"INSERT INTO vpp_app_team_labels (vpp_app_team_id, label_id, exclude) VALUES (?, ?, ?)",
+				vppApp.VPPAppTeam.AppTeamID, label2.ID, false)
+			require.NoError(t, err)
+
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon-updated.png",
+			})
+		}, func(t *testing.T, ds *Datastore) {
+			activity, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+
+			require.Nil(t, activity.SoftwareInstallerID)
+			require.Equal(t, "1", *activity.AdamID)
+			require.NotNil(t, activity.VPPAppTeamID)
+			require.Equal(t, "foo", activity.SoftwareTitle)
+			require.Nil(t, activity.Filename)
+			require.Equal(t, "team1", activity.TeamName)
+			require.Equal(t, teamID, activity.TeamID)
+			require.False(t, activity.SelfService)
+			require.Equal(t, titleID, activity.SoftwareTitleID)
+			require.Len(t, activity.LabelsExcludeAny, 1)
+			require.Equal(t, fleet.MacOSPlatform, *activity.Platform)
+			require.Equal(t, "label1", activity.LabelsExcludeAny[0].Name)
+			require.Len(t, activity.LabelsIncludeAny, 1)
+			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
+		}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
 }

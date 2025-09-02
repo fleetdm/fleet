@@ -57,10 +57,20 @@ func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleI
 		DELETE FROM software_title_icons
 		WHERE team_id = ? AND software_title_id = ?
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, query, teamID, titleID)
+	result, err := ds.writer(ctx).ExecContext(ctx, query, teamID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting software title icon")
 	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting rows affected")
+	}
+
+	if rowsAffected == 0 {
+		return ctxerr.Wrap(ctx, notFound("SoftwareTitleIcon"), "software title icon not found")
+	}
+
 	return nil
 }
 
@@ -78,36 +88,38 @@ func (ds *Datastore) CleanupUnusedSoftwareTitleIcons(ctx context.Context, iconSt
 	return ctxerr.Wrap(ctx, err, "cleanup unused software title icons")
 }
 
-func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.SoftwareTitleIconActivity, error) {
-	var details fleet.SoftwareTitleIconActivity
+func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
+	var details fleet.DetailsForSoftwareIconActivity
 	query := `
 		SELECT
-			software_installer.id AS software_installer_id,
+			software_installers.id AS software_installer_id,
 			vpp_apps.adam_id AS adam_id,
-			software_titles.name AS software_title,
+			vpp_apps_teams.id AS vpp_app_team_id,
+			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
 			software_installers.filename AS filename,
 			teams.name AS team_name,
 			teams.id AS team_id,
 			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
-			software_titles.id AS software_title_id
+			software_titles.id AS software_title_id,
+			vpp_apps.platform AS platform
 		FROM software_title_icons
 		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
 		INNER JOIN teams ON software_title_icons.team_id = teams.id
-		LEFT JOIN software_installers ON software_title_icons.software_title_id = software_installers.id
-		LEFT JOIN vpp_apps ON software_title_icons.software_title_id = vpp_apps.id
-		LEFT JOIN vpp_apps_teams ON software_title_icons.software_title_id = vpp_apps_teams.vpp_app_id
+		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
+		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)
+	if err != nil {
+		return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting activity details for software title icon")
+	}
+
 	type ActivitySoftwareLabel struct {
 		ID      uint   `db:"id"`
 		Name    string `db:"name"`
 		Exclude bool   `db:"exclude"`
 	}
-	if err != nil {
-		return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting activity details for software title icon")
-	}
-
 	var labels []ActivitySoftwareLabel
 	if details.SoftwareInstallerID != nil {
 		labelQuery := `
@@ -120,7 +132,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			WHERE software_installer_id = ?
 		`
 		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.SoftwareInstallerID); err != nil {
-			return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
 	if details.AdamID != nil {
@@ -128,13 +140,13 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			SELECT
 				labels.id AS id,
 				labels.name AS name,
-				vpp_app_labels.exclude AS exclude
-			FROM vpp_app_labels
-			INNER JOIN labels ON vpp_app_labels.label_id = labels.id
-			WHERE vpp_app_id = ?
+				vpp_app_team_labels.exclude AS exclude
+			FROM vpp_app_team_labels
+			INNER JOIN labels ON vpp_app_team_labels.label_id = labels.id
+			WHERE vpp_app_team_id = ?
 		`
-		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.AdamID); err != nil {
-			return fleet.SoftwareTitleIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, labelQuery, details.VPPAppTeamID); err != nil {
+			return fleet.DetailsForSoftwareIconActivity{}, ctxerr.Wrap(ctx, err, "getting labels for software title icon")
 		}
 	}
 	for _, l := range labels {
