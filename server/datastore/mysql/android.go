@@ -523,7 +523,6 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
-<<<<<<< HEAD
 func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
 	stmt := `
 SELECT
