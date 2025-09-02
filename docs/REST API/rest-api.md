@@ -824,7 +824,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 | Name            | Type    | In   | Description                                                 |
 |---------------- |-------- |------|-------------------------------------------------------------|
-| id   | integer | body | **Required**. The ID of certificate authority. |
+| id   | integer | body | **Required**. The ID of the certificate authority. |
 
 #### Example
 
