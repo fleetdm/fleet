@@ -51,6 +51,13 @@ func (ds *Datastore) applyQueriesInTx(
 	authorID uint,
 	queries []*fleet.Query,
 ) (err error) {
+	// First, verify all 'queries' are valid.
+	for _, q := range queries {
+		if err := q.Verify(); err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+	}
+
 	const upsertQueriesSQL = `
 		INSERT INTO queries (
 			name,
