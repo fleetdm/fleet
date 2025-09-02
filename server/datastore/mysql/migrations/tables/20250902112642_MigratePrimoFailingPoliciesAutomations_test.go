@@ -95,8 +95,7 @@ func TestUp_20250902112642(t *testing.T) {
 		createTestPolicies(t, db, true, true)
 
 		// Test with Primo mode enabled
-		_ = os.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
-		defer os.Unsetenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO")
+		t.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
 
 		applyNext(t, db)
 
@@ -304,8 +303,7 @@ func TestUp_20250902112642(t *testing.T) {
 		createTestPolicies(t, db, false, true)
 
 		// Enable Primo mode and run migration
-		_ = os.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
-		defer os.Unsetenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO")
+		t.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
 
 		applyNext(t, db)
 
@@ -391,8 +389,7 @@ func TestUp_20250902112642(t *testing.T) {
 		require.NoError(t, err)
 
 		// Enable Primo mode and run migration
-		_ = os.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
-		defer os.Unsetenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO")
+		t.Setenv("FLEET_PARTNERSHIPS_ENABLE_PRIMO", "true")
 
 		applyNext(t, db)
 

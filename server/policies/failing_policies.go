@@ -25,7 +25,7 @@ const (
 	FailingPolicyZendesk FailingPolicyAutomationType = "zendesk"
 )
 
-// FailingPolicyAutomationConfig holds the configuration for proessing a
+// FailingPolicyAutomationConfig holds the configuration for processing a
 // failing policy to send to the configured automation.
 type FailingPolicyAutomationConfig struct {
 	AutomationType FailingPolicyAutomationType
