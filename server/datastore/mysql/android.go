@@ -523,6 +523,120 @@ func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileU
 	return nil
 }
 
+func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	stmt := `
+SELECT
+	COUNT(id) AS count,
+	%s AS status
+FROM
+	hosts h
+	INNER JOIN host_mdm hmdm ON h.id=hmdm.host_id
+	%s
+WHERE
+	platform = 'android' AND
+	hmdm.enrolled = 1 AND
+	 %s
+GROUP BY
+	status HAVING status IS NOT NULL`
+
+	teamFilter := "team_id IS NULL"
+	if teamID != nil && *teamID > 0 {
+		teamFilter = fmt.Sprintf("team_id = %d", *teamID)
+	}
+
+	stmt = fmt.Sprintf(stmt, sqlCaseMDMAndroidStatus(), sqlJoinMDMAndroidProfilesStatus(), teamFilter)
+
+	var dest []struct {
+		Count  uint   `db:"count"`
+		Status string `db:"status"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt); err != nil {
+		return nil, err
+	}
+
+	byStatus := make(map[string]uint)
+	for _, s := range dest {
+		if _, ok := byStatus[s.Status]; ok {
+			return nil, fmt.Errorf("duplicate status %s from android profiles summary", s.Status)
+		}
+		byStatus[s.Status] = s.Count
+	}
+
+	var res fleet.MDMProfilesSummary
+	for s, c := range byStatus {
+		switch fleet.MDMDeliveryStatus(s) {
+		case fleet.MDMDeliveryFailed:
+			res.Failed = c
+		case fleet.MDMDeliveryPending:
+			res.Pending = c
+		case fleet.MDMDeliveryVerifying:
+			res.Verifying = c
+		case fleet.MDMDeliveryVerified:
+			res.Verified = c
+		default:
+			return nil, fmt.Errorf("unknown status %s", s)
+		}
+	}
+
+	return &res, nil
+}
+
+// sqlJoinMDMAndroidProfilesStatus returns a SQL snippet that can be used to join a table derived from
+// host_mdm_android_profiles (grouped by host_uuid and status) and the hosts table. For each host_uuid,
+// it derives a boolean value for each status category. The value will be 1 if the host has any
+// profile in the given status category. The snippet assumes the hosts table to be aliased as 'h'.
+func sqlJoinMDMAndroidProfilesStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+		install   = fmt.Sprintf("'%s'", string(fleet.MDMOperationTypeInstall))
+	)
+	return `
+	LEFT JOIN (
+		-- profile statuses grouped by host uuid, boolean value will be 1 if host has any profile with the given status
+		SELECT
+			host_uuid,
+			MAX( IF(status IS NULL OR status = ` + pending + `, 1, 0)) AS android_prof_pending,
+			MAX( IF(status = ` + failed + `, 1, 0)) AS android_prof_failed,
+			MAX( IF(status = ` + verifying + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verifying,
+			MAX( IF(status = ` + verified + ` AND operation_type = ` + install + `, 1, 0)) AS android_prof_verified
+		FROM
+			host_mdm_android_profiles
+		GROUP BY
+			host_uuid) hmgp ON h.uuid = hmgp.host_uuid
+`
+}
+
+// sqlCaseMDMAndroidStatus returns a SQL snippet that can be used to determine the status of an Android host
+// based on the status of its profiles. It should be used in conjunction with sqlJoinMDMAndroidProfilesStatus
+// It assumes the hosts table to be aliased as 'h'
+func sqlCaseMDMAndroidStatus() string {
+	// NOTE: To make this snippet reusable, we're not using sqlx.Named here because it would
+	// complicate usage in other queries (e.g., list hosts).
+	var (
+		failed    = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryFailed))
+		pending   = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryPending))
+		verifying = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerifying))
+		verified  = fmt.Sprintf("'%s'", string(fleet.MDMDeliveryVerified))
+	)
+	return `
+	CASE WHEN (android_prof_failed) THEN
+		` + failed + `
+	WHEN (android_prof_pending) THEN
+		` + pending + `
+	WHEN (android_prof_verifying) THEN
+		` + verifying + `
+	WHEN (android_prof_verified) THEN
+		` + verified + `
+	END
+`
+}
+
 func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
 	const stmt = `
 	INSERT INTO android_policy_requests

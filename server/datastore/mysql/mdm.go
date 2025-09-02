@@ -1729,6 +1729,8 @@ func getTableAndColumnNameForHostMDMProfileUUID(profUUID string) (table, column 
 		return "host_mdm_apple_profiles", "profile_uuid", nil
 	case strings.HasPrefix(profUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		return "host_mdm_windows_profiles", "profile_uuid", nil
+	case strings.HasPrefix(profUUID, fleet.MDMAndroidProfileUUIDPrefix):
+		return "host_mdm_android_profiles", "profile_uuid", nil
 	default:
 		return "", "", fmt.Errorf("invalid profile UUID prefix %s", profUUID)
 	}
@@ -1962,9 +1964,77 @@ func (ds *Datastore) GetMDMConfigProfileStatus(ctx context.Context, profileUUID 
 		return ds.getAppleMDMDeclarationStatus(ctx, profileUUID)
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
 		return ds.getWindowsMDMConfigProfileStatus(ctx, profileUUID)
+	case strings.HasPrefix(profileUUID, fleet.MDMAndroidProfileUUIDPrefix):
+		return ds.getAndroidMDMConfigProfileStatus(ctx, profileUUID)
 	default:
 		return fleet.MDMConfigProfileStatus{}, ctxerr.Wrap(ctx, notFound("ConfigurationProfile").WithName(profileUUID))
 	}
+}
+
+func (ds *Datastore) getAndroidMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {
+	var counts fleet.MDMConfigProfileStatus
+
+	stmt := `
+SELECT
+	CASE
+		WHEN hmap.status = :status_failed THEN
+			'failed'
+		WHEN COALESCE(hmap.status, :status_pending) = :status_pending THEN
+			'pending'
+		WHEN hmap.status = :status_verifying THEN
+			'verifying'
+		WHEN hmap.status = :status_verified THEN
+			'verified'
+		ELSE
+			''
+	END AS final_status,
+	SUM(1) AS count
+FROM
+	hosts h
+	JOIN host_mdm hmdm ON h.id = hmdm.host_id
+	JOIN android_devices ad ON h.id=ad.host_id
+	JOIN host_mdm_android_profiles hmap ON hmap.host_uuid = h.uuid
+WHERE
+	h.platform = 'android' AND
+	hmdm.enrolled = 1 AND
+	hmap.profile_uuid = :profile_uuid
+GROUP BY
+	final_status`
+
+	stmt, args, err := sqlx.Named(stmt, map[string]any{
+		"status_failed":    fleet.MDMDeliveryFailed,
+		"status_pending":   fleet.MDMDeliveryPending,
+		"status_verifying": fleet.MDMDeliveryVerifying,
+		"status_verified":  fleet.MDMDeliveryVerified,
+		"profile_uuid":     profileUUID,
+	})
+	if err != nil {
+		return counts, ctxerr.Wrap(ctx, err, "prepare arguments with sqlx.Named")
+	}
+
+	var rows []statusCounts
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...)
+	if err != nil {
+		return counts, err
+	}
+
+	for _, row := range rows {
+		switch row.Status {
+		case string(fleet.MDMDeliveryFailed):
+			counts.Failed = row.Count
+		case string(fleet.MDMDeliveryPending):
+			counts.Pending += row.Count
+		case string(fleet.MDMDeliveryVerifying):
+			counts.Verifying = row.Count
+		case string(fleet.MDMDeliveryVerified):
+			counts.Verified = row.Count
+		case "":
+			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d android hosts for profile %s with mdm turned on but no profiles", row.Count, profileUUID))
+		default:
+			return counts, ctxerr.New(ctx, fmt.Sprintf("unexpected mdm android status count: status=%s, count=%d", row.Status, row.Count))
+		}
+	}
+	return counts, nil
 }
 
 func (ds *Datastore) getWindowsMDMConfigProfileStatus(ctx context.Context, profileUUID string) (fleet.MDMConfigProfileStatus, error) {

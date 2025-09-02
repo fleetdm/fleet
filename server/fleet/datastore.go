@@ -2208,6 +2208,11 @@ type Datastore interface {
 	// the specified profile uuid.
 	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
 
+	// GetMDMAndroidProfilesSummary summarizes the current state of Android profiles on each
+	// Android host in the specified team (or, if no team is specified, each host that is not
+	// assigned to any team).
+	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
 	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
 
