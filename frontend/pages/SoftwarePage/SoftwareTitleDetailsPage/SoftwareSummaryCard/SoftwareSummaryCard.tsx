@@ -1,6 +1,7 @@
 /** software/titles/:id > First section */
 
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+import { AppContext } from "context/app";
 
 import { InjectedRouter } from "react-router";
 
@@ -41,18 +42,25 @@ const SoftwareSummaryCard = ({
   softwareInstaller,
   refetchSoftwareTitle,
 }: ISoftwareSummaryCard) => {
+  const {
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isTeamMaintainerOrTeamAdmin,
+  } = useContext(AppContext);
+
   // Hide versions table for tgz_packages only
   const showVersionsTable = title.source !== "tgz_packages";
+
+  const hasEditPermissions =
+    isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
+  const canEditIcon = softwareInstaller && teamId && hasEditPermissions;
+  const iconUrl = title.icon_url;
+
   const [showEditIconModal, setShowEditIconModal] = useState(false);
 
   const onClickEditIcon = () => {
     setShowEditIconModal(!showEditIconModal);
   };
-
-  const canEditIcon = softwareInstaller && teamId;
-  const iconUrl = title.app_store_app
-    ? title.app_store_app.icon_url
-    : undefined;
 
   return (
     <>

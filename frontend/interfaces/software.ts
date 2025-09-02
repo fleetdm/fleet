@@ -153,6 +153,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;

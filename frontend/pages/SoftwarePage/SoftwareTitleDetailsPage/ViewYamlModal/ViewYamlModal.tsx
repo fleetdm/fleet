@@ -82,7 +82,7 @@ const ViewYamlModal = ({
 
     try {
       if (content) {
-        const file = new File([content], filename, { type: filetype });
+        const file = new window.File([content], filename, { type: filetype });
         FileSaver.saveAs(file);
       } else if (downloadUrl) {
         const response = await fetch(downloadUrl);
@@ -93,7 +93,6 @@ const ViewYamlModal = ({
         throw new Error("No content or URL provided");
       }
     } catch (err) {
-      console.error(err);
       renderFlash("error", errorMsg);
     }
     return false;
@@ -155,7 +154,7 @@ const ViewYamlModal = ({
       filename: `${hyphenatedSoftwareTitle}-icon.png`,
       filetype: "image/png",
       errorMsg:
-        "Your icon could not be downloaded. Please download the image  manually.",
+        "Your icon could not be downloaded. Please download the image manually.",
     });
   };
 

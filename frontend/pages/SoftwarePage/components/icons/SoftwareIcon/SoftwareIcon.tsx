@@ -14,7 +14,7 @@ interface ISoftwareIconProps {
   source?: string;
   size?: SoftwareIconSizes;
   /** Accepts an image url to display for the software icon image. */
-  url?: string;
+  url?: string | null;
 }
 
 const SoftwareIcon = ({

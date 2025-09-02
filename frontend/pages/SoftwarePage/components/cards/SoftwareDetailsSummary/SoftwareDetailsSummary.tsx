@@ -34,7 +34,7 @@ interface ISoftwareDetailsSummaryProps {
   name?: string;
   source?: string;
   versions?: number;
-  iconUrl?: string;
+  iconUrl?: string | null;
   /** Displays OS icon instead of Software icon */
   isOperatingSystem?: boolean;
   /** Displays an edit CTA to edit the software's icon
@@ -65,9 +65,6 @@ const SoftwareDetailsSummary = ({
     source !== "tgz_packages" && iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {
-    console.log("name", name);
-    console.log("source", source);
-    console.log("iconUrl", iconUrl);
     if (typeof iconPreviewUrl === "string") {
       return (
         <img

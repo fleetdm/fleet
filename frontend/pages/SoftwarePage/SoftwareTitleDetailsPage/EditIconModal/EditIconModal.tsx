@@ -26,10 +26,9 @@ import PreviewSelfServiceIcon from "../../../../../assets/images/preview-self-se
 const baseClass = "edit-icon-modal";
 
 const ACCEPTED_EXTENSIONS = ".png";
-const UPLOAD_MESSAGE =
-  "The icon must be a PNG file and square, with dimensions ranging from 120x120 px to 1024x1024 px.";
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
+const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION.toString()}x${MIN_DIMENSION.toString()} px to ${MAX_DIMENSION.toString()}x${MAX_DIMENSION.toString()} px.`;
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
 
 interface IIconFormData {
@@ -46,7 +45,7 @@ interface IEditIconModalProps {
     type?: string;
     versions?: number;
     source?: string;
-    currentIconUrl?: string;
+    currentIconUrl: string | null;
     name: string;
     countsUpdatedAt?: string;
   };
@@ -61,7 +60,6 @@ const EditIconModal = ({
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
-  console.log("NAMEEE", previewInfo.name);
   const { renderFlash } = useContext(NotificationContext);
 
   const isSoftwarePackage = installerType === "package";

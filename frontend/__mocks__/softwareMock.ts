@@ -166,6 +166,7 @@ export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
 const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",
+  icon_url: null,
   software_package: null,
   app_store_app: null,
   source: "apps",
