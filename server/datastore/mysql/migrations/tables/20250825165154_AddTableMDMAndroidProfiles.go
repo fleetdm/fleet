@@ -47,24 +47,31 @@ CREATE TABLE mdm_android_configuration_profiles (
 		return fmt.Errorf("create mdm_android_configuration_profiles table: %w", err)
 	}
 
+	// TODO(ap): not sure how to handle the 3 retries before marking a profile as
+	// failed, does that mean that after 3 failures we stop merging any proflies
+	// that were part of those failures, and send only other (newer) profiles? Or
+	// do we stop sending any policy for that host from that point on?
+
 	// The table android_policy_requests tracks the API requests made to create
 	// or update the policy to apply to a given host.
 	createRequestsTable := `
 CREATE TABLE android_policy_requests (
   request_uuid      VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  android_policy_id INT UNSIGNED NOT NULL,
-  policy_version    INT UNSIGNED NOT NULL,
+  -- request_name is the policy_name (for patch policy) or device_name (for patch device)
+  request_name      VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  -- the policy_id for which this request was made
+  policy_id         VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   payload           JSON NOT NULL,
 
   -- track if API request was successful or not
   status_code       INT NOT NULL,
-  -- in case of error, store (part of) the returned body
-  error_body				TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  -- in case of error, store details here
+  error_details	    TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
 
-  -- from figma, retry up to 3 times before marking profile as failed
-  -- (since the policy is a merge of all profiles, all profiles
-  -- associated with this request would be failed)
-  retries           TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  -- on success, the currently applied policy version for the device (only for patch device)
+  applied_policy_version INT DEFAULT NULL,
+  -- on success, the new version of the policy (only for patch policy)
+  policy_version    INT DEFAULT NULL,
 
   created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -75,12 +82,6 @@ CREATE TABLE android_policy_requests (
 	if _, err := tx.Exec(createRequestsTable); err != nil {
 		return fmt.Errorf("create android_policy_requests table: %w", err)
 	}
-
-	// TODO: do we get to define the policyId? Could it simply be the host's
-	// uuid? TBD if we have to store this info, and where. I see that we already
-	// have android_policy_id in the android_devices table, my guess is that this
-	// is where we'll store that info (AFAIK it is a 1:1 relationship with devices).
-	// See https://github.com/fleetdm/fleet/blob/49369c43b090f2bdf3c4de200046214e99252e1e/server/datastore/mysql/migrations/tables/20250219142401_UpdateAndroidTables.go#L31-L32
 
 	// Note that the policy version ID seems to be managed by Google and AFAICT we only
 	// receive it, we don't define it:
@@ -105,16 +106,17 @@ CREATE TABLE host_mdm_android_profiles (
 
   -- uuid of the corresponding android_policy_requests, supports NULL because
   -- we won't have the request uuid until the request is ready to be sent
-  request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  policy_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  device_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
 
   created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
-
   PRIMARY KEY (host_uuid, profile_uuid),
   FOREIGN KEY (status) REFERENCES mdm_delivery_status (status) ON UPDATE CASCADE,
   FOREIGN KEY (operation_type) REFERENCES mdm_operation_types (operation_type) ON UPDATE CASCADE,
-  FOREIGN KEY (request_uuid) REFERENCES android_policy_requests (request_uuid) ON DELETE SET NULL
+  FOREIGN KEY (policy_request_uuid) REFERENCES android_policy_requests (request_uuid) ON DELETE SET NULL,
+  FOREIGN KEY (device_request_uuid) REFERENCES android_policy_requests (request_uuid) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 `
 	if _, err := tx.Exec(createHostProfilesTable); err != nil {
@@ -135,6 +137,47 @@ ALTER TABLE mdm_configuration_profile_labels
 		return fmt.Errorf("alter mdm_configuration_profile_labels table: %w", err)
 	}
 
+	alterAndroidDevicesTable := `
+ALTER TABLE android_devices
+	ADD COLUMN applied_policy_id VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+	ADD COLUMN applied_policy_version INT DEFAULT NULL
+`
+	if _, err := tx.Exec(alterAndroidDevicesTable); err != nil {
+		return fmt.Errorf("alter android_devices table: %w", err)
+	}
+
+	// migrate android_policy_id to applied_policy_id, before removing the column
+	migratePolicyID := `
+UPDATE android_devices
+	SET applied_policy_id = CAST(android_policy_id AS CHAR(100))
+	WHERE android_policy_id IS NOT NULL
+`
+	if _, err := tx.Exec(migratePolicyID); err != nil {
+		return fmt.Errorf("migrate android_policy_id to applied_policy_id: %w", err)
+	}
+
+	cleanupAndroidDevicesTable := `
+ALTER TABLE android_devices
+	DROP COLUMN android_policy_id
+`
+	if _, err := tx.Exec(cleanupAndroidDevicesTable); err != nil {
+		return fmt.Errorf("cleanup android_devices table: %w", err)
+	}
+
+	// backfill the hosts.uuid column for pre-existing Android hosts that may not
+	// have it set (we now use the enterprise_specific_id for that).
+	updateHostUUIDs := `
+UPDATE hosts
+	JOIN android_devices ON android_devices.host_id = hosts.id
+	SET uuid = android_devices.enterprise_specific_id
+	WHERE
+		hosts.platform = ? AND
+		hosts.uuid = '' AND
+		COALESCE(android_devices.enterprise_specific_id, '') != ''
+`
+	if _, err := tx.Exec(updateHostUUIDs, "android"); err != nil {
+		return fmt.Errorf("backfill missing hosts.uuid for android hosts: %w", err)
+	}
 	return nil
 }
 

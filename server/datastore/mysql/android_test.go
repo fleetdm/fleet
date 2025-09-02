@@ -61,6 +61,16 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
 	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
 
+	resultLite, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
+	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
+
+	_, err = ds.AndroidHostLite(testCtx(), "non-existent")
+	require.Error(t, err)
+	_, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID+1000)
+	require.Error(t, err)
+
 	// Inserting the same host again should be fine.
 	// This may occur when 2 Fleet servers received the same host information via pubsub.
 	resultCopy, err := ds.NewAndroidHost(testCtx(), host)
@@ -103,7 +113,8 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 		Device: &android.Device{
 			DeviceID:             "device_id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
+			AppliedPolicyVersion: ptr.Int64(1),
 			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}
@@ -141,7 +152,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.CPUType = "cpu_type_updated"
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
-	host.Device.AndroidPolicyID = ptr.Uint(2)
+	host.Device.AppliedPolicyID = ptr.String("2")
 	err = ds.UpdateAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 
@@ -317,7 +328,7 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 		Device: &android.Device{
 			DeviceID:             "storage-test-device-id",
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 		},
 	}

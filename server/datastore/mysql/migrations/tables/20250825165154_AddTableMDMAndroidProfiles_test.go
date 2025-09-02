@@ -31,6 +31,16 @@ func TestUp_20250825165154(t *testing.T) {
 	execNoErr(t, db, `INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)`, apple, "LA", idA)
 	execNoErr(t, db, `INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)`, apple, "LC", idC)
 
+	// create a couple Android hosts
+	hostAndroidNoUUID := insertHost(t, db, nil)
+	hostAndroidWithUUID := insertHost(t, db, nil)
+	hostMacNoUUID := insertHost(t, db, nil)
+	execNoErr(t, db, `UPDATE hosts SET platform = ?, uuid = '' WHERE id = ?`, "android", hostAndroidNoUUID)
+	execNoErr(t, db, `UPDATE hosts SET platform = ?, uuid = 'got-one' WHERE id = ?`, "android", hostAndroidWithUUID)
+	execNoErr(t, db, `UPDATE hosts SET platform = ?, uuid = '' WHERE id = ?`, "darwin", hostMacNoUUID)
+	execNoErr(t, db, `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id) VALUES (?, ?, ?)`, hostAndroidNoUUID, "d1", "from-enterprise")
+	execNoErr(t, db, `INSERT INTO android_devices (host_id, device_id, enterprise_specific_id) VALUES (?, ?, ?)`, hostAndroidWithUUID, "d2", "from-enterprise2")
+
 	// Apply current migration.
 	applyNext(t, db)
 
@@ -87,4 +97,10 @@ func TestUp_20250825165154(t *testing.T) {
 		VALUES (?, ?)`, "LB", idB)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "Check constraint 'ck_mdm_configuration_profile_labels_profile_uuid' is violated.")
+
+	var got []string
+	err = db.Select(&got, `SELECT uuid FROM hosts WHERE id IN (?, ?, ?) ORDER BY id`, hostAndroidNoUUID, hostAndroidWithUUID, hostMacNoUUID)
+	require.NoError(t, err)
+	// empty android host got updated, non-empty stayed the same, mac host not updated
+	require.Equal(t, []string{"from-enterprise", "got-one", ""}, got)
 }
