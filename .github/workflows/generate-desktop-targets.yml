@@ -11,8 +11,6 @@ defaults:
     shell: bash
 
 permissions:
-  id-token: write
-  attestations: write
   contents: read
 
 jobs:
@@ -132,7 +130,6 @@ jobs:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
     with:
-      attest: "true"
       filename: fleet-desktop.exe
       upload_name: fleet-desktop.exe
     secrets:
@@ -174,7 +171,6 @@ jobs:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     with:
-      attest: "true"
       filename: fleet-desktop.exe
       upload_name: fleet-desktop-arm64.exe
       download_name: unsigned-windows-arm64
