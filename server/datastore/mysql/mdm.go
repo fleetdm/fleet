@@ -1992,6 +1992,7 @@ SELECT
 FROM
 	hosts h
 	JOIN host_mdm hmdm ON h.id = hmdm.host_id
+	JOIN android_devices ad ON h.id=ad.host_id
 	JOIN host_mdm_android_profiles hmap ON hmap.host_uuid = h.uuid
 WHERE
 	h.platform = 'android' AND

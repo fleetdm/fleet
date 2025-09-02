@@ -89,6 +89,8 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 }
 
 func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
+	// Device ID needs to be unique per device
+	deviceID := md5ChecksumBytes([]byte(enterpriseSpecificID))[:16]
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			Hostname:       "hostname",
@@ -105,7 +107,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			UUID:           enterpriseSpecificID,
 		},
 		Device: &android.Device{
-			DeviceID:             "device_id",
+			DeviceID:             deviceID,
 			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
 			AndroidPolicyID:      ptr.Uint(1),
 			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),

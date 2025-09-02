@@ -838,7 +838,8 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query += `
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
+		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?
+		  LEFT JOIN android_devices ad ON ad.host_id = h.id`
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 

@@ -1026,7 +1026,6 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 		if v != nil {
 			expectedStatus = *v
 		}
-		fmt.Printf("upserted host UUID %s prof status %v %s\n", hosts[0].UUID, v, expectedStatus)
 		for _, checkStatus := range statuses {
 			if checkStatus == nil {
 				continue
@@ -1035,7 +1034,6 @@ func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
 			if *checkStatus == expectedStatus {
 				expected = 1
 			}
-			fmt.Printf("Checking check %s expectedStatus %s expected %d", *checkStatus, expectedStatus, expected)
 			listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(*checkStatus)}, expected)
 		}
 	}
