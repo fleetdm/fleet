@@ -353,11 +353,13 @@ func deleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, certi
 	return nil
 }
 
-func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, delete []*fleet.CertificateAuthority, add []*fleet.CertificateAuthority, update []*fleet.CertificateAuthority) error {
-	upsert := append(add, update...)
+func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, toDelete []*fleet.CertificateAuthority, toAdd []*fleet.CertificateAuthority, toUpdate []*fleet.CertificateAuthority) error {
+	upsert := make([]*fleet.CertificateAuthority, 0, len(toAdd)+len(toUpdate))
+	upsert = append(upsert, toAdd...)
+	upsert = append(upsert, toUpdate...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := deleteCertificateAuthorities(ctx, tx, delete); err != nil {
+		if err := deleteCertificateAuthorities(ctx, tx, toDelete); err != nil {
 			return err
 		}
 		if err := upsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upsert); err != nil {

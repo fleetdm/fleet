@@ -400,7 +400,6 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	if !ok || incoming == nil {
 		spec = map[string]interface{}{}
 		fmt.Println("org_settings.certificate_authorities config is not a map, using empty map")
-		// group.AppConfig.(map[string]interface{})["integrations"] = integrations
 	} else {
 		spec = incoming.(map[string]interface{})
 	}
@@ -410,9 +409,7 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	}
 
 	if ndesSCEPProxy, ok := spec.(map[string]interface{})["ndes_scep_proxy"]; !ok || ndesSCEPProxy == nil {
-		// // Per backend patterns.md, best practice is to clear a JSON config field with `null`
-		// spec.(map[string]interface{})["ndes_scep_proxy"] = nil
-		// // TODO(hca): do nothing?
+		groupedCAs.NDESSCEP = nil
 	} else {
 		if _, ok = ndesSCEPProxy.(map[string]interface{}); !ok {
 			return nil, errors.New("org_settings.certificate_authorities.ndes_scep_proxy config is not a map")
@@ -432,8 +429,7 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	}
 
 	if digicertIntegration, ok := spec.(map[string]interface{})["digicert"]; !ok || digicertIntegration == nil {
-		// spec.(map[string]interface{})["digicert"] = nil
-		// // TODO(hca): do nothing?
+		groupedCAs.DigiCert = []DigiCertCA{}
 	} else {
 		// We unmarshal DigiCert integration into its dedicated type for additional validation.
 		digicertJSON, err := json.Marshal(spec.(map[string]interface{})["digicert"])
@@ -449,8 +445,7 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	}
 
 	if customSCEPIntegration, ok := spec.(map[string]interface{})["custom_scep_proxy"]; !ok || customSCEPIntegration == nil {
-		// spec.(map[string]interface{})["custom_scep_proxy"] = nil
-		// TODO(hca): do nothing?
+		groupedCAs.CustomScepProxy = []CustomSCEPProxyCA{}
 	} else {
 		// We unmarshal Custom SCEP integration into its dedicated type for additional validation
 		customSCEPJSON, err := json.Marshal(spec.(map[string]interface{})["custom_scep_proxy"])
@@ -466,8 +461,7 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	}
 
 	if hydrantCA, ok := spec.(map[string]interface{})["hydrant"]; !ok || hydrantCA == nil {
-		// spec.(map[string]interface{})["hydrant"] = nil
-		// TODO(hca): do nothing?
+		groupedCAs.Hydrant = []HydrantCA{}
 	} else {
 		// We unmarshal Hydrant CA integration into its dedicated type for additional validation
 		hydrantJSON, err := json.Marshal(spec.(map[string]interface{})["hydrant"])

@@ -320,15 +320,15 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	var storedCAs fleet.GroupedCertificateAuthorities
 	muStoredCAs := sync.Mutex{}
 
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, delete []*fleet.CertificateAuthority, add []*fleet.CertificateAuthority, update []*fleet.CertificateAuthority) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete []*fleet.CertificateAuthority, toAdd []*fleet.CertificateAuthority, toUpdate []*fleet.CertificateAuthority) error {
 		muStoredCAs.Lock()
 		defer muStoredCAs.Unlock()
-		if len(delete) > 0 {
+		if len(toDelete) > 0 {
 			storedCAs = fleet.GroupedCertificateAuthorities{}
 		}
-		upserts := make([]*fleet.CertificateAuthority, 0, len(add)+len(update))
-		upserts = append(upserts, add...)
-		upserts = append(upserts, update...)
+		upserts := make([]*fleet.CertificateAuthority, 0, len(toAdd)+len(toUpdate))
+		upserts = append(upserts, toAdd...)
+		upserts = append(upserts, toUpdate...)
 		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
 		if err != nil {
 			return err

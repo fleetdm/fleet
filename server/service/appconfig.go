@@ -13,8 +13,6 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"regexp"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
@@ -25,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/log/level"
 	"golang.org/x/text/unicode/norm"
@@ -940,105 +937,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
-func validateCAName(name string, caType string, allCANames map[string]struct{}) error {
-	if name == "NDES" {
-		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be NDES", caType)
-	}
-	if len(name) == 0 {
-		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be empty", caType)
-	}
-	if len(name) > 255 {
-		return fmt.Errorf("certificate_authorities.%s.name: CA name cannot be longer than 255 characters", caType)
-	}
-	if !isAlphanumeric(name) {
-		return fmt.Errorf("certificate_authorities.%s.name: Couldn’t edit certificate authorities.%s. Invalid characters in the \"name\" field. Only letters, numbers and underscores allowed.",
-			caType, name)
-	}
-	if _, ok := allCANames[name]; ok {
-		return fmt.Errorf("certificate_authorities.%s.name: Couldn’t edit certificate authority. \"%s\" name is already used by another certificate authority. Please choose a different name and try again.", caType, name)
-	}
-	allCANames[name] = struct{}{}
-	return nil
-}
-
-func validateCACN(cn string, invalid *fleet.InvalidArgumentError) bool {
-	if len(strings.TrimSpace(cn)) == 0 {
-		invalid.Append("certificate_authorities.digicert.certificate_common_name", "CA Common Name (CN) cannot be empty")
-		return false
-	}
-	fleetVars := variables.Find(cn)
-	for fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
-			// ok
-		default:
-			invalid.Append("certificate_authorities.digicert.certificate_common_name", "FLEET_VAR_"+fleetVar+" is not allowed in CA Common Name (CN)")
-			return false
-		}
-	}
-	return true
-}
-
-func validateSeatID(seatID string, invalid *fleet.InvalidArgumentError) bool {
-	if len(strings.TrimSpace(seatID)) == 0 {
-		invalid.Append("certificate_authorities.digicert.certificate_seat_id", "CA Seat ID cannot be empty")
-		return false
-	}
-	fleetVars := variables.Find(seatID)
-	for fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
-			// ok
-		default:
-			invalid.Append("certificate_authorities.digicert.certificate_seat_id", "FLEET_VAR_"+fleetVar+" is not allowed in DigiCert Seat ID")
-			return false
-		}
-	}
-	return true
-}
-
-func validateUserPrincipalNames(userPrincipalNames []string, invalid *fleet.InvalidArgumentError) bool {
-	if len(userPrincipalNames) == 0 {
-		return true
-	}
-	if len(userPrincipalNames) > 1 {
-		invalid.Append("certificate_authorities.digicert.certificate_user_principal_names",
-			"DigiCert CA can only have one certificate user principal name")
-		return false
-	}
-	if len(strings.TrimSpace(userPrincipalNames[0])) == 0 {
-		invalid.Append("certificate_authorities.digicert.certificate_user_principal_names",
-			"DigiCert CA certificate user principal name cannot be empty if specified")
-		return false
-	}
-	fleetVars := variables.Find(userPrincipalNames[0])
-	for fleetVar := range fleetVars {
-		switch fleetVar {
-		case string(fleet.FleetVarHostEndUserEmailIDP), string(fleet.FleetVarHostHardwareSerial):
-			// ok
-		default:
-			invalid.Append("certificate_authorities.digicert.certificate_user_principal_names",
-				"FLEET_VAR_"+fleetVar+" is not allowed in CA User Principal Name")
-			return false
-		}
-	}
-	return true
-}
-
-type appConfigCAStatus struct {
-	ndes            caStatusType
-	digicert        map[string]caStatusType
-	customSCEPProxy map[string]caStatusType
-}
-
-type caStatusType string
-
-const (
-	caStatusAdded   caStatusType = "added"
-	caStatusEdited  caStatusType = "edited"
-	caStatusDeleted caStatusType = "deleted"
-)
-
 // processAppleOSUpdateSettings updates the OS updates configuration if the minimum version+deadline are updated.
 func (svc *Service) processAppleOSUpdateSettings(
 	ctx context.Context,
@@ -1779,10 +1677,4 @@ func (svc *Service) HostFeatures(ctx context.Context, host *fleet.Host) (*fleet.
 		return nil, err
 	}
 	return &appConfig.Features, nil
-}
-
-var alphanumeric = regexp.MustCompile(`^\w+$`)
-
-func isAlphanumeric(s string) bool {
-	return alphanumeric.MatchString(s)
 }
