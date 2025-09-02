@@ -209,7 +209,7 @@ AWS region to use for Identity and Access Management (IAM) authentication of an 
 - Environment variable: `FLEET_MYSQL_REGION`
 - Config file format:
   ```yaml
-  redis:
+  mysql:
     region: ca-central-1
   ```
 
