@@ -140,6 +140,12 @@ type Datastore interface {
 	// The return values indicate how many campaigns were expired and any error.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
+	// CleanupCompletedCampaignTargets removes campaign targets for campaigns that have been
+	// completed for more than the specified duration. This helps reduce database size by
+	// cleaning up historical data that is no longer needed. Returns the number of
+	// targets deleted.
+	CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error)
+
 	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
 	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.
 	GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error)
@@ -250,6 +256,7 @@ type Datastore interface {
 	Host(ctx context.Context, id uint) (*Host, error)
 	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus BatchScriptExecutionStatus, opt ListOptions) ([]BatchScriptHost, *PaginationMetadata, uint, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
 	// the provided uuids and filtered according to the provided team filters. It
@@ -560,6 +567,10 @@ type Datastore interface {
 	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
 	// are being deleted from the global configuration.
 	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
+	// DefaultTeamConfig returns the configuration for "No Team" hosts.
+	DefaultTeamConfig(ctx context.Context) (*TeamConfig, error)
+	// SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
+	SaveDefaultTeamConfig(ctx context.Context, config *TeamConfig) error
 	// TeamExists returns true if a team with the given id exists.
 	TeamExists(ctx context.Context, teamID uint) (bool, error)
 

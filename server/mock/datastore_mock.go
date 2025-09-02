@@ -109,6 +109,8 @@ type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fle
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
 
+type CleanupCompletedCampaignTargetsFunc func(ctx context.Context, olderThan time.Time) (deleted uint, err error)
+
 type GetCompletedCampaignsFunc func(ctx context.Context, filter []uint) ([]uint, error)
 
 type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
@@ -192,6 +194,8 @@ type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 type GetHostHealthFunc func(ctx context.Context, id uint) (*fleet.HostHealth, error)
 
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
+
+type ListBatchScriptHostsFunc func(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]fleet.BatchScriptHost, *fleet.PaginationMetadata, uint, error)
 
 type ListHostsLiteByUUIDsFunc func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error)
 
@@ -426,6 +430,10 @@ type SearchTeamsFunc func(ctx context.Context, filter fleet.TeamFilter, matchQue
 type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.EnrollSecret, error)
 
 type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
+
+type DefaultTeamConfigFunc func(ctx context.Context) (*fleet.TeamConfig, error)
+
+type SaveDefaultTeamConfigFunc func(ctx context.Context, config *fleet.TeamConfig) error
 
 type TeamExistsFunc func(ctx context.Context, teamID uint) (bool, error)
 
@@ -1599,6 +1607,9 @@ type DataStore struct {
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
 
+	CleanupCompletedCampaignTargetsFunc        CleanupCompletedCampaignTargetsFunc
+	CleanupCompletedCampaignTargetsFuncInvoked bool
+
 	GetCompletedCampaignsFunc        GetCompletedCampaignsFunc
 	GetCompletedCampaignsFuncInvoked bool
 
@@ -1724,6 +1735,9 @@ type DataStore struct {
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
+
+	ListBatchScriptHostsFunc        ListBatchScriptHostsFunc
+	ListBatchScriptHostsFuncInvoked bool
 
 	ListHostsLiteByUUIDsFunc        ListHostsLiteByUUIDsFunc
 	ListHostsLiteByUUIDsFuncInvoked bool
@@ -2075,6 +2089,12 @@ type DataStore struct {
 
 	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
 	DeleteIntegrationsFromTeamsFuncInvoked bool
+
+	DefaultTeamConfigFunc        DefaultTeamConfigFunc
+	DefaultTeamConfigFuncInvoked bool
+
+	SaveDefaultTeamConfigFunc        SaveDefaultTeamConfigFunc
+	SaveDefaultTeamConfigFuncInvoked bool
 
 	TeamExistsFunc        TeamExistsFunc
 	TeamExistsFuncInvoked bool
@@ -3943,6 +3963,13 @@ func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
 }
 
+func (s *DataStore) CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error) {
+	s.mu.Lock()
+	s.CleanupCompletedCampaignTargetsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupCompletedCampaignTargetsFunc(ctx, olderThan)
+}
+
 func (s *DataStore) GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error) {
 	s.mu.Lock()
 	s.GetCompletedCampaignsFuncInvoked = true
@@ -4235,6 +4262,13 @@ func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt 
 	s.ListHostsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostsFunc(ctx, filter, opt)
+}
+
+func (s *DataStore) ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]fleet.BatchScriptHost, *fleet.PaginationMetadata, uint, error) {
+	s.mu.Lock()
+	s.ListBatchScriptHostsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListBatchScriptHostsFunc(ctx, batchScriptExecutionID, batchScriptExecutionStatus, opt)
 }
 
 func (s *DataStore) ListHostsLiteByUUIDs(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
@@ -5054,6 +5088,20 @@ func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntg
 	s.DeleteIntegrationsFromTeamsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
+}
+
+func (s *DataStore) DefaultTeamConfig(ctx context.Context) (*fleet.TeamConfig, error) {
+	s.mu.Lock()
+	s.DefaultTeamConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.DefaultTeamConfigFunc(ctx)
+}
+
+func (s *DataStore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
+	s.mu.Lock()
+	s.SaveDefaultTeamConfigFuncInvoked = true
+	s.mu.Unlock()
+	return s.SaveDefaultTeamConfigFunc(ctx, config)
 }
 
 func (s *DataStore) TeamExists(ctx context.Context, teamID uint) (bool, error) {

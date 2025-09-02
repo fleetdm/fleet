@@ -42,10 +42,7 @@ const Policies = ({
   router,
   currentTeamId,
 }: IPoliciesProps): JSX.Element => {
-  const tableHeaders = generatePolicyTableHeaders(
-    togglePolicyDetailsModal,
-    currentTeamId
-  );
+  const tableHeaders = generatePolicyTableHeaders(currentTeamId);
   if (deviceUser) {
     // Remove view all hosts link
     tableHeaders.pop();
