@@ -52,6 +52,7 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import UpdatesCard from "./UpdatesCard/UpdatesCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
+import SoftwareInstructionsModal from "./OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
@@ -125,6 +126,16 @@ export const parseSelfServiceQueryParams = (queryParams: {
   };
 };
 
+const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
+  if (hostSW.source === "apps" && hostSW.installed_versions) {
+    const filePath = hostSW.installed_versions[0].installed_paths[0];
+    // Match the last segment ending in .app and extract the name before .app
+    const match = filePath.match(/\/([^/]+)\.app$/);
+    return match ? match[1] : hostSW.name;
+  }
+  return hostSW.name;
+};
+
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
@@ -164,6 +175,9 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
+  const [showOpenInstructionsModal, setShowOpenInstructionsModal] = useState(
+    false
+  );
 
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
@@ -173,11 +187,16 @@ const SoftwareSelfService = ({
     }));
   }, [selfServiceData, hostSoftwareUpdatedAt]);
 
-  const selectedSoftware = useRef<{
+  const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
     softwareName: string;
     softwareInstallerType?: string;
     version: string;
+  } | null>(null);
+
+  const selectedSoftwareForInstructions = useRef<{
+    softwareName: string;
+    softwareSource: string;
   } | null>(null);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
@@ -367,7 +386,7 @@ const SoftwareSelfService = ({
 
   const onClickUninstallAction = useCallback(
     (hostSW: IHostSoftwareWithUiStatus) => {
-      selectedSoftware.current = {
+      selectedSoftwareForUninstall.current = {
         softwareId: hostSW.id,
         softwareName: hostSW.name,
         softwareInstallerType: getExtensionFromFileName(
@@ -376,6 +395,17 @@ const SoftwareSelfService = ({
         version: hostSW.software_package?.version || "",
       };
       setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
+  const onClickOpenInstructionsAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftwareForInstructions.current = {
+        softwareName: getInstallerName(hostSW),
+        softwareSource: hostSW.source,
+      };
+      setShowOpenInstructionsModal(true);
     },
     []
   );
@@ -536,13 +566,18 @@ const SoftwareSelfService = ({
     }
   };
 
+  const onExitSoftwareInstructionsModal = () => {
+    selectedSoftwareForUninstall.current = null;
+    setShowOpenInstructionsModal(false);
+  };
+
   const onExitUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
   };
 
   const onSuccessUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
     onInstallOrUninstall();
   };
@@ -589,6 +624,7 @@ const SoftwareSelfService = ({
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
+      onClickOpenInstructionsAction,
     });
   }, [
     onShowUpdateDetails,
@@ -597,6 +633,7 @@ const SoftwareSelfService = ({
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
+    onClickOpenInstructionsAction,
   ]);
 
   const renderSelfServiceCard = () => {
@@ -734,13 +771,22 @@ const SoftwareSelfService = ({
         />
         {renderSelfServiceCard()}
       </Card>
-      {showUninstallSoftwareModal && selectedSoftware.current && (
+      {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
-          softwareId={selectedSoftware.current.softwareId}
-          softwareName={selectedSoftware.current.softwareName}
+          softwareId={selectedSoftwareForUninstall.current.softwareId}
+          softwareName={selectedSoftwareForUninstall.current.softwareName}
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {showOpenInstructionsModal && selectedSoftwareForInstructions.current && (
+        <SoftwareInstructionsModal
+          softwareName={selectedSoftwareForInstructions.current.softwareName}
+          softwareSource={
+            selectedSoftwareForInstructions.current.softwareSource
+          }
+          onExit={onExitSoftwareInstructionsModal}
         />
       )}
       {selectedHostSWInstallDetails && (

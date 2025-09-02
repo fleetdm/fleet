@@ -339,6 +339,7 @@ const EditIconModal = ({
         : undefined;
 
     console.log("fileDetails", fileDetails);
+
     return (
       <>
         <FileUploader

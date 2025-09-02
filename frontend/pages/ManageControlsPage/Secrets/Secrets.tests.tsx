@@ -303,6 +303,18 @@ describe("Custom variables", () => {
           expect(saveButton).toBeDisabled();
         });
       });
+      it("does not allow saving very long name", async () => {
+        const { nameInput, valueInput, saveButton } = await getAddSecretUI();
+        await user.type(nameInput, new Array(256).fill("A").join("")); // Invalid name
+        await user.type(valueInput, "a value");
+        await user.click(saveButton);
+        await waitFor(() => {
+          expect(
+            screen.getByText("Name may not exceed 255 characters")
+          ).toBeInTheDocument();
+          expect(saveButton).toBeDisabled();
+        });
+      });
     });
 
     it("deleting a secret is successful", async () => {

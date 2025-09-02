@@ -1,4 +1,0 @@
-go test fuzz v1
-string("0")
-string("\x0f")
-string("\x7f")

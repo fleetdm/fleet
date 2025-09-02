@@ -1,0 +1,5 @@
+- name: Windows - Hide uninstall and modify options for Fleet osquery
+  platform: windows
+  description: "This policy checks if the uninstall and modify options are hidden for Fleet osquery by ensuring both the NoRemove and NoModify registry values are set to 1."
+  resolution: "As an IT admin, set the NoRemove and NoModify registry values to 1 under the Fleet osquery uninstall key to prevent users from uninstalling or modifying the agent."
+  query: SELECT CASE WHEN COUNT(*) = 1 THEN 1 ELSE 0 END AS compliant FROM registry nr JOIN registry d ON d.path = REPLACE(nr.path, '\NoRemove', '\DisplayName') JOIN registry nm ON nm.path = REPLACE(nr.path, '\NoRemove', '\NoModify') WHERE nr.path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\%\NoRemove' AND d.data = 'Fleet osquery' AND nr.data = '1' AND nm.data = '1';

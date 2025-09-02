@@ -2461,7 +2461,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 
 	triggerReconcileProfilesMarkVerifying := func() {
+		t.Logf("[TestHostMDMAppleProfilesStatus] Calling awaitTriggerProfileSchedule at %s", time.Now().Format(time.RFC3339))
 		s.awaitTriggerProfileSchedule(t)
+		t.Logf("[TestHostMDMAppleProfilesStatus] awaitTriggerProfileSchedule completed, updating profiles to verifying at %s", time.Now().Format(time.RFC3339))
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
@@ -2469,6 +2471,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending)
 			return err
 		})
+		t.Logf("[TestHostMDMAppleProfilesStatus] Profiles updated to verifying status at %s", time.Now().Format(time.RFC3339))
 	}
 
 	assignHostToTeam := func(h *fleet.Host, teamID *uint) {
@@ -2534,7 +2537,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	h2, _, _ := createManualMDMEnrollWithOrbit(globalEnrollSec, false)
 	require.Nil(t, h2.TeamID)
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting FIRST cron run (after h1, h2 enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] FIRST cron run completed at %s", time.Now().Format(time.RFC3339))
 
 	// G3 is user-scoped and the h2 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and fail the profile
@@ -2572,7 +2577,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.Equal(t, tm1.ID, *h4.TeamID)
 
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting SECOND cron run (after h3, h4 enrolled in team1) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] SECOND cron run completed at %s", time.Now().Format(time.RFC3339))
 
 	// T1.3 is user-scoped and the h4 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and send the
@@ -2605,9 +2612,11 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	assert.Contains(t, enrollmentIds, h4.UUID)
 
 	// switch a no team host (h1) to a team (tm2)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Transferring host h1 (id=%d) from no team to team tm2 (id=%d) at %s", h1.ID, tm2.ID, time.Now().Format(time.RFC3339))
 	var moveHostResp addHostsToTeamResponse
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h1.ID}}, http.StatusOK, &moveHostResp)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Host h1 transfer completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2635,7 +2644,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NoError(t, err)
 
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting THIRD cron run (after h3->tm2, h4 user enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] THIRD cron run completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2655,8 +2666,10 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// switch a team host (h4) to no team
+	t.Logf("[TestHostMDMAppleProfilesStatus] Transferring host h4 (id=%d) from team tm1 to NO TEAM (nil) at %s", h4.ID, time.Now().Format(time.RFC3339))
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{h4.ID}}, http.StatusOK, &moveHostResp)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Host h4 transfer to NO TEAM completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},

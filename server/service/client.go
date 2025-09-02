@@ -62,6 +62,10 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		}
 	}
 
+	if client.errWriter == nil {
+		client.errWriter = os.Stderr
+	}
+
 	return client, nil
 }
 
@@ -1637,8 +1641,7 @@ func (c *Client) DoGitOps(
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
-	appConfig *fleet.EnrichedAppConfig,
-	// pass-by-ref to build lists
+	appConfig *fleet.EnrichedAppConfig, // pass-by-ref to build lists
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
@@ -2046,17 +2049,22 @@ func (c *Client) DoGitOps(
 				windowsUpdates["grace_period_days"] = nil
 			}
 		}
+
 		// Put in default value for enable_disk_encryption
+		enableDiskEncryption := false
+		requireBitLockerPIN := false
 		if config.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
-		} else {
-			mdmAppConfig["enable_disk_encryption"] = false
+			enableDiskEncryption = config.Controls.EnableDiskEncryption.(bool)
 		}
 		if config.Controls.RequireBitLockerPIN != nil {
-			mdmAppConfig["windows_require_bitlocker_pin"] = config.Controls.RequireBitLockerPIN
-		} else {
-			mdmAppConfig["windows_require_bitlocker_pin"] = false
+			requireBitLockerPIN = config.Controls.RequireBitLockerPIN.(bool)
 		}
+		if !enableDiskEncryption && requireBitLockerPIN {
+			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+		}
+
+		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if config.TeamName != nil {
 			team["gitops_filename"] = filename
@@ -2108,6 +2116,10 @@ func (c *Client) DoGitOps(
 			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(config, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
 				return nil, nil, err
+			}
+			// Apply webhook settings for "No Team"
+			if err := c.doGitOpsNoTeamWebhookSettings(config, appConfig, logFn, dryRun); err != nil {
+				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
 			teamVPPApps = noTeamVPPApps
@@ -2234,6 +2246,71 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+// extractFailingPoliciesWebhook extracts and processes failing policies webhook settings from a map
+func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPoliciesWebhookSettings {
+	// Marshal the interface{} to JSON, which handles type conversions
+	jsonBytes, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	// Unmarshal into a wrapper struct to extract failing_policies_webhook
+	var ws struct {
+		FailingPoliciesWebhook fleet.FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	}
+	if err := json.Unmarshal(jsonBytes, &ws); err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	return ws.FailingPoliciesWebhook
+}
+
+func (c *Client) doGitOpsNoTeamWebhookSettings(
+	config *spec.GitOps,
+	appCfg *fleet.EnrichedAppConfig,
+	logFn func(format string, args ...interface{}),
+	dryRun bool,
+) error {
+	// Check if premium license is available for No Team webhook settings
+	if !config.IsNoTeam() || appCfg == nil || appCfg.License == nil || !appCfg.License.IsPremium() {
+		return nil
+	}
+
+	// Apply webhook settings for "No Team"
+	// If webhook_settings are not specified, they will be applied as nil to clear existing settings
+	teamPayload := fleet.TeamPayload{
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: false,
+			},
+		},
+	}
+
+	// Extract webhook settings if they exist
+	if config.TeamSettings != nil {
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			fpw := extractFailingPoliciesWebhook(webhookSettings)
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+		}
+	}
+
+	logFn("[+] applying webhook settings for 'No team'\n")
+
+	if !dryRun {
+		// Apply the webhook settings to team ID 0 using the PATCH endpoint
+		var teamResp interface{}
+		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
+		if err != nil {
+			return fmt.Errorf("applying no team webhook settings: %w", err)
+		}
+		logFn("[+] applied webhook settings for 'No team'\n")
+	} else {
+		logFn("[+] would've applied webhook settings for 'No team'\n")
+	}
+
+	return nil
 }
 
 func pluralize(count int, ifSingle string, ifPlural string) string {

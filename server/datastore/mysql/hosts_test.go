@@ -94,6 +94,7 @@ func TestHosts(t *testing.T) {
 		{"SearchWildCards", testSearchHostsWildCards},
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
+		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
@@ -2252,6 +2253,274 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
 }
 
+func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	mockClock := clock.NewMockClock()
+	now := mockClock.Now()
+
+	// Test case 1: ABM device with Pending status that is > 30 days unseen should be excluded from MIA count
+	abmPendingHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("abm-pending-1"),
+		NodeKey:         ptr.String("abm-pending-key-1"),
+		DetailUpdatedAt: now.Add(-35 * 24 * time.Hour), // 35 days ago - should be MIA
+		LabelUpdatedAt:  now.Add(-35 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		SeenTime:        now.Add(-35 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set up ABM device with Pending enrollment status (enrolled=0, installed_from_dep=1)
+	err = ds.SetOrUpdateMDMData(ctx, abmPendingHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Test case 2: Regular non-ABM host that is > 30 days unseen should be counted in MIA
+	_, err = ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("regular-mia-1"),
+		NodeKey:         ptr.String("regular-mia-key-1"),
+		DetailUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-35 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		SeenTime:        now.Add(-35 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// No MDM data - this is a regular host without MDM enrollment
+
+	// Test case 3: ABM device that is enrolled (not pending) and > 30 days unseen should be counted in MIA
+	abmEnrolledMIAHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("abm-enrolled-mia-1"),
+		NodeKey:         ptr.String("abm-enrolled-mia-key-1"),
+		DetailUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-35 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		SeenTime:        now.Add(-35 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set up ABM device with enrolled status (enrolled=1, installed_from_dep=1)
+	err = ds.SetOrUpdateMDMData(ctx, abmEnrolledMIAHost.ID, false, true, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Test case 4: Manual enrollment device that is > 30 days unseen should be counted in MIA
+	manualEnrolledMIAHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("manual-enrolled-mia-1"),
+		NodeKey:         ptr.String("manual-enrolled-mia-key-1"),
+		DetailUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-35 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		SeenTime:        now.Add(-35 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set up manual enrollment (enrolled=1, installed_from_dep=0)
+	err = ds.SetOrUpdateMDMData(ctx, manualEnrolledMIAHost.ID, false, true, "https://fleet.example.com", false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Test case 5: ABM device with Pending status that is recent (< 30 days) should not be MIA anyway
+	abmPendingRecentHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("abm-pending-recent-1"),
+		NodeKey:         ptr.String("abm-pending-recent-key-1"),
+		DetailUpdatedAt: now.Add(-2 * 24 * time.Hour), // 2 days ago - not MIA
+		LabelUpdatedAt:  now.Add(-2 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-2 * 24 * time.Hour),
+		SeenTime:        now.Add(-2 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set up ABM device with Pending enrollment status
+	err = ds.SetOrUpdateMDMData(ctx, abmPendingRecentHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Test case 6: Online host to test that other statistics are unaffected
+	onlineHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("online-1"),
+		NodeKey:         ptr.String("online-key-1"),
+		DetailUpdatedAt: now.Add(-30 * time.Second),
+		LabelUpdatedAt:  now.Add(-30 * time.Second),
+		PolicyUpdatedAt: now.Add(-30 * time.Second),
+		SeenTime:        now.Add(-30 * time.Second),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+	onlineHost.DistributedInterval = 15
+	onlineHost.ConfigTLSRefresh = 30
+	err = ds.UpdateHost(ctx, onlineHost)
+	require.NoError(t, err)
+
+	// Now test the statistics
+	summary, err := ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Verify total count includes all hosts
+	assert.Equal(t, uint(6), summary.TotalsHostsCount, "Total hosts count should include all 6 hosts")
+
+	// Verify online count includes only the recent host
+	assert.Equal(t, uint(1), summary.OnlineCount, "Online count should be 1")
+
+	// Verify offline count includes MIA hosts as of Fleet 4.15
+	assert.Equal(t, uint(5), summary.OfflineCount, "Offline count should include 5 hosts (4 MIA + 1 recent)")
+
+	// CRITICAL TEST: Verify MIA count excludes ABM Pending devices but includes all others
+	// Expected MIA hosts:
+	// - regularMIAHost (no MDM, > 30 days)
+	// - abmEnrolledMIAHost (ABM enrolled, > 30 days)
+	// - manualEnrolledMIAHost (manual enrollment, > 30 days)
+	// NOT included:
+	// - abmPendingHost (ABM Pending status, > 30 days) - EXCLUDED by fix
+	// - abmPendingRecentHost (ABM Pending status, < 30 days) - not MIA anyway
+	// - onlineHost (recent, < 30 days) - not MIA
+	assert.Equal(t, uint(3), summary.MIACount, "MIA count should be 3 (excluding ABM Pending devices)")
+	assert.Equal(t, uint(3), summary.Missing30DaysCount, "Missing 30 days count should be 3 (excluding ABM Pending devices)")
+
+	// Test edge case: exactly 30 days
+	// Create a host that is exactly at the 30-day boundary
+	boundaryHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("boundary-1"),
+		NodeKey:         ptr.String("boundary-key-1"),
+		DetailUpdatedAt: now.Add(-30 * 24 * time.Hour), // exactly 30 days
+		LabelUpdatedAt:  now.Add(-30 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-30 * 24 * time.Hour),
+		SeenTime:        now.Add(-30 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set up as ABM Pending
+	err = ds.SetOrUpdateMDMData(ctx, boundaryHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// Test again with the boundary host
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Total should now be 7
+	assert.Equal(t, uint(7), summary.TotalsHostsCount, "Total hosts count should include all 7 hosts")
+
+	// MIA count should still be 3 (boundary host excluded because it's ABM Pending)
+	assert.Equal(t, uint(3), summary.MIACount, "MIA count should still be 3 (boundary ABM Pending host excluded)")
+	assert.Equal(t, uint(3), summary.Missing30DaysCount, "Missing 30 days count should still be 3")
+
+	// Test with different enrollment statuses using direct database manipulation
+	// This tests enrollment_status values that might exist in the database
+
+	// Create host for testing different enrollment status values
+	testStatusHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("test-status-1"),
+		NodeKey:         ptr.String("test-status-key-1"),
+		DetailUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		LabelUpdatedAt:  now.Add(-35 * 24 * time.Hour),
+		PolicyUpdatedAt: now.Add(-35 * 24 * time.Hour),
+		SeenTime:        now.Add(-35 * 24 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Test different enrollment statuses by directly manipulating the database
+	testCases := []struct {
+		name             string
+		enrolled         bool
+		installedFromDep bool
+		expectedStatus   string
+		shouldBeMIA      bool
+		description      string
+	}{
+		{
+			name:             "Off status",
+			enrolled:         false,
+			installedFromDep: false,
+			expectedStatus:   "Off",
+			shouldBeMIA:      true,
+			description:      "Unenrolled, non-DEP device should be counted as MIA",
+		},
+		{
+			name:             "On (manual) status",
+			enrolled:         true,
+			installedFromDep: false,
+			expectedStatus:   "On (manual)",
+			shouldBeMIA:      true,
+			description:      "Manually enrolled device should be counted as MIA",
+		},
+		{
+			name:             "On (automatic) status",
+			enrolled:         true,
+			installedFromDep: true,
+			expectedStatus:   "On (automatic)",
+			shouldBeMIA:      true,
+			description:      "Automatically enrolled ABM device should be counted as MIA",
+		},
+		{
+			name:             "Pending status",
+			enrolled:         false,
+			installedFromDep: true,
+			expectedStatus:   "Pending",
+			shouldBeMIA:      false,
+			description:      "Pending ABM device should be excluded from MIA count",
+		},
+	}
+
+	var previousMIACount uint
+	for i, tc := range testCases {
+		// Set the MDM data for this test case
+		err = ds.SetOrUpdateMDMData(ctx, testStatusHost.ID, false, tc.enrolled, "https://fleet.example.com", tc.installedFromDep, fleet.WellKnownMDMFleet, "", false)
+		require.NoError(t, err, "Test case %d (%s): failed to set MDM data", i+1, tc.name)
+
+		// Get updated statistics
+		summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+		require.NoError(t, err, "Test case %d (%s): failed to get statistics", i+1, tc.name)
+
+		if i == 0 {
+			// First test case - establish baseline
+			previousMIACount = summary.MIACount
+		} else {
+			// Compare with previous case
+			switch {
+			case tc.shouldBeMIA && !testCases[i-1].shouldBeMIA:
+				// Changing from non-MIA to MIA - count should increase by 1
+				assert.Equal(t, previousMIACount+1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+			case !tc.shouldBeMIA && testCases[i-1].shouldBeMIA:
+				// Changing from MIA to non-MIA - count should decrease by 1
+				assert.Equal(t, previousMIACount-1, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+			default:
+				// No change expected
+				assert.Equal(t, previousMIACount, summary.MIACount, "Test case %d (%s): %s", i+1, tc.name, tc.description)
+			}
+			previousMIACount = summary.MIACount
+		}
+
+		t.Logf("Test case %d (%s): MIA count = %d, Expected MIA = %t, %s",
+			i+1, tc.name, summary.MIACount, tc.shouldBeMIA, tc.description)
+	}
+
+	// Final verification: Test that new hosts (< 1 day old) are counted properly regardless of enrollment status
+	newABMPendingHost, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:   ptr.String("new-abm-pending-1"),
+		NodeKey:         ptr.String("new-abm-pending-key-1"),
+		DetailUpdatedAt: now.Add(-2 * time.Hour), // 2 hours ago - should be "new"
+		LabelUpdatedAt:  now.Add(-2 * time.Hour),
+		PolicyUpdatedAt: now.Add(-2 * time.Hour),
+		SeenTime:        now.Add(-2 * time.Hour),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	// Set as ABM Pending
+	err = ds.SetOrUpdateMDMData(ctx, newABMPendingHost.ID, false, false, "https://fleet.example.com", true, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	summary, err = ds.GenerateHostStatusStatistics(ctx, filter, now, nil, nil)
+	require.NoError(t, err)
+
+	// Verify that new host count includes ABM Pending devices (they are new, not missing)
+	// The new count should include all hosts created within the last day
+	assert.Greater(t, summary.NewCount, uint(0), "New count should include ABM Pending hosts that are recently created")
+}
+
 func testHostsMarkSeen(t *testing.T, ds *Datastore) {
 	mockClock := clock.NewMockClock()
 
@@ -3470,9 +3739,37 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Contains(t, expectedHostIds, hosts[0].ID)
 	require.Contains(t, expectedHostIds, hosts[1].ID)
 
+	// Get the list of pending hosts. Check pagination by first getting a page of 1.
+	batchHosts, meta, hostCount, err := ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{IncludeMetadata: true, PerPage: 1, Page: 0, OrderKey: "hostname", OrderDirection: fleet.OrderDescending})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 1)
+	require.Equal(t, uint(3), hostCount)
+	require.Equal(t, host3.ID, batchHosts[0].ID)
+	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
+	require.True(t, meta.HasNextResults)
+	require.False(t, meta.HasPreviousResults)
+
+	// Get all of the pending hosts.
+	batchHosts, meta, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 3)
+	require.Equal(t, uint(3), hostCount)
+	require.Equal(t, host1.ID, batchHosts[0].ID)
+	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
+	require.Equal(t, host2.ID, batchHosts[1].ID)
+	require.Equal(t, host2.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[1].Status)
+	require.Equal(t, host3.ID, batchHosts[2].ID)
+	require.Equal(t, host3.Hostname, batchHosts[2].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[2].Status)
+	require.False(t, meta.HasNextResults)
+	require.False(t, meta.HasPreviousResults)
+
 	// Do another batch script execution with the same hosts, and verify that "pending" returns correctly.
 	// The SQL for retrieving "pending" hosts has to check both the host_script_results table (for hosts
-	// that have "activated" the script acrivity) and the upcoming_activities table (for hosts that
+	// that have "activated" the script activity) and the upcoming_activities table (for hosts that
 	// have not yet activated the script activity).
 	secondExecID, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
 	require.NoError(t, err)
@@ -3542,6 +3839,54 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 1)
 	require.Equal(t, host3.ID, hosts[0].ID)
+
+	// List pending hosts for this batch. There should be none.
+	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionPending, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 0)
+	require.Equal(t, uint(0), hostCount)
+
+	// List errored hosts for this batch. There should be one.
+	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionErrored, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 1)
+	require.Equal(t, uint(1), hostCount)
+	require.Equal(t, host2.ID, batchHosts[0].ID)
+	require.Equal(t, host2.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionErrored, batchHosts[0].Status)
+	require.Equal(t, host2Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
+
+	// List ran hosts for this batch. There should be one.
+	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionRan, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 1)
+	require.Equal(t, uint(1), hostCount)
+	require.Equal(t, host1.ID, batchHosts[0].ID)
+	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionRan, batchHosts[0].Status)
+	require.Equal(t, host1Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
+	require.Equal(t, "foo", batchHosts[0].ScriptOutput)
+
+	// List cancelled hosts for this batch. There should be one.
+	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionCanceled, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 1)
+	require.Equal(t, uint(1), hostCount)
+	require.Equal(t, host3.ID, batchHosts[0].ID)
+	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionCanceled, batchHosts[0].Status)
+
+	// List incompatible hosts for this batch. There should be two.
+	batchHosts, _, hostCount, err = ds.ListBatchScriptHosts(context.Background(), execID, fleet.BatchScriptExecutionIncompatible, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, batchHosts, 2)
+	require.Equal(t, uint(2), hostCount)
+	require.Equal(t, hostNoScripts.ID, batchHosts[0].ID)
+	require.Equal(t, hostNoScripts.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[0].Status)
+	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
+	require.Equal(t, hostWindows.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[1].Status)
 }
 
 func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore) {

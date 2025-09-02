@@ -126,10 +126,10 @@ const DiskEncryption = ({
           </>
         );
       } else {
-        renderFlash(
-          "error",
-          "Could not update the disk encryption enforcement. Please try again."
-        );
+        const errorMsg =
+          getErrorReason(e) ??
+          "Could not update the disk encryption enforcement. Please try again.";
+        renderFlash("error", errorMsg);
       }
     }
   };

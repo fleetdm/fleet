@@ -1110,13 +1110,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
+		teamID := uint(0)
 		if host.TeamID != nil {
-			team, err := svc.ds.Team(ctx, *host.TeamID)
-			if err != nil {
-				logging.WithErr(ctx, err)
-			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-			}
+			teamID = *host.TeamID
+		}
+		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)
