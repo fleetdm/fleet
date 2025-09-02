@@ -11,7 +11,7 @@ import secretsAPI from "services/entities/secrets";
 interface DeleteSecretModalProps {
   secret: ISecret | undefined;
   onExit: () => void;
-  paginatedListRef: React.RefObject<IPaginatedListHandle<ISecret>>;
+  reloadList: () => void;
 }
 
 const baseClass = "fleet-delete-secret-modal";
@@ -19,7 +19,7 @@ const baseClass = "fleet-delete-secret-modal";
 const DeleteSecretModal = ({
   secret,
   onExit,
-  paginatedListRef,
+  reloadList,
 }: DeleteSecretModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,7 +33,7 @@ const DeleteSecretModal = ({
     try {
       await secretsAPI.deleteSecret(secret.id);
       renderFlash("success", "Variable successfully deleted.");
-      paginatedListRef.current?.reload(); // update the list
+      reloadList();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
       const isInUseError =
