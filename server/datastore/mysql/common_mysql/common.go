@@ -132,12 +132,6 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
-	// Configure TLS based on connection type
-	// Check if this is RDS with no password (IAM auth)
-	host, _, _ := net.SplitHostPort(conf.Address)
-	if host == "" {
-		host = conf.Address
-	}
 	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
 		params.Set("allowCleartextPasswords", "true")
 		if conf.TLSConfig == "" {
