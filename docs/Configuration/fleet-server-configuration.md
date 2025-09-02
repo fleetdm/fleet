@@ -631,6 +631,18 @@ The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Ter
     private_key: 72414F4A688151F75D032F5CDA095FC4
   ```
 
+### server_private_key_region
+
+AWS region to use for Identity and Access Management (IAM) authentication. This flag only has effect if `server_private_key` is not set.
+
+- Default value: none
+- Environment variable: `FLEET_SERVER_PRIVATE_KEY_REGION`
+- Config file format:
+  ```yaml
+  server:
+    private_key_region: ca-central-1
+  ```
+
 ### server_private_key_arn
 
 Optionally, when using Identity and Access Management (IAM) authentication, this is the Amazon Resource Name (ARN) of the server private key.
