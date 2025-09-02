@@ -744,7 +744,7 @@ integrations:
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
-This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+This section lets you configure your certificate authorities (CA) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
 
