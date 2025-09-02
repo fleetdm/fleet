@@ -57,13 +57,20 @@ const DeleteSecretModal = ({
       className={baseClass}
     >
       <>
-        <p>
-          This will delete the{" "}
-          <b>
-            <TooltipTruncatedText value={secret?.name} />
-          </b>{" "}
-          custom variable.
-        </p>
+        <div className={`${baseClass}__message`}>
+          <span>
+            This will delete the
+            <b>
+              <TooltipTruncatedText value={secret?.name} />
+            </b>
+            custom variable.
+          </span>
+          <br />
+          <br />
+          If this custom variable is used in any configuration profiles or
+          scripts, they will fail. To resolve, edit the configuration profile or
+          script.
+        </div>
         <div className="modal-cta-wrap">
           <Button
             variant="alert"
