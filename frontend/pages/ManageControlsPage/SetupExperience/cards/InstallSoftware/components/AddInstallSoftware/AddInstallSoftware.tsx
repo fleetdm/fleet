@@ -1,4 +1,5 @@
 import React from "react";
+import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 
@@ -44,8 +45,8 @@ const AddInstallSoftware = ({
     if (noSoftwareUploaded) {
       return (
         <>
-          No {platform === "macos" ? "macOS" : platform} software available. You
-          can add software on the{" "}
+          No {platform === "macos" ? "macOS" : capitalize(platform)} software
+          available. You can add software on the{" "}
           <LinkWithContext
             to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
             currentQueryParams={{ team_id: currentTeamId }}
@@ -59,10 +60,11 @@ const AddInstallSoftware = ({
     }
 
     return installSoftwareDuringSetupCount === 0 ? (
-      "No software added."
+      "No software selected."
     ) : (
       <>
-        {installSoftwareDuringSetupCount} software items will be{" "}
+        {installSoftwareDuringSetupCount} software item
+        {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
         <TooltipWrapper tipContent="Software order will vary.">
           installed during setup
         </TooltipWrapper>
@@ -93,30 +95,34 @@ const AddInstallSoftware = ({
         />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
-      <div>
-        <GitOpsModeTooltipWrapper
-          renderChildren={(disableChildren) => (
-            <TooltipWrapper
-              className={`${baseClass}__manual-install-tooltip`}
-              tipContent={manuallyInstallTooltipText}
-              disableTooltip={disableChildren || !hasManualAgentInstall}
-              position="top"
-              showArrow
-              underline={false}
-            >
-              <Button
-                className={`${baseClass}__button`}
-                onClick={onAddSoftware}
-                disabled={
-                  disableChildren || hasManualAgentInstall || noSoftwareUploaded
-                }
+      {!noSoftwareUploaded && (
+        <div>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <TooltipWrapper
+                className={`${baseClass}__manual-install-tooltip`}
+                tipContent={manuallyInstallTooltipText}
+                disableTooltip={disableChildren || !hasManualAgentInstall}
+                position="top"
+                showArrow
+                underline={false}
               >
-                Select software
-              </Button>
-            </TooltipWrapper>
-          )}
-        />
-      </div>
+                <Button
+                  className={`${baseClass}__button`}
+                  onClick={onAddSoftware}
+                  disabled={
+                    disableChildren ||
+                    hasManualAgentInstall ||
+                    noSoftwareUploaded
+                  }
+                >
+                  Select software
+                </Button>
+              </TooltipWrapper>
+            )}
+          />
+        </div>
+      )}
     </div>
   );
 };

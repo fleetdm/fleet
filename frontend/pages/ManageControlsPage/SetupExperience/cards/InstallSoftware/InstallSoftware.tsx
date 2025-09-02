@@ -9,7 +9,7 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareTitle } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { SetupExperiencePlatform } from "interfaces/platform";
@@ -19,6 +19,7 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import CustomLink from "components/CustomLink";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -107,6 +108,17 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   );
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
+    if (platform === "windows") {
+      return (
+        <div className={`${baseClass}__windows`}>
+          <b>Windows setup experience is coming soon.</b>
+          <p>
+            Need to customize setup for Windows users?{" "}
+            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+          </p>
+        </div>
+      );
+    }
     if (isLoadingMacSW || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
