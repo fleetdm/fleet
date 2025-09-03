@@ -3430,7 +3430,7 @@ parasails.registerPage('configuration-builder', {
                 uniqueSlug: 'android-max-inactivity',
                 tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
                 category: 'Device lock',
-                payloadGroup: 'Screen lock',// determines the
+                payloadGroup: 'Screen lock',
 
                 formInput: {
                   type: 'number',
@@ -3712,6 +3712,259 @@ parasails.registerPage('configuration-builder', {
                   settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
                 },
               },
+            ],
+          },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'android-restrictions',
+            description: 'Settings related to restricting actions on an Android device.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Disable factory reset',
+                uniqueSlug: 'android-factory-reset-disabled',
+                tooltip: 'Whether factory resetting from settings is disabled.',
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'factoryResetDisabled',
+                },
+              },
+              {
+                name: 'Disable mounting physical external media',
+                uniqueSlug: 'android-disable-external-media-mount',
+                tooltip: `Whether the user mounting physical external media is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mountPhysicalMediaDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth',
+                uniqueSlug: 'android-disable-bluetooth',
+                tooltip: `Whether bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying bluetooth configuration',
+                uniqueSlug: 'android-disable-bluetooth-config',
+                tooltip: `Whether configuring bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth contact sharing',
+                uniqueSlug: 'android-disable-contact-sharing',
+                tooltip: `Whether bluetooth contact sharing is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothContactSharingDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying cell broadcast configuration',
+                uniqueSlug: 'android-disable-cell-broadcast-config',
+                tooltip: `Whether configuring cell broadcast is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'cellBroadcastsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying mobile network configuration',
+                uniqueSlug: 'android-disable-mobile-network-config',
+                tooltip: `Whether configuring mobile networks is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mobileNetworksConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying VPN configuration',
+                uniqueSlug: 'android-disable-vpn-config',
+                tooltip: `Prevents users from adding, modifying, or removing VPN configurations in Settings.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'vpnConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable resetting network settings',
+                uniqueSlug: 'android-disable-reset-network',
+                tooltip: `Whether resetting network settings is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'networkResetDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing NFC connections',
+                uniqueSlug: 'android-disable-outgoing-nfc',
+                tooltip: `Whether using NFC to beam data from apps is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingBeamDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing calls',
+                uniqueSlug: 'android-disable-outgoing-calls',
+                tooltip: `Whether outgoing calls are disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingCallsDisabled',
+                },
+              },
+              {
+                name: 'Disable SMS messages',
+                uniqueSlug: 'android-disable-sms',
+                tooltip: `Whether sending and receiving SMS messages is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'smsDisabled',
+                },
+              },
+              {
+                name: 'Disable location sharing',
+                uniqueSlug: 'android-disable-location-sharing',
+                tooltip: `Whether location sharing is disabled. This setting is supported for both fully managed devices and personally owned work profiles.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'shareLocationDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying user credentials',
+                uniqueSlug: 'android-disable-modify-user-credentials',
+                tooltip: `Whether configuring user credentials is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'credentialsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable adding users',
+                uniqueSlug: 'android-disable-add-users',
+                tooltip: `Whether adding new users and profiles is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'addUserDisabled',
+                },
+              },
+              {
+                name: 'Disable removing users',
+                uniqueSlug: 'android-disable-remove-users',
+                tooltip: `Whether removing other users is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'removeUserDisabled',
+                },
+              },
+              {
+                name: 'Disable adding and removing accounts',
+                uniqueSlug: 'android-disable-modifying-accounts',
+                tooltip: `Whether adding or removing accounts is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'modifyAccountsDisabled',
+                },
+              },
+              {
+                name: 'Disable screen capture',
+                uniqueSlug: 'android-disable-screen-capture',
+                tooltip: `Whether screen capture is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'screenCaptureDisabled',
+                },
+              },
+              // FUTURE: settings that would fit into this category:
+              // setUserIconDisabled
+              // setWallpaperDisabled
+              // dataRoamingDisabled
+              // funDisabled
+              // cameraAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#cameraaccess
+              // microphoneAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#microphoneaccess
+              // keyguardDisabled
+              // adjustVolumeDisabled
+              // createWindowsDisabled
+              // installAppsDisabled & uninstallAppsDisabled « In applications settings
             ],
           },
         ]
