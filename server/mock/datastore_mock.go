@@ -1429,6 +1429,8 @@ type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroid
 
 type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, error)
 
+type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
+
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
 type ScimUserByIDFunc func(ctx context.Context, id uint) (*fleet.ScimUser, error)
@@ -3600,6 +3602,9 @@ type DataStore struct {
 
 	ListMDMAndroidProfilesToSendFunc        ListMDMAndroidProfilesToSendFunc
 	ListMDMAndroidProfilesToSendFuncInvoked bool
+
+	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
+	GetMDMAndroidProfilesContentsFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -8616,6 +8621,13 @@ func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.
 	s.ListMDMAndroidProfilesToSendFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListMDMAndroidProfilesToSendFunc(ctx)
+}
+
+func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidProfilesContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidProfilesContentsFunc(ctx, uuids)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

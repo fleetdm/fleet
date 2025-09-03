@@ -2236,6 +2236,10 @@ type Datastore interface {
 	// their configuration profiles (Android policy) sent.
 	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, error)
 
+	// GetMDMAndroidProfilesContents retrieves the contents of the Android
+	// profiles with the specified UUIDs.
+	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -832,6 +833,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		-- profile was never sent or was updated after sent
 		-- TODO(ap): need to make sure we set it to NULL when profile is updated
 		hmap.included_in_policy_version IS NULL OR
+		hmap.status IS NULL OR
 		-- profile was sent in older policy version than currently applied
 		(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
 			hmap.included_in_policy_version < COALESCE(ad.applied_policy_version, 0))
@@ -852,12 +854,16 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		ds.host_uuid IS NULL
 `, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE"))
 
-		// NOTE: we explicitly don't ignore profiles to remove based on broken labels,
+		// NOTE: we explicitly don't "ignore" profiles to remove based on broken labels,
 		// because of how Android profiles are applied vs other platforms (ignoring
 		// a broken profile would effectively remove it anyway, and including it so
 		// we don't remove it could cause errors applying the rest of the policy if
 		// the setting is invalid, which is worse and contrary to the "broken profiles
 		// are ignored" general behavior).
+		//
+		// So unlike for Apple/Windows, for Android we effectively remove broken
+		// profiles from the host.
+		//
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
 
 		var hostUUIDs []string
@@ -891,4 +897,43 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		return nil
 	})
 	return result, err
+}
+
+func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
+	if len(uuids) == 0 {
+		return nil, nil
+	}
+
+	stmt := `
+		SELECT profile_uuid, raw_json
+		FROM mdm_android_configuration_profiles 
+		WHERE profile_uuid IN (?)
+	`
+	query, args, err := sqlx.In(stmt, uuids)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building get android profiles contents query")
+	}
+
+	rows, err := ds.reader(ctx).QueryxContext(ctx, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "querying android profiles contents")
+	}
+	defer rows.Close()
+
+	results := make(map[string]json.RawMessage, len(uuids))
+	for rows.Next() {
+		var (
+			uid     string
+			rawJSON json.RawMessage
+		)
+		if err := rows.Scan(&uid, &rawJSON); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scanning android profile content")
+		}
+		results[uid] = rawJSON
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterating android profiles contents")
+	}
+	return results, nil
 }
