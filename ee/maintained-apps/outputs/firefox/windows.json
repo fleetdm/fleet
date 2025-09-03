@@ -3,7 +3,7 @@
     {
       "version": "142.0.1",
       "queries": {
-        "exists": "SELECT 1 FROM programs WHERE name = 'Firefox' AND publisher = 'Mozilla';"
+        "exists": "SELECT 1 FROM programs WHERE name = 'Mozilla Firefox' AND publisher = 'Mozilla';"
       },
       "installer_url": "https://download-installer.cdn.mozilla.net/pub/firefox/releases/142.0.1/win64/en-US/Firefox%20Setup%20142.0.1.exe",
       "install_script_ref": "45f422bf",
