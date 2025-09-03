@@ -805,6 +805,13 @@ func (c *Client) ApplyGroup(
 					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
 					installDuringSetup = &ok
 				}
+				if app.InstallDuringSetup.Valid {
+					if len(installDuringSetupKeys) > 0 {
+						return nil, nil, nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+					}
+					installDuringSetup = &app.InstallDuringSetup.Value
+				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -1136,6 +1143,14 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
 			installDuringSetup = &ok
 		}
+
+		if si.InstallDuringSetup.Valid {
+			if len(installDuringSetupKeys) > 0 {
+				return nil, fmt.Errorf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", si.URL)
+			}
+			installDuringSetup = &si.InstallDuringSetup.Value
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                si.URL,
 			SelfService:        si.SelfService,
@@ -2203,6 +2218,13 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			appsByAppID[vppApp.AppStoreID] = *vppApp
 
 			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
+			if vppApp.InstallDuringSetup.Valid {
+				if len(noTeamSoftwareMacOSSetup) > 0 {
+					return nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+				}
+				installDuringSetup = vppApp.InstallDuringSetup.Value
+			}
+
 			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,

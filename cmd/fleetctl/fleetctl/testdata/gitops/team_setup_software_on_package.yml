@@ -11,16 +11,16 @@ team_settings:
 agent_options:
 controls:
   macos_setup:
-    software:
-      - app_store_id: "1"
-      - package_path: lib/software_ruby.yml
     script: lib/setup_script.sh
 policies:
 queries:
 software:
   app_store_apps:
     - app_store_id: "1"
+      setup_experience: true
   packages:
     - path: lib/software_ruby.yml
+      setup_experience: true
     - path: lib/software_other.yml
       self_service: true
+      setup_experience: false
