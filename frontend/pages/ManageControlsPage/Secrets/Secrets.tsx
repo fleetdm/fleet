@@ -105,9 +105,8 @@ const Secrets = () => {
     setShowDeleteModal(true);
   };
 
-  const onDeleteSecret = () => {
+  const reloadList = () => {
     paginatedListRef.current?.reload();
-    setShowDeleteModal(false);
   };
 
   const getTokenFromSecretName = (secretName: string): string => {
@@ -277,8 +276,8 @@ const Secrets = () => {
       {showDeleteModal && (
         <DeleteSecretModal
           secret={secretToDelete}
-          onCancel={() => setShowDeleteModal(false)}
-          onDelete={onDeleteSecret}
+          onExit={() => setShowDeleteModal(false)}
+          reloadList={reloadList}
         />
       )}
     </div>

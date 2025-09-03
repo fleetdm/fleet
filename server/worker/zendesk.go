@@ -157,7 +157,7 @@ func (z *Zendesk) getClient(ctx context.Context, args zendeskArgs) (ZendeskClien
 	// configuration has changed since it was created.
 	var opts *externalsvc.ZendeskOptions
 	if useTeamCfg {
-		tm, err := z.Datastore.Team(ctx, teamID)
+		tm, err := z.Datastore.TeamWithoutExtras(ctx, teamID)
 		if err != nil {
 			return nil, err
 		}
