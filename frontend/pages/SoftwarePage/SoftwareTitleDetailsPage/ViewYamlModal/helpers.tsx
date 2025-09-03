@@ -146,7 +146,8 @@ export const createPackageYaml = ({
   }
 
   if (sha256) {
-    yaml += `- hash_sha256: ${sha256}
+    yaml += url ? "  " : "- ";
+    yaml += `hash_sha256: ${sha256}
 `;
   }
 
