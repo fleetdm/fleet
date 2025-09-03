@@ -12,7 +12,6 @@ import { SetupExperiencePlatform } from "interfaces/platform";
 
 export interface IEnhancedSoftwareTitle extends ISoftwareTitle {
   versionForRender: string;
-  isSelected: boolean;
 }
 
 type ISelectSoftwareTableConfig = Column<IEnhancedSoftwareTitle>;
