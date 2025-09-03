@@ -105,7 +105,9 @@ func TestDetailQueryNetworkInterfaces(t *testing.T) {
 func TestDetailQueryScheduledQueryStats(t *testing.T) {
 	host := fleet.Host{ID: 1}
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{EnableAsyncHostProcessing: "false"})
+	task := async.NewTask(ds, nil, clock.C, &config.FleetConfig{
+		Osquery: config.OsqueryConfig{EnableAsyncHostProcessing: "false"},
+	})
 
 	var gotPackStats []fleet.PackStats
 	ds.SaveHostPackStatsFunc = func(ctx context.Context, teamID *uint, hostID uint, stats []fleet.PackStats) error {

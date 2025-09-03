@@ -174,6 +174,7 @@ const SoftwareOptionsSelector = ({
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"
             newTab
+            variant="banner-link"
           />
         </InfoBanner>
       )}
