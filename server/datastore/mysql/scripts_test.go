@@ -2353,8 +2353,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	// Get the batch summary.
 	summary, err := ds.BatchExecuteSummary(ctx, execID)
 	require.NoError(t, err)
-	// The summary should have two pending hosts and two errored ones, because
-	// the script is not compatible with the hostNoScripts and hostWindows.
+	// The summary should have all hosts marked as canceled.
 	require.Equal(t, *summary.NumPending, uint(0))
 	require.Equal(t, *summary.NumIncompatible, uint(0))
 	require.Equal(t, *summary.NumErrored, uint(0))
