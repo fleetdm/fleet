@@ -867,11 +867,9 @@ func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context,
 			return false, ctxerr.Wrap(ctx, err, "invalid row")
 		}
 
-		if status.SoftwareInstallerID != nil {
-			switch status.Status {
-			case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
-				return true, nil
-			}
+		switch status.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
+			return true, nil
 		}
 	}
 	return false, nil

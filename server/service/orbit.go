@@ -1377,7 +1377,11 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 		}, true); err != nil {
 			return ctxerr.Wrap(ctx, err, "update setup experience status")
 		} else if updated {
-			level.Debug(svc.logger).Log("msg", "setup experience script result updated", "host_uuid", hostUUID, "execution_id", result.InstallUUID)
+			level.Debug(svc.logger).Log(
+				"msg", "setup experience software install result updated",
+				"host_uuid", hostUUID,
+				"execution_id", result.InstallUUID,
+			)
 			fromSetupExperience = true
 			// We need to trigger the next step to properly support setup experience on Linux.
 			// On Linux, users can skip the setup experience by closing the "My device" page.

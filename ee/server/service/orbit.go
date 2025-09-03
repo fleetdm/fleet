@@ -178,8 +178,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 func (svc *Service) failCancelledSetupExperienceInstalls(
 	ctx context.Context,
 	hostID uint,
-	hostDisplayName string,
 	hostUUID string,
+	hostDisplayName string,
 	results []*fleet.SetupExperienceStatusResult,
 ) error {
 	for _, r := range results {
