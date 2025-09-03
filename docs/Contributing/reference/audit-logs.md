@@ -1377,6 +1377,7 @@ This activity contains the following fields:
 - "software_title_id": ID of the added software title.
 - "labels_include_any": Target hosts that have any label in the array.
 - "labels_exclude_any": Target hosts that don't have any label in the array.
+- "software_display_name": Display name of the software title.
 
 #### Example
 
