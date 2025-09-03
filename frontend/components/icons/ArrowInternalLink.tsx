@@ -8,7 +8,7 @@ interface IArrowInternalLink {
 }
 
 const ArrowInternalLink = ({
-  color = "core-fleet-blue",
+  color = "core-fleet-green",
   size = "medium",
 }: IArrowInternalLink) => {
   return (
