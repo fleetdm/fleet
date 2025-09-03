@@ -2,6 +2,12 @@ import { SetupExperiencePlatform } from "interfaces/platform";
 
 const API_VERSION = "latest";
 
+// useful since test use a slightly different baseURL infrastructure
+export const SUFFIXES = {
+  SETUP_EXPERIENCE_SOFTWARE: (platform: SetupExperiencePlatform) =>
+    `/setup_experience/${platform}/software`,
+};
+
 export default {
   // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
@@ -185,7 +191,8 @@ export default {
   // maintained for backwards compatibility, use MDM_SETUP_EXPERIENCE_SOFTWARE endpoint
   MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
   MDM_SETUP_EXPERIENCE_SOFTWARE: (platform: SetupExperiencePlatform) =>
-    `/${API_VERSION}/fleet/setup_experience/${platform}/software`,
+    // `/${API_VERSION}/fleet/setup_experience/${platform}/software`,
+    `/${API_VERSION}/fleet${SUFFIXES.SETUP_EXPERIENCE_SOFTWARE(platform)}`,
   MDM_MACOS_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
