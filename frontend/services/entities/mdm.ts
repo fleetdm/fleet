@@ -371,7 +371,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  updateSetupExperienceSoftware: (
+  updateMacSetupExperienceSoftware: (
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
@@ -389,7 +389,40 @@ const mdmService = {
     });
   },
 
-  getSetupExperienceScript: (
+  // TODO - confirm req/resp interfaces of below 2 methods with Lucas
+  getLinuxSetupExperienceSoftware: (
+    params: IGetSetupExperienceSoftwareParams
+  ): Promise<IGetSetupExperienceSoftwareResponse> => {
+    const { MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        ...params,
+      }
+    )}`;
+
+    return sendRequest("GET", path);
+  },
+
+  updateLinuxSetupExperienceSoftware: (
+    teamId: number,
+    softwareTitlesIds: number[]
+  ) => {
+    const { MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+
+    const path = `${MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        team_id: teamId,
+      }
+    )}`;
+
+    return sendRequest("PUT", path, {
+      team_id: teamId,
+      software_title_ids: softwareTitlesIds,
+    });
+  },
+
+  getMacSetupExperienceScript: (
     teamId: number
   ): Promise<IGetSetupExperienceScriptResponse> => {
     const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
@@ -402,7 +435,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  downloadSetupExperienceScript: (teamId: number) => {
+  downloadMacSetupExperienceScript: (teamId: number) => {
     const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     let path = MDM_MACOS_SETUP_EXPERIENCE_SCRIPT;
@@ -411,7 +444,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  uploadSetupExperienceScript: (file: File, teamId: number) => {
+  uploadMacSetupExperienceScript: (file: File, teamId: number) => {
     const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     const formData = new FormData();
@@ -424,7 +457,7 @@ const mdmService = {
     return sendRequest("POST", MDM_MACOS_SETUP_EXPERIENCE_SCRIPT, formData);
   },
 
-  deleteSetupExperienceScript: (teamId: number) => {
+  deleteMacSetupExperienceScript: (teamId: number) => {
     const { MDM_MACOS_SETUP_EXPERIENCE_SCRIPT } = endpoints;
 
     const path = `${MDM_MACOS_SETUP_EXPERIENCE_SCRIPT}?${buildQueryStringFromParams(

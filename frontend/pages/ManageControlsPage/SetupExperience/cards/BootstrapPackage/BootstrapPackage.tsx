@@ -81,7 +81,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     AxiosError
   >(
     ["setup-experience-script", currentTeamId],
-    () => mdmAPI.getSetupExperienceScript(currentTeamId),
+    () => mdmAPI.getMacSetupExperienceScript(currentTeamId),
     { ...DEFAULT_USE_QUERY_OPTIONS }
   );
 

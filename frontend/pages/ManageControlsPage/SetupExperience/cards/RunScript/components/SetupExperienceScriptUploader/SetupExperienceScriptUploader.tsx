@@ -38,7 +38,7 @@ const SetupExperienceScriptUploader = ({
     const file = files[0];
 
     try {
-      await mdmAPI.uploadSetupExperienceScript(file, currentTeamId);
+      await mdmAPI.uploadMacSetupExperienceScript(file, currentTeamId);
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {

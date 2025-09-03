@@ -27,7 +27,7 @@ const DeleteSetupExperienceScriptModal = ({
   const onDelete = async () => {
     setIsDeleting(true);
     try {
-      await mdmAPI.deleteSetupExperienceScript(currentTeamId);
+      await mdmAPI.deleteMacSetupExperienceScript(currentTeamId);
       renderFlash("success", "Setup script successfully deleted!");
     } catch (error) {
       renderFlash(

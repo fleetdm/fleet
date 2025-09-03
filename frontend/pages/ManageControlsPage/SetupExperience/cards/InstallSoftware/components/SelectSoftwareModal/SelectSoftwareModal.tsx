@@ -51,7 +51,7 @@ const SelectSoftwareModal = ({
   const onSaveSelectedSoftware = async () => {
     setIsSaving(true);
     try {
-      await mdmAPI.updateSetupExperienceSoftware(
+      await mdmAPI.updateMacSetupExperienceSoftware(
         currentTeamId,
         selectedSoftwareIds
       );

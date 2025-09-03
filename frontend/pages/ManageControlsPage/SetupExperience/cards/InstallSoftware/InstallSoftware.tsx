@@ -62,7 +62,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     AxiosError,
     ISoftwareTitle[] | null
   >(
-    ["install-software", currentTeamId],
+    ["mac-install-software", currentTeamId],
     () =>
       mdmAPI.getMacSetupExperienceSoftware({
         team_id: currentTeamId,
@@ -70,9 +70,37 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: selectedPlatform === "macos",
       select: (res) => res.software_titles,
     }
   );
+
+  const {
+    data: linuxSoftwareTitles,
+    isLoading: isLoadingLinuxSW,
+    isError: isErrorLinuxSW,
+    refetch: refetchLinuxSWTitles,
+  } = useQuery<
+    IGetSetupExperienceSoftwareResponse,
+    AxiosError,
+    ISoftwareTitle[] | null
+  >(
+    ["linux-install-software", currentTeamId],
+    // TODO - update call with linux-specific entity
+    () =>
+      mdmAPI.getMacSetupExperienceSoftware({
+        team_id: currentTeamId,
+        per_page: PER_PAGE_SIZE,
+      }),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      enabled: selectedPlatform === "linux",
+      select: (res) => res.software_titles,
+    }
+  );
+
+  const selectedPlatformSoftware =
+    selectedPlatform === "macos" ? macOSSoftwareTitles : linuxSoftwareTitles; // next iteration will introduce a windows software option
 
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
@@ -127,13 +155,14 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    if (macOSSoftwareTitles || macOSSoftwareTitles === null) {
+    // TODO - can linux SW be null?
+    if (selectedPlatformSoftware || selectedPlatformSoftware === null) {
       return (
         <SetupExperienceContentContainer>
           <AddInstallSoftware
             currentTeamId={currentTeamId}
             hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={macOSSoftwareTitles}
+            softwareTitles={selectedPlatformSoftware}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
@@ -169,10 +198,10 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
           <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
         </Tabs>
       </TabNav>
-      {showSelectSoftwareModal && macOSSoftwareTitles && (
+      {showSelectSoftwareModal && selectedPlatformSoftware && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}
-          softwareTitles={macOSSoftwareTitles}
+          softwareTitles={selectedPlatformSoftware}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
         />

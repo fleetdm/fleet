@@ -30,7 +30,7 @@ const SetupExperienceScriptCard = ({
   const onDownload = async () => {
     try {
       const teamId = script.team_id ?? API_NO_TEAM_ID;
-      const data = await mdmAPI.downloadSetupExperienceScript(teamId);
+      const data = await mdmAPI.downloadMacSetupExperienceScript(teamId);
       const date = new Date();
       const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
         script.name
