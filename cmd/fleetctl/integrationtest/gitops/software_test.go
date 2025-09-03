@@ -24,7 +24,7 @@ const (
 	teamName = "Team Test"
 )
 
-func TestGitOpsTeamSofwareInstallers(t *testing.T) {
+func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 	testing_utils.StartAndServeVPPServer(t)
 

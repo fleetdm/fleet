@@ -815,7 +815,6 @@ func parseLabels(top map[string]json.RawMessage, result *GitOps, baseDir string,
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"labels"}, err))
 	}
 	for _, item := range labels {
-		item := item
 		if item.Path == nil {
 			result.Labels = append(result.Labels, &item.LabelSpec)
 		} else {
@@ -906,7 +905,6 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"policies"}, err))
 	}
 	for _, item := range policies {
-		item := item
 		if item.Path == nil {
 			if err := parsePolicyInstallSoftware(baseDir, result.TeamName, &item, result.Software.Packages, result.Software.AppStoreApps); err != nil {
 				multiError = multierror.Append(multiError, fmt.Errorf("failed to parse policy install_software %q: %v", item.Name, err))
@@ -1101,7 +1099,6 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		return multierror.Append(multiError, MaybeParseTypeError(filePath, []string{"queries"}, err))
 	}
 	for _, item := range queries {
-		item := item
 		if item.Path == nil {
 			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
@@ -1184,7 +1181,6 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		}
 	}
 	for _, item := range software.AppStoreApps {
-		item := item
 		if item.AppStoreID == "" {
 			multiError = multierror.Append(multiError, errors.New("software app store id required"))
 			continue
@@ -1244,7 +1240,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			// Replace $var and ${var} with env values.
 			fileBytes, err = ExpandEnvBytes(fileBytes)
 			if err != nil {
-				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environmet in file %s: %w", *teamLevelPackage.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to expand environment in file %s: %w", *teamLevelPackage.Path, err))
 				continue
 			}
 			if err := YamlUnmarshal(fileBytes, &softwarePackageSpec); err != nil {
@@ -1276,7 +1272,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 		if softwarePackageSpec.SHA256 != "" && !validSHA256Value.MatchString(softwarePackageSpec.SHA256) {
-			multiError = multierror.Append(multiError, fmt.Errorf("hash_256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
+			multiError = multierror.Append(multiError, fmt.Errorf("hash_sha256 value %q must be a valid lower-case hex-encoded (64-character) SHA-256 hash value", softwarePackageSpec.SHA256))
 			continue
 		}
 		if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {

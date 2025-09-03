@@ -454,6 +454,16 @@ type fileContent struct {
 	Content  []byte
 }
 
+type errConflictingSoftwareSetupExperienceDeclarations struct {
+	URL string
+}
+
+func (e errConflictingSoftwareSetupExperienceDeclarations) Error() string {
+	return fmt.Sprintf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", e.URL)
+}
+
+var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+
 // TODO: as confirmed by Noah and Marko on Slack:
 //
 //	> from Noah: "We want to support existing features w/ fleetctl apply for
@@ -807,7 +817,7 @@ func (c *Client) ApplyGroup(
 				}
 				if app.InstallDuringSetup.Valid {
 					if len(installDuringSetupKeys) > 0 {
-						return nil, nil, nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+						return nil, nil, nil, nil, errConflictingVPPSetupExperienceDeclarations
 					}
 					installDuringSetup = &app.InstallDuringSetup.Value
 				}
@@ -1146,7 +1156,7 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 
 		if si.InstallDuringSetup.Valid {
 			if len(installDuringSetupKeys) > 0 {
-				return nil, fmt.Errorf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", si.URL)
+				return nil, errConflictingSoftwareSetupExperienceDeclarations{si.URL}
 			}
 			installDuringSetup = &si.InstallDuringSetup.Value
 		}
@@ -2220,7 +2230,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
 			if vppApp.InstallDuringSetup.Valid {
 				if len(noTeamSoftwareMacOSSetup) > 0 {
-					return nil, nil, errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
+					return nil, nil, errConflictingVPPSetupExperienceDeclarations
 				}
 				installDuringSetup = vppApp.InstallDuringSetup.Value
 			}
