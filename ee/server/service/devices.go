@@ -232,7 +232,10 @@ func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.
 		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
 	}
 
-	hostUUID := fleet.HostUUIDForSetupExperience(host)
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
 
 	// Get current status of the setup experience.
 	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)

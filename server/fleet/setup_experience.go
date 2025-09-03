@@ -205,9 +205,14 @@ type DeviceSetupExperienceStatusPayload struct {
 // On Linux devices there might be issues with duplicate hardware UUIDs, so for that reason we will instead
 // use the host.OsqueryHostID as UUID. For Linux devices, the "Setup experience" will be triggered after orbit
 // and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
-func HostUUIDForSetupExperience(host *Host) string {
+func HostUUIDForSetupExperience(host *Host) (string, error) {
 	if host.Platform == string(MacOSPlatform) {
-		return host.UUID
+		return host.UUID, nil
 	}
-	return *host.OsqueryHostID
+	// Currently it seems this field is always set when orbit or osquery enroll,
+	// to be safe we return an error when that's the case (instead of panicking).
+	if host.OsqueryHostID == nil {
+		return "", errors.New("missing osquery_host_id")
+	}
+	return *host.OsqueryHostID, nil
 }

@@ -1763,7 +1763,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 		// The setup_experience/status endpoint doesn't return the various IDs for executions,
 		// so pull it out manually
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fleet.HostUUIDForSetupExperience(ubuntuHost))
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -1886,7 +1888,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 		// The setup_experience/status endpoint doesn't return the various IDs for executions,
 		// so pull it out manually
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fleet.HostUUIDForSetupExperience(fedoraHost))
+		fedoraHostUUID, err := fleet.HostUUIDForSetupExperience(fedoraHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID)
 		require.NoError(t, err)
 		require.Len(t, results, 2)
 		executionIDs := make(map[string]string) // installer name -> install execution ID
@@ -2029,7 +2033,9 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 		// The setup_experience/status endpoint doesn't return the various IDs for executions,
 		// so pull it out manually
-		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fleet.HostUUIDForSetupExperience(ubuntuHost))
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		require.NotNil(t, results[0].HostSoftwareInstallsExecutionID)

@@ -1369,7 +1369,10 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 	if fleet.IsSetupExperienceSupported(host.Platform) {
 		// This might be a setup experience software install result, so we attempt to update the
 		// "Setup experience" status for that item.
-		hostUUID := fleet.HostUUIDForSetupExperience(host)
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
 		if updated, err := maybeUpdateSetupExperienceStatus(ctx, svc.ds, fleet.SetupExperienceSoftwareInstallResult{
 			HostUUID:        hostUUID,
 			ExecutionID:     result.InstallUUID,

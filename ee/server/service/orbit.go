@@ -303,7 +303,10 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 		teamID = *host.TeamID
 	}
 
-	hostUUID := fleet.HostUUIDForSetupExperience(host)
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
 
 	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, hostUUID, teamID)
 	if err != nil {
