@@ -1066,7 +1066,6 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
-
 	return hosts, nil
 }
 
@@ -1208,8 +1207,8 @@ func (ds *Datastore) applyHostFilters(
 	batchScriptExecutionJoin := ""
 	batchScriptExecutionIDFilter := "TRUE"
 	if opt.BatchScriptExecutionIDFilter != nil {
-		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
-		batchScriptExecutionIDFilter = `bsehr.batch_execution_id = ?`
+		batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id JOIN batch_activities ba ON bsehr.batch_execution_id = ba.execution_id`
+		batchScriptExecutionIDFilter = `ba.execution_id = ?`
 		whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
 		if opt.BatchScriptExecutionStatusFilter.IsValid() {
 			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
@@ -1223,13 +1222,16 @@ func (ds *Datastore) applyHostFilters(
 				//                      but either way we haven't canceled it.
 				// bsehr.error IS NULL <- this means the batch script framework didn't mark this host as incompatible
 				//                        with this script run.
-				batchScriptExecutionIDFilter += ` AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)`
+				batchScriptExecutionIDFilter += ` AND ((hsr.host_id AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)) OR (hsr.host_id is NULL AND ba.canceled = 0 AND bsehr.error IS NULL))`
 			case fleet.BatchScriptExecutionErrored:
 				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
 			case fleet.BatchScriptExecutionIncompatible:
 				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
 			case fleet.BatchScriptExecutionCanceled:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+				// A host may have a host_script_results record if the batch started, in which case canceling will set that record's `canceled` field.
+				// Or it may not have one, if it's a scheduled batch, in which case if the batch is marked as canceled then we'll count
+				// the host as canceled as well.
+				batchScriptExecutionIDFilter += ` AND ((hsr.exit_code IS NULL AND hsr.canceled = 1) OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
 			}
 		}
 	}

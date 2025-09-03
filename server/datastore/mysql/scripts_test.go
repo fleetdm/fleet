@@ -1988,7 +1988,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 	// Update the batch to have a pending status
 	// TODO -- remove this when status is set automatically
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'scheduled' WHERE execution_id = ?", execID)
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status = 'started' WHERE execution_id = ?", execID)
 		return err
 	})
 
@@ -2119,7 +2119,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 
 	// The summary should be returned when filtering by status "scheduled".
 	summaryList, err = ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
-		Status: ptr.String("scheduled"),
+		Status: ptr.String("started"),
 	})
 	require.NoError(t, err)
 	require.Len(t, summaryList, 1)
@@ -2341,6 +2341,24 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Failf(t, "forgot to check a host", "host_id: %d", hostResult.HostID)
 		}
 	}
+
+	// Schedule script that we will subsequently cancel.
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, hostNoScripts.ID, 0xbeef}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	err = ds.CancelBatchScript(ctx, execID)
+	require.NoError(t, err)
+
+	// Get the batch summary.
+	summary, err := ds.BatchExecuteSummary(ctx, execID)
+	require.NoError(t, err)
+	// The summary should have all hosts marked as canceled.
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(0))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumRan, uint(0))
+	require.Equal(t, *summary.NumCanceled, uint(5))
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
