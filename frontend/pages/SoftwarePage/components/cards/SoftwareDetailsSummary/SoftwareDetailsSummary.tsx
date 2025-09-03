@@ -69,7 +69,6 @@ const SoftwareDetailsSummary = ({
 
   const renderSoftwareIcon = () => {
     if (typeof iconPreviewUrl === "string") {
-      console.log("rendering iconPreviewUrl", iconPreviewUrl);
       return (
         <img
           src={iconPreviewUrl}
@@ -79,7 +78,6 @@ const SoftwareDetailsSummary = ({
       );
     }
 
-    console.log("rendering iconUrl", iconUrl, "uploadedAt", iconUploadedAt);
     return (
       <SoftwareIcon
         name={name}

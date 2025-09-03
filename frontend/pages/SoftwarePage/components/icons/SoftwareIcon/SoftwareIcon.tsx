@@ -15,7 +15,7 @@ const baseClass = "software-icon";
  * @property size     The icon size (default: 'small' 24x24 px)
  * @property url      The image URL or API path to fetch custom icon blob
  * @property uploadedAt Timestamp string of when the icon was last uploaded
- *                    (used to refetch icon if it changes on the software titles page)
+ *                    (used to refetch stale icon if it was updated)
  */
 interface ISoftwareIconProps {
   name?: string;
