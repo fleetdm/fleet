@@ -181,7 +181,7 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 			require.Contains(t, pkg2, keyHashSHA256)
 			require.Equal(t, sha256HashEmpty, pkg2[keyHashSHA256])
 
-			// For the third package: expect a only a 'path' key with the Firefox
+			// For the third package: expect a only a 'path' key with the Safari
 			// software file path.
 			pkg3, ok := packages[2].(map[any]any)
 			require.True(t, ok)
