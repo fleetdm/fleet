@@ -7,7 +7,9 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import TableCount from "components/TableContainer/TableCount";
 
-import generateTableConfig from "./SelectSoftwareTableConfig";
+import generateTableConfig, {
+  generateDataSet,
+} from "./SelectSoftwareTableConfig";
 
 const baseClass = "select-software-table";
 
@@ -55,7 +57,7 @@ const SelectSoftwareTable = ({
   return (
     <TableContainer
       className={baseClass}
-      data={softwareTitles}
+      data={generateDataSet(softwareTitles, platform)}
       columnConfigs={tabelConfig}
       isLoading={false}
       emptyComponent={() => (

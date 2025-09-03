@@ -3,21 +3,22 @@ import { CellProps, Column } from "react-table";
 
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 import { ISoftwareTitle } from "interfaces/software";
-import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { SetupExperiencePlatform } from "interfaces/platform";
 
-export interface EnhancedSoftwareTitle extends ISoftwareTitle {
+export interface IEnhancedSoftwareTitle extends ISoftwareTitle {
+  versionForRender: string;
   isSelected: boolean;
 }
 
-type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
-type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
-type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
-type ISelectionCellProps = CellProps<ISoftwareTitle>;
+type ISelectSoftwareTableConfig = Column<IEnhancedSoftwareTitle>;
+type ITableHeaderProps = IHeaderProps<IEnhancedSoftwareTitle>;
+type ITableStringCellProps = IStringCellProps<IEnhancedSoftwareTitle>;
+type ISelectionCellProps = CellProps<IEnhancedSoftwareTitle>;
 
 const generateTableConfig = (
   onSelectAll: (selectAll: boolean) => void,
@@ -89,18 +90,32 @@ const generateTableConfig = (
     {
       Header: "Version",
       disableSortBy: true,
-      accessor: "source",
+      accessor: "versionForRender",
       Cell: (cellProps: ITableStringCellProps) => {
-        const val = cellProps.row.original.software_package?.version;
-        // TODO - append package type for linux
-
-        return <TextCell value={val} />;
+        return <TextCell value={cellProps.row.original.versionForRender} />;
       },
       sortType: "caseInsensitive",
     },
   ];
 
   return headerConfigs;
+};
+
+export const generateDataSet = (
+  swTitles: ISoftwareTitle[],
+  platform: SetupExperiencePlatform
+): IEnhancedSoftwareTitle[] => {
+  return swTitles.map((title) => {
+    let version = title?.software_package?.version;
+    if (version && platform === "linux") {
+      // TODO - append package type for linux
+      version = version.concat("");
+    }
+    return {
+      ...title,
+      versionForRender: version ?? "",
+    };
+  });
 };
 
 export default generateTableConfig;
