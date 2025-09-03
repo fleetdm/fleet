@@ -52,55 +52,22 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     setSelectedPlatform,
   ] = useState<SetupExperiencePlatform>(DEFAULT_PLATFORM);
 
-  const {
-    data: macOSSoftwareTitles,
-    isLoading: isLoadingMacSW,
-    isError: isErrorMacSW,
-    refetch: refetchMacSWTitles,
-  } = useQuery<
+  const { data: softwareTitles, isLoading, isError, refetch } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
     ISoftwareTitle[] | null
   >(
     ["mac-install-software", currentTeamId],
     () =>
-      mdmAPI.getMacSetupExperienceSoftware({
+      mdmAPI.getSetupExperienceSoftware(selectedPlatform, {
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: selectedPlatform === "macos",
       select: (res) => res.software_titles,
     }
   );
-
-  const {
-    data: linuxSoftwareTitles,
-    isLoading: isLoadingLinuxSW,
-    isError: isErrorLinuxSW,
-    refetch: refetchLinuxSWTitles,
-  } = useQuery<
-    IGetSetupExperienceSoftwareResponse,
-    AxiosError,
-    ISoftwareTitle[] | null
-  >(
-    ["linux-install-software", currentTeamId],
-    // TODO - update call with linux-specific entity
-    () =>
-      mdmAPI.getMacSetupExperienceSoftware({
-        team_id: currentTeamId,
-        per_page: PER_PAGE_SIZE,
-      }),
-    {
-      ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: selectedPlatform === "linux",
-      select: (res) => res.software_titles,
-    }
-  );
-
-  const selectedPlatformSoftware =
-    selectedPlatform === "macos" ? macOSSoftwareTitles : linuxSoftwareTitles; // next iteration will introduce a windows software option
 
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
@@ -122,7 +89,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
   const onSave = async () => {
     setShowSelectSoftwareModal(false);
-    refetchMacSWTitles();
+    refetch();
   };
 
   const handleTabChange = useCallback((index: number) => {
@@ -147,22 +114,22 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
         </div>
       );
     }
-    if (isLoadingMacSW || isLoadingGlobalConfig || isLoadingTeamConfig) {
+    if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
       return <Spinner />;
     }
 
-    if (isErrorMacSW) {
+    if (isError) {
       return <DataError />;
     }
 
     // TODO - can linux SW be null?
-    if (selectedPlatformSoftware || selectedPlatformSoftware === null) {
+    if (softwareTitles || softwareTitles === null) {
       return (
         <SetupExperienceContentContainer>
           <AddInstallSoftware
             currentTeamId={currentTeamId}
             hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={selectedPlatformSoftware}
+            softwareTitles={softwareTitles}
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
@@ -198,10 +165,10 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
           <TabPanel>{renderTabContent(PLATFORM_BY_INDEX[2])}</TabPanel>
         </Tabs>
       </TabNav>
-      {showSelectSoftwareModal && selectedPlatformSoftware && (
+      {showSelectSoftwareModal && softwareTitles && (
         <SelectSoftwareModal
           currentTeamId={currentTeamId}
-          softwareTitles={selectedPlatformSoftware}
+          softwareTitles={softwareTitles}
           platform={selectedPlatform}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}

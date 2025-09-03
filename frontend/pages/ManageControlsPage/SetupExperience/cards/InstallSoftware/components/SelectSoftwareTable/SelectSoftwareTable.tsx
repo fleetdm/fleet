@@ -57,7 +57,7 @@ const SelectSoftwareTable = ({
   return (
     <TableContainer
       className={baseClass}
-      data={generateDataSet(softwareTitles, platform)}
+      data={generateDataSet(platform, softwareTitles)}
       columnConfigs={tabelConfig}
       isLoading={false}
       emptyComponent={() => (

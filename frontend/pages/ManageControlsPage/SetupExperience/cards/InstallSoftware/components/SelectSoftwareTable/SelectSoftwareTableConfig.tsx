@@ -102,8 +102,8 @@ const generateTableConfig = (
 };
 
 export const generateDataSet = (
-  swTitles: ISoftwareTitle[],
-  platform: SetupExperiencePlatform
+  platform: SetupExperiencePlatform,
+  swTitles: ISoftwareTitle[]
 ): IEnhancedSoftwareTitle[] => {
   return swTitles.map((title) => {
     let version = title?.software_package?.version;

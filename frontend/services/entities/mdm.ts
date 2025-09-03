@@ -9,6 +9,8 @@ import {
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { ISoftwareTitle } from "interfaces/software";
+import { SetupExperiencePlatform } from "interfaces/platform";
+
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -357,60 +359,28 @@ const mdmService = {
     );
   },
 
-  getMacSetupExperienceSoftware: (
+  getSetupExperienceSoftware: (
+    platform: SetupExperiencePlatform,
     params: IGetSetupExperienceSoftwareParams
   ): Promise<IGetSetupExperienceSoftwareResponse> => {
-    const { MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        ...params,
-      }
-    )}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
+      platform
+    )}?${buildQueryStringFromParams({
+      ...params,
+    })}`;
 
     return sendRequest("GET", path);
   },
 
-  updateMacSetupExperienceSoftware: (
+  updateSetupExperienceSoftware: (
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
-    const { MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
+    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        team_id: teamId,
-      }
-    )}`;
-
-    return sendRequest("PUT", path, {
-      team_id: teamId,
-      software_title_ids: softwareTitlesIds,
-    });
-  },
-
-  // TODO - confirm req/resp interfaces of below 2 methods with Lucas
-  getLinuxSetupExperienceSoftware: (
-    params: IGetSetupExperienceSoftwareParams
-  ): Promise<IGetSetupExperienceSoftwareResponse> => {
-    const { MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
-
-    const path = `${MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        ...params,
-      }
-    )}`;
-
-    return sendRequest("GET", path);
-  },
-
-  updateLinuxSetupExperienceSoftware: (
-    teamId: number,
-    softwareTitlesIds: number[]
-  ) => {
-    const { MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
-
-    const path = `${MDM_LINUX_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
       {
         team_id: teamId,
       }
