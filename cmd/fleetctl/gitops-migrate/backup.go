@@ -202,40 +202,46 @@ func resolveBackupTarget(path string) (string, error) {
 	// of a file extension.
 	if filepath.Ext(path) == "" {
 		// 'path' is a directory.
-		//
-		// Create 'path' if it doesn't exist.
-		err := os.MkdirAll(path, fileModeUserRWX)
-		if err != nil && !errors.Is(err, os.ErrExist) {
-			return "", fmt.Errorf(
-				"failed to create all or part of the provided path(%s): %w",
-				path, err,
-			)
-		}
-
-		now := time.Now()
-		// Generate a randomized file name.
-		fileName := fmt.Sprintf(
-			"fleet-gitops-backup-%d-%d-%d_%d-%d-%d.tar.gz",
-			now.Month(), now.Day(), now.Year(), now.Hour(), now.Minute(), now.Second(),
-		)
-
-		// Concatenate the file name to the directory path and return.
-		return filepath.Join(path, fileName), nil
-	} else { //nolint:revive // 'else' block makes control flow more explicit.
-		// 'path' is a file.
-		//
-		// Create 'path' if it doesn't exist.
-		err := os.MkdirAll(filepath.Dir(path), fileModeUserRWX)
-		if err != nil && !errors.Is(err, os.ErrExist) {
-			return "", fmt.Errorf(
-				"failed to create all or part of the provided path(%s): %w",
-				path, err,
-			)
-		}
-
-		// Return the file path, unchanged.
-		return path, nil
+		return resolveBackupDirPath(path)
 	}
+
+	// 'path' is a file.
+	return resolveBackupFilePath(path)
+}
+
+func resolveBackupDirPath(path string) (string, error) {
+	// Create 'path' if it doesn't exist.
+	err := os.MkdirAll(path, fileModeUserRWX)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf(
+			"failed to create all or part of the provided path(%s): %w",
+			path, err,
+		)
+	}
+
+	now := time.Now()
+	// Generate a timestamped file name.
+	fileName := fmt.Sprintf(
+		"fleet-gitops-backup-%d-%d-%d_%d-%d-%d.tar.gz",
+		now.Month(), now.Day(), now.Year(), now.Hour(), now.Minute(), now.Second(),
+	)
+
+	// Concatenate the file name to the directory path and return.
+	return filepath.Join(path, fileName), nil
+}
+
+func resolveBackupFilePath(path string) (string, error) {
+	// Create 'path' if it doesn't exist.
+	err := os.MkdirAll(filepath.Dir(path), fileModeUserRWX)
+	if err != nil && !errors.Is(err, os.ErrExist) {
+		return "", fmt.Errorf(
+			"failed to create all or part of the provided path(%s): %w",
+			path, err,
+		)
+	}
+
+	// Return the file path, unchanged.
+	return path, nil
 }
 
 func mkBackupDir() (string, error) {

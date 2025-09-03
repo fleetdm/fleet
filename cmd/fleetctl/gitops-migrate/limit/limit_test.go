@@ -46,7 +46,7 @@ func TestLimit(t *testing.T) {
 		l.Go(testBlocker(ctx))
 		l.Go(testBlocker(ctx))
 
-		// Expect a deadline deadline.
+		// Expect a deadline exceeded error.
 		require.Error(t, l.WaitContext(ctx))
 		cancel()
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -40,7 +41,7 @@ func setup(t *testing.T) testBuffer {
 	colorCaller = ""
 
 	// We just use 1/2 null bytes for these since they'll never collide with test
-	// inputs.. Probably™.
+	// inputs... Probably™.
 	rowMiddle = "\x00"
 	rowBottom = "\x00\x00"
 
@@ -192,16 +193,15 @@ func TestWriteLevel(t *testing.T) {
 	buffer := setup(t)
 
 	// Disable log level output.
+	Level = LevelDebug
 	Options = 0
 
-	// Verify output is suppressed when the option is _not_ set.
-	//
-	// Each of these tests should _not_ produce output.
-	require.Empty(t, doWriteLevel(t, buffer, LevelDebug))
-	require.Empty(t, doWriteLevel(t, buffer, LevelDebug))
-	require.Empty(t, doWriteLevel(t, buffer, LevelInfo))
-	require.Empty(t, doWriteLevel(t, buffer, LevelInfo))
-	require.Empty(t, doWriteLevel(t, buffer, LevelError))
+	// Verify the standard prefix ('>') is used instead of log level when the
+	// appropriate option is disabled.
+	require.Equal(t, "> ", doWriteLevel(t, buffer, LevelDebug))
+	require.Equal(t, "> ", doWriteLevel(t, buffer, LevelWarn))
+	require.Equal(t, "> ", doWriteLevel(t, buffer, LevelInfo))
+	require.Equal(t, "> ", doWriteLevel(t, buffer, LevelError))
 
 	// Enable log level output.
 	Options = OptWithLevel
@@ -246,6 +246,12 @@ func doWriteLevel(t *testing.T, buffer testBuffer, l level) string {
 }
 
 func TestWriteCaller(t *testing.T) {
+	pc, file, line, ok := runtime.Caller(1)
+	_ = pc
+	_ = line
+	_ = ok
+	fmt.Println(file)
+
 	buffer := setup(t).(*strings.Builder)
 
 	// Expect no output if the 'WithCaller' option is not set.

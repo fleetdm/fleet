@@ -44,7 +44,7 @@ The migration will unfold in two primary steps: `format` and `migrate`.
 
 ### Overview
 
-When manipulating YAML files with this tool, for reasons we won't get into here, the output will always alphabetize the keys. This means the following YAML file:
+When manipulating YAML files with this tool, the output will always alphabetize the keys. This means the following YAML file:
 ```yaml
 a: []
 c: []
@@ -69,7 +69,7 @@ Run the `gitops-migrate` tool, specifying the `format` command followed by the p
 ```bash
 # If 'gitops-migrate' is in the current working directory.
 $ ./gitops-migrate format ./fleet_gitops
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 $ gitops-migrate format ./fleet_gitops
 ```
 
@@ -77,14 +77,14 @@ $ gitops-migrate format ./fleet_gitops
 ```powershell
 # If 'gitops-migrate' is in the current working directory.
 PS> .\gitops-migrate format .\fleet_gitops
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 PS> gitops-migrate format .\fleet_gitops
 ```
 
 Your YAML files should now all be alphabetized!
 
 > [!TIP]
-> It's recommended to pause here, open a pull request for the formatting changes _only_, then move onto the next section once that pull request has been reviewed and merged.
+> It's recommended to pause here, commit changes, then open a pull request for the formatting changes _only_. Then move onto the next section once that pull request has been reviewed and merged.
 
 ## Step 2: Migrate
 
@@ -102,7 +102,7 @@ Run the `gitops-migrate` tool, specifying the `migrate` command and the path to 
 ```bash
 # If 'gitops-migrate' is in the current working directory.
 $ ./gitops-migrate migrate ./gitops_files
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 $ gitops-migrate migrate ./gitops_files
 ```
 
@@ -110,7 +110,7 @@ $ gitops-migrate migrate ./gitops_files
 ```powershell
 # If 'gitops-migrate' is in the current working directory.
 PS> .\gitops-migrate migrate .\gitops_files
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 PS> gitops-migrate migrate .\gitops_files
 ```
 
@@ -127,7 +127,7 @@ In cases where the _team_ file previously contained software packages which refe
 
 **When looking at a `git diff`** you should see changes similar to the following:
 
-**Software file (`slack.yml`):**
+**Software file (`./slack.yml`):**
 ```diff
 url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-desktop-4.41.105-amd64.deb
 - self_service: true
@@ -138,7 +138,7 @@ url: https://downloads.slack-edge.com/desktop-releases/linux/x64/4.41.105/slack-
 -  - "Debian-based Linux hosts"
 ```
 
-**Team File (`my_team.yml`):**
+**Team File (`./my_team.yml`):**
 ```diff
 software:
   packages:
@@ -169,7 +169,7 @@ Then simply run the `gitops-migrate` `restore` command to restore this backup, s
 ```bash
 # If 'gitops-migrate' is in the current working directory.
 $ ./gitops-migrate restore /tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz ./fleet_gitops
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 $ gitops-migrate restore /tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz ./fleet_gitops
 ```
 
@@ -177,6 +177,6 @@ $ gitops-migrate restore /tmp/fleet-gitops-1916163188/fleet-gitops-backup-8-31-2
 ```powershell
 # If 'gitops-migrate' is in the current working directory.
 PS> .\gitops-migrate restore 'C:\Users\am\AppData\Local\Temp\fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz' .\fleet_gitops
-# If 'gitops-migrate' is on PATH.
+# If 'gitops-migrate' is in PATH.
 PS> gitops-migrate restore 'C:\Users\am\AppData\Local\Temp\fleet-gitops-1916163188/fleet-gitops-backup-8-31-2025_4-47-29.tar.gz' .\fleet_gitops
 ```

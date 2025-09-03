@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// limiter is a super simply leaky-bucket Goroutine rate limiter.
+// limiter is a super simple leaky-bucket Goroutine rate limiter.
 //
 // limiter _must_ be instantiated via the constructor ('New'), this is why the
 // type itself is not exported.

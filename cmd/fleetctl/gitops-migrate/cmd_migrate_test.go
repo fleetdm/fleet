@@ -74,12 +74,10 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 	// - categories
 	// - labels_exclude_any
 	// - labels_include_any
-	// - setup_experience
 	require.Contains(t, swmap, keySelfService)
 	require.Contains(t, swmap, keyCategories)
 	require.Contains(t, swmap, keyLabelsExclude)
 	require.Contains(t, swmap, keyLabelsInclude)
-	require.Contains(t, swmap, keySetupExperience)
 
 	// Validate expectations for the team file.
 	//
@@ -111,12 +109,10 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 	// - categories
 	// - labels_exclude_any
 	// - labels_include_any
-	// - setup_experience
 	require.NotContains(t, pkg, keySelfService)
 	require.NotContains(t, pkg, keyCategories)
 	require.NotContains(t, pkg, keyLabelsExclude)
 	require.NotContains(t, pkg, keyLabelsInclude)
-	require.NotContains(t, pkg, keySetupExperience)
 }
 
 func gitopsMigrate(t *testing.T, testDir string) {
@@ -144,12 +140,10 @@ func gitopsMigratePost(t *testing.T, testDir string) {
 	// - categories
 	// - labels_exclude_any
 	// - labels_include_any
-	// - setup_experience
 	require.NotContains(t, swmap, keySelfService)
 	require.NotContains(t, swmap, keyCategories)
 	require.NotContains(t, swmap, keyLabelsExclude)
 	require.NotContains(t, swmap, keyLabelsInclude)
-	require.NotContains(t, swmap, keySetupExperience)
 
 	// Validate expectations for the team file.
 	//
@@ -181,10 +175,8 @@ func gitopsMigratePost(t *testing.T, testDir string) {
 	// - categories
 	// - labels_exclude_any
 	// - labels_include_any
-	// - setup_experience
 	require.Contains(t, pkg, keySelfService)
 	require.Contains(t, pkg, keyCategories)
 	require.Contains(t, pkg, keyLabelsExclude)
 	require.Contains(t, pkg, keyLabelsInclude)
-	require.Contains(t, pkg, keySetupExperience)
 }

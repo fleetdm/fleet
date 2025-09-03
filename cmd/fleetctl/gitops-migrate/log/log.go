@@ -126,7 +126,7 @@ func log(l level, skip int, msg string, pairs ...any) {
 		return
 	}
 
-	// Grab a string builder from the pool, defer it's reset and return to
+	// Grab a string builder from the pool, defer its reset and return to
 	// the pool.
 	b := builderPool.Get().(builder)
 	defer builderPool.Put(b)

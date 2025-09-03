@@ -31,8 +31,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	if len(args.Commands) < 1 {
 		showUsageAndExit(
 			1,
-			"expected positional argument specifying the path to your Fleet GitOps "+
-				"YAML files",
+			"please specify the path to your Fleet GitOps YAML files",
 		)
 	}
 	from, err := filepath.Abs(args.Commands[0])
@@ -50,13 +49,10 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	}
 
 	// Backup the provided migration target.
-	archivePath, err := backup(ctx, from, tmpDir)
+	_, err = backup(ctx, from, tmpDir)
 	if err != nil {
 		return err
 	}
-	// TODO: use a named return for 'error' and put this archive back if we fail
-	// the migration ('err != nil').
-	_ = archivePath
 
 	// Packages can belong to >1 team file. So, to avoid unnecessary i/o we
 	// capture the state we mutate(read: delete) for each package file here and
@@ -141,7 +137,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// have been performed, since this would blow away all comments and manual
 		// spacing, we need to count the number of changes which we actaully
 		// apply. If this count is zero, we simply skip the re-encode step.
-		changeCount := 0
+		teamPkgChangeCount := 0
 		for i, packagesObject := range packagesObjects {
 			// Attempt to assert the 'packages' YAML-array item as a map.
 			pkg, ok := packagesObject.(map[string]any)
@@ -185,6 +181,12 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			var state map[string]any
 			if state, ok = known[absPath]; !ok {
 				state = make(map[string]any)
+				// Track mutations to the package file.
+				//
+				// If we reach the serialization point and this count is zero we skip
+				// the re-encode to file to preserve formatting + comments where we can.
+				var pkgChangeCount int
+
 				// Get a read-writable handle to the package file.
 				packageFile, err := os.OpenFile(absPath, fileFlagsReadWrite, 0)
 				if err != nil {
@@ -217,13 +219,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						state[keySelfService] = b
 					}
 					delete(pkg, keySelfService)
-				}
-
-				if v, ok := pkg[keySetupExperience]; ok {
-					if v, ok := v.(bool); ok {
-						state[keySetupExperience] = v
-					}
-					delete(pkg, keySetupExperience)
+					pkgChangeCount += 1
 				}
 
 				if v, ok := pkg[keyLabelsInclude]; ok {
@@ -239,6 +235,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						}
 					}
 					delete(pkg, keyLabelsInclude)
+					pkgChangeCount += 1
 				}
 
 				if v, ok := pkg[keyLabelsExclude]; ok {
@@ -254,6 +251,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						}
 					}
 					delete(pkg, keyLabelsExclude)
+					pkgChangeCount += 1
 				}
 
 				if v, ok := pkg[keyCategories]; ok {
@@ -269,6 +267,7 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 						}
 					}
 					delete(pkg, keyCategories)
+					pkgChangeCount += 1
 				}
 
 				// Seek to file start for re-encode.
@@ -284,45 +283,48 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 					continue
 				}
 
-				// Serialize the package file back to disk.
-				enc := yaml.NewEncoder(packageFile)
-				enc.SetIndent(2)
-				err = enc.Encode(pkg)
-				if err != nil {
-					log.Error(
-						"Failed to re-encode package file.",
-						"Team File", item.Path,
-						"Package File", pkgPath,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
+				// Only re-encode if we actually mutated something.
+				if pkgChangeCount >= 0 {
+					// Serialize the package file back to disk.
+					enc := yaml.NewEncoder(packageFile)
+					enc.SetIndent(2)
+					err = enc.Encode(pkg)
+					if err != nil {
+						log.Error(
+							"Failed to re-encode package file.",
+							"Team File", item.Path,
+							"Package File", pkgPath,
+							"Error", err,
+						)
+						failed += 1
+						continue
+					}
 
-				// Seek to identify the number of bytes we wrote during the YAML encode.
-				n, err := packageFile.Seek(0, io.SeekCurrent)
-				if err != nil {
-					log.Error(
-						"Failed to seek after package file re-encode.",
-						"Team File", item.Path,
-						"Package File", pkgPath,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
+					// Seek to identify the number of bytes we wrote during the YAML encode.
+					n, err := packageFile.Seek(0, io.SeekCurrent)
+					if err != nil {
+						log.Error(
+							"Failed to seek after package file re-encode.",
+							"Team File", item.Path,
+							"Package File", pkgPath,
+							"Error", err,
+						)
+						failed += 1
+						continue
+					}
 
-				// Truncate at the number of bytes we just wrote.
-				err = packageFile.Truncate(n)
-				if err != nil {
-					log.Error(
-						"Failed to truncate package file after re-encode.",
-						"Team File", item.Path,
-						"Package File", pkgPath,
-						"Error", err,
-					)
-					failed += 1
-					continue
+					// Truncate at the number of bytes we just wrote.
+					err = packageFile.Truncate(n)
+					if err != nil {
+						log.Error(
+							"Failed to truncate package file after re-encode.",
+							"Team File", item.Path,
+							"Package File", pkgPath,
+							"Error", err,
+						)
+						failed += 1
+						continue
+					}
 				}
 
 				// Close the package file.
@@ -346,33 +348,28 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			// entry.
 
 			if v, ok := state[keySelfService]; ok {
-				changeCount += 1
+				teamPkgChangeCount += 1
 				pkg[keySelfService] = v
 			}
 
-			if v, ok := state[keySetupExperience]; ok {
-				changeCount += 1
-				pkg[keySetupExperience] = v
-			}
-
 			if v, ok := state[keyCategories]; ok {
-				changeCount += 1
+				teamPkgChangeCount += 1
 				pkg[keyCategories] = v
 			}
 
 			if v, ok := state[keyLabelsInclude]; ok {
-				changeCount += 1
+				teamPkgChangeCount += 1
 				pkg[keyLabelsInclude] = v
 			}
 
 			if v, ok := state[keyLabelsExclude]; ok {
-				changeCount += 1
+				teamPkgChangeCount += 1
 				pkg[keyLabelsExclude] = v
 			}
 		}
 
 		// Only re-encode the file if we actually changed something.
-		if changeCount > 0 {
+		if teamPkgChangeCount > 0 {
 			// Seek to the file start for the YAML-encode.
 			_, err = teamFile.Seek(0, io.SeekStart)
 			if err != nil {
@@ -439,11 +436,11 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		}
 
 		// Success!
-		if changeCount > 0 {
+		if teamPkgChangeCount > 0 {
 			log.Info(
 				"Successfully applied transforms to team file.",
 				"Team File", item.Path,
-				"Migrated Fields", changeCount,
+				"Migrated Fields", teamPkgChangeCount,
 			)
 			success += 1
 		}

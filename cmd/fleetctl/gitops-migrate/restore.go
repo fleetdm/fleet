@@ -44,7 +44,7 @@ func restore(ctx context.Context, from string, to string) error {
 
 	// Get a readable handle to the archive.
 	//
-	// NOTE: We handle closure of all streams in a deferred function ~15-lines
+	// NOTE: We handle closure of all streams in a deferred function ~30-lines
 	// down.
 	//
 	//nolint:gosec,G304 // 'from' is a trusted input.
@@ -58,7 +58,7 @@ func restore(ctx context.Context, from string, to string) error {
 
 	// Wrap the file stream in a gzip reader.
 	//
-	// NOTE: We handle closure of all streams in a deferred function ~10-lines
+	// NOTE: We handle closure of all streams in a deferred function ~15-lines
 	// down.
 	gz, err := gzip.NewReader(f)
 	if err != nil {

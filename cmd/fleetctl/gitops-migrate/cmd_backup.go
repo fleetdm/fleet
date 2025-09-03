@@ -13,8 +13,7 @@ func cmdBackupExec(ctx context.Context, args Args) error {
 	// Grab the backup "source" path and the archive output path.
 	if len(args.Commands) < 2 {
 		return errors.New(
-			"expected a positional argument specifying the path to your GitOps " +
-				"files for backup",
+			"please specify the path to your GitOps files for backup",
 		)
 	}
 	from := args.Commands[0]
