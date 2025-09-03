@@ -739,7 +739,7 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 }
 
 func (oc *OrbitClient) InitiateSetupExperience() (*fleet.SetupExperienceInitPayload, error) {
-	verb, path := "POST", "/api/fleet/orbit/setup_experience_init"
+	verb, path := "POST", "/api/fleet/orbit/setup_experience/init"
 	var resp initSetupExperienceResponse
 	if err := oc.authenticatedRequest(verb, path, &initSetupExperienceRequest{}, &resp); err != nil {
 		return nil, err

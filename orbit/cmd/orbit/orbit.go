@@ -1519,9 +1519,11 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		runSetupExperience := runtime.GOOS == "linux" &&
-			orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience) &&
-			!c.Bool("disable-setup-experience")
+		isLinux := runtime.GOOS == "linux"
+		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
+		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
+		log.Debug().Bool("isLinux", isLinux).Bool("serverHasSetup", serverHasWebSetup).Bool("notDisabled", setupExperienceNotDisabled).Msg("checking setup experience preflight values")
+		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
 
 		if runSetupExperience {
 			log.Debug().Msg("web setup experience enabled")
@@ -1549,9 +1551,10 @@ func main() {
 }
 
 func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, trw *token.ReadWriter, setupExperienceStatusPath string) error {
+	log.Debug().Msg("checking setup experience file")
 	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
 	if err != nil {
-		return fmt.Errorf("read setup experience completed file: %w", err)
+		return fmt.Errorf("read setup experience file: %w", err)
 	}
 
 	// Setup experience has been completed
