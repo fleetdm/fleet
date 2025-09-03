@@ -202,6 +202,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
         <SelectSoftwareModal
           currentTeamId={currentTeamId}
           softwareTitles={selectedPlatformSoftware}
+          platform={selectedPlatform}
           onSave={onSave}
           onExit={() => setShowSelectSoftwareModal(false)}
         />

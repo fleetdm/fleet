@@ -87,13 +87,15 @@ const generateTableConfig = (
       sortType: "caseInsensitive",
     },
     {
-      Header: "Platform",
+      Header: "Version",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        // TODO: this will need to be updated when we add support for other platforms
-        <TextCell value={APPLE_PLATFORM_DISPLAY_NAMES.darwin} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const val = cellProps.row.original.software_package?.version;
+        // TODO - append package type for linux
+
+        return <TextCell value={val} />;
+      },
       sortType: "caseInsensitive",
     },
   ];

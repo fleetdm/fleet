@@ -1,5 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 
+import { SetupExperiencePlatform } from "interfaces/platform";
 import { ISoftwareTitle } from "interfaces/software";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
@@ -27,6 +28,7 @@ const initializeSelectedSoftwareIds = (softwareTitles: ISoftwareTitle[]) => {
 interface ISelectSoftwareModalProps {
   currentTeamId: number;
   softwareTitles: ISoftwareTitle[];
+  platform: SetupExperiencePlatform;
   onExit: () => void;
   onSave: () => void;
 }
@@ -34,6 +36,7 @@ interface ISelectSoftwareModalProps {
 const SelectSoftwareModal = ({
   currentTeamId,
   softwareTitles,
+  platform,
   onExit,
   onSave,
 }: ISelectSoftwareModalProps) => {
@@ -90,6 +93,7 @@ const SelectSoftwareModal = ({
           softwareTitles={softwareTitles}
           onChangeSoftwareSelect={onChangeSoftwareSelect}
           onChangeSelectAll={onChangeSelectAll}
+          platform={platform}
         />
         <div className="modal-cta-wrap">
           <GitOpsModeTooltipWrapper
