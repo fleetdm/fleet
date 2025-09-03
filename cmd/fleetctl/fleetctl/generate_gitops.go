@@ -3,6 +3,7 @@ package fleetctl
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"os"
 	pathUtils "path"
 	"reflect"
@@ -1430,7 +1431,7 @@ var uniEscape = regexp.MustCompile(`\\U([0-9A-Fa-f]{8})`)
 func unescapeUnicodeU8(b []byte) []byte {
 	return uniEscape.ReplaceAllFunc(b, func(m []byte) []byte {
 		v, err := strconv.ParseUint(string(m[2:]), 16, 32)
-		if err != nil {
+		if err != nil || v > math.MaxInt32 {
 			return m
 		}
 		return []byte(string(rune(v)))
