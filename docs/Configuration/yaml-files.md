@@ -18,7 +18,7 @@ agent_options:
 controls: # Can be defined in teams/no-team.yml too.
 software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
-team_settings: # Required in teams/team-name.yml, but can be defined in teams/no-team.yml, where it is limited to webhook_settings)
+team_settings: # Required in teams/team-name.yml, but can be defined in teams/no-team.yml, where it is limited to webhook_settings
 ```
 Paths in YAML files are always relative to the file you’re editing.
 
