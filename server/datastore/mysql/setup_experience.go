@@ -203,12 +203,12 @@ AND va.platform = 'darwin'
 	stmtUnsetInstallers := `
 UPDATE software_installers
 SET install_during_setup = false
-WHERE global_or_team_id = ?`
+WHERE platform = ? AND global_or_team_id = ?`
 
 	stmtUnsetVPPAppsTeams := `
 UPDATE vpp_apps_teams vat
 SET install_during_setup = false
-WHERE global_or_team_id = ?`
+WHERE platform = ? AND global_or_team_id = ?`
 
 	stmtSetInstallers := `
 UPDATE software_installers
@@ -280,13 +280,13 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all installers
-		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, teamID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmtUnsetInstallers, platform, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "unsetting software installers")
 		}
 
 		// Unset all vpp apps
 		if platform == string(fleet.MacOSPlatform) {
-			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, teamID); err != nil {
+			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}
 		}

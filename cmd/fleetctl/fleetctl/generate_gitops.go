@@ -72,7 +72,7 @@ type generateGitopsClient interface {
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
-	GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error)
+	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
@@ -1221,8 +1221,8 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint, teamFilename string) (map[string]interface{}, error) {
-	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamId)
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string) (map[string]interface{}, error) {
+	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
@@ -1234,9 +1234,10 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByVppApp := make(map[string]struct{})
-	if cmd.AppConfig.MDM.EnabledAndConfigured {
-		// See if the team has macOS setup software configured.
-		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(teamId)
+
+	for _, platform := range []string{"linux", "macos"} {
+		// See if the team has macOS or Linux setup software configured.
+		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
 			return nil, err
@@ -1246,9 +1247,11 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
 				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
 			}
-			appStoreApp := software.AppStoreApp
-			if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
-				setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
+			if platform == "macos" {
+				appStoreApp := software.AppStoreApp
+				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+					setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
+				}
 			}
 		}
 	}
@@ -1285,7 +1288,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			continue
 		}
 
-		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamId)
+		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
 			return nil, err
