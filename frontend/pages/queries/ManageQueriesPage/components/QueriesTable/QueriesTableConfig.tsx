@@ -5,8 +5,6 @@ import React from "react";
 import { formatDistanceToNow } from "date-fns";
 import PATHS from "router/paths";
 
-import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
-
 import { secondsToDhms } from "utilities/helpers";
 import {
   isGlobalAdmin,

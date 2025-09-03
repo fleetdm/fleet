@@ -10795,7 +10795,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(s.ds, nil, clock.C, nil)
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
