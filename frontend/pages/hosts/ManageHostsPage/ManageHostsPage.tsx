@@ -1635,7 +1635,7 @@ const ManageHostsPage = ({
           >
             <>
               Export hosts
-              <Icon name="download" size="small" color="core-fleet-blue" />
+              <Icon name="download" size="small" color="ui-fleet-black-75" />
             </>
           </Button>
         )}

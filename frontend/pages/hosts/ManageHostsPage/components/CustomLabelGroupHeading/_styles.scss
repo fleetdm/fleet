@@ -46,12 +46,12 @@
     &:focus,
     &:hover {
       outline: none;
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-75;
 
       + .icon {
         svg {
           path {
-            fill: $core-vibrant-blue;
+            fill: $ui-fleet-black-75;
           }
         }
       }
@@ -105,7 +105,7 @@
       color: $core-fleet-blue;
 
       code {
-        color: $core-vibrant-blue;
+        color: $ui-fleet-black-75;
         background-color: $ui-gray;
         padding: $pad-xxsmall;
         font-family: "SourceCodePro", $monospace;

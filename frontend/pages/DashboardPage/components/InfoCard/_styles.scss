@@ -21,7 +21,7 @@
     span {
       display: flex;
       align-items: center;
-      background-color: $core-vibrant-blue;
+      background-color: $ui-fleet-black-75;
       color: $core-white;
       font-size: $xx-small;
       font-weight: $bold;
@@ -55,13 +55,13 @@
     display: flex;
     align-items: center;
     font-size: $x-small;
-    color: $core-vibrant-blue;
+    color: $ui-fleet-black-75;
     font-weight: $bold;
     text-decoration: none !important;
     gap: $pad-small;
 
     &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
+      outline: 1px solid $ui-fleet-black-75;
     }
   }
   &__action-button-text {

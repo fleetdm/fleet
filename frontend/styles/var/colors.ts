@@ -4,6 +4,7 @@ export const COLORS = {
   // core colors
   "core-fleet-black": "#192147",
   "core-fleet-blue": "#6A67FE", // TODO: lots of work to correctly match scss core-fleet-blue and not ui-vibrant-blue
+  "core-fleet-green": "#009A7D",
   "core-fleet-red": "#FF5C83",
   "core-fleet-purple": "#AE6DDF",
   "core-fleet-white": "#FFFFFF",

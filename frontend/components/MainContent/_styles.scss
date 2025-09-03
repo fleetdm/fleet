@@ -1,6 +1,6 @@
 .main-content {
   padding: $pad-xlarge;
-  background-color: $core-white;
+  background: linear-gradient(0deg, #FFF 80%, #EFF6FA 100%);
   flex-grow: 1;
   // overflow: auto allows for horizontal scrolling
   // of the main-content when there is a banner. (e.g. sandbox mode)
