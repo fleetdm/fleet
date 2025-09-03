@@ -53,6 +53,8 @@ func TestGitopsMigrate(t *testing.T) {
 	gitopsMigratePost(t, testDir)
 }
 
+const sha256HashEmpty = "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+
 // Validates expectations of the GitOps YAML files _before_ this test runs
 // the migration.
 func gitopsMigratePre(t *testing.T, testDir string) {
@@ -69,11 +71,7 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 	// Unmarshal the file.
 	swmap := make(map[string]any)
 	require.NoError(t, yaml.Unmarshal(content, &swmap))
-	// Ensure the following keys are _all_ present in the map.
-	// - self_service
-	// - categories
-	// - labels_exclude_any
-	// - labels_include_any
+	// Ensure all of the keys we will migrate are present.
 	require.Contains(t, swmap, keySelfService)
 	require.Contains(t, swmap, keyCategories)
 	require.Contains(t, swmap, keyLabelsExclude)
@@ -99,20 +97,27 @@ func gitopsMigratePre(t *testing.T, testDir string) {
 	packages, ok := software[keyPackages].([]any)
 	require.True(t, ok)
 	require.NotNil(t, packages)
-	// Expect a single package, ensure it's a non-nil 'map[string]any'.
-	require.Len(t, packages, 1)
+
+	// Expect two packages.
+	//
+	// For the first: ensure it's a non-nil 'map[string]any'.
+	require.Len(t, packages, 2)
 	pkg, ok := packages[0].(map[any]any)
 	require.True(t, ok)
 	require.NotNil(t, pkg)
-	// Ensure the following keys are _not_ present in the map.
-	// - self_service
-	// - categories
-	// - labels_exclude_any
-	// - labels_include_any
+	// Ensure none of the keys we will migrate are present.
 	require.NotContains(t, pkg, keySelfService)
 	require.NotContains(t, pkg, keyCategories)
 	require.NotContains(t, pkg, keyLabelsExclude)
 	require.NotContains(t, pkg, keyLabelsInclude)
+	// For the second: expect a 'hash_sha256' key with the empty SHA256 hash
+	// value.
+	pkg2, ok := packages[1].(map[any]any)
+	require.True(t, ok)
+	require.NotNil(t, pkg2)
+	require.Len(t, pkg2, 1)
+	require.Contains(t, pkg2, "hash_sha256")
+	require.Equal(t, sha256HashEmpty, pkg2["hash_sha256"])
 }
 
 func gitopsMigrate(t *testing.T, testDir string) {
@@ -135,11 +140,7 @@ func gitopsMigratePost(t *testing.T, testDir string) {
 	// Unmarshal the file.
 	swmap := make(map[string]any)
 	require.NoError(t, yaml.Unmarshal(content, &swmap))
-	// Ensure the following keys are _not_ present in the map.
-	// - self_service
-	// - categories
-	// - labels_exclude_any
-	// - labels_include_any
+	// Ensure none of the keys we migrated are present.
 	require.NotContains(t, swmap, keySelfService)
 	require.NotContains(t, swmap, keyCategories)
 	require.NotContains(t, swmap, keyLabelsExclude)
@@ -165,18 +166,26 @@ func gitopsMigratePost(t *testing.T, testDir string) {
 	packages, ok := software[keyPackages].([]any)
 	require.True(t, ok)
 	require.NotNil(t, packages)
-	// Expect a single package, ensure it's a non-nil 'map[string]any'.
-	require.Len(t, packages, 1)
+
+	// Expect two packages.
+	//
+	// For the first: ensure it's a non-nil 'map[any]any'.
+	require.Len(t, packages, 2)
 	pkg, ok := packages[0].(map[any]any)
 	require.True(t, ok)
 	require.NotNil(t, pkg)
-	// Ensure the following keys are _all_ present in the map.
-	// - self_service
-	// - categories
-	// - labels_exclude_any
-	// - labels_include_any
+	// Ensure all appropriate keys are now present.
 	require.Contains(t, pkg, keySelfService)
 	require.Contains(t, pkg, keyCategories)
 	require.Contains(t, pkg, keyLabelsExclude)
 	require.Contains(t, pkg, keyLabelsInclude)
+	// For the second: ensure it's a non-nil 'map[string]any'.
+	pkg2, ok := packages[1].(map[any]any)
+	require.True(t, ok)
+	require.NotNil(t, pkg2)
+	// Ensure this package is unchanged (just a 'hash_sha256' key with the empty
+	// sha256 hash value).
+	require.Len(t, pkg2, 1)
+	require.Contains(t, pkg2, "hash_sha256")
+	require.Equal(t, sha256HashEmpty, pkg2["hash_sha256"])
 }
