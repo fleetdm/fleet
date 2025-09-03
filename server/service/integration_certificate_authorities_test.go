@@ -109,38 +109,38 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 
 	// newApplyRequest creates a new applyCertificateAuthoritiesSpecRequest. The given payload
 	// should be one of fleet.DigiCertCA, fleet.CustomSCEPProxyCA, fleet.HydrantCA, or fleet.NDESSCEPProxyCA.
-	newApplyRequest := func(p interface{}, dryRun bool) (applyCertificateAuthoritiesSpecRequest, error) {
+	newApplyRequest := func(p interface{}, dryRun bool) (batchApplyCertificateAuthoritiesRequest, error) {
 		switch v := p.(type) {
 		case fleet.CustomSCEPProxyCA:
-			return applyCertificateAuthoritiesSpecRequest{
+			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{v},
 				},
 				DryRun: dryRun,
 			}, nil
 		case fleet.HydrantCA:
-			return applyCertificateAuthoritiesSpecRequest{
+			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					Hydrant: []fleet.HydrantCA{v},
 				},
 				DryRun: dryRun,
 			}, nil
 		case fleet.NDESSCEPProxyCA:
-			return applyCertificateAuthoritiesSpecRequest{
+			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					NDESSCEP: &v,
 				},
 				DryRun: dryRun,
 			}, nil
 		case fleet.DigiCertCA:
-			return applyCertificateAuthoritiesSpecRequest{
+			return batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert: []fleet.DigiCertCA{v},
 				},
 				DryRun: dryRun,
 			}, nil
 		default:
-			return applyCertificateAuthoritiesSpecRequest{}, errors.New("invalid usage of newApplyRequest")
+			return batchApplyCertificateAuthoritiesRequest{}, errors.New("invalid usage of newApplyRequest")
 		}
 	}
 
@@ -259,7 +259,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				checkNDESApplied(t, &goodNDESSCEPCA)
 
 				// try dry run of deletion by making an apply request where NDES is nil and dry run is true
-				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 						NDESSCEP: nil,
 					},
@@ -268,7 +268,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
 
 				// now delete it by making an apply request where NDES is nil and dry run is false
-				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 						NDESSCEP: nil,
 					},
@@ -285,7 +285,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				checkNDESApplied(t, &goodNDESSCEPCA)
 
 				// try dry run of deletion by making an apply request where NDES is an empty struct and dry run is true
-				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 						NDESSCEP: &fleet.NDESSCEPProxyCA{},
 					},
@@ -294,7 +294,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				checkNDESApplied(t, &goodNDESSCEPCA) // prior ndes should still exist
 
 				// now delete it by making an apply request where NDES is an empty struct
-				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{
+				_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{
 					CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 						NDESSCEP: &fleet.NDESSCEPProxyCA{},
 					},
@@ -353,9 +353,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			checkNDESApplied(t, &testCopy)
 
 			// delete
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
 			checkNDESApplied(t, &testCopy) // dry run should not change anything
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
 			checkNDESApplied(t, nil) // prior ndes should be deleted
 		})
 	})
@@ -400,7 +400,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		// run additional duplicate name scenarios
 		t.Run("duplicate names", func(t *testing.T) {
 			// create one of each CA
-			req := applyCertificateAuthoritiesSpecRequest{
+			req := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -421,7 +421,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create digicert with same name as another digicert
 			testCopy := goodDigiCertCA
 			testCopy.CertificateSeatID = "some-other-seat-id"
-			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+			duplicateReq := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -437,7 +437,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create digicert with same name as another custom scep
 			testCopy = goodDigiCertCA
 			testCopy.Name = goodCustomSCEPCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -453,7 +453,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create digicert with same name as another hydrant
 			testCopy = goodDigiCertCA
 			testCopy.Name = goodHydrantCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -623,9 +623,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // now it should be applied
 
 			// sending empty CAs deletes existing one
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
 			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
 			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
 		})
 
@@ -636,7 +636,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			test1 := goodDigiCertCA
 			test2 := goodDigiCertCA
 			test2.Name = "VALID_DIGICERT_CA_2"
-			initialReq := applyCertificateAuthoritiesSpecRequest{
+			initialReq := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert: []fleet.DigiCertCA{test1, test2},
 				},
@@ -652,7 +652,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			test1.CertificateCommonName = "new-common-name"
 
 			// new request will modify test1, add test3, and delete test2
-			modifiedReq := applyCertificateAuthoritiesSpecRequest{
+			modifiedReq := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert: []fleet.DigiCertCA{test1, test3},
 				},
@@ -708,7 +708,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		// run additional duplicate name scenarios
 		t.Run("duplicate names", func(t *testing.T) {
 			// create one of each CA
-			req := applyCertificateAuthoritiesSpecRequest{
+			req := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -729,7 +729,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create custom scep with same name as another custom scep
 			testCopy := goodCustomSCEPCA
 			testCopy.URL = "https://example.com"
-			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+			duplicateReq := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
@@ -745,7 +745,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create custom scep with same name as another digicert
 			testCopy = goodCustomSCEPCA
 			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
@@ -761,7 +761,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create custom scep with same name as another hydrant
 			testCopy = goodCustomSCEPCA
 			testCopy.Name = goodHydrantCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA, testCopy},
@@ -807,9 +807,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			// sending empty CAs deletes existing one
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: true}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
 			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", applyCertificateAuthoritiesSpecRequest{DryRun: false}, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
 			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 		})
 
@@ -820,7 +820,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			test1 := goodCustomSCEPCA
 			test2 := goodCustomSCEPCA
 			test2.Name = "VALID_CUSTOM_SCEP_CA_2"
-			req := applyCertificateAuthoritiesSpecRequest{
+			req := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{test1, test2},
 				},
@@ -836,7 +836,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			test1.Challenge = "new-challenge"
 
 			// new request will modify test1, add test3, and delete test2
-			req2 := applyCertificateAuthoritiesSpecRequest{
+			req2 := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{test1, test3},
 				},
@@ -893,7 +893,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		// run additional duplicate name scenarios
 		t.Run("duplicate names", func(t *testing.T) {
 			// create one of each CA
-			req := applyCertificateAuthoritiesSpecRequest{
+			req := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -914,7 +914,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create hydrant with same name as another hydrant
 			testCopy := goodHydrantCA
 			testCopy.ClientID = "some-other-client-id"
-			duplicateReq := applyCertificateAuthoritiesSpecRequest{
+			duplicateReq := batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -930,7 +930,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create hydrant with same name as another digicert
 			testCopy = goodHydrantCA
 			testCopy.Name = goodDigiCertCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
@@ -946,7 +946,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			// try to create hydrant with same name as another custom scep
 			testCopy = goodHydrantCA
 			testCopy.Name = goodCustomSCEPCA.Name
-			duplicateReq = applyCertificateAuthoritiesSpecRequest{
+			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
 					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},

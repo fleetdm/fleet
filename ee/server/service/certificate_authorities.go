@@ -396,9 +396,9 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	if !viaGitOps {
-		// TODO(hca): do we need this usage check? unlike other spec endpoints this one will not
-		// support optjson/patch semantics, should we use a different route?
-		return fleet.NewInvalidArgumentError("gitops", "certificate authorities spec can only be applied with gitops")
+		// Note: This check is here primarily for future reference to help make the usage intent
+		// clear and to differentiate behavior from dual-use endpoints that support patch semantics (e.g., app config)
+		return fleet.NewInvalidArgumentError("gitops", "certificate_authorities: batch apply is intended only for use with gitops")
 	}
 
 	ops, err := svc.getCertificateAuthoritiesBatchOperations(ctx, incoming)
@@ -407,13 +407,12 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	}
 
 	if ops == nil {
-		level.Debug(svc.logger).Log("msg", "no certificate authority changes to apply")
+		level.Debug(svc.logger).Log("msg", "batch apply certificate authorities: no certificate authority changes to apply")
 		return nil
 	}
 
 	if dryRun {
-		// TODO(hca): do we need to return something for the client to log?
-		fmt.Println("Dry run: no changes applied")
+		level.Debug(svc.logger).Log("msg", "batch apply certificate authorities: no certificate authority changes to apply")
 		return nil
 	}
 
@@ -538,7 +537,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 }
 
 func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incoming *fleet.NDESSCEPProxyCA, existing *fleet.NDESSCEPProxyCA) error {
-	// // TODO(hca): where are we checking for private key?
+	ndesName := "NDES"
+
 	if existing == nil && incoming == nil {
 		// do nothing
 		level.Debug(svc.logger).Log("msg", "no existing or incoming NDES SCEP CA, skipping")
@@ -556,7 +556,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 		level.Debug(svc.logger).Log("msg", "deleting existing NDES SCEP CA as incoming is empty")
 		batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
+			Name:     &ndesName,
 			AdminURL: &existing.AdminURL,
 			Username: &existing.Username,
 			Password: &existing.Password,
@@ -565,8 +565,6 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	}
 
 	if incoming.Password == "" || incoming.Password == fleet.MaskedPassword {
-		// TODO(hca): confirm this is the desired behavior, prior implementation did not validate
-		// this and it isn't included in the shared validator function
 		return fleet.NewInvalidArgumentError("password", "certificate_authorities.ndes_scep_proxy.password: NDES SCEP password cannot be empty.")
 	}
 
@@ -579,7 +577,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 		level.Debug(svc.logger).Log("msg", "adding new NDES SCEP CA as none exists")
 		batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
-			Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
+			Name:     &ndesName,
 			URL:      &incoming.URL,
 			AdminURL: &incoming.AdminURL,
 			Username: &incoming.Username,
@@ -593,7 +591,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 	incoming.ID = existing.ID
 	batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
-		Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
+		Name:     &ndesName,
 		URL:      &incoming.URL,
 		AdminURL: &incoming.AdminURL,
 		Username: &incoming.Username,
@@ -604,7 +602,6 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.Certifi
 }
 
 func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.DigiCertCA, existingCAs []fleet.DigiCertCA) error {
-	// // TODO(hca): where are we checking for private key?
 	incomingByName := make(map[string]*fleet.DigiCertCA)
 	for _, incoming := range incomingCAs {
 		if incoming.Name == "" {
@@ -781,7 +778,6 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 		return nil
 	}
 
-	// FIXME: Should we have a batch operation for recording activities?
 	for _, ca := range ops.Add {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):

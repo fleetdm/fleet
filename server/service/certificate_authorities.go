@@ -174,32 +174,28 @@ func (svc *Service) RequestCertificate(ctx context.Context, p fleet.RequestCerti
 	return nil, fleet.ErrMissingLicense
 }
 
-type applyCertificateAuthoritiesSpecRequest struct {
+type batchApplyCertificateAuthoritiesRequest struct {
 	CertificateAuthorities fleet.GroupedCertificateAuthorities `json:"certificate_authorities"`
 	DryRun                 bool                                `json:"dry_run"`
-	// ViaGitOps bool                                              `json:"via_git_ops"`
 }
 
 // TODO(hca): do we need to return anything to facilitate logging by the gitops client?
-type applyCertificateAuthoritiesSpecResponse struct {
+type batchApplyCertificateAuthoritiesResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r applyCertificateAuthoritiesSpecResponse) Error() error { return r.Err }
+func (r batchApplyCertificateAuthoritiesResponse) Error() error { return r.Err }
 
-// // TODO(hca): confirm desired status
-// func (r applyCertificateAuthoritiesSpecResponse) Status() int  { return http.StatusNoContent }
-
-func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*applyCertificateAuthoritiesSpecRequest)
+func batchApplyCertificateAuthoritiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchApplyCertificateAuthoritiesRequest)
 
 	// Call the service method to apply the certificate authorities spec
 	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, req.DryRun, true)
 	if err != nil {
-		return &applyCertificateAuthoritiesSpecResponse{Err: err}, nil
+		return &batchApplyCertificateAuthoritiesResponse{Err: err}, nil
 	}
 
-	return &applyCertificateAuthoritiesSpecResponse{}, nil
+	return &batchApplyCertificateAuthoritiesResponse{}, nil
 }
 
 func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
@@ -207,10 +203,6 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return err
 	}
 
-	// TODO(hca): OK to allow free version to include empty certificate authorities as no-op gitops?
-	// Generally we've opted to be permissive in these cases so that downgraded licensees can still
-	// function without errors. If not, it will require more convoluted path for license auth and
-	// client-side validation.
 	if incoming.NDESSCEP == nil && len(incoming.DigiCert) == 0 && len(incoming.CustomScepProxy) == 0 && len(incoming.Hydrant) == 0 {
 		return nil
 	}

@@ -13,8 +13,8 @@ func (c *Client) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Grou
 
 // ApplyCertificateAuthoritiesSpec applies the certificate authorities.
 func (c *Client) ApplyCertificateAuthoritiesSpec(groupedCAs fleet.GroupedCertificateAuthorities, opts fleet.ApplySpecOptions) error {
-	req := applyCertificateAuthoritiesSpecRequest{CertificateAuthorities: groupedCAs, DryRun: opts.DryRun}
+	req := batchApplyCertificateAuthoritiesRequest{CertificateAuthorities: groupedCAs, DryRun: opts.DryRun}
 	verb, path := "POST", "/api/latest/fleet/spec/certificate_authorities"
-	var responseBody applyCertificateAuthoritiesSpecResponse
+	var responseBody batchApplyCertificateAuthoritiesResponse
 	return c.authenticatedRequestWithQuery(req, verb, path, &responseBody, opts.RawQuery())
 }
