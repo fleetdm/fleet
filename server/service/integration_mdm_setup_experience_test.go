@@ -2108,3 +2108,40 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	require.NoError(t, res.Body.Close())
 	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
 }
+
+// TestSetupExperienceEndpointsPlatformIsolation tests that setting the setup experience software items
+// for one platform doesn't remove the items for another platform on the same team.
+func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsPlatformIsolation() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a macOS software to the setup experience on team 1.
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{
+		TeamID:   team1.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
+
+	// Clear all Linux software on the setup experience.
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/linux/software", putSetupExperienceSoftwareRequest{
+		TeamID:   team1.ID,
+		TitleIDs: []uint{},
+	}, http.StatusOK, &swInstallResp)
+
+	// Get setup experience items for macOS should return the one item.
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/macos/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 1)
+}
