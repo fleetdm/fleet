@@ -275,8 +275,8 @@ $shadow-transition-width: 10px;
           }
         }
         .link-cell {
-          padding: $pad-small 0; // larger clickable area
-
+          padding: $pad-small 0 2px 0; // larger clickable area
+          margin-bottom: $pad-small;
           &:hover {
             // Underlines only the text and not the suffix like badges
             .tooltip-truncated-cell {

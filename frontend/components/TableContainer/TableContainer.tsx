@@ -328,7 +328,9 @@ const TableContainer = <T,>({
         >
           <>
             {actionButton.buttonText}
-            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+            {actionButton.iconSvg && (
+              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+            )}
           </>
         </Button>
       );
