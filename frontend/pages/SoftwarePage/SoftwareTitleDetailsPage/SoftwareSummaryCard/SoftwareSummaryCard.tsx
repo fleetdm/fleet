@@ -55,7 +55,11 @@ const SoftwareSummaryCard = ({
 
   const hasEditPermissions =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainerOrTeamAdmin;
-  const canEditIcon = softwareInstaller && teamId && hasEditPermissions;
+  const canEditIcon =
+    softwareInstaller &&
+    typeof teamId === "number" &&
+    teamId >= 0 &&
+    hasEditPermissions;
 
   const [showEditIconModal, setShowEditIconModal] = useState(false);
 
@@ -94,28 +98,31 @@ const SoftwareSummaryCard = ({
           />
         )}
       </Card>
-      {showEditIconModal && teamId && softwareInstaller && (
-        <EditIconModal
-          softwareId={softwareId}
-          teamIdForApi={teamId}
-          software={softwareInstaller}
-          onExit={() => setShowEditIconModal(false)}
-          refetchSoftwareTitle={refetchSoftwareTitle}
-          iconUploadedAt={iconUploadedAt}
-          setIconUploadedAt={setIconUploadedAt}
-          installerType={
-            isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
-          }
-          previewInfo={{
-            name: title.name,
-            type: formatSoftwareType(title),
-            source: title.source,
-            currentIconUrl: title.icon_url,
-            versions: title.versions?.length ?? 0,
-            countsUpdatedAt: title.counts_updated_at,
-          }}
-        />
-      )}
+      {showEditIconModal &&
+        typeof teamId === "number" &&
+        teamId >= 0 &&
+        softwareInstaller && (
+          <EditIconModal
+            softwareId={softwareId}
+            teamIdForApi={teamId}
+            software={softwareInstaller}
+            onExit={() => setShowEditIconModal(false)}
+            refetchSoftwareTitle={refetchSoftwareTitle}
+            iconUploadedAt={iconUploadedAt}
+            setIconUploadedAt={setIconUploadedAt}
+            installerType={
+              isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
+            }
+            previewInfo={{
+              name: title.name,
+              type: formatSoftwareType(title),
+              source: title.source,
+              currentIconUrl: title.icon_url,
+              versions: title.versions?.length ?? 0,
+              countsUpdatedAt: title.counts_updated_at,
+            }}
+          />
+        )}
     </>
   );
 };

@@ -153,6 +153,7 @@ const SoftwareTitleDetailsPage = ({
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
+        iconUrl={title.icon_url}
         addedTimestamp={addedTimestamp}
         status={status}
         isSelfService={isSelfService}

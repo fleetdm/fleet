@@ -7,6 +7,7 @@ import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
 import FileSaver from "file-saver";
 import { ISoftwarePackage } from "interfaces/software";
+import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -23,6 +24,9 @@ const baseClass = "view-yaml-modal";
 
 interface IViewYamlModalProps {
   softwareTitleName: string;
+  softwareTitleId: number;
+  teamId: number;
+  iconUrl?: string | null;
   softwarePackage: ISoftwarePackage;
   onExit: () => void;
 }
@@ -38,6 +42,9 @@ interface HandleDownloadParams {
 
 const ViewYamlModal = ({
   softwareTitleName,
+  softwareTitleId: softwareId,
+  teamId,
+  iconUrl,
   softwarePackage,
   onExit,
 }: IViewYamlModalProps) => {
@@ -53,7 +60,6 @@ const ViewYamlModal = ({
     install_script: installScript,
     post_install_script: postInstallScript,
     uninstall_script: uninstallScript,
-    icon_url: iconUrl,
   } = softwarePackage;
 
   const packageYaml = createPackageYaml({
@@ -66,7 +72,7 @@ const ViewYamlModal = ({
     installScript,
     postInstallScript,
     uninstallScript,
-    iconUrl,
+    iconUrl: iconUrl || null,
   });
 
   // Generic download handler
@@ -147,15 +153,23 @@ const ViewYamlModal = ({
     });
   };
 
-  const onDownloadIcon = (evt: React.MouseEvent) => {
-    handleDownload({
-      evt,
-      downloadUrl: iconUrl || undefined,
-      filename: `${hyphenatedSoftwareTitle}-icon.png`,
-      filetype: "image/png",
-      errorMsg:
-        "Your icon could not be downloaded. Please download the image manually.",
-    });
+  const onDownloadIcon = async (evt: React.MouseEvent) => {
+    evt.preventDefault();
+
+    try {
+      // Get icon blob + create filename
+      const response = await softwareAPI.getSoftwareIcon(softwareId, teamId);
+      // Different from icon's original filename as we are suggesting a standard name used in YAML
+      const filename = `${hyphenatedSoftwareTitle}-icon.png`;
+
+      // Save the file
+      FileSaver.saveAs(response.data, filename);
+    } catch (err) {
+      renderFlash(
+        "error",
+        "Your icon could not be downloaded. Please download the image manually."
+      );
+    }
   };
 
   return (
