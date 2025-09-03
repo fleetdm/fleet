@@ -1097,27 +1097,6 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
 func (r batchScriptExecutionStatusResponse) Error() error  { return r.Err }
 
-// Deprecated summary endpoint, to be removed in favor of the status endpoint
-// once the batch script details page is ready.
-func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
-	req := request.(*batchScriptExecutionSummaryRequest)
-	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
-	if err != nil {
-		return batchScriptExecutionSummaryResponse{Err: err}, nil
-	}
-	return batchScriptExecutionSummaryResponse{
-		ScriptID:    *summary.ScriptID,
-		ScriptName:  summary.ScriptName,
-		TeamID:      summary.TeamID,
-		CreatedAt:   summary.CreatedAt,
-		NumTargeted: summary.NumTargeted,
-		NumPending:  summary.NumPending,
-		NumRan:      summary.NumRan,
-		NumErrored:  summary.NumErrored,
-		NumCanceled: summary.NumCanceled,
-	}, nil
-}
-
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionHostResultsRequest)
 	hosts, meta, count, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID, req.BatchExecutionStatus, req.ListOptions)
@@ -1175,19 +1154,6 @@ func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, 
 			HasPreviousResults: hasPreviousResults,
 		},
 	}, nil
-}
-
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
-	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
-	}
-
-	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
-		return nil, err
-	}
-
-	return summary, nil
 }
 
 type batchScriptCancelRequest struct {
