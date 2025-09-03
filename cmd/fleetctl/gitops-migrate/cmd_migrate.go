@@ -135,7 +135,6 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// - Delete the 'package_path' key.
 		// - If the 'package_path' key is the only key in this 'packages' array
 		// object, drop that array index.
-
 		// NOTE(max): The below works but was de-scoped.
 		//
 		// pkgsWithSetupExp := map[string]struct{}{}
@@ -159,19 +158,15 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		// 							failed += 1
 		// 							continue
 		// 						}
-
 		// 						// Capture the absolute path as a key in our map.
 		// 						pkgsWithSetupExp[pkgPathAbs] = struct{}{}
-
 		// 						// Delete this map key.
 		// 						delete(pkg, keyPackagePath)
-
 		// 						// If 'package_path' was the final map key, delete the entire
 		// 						// slice item.
 		// 						if len(pkg) == 0 {
 		// 							pkgs = slices.Delete(pkgs, i, i+1)
 		// 						}
-
 		// 						// Signal mutation.
 		// 						pkgChangeCount += 1
 		// 					}

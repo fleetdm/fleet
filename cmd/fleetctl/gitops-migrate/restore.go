@@ -144,6 +144,8 @@ func restore(ctx context.Context, from string, to string) error {
 			}
 
 			// Decompress the file to disk.
+			//
+			//nolint:gosec,G110 // Above, the '*os.File' is wrapped in a 'LimitReader'.
 			n, err := io.Copy(decompressed, tr)
 			if err != nil {
 				return fmt.Errorf(
