@@ -305,7 +305,7 @@ func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperi
 
 	hostUUID := fleet.HostUUIDForSetupExperience(host)
 
-	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.Platform, hostUUID, teamID)
+	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, hostUUID, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
 	}

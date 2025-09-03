@@ -2098,7 +2098,12 @@ type Datastore interface {
 	// the initial device setup). It then adds any software and script that have been configured for
 	// this team to the host's queue and sets their status to pending. If any items were enqueued,
 	// it returns true, otherwise it returns false.
-	EnqueueSetupExperienceItems(ctx context.Context, hostPlatform string, hostUUID string, teamID uint) (bool, error)
+	//
+	// It uses hostPlatformLike to cover scenarios where software items are not compatible with the target
+	// platform. E.g. "deb" packages can only be queued for hosts with platform_like = "debian" (Ubuntu, Debian, etc.).
+	// MacOS hosts have hosts.platform_like = 'darwin', Ubuntu and Debian hosts have hosts.platform_like = 'debian'
+	// Fedora hosts have hosts.platform_like = 'rhel'.
+	EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error)
 
 	// GetSetupExperienceScript gets the setup experience script for a team. There can only be 1
 	// setup experience script per team.

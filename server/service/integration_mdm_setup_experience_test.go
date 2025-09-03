@@ -1683,7 +1683,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 	require.NotNil(t, respGetSetupExperience.SoftwareTitles[2].SoftwarePackage.InstallDuringSetup)
 	require.True(t, *respGetSetupExperience.SoftwareTitles[2].SoftwarePackage.InstallDuringSetup)
 
-	createHost := func(hostPlatform string) *fleet.Host {
+	createHost := func(hostPlatform, hostPlatformLike string) *fleet.Host {
 		name := t.Name() + "-" + hostPlatform
 		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
 			DetailUpdatedAt: time.Now(),
@@ -1696,6 +1696,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 			Hostname:        fmt.Sprintf("%s.local", name),
 			HardwareSerial:  uuid.New().String(),
 			Platform:        hostPlatform,
+			PlatformLike:    hostPlatformLike,
 			TeamID:          &team.ID,
 		})
 		require.NoError(t, err)
@@ -1713,8 +1714,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 	})
 	require.NoError(t, err)
 
-	ubuntuHost := createHost("ubuntu")
-	fedoraHost := createHost("rhel")
+	ubuntuHost := createHost("ubuntu", "debian")
+	fedoraHost := createHost("rhel", "rhel")
 
 	t.Run("ubuntu-success", func(t *testing.T) {
 		// Get status of the "Setup experience" for the Ubuntu host (nothing yet).

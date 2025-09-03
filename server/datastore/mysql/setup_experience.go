@@ -13,7 +13,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatform string, hostUUID string, teamID uint) (bool, error) {
+func (ds *Datastore) EnqueueSetupExperienceItems(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
 	stmtClearSetupStatus := `
 DELETE FROM setup_experience_status_results
 WHERE host_uuid = ?`
@@ -49,10 +49,10 @@ AND (
 			si.extension = 'tar.gz'
 			OR
 			(
-				-- deb packages can only be installed on Ubuntu hosts.
-				(si.extension = 'deb' AND ? = 'ubuntu')
+				-- deb packages can only be installed on Debian-based hosts.
+				(si.extension = 'deb' AND ? = 'debian')
 				OR
-				-- rpm packages can only be installed on Fedora hosts.
+				-- rpm packages can only be installed on RHEL-based hosts.
 				(si.extension = 'rpm' AND ? = 'rhel')
 			)
 		)
@@ -101,8 +101,8 @@ WHERE global_or_team_id = ?`
 		}
 
 		// Software installers
-		fleetPlatform := fleet.PlatformFromHost(hostPlatform)
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatform, hostPlatform)
+		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
+		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
 		}
