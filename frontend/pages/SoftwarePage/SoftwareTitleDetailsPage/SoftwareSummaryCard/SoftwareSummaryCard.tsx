@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 import { InjectedRouter } from "react-router";
 
-import software, {
+import {
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
   ISoftwareTitleDetails,
@@ -18,7 +18,6 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
-import { set } from "lodash";
 
 interface ISoftwareSummaryCard {
   title: ISoftwareTitleDetails;

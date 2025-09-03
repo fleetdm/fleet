@@ -389,7 +389,15 @@ export default {
     const path = getPathWithQueryParams(SOFTWARE_ICON(softwareId), {
       team_id: teamId,
     });
-    return sendRequest("GET", path, undefined, "blob");
+    return sendRequest(
+      "GET",
+      path,
+      undefined,
+      "blob",
+      undefined,
+      undefined,
+      true
+    ); // returnRaw is true to get headers
   },
 
   // This API call is for both:

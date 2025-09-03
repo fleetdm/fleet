@@ -171,19 +171,29 @@ const EditIconModal = ({
     !!previewInfo.currentIconUrl &&
     previewInfo.currentIconUrl.startsWith("/api/");
 
-  const { data: customIconBlob } = useQuery<
-    Blob | undefined,
-    AxiosError,
-    string
-  >(
-    ["softwareIcon", softwareId, teamIdForApi],
+  const { data: customIconData } = useQuery(
+    ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
     () => softwareAPI.getSoftwareIcon(softwareId, teamIdForApi),
     {
       enabled: shouldFetchCustomIcon,
       retry: false,
-      select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
+      select: (response) =>
+        response
+          ? {
+              blob: response.data,
+              filename: getFilenameFromContentDisposition(
+                response.headers["content-disposition"]
+              ),
+              url: URL.createObjectURL(response.data),
+            }
+          : "",
     }
   );
+
+  const onExitEditIconModal = () => {
+    resetIconState(); // Ensure cached state is cleared
+    onExit();
+  };
 
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
@@ -234,36 +244,29 @@ const EditIconModal = ({
     if (
       iconState.status === "apiCustom" &&
       shouldFetchCustomIcon &&
-      customIconBlob &&
+      customIconData &&
       !iconState.previewUrl
     ) {
       const img = new Image();
       img.onload = () => {
-        fetch(customIconBlob)
+        fetch(customIconData.url)
           .then((res) => {
-            // TODO: headers is returning null from the BE and needs to be fixed and confirmed this works
-            const header = res.headers.get("Content-Disposition");
-            console.log("response", res);
-            console.log("Content-Disposition header", header);
-            let filename = "icon.png";
-            if (header) {
-              const matchQuoted = header.match(/filename=["']?([^"';]+)["']?/);
-              if (matchQuoted) filename = matchQuoted[1];
-            }
+            const filename = customIconData.filename || "icon.png";
+
             return res.blob().then((blob) => ({ blob, filename }));
           })
           .then(({ blob, filename }) => {
             setCurrentApiCustomIcon(
               new File([blob], filename, { type: "image/png" }),
               img.width,
-              customIconBlob
+              customIconData.url
             );
           });
       };
-      img.src = customIconBlob;
+      img.src = customIconData.url;
     }
   }, [
-    customIconBlob,
+    customIconData,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
@@ -473,7 +476,7 @@ const EditIconModal = ({
       }
       refetchSoftwareTitle();
       setIconUploadedAt(new Date().toISOString());
-      onExit();
+      onExitEditIconModal();
     } catch (e) {
       renderFlash("error", DEFAULT_ERROR_MESSAGE);
     } finally {
@@ -485,7 +488,7 @@ const EditIconModal = ({
     <Modal
       className={baseClass}
       title={isSoftwarePackage ? "Edit package" : "Edit app"}
-      onExit={onExit}
+      onExit={onExitEditIconModal}
     >
       <>
         {renderForm()}
