@@ -816,11 +816,11 @@ const androidApplicableProfilesQuery = `
 // for more details on the rationale of that approach.
 //
 // It returns the list of applicable profiles for hosts that need to be sent,
-// and a list of host UUIDs that have no applicable profiles (for which an
-// "empty" policy must be applied to remove any previously applied profile).
-func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []string, error) {
-	var result []*fleet.MDMAndroidProfilePayload
-	var hostUUIDsWithoutProfiles []string
+// and the list of previously-applied profiles for hosts that have no
+// applicable profiles but for which an "empty" policy must be applied to
+// remove any previously applied profile.
+func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
+	var toApplyProfiles, toRemoveProfiles []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		hostsWithChangesStmt := fmt.Sprintf(`
 	WITH ds AS ( %s )
@@ -896,22 +896,44 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building list android host applicable profiles query")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &result, query, args...); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &toApplyProfiles, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android host applicable profiles")
 		}
 
-		hostUUIDsWithProfiles := make(map[string]struct{}, len(result))
-		for _, r := range result {
+		hostUUIDsWithProfiles := make(map[string]struct{}, len(toApplyProfiles))
+		for _, r := range toApplyProfiles {
 			hostUUIDsWithProfiles[r.HostUUID] = struct{}{}
 		}
+		var hostUUIDsWithoutProfiles []string
 		for _, hostUUID := range hostUUIDs {
 			if _, ok := hostUUIDsWithProfiles[hostUUID]; !ok {
 				hostUUIDsWithoutProfiles = append(hostUUIDsWithoutProfiles, hostUUID)
 			}
 		}
+
+		if len(hostUUIDsWithoutProfiles) > 0 {
+			listToRemoveProfilesStmt := `
+			SELECT
+				hmap.profile_uuid,
+				hmap.profile_name,
+				hmap.host_uuid,
+				hmap.request_fail_count
+			FROM host_mdm_android_profiles hmap
+			WHERE
+				hmap.host_uuid IN (?)`
+
+			query, args, err := sqlx.In(listToRemoveProfilesStmt, hostUUIDsWithoutProfiles)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "building list android host to remove profiles query")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &toRemoveProfiles, query, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "list android host to remove profiles")
+			}
+		}
+
 		return nil
 	})
-	return result, hostUUIDsWithoutProfiles, err
+	return toApplyProfiles, toRemoveProfiles, err
 }
 
 func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {

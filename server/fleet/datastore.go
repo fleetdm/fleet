@@ -2234,9 +2234,9 @@ type Datastore interface {
 
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. If a host needs to have
-	// the policy applied but has no applicable profile, it is included in the second
-	// return value (list of host UUIDs with no applicable profile).
-	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []string, error)
+	// the policy applied but has no applicable profile (due to previously-applied profiles
+	// needing to be removed), it is included in the second return value.
+	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.

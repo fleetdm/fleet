@@ -36,6 +36,9 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	// get the list of hosts that need to have their profiles applied
+	// TODO(ap): for hosts without profiles, we need the exact profiles to remove, as we
+	// will have to update the host_mdm_android_profiles table to set operation remove and
+	// status pending, until the pub-sub status report that will delete the row.
 	hostsApplicableProfiles, hostsWithoutProfiles, err := ds.ListMDMAndroidProfilesToSend(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "identify android profiles to send")
