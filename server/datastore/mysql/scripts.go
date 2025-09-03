@@ -2219,7 +2219,7 @@ SELECT
 	COUNT(bsehr.error) as num_did_not_run,
 	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
 	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
-	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
+	COUNT(CASE WHEN ((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bsehr.error is NULL AND ba.canceled = 1)) THEN 1 END) as num_cancelled
 FROM
   batch_activities ba
 LEFT JOIN batch_activity_host_results bsehr
