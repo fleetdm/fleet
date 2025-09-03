@@ -1215,14 +1215,17 @@ func (ds *Datastore) applyHostFilters(
 			batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
 			switch opt.BatchScriptExecutionStatusFilter {
 			case fleet.BatchScriptExecutionRan:
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0`
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code = 0 AND hsr.canceled = 0`
 			case fleet.BatchScriptExecutionPending:
 				// Pending can mean "waiting for execution" or "waiting for results".
-				batchScriptExecutionJoin += ` LEFT JOIN upcoming_activities ua ON ua.execution_id = bsehr.host_execution_id`
-				batchScriptExecutionIDFilter += ` AND ((ua.execution_id IS NOT NULL) OR (hsr.host_id is NOT NULL AND hsr.exit_code IS NULL AND hsr.canceled = 0 AND bsehr.error IS NULL))`
+				// hsr.exit_code IS NULL <- this means the script has not reported back
+				// (hsr.canceled IS NULL OR hsr.canceled = 0) <- this can mean the script is running, or that it hasn't been activated yet,
+				//                      but either way we haven't canceled it.
+				// bsehr.error IS NULL <- this means the batch script framework didn't mark this host as incompatible
+				//                        with this script run.
+				batchScriptExecutionIDFilter += ` AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)`
 			case fleet.BatchScriptExecutionErrored:
-				// TODO - remove exit code condition when we split up "errored" and "failed"
-				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0`
+				batchScriptExecutionIDFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
 			case fleet.BatchScriptExecutionIncompatible:
 				batchScriptExecutionIDFilter += ` AND bsehr.error IS NOT NULL`
 			case fleet.BatchScriptExecutionCanceled:

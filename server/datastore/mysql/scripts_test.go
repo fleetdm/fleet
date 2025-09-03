@@ -1853,7 +1853,8 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	// The summary should have two pending hosts and two errored ones, because
 	// the script is not compatible with the hostNoScripts and hostWindows.
 	require.Equal(t, *summary.NumPending, uint(3))
-	require.Equal(t, *summary.NumErrored, uint(2))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(0))
 	require.Equal(t, *summary.NumRan, uint(0))
 	require.Equal(t, *summary.NumCanceled, uint(0))
 	// Host 1 should have an upcoming execution
@@ -1910,7 +1911,8 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// The summary should have one pending host, one run host and two errored ones.
 	require.Equal(t, *summary.NumPending, uint(2))
-	require.Equal(t, *summary.NumErrored, uint(2))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(0))
 
@@ -1928,7 +1930,8 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// The summary should have one pending host, one run host and two errored ones.
 	require.Equal(t, *summary.NumPending, uint(1))
-	require.Equal(t, *summary.NumErrored, uint(3))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(0))
 
@@ -1940,7 +1943,8 @@ func testBatchExecute(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
 	require.Equal(t, *summary.NumPending, uint(0))
-	require.Equal(t, *summary.NumErrored, uint(3))
+	require.Equal(t, *summary.NumErrored, uint(1))
+	require.Equal(t, *summary.NumIncompatible, uint(2))
 	require.Equal(t, *summary.NumRan, uint(1))
 	require.Equal(t, *summary.NumCanceled, uint(1))
 }
