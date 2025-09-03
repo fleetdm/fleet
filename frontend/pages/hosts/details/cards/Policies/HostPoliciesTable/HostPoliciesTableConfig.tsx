@@ -65,10 +65,7 @@ const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
-const generatePolicyTableHeaders = (
-  togglePolicyDetails: (policy: IHostPolicy, teamId?: number) => void,
-  currentTeamId?: number
-): IDataColumn[] => {
+const generatePolicyTableHeaders = (currentTeamId?: number): IDataColumn[] => {
   return [
     {
       title: "Name",

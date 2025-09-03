@@ -177,6 +177,23 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 }
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
+	if teamID == 0 {
+		// Return "No Team" configuration with webhook settings
+		return &fleet.Team{
+			ID:   0,
+			Name: "No team",
+			Config: fleet.TeamConfig{
+				WebhookSettings: fleet.TeamWebhookSettings{
+					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-webhook",
+						PolicyIDs:      []uint{1, 2, 3},
+						HostBatchSize:  100,
+					},
+				},
+			},
+		}, nil
+	}
 	if teamID == 1 {
 		b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 		if err != nil {

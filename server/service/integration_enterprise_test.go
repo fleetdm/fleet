@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -2345,6 +2346,231 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	}`), http.StatusOK, &appCfgResp)
 	require.Len(t, appCfgResp.Integrations.Jira, 0)
 	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
+}
+
+func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
+	t := s.T()
+
+	// Test that we can configure webhooks for "No Team" (team ID 0)
+	// Use a generic response that will work with DefaultTeam
+	var defaultTeamResp struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}
+
+	// First clear any existing webhook configuration for "No Team"
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+
+	// Get the default team config (team ID 0) - should be disabled now
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+
+	// Configure webhook settings for "No Team"
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/no-team-webhook",
+			PolicyIDs:      []uint{1, 2, 3},
+			HostBatchSize:  100,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Get the config again to verify it persisted
+	defaultTeamResp = struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Update the webhook settings
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         false,
+			DestinationURL: "https://example.com/updated",
+			PolicyIDs:      []uint{4, 5},
+			HostBatchSize:  200,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/updated", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{4, 5}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 200, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Clear the webhook settings
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+}
+
+func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Track webhook calls
+	webhookCalled := false
+	var capturedPolicy *fleet.Policy
+
+	// Create a host without a team (team_id = nil means no team)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("no-team-host-key"),
+		UUID:            "no-team-host-uuid",
+		Hostname:        "no-team-host",
+		PrimaryIP:       "192.168.1.100",
+		PrimaryMac:      "00:11:22:33:44:55",
+		Platform:        "ubuntu",
+		OSVersion:       "Ubuntu 20.04",
+		Build:           "",
+		PlatformLike:    "debian",
+		OsqueryVersion:  "5.5.0",
+		TeamID:          nil, // nil means "No Team"
+	})
+	require.NoError(t, err)
+	require.Nil(t, host.TeamID)
+
+	// Create "No Team" policies (team_id = 0)
+	noTeamPol1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:        "no-team-failing-policy-1",
+		Query:       "SELECT 1 WHERE 0", // Will always fail
+		Description: "Policy 1 for hosts without a team",
+		Resolution:  "Fix policy 1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, noTeamPol1.TeamID)
+	require.Equal(t, uint(0), *noTeamPol1.TeamID)
+
+	noTeamPol2, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:        "no-team-failing-policy-2",
+		Query:       "SELECT 1 WHERE 0", // Will also fail
+		Description: "Policy 2 for hosts without a team",
+		Resolution:  "Fix policy 2",
+	})
+	require.NoError(t, err)
+
+	noTeamPol3, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:  "no-team-failing-policy-3",
+		Query: "SELECT 1 WHERE 0", // Will also fail (not in webhook config)
+	})
+	require.NoError(t, err)
+
+	// Configure webhook for "No Team" - only include pol1 and pol2
+	var defaultTeamResp struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/webhook",
+			PolicyIDs:      []uint{noTeamPol1.ID, noTeamPol2.ID}, // pol3 is NOT included
+			HostBatchSize:  100,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+
+	// Record policy results - all fail
+	err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		noTeamPol1.ID: ptr.Bool(false), // Fails and is in webhook config
+		noTeamPol2.ID: ptr.Bool(false), // Fails and is in webhook config
+		noTeamPol3.ID: ptr.Bool(false), // Fails but NOT in webhook config
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Initially, OutdatedAutomationBatch should be empty (policies haven't been triggered for automation yet)
+	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Empty(t, pfs, "initially no policies should be marked for automation")
+
+	// Reset with empty arrays - should not mark any policies
+	var resetResp struct{}
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{},
+	}, http.StatusOK, &resetResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Empty(t, pfs, "empty reset should not mark any policies")
+
+	// Test that we can configure and retrieve the "No Team" webhook settings
+	defaultTeamResp = struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{noTeamPol1.ID, noTeamPol2.ID}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
+	// Now reset by team ID 0 to mark policies for automation
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   []uint{0}, // Team ID 0 for "No Team"
+		PolicyIDs: nil,
+	}, http.StatusOK, &resetResp)
+
+	// After reset, policies should be marked for automation
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Len(t, pfs, 2, "should have 2 policies marked for automation (pol1 and pol2, not pol3)")
+
+	// Create a failing policy set and trigger the webhook
+	failingPolicySet := NewMemFailingPolicySet()
+	for _, pf := range pfs {
+		err = failingPolicySet.AddHost(pf.PolicyID, pf.Host)
+		require.NoError(t, err)
+	}
+
+	// Trigger the webhook automation with a custom sendFunc that captures the call
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+			webhookCalled = true
+			capturedPolicy = pol
+			// Verify the config is correct
+			require.NotNil(t, cfg.WebhookURL)
+			require.Equal(t, "https://example.com/webhook", cfg.WebhookURL.String())
+			require.Equal(t, 100, cfg.HostBatchSize)
+			return nil
+		}, false)
+	require.NoError(t, err)
+
+	// Verify the webhook was called
+	require.True(t, webhookCalled, "webhook should have been called for No Team failing policy")
+
+	// Verify the captured policy is one of the configured policies
+	require.NotNil(t, capturedPolicy)
+	require.Contains(t, []string{"no-team-failing-policy-1", "no-team-failing-policy-2"}, capturedPolicy.Name)
+
+	// Verify the policy has team_id = 0 for "No Team"
+	require.NotNil(t, capturedPolicy.TeamID)
+	require.Equal(t, uint(0), *capturedPolicy.TeamID, "team_id should be 0 for No Team")
+
+	// Verify the failing policy set has the correct host
+	hosts, err := failingPolicySet.ListHosts(capturedPolicy.ID)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "should have one host")
+	require.Equal(t, "no-team-host", hosts[0].Hostname)
 }
 
 func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {

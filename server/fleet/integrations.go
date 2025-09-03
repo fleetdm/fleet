@@ -23,6 +23,44 @@ type TeamIntegrations struct {
 	ConditionalAccessEnabled optjson.Bool `json:"conditional_access_enabled,omitempty"`
 }
 
+// Copy returns a deep copy of TeamIntegrations
+func (ti TeamIntegrations) Copy() TeamIntegrations {
+	var result TeamIntegrations
+
+	// Deep copy Jira integrations
+	if ti.Jira != nil {
+		result.Jira = make([]*TeamJiraIntegration, len(ti.Jira))
+		for i, j := range ti.Jira {
+			if j != nil {
+				jiraCopy := *j
+				result.Jira[i] = &jiraCopy
+			}
+		}
+	}
+
+	// Deep copy Zendesk integrations
+	if ti.Zendesk != nil {
+		result.Zendesk = make([]*TeamZendeskIntegration, len(ti.Zendesk))
+		for i, z := range ti.Zendesk {
+			if z != nil {
+				zendeskCopy := *z
+				result.Zendesk[i] = &zendeskCopy
+			}
+		}
+	}
+
+	// Deep copy Google Calendar integration
+	if ti.GoogleCalendar != nil {
+		gcalCopy := *ti.GoogleCalendar
+		result.GoogleCalendar = &gcalCopy
+	}
+
+	// Copy ConditionalAccessEnabled
+	result.ConditionalAccessEnabled = ti.ConditionalAccessEnabled
+
+	return result
+}
+
 // MatchWithIntegrations matches the team integrations to their corresponding
 // global integrations found in globalIntgs, returning the resulting
 // integrations struct. It returns an error if any team integration does not
