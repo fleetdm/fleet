@@ -1389,6 +1389,7 @@ This activity contains the following fields:
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_display_name": "Crowdstrike Falcon",
   "labels_include_any": [
     {
       "name": "Engineering",
