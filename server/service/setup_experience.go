@@ -21,6 +21,10 @@ type putSetupExperienceSoftwareRequest struct {
 	TitleIDs []uint `json:"software_title_ids"`
 }
 
+func (r *putSetupExperienceSoftwareRequest) ValidateRequest() error {
+	return validateSetupExperiencePlatform(r.Platform)
+}
+
 type putSetupExperienceSoftwareResponse struct {
 	Err error `json:"error,omitempty"`
 }
@@ -29,17 +33,11 @@ func (r putSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func putSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*putSetupExperienceSoftwareRequest)
-
-	platform := req.Platform
-	if platform == "" || platform == "macos" {
-		platform = "darwin"
-	}
-
+	platform := transformPlatformForSetupExperience(req.Platform)
 	err := svc.SetSetupExperienceSoftware(ctx, platform, req.TeamID, req.TitleIDs)
 	if err != nil {
 		return &putSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-
 	return &putSetupExperienceSoftwareResponse{}, nil
 }
 
@@ -57,6 +55,10 @@ type getSetupExperienceSoftwareRequest struct {
 	TeamID uint `query:"team_id"`
 }
 
+func (r *getSetupExperienceSoftwareRequest) ValidateRequest() error {
+	return validateSetupExperiencePlatform(r.Platform)
+}
+
 type getSetupExperienceSoftwareResponse struct {
 	SoftwareTitles []fleet.SoftwareTitleListResult `json:"software_titles"`
 	Count          int                             `json:"count"`
@@ -68,17 +70,11 @@ func (r getSetupExperienceSoftwareResponse) Error() error { return r.Err }
 
 func getSetupExperienceSoftware(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*getSetupExperienceSoftwareRequest)
-
-	platform := req.Platform
-	if platform == "" || platform == "macos" {
-		platform = "darwin"
-	}
-
+	platform := transformPlatformForSetupExperience(req.Platform)
 	titles, count, meta, err := svc.ListSetupExperienceSoftware(ctx, platform, req.TeamID, req.ListOptions)
 	if err != nil {
 		return &getSetupExperienceSoftwareResponse{Err: err}, nil
 	}
-
 	return &getSetupExperienceSoftwareResponse{SoftwareTitles: titles, Count: count, Meta: meta}, nil
 }
 
@@ -206,8 +202,6 @@ type deleteSetupExperienceScriptResponse struct {
 
 func (r deleteSetupExperienceScriptResponse) Error() error { return r.Err }
 
-// func (r deleteSetupExperienceScriptResponse) Status() int  { return http.StatusNoContent }
-
 func deleteSetupExperienceScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*deleteSetupExperienceScriptRequest)
 	// // TODO: do we want to allow end users to specify team_id=0? if so, we'll need convert it to nil here so that we can
@@ -276,4 +270,18 @@ func maybeUpdateSetupExperienceStatus(ctx context.Context, ds fleet.Datastore, r
 	default:
 		return false, fmt.Errorf("unsupported result type: %T", result)
 	}
+}
+
+func validateSetupExperiencePlatform(platform string) error {
+	if platform != "" && platform != "macos" && platform != "linux" {
+		return badRequestf("platform %q unsupported, platform must be \"linux\" or \"macos\"", platform)
+	}
+	return nil
+}
+
+func transformPlatformForSetupExperience(platform string) string {
+	if platform == "" || platform == "macos" {
+		return "darwin"
+	}
+	return platform
 }

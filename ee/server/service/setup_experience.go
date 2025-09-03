@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -18,13 +17,6 @@ import (
 func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	if err := svc.authz.Authorize(ctx, &fleet.SoftwareInstaller{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return err
-	}
-
-	if platform != "darwin" && platform != "linux" {
-		return ctxerr.Wrap(ctx,
-			badRequestf("platform %q unsupported, platform must be \"linux\" or \"darwin\"", platform),
-			"invalid platform",
-		)
 	}
 
 	var teamName string
@@ -64,25 +56,12 @@ func (svc *Service) ListSetupExperienceSoftware(ctx context.Context, platform st
 		return nil, 0, nil, err
 	}
 
-	if platform != "darwin" && platform != "linux" {
-		return nil, 0, nil, ctxerr.Wrap(ctx,
-			badRequestf("platform %q unsupported, platform must be \"linux\" or \"darwin\"", platform),
-			"invalid platform",
-		)
-	}
-
 	titles, count, meta, err := svc.ds.ListSetupExperienceSoftwareTitles(ctx, platform, teamID, opts)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "retrieving list of software setup experience titles")
 	}
 
 	return titles, count, meta, nil
-}
-
-func badRequestf(format string, a ...any) error {
-	return &fleet.BadRequestError{
-		Message: fmt.Sprintf(format, a...),
-	}
 }
 
 func (svc *Service) GetSetupExperienceScript(ctx context.Context, teamID *uint, withContent bool) (*fleet.Script, []byte, error) {

@@ -2061,3 +2061,43 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
 	})
 }
+
+func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
+	t := s.T()
+	ctx := context.Background()
+
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a macOS software to the setup experience on team 1.
+	payloadDummy := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install",
+		Filename:      "dummy_installer.pkg",
+		Title:         "DummyApp",
+		TeamID:        &team1.ID,
+	}
+	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
+	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
+
+	// Get "Setup experience" items using platform and the endpoint without platform that we cannot remove (for backwards compatibility).
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	noPlatformTitles := respGetSetupExperience.SoftwareTitles
+	require.Len(t, noPlatformTitles, 1)
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/macos/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	macOSPlatformTitles := respGetSetupExperience.SoftwareTitles
+	require.Equal(t, macOSPlatformTitles, noPlatformTitles)
+
+	// Test invalid platform in GET and PUT.
+	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/foobar/software", []byte(`{"team_id": 0}`), http.StatusBadRequest, nil)
+	errMsg := extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
+	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/foobar/software?team_id=0", nil, http.StatusBadRequest, nil)
+	errMsg = extractServerErrorText(res.Body)
+	require.NoError(t, res.Body.Close())
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
+}
