@@ -60,6 +60,7 @@ import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import AutoEnrollMdmModal from "./AutoEnrollMdmModal";
 import ManualEnrollMdmModal from "./ManualEnrollMdmModal";
+import BitLockerPinModal from "./BitLockerPinModal";
 import CreateLinuxKeyModal from "./CreateLinuxKeyModal";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "../HostDetailsPage/modals/BootstrapPackageModal";
@@ -620,53 +621,9 @@ const DeviceUserPage = ({
                 />
               ))}
             {showBitLockerPINModal && (
-              <Modal
-                title="Create PIN"
-                onExit={() => setShowBitLockerPINModal(false)}
-                onEnter={() => setShowBitLockerPINModal(false)}
-                className={baseClass}
-                width="large"
-              >
-                <>
-                  <div>
-                    <p>
-                      <ol>
-                        <li>
-                          <p>
-                            Open the <b>Start menu</b>.
-                          </p>
-                        </li>
-                        <li>
-                          <p>Type &ldquo;Manage BitLocker&rdquo; and launch.</p>
-                        </li>
-                        <li>
-                          <p>
-                            Choose <b>Enter a PIN (recommended)</b> and follow
-                            the prompts to create a PIN. If you don&apos;t see
-                            this option, wait 1 minute and refresh the{" "}
-                            <b>BitLocker Drive Encryption</b> window.
-                          </p>
-                        </li>
-                        <li>
-                          <p>
-                            Close this window and select <b>Refetch</b> on your{" "}
-                            <b>My device</b> page. This informs your
-                            organization that you have set a BitLocker PIN.
-                          </p>
-                        </li>
-                      </ol>
-                    </p>
-                  </div>
-                  <div className="modal-cta-wrap">
-                    <Button
-                      type="button"
-                      onClick={() => setShowBitLockerPINModal(false)}
-                    >
-                      Done
-                    </Button>
-                  </div>
-                </>
-              </Modal>
+              <BitLockerPinModal
+                onCancel={() => setShowBitLockerPINModal(false)}
+              />
             )}
           </div>
         )}
