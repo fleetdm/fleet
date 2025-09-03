@@ -184,42 +184,100 @@ func (ds *Datastore) GetGroupedCertificateAuthorities(ctx context.Context, inclu
 
 // Create CA. MUST include secrets
 func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.CertificateAuthority) (*fleet.CertificateAuthority, error) {
+	args, placeholders, err := sqlGenerateArgsForInsertCertificateAuthority(ctx, ds.serverPrivateKey, ca)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(sqlInsertCertificateAuthority, placeholders), args...)
+	if err != nil {
+		if strings.Contains(err.Error(), "idx_ca_type_name") {
+			return nil, fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+		}
+		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
+	}
+	id, err := result.LastInsertId()
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+	}
+	ca.ID = uint(id) //nolint:gosec // dismiss G115
+	return ca, nil
+}
+
+const argsCountInsertCertificateAuthority = 14
+
+const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
+	type,
+	name,
+	url,
+	api_token_encrypted,
+	profile_id,
+	certificate_common_name,
+	certificate_user_principal_names,
+	certificate_seat_id,
+	admin_url,
+	username,
+	password_encrypted,
+	challenge_encrypted,
+	client_id,
+	client_secret_encrypted
+) VALUES %s`
+
+const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLICATE KEY UPDATE
+	type = VALUES(type),
+	name = VALUES(name),
+	url = VALUES(url),
+	api_token_encrypted = VALUES(api_token_encrypted),
+	profile_id = VALUES(profile_id),
+	certificate_common_name = VALUES(certificate_common_name),
+	certificate_user_principal_names = VALUES(certificate_user_principal_names),
+	certificate_seat_id = VALUES(certificate_seat_id),
+	admin_url = VALUES(admin_url),
+	username = VALUES(username),
+	password_encrypted = VALUES(password_encrypted),
+	challenge_encrypted = VALUES(challenge_encrypted),
+	client_id = VALUES(client_id),
+	client_secret_encrypted = VALUES(client_secret_encrypted)`
+
+func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPrivateKey string, ca *fleet.CertificateAuthority) ([]interface{}, string, error) {
 	var upns []byte
 	var encryptedPassword []byte
 	var encryptedChallenge []byte
 	var encryptedAPIToken []byte
 	var encryptedClientSecret []byte
 	var err error
+
 	if ca.CertificateUserPrincipalNames != nil {
 		upns, err = json.Marshal(*ca.CertificateUserPrincipalNames)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "marshalling certificate user principal names for new certificate authority")
 		}
 	}
 	if ca.APIToken != nil {
-		encryptedAPIToken, err = encrypt([]byte(*ca.APIToken), ds.serverPrivateKey)
+		encryptedAPIToken, err = encrypt([]byte(*ca.APIToken), serverPrivateKey)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting API token for new certificate authority")
 		}
 	}
 	if ca.Password != nil {
-		encryptedPassword, err = encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+		encryptedPassword, err = encrypt([]byte(*ca.Password), serverPrivateKey)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
 		}
 	}
 	if ca.Challenge != nil {
-		encryptedChallenge, err = encrypt([]byte(*ca.Challenge), ds.serverPrivateKey)
+		encryptedChallenge, err = encrypt([]byte(*ca.Challenge), serverPrivateKey)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting challenge for new certificate authority")
 		}
 	}
 	if ca.ClientSecret != nil {
-		encryptedClientSecret, err = encrypt([]byte(*ca.ClientSecret), ds.serverPrivateKey)
+		encryptedClientSecret, err = encrypt([]byte(*ca.ClientSecret), serverPrivateKey)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
+			return nil, "", ctxerr.Wrap(ctx, err, "encrypting client secret for new certificate authority")
 		}
 	}
+
 	args := []interface{}{
 		ca.Type,
 		ca.Name,
@@ -236,35 +294,76 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 		ca.ClientID,
 		encryptedClientSecret,
 	}
-	stmt := `INSERT INTO certificate_authorities (
-	type,
-	name,
-	url,
-	api_token_encrypted,
-	profile_id,
-	certificate_common_name,
-	certificate_user_principal_names,
-	certificate_seat_id,
-	admin_url,
-	username,
-	password_encrypted,
-	challenge_encrypted,
-	client_id,
-	client_secret_encrypted
-	) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	result, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
-	if err != nil {
-		if strings.Contains(err.Error(), "idx_ca_type_name") {
-			return nil, fleet.ConflictError{Message: "a certificate authority with this name already exists"}
+	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+
+	return args, placeholders, nil
+}
+
+func batchUpsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, serverPrivateKey string, certificateAuthorities []*fleet.CertificateAuthority) error {
+	if len(certificateAuthorities) == 0 {
+		return nil
+	}
+
+	var placeholders strings.Builder
+	args := make([]interface{}, 0, len(certificateAuthorities)*argsCountInsertCertificateAuthority)
+
+	for _, ca := range certificateAuthorities {
+		a, p, err := sqlGenerateArgsForInsertCertificateAuthority(ctx, serverPrivateKey, ca)
+		if err != nil {
+			return err
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting new certificate authority")
+		args = append(args, a...)
+		placeholders.WriteString(fmt.Sprintf("%s,", p))
 	}
-	id, err := result.LastInsertId()
+
+	stmt := fmt.Sprintf(sqlUpsertCertificateAuthority, strings.TrimSuffix(placeholders.String(), ","))
+
+	// TODO(hca): with retry?
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting certificate authorities")
+	}
+
+	return nil
+}
+
+func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, certificateAuthorities []*fleet.CertificateAuthority) error {
+	if len(certificateAuthorities) == 0 {
+		return nil
+	}
+
+	stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (%s)`
+	args := make([]interface{}, 0, len(certificateAuthorities)*2)
+	var placeholders strings.Builder
+	for _, ca := range certificateAuthorities {
+		args = append(args, ca.Name, ca.Type)
+		placeholders.WriteString("(?, ?),")
+	}
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
+
+	// TODO(hca): with retry?
+	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting last insert ID for new certificate authority")
+		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
 	}
-	ca.ID = uint(id) //nolint:gosec // dismiss G115
-	return ca, nil
+
+	return nil
+}
+
+func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations,
+) error {
+	upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+	upserts = append(upserts, ops.Add...)
+	upserts = append(upserts, ops.Update...)
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
+			return err
+		}
+		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*fleet.CertificateAuthoritySummary, error) {

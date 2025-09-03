@@ -624,9 +624,10 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-	if c.Integrations.NDESSCEPProxy.Valid {
-		c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
-	}
+	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
+	// if c.Integrations.NDESSCEPProxy.Valid {
+	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
+	// }
 }
 
 // Clone implements cloner.
@@ -713,16 +714,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
-	if len(c.Integrations.DigiCert.Value) > 0 {
-		digicert := make([]DigiCertCA, len(c.Integrations.DigiCert.Value))
-		copy(digicert, c.Integrations.DigiCert.Value)
-		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
-	}
-	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
-		customSCEP := make([]CustomSCEPProxyCA, len(c.Integrations.CustomSCEPProxy.Value))
-		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
-		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
-	}
+	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
+	// if len(c.Integrations.DigiCert.Value) > 0 {
+	// 	digicert := make([]DigiCertCA, len(c.Integrations.DigiCert.Value))
+	// 	copy(digicert, c.Integrations.DigiCert.Value)
+	// 	clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	// }
+	// if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+	// 	customSCEP := make([]CustomSCEPProxyCA, len(c.Integrations.CustomSCEPProxy.Value))
+	// 	copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	// }
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))

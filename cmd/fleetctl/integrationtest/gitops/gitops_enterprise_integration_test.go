@@ -511,7 +511,7 @@ org_settings:
   org_info:
     org_name: Fleet
   secrets:
-  integrations:
+  certificate_authorities:
     digicert:
       - name: DigiCert
         url: %s
@@ -536,11 +536,12 @@ queries:
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
 
-	appConfig, err := s.DS.AppConfig(context.Background())
+	groupedCAs, err := s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
 	require.NoError(t, err)
-	require.True(t, appConfig.Integrations.DigiCert.Valid)
-	require.Len(t, appConfig.Integrations.DigiCert.Value, 1)
-	digicertCA := appConfig.Integrations.DigiCert.Value[0]
+
+	// check digicert
+	require.Len(t, groupedCAs.DigiCert, 1)
+	digicertCA := groupedCAs.DigiCert[0]
 	require.Equal(t, "DigiCert", digicertCA.Name)
 	require.Equal(t, digiCertServer.URL, digicertCA.URL)
 	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
@@ -552,9 +553,9 @@ queries:
 	require.True(t, gotProfile)
 	gotProfileMu.Unlock()
 
-	require.True(t, appConfig.Integrations.CustomSCEPProxy.Valid)
-	require.Len(t, appConfig.Integrations.CustomSCEPProxy.Value, 1)
-	customSCEPProxyCA := appConfig.Integrations.CustomSCEPProxy.Value[0]
+	// check custom SCEP proxy
+	require.Len(t, groupedCAs.CustomScepProxy, 1)
+	customSCEPProxyCA := groupedCAs.CustomScepProxy[0]
 	require.Equal(t, "CustomScepProxy", customSCEPProxyCA.Name)
 	require.Equal(t, scepServer.URL+"/scep", customSCEPProxyCA.URL)
 	require.Equal(t, fleet.MaskedPassword, customSCEPProxyCA.Challenge)
@@ -582,10 +583,11 @@ queries:
 
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
-	appConfig, err = s.DS.AppConfig(context.Background())
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), true)
 	require.NoError(t, err)
-	assert.Empty(t, appConfig.Integrations.DigiCert.Value)
-	assert.Empty(t, appConfig.Integrations.CustomSCEPProxy.Value)
+	assert.Empty(t, groupedCAs.DigiCert)
+	assert.Empty(t, groupedCAs.CustomScepProxy)
 }
 
 // TestUnsetConfigurationProfileLabels tests the removal of labels associated with a
