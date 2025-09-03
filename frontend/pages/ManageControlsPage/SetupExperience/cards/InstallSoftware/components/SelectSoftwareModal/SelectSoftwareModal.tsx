@@ -55,6 +55,7 @@ const SelectSoftwareModal = ({
     setIsSaving(true);
     try {
       await mdmAPI.updateSetupExperienceSoftware(
+        platform,
         currentTeamId,
         selectedSoftwareIds
       );

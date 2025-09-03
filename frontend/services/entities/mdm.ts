@@ -375,16 +375,17 @@ const mdmService = {
   },
 
   updateSetupExperienceSoftware: (
+    platform: SetupExperiencePlatform,
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        team_id: teamId,
-      }
-    )}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
+      platform
+    )}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
 
     return sendRequest("PUT", path, {
       team_id: teamId,
