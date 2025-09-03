@@ -30,7 +30,7 @@ const baseClass = "edit-icon-modal";
 const ACCEPTED_EXTENSIONS = ".png";
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
-const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION.toString()}x${MIN_DIMENSION.toString()} px to ${MAX_DIMENSION.toString()}x${MAX_DIMENSION.toString()} px.`;
+const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION}x${MIN_DIMENSION} px to ${MAX_DIMENSION}x${MAX_DIMENSION} px.`;
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
 
 const getFilenameFromContentDisposition = (header: string | null) => {
@@ -44,19 +44,63 @@ const getFilenameFromContentDisposition = (header: string | null) => {
   }
   // Then standard quoted (or unquoted) filename param
   const matchStandard = header.match(/filename\s*=\s*["']?([^"';]+)["']?/);
-  if (matchStandard) return matchStandard[1];
-  return null;
+  return matchStandard ? matchStandard[1] : null;
 };
+
+const makeFileDetails = (
+  file: File,
+  dimensions: number | null
+): IFileDetails => ({
+  name: file.name,
+  description: `Software icon • ${dimensions || "?"}x${dimensions || "?"} px`,
+});
 
 interface IIconFormData {
   icon: File;
 }
+interface IFileDetails {
+  name: string;
+  description: string;
+}
+
+// Icon preview state management
+type IconStatus = "customUpload" | "apiCustom" | "fallback";
+
+/**
+ * IconState keys:
+ * previewUrl:     // A blob URL for the image that is currently previewed. Used as the <img src> for preview tabs.
+ * formData:       // Holds the current icon File being edited/created that will be uploaded to the API.
+ * dimensions:     // The pixel width/height (square) of the current icon. Used for validation and file details.
+ * fileDetails:    // { name, description } for current icon file. Used for display in the FileUploader details.
+ * status:         // What icon is being shown in the UI: "apiCustom": current API-fetched custom icon, "customUpload": icon chosen by FileUploader, "fallback": fallback/default icon if no custom icon
+ */
+interface IconState {
+  previewUrl: string | null;
+  formData: IIconFormData | null;
+  dimensions: number | null;
+  fileDetails: IFileDetails | null;
+  status: IconStatus;
+}
+
+// Encapsulate all icon-related UI and API state here
+const defaultIconState: IconState = {
+  previewUrl: null,
+  formData: null,
+  dimensions: null,
+  fileDetails: null,
+  status: "apiCustom",
+};
+
 interface IEditIconModalProps {
   softwareId: number;
   teamIdForApi: number;
   software: ISoftwarePackage | IAppStoreApp;
   onExit: () => void;
   refetchSoftwareTitle: () => void;
+  /** Timestamp used to force UI and cache updates after an icon change, since API will return the same URL. */
+  iconUploadedAt: string;
+  /** Updates the icon upload timestamp, triggering UI refetches to ensure a new custom icon appears called after successful icon update. */
+  setIconUploadedAt: (timestamp: string) => void;
   installerType: "package" | "vpp";
   previewInfo: {
     type?: string;
@@ -74,6 +118,8 @@ const EditIconModal = ({
   software,
   onExit,
   refetchSoftwareTitle,
+  iconUploadedAt,
+  setIconUploadedAt,
   installerType,
   previewInfo,
 }: IEditIconModalProps) => {
@@ -81,22 +127,51 @@ const EditIconModal = ({
 
   const isSoftwarePackage = installerType === "package";
 
+  // Encapsulates icon preview/upload/edit state
+  const [iconState, setIconState] = useState<IconState>(defaultIconState);
+  const [previewTabIndex, setPreviewTabIndex] = useState(0);
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
 
-  const [formData, setFormData] = useState<IIconFormData | null>(null);
-  const [iconDimensions, setIconDimensions] = useState<number | null>(null);
-  const [iconPreviewUrl, setIconPreviewUrl] = useState<string | null>(null);
-  const [navTabIndex, setNavTabIndex] = useState(0);
+  // Sets state after fetching current API custom icon
+  const setCurrentApiCustomIcon = (
+    file: File,
+    width: number,
+    previewUrl: string
+  ) =>
+    setIconState({
+      previewUrl,
+      formData: { icon: file },
+      dimensions: width,
+      fileDetails: makeFileDetails(file, width),
+      status: "apiCustom",
+    });
 
-  console.log("formData", formData);
+  // Sets state after a successful new custom file upload
+  const setCustomUpload = (file: File, width: number, previewUrl: string) =>
+    setIconState({
+      previewUrl,
+      formData: { icon: file },
+      dimensions: width,
+      fileDetails: makeFileDetails(file, width),
+      status: "customUpload",
+    });
 
+  // Reset state to fallback/default icon when a current or new custom icon is removed
+  const resetIconState = () =>
+    setIconState({
+      previewUrl: null,
+      formData: null,
+      dimensions: null,
+      fileDetails: null,
+      status: "fallback",
+    });
+
+  // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
     !!previewInfo.currentIconUrl &&
     previewInfo.currentIconUrl.startsWith("/api/");
 
-  console.log("shouldGetIconFromApi", shouldFetchCustomIcon);
-  // If there's an API URL and no file already selected, fetch the existing icon
-  const { data: customIconBlob, isLoading, error } = useQuery<
+  const { data: customIconBlob } = useQuery<
     Blob | undefined,
     AxiosError,
     string
@@ -110,40 +185,11 @@ const EditIconModal = ({
     }
   );
 
-  // On mount, if we have an icon URL from the API, load it into state
-  useEffect(() => {
-    if (customIconBlob) {
-      const img = new Image();
-      img.onload = () => setIconDimensions(img.width);
-      img.src = customIconBlob;
-
-      // Fetch the blob again to get the filename from headers
-      fetch(customIconBlob)
-        .then((res) => {
-          const header = res.headers.get("Content-Disposition");
-          let filename = "icon.png";
-          console.log("res", res);
-          if (header) {
-            console.log("header", header);
-            const matchQuoted = header.match(/filename=["']?([^"';]+)["']?/);
-            if (matchQuoted) filename = matchQuoted[1];
-          }
-          return res.blob().then((blob) => ({ blob, filename }));
-        })
-        .then(({ blob, filename }) => {
-          setFormData({
-            icon: new File([blob], filename, { type: "image/png" }),
-          });
-        });
-      setIconPreviewUrl(customIconBlob);
-    }
-  }, []);
-
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
 
-      // Enforce PNG MIME type
+      // Enforce PNG MIME type, even though FileUploader also enforces by extension
       if (file.type !== "image/png") {
         renderFlash("error", "Couldn't edit. Must be a PNG file.");
         return;
@@ -154,7 +200,6 @@ const EditIconModal = ({
         const img = new Image();
         img.onload = () => {
           const { width, height } = img;
-
           if (
             width !== height ||
             width < MIN_DIMENSION ||
@@ -166,18 +211,11 @@ const EditIconModal = ({
             );
             return;
           }
-
-          // All checks passed → update formData & preview
-          const newData = { ...formData, icon: file };
-          setFormData(newData);
-          setIconDimensions(width);
-
-          // create preview url
           const previewUrl = URL.createObjectURL(file);
-          setIconPreviewUrl(previewUrl);
+          setCustomUpload(file, width, previewUrl);
         };
         if (e.target && typeof e.target.result === "string") {
-          img.src = e.target.result; // img.src expects a string
+          img.src = e.target.result;
         } else {
           renderFlash("error", "FileReader result was not a string.");
         }
@@ -186,45 +224,60 @@ const EditIconModal = ({
     }
   };
 
-  const onDeleteFile = () => {
-    setFormData(null);
-    setIconDimensions(null);
-    setIconPreviewUrl(null);
-  };
+  const onDeleteFile = () => resetIconState();
 
-  const onTabChange = (index: number) => {
-    setNavTabIndex(index);
-  };
+  const onTabChange = (index: number) => setPreviewTabIndex(index);
 
-  const onClickSave = async () => {
-    setIsUpdatingIcon(true);
-
-    try {
-      if (!formData?.icon) {
-        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
-        renderFlash(
-          "success",
-          <>
-            Successfully removed icon from <b>{software?.name}</b>.
-          </>
-        );
-      } else {
-        await softwareAPI.editSoftwareIcon(softwareId, teamIdForApi, formData);
-        renderFlash(
-          "success",
-          <>
-            Successfully edited <b>{previewInfo.name}</b>.
-          </>
-        );
-      }
-      refetchSoftwareTitle();
-      onExit();
-    } catch (e) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
-    } finally {
-      setIsUpdatingIcon(false);
+  // If there's currently a custom API icon and no new upload has happened yet,
+  // populate icon info from API-fetched custom icon
+  useEffect(() => {
+    if (
+      iconState.status === "apiCustom" &&
+      shouldFetchCustomIcon &&
+      customIconBlob &&
+      !iconState.previewUrl
+    ) {
+      const img = new Image();
+      img.onload = () => {
+        fetch(customIconBlob)
+          .then((res) => {
+            // TODO: headers is returning null from the BE and needs to be fixed and confirmed this works
+            const header = res.headers.get("Content-Disposition");
+            console.log("response", res);
+            console.log("Content-Disposition header", header);
+            let filename = "icon.png";
+            if (header) {
+              const matchQuoted = header.match(/filename=["']?([^"';]+)["']?/);
+              if (matchQuoted) filename = matchQuoted[1];
+            }
+            return res.blob().then((blob) => ({ blob, filename }));
+          })
+          .then(({ blob, filename }) => {
+            setCurrentApiCustomIcon(
+              new File([blob], filename, { type: "image/png" }),
+              img.width,
+              customIconBlob
+            );
+          });
+      };
+      img.src = customIconBlob;
     }
-  };
+  }, [
+    customIconBlob,
+    iconState.status,
+    shouldFetchCustomIcon,
+    iconState.previewUrl,
+  ]);
+
+  const fileDetails =
+    iconState.formData && iconState.formData.icon
+      ? {
+          name: iconState.formData.icon.name,
+          description: `Software icon • ${iconState.dimensions || "?"}x${
+            iconState.dimensions || "?"
+          } px`,
+        }
+      : undefined;
 
   const renderPreviewFleetCard = () => {
     const {
@@ -235,7 +288,6 @@ const EditIconModal = ({
       currentIconUrl,
       countsUpdatedAt,
     } = previewInfo;
-
     return (
       <Card
         borderRadiusSize="medium"
@@ -253,13 +305,12 @@ const EditIconModal = ({
             type={type}
             source={source}
             iconUrl={
-              !previewInfo.currentIconUrl && software.icon_url
-                ? software.icon_url
-                : null
-            } // Rely on iconPreviewwUrl or uploaded file so if we "trash" a custom icon we want to see a preview of the default icon
+              !currentIconUrl && software.icon_url ? software.icon_url : null
+            }
             versions={versions}
-            hosts={0} // required field but not shown in isPreview
-            iconPreviewUrl={iconPreviewUrl || null}
+            hosts={0}
+            iconPreviewUrl={iconState.previewUrl}
+            iconUploadedAt={iconUploadedAt}
           />
           <div className={`${baseClass}__preview-results-count`}>
             <TableCount name="versions" count={versions} />
@@ -315,128 +366,142 @@ const EditIconModal = ({
     );
   };
 
-  const renderPreviewSelfServiceCard = () => {
-    return (
+  const renderPreviewSelfServiceCard = () => (
+    <Card
+      borderRadiusSize="medium"
+      color="grey"
+      className={`${baseClass}__preview-card`}
+      paddingSize="xlarge"
+    >
       <Card
-        borderRadiusSize="medium"
-        color="grey"
-        className={`${baseClass}__preview-card`}
-        paddingSize="xlarge"
+        className={`${baseClass}__preview-card__self-service`}
+        borderRadiusSize="xxlarge"
       >
-        <Card
-          className={`${baseClass}__preview-card__self-service`}
-          borderRadiusSize="xxlarge"
-        >
-          <CardHeader
-            header="Self-service"
-            subheader={SELF_SERVICE_SUBHEADER}
+        <CardHeader header="Self-service" subheader={SELF_SERVICE_SUBHEADER} />
+        <div className={`${baseClass}__preview-img-container`}>
+          <img
+            className={`${baseClass}__preview-img`}
+            src={PreviewSelfServiceIcon}
+            alt="Preview icon on Fleet Desktop > Self-service"
           />
-          <div className={`${baseClass}__preview-img-container`}>
+        </div>
+        <div className={`${baseClass}__self-service-preview`}>
+          {iconState.previewUrl ? (
             <img
-              className={`${baseClass}__preview-img`}
-              src={PreviewSelfServiceIcon}
-              alt="Preview icon on Fleet Desktop > Self-service"
+              src={iconState.previewUrl}
+              alt="Uploaded self-service icon"
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: "4px",
+                overflow: "hidden",
+              }}
             />
-          </div>
-          <div className={`${baseClass}__self-service-preview`}>
-            {iconPreviewUrl ? (
-              <img
-                src={iconPreviewUrl}
-                alt="Uploaded self-service icon"
-                style={{
-                  width: 20,
-                  height: 20,
-                  borderRadius: "4px",
-                  overflow: "hidden",
-                }}
-              />
-            ) : (
-              <SoftwareIcon
-                name={software.name}
-                source={previewInfo.source}
-                url={isSoftwarePackage ? undefined : software.icon_url}
-              />
-            )}
-            <TooltipTruncatedText value={previewInfo.name} />
-          </div>
-        </Card>
-        <div
-          className={`${baseClass}__mask-overlay ${baseClass}__mask-overlay--self-service`}
-        />
+          ) : (
+            <SoftwareIcon
+              name={software.name}
+              source={previewInfo.source}
+              url={isSoftwarePackage ? undefined : software.icon_url}
+              uploadedAt={iconUploadedAt}
+            />
+          )}
+          <TooltipTruncatedText value={previewInfo.name} />
+        </div>
       </Card>
-    );
-  };
+      <div
+        className={`${baseClass}__mask-overlay ${baseClass}__mask-overlay--self-service`}
+      />
+    </Card>
+  );
 
-  const renderForm = () => {
-    const fileDetails =
-      formData && formData.icon
-        ? {
-            name: formData.icon.name,
-            description: `Software icon • ${iconDimensions || "?"}x${
-              iconDimensions || "?"
-            } px`,
-          }
-        : undefined;
+  const renderForm = () => (
+    <>
+      <FileUploader
+        canEdit
+        onDeleteFile={onDeleteFile}
+        graphicName="file-png"
+        accept={ACCEPTED_EXTENSIONS}
+        message={UPLOAD_MESSAGE}
+        onFileUpload={onFileSelect}
+        buttonMessage="Choose file"
+        buttonType="link"
+        className={`${baseClass}__file-uploader`}
+        fileDetails={fileDetails}
+        gitopsCompatible={false}
+      />
+      <h2>Preview</h2>
+      <TabNav>
+        <Tabs selectedIndex={previewTabIndex} onSelect={onTabChange}>
+          <TabList>
+            <Tab>
+              <TabText>Fleet</TabText>
+            </Tab>
+            <Tab>
+              <TabText>Self-service</TabText>
+            </Tab>
+          </TabList>
+          <TabPanel>{renderPreviewFleetCard()}</TabPanel>
+          <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
+        </Tabs>
+      </TabNav>
+    </>
+  );
 
-    console.log("fileDetails", fileDetails);
-
-    return (
-      <>
-        <FileUploader
-          canEdit
-          onDeleteFile={onDeleteFile}
-          graphicName="file-png"
-          accept={ACCEPTED_EXTENSIONS}
-          message={UPLOAD_MESSAGE}
-          onFileUpload={onFileSelect}
-          buttonMessage="Choose file"
-          buttonType="link"
-          className={`${baseClass}__file-uploader`}
-          fileDetails={fileDetails}
-          gitopsCompatible={false}
-        />
-        <h2>Preview</h2>
-        <TabNav>
-          <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
-            <TabList>
-              <Tab>
-                <TabText>Fleet</TabText>
-              </Tab>
-              <Tab>
-                <TabText>Self-service</TabText>
-              </Tab>
-            </TabList>
-            <TabPanel>{renderPreviewFleetCard()}</TabPanel>
-            <TabPanel>{renderPreviewSelfServiceCard()}</TabPanel>
-          </Tabs>
-        </TabNav>
-      </>
-    );
+  const onClickSave = async () => {
+    setIsUpdatingIcon(true);
+    try {
+      if (!iconState.formData?.icon) {
+        await softwareAPI.deleteSoftwareIcon(softwareId, teamIdForApi);
+        renderFlash(
+          "success",
+          <>
+            Successfully removed icon from <b>{software?.name}</b>.
+          </>
+        );
+      } else {
+        await softwareAPI.editSoftwareIcon(
+          softwareId,
+          teamIdForApi,
+          iconState.formData
+        );
+        renderFlash(
+          "success",
+          <>
+            Successfully edited <b>{previewInfo.name}</b>.
+          </>
+        );
+      }
+      refetchSoftwareTitle();
+      setIconUploadedAt(new Date().toISOString());
+      onExit();
+    } catch (e) {
+      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+    } finally {
+      setIsUpdatingIcon(false);
+    }
   };
 
   return (
-    <>
-      <Modal
-        className={baseClass}
-        title={isSoftwarePackage ? "Edit package" : "Edit app"}
-        onExit={onExit}
-      >
-        <>
-          {renderForm()}
-          <ModalFooter
-            primaryButtons={
-              <Button
-                type="submit"
-                onClick={onClickSave}
-                isLoading={isUpdatingIcon}
-              >
-                Save
-              </Button>
-            }
-          />
-        </>
-      </Modal>
-    </>
+    <Modal
+      className={baseClass}
+      title={isSoftwarePackage ? "Edit package" : "Edit app"}
+      onExit={onExit}
+    >
+      <>
+        {renderForm()}
+        <ModalFooter
+          primaryButtons={
+            <Button
+              type="submit"
+              onClick={onClickSave}
+              isLoading={isUpdatingIcon}
+            >
+              Save
+            </Button>
+          }
+        />
+      </>
+    </Modal>
   );
 };
 

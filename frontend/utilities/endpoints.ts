@@ -39,8 +39,8 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
-  DEVICE_SOFTWARE_ICON: (token: string, titleId: string): string => {
-    return `/${API_VERSION}/fleet/device/${token}/software/titles/${titleId}/icon`;
+  DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
+    return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
   },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,

@@ -8,28 +8,21 @@ import { getMatchedSoftwareIcon } from "../";
 
 const baseClass = "software-icon";
 
-// Extracts softwareId and teamId from API url, e.g. "/api/latest/fleet/software/titles/90/icon?team_id=2"
-const extractParams = (url: string) => {
-  const [path, queryString = ""] = url.split("?");
-  const params = new URLSearchParams(queryString);
-  const pathSegments = path.split("/");
-  const idSegment = pathSegments[pathSegments.length - 2];
-  const softwareId =
-    idSegment && !isNaN(Number(idSegment)) ? Number(idSegment) : undefined;
-  const teamIdParam = params.get("team_id");
-  const teamId =
-    teamIdParam && !isNaN(Number(teamIdParam))
-      ? Number(teamIdParam)
-      : undefined;
-  return { softwareId, teamId };
-};
-
+/**
+ * Props for the SoftwareIcon component
+ * @property name     The software's name (used for fallback icon matching)
+ * @property source   The software's source (used for fallback icon matching)
+ * @property size     The icon size (default: 'small' 24x24 px)
+ * @property url      The image URL or API path to fetch custom icon blob
+ * @property uploadedAt Timestamp string of when the icon was last uploaded
+ *                    (used to refetch icon if it changes on the software titles page)
+ */
 interface ISoftwareIconProps {
   name?: string;
   source?: string;
   size?: SoftwareIconSizes;
-  /** Accepts an image url to display for the software icon image. */
   url?: string | null;
+  uploadedAt?: string;
 }
 
 const SoftwareIcon = ({
@@ -37,29 +30,22 @@ const SoftwareIcon = ({
   source = "",
   size = "small",
   url,
+  uploadedAt,
 }: ISoftwareIconProps) => {
   const classNames = classnames(baseClass, `${baseClass}__${size}`);
 
-  const isApiUrl = url?.startsWith("/api/") || false;
-  let softwareId: number | undefined;
-  let teamId: number | undefined;
-  if (isApiUrl && url) {
-    ({ softwareId, teamId } = extractParams(url));
-  }
-
-  // Only run useQuery if both IDs are numbers
-  const shouldFetchCustomIcon =
-    isApiUrl && typeof softwareId === "number" && typeof teamId === "number";
+  const isApiUrl =
+    (typeof url === "string" && url?.startsWith("/api/")) || false;
 
   const { data: currentCustomIconBlob, isLoading } = useQuery<
     Blob | undefined,
     AxiosError,
     string
   >(
-    ["softwareIcon", softwareId, teamId],
-    () => softwareAPI.getSoftwareIcon(softwareId as number, teamId as number), // safe to assert here
+    ["softwareIcon", url, uploadedAt],
+    () => softwareAPI.getSoftwareIconFromApiUrl(url as string),
     {
-      enabled: shouldFetchCustomIcon,
+      enabled: isApiUrl,
       retry: false,
       select: (blob) => (blob ? URL.createObjectURL(blob) : ""),
     }
@@ -70,15 +56,19 @@ const SoftwareIcon = ({
     `${baseClass}__software-img-${size}`
   );
 
-  // Return empty div while loading custom icon so component size doesn't jump
-  if (isLoading && shouldFetchCustomIcon) {
-    return <div className={classNames} />;
-  }
-
   let iconSrc: string | null = null;
-  if (isApiUrl && currentCustomIconBlob) {
-    iconSrc = currentCustomIconBlob;
+
+  if (isApiUrl) {
+    if (isLoading) {
+      // Return empty div while loading custom icon so component size doesn't jump
+      return <div className={classNames} />;
+    }
+    if (currentCustomIconBlob) {
+      // Uses custom icon blob from API if fetch succeeded
+      iconSrc = currentCustomIconBlob;
+    }
   } else if (url) {
+    // Use direct image URL (e.g. VPP image URL))
     iconSrc = url;
   }
 
@@ -90,6 +80,7 @@ const SoftwareIcon = ({
     );
   }
 
+  // Fallback: Render a matched SVG icon by software name/source
   const MatchedIcon = getMatchedSoftwareIcon({ name, source });
   return (
     <MatchedIcon

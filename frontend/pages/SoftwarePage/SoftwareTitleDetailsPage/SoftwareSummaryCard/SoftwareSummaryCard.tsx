@@ -18,6 +18,7 @@ import Card from "components/Card";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary";
 import TitleVersionsTable from "./TitleVersionsTable";
 import EditIconModal from "../EditIconModal";
+import { set } from "lodash";
 
 interface ISoftwareSummaryCard {
   title: ISoftwareTitleDetails;
@@ -48,6 +49,8 @@ const SoftwareSummaryCard = ({
     isTeamMaintainerOrTeamAdmin,
   } = useContext(AppContext);
 
+  const [iconUploadedAt, setIconUploadedAt] = useState("");
+
   // Hide versions table for tgz_packages only
   const showVersionsTable = title.source !== "tgz_packages";
 
@@ -77,6 +80,7 @@ const SoftwareSummaryCard = ({
           name={title.name}
           source={title.source}
           iconUrl={title.icon_url || softwareInstaller?.icon_url || null} // fallback to installer icon if title icon is null
+          iconUploadedAt={iconUploadedAt}
           onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
         />
         {showVersionsTable && (
@@ -98,6 +102,8 @@ const SoftwareSummaryCard = ({
           software={softwareInstaller}
           onExit={() => setShowEditIconModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
+          iconUploadedAt={iconUploadedAt}
+          setIconUploadedAt={setIconUploadedAt}
           installerType={
             isSoftwarePackage(softwareInstaller) ? "package" : "vpp"
           }
