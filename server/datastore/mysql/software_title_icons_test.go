@@ -323,6 +323,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 				StorageID: "storage-id-1",
 				Filename:  "test-icon-updated.png",
 			})
+			require.NoError(t, err)
 		}, func(t *testing.T, ds *Datastore) {
 			activity, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
 			require.NoError(t, err)

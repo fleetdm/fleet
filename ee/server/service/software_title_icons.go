@@ -71,24 +71,31 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		return fleet.SoftwareTitleIcon{}, &fleet.BadRequestError{Message: fmt.Sprintf("Software title has no software installer or VPP app: %d", payload.TitleID)}
 	}
 
-	// get sha256 of icon file
-	payload.StorageID, err = file.SHA256FromTempFileReader(payload.IconFile)
-	if err != nil {
-		return fleet.SoftwareTitleIcon{}, err
-	}
-
 	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
 	if err != nil && !fleet.IsNotFound(err) {
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "getting software title icon")
 	}
+
+	if payload.IconFile != nil {
+		// get sha256 of icon file
+		payload.StorageID, err = file.SHA256FromTempFileReader(payload.IconFile)
+		if err != nil {
+			return fleet.SoftwareTitleIcon{}, err
+		}
+	}
+
 	if icon == nil || icon.StorageID != payload.StorageID {
 		exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
 		if err != nil {
-			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if installer exists")
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if software title icon exists")
 		}
 		if !exists {
-			if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
-				return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
+			if payload.IconFile != nil {
+				if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
+					return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "storing icon")
+				}
+			} else {
+				return fleet.SoftwareTitleIcon{}, ctxerr.New(ctx, fmt.Sprintf("software title icon with hash '%s' does not exist", payload.StorageID))
 			}
 		}
 	}
@@ -98,14 +105,17 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "creating or updating software title icon")
 	}
 
-	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
-	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
-	if err != nil {
-		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
-	}
-	err = generateEditActivityForSoftwareTitleIcon(ctx, svc, user, iconUrl, activityDetailsForSoftwareTitleIcon)
-	if err != nil {
-		return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "generating edit activity for software title icon")
+	// if anything on the icon has changed, we need to generate a new activity
+	if icon == nil || icon.StorageID != softwareTitleIcon.StorageID || icon.Filename != softwareTitleIcon.Filename {
+		iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", softwareTitleIcon.SoftwareTitleID, softwareTitleIcon.TeamID)
+		activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, payload.TeamID, payload.TitleID)
+		if err != nil {
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
+		}
+		err = generateEditActivityForSoftwareTitleIcon(ctx, svc, user, iconUrl, activityDetailsForSoftwareTitleIcon)
+		if err != nil {
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "generating edit activity for software title icon")
+		}
 	}
 
 	return *softwareTitleIcon, nil

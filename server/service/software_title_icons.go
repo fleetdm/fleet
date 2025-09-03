@@ -94,11 +94,11 @@ func (svc *Service) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 }
 
 type putSoftwareTitleIconRequest struct {
-	TitleID  uint  `url:"title_id"`
-	TeamID   *uint `query:"team_id"`
-	File     *multipart.FileHeader
-	Hash     *string
-	Filename *string
+	TitleID    uint  `url:"title_id"`
+	TeamID     *uint `query:"team_id"`
+	File       *multipart.FileHeader
+	HashSHA256 *string
+	Filename   *string
 }
 
 type putSoftwareTitleIconResponse struct {
@@ -143,14 +143,26 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		}
 	}
 
-	if r.MultipartForm.File["icon"] == nil || len(r.MultipartForm.File["icon"]) == 0 {
-		return nil, &fleet.BadRequestError{
-			Message:     "icon multipart field is required",
-			InternalErr: err,
-		}
+	if values := r.MultipartForm.Value["hash_sha256"]; len(values) > 0 {
+		decoded.HashSHA256 = &values[0]
+	}
+	if values := r.MultipartForm.Value["filename"]; len(values) > 0 {
+		decoded.Filename = &values[0]
+	}
+	if len(r.MultipartForm.File["icon"]) > 0 {
+		decoded.File = r.MultipartForm.File["icon"][0]
 	}
 
-	decoded.File = r.MultipartForm.File["icon"][0]
+	if decoded.File == nil && (decoded.HashSHA256 == nil || decoded.Filename == nil) {
+		return nil, &fleet.BadRequestError{
+			Message: "either icon multipart field or hashSHA256 and filename are required",
+		}
+	}
+	if decoded.File != nil && (decoded.HashSHA256 != nil || decoded.Filename != nil) {
+		return nil, &fleet.BadRequestError{
+			Message: "cannot specify both icon file and hashSHA256/filename",
+		}
+	}
 
 	return &decoded, nil
 }
@@ -163,25 +175,32 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 		TeamID:  *req.TeamID,
 	}
 
-	file, err := req.File.Open()
-	if err != nil {
-		return putSoftwareTitleIconResponse{Err: err}, nil
-	}
-	defer file.Close()
+	if req.File != nil {
+		file, err := req.File.Open()
+		if err != nil {
+			return putSoftwareTitleIconResponse{Err: err}, nil
+		}
+		defer file.Close()
 
-	// ensure icon is png and fits sizing restrictions
-	err = iconValidator(file)
-	if err != nil {
-		return putSoftwareTitleIconResponse{Err: err}, nil
+		// ensure icon is png and fits sizing restrictions
+		err = iconValidator(file)
+		if err != nil {
+			return putSoftwareTitleIconResponse{Err: err}, nil
+		}
+
+		tfr, err := fleet.NewTempFileReader(file, nil)
+		if err != nil {
+			return putSoftwareTitleIconResponse{Err: err}, nil
+		}
+		defer tfr.Close()
+		payload.IconFile = tfr
+		payload.Filename = req.File.Filename
 	}
 
-	tfr, err := fleet.NewTempFileReader(file, nil)
-	if err != nil {
-		return putSoftwareTitleIconResponse{Err: err}, nil
+	if req.HashSHA256 != nil && req.Filename != nil {
+		payload.StorageID = *req.HashSHA256
+		payload.Filename = *req.Filename
 	}
-	defer tfr.Close()
-	payload.IconFile = tfr
-	payload.Filename = req.File.Filename
 
 	softwareTitleIcon, err := svc.UploadSoftwareTitleIcon(ctx, payload)
 	if err != nil {

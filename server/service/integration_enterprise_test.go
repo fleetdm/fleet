@@ -70,9 +70,10 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
-	redisPool            fleet.RedisPool
-	calendarSchedule     *schedule.Schedule
-	softwareInstallStore fleet.SoftwareInstallerStore
+	redisPool              fleet.RedisPool
+	calendarSchedule       *schedule.Schedule
+	softwareInstallStore   fleet.SoftwareInstallerStore
+	softwareTitleIconStore fleet.SoftwareTitleIconStore
 
 	lq *live_query_mock.MockLiveQuery
 }
@@ -89,6 +90,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(dir)
 	require.NoError(s.T(), err)
 	s.softwareInstallStore = softwareInstallStore
+
+	// Create a software title icon store
+	iconDir := s.T().TempDir()
+	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	require.NoError(s.T(), err)
+	s.softwareTitleIconStore = softwareTitleIconStore
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -117,6 +124,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			},
 		},
 		SoftwareInstallStore:            softwareInstallStore,
+		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -11852,6 +11860,176 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
+	t := s.T()
+	ctx := context.Background()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+	host1 := test.NewHost(t, s.ds, "host1", "", "host1key", "host1uuid", time.Now())
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create software installer + software title
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "apps", BundleIdentifier: "foo.bundle.id"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	var titleID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.GetContext(ctx, q, &titleID, "SELECT id FROM software_titles")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "hello",
+		InstallerFile:    tfr1,
+		StorageID:        "storage1",
+		Filename:         "foo.pkg",
+		Title:            "foo",
+		Version:          "0.0.3",
+		Source:           "apps",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		BundleIdentifier: "foo.bundle.id",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+	// 	mysql.DumpTable(t, q, "software_titles")
+	// 	mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id")
+	// 	return nil
+	// })
+
+	parsePutResponse := func(resp *http.Response) putSoftwareTitleIconResponse {
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		result := putSoftwareTitleIconResponse{}
+		err = json.Unmarshal(body, &result)
+		require.NoError(t, err)
+		return result
+	}
+
+	// create proper form data to post
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	fileWriter, err := writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	file, err := os.Open("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	defer file.Close()
+	_, err = io.Copy(fileWriter, file)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers := map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	// create software title icon
+	resp := s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result := parsePutResponse(resp)
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// verify activity was created properly
+	activities := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	var editedSoftwareActivities []fleet.Activity
+	var editedSoftwareActivity fleet.Activity
+	for _, activity := range activities.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivities, 1)
+	editedSoftwareActivity = editedSoftwareActivities[0]
+	var details fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*editedSoftwareActivity.Details, &details)
+	require.NoError(t, err)
+	require.Equal(t, "foo", details.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
+	require.Equal(t, iconUrl, *details.IconURL)
+	require.Equal(t, titleID, details.SoftwareTitleID)
+
+	// gitops workflow, passing in sha256 & filename
+	var storedIcons []fleet.SoftwareTitleIcon
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+
+	storedIcon := storedIcons[0]
+	var buf2 bytes.Buffer
+	writer = multipart.NewWriter(&buf2)
+	err = writer.WriteField("hash_sha256", storedIcon.StorageID)
+	require.NoError(t, err)
+	err = writer.WriteField("filename", storedIcon.Filename)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf2.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result = parsePutResponse(resp)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// verify no new software title icons were created
+	storedIcons = make([]fleet.SoftwareTitleIcon, 0)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+	require.Equal(t, storedIcon.StorageID, storedIcons[0].StorageID)
+	require.Equal(t, storedIcon.Filename, storedIcons[0].Filename)
+
+	// verify no new activity was created
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	editedSoftwareActivities = make([]fleet.Activity, 0)
+	for _, activity := range activities.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivities, 1)
+
+	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
+	require.NoError(t, err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {

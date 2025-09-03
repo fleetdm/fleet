@@ -18,12 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func notFound(kind string) *common_mysql.NotFoundError {
-	return &common_mysql.NotFoundError{
-		ResourceType: kind,
-	}
-}
-
 func TestGetSoftwareTitleIcon(t *testing.T) {
 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
@@ -49,7 +43,7 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 				Filename:        "icon.png",
 			}, nil
 		}
-		return nil, ctxerr.Wrap(ctx, notFound("SoftwareTitleIcon"), "get software title icon")
+		return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "SoftwareTitleIcon"}, "get software title icon")
 	}
 	ds.GetVPPAppMetadataByTeamAndTitleIDFunc = func(ctx context.Context, teamID *uint, titleID uint) (*fleet.VPPAppStoreApp, error) {
 		if titleID == 3 {
@@ -57,7 +51,7 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 				IconURL: ptr.String("mock-vpp-icon-url"),
 			}, nil
 		}
-		return nil, ctxerr.Wrap(ctx, notFound("VPPAppMetadata"), "get VPP app metadata")
+		return nil, ctxerr.Wrap(ctx, &common_mysql.NotFoundError{ResourceType: "VPPAppMetadata"}, "get VPP app metadata")
 	}
 
 	testCases := []struct {
@@ -111,3 +105,21 @@ func TestGetSoftwareTitleIcon(t *testing.T) {
 		})
 	}
 }
+
+// func TestDeleteSoftwareTitleIcon(t *testing.T) {
+// 	user := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+// 	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: user})
+// 	ds := new(mock.Store)
+// 	svc := newTestService(t, ds)
+
+// 	// mockIconStore := s3.SetupTestSoftwareTitleIconStore(t, "software-title-icons-unit-test", "icon-store-prefix")
+// 	// svc.softwareTitleIconStore = mockIconStore
+// 	// defer func() {
+// 	// 	_, err := mockIconStore.Cleanup(ctx, []string{}, time.Now().Add(time.Hour))
+// 	// 	require.NoError(t, err)
+// 	// }()
+
+// 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+// 		return &fleet.AppConfig{}, nil
+// 	}
+// }
