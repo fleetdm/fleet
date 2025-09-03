@@ -512,6 +512,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 ```yaml
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+display_name: Tailscale
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
 uninstall_script:
