@@ -814,8 +814,13 @@ const androidApplicableProfilesQuery = `
 //
 // See https://github.com/fleetdm/fleet/issues/32032#issuecomment-3229548389
 // for more details on the rationale of that approach.
-func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, error) {
+//
+// It returns the list of applicable profiles for hosts that need to be sent,
+// and a list of host UUIDs that have no applicable profiles (for which an
+// "empty" policy must be applied to remove any previously applied profile).
+func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []string, error) {
 	var result []*fleet.MDMAndroidProfilePayload
+	var hostUUIDsWithoutProfiles []string
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		hostsWithChangesStmt := fmt.Sprintf(`
 	WITH ds AS ( %s )
@@ -894,9 +899,19 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		if err := sqlx.SelectContext(ctx, tx, &result, query, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android host applicable profiles")
 		}
+
+		hostUUIDsWithProfiles := make(map[string]struct{}, len(result))
+		for _, r := range result {
+			hostUUIDsWithProfiles[r.HostUUID] = struct{}{}
+		}
+		for _, hostUUID := range hostUUIDs {
+			if _, ok := hostUUIDsWithProfiles[hostUUID]; !ok {
+				hostUUIDsWithoutProfiles = append(hostUUIDsWithoutProfiles, hostUUID)
+			}
+		}
 		return nil
 	})
-	return result, err
+	return result, hostUUIDsWithoutProfiles, err
 }
 
 func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
@@ -906,7 +921,7 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 
 	stmt := `
 		SELECT profile_uuid, raw_json
-		FROM mdm_android_configuration_profiles 
+		FROM mdm_android_configuration_profiles
 		WHERE profile_uuid IN (?)
 	`
 	query, args, err := sqlx.In(stmt, uuids)

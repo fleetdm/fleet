@@ -1427,7 +1427,7 @@ type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
 
-type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, error)
+type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []string, error)
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
@@ -8616,7 +8616,7 @@ func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMA
 	return s.NewAndroidPolicyRequestFunc(ctx, req)
 }
 
-func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, error) {
+func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []string, error) {
 	s.mu.Lock()
 	s.ListMDMAndroidProfilesToSendFuncInvoked = true
 	s.mu.Unlock()

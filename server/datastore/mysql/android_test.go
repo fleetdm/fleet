@@ -773,9 +773,10 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	}
 
 	// without any profile, should return empty
-	profs, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err := ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
 	require.Empty(t, profs)
+	require.Empty(t, noProfHosts)
 
 	// create a couple profiles for no team, and one for a team
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
@@ -791,8 +792,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// both no-team profiles should be applicable to both hosts
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -806,8 +808,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// profiles for host 1 change to p3
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -824,8 +827,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -838,8 +842,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host is not a member of both labels
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 3)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -852,8 +857,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p4 is applicable to host 0
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -871,8 +877,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, host 0 not a member yet
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 4)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -886,8 +893,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// now p5 is applicable to host 0
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -906,8 +914,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// no change, label membership was not updated after labels created
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -924,8 +933,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// host 0 is _not_ a member of the excluded labels, so p6 is applicable
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 6)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -941,8 +951,9 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// p6 is not applicable anymore
-	profs, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
 	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
 	require.Len(t, profs, 5)
 	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
 		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
@@ -950,6 +961,65 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
 		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
 		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// add another host in team
+	androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", 2))
+	newHost, err := ds.NewAndroidHost(ctx, androidHost)
+	require.NoError(t, err)
+	hosts = append(hosts, newHost.Host)
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[2].ID}))
+	require.NoError(t, err)
+
+	// it is not included in noProfHosts as it has p3
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
+	require.Len(t, profs, 6)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// simulate that host 2 already has p3 installed
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles 
+			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status) 
+			VALUES (?, ?, ?, ?, ?, ?)`, hosts[2].UUID, p3.ProfileUUID, p3.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
+		return err
+	})
+
+	// host 2 is not included in the results as it has p3 installed
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
+	require.Len(t, profs, 5)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
+		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
+	}, profs)
+
+	// delete profile p3
+	err = ds.DeleteMDMAndroidConfigProfile(ctx, p3.ProfileUUID)
+	require.NoError(t, err)
+
+	// host 2 is now a host with no profile, host 1 is unlisted as it didn't have p3 installed
+	profs, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, noProfHosts, []string{hosts[2].UUID})
+	require.Len(t, profs, 4)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: p1.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p1.Name},
+		{ProfileUUID: p2.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p2.Name},
+		{ProfileUUID: p4.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p4.Name},
+		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
 	}, profs)
 }
 

@@ -36,7 +36,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	// get the list of hosts that need to have their profiles applied
-	hostsApplicableProfiles, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	hostsApplicableProfiles, hostsWithoutProfiles, err := ds.ListMDMAndroidProfilesToSend(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "identify android profiles to send")
 	}
@@ -55,19 +55,16 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load android profiles content")
 	}
-	_ = profilesContents
+
+	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
+	client := newAMAPIClient(ctx, logger, licenseKey)
 
 	// for each host, send the merged policy
+	for _, hostUUID := range hostsWithoutProfiles {
+		if err := sendHostProfiles(ctx, ds, client, hostUUID, nil, nil); err != nil {
+		}
+	}
 	for hostUUID, profiles := range profilesByHostUUID {
-		// We need a deterministic order to merge the profiles, and I opted to go
-		// by name, alphabetically ascending, as it's simple, deterministic (names
-		// are unique) and the ordering can be viewed by the user in the UI. We had
-		// also discussed upload time of the profile but it may not be
-		// deterministic for batch-set profiles (same timestamp when inserted in a
-		// transaction) and is not readily visible in the UI.
-		slices.SortFunc(profiles, func(a, b *fleet.MDMAndroidProfilePayload) int {
-			return cmp.Compare(a.ProfileName, b.ProfileName)
-		})
 		if err := sendHostProfiles(ctx, ds, client, hostUUID, profiles, profilesContents); err != nil {
 		}
 	}
@@ -76,9 +73,6 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// point, and will switch to explicit status=Pending after the API requests
 	// (or Failed if there is a profile overridden with another). On the pubsub
 	// status report, it will transition to Verified.
-
-	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
-	client := newAMAPIClient(ctx, logger, licenseKey)
 
 	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
 	// updated. Let's simulate it for any existing Android hosts for now.
@@ -159,6 +153,20 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 
 	return nil
+}
+
+func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client,
+	hostUUID string, profiles []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) error {
+
+	// We need a deterministic order to merge the profiles, and I opted to go
+	// by name, alphabetically ascending, as it's simple, deterministic (names
+	// are unique) and the ordering can be viewed by the user in the UI. We had
+	// also discussed upload time of the profile but it may not be
+	// deterministic for batch-set profiles (same timestamp when inserted in a
+	// transaction) and is not readily visible in the UI.
+	slices.SortFunc(profiles, func(a, b *fleet.MDMAndroidProfilePayload) int {
+		return cmp.Compare(a.ProfileName, b.ProfileName)
+	})
 }
 
 func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
