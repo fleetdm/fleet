@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,17 +57,27 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	}
 	_ = profilesContents
 
-	// TODO(ap):  We need to agree on a determined order to merge the profiles. I'd go
-	// by name, alphabetically ascending, as it's simple and the order
-	// information can be viewed by the user in the UI, but we had discussed
-	// upload time of the profile (which may not be deterministic for batch-set
-	// profiles).
-	//
-	// The profiles to apply should have status=NULL at this point, and will switch
-	// to explicit status=Pending after the API requests (or Failed if there is a
-	// profile overridden with another). On the pubsub status report, it will transition
-	// to Verified.
+	// for each host, send the merged policy
+	for hostUUID, profiles := range profilesByHostUUID {
+		// We need a deterministic order to merge the profiles, and I opted to go
+		// by name, alphabetically ascending, as it's simple, deterministic (names
+		// are unique) and the ordering can be viewed by the user in the UI. We had
+		// also discussed upload time of the profile but it may not be
+		// deterministic for batch-set profiles (same timestamp when inserted in a
+		// transaction) and is not readily visible in the UI.
+		slices.SortFunc(profiles, func(a, b *fleet.MDMAndroidProfilePayload) int {
+			return cmp.Compare(a.ProfileName, b.ProfileName)
+		})
+		if err := sendHostProfiles(ctx, ds, client, hostUUID, profiles, profilesContents); err != nil {
+		}
+	}
 
+	// TODO(ap): The profiles to apply should (may?) have status=NULL at this
+	// point, and will switch to explicit status=Pending after the API requests
+	// (or Failed if there is a profile overridden with another). On the pubsub
+	// status report, it will transition to Verified.
+
+	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
 	client := newAMAPIClient(ctx, logger, licenseKey)
 
 	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
