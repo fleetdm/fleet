@@ -390,7 +390,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 	return nil
 }
 
-func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
+func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}
@@ -782,12 +782,14 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOper
 	return nil
 }
 
+// recordActivitiesBatchApplyCAs records activities for batch operations on certificate authorities
+// (i.e. added, edited, deleted).
 func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *caBatchOperations) error {
 	if ops == nil {
 		return nil
 	}
 
-	// Record activities for added, updated, and deleted CAs
+	// FIXME: Should we have a batch operation for recording activities?
 	for _, ca := range ops.add {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):

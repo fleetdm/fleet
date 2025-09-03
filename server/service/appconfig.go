@@ -388,12 +388,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		appConfig.MDM.WindowsMigrationEnabled = false
 	}
 
-	// TODO(hca): Do we need to do anything with CAs here? Maybe double-check something in the ApplySpecOptions?
-	// caStatus, err := svc.processAppConfigCAs(ctx, &newAppConfig, oldAppConfig, appConfig, invalid)
-	// if err != nil {
-	// 	return nil, ctxerr.Wrap(ctx, err, "processing AppConfig CAs")
-	// }
-
 	// EnableDiskEncryption is an optjson.Bool field in order to support the
 	// legacy field under "mdm.macos_settings". If the field provided to the
 	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":

@@ -491,6 +491,7 @@ func (c *Client) ApplyGroup(
 		if err := c.ApplyCertificateAuthoritiesSpec(*specs.CertificateAuthorities, opts.ApplySpecOptions); err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("applying certificate authorities: %w", err)
 		}
+		// TODO(hca): is more detailed logging a hard requirement or can it be a follow up improvement?
 		if opts.DryRun {
 			logfn("[+] would've applied certificate authorities\n")
 		} else {

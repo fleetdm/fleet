@@ -180,19 +180,21 @@ type applyCertificateAuthoritiesSpecRequest struct {
 	// ViaGitOps bool                                              `json:"via_git_ops"`
 }
 
+// TODO(hca): do we need to return anything to facilitate logging by the gitops client?
 type applyCertificateAuthoritiesSpecResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
 func (r applyCertificateAuthoritiesSpecResponse) Error() error { return r.Err }
 
+// // TODO(hca): confirm desired status
 // func (r applyCertificateAuthoritiesSpecResponse) Status() int  { return http.StatusNoContent }
 
 func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*applyCertificateAuthoritiesSpecRequest)
 
 	// Call the service method to apply the certificate authorities spec
-	err := svc.ApplyCertificateAuthoritiesSpec(ctx, req.CertificateAuthorities, req.DryRun, true)
+	err := svc.BatchApplyCertificateAuthorities(ctx, req.CertificateAuthorities, req.DryRun, true)
 	if err != nil {
 		return &applyCertificateAuthoritiesSpecResponse{Err: err}, nil
 	}
@@ -200,12 +202,15 @@ func applyCertificateAuthoritiesSpecEndpoint(ctx context.Context, request interf
 	return &applyCertificateAuthoritiesSpecResponse{}, nil
 }
 
-func (svc *Service) ApplyCertificateAuthoritiesSpec(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
+func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error {
 	if err := svc.authz.Authorize(ctx, &fleet.CertificateAuthority{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	// TODO(hca): ok to allow free version to include empty certificate authorities as no-op gitops?
+	// TODO(hca): OK to allow free version to include empty certificate authorities as no-op gitops?
+	// Generally we've opted to be permissive in these cases so that downgraded licensees can still
+	// function without errors. If not, it will require more convoluted path for license auth and
+	// client-side validation.
 	if incoming.NDESSCEP == nil && len(incoming.DigiCert) == 0 && len(incoming.CustomScepProxy) == 0 && len(incoming.Hydrant) == 0 {
 		return nil
 	}

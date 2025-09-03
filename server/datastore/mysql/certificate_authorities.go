@@ -299,7 +299,7 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 	return args, placeholders, nil
 }
 
-func upsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, serverPrivateKey string, certificateAuthorities []*fleet.CertificateAuthority) error {
+func batchUpsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, serverPrivateKey string, certificateAuthorities []*fleet.CertificateAuthority) error {
 	if len(certificateAuthorities) == 0 {
 		return nil
 	}
@@ -326,26 +326,22 @@ func upsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, serve
 	return nil
 }
 
-func deleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, certificateAuthorities []*fleet.CertificateAuthority) error {
+func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, certificateAuthorities []*fleet.CertificateAuthority) error {
 	if len(certificateAuthorities) == 0 {
 		return nil
 	}
 
-	// TODO(hca): confirm this sql works as expected
 	stmt := `DELETE FROM certificate_authorities WHERE (name, type) IN (%s)`
-
 	args := make([]interface{}, 0, len(certificateAuthorities)*2)
 	var placeholders strings.Builder
 	for _, ca := range certificateAuthorities {
 		args = append(args, ca.Name, ca.Type)
 		placeholders.WriteString("(?, ?),")
 	}
-
-	s := fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
-	fmt.Println("deleteCertificateAuthorities SQL:", s, "args:", args)
+	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
 
 	// TODO(hca): with retry?
-	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ",")), args...)
+	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
 	}
@@ -359,10 +355,10 @@ func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, toDel
 	upsert = append(upsert, toUpdate...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := deleteCertificateAuthorities(ctx, tx, toDelete); err != nil {
+		if err := batchDeleteCertificateAuthorities(ctx, tx, toDelete); err != nil {
 			return err
 		}
-		if err := upsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upsert); err != nil {
+		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upsert); err != nil {
 			return err
 		}
 		return nil

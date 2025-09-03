@@ -793,6 +793,7 @@ func TestGitOpsErrors(t *testing.T) {
 			rawJSON: `{ "integrations": null, "certificate_authorities": { "ndes_scep_proxy": [] } }`,
 			wantErr: "org_settings.certificate_authorities.ndes_scep_proxy config is not a map",
 		},
+		// TODO(hca): add more tests for other certificate authority types
 	}
 
 	for _, tt := range tests {

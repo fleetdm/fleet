@@ -382,11 +382,9 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 	return grouped, nil
 }
 
-// TODO: confirm this type works; may need to use pointers; confirm expected "patch" behaviors in
-// contxt of gitops
+// TODO: Do we need optjson here? We aren't supporting patch behavior for batch updates
 type CertificateAuthoritiesSpec struct {
-	DigiCert optjson.Slice[DigiCertCA] `json:"digicert"`
-	// NDESSCEPProxy settings. In JSON, not specifying this field means keep current setting, null means clear settings.
+	DigiCert        optjson.Slice[DigiCertCA]        `json:"digicert"`
 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
 	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
@@ -394,6 +392,9 @@ type CertificateAuthoritiesSpec struct {
 
 func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
 	var groupedCAs GroupedCertificateAuthorities
+
+	// TODO(hca): Is all of this really necessary? It was pulled over from the old implementation,
+	// but maybe it is overly complex for the current usage where we aren't supporting patch behavior.
 	var spec interface{}
 	if incoming == nil {
 		spec = map[string]interface{}{}

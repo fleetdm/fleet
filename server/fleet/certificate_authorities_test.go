@@ -2,6 +2,6 @@ package fleet
 
 import "testing"
 
-func TestCAUnmarshal(t *testing.T) {
-	// TODO: implement test
+func TestValidateCertificateAuthoritiesSpec(t *testing.T) {
+	// TODO(hca): placeholder for additional tests to the extent not otherwise covered by client_test
 }
