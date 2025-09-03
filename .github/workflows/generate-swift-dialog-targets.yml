@@ -64,7 +64,8 @@ jobs:
           NOTARIZATION_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
-        run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=. codesign-identity=${CODESIGN_IDENTITY} notarize=true
+        run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=.
+        #codesign-identity=${CODESIGN_IDENTITY} notarize=true
 
       - name: Upload swiftDialog.app.tar.gz
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
