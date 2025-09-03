@@ -10795,7 +10795,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(s.ds, nil, clock.C, nil)
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -13713,6 +13713,50 @@ func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 	require.Equal(t, len(hostIDs), countResp.Count)
 }
 
+func (s *integrationTestSuite) TestAndroidHostStorageInAPI() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Android host with storage data
+	hostID := createAndroidHostWithStorage(t, s.ds, nil)
+
+	// individual host endpoint
+	var hostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostID), nil, http.StatusOK, &hostResp)
+
+	require.NotNil(t, hostResp.Host)
+	require.Equal(t, "android", hostResp.Host.Platform)
+
+	// storage data is present in API response
+	assert.Equal(t, 128.0, hostResp.Host.GigsTotalDiskSpace, "API should return total disk space")
+	assert.Equal(t, 35.0, hostResp.Host.GigsDiskSpaceAvailable, "API should return available disk space")
+	assert.InDelta(t, 27.34, hostResp.Host.PercentDiskSpaceAvailable, 0.1, "API should return disk space percentage")
+
+	// list endpoint includes storage data
+	var listResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listResp)
+
+	var androidHost *fleet.HostResponse
+	for _, host := range listResp.Hosts {
+		if host.ID == hostID {
+			androidHost = &host
+			break
+		}
+	}
+
+	require.NotNil(t, androidHost, "Android host should be in hosts list")
+	require.Equal(t, "android", androidHost.Platform)
+
+	// storage data in list endpoint
+	assert.Equal(t, 128.0, androidHost.GigsTotalDiskSpace, "Host list should include total disk space")
+	assert.Equal(t, 35.0, androidHost.GigsDiskSpaceAvailable, "Host list should include available disk space")
+	assert.InDelta(t, 27.34, androidHost.PercentDiskSpaceAvailable, 0.1, "Host list should include disk space percentage")
+
+	// clean up
+	err := s.ds.DeleteHost(ctx, hostID)
+	require.NoError(t, err)
+}
+
 func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *uint) []uint {
 	ids := make([]uint, 0, count)
 	for i := range count {
@@ -13740,6 +13784,34 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 		ids = append(ids, ahost.Host.ID)
 	}
 	return ids
+}
+
+func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uint) uint {
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:                  "android-storage-host",
+			ComputerName:              "Android Storage Test Device",
+			Platform:                  "android",
+			OSVersion:                 "Android 14",
+			Build:                     "UPB4.230623.005",
+			Memory:                    8192, // 8GB RAM
+			TeamID:                    teamID,
+			HardwareSerial:            "STORAGE-TEST-" + uuid.NewString(),
+			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
+			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
+			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(uuid.NewString()),
+			AndroidPolicyID:      ptr.Uint(1),
+			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
+		},
+	}
+	host.SetNodeKey(*host.Device.EnterpriseSpecificID)
+	ahost, err := ds.NewAndroidHost(context.Background(), host)
+	require.NoError(t, err)
+	return ahost.Host.ID
 }
 
 func (s *integrationTestSuite) TestHostCertificates() {

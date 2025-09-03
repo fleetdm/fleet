@@ -1043,9 +1043,10 @@ func (svc *Service) SubmitDistributedQueryResults(
 		failed := ok && status != fleet.StatusOK
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
 			ll := level.Debug(svc.logger)
-			// We'd like to log these as error for troubleshooting and improving of distributed queries.
+			// We'd like to log these as warning for troubleshooting and improving of distributed queries.
+			// We have multiple feature requests filed to expose this information in the UI, including https://github.com/fleetdm/fleet/issues/18004
 			if messages[query] == "distributed query is denylisted" {
-				ll = level.Error(svc.logger)
+				ll = level.Warn(svc.logger)
 			}
 			ll.Log("query", query, "message", messages[query], "hostID", host.ID)
 		}
@@ -1109,13 +1110,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
+		teamID := uint(0)
 		if host.TeamID != nil {
-			team, err := svc.ds.Team(ctx, *host.TeamID)
-			if err != nil {
-				logging.WithErr(ctx, err)
-			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-			}
+			teamID = *host.TeamID
+		}
+		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)

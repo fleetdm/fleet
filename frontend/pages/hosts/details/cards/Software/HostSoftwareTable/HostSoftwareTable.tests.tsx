@@ -22,7 +22,6 @@ describe("HostSoftwareTable", () => {
     searchQuery: "",
     page: 0,
     pagePath: "/hosts/1/software",
-    pathPrefix: "/hosts/1/software",
     vulnFilters: {},
     onAddFiltersClick: noop,
     onShowInventoryVersions: noop,

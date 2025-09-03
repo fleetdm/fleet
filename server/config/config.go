@@ -637,6 +637,10 @@ type FleetConfig struct {
 	Packaging PackagingConfig
 }
 
+func (f FleetConfig) OTELEnabled() bool {
+	return f.Logging.TracingEnabled && f.Logging.TracingType == "opentelemetry"
+}
+
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`

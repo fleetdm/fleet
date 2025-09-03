@@ -228,7 +228,10 @@ FROM
 	LEFT JOIN software_cve ON software.id = software_cve.software_id
 	JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
 WHERE
-	kernel_host_counts.os_version_id = ? %s GROUP BY id, cve, version
+	kernel_host_counts.os_version_id = ?
+	AND kernel_host_counts.hosts_count > 0
+    %s
+GROUP BY id, cve, version
 `
 
 	var tmID uint

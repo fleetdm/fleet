@@ -306,7 +306,6 @@ const HostSoftware = ({
               max_cvss_score: queryParams.max_cvss_score,
             })}
             onAddFiltersClick={toggleSoftwareFiltersModal}
-            pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
             onShowInventoryVersions={onShowInventoryVersions}
