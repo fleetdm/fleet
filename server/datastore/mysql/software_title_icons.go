@@ -52,6 +52,20 @@ func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return &icon, nil
 }
 
+func (ds *Datastore) HasAccessToExistingIconFile(ctx context.Context, teamID uint, storageID string) (bool, error) {
+	var exists bool
+	query := `
+		SELECT EXISTS(
+			SELECT 1 FROM software_title_icons WHERE storage_id = ? AND team_id = ?
+		) AS access
+	`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, query, storageID, teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "checking access to software title icon")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {
 	query := `
 		DELETE FROM software_title_icons
@@ -95,6 +109,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			software_installers.id AS software_installer_id,
 			vpp_apps.adam_id AS adam_id,
 			vpp_apps_teams.id AS vpp_app_team_id,
+			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
 			software_installers.filename AS filename,
 			teams.name AS team_name,
@@ -107,7 +122,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 		INNER JOIN teams ON software_title_icons.team_id = teams.id
 		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
-		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id
+		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
 		WHERE software_title_icons.team_id = ? AND software_title_icons.software_title_id = ?
 	`
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &details, query, teamID, titleID)

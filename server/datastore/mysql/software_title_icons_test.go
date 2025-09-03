@@ -20,6 +20,7 @@ func TestSoftwareTitleIcons(t *testing.T) {
 	}{
 		{"CreateOrUpdateSoftwareTitleIcon", testCreateOrUpdateSoftwareTitleIcon},
 		{"GetSoftwareTitleIcon", testGetSoftwareTitleIcon},
+		{"HasAccessToExistingIconFile", testHasAccessToExistingIconFile},
 		{"DeleteSoftwareTitleIcon", testDeleteSoftwareTitleIcon},
 		{"ActivityDetailsForSoftwareTitleIcon", testActivityDetailsForSoftwareTitleIcon},
 	}
@@ -133,26 +134,100 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 		before   func(ds *Datastore)
 		testFunc func(*testing.T, *Datastore)
 	}{
-		{"Icon doesn't exist", func(ds *Datastore) {
-		}, func(t *testing.T, ds *Datastore) {
-			_, err := ds.GetSoftwareTitleIcon(ctx, 1, 1)
-			require.Error(t, err)
-		}},
-		{"Icon exists", func(ds *Datastore) {
-			teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
-			require.NoError(t, err)
-			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
-				TeamID:    teamID,
-				TitleID:   titleID,
-				StorageID: "storage-id-1",
-				Filename:  "test-icon.png",
-			})
-			require.NoError(t, err)
-		}, func(t *testing.T, ds *Datastore) {
-			icon, err := ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
-			require.NoError(t, err)
-			require.NotNil(t, icon)
-		}},
+		{
+			"Icon doesn't exist",
+			func(ds *Datastore) {
+			}, func(t *testing.T, ds *Datastore) {
+				_, err := ds.GetSoftwareTitleIcon(ctx, 1, 1)
+				require.Error(t, err)
+			},
+		},
+		{
+			"Icon exists",
+			func(ds *Datastore) {
+				teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+				require.NoError(t, err)
+				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+					TeamID:    teamID,
+					TitleID:   titleID,
+					StorageID: "storage-id-1",
+					Filename:  "test-icon.png",
+				})
+				require.NoError(t, err)
+			}, func(t *testing.T, ds *Datastore) {
+				icon, err := ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
+				require.NoError(t, err)
+				require.NotNil(t, icon)
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
+}
+
+func testHasAccessToExistingIconFile(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	var teamID, titleID uint
+	var err error
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			"no match storage id exists",
+			func(ds *Datastore) {
+			}, func(t *testing.T, ds *Datastore) {
+				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, 123, "storage-id")
+				require.NoError(t, err)
+				require.False(t, hasAccess)
+			},
+		},
+		{
+			"matching storage id exists but for a different team",
+			func(ds *Datastore) {
+				teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+				require.NoError(t, err)
+				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+					TeamID:    teamID,
+					TitleID:   titleID,
+					StorageID: "storage-id",
+					Filename:  "test-icon.png",
+				})
+				require.NoError(t, err)
+			}, func(t *testing.T, ds *Datastore) {
+				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, teamID+1, "storage-id")
+				require.NoError(t, err)
+				require.False(t, hasAccess)
+			},
+		},
+		{
+			"matching storage id exists but for same team",
+			func(ds *Datastore) {
+				teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
+				require.NoError(t, err)
+				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+					TeamID:    teamID,
+					TitleID:   titleID,
+					StorageID: "storage-id",
+					Filename:  "test-icon.png",
+				})
+				require.NoError(t, err)
+			}, func(t *testing.T, ds *Datastore) {
+				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, teamID, "storage-id")
+				require.NoError(t, err)
+				require.True(t, hasAccess)
+			},
+		},
 	}
 
 	for _, tc := range testCases {
@@ -265,6 +340,7 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Equal(t, installerID, *activity.SoftwareInstallerID)
 			require.Nil(t, activity.AdamID)
 			require.Nil(t, activity.VPPAppTeamID)
+			require.Nil(t, activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Equal(t, "foo.pkg", *activity.Filename)
 			require.Equal(t, "team1", activity.TeamName)
@@ -288,7 +364,18 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			_, err = ds.UpdateVPPTokenTeams(ctx, tok1.ID, []uint{})
 			require.NoError(t, err)
 
-			vppApp := &fleet.VPPApp{Name: "foo", TitleID: titleID, VPPAppTeam: fleet.VPPAppTeam{VPPAppID: fleet.VPPAppID{AdamID: "1", Platform: fleet.MacOSPlatform}}, BundleIdentifier: "foo.bundle.id"}
+			vppApp := &fleet.VPPApp{
+				Name:    "foo",
+				TitleID: titleID,
+				IconURL: "fleetdm.com/icon.png",
+				VPPAppTeam: fleet.VPPAppTeam{
+					VPPAppID: fleet.VPPAppID{
+						AdamID:   "1",
+						Platform: fleet.MacOSPlatform,
+					},
+				},
+				BundleIdentifier: "foo.bundle.id",
+			}
 			vppApp, err = ds.InsertVPPAppWithTeam(ctx, vppApp, &teamID)
 			require.NoError(t, err)
 
@@ -330,7 +417,8 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 
 			require.Nil(t, activity.SoftwareInstallerID)
 			require.Equal(t, "1", *activity.AdamID)
-			require.NotNil(t, activity.VPPAppTeamID)
+			require.NotEmpty(t, *activity.VPPAppTeamID)
+			require.Equal(t, "fleetdm.com/icon.png", *activity.VPPIconUrl)
 			require.Equal(t, "foo", activity.SoftwareTitle)
 			require.Nil(t, activity.Filename)
 			require.Equal(t, "team1", activity.TeamName)

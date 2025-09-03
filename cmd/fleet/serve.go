@@ -35,6 +35,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -799,7 +800,7 @@ the way that the Fleet server works.
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
-						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+						softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
 					} else {
 						softwareInstallStore = store
 						level.Info(logger).Log("msg",
@@ -814,7 +815,7 @@ the way that the Fleet server works.
 					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
-						softwareTitleIconStore = fleet.FailingSoftwareTitleIconStore{}
+						softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
 					} else {
 						softwareTitleIconStore = iconStore
 						level.Warn(logger).Log("msg",

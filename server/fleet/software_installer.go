@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,34 +27,6 @@ type SoftwareInstallerStore interface {
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, fileID string) (string, error)
-}
-
-// FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
-// that fails all operations. It is used when S3 is not configured and the
-// local filesystem store could not be setup.
-type FailingSoftwareInstallerStore struct{}
-
-func (FailingSoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
-	return nil, 0, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	return errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
-	return false, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
-	// do not fail for the failing store's cleanup, as unlike the other store
-	// methods, this will be called even if software installers are otherwise not
-	// used (by the cron job).
-	return 0, nil
-}
-
-func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
-	return "", errors.New("software installer store not properly configured")
 }
 
 // SoftwareInstallDetails contains all of the information

@@ -1291,6 +1291,8 @@ type CreateOrUpdateSoftwareTitleIconFunc func(ctx context.Context, payload *flee
 
 type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error)
 
+type HasAccessToExistingIconFileFunc func(ctx context.Context, teamID uint, storageID string) (bool, error)
+
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
 type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error)
@@ -3383,6 +3385,9 @@ type DataStore struct {
 
 	GetSoftwareTitleIconFunc        GetSoftwareTitleIconFunc
 	GetSoftwareTitleIconFuncInvoked bool
+
+	HasAccessToExistingIconFileFunc        HasAccessToExistingIconFileFunc
+	HasAccessToExistingIconFileFuncInvoked bool
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
@@ -8108,6 +8113,13 @@ func (s *DataStore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	s.GetSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) HasAccessToExistingIconFile(ctx context.Context, teamID uint, storageID string) (bool, error) {
+	s.mu.Lock()
+	s.HasAccessToExistingIconFileFuncInvoked = true
+	s.mu.Unlock()
+	return s.HasAccessToExistingIconFileFunc(ctx, teamID, storageID)
 }
 
 func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {

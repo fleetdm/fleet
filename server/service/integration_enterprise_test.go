@@ -11905,11 +11905,6 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
 	})
 	require.NoError(t, err)
-	// mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-	// 	mysql.DumpTable(t, q, "software_titles")
-	// 	mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id")
-	// 	return nil
-	// })
 
 	parsePutResponse := func(resp *http.Response) putSoftwareTitleIconResponse {
 		body, err := io.ReadAll(resp.Body)

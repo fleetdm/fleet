@@ -85,10 +85,20 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	}
 
 	if icon == nil || icon.StorageID != payload.StorageID {
-		exists, err := svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
+		var exists bool
+
+		hasAccess, err := svc.ds.HasAccessToExistingIconFile(ctx, payload.TeamID, payload.StorageID)
 		if err != nil {
-			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if software title icon exists")
+			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking access to existing software title icon")
 		}
+
+		if hasAccess {
+			exists, err = svc.softwareTitleIconStore.Exists(ctx, payload.StorageID)
+			if err != nil {
+				return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking if software title icon exists")
+			}
+		}
+
 		if !exists {
 			if payload.IconFile != nil {
 				if err := svc.softwareTitleIconStore.Put(ctx, payload.StorageID, payload.IconFile); err != nil {
@@ -132,10 +142,13 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 		return fleet.ErrNoContext
 	}
 	user := vc.User
-	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, teamID)
 	activityDetailsForSoftwareTitleIcon, err := svc.ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching software title icon activity details")
+	}
+	var iconUrl string
+	if activityDetailsForSoftwareTitleIcon.VPPIconUrl != nil {
+		iconUrl = *activityDetailsForSoftwareTitleIcon.VPPIconUrl
 	}
 
 	err = svc.ds.DeleteSoftwareTitleIcon(ctx, teamID, titleID)
@@ -144,7 +157,8 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 	}
 
 	// since delete is idempotent, we only want to generate an activity if the
-	// software title icon was actually deleted.
+	// software title icon was actually deleted. This error will be a not found error,
+	// so if it exists, skip the activity generation
 	if err == nil {
 		err = generateEditActivityForSoftwareTitleIcon(ctx, svc, user, iconUrl, activityDetailsForSoftwareTitleIcon)
 		if err != nil {
