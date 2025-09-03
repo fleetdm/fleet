@@ -2372,14 +2372,14 @@ FROM (
     COUNT(bahr.error)                       AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
     COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
-    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled,
+    COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL)) AS num_cancelled,
     (
       COUNT(bahr.host_id)
       - COUNT(bahr.error)
       - COUNT(IF(hsr.exit_code = 0, 1, NULL))
       - COUNT(IF(hsr.exit_code > 0, 1, NULL))
-      - COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL))
-    )                                       AS num_pending,
+      - COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL))
+    ) AS num_pending,
     ba.execution_id,
     ba.script_id,
     ba.status,
