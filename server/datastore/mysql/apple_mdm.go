@@ -747,7 +747,11 @@ SELECT
 	COALESCE(status, '%s') AS status,
 	COALESCE(operation_type, '') AS operation_type,
 	COALESCE(detail, '') AS detail,
-	scope
+	scope,
+	CASE
+		WHEN scope = 'user' THEN  COALESCE((SELECT nu.user_short_name FROM nano_enrollments ne INNER JOIN nano_users nu ON ne.user_id = nu.id WHERE ne.type = 'User' AND ne.enabled = 1 AND ne.device_id = host_uuid ORDER BY ne.created_at ASC LIMIT 1), '')
+		ELSE ''
+	END AS managed_local_account
 FROM
 	host_mdm_apple_profiles
 WHERE
@@ -766,7 +770,8 @@ SELECT
 	COALESCE(status, '%s') AS status,
 	COALESCE(operation_type, '') AS operation_type,
 	COALESCE(detail, '') AS detail,
-	scope
+	scope,
+	'' AS managed_local_account
 FROM
 	host_mdm_apple_declarations
 WHERE
@@ -2265,12 +2270,23 @@ func (ds *Datastore) GetNanoMDMUserEnrollment(ctx context.Context, deviceId stri
 	return &nanoEnroll, nil
 }
 
-func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error) {
-	var username string
+func (ds *Datastore) UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceId string, userUUID string, username string) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE nano_users SET user_short_name = ? WHERE id = ? AND device_id = ?
+	`, username, deviceId+":"+userUUID, deviceId)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "updating nano user enrollment username for device id %s", deviceId)
+	}
+	return nil
+}
+
+func (ds *Datastore) GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context, deviceID string) (string, string, error) {
+	var nanoUser fleet.NanoUser
 	// Note that we only ever return the first active user enrollment from the device
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &username, `
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &nanoUser, `
 		SELECT
-			COALESCE(nu.user_short_name, '') as user_short_name
+			COALESCE(nu.user_short_name, '') as user_short_name,
+			nu.id AS id
 		FROM
 			nano_enrollments ne
 			INNER JOIN nano_users nu ON ne.user_id = nu.id
@@ -2282,12 +2298,22 @@ func (ds *Datastore) GetNanoMDMUserEnrollmentUsername(ctx context.Context, devic
 		LIMIT 1`, deviceID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", nil
+			return "", "", nil
 		}
-		return "", ctxerr.Wrapf(ctx, err, "getting username from nano_users for device id %s", deviceID)
+		return "", "", ctxerr.Wrapf(ctx, err, "getting username from nano_users for device id %s", deviceID)
 	}
 
-	return username, nil
+	username := nanoUser.UserShortName
+	userID := nanoUser.ID
+	// The userID from nano should be of the form
+	// deviceid + ":" + userID
+	if strings.HasPrefix(nanoUser.ID, deviceID) {
+		// If it does, we can extract the userID
+		userID = strings.TrimPrefix(nanoUser.ID, deviceID+":")
+	} else {
+		level.Debug(ds.logger).Log("userID from nano does not match expected deviceID prefixed format", "deviceID", deviceID, "userID", nanoUser.ID)
+	}
+	return username, userID, nil
 }
 
 // NOTE: this is only called from a deprecated endpoint that does not support

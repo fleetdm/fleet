@@ -517,7 +517,7 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 ) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
-	s.runWorker()
+	s.runWorkerUntilDone()
 	s.awaitTriggerProfileSchedule(t)
 
 	var cmds []*micromdm.CommandPayload
