@@ -36,6 +36,7 @@ func TestAndroid(t *testing.T) {
 		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
 		{"GetMDMAndroidProfilesContents", testGetMDMAndroidProfilesContents},
+		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -987,8 +988,8 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 
 	// simulate that host 2 already has p3 installed
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles 
-			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status) 
+		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_android_profiles
+			(host_uuid, profile_uuid, profile_name, included_in_policy_version, operation_type, status)
 			VALUES (?, ?, ?, ?, ?, ?)`, hosts[2].UUID, p3.ProfileUUID, p3.Name, 1, fleet.MDMOperationTypeInstall, fleet.MDMDeliveryVerified)
 		return err
 	})
@@ -1066,6 +1067,62 @@ func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
 			out, err := ds.GetMDMAndroidProfilesContents(ctx, c.uuids)
 			require.NoError(t, err)
 			require.Equal(t, c.want, out)
+		})
+	}
+}
+
+func testBulkUpsertMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
+	require.NoError(t, err)
+
+	// Create some hosts and some profiles
+	hosts := make([]*fleet.Host, 3)
+	for i := range hosts {
+		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
+		newHost, err := ds.NewAndroidHost(ctx, androidHost)
+		require.NoError(t, err)
+		hosts[i] = newHost.Host
+		if i == len(hosts)-1 {
+			// last host is in a team
+			err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&tm.ID, []uint{hosts[i].ID}))
+			require.NoError(t, err)
+		}
+	}
+
+	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
+	for i := range profiles {
+		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
+		if i == len(profiles)-1 {
+			// last profile is for a team
+			p.TeamID = &tm.ID
+		}
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		require.NoError(t, err)
+		profiles[i] = p
+	}
+
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, nil)
+	require.NoError(t, err)
+
+	for _, batchSize := range []int{0, 2, 3} {
+		t.Run(fmt.Sprintf("batchsize-%d", batchSize), func(t *testing.T) {
+			ds.testUpsertMDMDesiredProfilesBatchSize = batchSize
+			t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
+
+			hostProfiles, noProfHosts, err := ds.ListMDMAndroidProfilesToSend(ctx)
+			require.NoError(t, err)
+			require.Empty(t, noProfHosts)
+			require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+				{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
+				{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+				{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
+				{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
+				{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+			}, hostProfiles)
+
+			// TODO(ap): other tests for bulk upsert...
 		})
 	}
 }
