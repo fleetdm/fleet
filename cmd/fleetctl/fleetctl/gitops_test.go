@@ -320,15 +320,15 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 	var storedCAs fleet.GroupedCertificateAuthorities
 	muStoredCAs := sync.Mutex{}
 
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete []*fleet.CertificateAuthority, toAdd []*fleet.CertificateAuthority, toUpdate []*fleet.CertificateAuthority) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		muStoredCAs.Lock()
 		defer muStoredCAs.Unlock()
-		if len(toDelete) > 0 {
+		if len(ops.Delete) > 0 {
 			storedCAs = fleet.GroupedCertificateAuthorities{}
 		}
-		upserts := make([]*fleet.CertificateAuthority, 0, len(toAdd)+len(toUpdate))
-		upserts = append(upserts, toAdd...)
-		upserts = append(upserts, toUpdate...)
+		upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+		upserts = append(upserts, ops.Add...)
+		upserts = append(upserts, ops.Update...)
 		g, err := fleet.GroupCertificateAuthoritiesByType(upserts)
 		if err != nil {
 			return err
@@ -1596,7 +1596,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete, toAdd, toUpdate []*fleet.CertificateAuthority) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
 	}
 
@@ -1908,7 +1908,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 	ds.DeleteSetupExperienceScriptFunc = func(ctx context.Context, teamID *uint) error {
 		return nil
 	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete, toAdd, toUpdate []*fleet.CertificateAuthority) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
 	}
 

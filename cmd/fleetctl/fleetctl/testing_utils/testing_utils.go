@@ -442,7 +442,7 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 		return nil, &notFoundError{} // No existing EULA
 	}
-	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, toDelete, toAdd, toUpdate []*fleet.CertificateAuthority) error {
+	ds.BatchApplyCertificateAuthoritiesFunc = func(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations) error {
 		return nil
 	}
 

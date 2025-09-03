@@ -401,7 +401,7 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return fleet.NewInvalidArgumentError("gitops", "certificate authorities spec can only be applied with gitops")
 	}
 
-	ops, err := svc.batchApplyCertificateAuthorities(ctx, incoming)
+	ops, err := svc.getCertificateAuthoritiesBatchOperations(ctx, incoming)
 	if err != nil {
 		return err
 	}
@@ -417,7 +417,7 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 		return nil
 	}
 
-	if err := svc.ds.BatchApplyCertificateAuthorities(ctx, ops.delete, ops.add, ops.update); err != nil {
+	if err := svc.ds.BatchApplyCertificateAuthorities(ctx, *ops); err != nil {
 		return err
 	}
 
@@ -428,19 +428,11 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 	return nil
 }
 
-// TODO(hca): there's probably a more elegant way to implement this, but this will do for now while
-// we sort out the details
-type caBatchOperations struct {
-	add    []*fleet.CertificateAuthority
-	delete []*fleet.CertificateAuthority
-	update []*fleet.CertificateAuthority
-}
-
-func (svc *Service) batchApplyCertificateAuthorities(ctx context.Context, incoming fleet.GroupedCertificateAuthorities) (*caBatchOperations, error) {
-	batchOps := &caBatchOperations{
-		add:    make([]*fleet.CertificateAuthority, 0),
-		delete: make([]*fleet.CertificateAuthority, 0),
-		update: make([]*fleet.CertificateAuthority, 0),
+func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context, incoming fleet.GroupedCertificateAuthorities) (*fleet.CertificateAuthoritiesBatchOperations, error) {
+	batchOps := &fleet.CertificateAuthoritiesBatchOperations{
+		Add:    make([]*fleet.CertificateAuthority, 0),
+		Delete: make([]*fleet.CertificateAuthority, 0),
+		Update: make([]*fleet.CertificateAuthority, 0),
 	}
 
 	existing, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
@@ -545,7 +537,7 @@ func (svc *Service) batchApplyCertificateAuthorities(ctx context.Context, incomi
 	return batchOps, nil
 }
 
-func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *caBatchOperations, incoming *fleet.NDESSCEPProxyCA, existing *fleet.NDESSCEPProxyCA) error {
+func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incoming *fleet.NDESSCEPProxyCA, existing *fleet.NDESSCEPProxyCA) error {
 	// // TODO(hca): where are we checking for private key?
 	if existing == nil && incoming == nil {
 		// do nothing
@@ -562,7 +554,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *caBatchOperat
 	if existing != nil && (incoming == nil || (incoming.URL == "" && incoming.AdminURL == "" && incoming.Username == "" && incoming.Password == "")) {
 		// delete current
 		level.Debug(svc.logger).Log("msg", "deleting existing NDES SCEP CA as incoming is empty")
-		batchOps.delete = append(batchOps.delete, &fleet.CertificateAuthority{
+		batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
 			Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
 			AdminURL: &existing.AdminURL,
@@ -585,7 +577,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *caBatchOperat
 	// add if there is no existing
 	if existing == nil || (existing.URL == "" && existing.AdminURL == "" && existing.Username == "" && existing.Password == "") {
 		level.Debug(svc.logger).Log("msg", "adding new NDES SCEP CA as none exists")
-		batchOps.add = append(batchOps.add, &fleet.CertificateAuthority{
+		batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 			Type:     string(fleet.CATypeNDESSCEPProxy),
 			Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
 			URL:      &incoming.URL,
@@ -599,7 +591,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *caBatchOperat
 	// otherwise update with existing id
 	level.Debug(svc.logger).Log("msg", "updating existing NDES SCEP CA")
 	incoming.ID = existing.ID
-	batchOps.update = append(batchOps.update, &fleet.CertificateAuthority{
+	batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 		Type:     string(fleet.CATypeNDESSCEPProxy),
 		Name:     ptr.String("NDES"), // TODO(hca): do we have a constant for this already?
 		URL:      &incoming.URL,
@@ -611,7 +603,7 @@ func (svc *Service) processNDESSCEP(ctx context.Context, batchOps *caBatchOperat
 	return nil
 }
 
-func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *caBatchOperations, incomingCAs []fleet.DigiCertCA, existingCAs []fleet.DigiCertCA) error {
+func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.DigiCertCA, existingCAs []fleet.DigiCertCA) error {
 	// // TODO(hca): where are we checking for private key?
 	incomingByName := make(map[string]*fleet.DigiCertCA)
 	for _, incoming := range incomingCAs {
@@ -626,7 +618,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *caBatchOpe
 	for _, existing := range existingCAs {
 		if _, ok := incomingByName[existing.Name]; !ok {
 			// if current CA isn't in the incoming list, we should delete it
-			batchOps.delete = append(batchOps.delete, &fleet.CertificateAuthority{
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:                          string(fleet.CATypeDigiCert),
 				Name:                          &existing.Name,
 				URL:                           &existing.URL,
@@ -648,7 +640,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *caBatchOpe
 			continue
 		case ok:
 			// found but not identical so update
-			batchOps.update = append(batchOps.update, &fleet.CertificateAuthority{
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:                          string(fleet.CATypeDigiCert),
 				Name:                          &incoming.Name,
 				URL:                           &incoming.URL,
@@ -660,7 +652,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *caBatchOpe
 			})
 		default:
 			// not found so add
-			batchOps.add = append(batchOps.add, &fleet.CertificateAuthority{
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 				Type:                          string(fleet.CATypeDigiCert),
 				Name:                          &incoming.Name,
 				URL:                           &incoming.URL,
@@ -680,7 +672,7 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *caBatchOpe
 	return nil
 }
 
-func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *caBatchOperations, incomingCAs []fleet.CustomSCEPProxyCA, existingCAs []fleet.CustomSCEPProxyCA) error {
+func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.CustomSCEPProxyCA, existingCAs []fleet.CustomSCEPProxyCA) error {
 	incomingByName := make(map[string]*fleet.CustomSCEPProxyCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
@@ -691,7 +683,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *caB
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
 		if _, ok := incomingByName[existing.Name]; !ok {
-			batchOps.delete = append(batchOps.delete, &fleet.CertificateAuthority{
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      &existing.Name,
 				URL:       &existing.URL,
@@ -709,7 +701,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *caB
 		// create the payload to be added or updated
 		if _, ok := existingByName[name]; ok {
 			// update existing
-			batchOps.update = append(batchOps.update, &fleet.CertificateAuthority{
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      &incoming.Name,
 				URL:       &incoming.URL,
@@ -717,7 +709,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *caB
 			})
 		} else {
 			// add new
-			batchOps.add = append(batchOps.add, &fleet.CertificateAuthority{
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 				Type:      string(fleet.CATypeCustomSCEPProxy),
 				Name:      &incoming.Name,
 				URL:       &incoming.URL,
@@ -729,7 +721,7 @@ func (svc *Service) processCustomSCEPProxyCAs(ctx context.Context, batchOps *caB
 	return nil
 }
 
-func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOperations, incomingCAs []fleet.HydrantCA, existingCAs []fleet.HydrantCA) error {
+func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *fleet.CertificateAuthoritiesBatchOperations, incomingCAs []fleet.HydrantCA, existingCAs []fleet.HydrantCA) error {
 	incomingByName := make(map[string]*fleet.HydrantCA)
 	for _, incoming := range incomingCAs {
 		// Note: caller is responsible for ensuring incoming list has no duplicates
@@ -740,7 +732,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOper
 	for _, existing := range existingCAs {
 		// if existing CA isn't in the incoming list, we should delete it
 		if _, ok := incomingByName[existing.Name]; !ok {
-			batchOps.delete = append(batchOps.delete, &fleet.CertificateAuthority{
+			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
 				Name:         &existing.Name,
 				URL:          &existing.URL,
@@ -760,7 +752,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOper
 		// create the payload to be added or updated
 		if _, ok := existingByName[name]; ok {
 			// update existing
-			batchOps.update = append(batchOps.update, &fleet.CertificateAuthority{
+			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
 				Name:         &incoming.Name,
 				URL:          &incoming.URL,
@@ -769,7 +761,7 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOper
 			})
 		} else {
 			// add new
-			batchOps.add = append(batchOps.add, &fleet.CertificateAuthority{
+			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
 				Type:         string(fleet.CATypeHydrant),
 				Name:         &incoming.Name,
 				URL:          &incoming.URL,
@@ -784,13 +776,13 @@ func (svc *Service) processHydrantCAs(ctx context.Context, batchOps *caBatchOper
 
 // recordActivitiesBatchApplyCAs records activities for batch operations on certificate authorities
 // (i.e. added, edited, deleted).
-func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *caBatchOperations) error {
+func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *fleet.CertificateAuthoritiesBatchOperations) error {
 	if ops == nil {
 		return nil
 	}
 
 	// FIXME: Should we have a batch operation for recording activities?
-	for _, ca := range ops.add {
+	for _, ca := range ops.Add {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedNDESSCEPProxy{}); err != nil {
@@ -810,7 +802,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *caBa
 			}
 		}
 	}
-	for _, ca := range ops.update {
+	for _, ca := range ops.Update {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedNDESSCEPProxy{}); err != nil {
@@ -830,7 +822,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *caBa
 			}
 		}
 	}
-	for _, ca := range ops.delete {
+	for _, ca := range ops.Delete {
 		switch ca.Type {
 		case string(fleet.CATypeNDESSCEPProxy):
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedNDESSCEPProxy{}); err != nil {

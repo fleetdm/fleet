@@ -349,16 +349,17 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	return nil
 }
 
-func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, toDelete []*fleet.CertificateAuthority, toAdd []*fleet.CertificateAuthority, toUpdate []*fleet.CertificateAuthority) error {
-	upsert := make([]*fleet.CertificateAuthority, 0, len(toAdd)+len(toUpdate))
-	upsert = append(upsert, toAdd...)
-	upsert = append(upsert, toUpdate...)
+func (ds *Datastore) BatchApplyCertificateAuthorities(ctx context.Context, ops fleet.CertificateAuthoritiesBatchOperations,
+) error {
+	upserts := make([]*fleet.CertificateAuthority, 0, len(ops.Add)+len(ops.Update))
+	upserts = append(upserts, ops.Add...)
+	upserts = append(upserts, ops.Update...)
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := batchDeleteCertificateAuthorities(ctx, tx, toDelete); err != nil {
+		if err := batchDeleteCertificateAuthorities(ctx, tx, ops.Delete); err != nil {
 			return err
 		}
-		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upsert); err != nil {
+		if err := batchUpsertCertificateAuthorities(ctx, tx, ds.serverPrivateKey, upserts); err != nil {
 			return err
 		}
 		return nil

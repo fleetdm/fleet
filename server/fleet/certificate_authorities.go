@@ -476,3 +476,10 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 
 	return &groupedCAs, nil
 }
+
+// CertificateAuthoritiesBatchOperations groups the operations for batch processing of certificate authorities.
+type CertificateAuthoritiesBatchOperations struct {
+	Delete []*CertificateAuthority
+	Add    []*CertificateAuthority
+	Update []*CertificateAuthority
+}

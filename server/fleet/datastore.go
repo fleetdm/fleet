@@ -2304,7 +2304,7 @@ type Datastore interface {
 	// BatchApplyCertificateAuthorities applies a batch of certificate authority changes (add,
 	// update, delete). Deletes are processed first based on name and type. Adds and updates are
 	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
-	BatchApplyCertificateAuthorities(ctx context.Context, toDelete []*CertificateAuthority, toAdd []*CertificateAuthority, toUpdate []*CertificateAuthority) error
+	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
 
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
