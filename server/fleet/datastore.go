@@ -2242,6 +2242,10 @@ type Datastore interface {
 	// profiles with the specified UUIDs.
 	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
+	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidBulkUpsertHostProfilePayload) error
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 

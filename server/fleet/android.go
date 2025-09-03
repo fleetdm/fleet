@@ -99,3 +99,16 @@ type MDMAndroidPolicyRequest struct {
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
+
+type MDMAndroidBulkUpsertHostProfilePayload struct {
+	HostUUID                string
+	Status                  *MDMDeliveryStatus
+	OperationType           MDMOperationType
+	Detail                  string
+	ProfileUUID             string
+	ProfileName             string
+	PolicyRequestUUID       *string
+	DeviceRequestUUID       *string
+	RequestFailCount        int
+	IncludedInPolicyVersion *int
+}

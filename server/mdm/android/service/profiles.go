@@ -167,6 +167,39 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 	slices.SortFunc(profiles, func(a, b *fleet.MDMAndroidProfilePayload) int {
 		return cmp.Compare(a.ProfileName, b.ProfileName)
 	})
+
+	// merge the profiles in that order, keeping track of what profile overrides
+	// what other one
+	settingFromProfile := make(map[string]string) // setting name -> "winning" profile UUID
+	var finalJSON map[string]json.RawMessage
+	for _, prof := range profiles {
+		content, ok := profilesContents[prof.ProfileUUID]
+		if !ok {
+			// should never happen
+			return ctxerr.Errorf(ctx, "missing content for profile %s", prof.ProfileUUID)
+		}
+
+		var profJSON map[string]json.RawMessage
+		if err := json.Unmarshal(content, &profJSON); err != nil {
+			return ctxerr.Wrapf(ctx, err, "unmarshal profile %s content", prof.ProfileUUID)
+		}
+
+		if finalJSON == nil {
+			finalJSON = profJSON
+			for k := range profJSON {
+				settingFromProfile[k] = prof.ProfileUUID
+			}
+			continue
+		}
+
+		for k, v := range profJSON {
+			if _, alreadySet := finalJSON[k]; alreadySet {
+				// TODO: mark settingFromProfile[k] as failed/overridden
+			}
+			finalJSON[k] = v
+			settingFromProfile[k] = prof.ProfileUUID
+		}
+	}
 }
 
 func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,

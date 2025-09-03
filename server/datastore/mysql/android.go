@@ -952,3 +952,73 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 	}
 	return results, nil
 }
+
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		stmt := fmt.Sprintf(`
+			INSERT INTO host_mdm_android_profiles (
+				host_uuid,
+				status,
+				operation_type,
+				detail,
+				profile_uuid,
+				profile_name,
+				policy_request_uuid,
+				device_request_uuid,
+				request_fail_count,
+				included_in_policy_version
+			)
+			VALUES %s
+			ON DUPLICATE KEY UPDATE
+				status = VALUES(status),
+				operation_type = VALUES(operation_type),
+				detail = VALUES(detail),
+				profile_name = VALUES(profile_name),
+				policy_request_uuid = VALUES(policy_request_uuid),
+				device_request_uuid = VALUES(device_request_uuid),
+				request_fail_count = VALUES(request_fail_count),
+				included_in_policy_version = VALUES(included_in_policy_version)
+`, strings.TrimSuffix(valuePart, ","),
+		)
+
+		// Taken from BulkUpsertMDMAppleHostProfiles: We need to run with retry
+		// due to deadlocks. The INSERT/ON DUPLICATE KEY UPDATE pattern is prone
+		// to deadlocks when multiple threads are modifying nearby rows. That's
+		// because this statement uses gap locks. When two transactions acquire
+		// the same gap lock, they may deadlock. Two simultaneous transactions
+		// may happen when cron job runs and the user is updating via the UI at
+		// the same time.
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, args...)
+			return err
+		})
+		return err
+	}
+
+	generateValueArgs := func(p *fleet.MDMAndroidBulkUpsertHostProfilePayload) (string, []any) {
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{
+			p.HostUUID, p.Status, p.OperationType,
+			p.Detail, p.ProfileUUID, p.ProfileName,
+			p.PolicyRequestUUID, p.DeviceRequestUUID, p.RequestFailCount,
+			p.IncludedInPolicyVersion,
+		}
+		return valuePart, args
+	}
+
+	const defaultBatchSize = 1000 // number of parameters is this times number of placeholders
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+	}
+
+	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
+		return err
+	}
+
+	return nil
+}
