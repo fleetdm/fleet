@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"time"
@@ -139,6 +140,12 @@ type Datastore interface {
 	// The return values indicate how many campaigns were expired and any error.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
+	// CleanupCompletedCampaignTargets removes campaign targets for campaigns that have been
+	// completed for more than the specified duration. This helps reduce database size by
+	// cleaning up historical data that is no longer needed. Returns the number of
+	// targets deleted.
+	CleanupCompletedCampaignTargets(ctx context.Context, olderThan time.Time) (deleted uint, err error)
+
 	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
 	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.
 	GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error)
@@ -249,6 +256,7 @@ type Datastore interface {
 	Host(ctx context.Context, id uint) (*Host, error)
 	GetHostHealth(ctx context.Context, id uint) (*HostHealth, error)
 	ListHosts(ctx context.Context, filter TeamFilter, opt HostListOptions) ([]*Host, error)
+	ListBatchScriptHosts(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus BatchScriptExecutionStatus, opt ListOptions) ([]BatchScriptHost, *PaginationMetadata, uint, error)
 
 	// ListHostsLiteByUUIDs returns the "lite" version of hosts corresponding to
 	// the provided uuids and filtered according to the provided team filters. It
@@ -314,6 +322,8 @@ type Datastore interface {
 	HostnamesByIdentifiers(ctx context.Context, identifiers []string) ([]string, error)
 	// UpdateHostIssuesFailingPolicies updates the failing policies count in host_issues table for the provided hosts.
 	UpdateHostIssuesFailingPolicies(ctx context.Context, hostIDs []uint) error
+	// UpdateHostIssuesFailingPoliciesForSingleHost updates the failing policies count in host_issues table for a single host.
+	UpdateHostIssuesFailingPoliciesForSingleHost(ctx context.Context, hostID uint) error
 	// Gets the last time the host's row in `host_issues` was updated
 	GetHostIssuesLastUpdated(ctx context.Context, hostId uint) (time.Time, error)
 	// UpdateHostIssuesVulnerabilities updates the critical vulnerabilities counts in host_issues.
@@ -557,6 +567,10 @@ type Datastore interface {
 	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
 	// are being deleted from the global configuration.
 	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
+	// DefaultTeamConfig returns the configuration for "No Team" hosts.
+	DefaultTeamConfig(ctx context.Context) (*TeamConfig, error)
+	// SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
+	SaveDefaultTeamConfig(ctx context.Context, config *TeamConfig) error
 	// TeamExists returns true if a team with the given id exists.
 	TeamExists(ctx context.Context, teamID uint) (bool, error)
 
@@ -1276,10 +1290,16 @@ type Datastore interface {
 	// id. Right now only one user channel enrollment is supported per device
 	GetNanoMDMUserEnrollment(ctx context.Context, id string) (*NanoEnrollment, error)
 
-	// GetNanoMDMUserEnrollmentUsername returns the short username of the user
-	// channel enrollment for the device id. Right now only one user channel
-	// enrollment is supported per device.
-	GetNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string) (string, error)
+	// GetNanoMDMUserEnrollmentUsernameAndUUID returns the short username and UUID of the user
+	// channel enrollment for the device id. Right now only one user channel enrollment is
+	// supported per device.
+	GetNanoMDMUserEnrollmentUsernameAndUUID(ctx context.Context, deviceID string) (string, string, error)
+
+	// UpdateNanoMDMUserEnrollmentUsername updates the username of the user channel with the given
+	// userUUID for the specified deviceID. The actual ID of the nano_user to be updated will be
+	// deviceID + ":" + userUUID because of the workings of nano. Note that this data can be
+	// overriden by a TokenUpdate but that should provide the latest username
+	UpdateNanoMDMUserEnrollmentUsername(ctx context.Context, deviceID string, userUUID string, username string) error
 
 	// GetNanoMDMEnrollmentTimes returns the time of the most recent enrollment and the most recent
 	// MDM protocol seen time for the host with the given UUID
@@ -2466,3 +2486,33 @@ func IsForeignKey(err error) bool {
 }
 
 type OptionalArg func() interface{}
+
+// SecretUsedError is returned when attempting to delete a variable that is in use in scripts or profiles.
+type SecretUsedError struct {
+	SecretName string
+	Entity     EntityUsingSecret
+}
+
+// Error implements the error interface.
+func (c *SecretUsedError) Error() string {
+	if c.Entity.Type == "script" {
+		return fmt.Sprintf(
+			"%s is used by the %q script in the %q team. Please edit or delete the script and try again.",
+			c.SecretName, c.Entity.Name, c.Entity.TeamName,
+		)
+	}
+	return fmt.Sprintf(
+		"%s is used by the %q configuration profile in the %q team. Please delete the configuration profile and try again.",
+		c.SecretName, c.Entity.Name, c.Entity.TeamName,
+	)
+}
+
+// EntityUsingSecret describes the entity using a secret variable.
+type EntityUsingSecret struct {
+	// Type is the entity type, "script", "apple_profile", "apple_declaration", or "windows_profile".
+	Type string
+	// Name is the name of the entity.
+	Name string
+	// TeamName is the name of the team the entity belongs to.
+	TeamName string
+}

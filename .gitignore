@@ -108,3 +108,7 @@ tools/test_extensions/hello_world/windows-arm64
 
 # Residual files when building fleet_tables extension.
 fleet_tables_*.ext
+
+# Local dev files
+.env
+.tool-versions

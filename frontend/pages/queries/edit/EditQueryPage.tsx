@@ -361,6 +361,7 @@ const EditQueryPage = ({
           url="https://github.com/fleetdm/fleet/issues/new/choose"
           text="file an issue"
           newTab
+          variant="banner-link"
         />
       </InfoBanner>
     );

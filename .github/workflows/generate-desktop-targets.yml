@@ -131,8 +131,12 @@ jobs:
   code-sign-windows:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for code-sign-windows
+      attestations: write # required for code-sign-windows
     with:
-      attest: "true"
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop.exe
     secrets:
@@ -173,8 +177,12 @@ jobs:
   code-sign-windows-arm64:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for code-sign-windows
+      attestations: write # required for code-sign-windows
     with:
-      attest: "true"
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop-arm64.exe
       download_name: unsigned-windows-arm64

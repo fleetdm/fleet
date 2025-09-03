@@ -78,12 +78,13 @@ var (
 	fleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPDepartment))
 	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsernameLocalPart))
 	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPGroups))
+	fleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPFullname))
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
 	fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
-		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarSCEPRenewalID,
+		fleet.FleetVarHostEndUserIDPGroups, fleet.FleetVarHostEndUserIDPDepartment, fleet.FleetVarHostEndUserIDPFullname, fleet.FleetVarSCEPRenewalID,
 	}
 )
 
@@ -388,6 +389,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 			Message:     "failed to read Apple config profile",
 			InternalErr: err,
 		})
+	}
+
+	// Check for secrets in profile name before expansion
+	if err := fleet.ValidateNoSecretsInProfileName(b); err != nil {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
 	// Expand and validate secrets in profile
@@ -2593,6 +2599,11 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
+		}
+		// Check for secrets in profile name before expansion
+		if err := fleet.ValidateNoSecretsInProfileName(prof); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), err.Error()))
 		}
 		// Expand profile for validation
 		expanded, secretsUpdatedAt, err := svc.ds.ExpandEmbeddedSecretsAndUpdatedAt(ctx, string(prof))
@@ -4924,7 +4935,8 @@ func preprocessProfileContents(
 
 			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) ||
 				fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
-				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) || fleetVar == string(fleet.FleetVarSCEPRenewalID):
+				fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+				fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
 				// No extra validation needed for these variables
 
 			case strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)):
@@ -5148,7 +5160,8 @@ func preprocessProfileContents(
 					hostContents = replaceFleetVariableInXML(fleetVarHostHardwareSerialRegexp, hostContents, hardwareSerial)
 
 				case fleetVar == string(fleet.FleetVarHostEndUserIDPUsername) || fleetVar == string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) ||
-					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment):
+					fleetVar == string(fleet.FleetVarHostEndUserIDPGroups) || fleetVar == string(fleet.FleetVarHostEndUserIDPDepartment) ||
+					fleetVar == string(fleet.FleetVarHostEndUserIDPFullname):
 					user, ok, err := getHostEndUserIDPUser(ctx, ds, target, hostUUID, fleetVar, hostIDForUUIDCache)
 					if err != nil {
 						return ctxerr.Wrap(ctx, err, "getting host end user IDP username")
@@ -5173,6 +5186,9 @@ func preprocessProfileContents(
 					case string(fleet.FleetVarHostEndUserIDPDepartment):
 						rx = fleetVarHostEndUserIDPDepartmentRegexp
 						value = user.Department
+					case string(fleet.FleetVarHostEndUserIDPFullname):
+						rx = fleetVarHostEndUserIDPFullnameRegexp
+						value = strings.TrimSpace(user.IdpFullName)
 					}
 					hostContents = replaceFleetVariableInXML(rx, hostContents, value)
 
@@ -5372,6 +5388,7 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 
 	noGroupsErr := fmt.Sprintf("There is no IdP groups for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPGroups)
 	noDepartmentErr := fmt.Sprintf("There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPDepartment)
+	noFullnameErr := fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname)
 	if len(users) > 0 && users[0].IdpUserName != "" {
 		idpUser := users[0]
 
@@ -5401,6 +5418,19 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 			}
 			return nil, false, nil
 		}
+		if fleetVar == string(fleet.FleetVarHostEndUserIDPFullname) && strings.TrimSpace(idpUser.IdpFullName) == "" {
+			err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+				CommandUUID:   target.cmdUUID,
+				HostUUID:      hostUUID,
+				Status:        &fleet.MDMDeliveryFailed,
+				Detail:        noFullnameErr,
+				OperationType: fleet.MDMOperationTypeInstall,
+			})
+			if err != nil {
+				return nil, false, ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for end user IDP (no fullname)")
+			}
+			return nil, false, nil
+		}
 
 		return &idpUser, true, nil
 	}
@@ -5415,6 +5445,8 @@ func getHostEndUserIDPUser(ctx context.Context, ds fleet.Datastore, target *cmdT
 		detail = noGroupsErr
 	case string(fleet.FleetVarHostEndUserIDPDepartment):
 		detail = noDepartmentErr
+	case string(fleet.FleetVarHostEndUserIDPFullname):
+		detail = noFullnameErr
 	}
 	err = ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
 		CommandUUID:   target.cmdUUID,

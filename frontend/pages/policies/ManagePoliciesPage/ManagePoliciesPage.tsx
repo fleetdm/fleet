@@ -139,7 +139,6 @@ const ManagePolicyPage = ({
     currentTeamName,
     currentTeamSummary,
     isAllTeamsSelected,
-    isAnyTeamSelected,
     isTeamAdmin,
     isTeamMaintainer,
     isRouteOk,
@@ -393,8 +392,9 @@ const ManagePolicyPage = ({
     ["teams", teamIdForApi],
     () => teamsAPI.load(teamIdForApi),
     {
-      // no call for no team (teamIdForApi === 0)
-      enabled: isRouteOk && !!teamIdForApi && canAddOrDeletePolicies,
+      // Enable for all teams including "No team" (teamIdForApi === 0)
+      enabled:
+        isRouteOk && teamIdForApi !== undefined && canAddOrDeletePolicies,
       select: (data) => data.team,
     }
   );
@@ -522,10 +522,10 @@ const ManagePolicyPage = ({
   }) => {
     setIsUpdatingPolicies(true);
     try {
-      if (isAllTeamsSelected || isPrimoMode) {
-        // primo mode updates as global, though sources available policies from No team
+      if (isAllTeamsSelected) {
         await configAPI.update(requestBody);
       } else {
+        // For any team including "No team" (team ID 0), use the teams API
         await teamsAPI.update(requestBody, teamIdForApi);
       }
       renderFlash("success", DEFAULT_AUTOMATION_UPDATE_SUCCESS_MSG);
@@ -534,9 +534,7 @@ const ManagePolicyPage = ({
     } finally {
       toggleOtherWorkflowsModal();
       setIsUpdatingPolicies(false);
-      isAllTeamsSelected || isPrimoMode
-        ? refetchGlobalConfig()
-        : refetchTeamConfig();
+      isAllTeamsSelected ? refetchGlobalConfig() : refetchTeamConfig();
     }
   };
 
@@ -572,15 +570,22 @@ const ManagePolicyPage = ({
         return;
       }
 
-      const promises = changedPolicies.map((changedPolicy) =>
-        teamPoliciesAPI.update(changedPolicy.id, {
-          software_title_id: changedPolicy.swIdToInstall || null,
-          team_id: teamIdForApi,
-        })
-      );
+      // Execute policy updates sequentially to reduce DB load
+      const results: PromiseSettledResult<any>[] = [];
 
-      // Allows for all API calls to settle even if there is an error on one
-      const results = await Promise.allSettled(promises);
+      // Use reduce to execute promises sequentially
+      await changedPolicies.reduce(async (previousPromise, changedPolicy) => {
+        await previousPromise;
+        try {
+          const result = await teamPoliciesAPI.update(changedPolicy.id, {
+            software_title_id: changedPolicy.swIdToInstall || null,
+            team_id: teamIdForApi,
+          });
+          results.push({ status: "fulfilled", value: result });
+        } catch (error) {
+          results.push({ status: "rejected", reason: error });
+        }
+      }, Promise.resolve());
 
       const successfulUpdates = results.filter(
         (result) => result.status === "fulfilled"
@@ -950,21 +955,15 @@ const ManagePolicyPage = ({
   const showCtaButtons = !policiesErrors;
 
   /**
-  all teams? -> global
-  no team?
-    primo? -> global
-    not primo? -> undefined
-  other teams -> teamConfig
+  all teams? -> globalConfig
+  any team (including "No team")? -> teamConfig
    */
 
   let automationsConfig;
   if (isAllTeamsSelected) {
     automationsConfig = globalConfig;
-  } else if (teamIdForApi === API_NO_TEAM_ID) {
-    if (isPrimoMode) {
-      automationsConfig = globalConfig;
-    }
   } else {
+    // For any team including "No team" (team ID 0), use the team config
     automationsConfig = teamConfig;
   }
 
@@ -1125,7 +1124,7 @@ const ManagePolicyPage = ({
       ? globalConfig?.integrations.conditional_access_enabled
       : teamConfig?.integrations.conditional_access_enabled) ?? false;
 
-  const getAutomationsDropdownOptions = (includeOtherWorkflows: boolean) => {
+  const getAutomationsDropdownOptions = () => {
     let disabledInstallTooltipContent: TooltipContent;
     let disabledCalendarTooltipContent: TooltipContent;
     let disabledRunScriptTooltipContent: TooltipContent;
@@ -1212,7 +1211,7 @@ const ManagePolicyPage = ({
     }
 
     // Maintainers do not have access to other workflows
-    if (includeOtherWorkflows && !isGlobalMaintainer && !isTeamMaintainer) {
+    if (!isGlobalMaintainer && !isTeamMaintainer) {
       options.push({
         label: "Other",
         value: "other_workflows",
@@ -1234,13 +1233,7 @@ const ManagePolicyPage = ({
           name="policy-automations"
           onChange={onSelectAutomationOption}
           placeholder="Manage automations"
-          options={
-            hasPoliciesToAutomate
-              ? getAutomationsDropdownOptions(
-                  isAllTeamsSelected || isAnyTeamSelected || isPrimoMode
-                ) // include "Other workflows" when all teams is selected, when a team other than No team is selected, and when in Primo mode (No team will be selected)
-              : []
-          }
+          options={hasPoliciesToAutomate ? getAutomationsDropdownOptions() : []}
           variant="button"
           nowrapMenu
         />

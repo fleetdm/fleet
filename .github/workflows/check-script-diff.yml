@@ -1,0 +1,89 @@
+name: Check Script Diff(using /ee/maintained-apps/script-diff.sh)
+
+on:
+    pull_request:
+        paths:
+          - ee/maintained-apps/inputs/**.json
+          - ee/maintained-apps/outputs/**.json
+        branches:
+            - main
+
+permissions:
+    contents: read
+    pull-requests: write
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        
+        steps:
+            - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
+              with:
+                fetch-depth: 0  # Fetch full history so merge base can be found
+              
+            - name: Get Changed Manifest Files # fetch the changed manifest files
+              id: changed_files
+              run: |
+                echo "Fetching changed files..."
+                git fetch origin main
+                git diff --name-only origin/main...HEAD | grep -E 'ee/maintained-apps/(inputs|outputs)/.*\.json$' > changed_manifests.txt || true
+                cat changed_manifests.txt
+                if [ ! -s changed_manifests.txt ]; then
+                    echo "No changed manifest files found."
+                    exit 0
+                fi
+            - name: Run script-diff.sh on changed files
+              id: run_script_diff
+              run: |
+                echo "Running script-diff.sh on changed manifest files..."
+                > script_output.txt
+                while read -r file; do
+                  echo "=== Processing $file ===" | tee -a script_output.txt
+                  ./ee/maintained-apps/script-diff.sh "$file" 2>&1 | tee -a script_output.txt || true
+                  echo "" | tee -a script_output.txt
+                done < changed_manifests.txt
+
+            - name: Comment on PR
+              uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+              with:
+                script: |
+                  const fs = require('fs');
+                  const output = fs.readFileSync('script_output.txt', 'utf8').trim();
+                  
+                  // Check if output contains meaningful changes
+                  // Skip if output only contains processing headers and "no changes" messages
+                  const lines = output.split('\n').map(line => line.trim()).filter(line => line !== '');
+                  const hasRealChanges = lines.some(line => {
+                    return (!line.startsWith('=== Processing') && 
+                            !line.includes('(no changes)') &&
+                            !line.startsWith('===')) ||
+                           line.includes('diff ') ||
+                           line.startsWith('@@') ||
+                           line.startsWith('+') ||
+                           line.startsWith('-');
+                  });
+                  // separate fences for better readability
+                  if (hasRealChanges) {
+                    // Split content by processing headers and rebuild properly
+                    const parts = output.split(/=== Processing (.+?) ===/);
+                    let formattedOutput = '';
+                    
+                    // Skip first empty part, then process pairs of (filename, content)
+                    for (let i = 1; i < parts.length; i += 2) {
+                      const filename = parts[i];
+                      const content = parts[i + 1] || '';
+                      if (filename && content.trim()) {
+                        formattedOutput += `### ${filename}\n\`\`\`diff\n${content.trim()}\n\`\`\`\n\n`;
+                      }
+                    }
+                    
+                    await github.rest.issues.createComment({
+                      issue_number: context.issue.number,
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      body: `## Script Diff Results\n\n${formattedOutput.trim()}`
+                    });
+                    console.log('Posted comment with script diff results');
+                  } else {
+                    console.log('No meaningful changes detected, skipping comment');
+                  }

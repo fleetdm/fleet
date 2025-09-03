@@ -264,24 +264,39 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
+							logger.Log("msg", "Starting manage_apple_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
-								defer s.onProfileJobDone()
+								defer func() {
+									logger.Log("msg", "Completing manage_apple_profiles job", "test", s.T().Name(), "time",
+										time.Now().Format(time.RFC3339))
+									s.onProfileJobDone()
+								}()
 							}
 							err = ReconcileAppleProfiles(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
 						schedule.WithJob("manage_apple_declarations", func(ctx context.Context) error {
+							logger.Log("msg", "Starting manage_apple_declarations job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
-								defer s.onProfileJobDone()
+								defer func() {
+									logger.Log("msg", "Completing manage_apple_declarations job", "test", s.T().Name(), "time",
+										time.Now().Format(time.RFC3339))
+									s.onProfileJobDone()
+								}()
 							}
 							err = ReconcileAppleDeclarations(ctx, ds, mdmCommander, logger)
 							require.NoError(s.T(), err)
 							return err
 						}),
 						schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
+							logger.Log("msg", "Starting manage_windows_profiles job", "test", s.T().Name(), "time", time.Now().Format(time.RFC3339))
 							if s.onProfileJobDone != nil {
-								defer s.onProfileJobDone()
+								defer func() {
+									logger.Log("msg", "Completing manage_windows_profiles job", "test", s.T().Name(), "time",
+										time.Now().Format(time.RFC3339))
+									s.onProfileJobDone()
+								}()
 							}
 							err := ReconcileWindowsProfiles(ctx, ds, logger)
 							require.NoError(s.T(), err)
@@ -740,12 +755,27 @@ func (s *integrationMDMTestSuite) mockDEPResponse(orgName string, handler http.H
 
 func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 	// three jobs running sequentially (macOS profiles and declarations, then Windows) on the same schedule
+	t.Logf("[awaitTriggerProfileSchedule] Starting profile schedule trigger at %s", time.Now().Format(time.RFC3339))
 	var wg sync.WaitGroup
 	wg.Add(3)
 	s.onProfileJobDone = wg.Done
+	t.Logf("[awaitTriggerProfileSchedule] Triggering profile schedule...")
 	_, err := s.profileSchedule.Trigger()
 	require.NoError(t, err)
-	wg.Wait()
+	t.Logf("[awaitTriggerProfileSchedule] Waiting for 3 jobs to complete...")
+	// Add timeout detection
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Logf("[awaitTriggerProfileSchedule] All jobs completed successfully at %s", time.Now().Format(time.RFC3339))
+	case <-time.After(5 * time.Minute):
+		t.Fatalf("Profile schedule jobs timed out after 5 minutes")
+	}
 }
 
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
@@ -5487,7 +5517,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
 
 	// simulate osquery reporting mdm information
 	rows := []map[string]string{
@@ -5831,7 +5861,7 @@ func (s *integrationMDMTestSuite) TestSSOWithSCIM() {
 	ac, err := s.ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
-	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{})
+	detailQueries := osquery_utils.GetDetailQueries(context.Background(), config.FleetConfig{}, ac, &ac.Features, osquery_utils.Integrations{}, nil)
 
 	// simulate osquery reporting mdm information, doesn't change anything
 	rows := []map[string]string{
@@ -9178,6 +9208,26 @@ func (s *integrationMDMTestSuite) runWorker() {
 	pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
+}
+
+// runWorkerUntilDone runs queued jobs until there are no more pending jobs
+// this method handles the case when jobs could be queued asynchronously, such as during MDM enrollment
+func (s *integrationMDMTestSuite) runWorkerUntilDone() {
+	err := s.worker.ProcessJobs(s.T().Context())
+	require.NoError(s.T(), err)
+
+	// Retry checking for pending jobs
+	require.Eventually(s.T(), func() bool {
+		pending, err := s.ds.GetQueuedJobs(s.T().Context(), 1, time.Time{})
+		require.NoError(s.T(), err)
+		if len(pending) == 0 {
+			return true
+		}
+		// Process any newly queued jobs
+		s.T().Logf("Pending job: %s", pending[0].Name)
+		err = s.worker.ProcessJobs(s.T().Context())
+		return err == nil && len(pending) == 0
+	}, 5*time.Second, 100*time.Millisecond, "jobs still pending after processing")
 }
 
 func (s *integrationMDMTestSuite) runDEPSchedule() {

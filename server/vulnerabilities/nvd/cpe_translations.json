@@ -118,7 +118,7 @@
       "source": ["apps"]
     },
     "filter": {
-      "product": ["docker_desktop"],
+      "product": ["desktop"],
       "vendor": ["docker"]
     }
   },

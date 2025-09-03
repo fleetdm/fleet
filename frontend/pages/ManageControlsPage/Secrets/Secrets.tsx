@@ -14,6 +14,7 @@ import { ISecret } from "interfaces/secrets";
 import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
+import { FLEET_WEBSITE_URL } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
@@ -21,6 +22,7 @@ import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
@@ -45,15 +47,9 @@ const Secrets = () => {
 
   const queryClient = useQueryClient();
 
-  const {
-    isGlobalAdmin,
-    isTeamAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainer,
-  } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
 
-  const canEdit =
-    isGlobalAdmin || isTeamAdmin || isGlobalMaintainer || isTeamMaintainer;
+  const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   // Fetch a single page of secrets.
   const fetchPage = useCallback(
@@ -109,9 +105,8 @@ const Secrets = () => {
     setShowDeleteModal(true);
   };
 
-  const onDeleteSecret = () => {
+  const reloadList = () => {
     paginatedListRef.current?.reload();
-    setShowDeleteModal(false);
   };
 
   const getTokenFromSecretName = (secretName: string): string => {
@@ -154,8 +149,11 @@ const Secrets = () => {
         title={secret.name.toUpperCase()}
         details={
           <span>
-            Updated <HumanTimeDiffWithDateTip timeString={secret.updated_at} />{" "}
-            &bull; {getTokenFromSecretName(secret.name)}
+            <span className="secret-details__text">
+              Updated{" "}
+              <HumanTimeDiffWithDateTip timeString={secret.updated_at} /> &bull;{" "}
+              {getTokenFromSecretName(secret.name)}
+            </span>
             <Button
               variant="unstyled"
               className={`${baseClass}__copy-secret-icon`}
@@ -222,8 +220,13 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <p>
-        Manage custom variables that will be available in scripts and profiles.
+      <p className={`${baseClass}__description`}>
+        Manage custom variables that will be available in scripts and profiles.{" "}
+        <CustomLink
+          text="Learn more"
+          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+          newTab
+        />
       </p>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
@@ -236,12 +239,20 @@ const Secrets = () => {
           <div className={`${baseClass}__header`}>
             <span>Custom variables</span>
             {canEdit && (
-              <span>
-                <Button variant="text-icon" onClick={onClickAddSecret}>
-                  <Icon name="plus" />
-                  <span>Add custom variable</span>
-                </Button>
-              </span>
+              <GitOpsModeTooltipWrapper
+                renderChildren={(disableChildren) => (
+                  <span>
+                    <Button
+                      variant="text-icon"
+                      onClick={onClickAddSecret}
+                      disabled={disableChildren}
+                    >
+                      <Icon name="plus" />
+                      <span>Add custom variable</span>
+                    </Button>
+                  </span>
+                )}
+              />
             )}
           </div>
         }
@@ -265,8 +276,8 @@ const Secrets = () => {
       {showDeleteModal && (
         <DeleteSecretModal
           secret={secretToDelete}
-          onCancel={() => setShowDeleteModal(false)}
-          onDelete={onDeleteSecret}
+          onExit={() => setShowDeleteModal(false)}
+          reloadList={reloadList}
         />
       )}
     </div>
