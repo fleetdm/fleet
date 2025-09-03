@@ -46,8 +46,6 @@ func restore(ctx context.Context, from string, to string) error {
 	//
 	// NOTE: We handle closure of all streams in a deferred function ~30-lines
 	// down.
-	//
-	//nolint:gosec,G304 // 'from' is a trusted input.
 	f, err := os.Open(from)
 	if err != nil {
 		return fmt.Errorf(
@@ -56,11 +54,15 @@ func restore(ctx context.Context, from string, to string) error {
 		)
 	}
 
+	// Wrap the '*os.File' in a 'LimitReader' with an upper bound of 1GB to
+	// mitigate potential zip bombs.
+	limitReader := io.LimitReader(f, 1<<30)
+
 	// Wrap the file stream in a gzip reader.
 	//
 	// NOTE: We handle closure of all streams in a deferred function ~15-lines
 	// down.
-	gz, err := gzip.NewReader(f)
+	gz, err := gzip.NewReader(limitReader)
 	if err != nil {
 		return fmt.Errorf(
 			"failed to create gzip reader from restore archive file stream(%s): %w",
@@ -133,8 +135,6 @@ func restore(ctx context.Context, from string, to string) error {
 
 		case tar.TypeReg:
 			// Get a writable handle to the restore target.
-			//
-			//nolint:gosec,G304 // 'output' is sanitized above.
 			decompressed, err := os.Create(output)
 			if err != nil {
 				return fmt.Errorf(
@@ -144,8 +144,6 @@ func restore(ctx context.Context, from string, to string) error {
 			}
 
 			// Decompress the file to disk.
-			//
-			//nolint:gosec,G110 // These are archives [hopefully] we created.
 			n, err := io.Copy(decompressed, tr)
 			if err != nil {
 				return fmt.Errorf(
@@ -157,7 +155,8 @@ func restore(ctx context.Context, from string, to string) error {
 			if n != header.Size {
 				return fmt.Errorf(
 					"encountered no error in restore archive file(%s) decompression, "+
-						"but the archive's file size(%d) does not match what we wrote to disk(%d)",
+						"but the archive's file size(%d) does not match what we wrote "+
+						"to disk(%d)",
 					output, header.Size, n,
 				)
 			}

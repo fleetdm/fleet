@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -246,12 +245,6 @@ func doWriteLevel(t *testing.T, buffer testBuffer, l level) string {
 }
 
 func TestWriteCaller(t *testing.T) {
-	pc, file, line, ok := runtime.Caller(1)
-	_ = pc
-	_ = line
-	_ = ok
-	fmt.Println(file)
-
 	buffer := setup(t).(*strings.Builder)
 
 	// Expect no output if the 'WithCaller' option is not set.
