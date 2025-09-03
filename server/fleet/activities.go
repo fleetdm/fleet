@@ -1949,7 +1949,7 @@ type ActivityTypeEditedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
-	IconURL          *string                 `json:"icon_url"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
@@ -2284,6 +2284,7 @@ type ActivityEditedAppStoreApp struct {
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
+	IconUrl          *string                 `json:"icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }

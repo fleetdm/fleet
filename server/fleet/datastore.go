@@ -2030,7 +2030,7 @@ type Datastore interface {
 
 	CreateOrUpdateSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (*SoftwareTitleIcon, error)
 	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (*SoftwareTitleIcon, error)
-	HasAccessToExistingIconFile(ctx context.Context, teamID uint, storageID string) (bool, error)
+	GetTeamIdsWithStorageId(ctx context.Context, storageID string) ([]uint, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error
 	ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (DetailsForSoftwareIconActivity, error)
 

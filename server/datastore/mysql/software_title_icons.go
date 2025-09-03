@@ -52,18 +52,14 @@ func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return &icon, nil
 }
 
-func (ds *Datastore) HasAccessToExistingIconFile(ctx context.Context, teamID uint, storageID string) (bool, error) {
-	var exists bool
-	query := `
-		SELECT EXISTS(
-			SELECT 1 FROM software_title_icons WHERE storage_id = ? AND team_id = ?
-		) AS access
-	`
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &exists, query, storageID, teamID)
+func (ds *Datastore) GetTeamIdsWithStorageId(ctx context.Context, storageID string) ([]uint, error) {
+	var teamIds []uint
+	query := `SELECT team_id FROM software_title_icons WHERE storage_id = ?`
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIds, query, storageID)
 	if err != nil {
-		return false, ctxerr.Wrap(ctx, err, "checking access to software title icon")
+		return nil, ctxerr.Wrap(ctx, err, "checking access to software title icon")
 	}
-	return exists, nil
+	return teamIds, nil
 }
 
 func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {

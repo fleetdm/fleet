@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -87,7 +88,7 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	if icon == nil || icon.StorageID != payload.StorageID {
 		var exists bool
 
-		hasAccess, err := svc.ds.HasAccessToExistingIconFile(ctx, payload.TeamID, payload.StorageID)
+		hasAccess, err := userHasAccessToStorageID(ctx, svc, payload.TeamID, payload.StorageID)
 		if err != nil {
 			return fleet.SoftwareTitleIcon{}, ctxerr.Wrap(ctx, err, "checking access to existing software title icon")
 		}
@@ -169,6 +170,28 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 	return nil
 }
 
+func userHasAccessToStorageID(ctx context.Context, svc *Service, teamId uint, storageID string) (bool, error) {
+	teamIds, err := svc.ds.GetTeamIdsWithStorageId(ctx, storageID)
+	if err != nil {
+		return false, err
+	}
+	if slices.Contains(teamIds, teamId) {
+		return true, nil
+	}
+
+	if len(teamIds) > 0 {
+		for _, tmID := range teamIds {
+			if authErr := svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: tmID}, fleet.ActionWrite); authErr != nil {
+				continue
+			}
+
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service, user *fleet.User, iconUrl string, activityDetailsForSoftwareTitleIcon fleet.DetailsForSoftwareIconActivity) error {
 	if activityDetailsForSoftwareTitleIcon.AdamID != nil {
 		if err := svc.NewActivity(ctx, user, fleet.ActivityEditedAppStoreApp{
@@ -179,6 +202,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
 			Platform:         *activityDetailsForSoftwareTitleIcon.Platform,
 			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
+			IconUrl:          &iconUrl,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
 		}); err != nil {
@@ -195,7 +219,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			TeamName:         &activityDetailsForSoftwareTitleIcon.TeamName,
 			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
 			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			IconURL:          &iconUrl,
+			SoftwareIconURL:  &iconUrl,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
 			SoftwareTitleID:  activityDetailsForSoftwareTitleIcon.SoftwareTitleID,

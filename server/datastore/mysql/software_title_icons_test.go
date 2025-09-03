@@ -20,7 +20,7 @@ func TestSoftwareTitleIcons(t *testing.T) {
 	}{
 		{"CreateOrUpdateSoftwareTitleIcon", testCreateOrUpdateSoftwareTitleIcon},
 		{"GetSoftwareTitleIcon", testGetSoftwareTitleIcon},
-		{"HasAccessToExistingIconFile", testHasAccessToExistingIconFile},
+		{"GetTeamIdsWithStorageId", testGetTeamIdsWithStorageId},
 		{"DeleteSoftwareTitleIcon", testDeleteSoftwareTitleIcon},
 		{"ActivityDetailsForSoftwareTitleIcon", testActivityDetailsForSoftwareTitleIcon},
 	}
@@ -173,7 +173,7 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testHasAccessToExistingIconFile(t *testing.T, ds *Datastore) {
+func testGetTeamIdsWithStorageId(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var teamID, titleID uint
@@ -184,16 +184,16 @@ func testHasAccessToExistingIconFile(t *testing.T, ds *Datastore) {
 		testFunc func(*testing.T, *Datastore)
 	}{
 		{
-			"no match storage id exists",
+			"no matching storage id exists",
 			func(ds *Datastore) {
 			}, func(t *testing.T, ds *Datastore) {
-				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, 123, "storage-id")
+				teamIds, err := ds.GetTeamIdsWithStorageId(ctx, "storage-id")
 				require.NoError(t, err)
-				require.False(t, hasAccess)
+				require.Nil(t, teamIds)
 			},
 		},
 		{
-			"matching storage id exists but for a different team",
+			"matching storage id exists",
 			func(ds *Datastore) {
 				teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
 				require.NoError(t, err)
@@ -205,27 +205,9 @@ func testHasAccessToExistingIconFile(t *testing.T, ds *Datastore) {
 				})
 				require.NoError(t, err)
 			}, func(t *testing.T, ds *Datastore) {
-				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, teamID+1, "storage-id")
+				teamIds, err := ds.GetTeamIdsWithStorageId(ctx, "storage-id")
 				require.NoError(t, err)
-				require.False(t, hasAccess)
-			},
-		},
-		{
-			"matching storage id exists but for same team",
-			func(ds *Datastore) {
-				teamID, titleID, err = createTeamAndSoftwareTitle(t, ctx, ds)
-				require.NoError(t, err)
-				_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
-					TeamID:    teamID,
-					TitleID:   titleID,
-					StorageID: "storage-id",
-					Filename:  "test-icon.png",
-				})
-				require.NoError(t, err)
-			}, func(t *testing.T, ds *Datastore) {
-				hasAccess, err := ds.HasAccessToExistingIconFile(ctx, teamID, "storage-id")
-				require.NoError(t, err)
-				require.True(t, hasAccess)
+				require.Contains(t, teamIds, teamID)
 			},
 		},
 	}

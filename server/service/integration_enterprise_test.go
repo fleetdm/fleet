@@ -11962,7 +11962,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.NoError(t, err)
 	require.Equal(t, "foo", details.SoftwareTitle)
 	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
-	require.Equal(t, iconUrl, *details.IconURL)
+	require.Equal(t, iconUrl, *details.SoftwareIconURL)
 	require.Equal(t, titleID, details.SoftwareTitleID)
 
 	// gitops workflow, passing in sha256 & filename
