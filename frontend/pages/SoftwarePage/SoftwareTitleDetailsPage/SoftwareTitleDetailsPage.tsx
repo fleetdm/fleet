@@ -177,6 +177,12 @@ const SoftwareTitleDetailsPage = ({
         isAvailableForInstall={isAvailableForInstall}
         isLoading={isSoftwareTitleLoading}
         router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        softwareInstaller={
+          isAvailableForInstall
+            ? getInstallerCardInfo(title).softwarePackage
+            : undefined
+        }
       />
     );
   };

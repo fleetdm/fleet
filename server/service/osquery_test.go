@@ -458,7 +458,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(ds, nil, clock.C, nil)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -3217,6 +3217,9 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: 0}, nil
+	}
 
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -3485,6 +3488,24 @@ func TestPolicyWebhooks(t *testing.T) {
 				},
 			},
 		}, nil
+	}
+
+	// Since the host doesn't have a team, DefaultTeamConfig will be called
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		if id == 0 {
+			return &fleet.Team{
+				ID: 0,
+				Config: fleet.TeamConfig{
+					WebhookSettings: fleet.TeamWebhookSettings{
+						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+							Enable:    true,
+							PolicyIDs: []uint{1, 2, 3},
+						},
+					},
+				},
+			}, nil
+		}
+		return nil, nil
 	}
 
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {

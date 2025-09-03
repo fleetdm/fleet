@@ -39,6 +39,9 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_ICON: (token: string, titleId: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/software/titles/${titleId}/icon`;
+  },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
@@ -208,6 +211,8 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
   EDIT_SOFTWARE_VPP: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
+  SOFTWARE_ICON: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,
@@ -276,9 +281,13 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_CANCEL_BATCH: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
-  SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
+  SCRIPT_RUN_BATCH_SUMMARY_V1: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
+  SCRIPT_RUN_BATCH_SUMMARY_V2: (id: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
+  SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints

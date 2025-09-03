@@ -110,7 +110,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.21.1
 	github.com/quasilyte/go-ruleguard/dsl v0.3.22
-	github.com/remitly-oss/httpsig-go v1.1.3
+	github.com/remitly-oss/httpsig-go v1.2.0
 	github.com/rs/zerolog v1.32.0
 	github.com/russellhaering/goxmldsig v1.4.0
 	github.com/saferwall/pe v1.5.5
@@ -130,7 +130,7 @@ require (
 	github.com/theupdateframework/go-tuf v0.5.2
 	github.com/throttled/throttled/v2 v2.8.0
 	github.com/tj/assert v0.0.3
-	github.com/ulikunitz/xz v0.5.12
+	github.com/ulikunitz/xz v0.5.14
 	github.com/urfave/cli/v2 v2.27.7
 	github.com/xi2/xz v0.0.0-20171230120015-48954b6210f8
 	github.com/ziutek/mymysql v1.5.4
@@ -349,5 +349,3 @@ tool (
 	github.com/kevinburke/go-bindata
 	github.com/quasilyte/go-ruleguard/dsl
 )
-
-replace github.com/remitly-oss/httpsig-go => ./third_party/httpsig-go

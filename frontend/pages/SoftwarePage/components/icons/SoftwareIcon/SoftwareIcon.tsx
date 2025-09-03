@@ -14,7 +14,7 @@ interface ISoftwareIconProps {
   source?: string;
   size?: SoftwareIconSizes;
   /** Accepts an image url to display for the software icon image. */
-  url?: string;
+  url?: string | null;
 }
 
 const SoftwareIcon = ({
@@ -27,6 +27,7 @@ const SoftwareIcon = ({
   // If we are given a url to render as the icon, we need to render it
   // differently than the svg icons. We will use an img tag instead with the
   // src set to the url.
+
   if (url) {
     const imgClasses = classnames(
       `${baseClass}__software-img`,

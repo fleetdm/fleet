@@ -18,6 +18,7 @@ func Up_20250828122736(tx *sql.Tx) error {
 			filename varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 			created_at timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
 			UNIQUE KEY idx_unique_team_id_title_id_storage_id (team_id, software_title_id),
+			INDEX idx_storage_id_team_id (storage_id, team_id),
 			FOREIGN KEY (software_title_id) REFERENCES software_titles(id) ON DELETE CASCADE ON UPDATE CASCADE
 		)
 	`)

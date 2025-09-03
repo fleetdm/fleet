@@ -24,6 +24,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-p7m"
   | "file-pem"
   | "file-vpp"
+  | "file-png"
 >;
 
 interface IFileUploaderProps {
@@ -55,9 +56,11 @@ interface IFileUploaderProps {
   onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
+  /** renders the current file with the delete trash button */
+  onDeleteFile?: () => void;
   fileDetails?: {
     name: string;
-    platform?: string;
+    description?: string;
   };
   /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -81,6 +84,7 @@ export const FileUploader = ({
   buttonTooltip,
   onFileUpload,
   canEdit = false,
+  onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
@@ -214,6 +218,7 @@ export const FileUploader = ({
           graphicNames={graphicNames}
           fileDetails={fileDetails}
           canEdit={canEdit}
+          onDeleteFile={onDeleteFile}
           onFileSelect={onFileSelect}
           accept={accept}
           gitopsCompatible={gitopsCompatible}

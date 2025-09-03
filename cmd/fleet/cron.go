@@ -850,8 +850,27 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
-				return err
+				expired, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				if err != nil {
+					return err
+				}
+				if expired > 0 {
+					level.Info(logger).Log("msg", "expired distributed query campaigns", "count", expired)
+				}
+
+				targetsStart := time.Now()
+				deleted, err := ds.CleanupCompletedCampaignTargets(ctx, time.Now().Add(-24*time.Hour).UTC())
+				if err != nil {
+					return err
+				}
+				if deleted > 0 {
+					level.Info(logger).Log(
+						"msg", "cleaned up campaign targets",
+						"deleted", deleted,
+						"duration_ms", time.Since(targetsStart).Milliseconds(),
+					)
+				}
+				return nil
 			},
 		),
 		schedule.WithJob(

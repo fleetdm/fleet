@@ -40,6 +40,7 @@
     border-radius: 4px;
     padding: 40px;
     gap: 8px;
+    font-size: $small;
     p {
       margin: 0;
       @include help-text;
