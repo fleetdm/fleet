@@ -25,6 +25,9 @@ const (
 	keyLabelsExclude   = "labels_exclude_any"
 	keyLabelsInclude   = "labels_include_any"
 	keySetupExperience = "setup_experience"
+	keyControls        = "controls"
+	keyMacosSetup      = "macos_setup"
+	keyPackagePath     = "package_path"
 )
 
 func cmdMigrateExec(ctx context.Context, args Args) error {
@@ -114,262 +117,333 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 			continue
 		}
 
-		// Look for a 'software' key.
-		software, ok := team[keySoftware].(map[string]any)
-		if !ok {
-			log.Debug("Skipping non-team YAML file.", "File", item.Path)
-			continue
-		}
-
-		// Look for a 'packages' key.
-		packagesObjects, ok := software[keyPackages].([]any)
-		if !ok {
-			log.Debug(
-				"Team file's software object contains no packages.",
-				"Team File", item.Path,
-			)
-			continue
-		}
-
-		// Iterate each 'packages' item.
-		//
 		// To avoid unnecessarily serializing a file back to disk when no changes
 		// have been performed, since this would blow away all comments and manual
 		// spacing, we need to count the number of changes which we actaully
 		// apply. If this count is zero, we simply skip the re-encode step.
-		teamPkgChangeCount := 0
-		for i, packagesObject := range packagesObjects {
-			// Attempt to assert the 'packages' YAML-array item as a map.
-			pkg, ok := packagesObject.(map[string]any)
-			if !ok {
-				log.Debug(
-					"Software->packages object is nil.",
-					"Team File", item.Path,
-				)
-				continue
-			}
+		teamChangeCount := 0
 
-			// Look for a 'path' key in the package map, assert it as a 'string'.
-			pkgPath, ok := pkg[keyPath].(string)
-			if !ok || pkgPath == "" {
-				log.Debugf(
-					"The software package at index [%d] has no 'path' key, skipping.",
-					i,
-				)
-				continue
-			}
+		// NOTE(max): The below works but was de-scoped.
+		//
+		// Relocate '.controls.software.packages[].package_path' to
+		// '.software.packages[].setup_experience=true'.
+		//
+		// For any '.controls.software.packages' objects which hold a 'package_path'
+		// key:
+		// - Resolve the absolute path for the software package file referenced and
+		// record this absolute path to 'pkgsWithSetupExp'.
+		// - Delete the 'package_path' key.
+		// - If the 'package_path' key is the only key in this 'packages' array
+		// object, drop that array index.
 
-			// Construct an absolute path from the 'path' key's value.
-			absPath := filepath.Join(
-				filepath.Dir(item.Path),
-				pkgPath,
-			)
-			absPath, err = filepath.Abs(absPath)
-			if err != nil {
-				log.Error(
-					"Failed to construct absolute path to referenced package package.",
-					"File Path", item.Path,
-					"Package Path", pkgPath,
-				)
-				failed += 1
-				continue
-			}
+		// NOTE(max): The below works but was de-scoped.
+		//
+		// pkgsWithSetupExp := map[string]struct{}{}
+		// Retrieve the 'controls' key, assert as 'map[string]any'.
+		// if controls, ok := team[keyControls].(map[string]any); ok {
+		// 	// Retrieve the 'macos_setup' key, assert as 'map[string]any'.
+		// 	if macosSetup, ok := controls[keyMacosSetup].(map[string]any); ok {
+		// 		// Retrieve the 'software' key, assert as '[]any'.
+		// 		if pkgs, ok := macosSetup[keySoftware].([]any); ok {
+		// 			pkgChangeCount := 0
+		// 			// We iterate the slice backward so we can mutate it as we go.
+		// 			for i, pkg := range slices.Backward(pkgs) {
+		// 				// Assert the package as 'map[string]any'.
+		// 				if pkg, ok := pkg.(map[string]any); ok {
+		// 					// Retrieve the 'package_path' key, assert as 'string'.
+		// 					if pkgPath, ok := pkg[keyPackagePath].(string); ok {
+		// 						// Resolve the absolute path to the referenced package file.
+		// 						pkgPathAbs, err := resolvePackagePath(item.Path, pkgPath)
+		// 						if err != nil {
+		// 							log.Errorf("%s.", err)
+		// 							failed += 1
+		// 							continue
+		// 						}
 
-			// Check if this is a package file we've processed previously. If not
-			// unmarshal the file, record & delete the fields we're relocating and
-			// serialize the updated package representation back to disk.
-			var state map[string]any
-			if state, ok = known[absPath]; !ok {
-				state = make(map[string]any)
-				// Track mutations to the package file.
-				//
-				// If we reach the serialization point and this count is zero we skip
-				// the re-encode to file to preserve formatting + comments where we can.
-				var pkgChangeCount int
+		// 						// Capture the absolute path as a key in our map.
+		// 						pkgsWithSetupExp[pkgPathAbs] = struct{}{}
 
-				// Get a read-writable handle to the package file.
-				packageFile, err := os.OpenFile(absPath, fileFlagsReadWrite, 0)
-				if err != nil {
-					log.Error(
-						"Failed to get a read-writable handle to package file.",
-						"Team File", item.Path,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
+		// 						// Delete this map key.
+		// 						delete(pkg, keyPackagePath)
 
-				// Decode the package file.
-				pkg := make(map[string]any)
-				err = yaml.NewDecoder(packageFile).Decode(pkg)
-				if err != nil {
-					log.Error(
-						"Failed to decode package file.",
-						"Package File", item.Path,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
+		// 						// If 'package_path' was the final map key, delete the entire
+		// 						// slice item.
+		// 						if len(pkg) == 0 {
+		// 							pkgs = slices.Delete(pkgs, i, i+1)
+		// 						}
 
-				// Record and delete the fields we care about.
+		// 						// Signal mutation.
+		// 						pkgChangeCount += 1
+		// 					}
+		// 				}
+		// 			}
+		// 			// If we mutated 'pkgs', update the 'macosSetup' map key.
+		// 			if pkgChangeCount > 0 {
+		// 				if len(pkgs) == 0 {
+		// 					// If the resulting 'pkgs' slice is empty, just delete the key.
+		// 					delete(macosSetup, keySoftware)
+		// 				} else {
+		// 					// Otherwise, insert the updated slice.
+		// 					macosSetup[keySoftware] = pkgs
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// }
 
-				if v, ok := pkg[keySelfService]; ok {
-					if b, ok := v.(bool); ok {
-						state[keySelfService] = b
-					}
-					delete(pkg, keySelfService)
-					pkgChangeCount += 1
-				}
+		// Relocate keys 'self_service', 'labels_include', 'labels_exclude' and
+		// 'categories' from software package files to the '.software.packages'
+		// array object in the team file.
+		//
+		// For any '.software.packages' array items which contain a 'path' key:
+		// - Resolve the absolute path for the software package file referenced by
+		//   the 'path' key's value.
+		// - Check the 'known' map for existence of this absolute path, if not found:
+		//   - Read and unmarshal the software package file.
+		//   - If the software package file contains any of the above keys:
+		//     - Record the key's value.
+		//     - Delete the key.
+		//       * Increment the 'swPkgChangeCount' counter for each key deleted.
+		//   - If the 'swPkgChangeCount' counter is > 0, serialize the software
+		//     package file back to disk.
+		//   - Apply any values we recorded from the software package file to this
+		//     software package array object.
+		//     * Increment the 'teamChangeCount' counter for each value added.
+		//   - If the 'teamChangeCount' is > 0, serialize the team file back to
+		//     disk.
 
-				if v, ok := pkg[keyLabelsInclude]; ok {
-					if v, ok := v.([]any); ok && len(v) > 0 {
-						includes := make([]string, 0, len(v))
-						for i := range len(v) {
-							if s, ok := v[i].(string); ok {
-								includes = append(includes, s)
+		// Retrieve the 'software' key, assert as 'map[string]any'.
+		if software, ok := team[keySoftware].(map[string]any); ok {
+			// Retrieve the 'packages' key, assert as '[]any'.
+			if pkgs, ok := software[keyPackages].([]any); ok {
+				// Iterate all packages.
+				for _, pkg := range pkgs {
+					// Assert the package as 'map[string]any'.
+					if pkg, ok := pkg.(map[string]any); ok {
+						// Retrieve the 'path' key, assert as 'string'.
+						if pkgPath, ok := pkg[keyPath].(string); ok {
+							// Construct an absolute path from the 'path' key's value.
+							pkgPath, err := resolvePackagePath(item.Path, pkgPath)
+							if err != nil {
+								log.Errorf("%s.", err)
+								failed += 1
+								continue
 							}
-						}
-						if len(includes) > 0 {
-							state[keyLabelsInclude] = includes
-						}
-					}
-					delete(pkg, keyLabelsInclude)
-					pkgChangeCount += 1
-				}
 
-				if v, ok := pkg[keyLabelsExclude]; ok {
-					if v, ok := v.([]any); ok && len(v) > 0 {
-						excludes := make([]string, 0, len(v))
-						for i := range len(v) {
-							if s, ok := v[i].(string); ok {
-								excludes = append(excludes, s)
+							// Check if this is a package file we've processed previously.
+							//
+							// If not unmarshal the file, record & delete the fields we're
+							// relocating and serialize the updated package representation
+							// back to disk.
+							var state map[string]any
+							if state, ok = known[pkgPath]; !ok {
+								state = make(map[string]any)
+								// Track mutations to the package file.
+								//
+								// If we reach the serialization point and this count is zero we skip
+								// the re-encode to file to preserve formatting + comments where we can.
+								var pkgChangeCount int
+
+								// Get a read-writable handle to the package file.
+								packageFile, err := os.OpenFile(pkgPath, fileFlagsReadWrite, 0)
+								if err != nil {
+									log.Error(
+										"Failed to get a read-writable handle to package file.",
+										"Team File", item.Path,
+										"Error", err,
+									)
+									failed += 1
+									continue
+								}
+
+								// Decode the package file.
+								pkg := make(map[string]any)
+								err = yaml.NewDecoder(packageFile).Decode(pkg)
+								if err != nil {
+									log.Error(
+										"Failed to decode package file.",
+										"Package File", item.Path,
+										"Error", err,
+									)
+									failed += 1
+									continue
+								}
+
+								// Record and delete the fields we're migrating.
+
+								// Look for the 'self_service' value.
+								if v, ok := pkg[keySelfService]; ok {
+									if b, ok := v.(bool); ok {
+										state[keySelfService] = b
+									}
+									delete(pkg, keySelfService)
+									pkgChangeCount += 1
+								}
+
+								// Look for 'labels_include' items.
+								if v, ok := pkg[keyLabelsInclude].([]any); ok && len(v) > 0 {
+									labelIncludes := make([]string, 0, len(v))
+									for i := range len(v) {
+										if labelInclude, ok := v[i].(string); ok {
+											labelIncludes = append(labelIncludes, labelInclude)
+										}
+									}
+									if len(labelIncludes) > 0 {
+										state[keyLabelsInclude] = labelIncludes
+									}
+									delete(pkg, keyLabelsInclude)
+									pkgChangeCount += 1
+								}
+
+								// Look for 'labels_exclude' items.
+								if v, ok := pkg[keyLabelsExclude].([]any); ok && len(v) > 0 {
+									labelExcludes := make([]string, 0, len(v))
+									for i := range len(v) {
+										if labelExclude, ok := v[i].(string); ok {
+											labelExcludes = append(labelExcludes, labelExclude)
+										}
+									}
+									if len(labelExcludes) > 0 {
+										state[keyLabelsExclude] = labelExcludes
+									}
+									delete(pkg, keyLabelsExclude)
+									pkgChangeCount += 1
+								}
+
+								// Look for 'categories' items.
+								if v, ok := pkg[keyCategories].([]any); ok && len(v) > 0 {
+									categories := make([]string, 0, len(v))
+									for i := range len(v) {
+										if category, ok := v[i].(string); ok {
+											categories = append(categories, category)
+										}
+									}
+									if len(categories) > 0 {
+										state[keyCategories] = categories
+									}
+									delete(pkg, keyCategories)
+									pkgChangeCount += 1
+								}
+
+								// Only re-encode if we actually mutated something.
+								if pkgChangeCount > 0 {
+									// Seek to file start for re-encode.
+									_, err = packageFile.Seek(0, io.SeekStart)
+									if err != nil {
+										log.Error(
+											"Failed to seek to file start for re-encode.",
+											"Team File", item.Path,
+											"Package File", pkgPath,
+											"Error", err,
+										)
+										failed += 1
+										continue
+									}
+
+									// Re-encode the package file.
+									enc := yaml.NewEncoder(packageFile)
+									enc.SetIndent(2)
+									err = enc.Encode(pkg)
+									if err != nil {
+										log.Error(
+											"Failed to re-encode package file.",
+											"Team File", item.Path,
+											"Package File", pkgPath,
+											"Error", err,
+										)
+										failed += 1
+										continue
+									}
+
+									// Seek to identify the number of bytes we wrote during the
+									// YAML encode.
+									n, err := packageFile.Seek(0, io.SeekCurrent)
+									if err != nil {
+										log.Error(
+											"Failed to seek after package file re-encode.",
+											"Team File", item.Path,
+											"Package File", pkgPath,
+											"Error", err,
+										)
+										failed += 1
+										continue
+									}
+
+									// Truncate at the number of bytes we just wrote.
+									err = packageFile.Truncate(n)
+									if err != nil {
+										log.Error(
+											"Failed to truncate package file after re-encode.",
+											"Team File", item.Path,
+											"Package File", pkgPath,
+											"Error", err,
+										)
+										failed += 1
+										continue
+									}
+								}
+
+								// Close the package file.
+								err = packageFile.Close()
+								if err != nil {
+									log.Error(
+										"Failed to close package file after re-encode.",
+										"Team File", item.Path,
+										"Package File", pkgPath,
+										"Error", err,
+									)
+									failed += 1
+									continue
+								}
+
+								// Store the package state.
+								known[pkgPath] = state
 							}
-						}
-						if len(excludes) > 0 {
-							state[keyLabelsExclude] = excludes
-						}
-					}
-					delete(pkg, keyLabelsExclude)
-					pkgChangeCount += 1
-				}
 
-				if v, ok := pkg[keyCategories]; ok {
-					if v, ok := v.([]any); ok && len(v) > 0 {
-						categories := make([]string, 0, len(v))
-						for i := range len(v) {
-							if s, ok := v[i].(string); ok {
-								categories = append(categories, s)
+							// Relocate any items we removed from the package file to this
+							// package entry.
+
+							// Key: 'self_service'.
+							if v, ok := state[keySelfService]; ok {
+								teamChangeCount += 1
+								pkg[keySelfService] = v
 							}
+
+							// Key: 'categories'.
+							if v, ok := state[keyCategories]; ok {
+								teamChangeCount += 1
+								pkg[keyCategories] = v
+							}
+
+							// Key: 'labels_include'.
+							if v, ok := state[keyLabelsInclude]; ok {
+								teamChangeCount += 1
+								pkg[keyLabelsInclude] = v
+							}
+
+							// Key: 'labels_exclude'.
+							if v, ok := state[keyLabelsExclude]; ok {
+								teamChangeCount += 1
+								pkg[keyLabelsExclude] = v
+							}
+
+							// NOTE(max): The below works but was de-scoped.
+							//
+							// If we found+removed a 'package_path' key for this item earlier,
+							// add the 'setup_experience' key with a value of 'true'.
+							//
+							// if _, ok := pkgsWithSetupExp[pkgPath]; ok {
+							// 	teamChangeCount += 1
+							// 	pkg[keySetupExperience] = true
+							// }
 						}
-						if len(categories) > 0 {
-							state[keyCategories] = categories
-						}
-					}
-					delete(pkg, keyCategories)
-					pkgChangeCount += 1
-				}
-
-				// Seek to file start for re-encode.
-				_, err = packageFile.Seek(0, io.SeekStart)
-				if err != nil {
-					log.Error(
-						"Failed to seek to file start for re-encode.",
-						"Team File", item.Path,
-						"Package File", pkgPath,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
-
-				// Only re-encode if we actually mutated something.
-				if pkgChangeCount >= 0 {
-					// Serialize the package file back to disk.
-					enc := yaml.NewEncoder(packageFile)
-					enc.SetIndent(2)
-					err = enc.Encode(pkg)
-					if err != nil {
-						log.Error(
-							"Failed to re-encode package file.",
-							"Team File", item.Path,
-							"Package File", pkgPath,
-							"Error", err,
-						)
-						failed += 1
-						continue
-					}
-
-					// Seek to identify the number of bytes we wrote during the YAML encode.
-					n, err := packageFile.Seek(0, io.SeekCurrent)
-					if err != nil {
-						log.Error(
-							"Failed to seek after package file re-encode.",
-							"Team File", item.Path,
-							"Package File", pkgPath,
-							"Error", err,
-						)
-						failed += 1
-						continue
-					}
-
-					// Truncate at the number of bytes we just wrote.
-					err = packageFile.Truncate(n)
-					if err != nil {
-						log.Error(
-							"Failed to truncate package file after re-encode.",
-							"Team File", item.Path,
-							"Package File", pkgPath,
-							"Error", err,
-						)
-						failed += 1
-						continue
 					}
 				}
-
-				// Close the package file.
-				err = packageFile.Close()
-				if err != nil {
-					log.Error(
-						"Failed to close package file after re-encode.",
-						"Team File", item.Path,
-						"Package File", pkgPath,
-						"Error", err,
-					)
-					failed += 1
-					continue
-				}
-
-				// Store the package state.
-				known[absPath] = state
-			}
-
-			// Relocate any items we removed from the package file to this package
-			// entry.
-
-			if v, ok := state[keySelfService]; ok {
-				teamPkgChangeCount += 1
-				pkg[keySelfService] = v
-			}
-
-			if v, ok := state[keyCategories]; ok {
-				teamPkgChangeCount += 1
-				pkg[keyCategories] = v
-			}
-
-			if v, ok := state[keyLabelsInclude]; ok {
-				teamPkgChangeCount += 1
-				pkg[keyLabelsInclude] = v
-			}
-
-			if v, ok := state[keyLabelsExclude]; ok {
-				teamPkgChangeCount += 1
-				pkg[keyLabelsExclude] = v
 			}
 		}
 
-		// Only re-encode the file if we actually changed something.
-		if teamPkgChangeCount > 0 {
+		// Only re-encode the team file if we actually changed something.
+		if teamChangeCount > 0 {
 			// Seek to the file start for the YAML-encode.
 			_, err = teamFile.Seek(0, io.SeekStart)
 			if err != nil {
@@ -436,11 +510,11 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 		}
 
 		// Success!
-		if teamPkgChangeCount > 0 {
+		if teamChangeCount > 0 {
 			log.Info(
 				"Successfully applied transforms to team file.",
 				"Team File", item.Path,
-				"Migrated Fields", teamPkgChangeCount,
+				"Migrated Fields", teamChangeCount,
 			)
 			success += 1
 		}
@@ -457,6 +531,37 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 	}
 
 	return nil
+}
+
+// resolvePackagePath resolves an absolute file path to the software package at
+// 'pkgPath' relative to the parent directory of the 'teamFilePath'.
+//
+// Example:
+// Absolute path to Fleet GitOps file root : /home/fleet
+// teamFilePath                            : teams/workstations.yml
+// pkgPath                                 : ../software/firefox.yml
+// Output                                  : /home/fleet/software/firefox.yml
+func resolvePackagePath(teamFilePath, pkgPathRaw string) (string, error) {
+	// Concat the package path (usually relative) to the parent directory of the
+	// team file path.
+	//
+	// If 'teamFile' is _not_ a file, skip the 'filepath.Dir' call.
+	if filepath.Ext(teamFilePath) != "" {
+		teamFilePath = filepath.Dir(teamFilePath)
+	}
+	pkgPathRel := filepath.Join(teamFilePath, pkgPathRaw)
+
+	// Resolve the absolute path for this software package file.
+	pkgPathAbs, err := filepath.Abs(pkgPathRel)
+	if err != nil {
+		return "", fmt.Errorf(
+			"failed to resolve absolute software package file path from team file "+
+				"[%s] and software package path [%s]",
+			teamFilePath, pkgPathRaw,
+		)
+	}
+
+	return pkgPathAbs, nil
 }
 
 // isYAMLUnmarshalSeqError simply reports whether the provided error (returned
