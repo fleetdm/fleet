@@ -44,7 +44,6 @@ jobs:
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
       - name: Generate swiftDialog.app.tar.gz
-        env:
         run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=.
 
       - name: Upload swiftDialog.app.tar.gz
