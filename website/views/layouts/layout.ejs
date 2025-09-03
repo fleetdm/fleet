@@ -159,33 +159,35 @@
                   </a>
                 </div>
                 <div purpose="mobile-nav-container" id="mobileDropdowns">
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
-                  <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="device-management" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="orchestration" href="/orchestration">Orchestration &nbsp; <small>(+ monitoring)</small></a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="software-management" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="integrations" href="/integrations">Integrations</a>
-                  </div>
-                  <hr>
-                  <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
-                  <hr>
-                  <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
-                  <hr>
-                  <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">More</a>
-                  <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="announcements" href="/announcements">News</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="support" href="/support">Ask around</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="meetups" href="/meetups">Meetups</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/handbook">The handbook</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/new-license">Get your license</a>
-                    <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/contact">Schedule a demo</a>
-                  </div>
-                  <% if(_.has(me, 'id')) {%>
+                  <div purpose="mobile-dropdown-menus">
+                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Multi platform</a>
+                    <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="device-management" href="/device-management">Device management &nbsp; <small>(+ MDM)</small></a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="orchestration" href="/orchestration">Orchestration &nbsp; <small>(+ monitoring)</small></a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="software-management" href="/software-management">Software management &nbsp; <small>(+ CVEs)</small></a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="integrations" href="/integrations">Integrations</a>
+                    </div>
                     <hr>
-                    <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
-                  <% }%>
+                    <a purpose="mobile-dropdown-link" class="d-flex align-items-center" href="/docs">Docs</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-link" href="/pricing" class="d-flex align-items-center">Pricing</a>
+                    <hr>
+                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">More</a>
+                    <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="announcements" href="/announcements">News</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="testimonials" href="/testimonials">Case studies</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="support" href="/support">Ask around</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="meetups" href="/meetups">Meetups</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="share-your-story" target="_blank" href="https://github.com/fleetdm/fleet/blob/main/handbook/company/testimonials.yml">Share your story</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/handbook">The handbook</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/new-license">Get your license</a>
+                      <a purpose="mobile-dropdown-link" data-dropdown-option="handbook" href="/contact">Get a demo</a>
+                    </div>
+                    <% if(_.has(me, 'id')) {%>
+                      <hr>
+                      <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                    <% }%>
+                  </div>
                   <%if(me && me.isSuperAdmin && showAdminLinks) {%>
                     <hr>
                     <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
@@ -196,7 +198,18 @@
                     </div>
                   <%}%>
                   <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" style="padding: 4px 16px; line-height: 24px; width: 152px" class="btn btn-sm btn-primary align-items-center d-flex mt-4" href="/contact" no-underline>Schedule a demo</a>
+                  <div class="d-flex flex-row align-items-center">
+
+                    <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
+
+                    <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/register" no-underline>
+                      Try it yourself
+                      <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                        <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                        <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    </a>
+                  </div>
                   <% }%>
                 </div>
               </div>
@@ -227,12 +240,15 @@
                     <a class="dropdown-item" data-dropdown-option="contact" href="/contact">Schedule a demo</a><!-- «« included here in the desktop hover nav because unlike the mobile nav (which has 'Take a tour' as a primary CTA), there is no option to do that on desktop from other pages otherwise -->
                   </div>
                 </div>
-                <span purpose="gh-button" class="d-flex align-items-center">
-                  <iframe src="//ghbtns.com/github-btn.html?user=fleetdm&amp;repo=fleet&amp;type=watch&amp;count=true"
-                  allowtransparency="true" frameborder="0" scrolling="0" width="140" height="20"></iframe>
-                </span>
                 <%if(!hideGetStartedButton){%>
-                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/register" no-underline>Try it yourself</a>
+                  <a purpose="layout-animated-arrow-button" class="start-cta-continue-button" href="/register" no-underline>
+                    Try it yourself
+                    <svg purpose="animated-arrow" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
+                      <path purpose="arrow-line" d="M1 6H9" stroke-width="2" stroke-linecap="round"/>
+                      <path purpose="chevron" d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </a>
+                  <a purpose="glass-header-btn" class="align-items-center d-flex" href="/contact" no-underline>Get a demo</a>
                 <% }%>
                 <% if(_.has(me, 'id')) {%>
                 <a purpose="log-out-button" href="/logout" class="justify-content-end text-decoration-none">Log out</a>
