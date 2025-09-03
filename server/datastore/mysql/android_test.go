@@ -37,6 +37,8 @@ func TestAndroid(t *testing.T) {
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
 		{"GetMDMAndroidProfilesContents", testGetMDMAndroidProfilesContents},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles},
+		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles2},
+		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1072,6 +1074,18 @@ func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
 }
 
 func testBulkUpsertMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
+	testBulkUpsertMDMAndroidHostProfilesN(t, ds, 0)
+}
+
+func testBulkUpsertMDMAndroidHostProfiles2(t *testing.T, ds *Datastore) {
+	testBulkUpsertMDMAndroidHostProfilesN(t, ds, 2)
+}
+
+func testBulkUpsertMDMAndroidHostProfiles3(t *testing.T, ds *Datastore) {
+	testBulkUpsertMDMAndroidHostProfilesN(t, ds, 3)
+}
+
+func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSize int) {
 	ctx := t.Context()
 
 	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "team"})
@@ -1106,23 +1120,108 @@ func testBulkUpsertMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, nil)
 	require.NoError(t, err)
 
-	for _, batchSize := range []int{0, 2, 3} {
-		t.Run(fmt.Sprintf("batchsize-%d", batchSize), func(t *testing.T) {
-			ds.testUpsertMDMDesiredProfilesBatchSize = batchSize
-			t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
+	ds.testUpsertMDMDesiredProfilesBatchSize = batchSize
+	t.Cleanup(func() { ds.testUpsertMDMDesiredProfilesBatchSize = 0 })
 
-			hostProfiles, noProfHosts, err := ds.ListMDMAndroidProfilesToSend(ctx)
-			require.NoError(t, err)
-			require.Empty(t, noProfHosts)
-			require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
-				{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
-				{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
-				{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
-				{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
-				{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
-			}, hostProfiles)
+	hostProfiles, noProfHosts, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
+		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+	}, hostProfiles)
 
-			// TODO(ap): other tests for bulk upsert...
-		})
-	}
+	// mark all installed for hosts 0, profile 1 failed for host 1
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{
+			HostUUID:                hosts[0].UUID,
+			ProfileUUID:             profiles[0].ProfileUUID,
+			ProfileName:             profiles[0].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  &fleet.MDMDeliveryPending,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+		{
+			HostUUID:                hosts[0].UUID,
+			ProfileUUID:             profiles[1].ProfileUUID,
+			ProfileName:             profiles[1].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  &fleet.MDMDeliveryPending,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+		{
+			HostUUID:                hosts[1].UUID,
+			ProfileUUID:             profiles[1].ProfileUUID,
+			ProfileName:             profiles[1].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  &fleet.MDMDeliveryFailed,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+	})
+	require.NoError(t, err)
+
+	hostProfiles, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		// because host 1 still has a missing profile, it must resend both (as it merged them)
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[0].Name},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: profiles[1].Name},
+		{ProfileUUID: profiles[2].ProfileUUID, HostUUID: hosts[2].UUID, ProfileName: profiles[2].Name},
+	}, hostProfiles)
+
+	// mark host 0 profile 1 as NULL, host 1 profile 0 as installed (so both are now installed), and host 2 profile 2 as installed
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{
+			HostUUID:                hosts[0].UUID,
+			ProfileUUID:             profiles[1].ProfileUUID,
+			ProfileName:             profiles[1].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  nil,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+		{
+			HostUUID:                hosts[1].UUID,
+			ProfileUUID:             profiles[0].ProfileUUID,
+			ProfileName:             profiles[0].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  &fleet.MDMDeliveryPending,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+		{
+			HostUUID:                hosts[2].UUID,
+			ProfileUUID:             profiles[2].ProfileUUID,
+			ProfileName:             profiles[2].Name,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  &fleet.MDMDeliveryPending,
+			IncludedInPolicyVersion: ptr.Int(1),
+		},
+	})
+	require.NoError(t, err)
+
+	hostProfiles, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.Empty(t, noProfHosts)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		// host 0 now has a profile not installed, so it needs to resend both
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+		// host 1 now has both delivered, nothing to resend
+		// host 2 profile is delivered, nothing to resend
+	}, hostProfiles)
+
+	// delete profile 2, which will cause host 2 to be resent as "no profiles" to remove it as it was delivered
+	err = ds.DeleteMDMAndroidConfigProfile(ctx, profiles[2].ProfileUUID)
+	require.NoError(t, err)
+
+	hostProfiles, noProfHosts, err = ds.ListMDMAndroidProfilesToSend(ctx)
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{hosts[2].UUID}, noProfHosts)
+	require.ElementsMatch(t, []*fleet.MDMAndroidProfilePayload{
+		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
+		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
+	}, hostProfiles)
 }

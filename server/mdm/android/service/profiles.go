@@ -91,66 +91,67 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return nil
 	}
 
-	for _, h := range hosts {
-		// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
-		// for now.
-		policy := &androidmanagement.Policy{
-			CameraDisabled: true,
-			FunDisabled:    false,
-		}
-
-		// for every policy, we want to enforce some settings
-		applyFleetEnforcedSettings(policy)
-
-		// using the host uuid as policy id, so we don't need to track the id mapping
-		// to the host.
-		// TODO(ap): are we seeing any downsides to this?
-		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
-		skip, err := patchPolicy(ctx, client, ds, h.UUID, policyName, policy)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "patch policy for host %d", h.ID)
-		}
-		if skip {
-			continue
-		}
-
-		androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
-		}
-		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
-			// that policy name is already applied to this host, it will pick up the new version
-			// (confirmed in tests)
-			continue
-		}
-
-		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
-		device := &androidmanagement.Device{
-			PolicyName: policyName,
-			// State must be specified when updating a device, otherwise it fails with
-			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
-			// TODO: should we send whatever the previous state was? If it was DISABLED,
-			// we probably don't want to re-enable it by accident. Those are the only
-			// 2 valid states when patching a device.
-			//
-			// > Note that when calling enterprises.devices.patch, ACTIVE and
-			// > DISABLED are the only allowable values.
-			State: "ACTIVE",
-		}
-		_, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
-		}
-
-		// From what I can see in tests, after the PATCH /devices, the device
-		// returned will still have the old applied policy/version in the Applied
-		// fields, but the PolicyName will be the new one (presumably pending
-		// status report that reports the new policy as applied). Confirmed by a
-		// subsequent run that returned the new policy as applied, with the
-		// expected version. Note that with "funDisabled: true", I did get a
-		// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
-		// PolicyCompliant was still true.
-	}
+	// for _, h := range hosts {
+	// 	// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
+	// 	// for now.
+	// 	policy := &androidmanagement.Policy{
+	// 		CameraDisabled: true,
+	// 		FunDisabled:    false,
+	// 	}
+	//
+	// 	// for every policy, we want to enforce some settings
+	// 	applyFleetEnforcedSettings(policy)
+	//
+	// 	// using the host uuid as policy id, so we don't need to track the id mapping
+	// 	// to the host.
+	// 	// TODO(ap): are we seeing any downsides to this?
+	// 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
+	// 	skip, err := patchPolicy(ctx, client, ds, h.UUID, policyName, policy)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "patch policy for host %d", h.ID)
+	// 	}
+	// 	if skip {
+	// 		continue
+	// 	}
+	//
+	// 	androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
+	// 	}
+	// 	if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
+	// 		// that policy name is already applied to this host, it will pick up the new version
+	// 		// (confirmed in tests)
+	// 		continue
+	// 	}
+	//
+	// 	deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+	// 	device := &androidmanagement.Device{
+	// 		PolicyName: policyName,
+	// 		// State must be specified when updating a device, otherwise it fails with
+	// 		// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+	// 		// TODO: should we send whatever the previous state was? If it was DISABLED,
+	// 		// we probably don't want to re-enable it by accident. Those are the only
+	// 		// 2 valid states when patching a device.
+	// 		//
+	// 		// > Note that when calling enterprises.devices.patch, ACTIVE and
+	// 		// > DISABLED are the only allowable values.
+	// 		State: "ACTIVE",
+	// 	}
+	// 	_, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
+	// 	}
+	//
+	// 	// From what I can see in tests, after the PATCH /devices, the device
+	// 	// returned will still have the old applied policy/version in the Applied
+	// 	// fields, but the PolicyName will be the new one (presumably pending
+	// 	// status report that reports the new policy as applied). Confirmed by a
+	// 	// subsequent run that returned the new policy as applied, with the
+	// 	// expected version. Note that with "funDisabled: true", I did get a
+	// 	// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
+	// 	// PolicyCompliant was still true.
+	// }
+	_ = enterprise
 
 	return nil
 }
@@ -200,6 +201,7 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 			settingFromProfile[k] = prof.ProfileUUID
 		}
 	}
+	panic("unimplemented")
 }
 
 func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
