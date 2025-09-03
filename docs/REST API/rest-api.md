@@ -11325,11 +11325,13 @@ _Available in Fleet Premium_
 
 `mdm.macos_settings.custom_settings`, `mdm.windows_settings.custom_settings`, `scripts`, and `mdm.macos_setup` only include the configuration profiles, scripts, and setup experience settings applied using [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To list profiles, scripts, or setup experience settings added in the UI or API, use the [List configuration profiles](https://fleetdm.com/docs/rest-api/rest-api#list-custom-os-settings-configuration-profiles), [List scripts](https://fleetdm.com/docs/rest-api/rest-api#list-scripts), or GET endpoints from [Setup experience](https://fleetdm.com/docs/rest-api/rest-api#setup-experience) instead.
 
+"No team" will only return `id`, `name`, `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields.
+
 #### Parameters
 
-| Name | Type    | In   | Description                          |
-| ---- | ------  | ---- | ------------------------------------ |
-| id   | integer | path | **Required.** The desired team's ID. |
+| Name | Type    | In   | Description                                                                                  |
+|------|---------|------|----------------------------------------------------------------------------------------------|
+| id   | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). |
 
 #### Example
 
@@ -11497,7 +11499,7 @@ _Available in Fleet Premium_
 
 | Name                                                    | Type    | In   | Description                                                                                                                                                                                               |
 | ------------------------------------------------------- | ------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
+| id                                                      | integer | path | **Required.** The desired team's ID. Use `0` for "No team" (hosts not assigned to any team). **Note:** When using `id=0`, only `webhook_settings.failing_policies_webhook`, `integrations.jira`, and `integrations.zendesk` fields are supported in the request body. |
 | name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
 | host_ids                                                | array    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
 | user_ids                                                | array    | body | A list of users on the team.                                                                                                                                                             |

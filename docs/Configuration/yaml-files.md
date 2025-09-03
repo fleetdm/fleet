@@ -18,7 +18,7 @@ agent_options:
 controls: # Can be defined in teams/no-team.yml too.
 software: # Can be defined in teams/no-team.yml too
 org_settings: # Only default.yml
-team_settings: # Only teams/team-name.yml
+team_settings: # Required in teams/team-name.yml, but can be defined in teams/no-team.yml, where it is limited to webhook_settings)
 ```
 Paths in YAML files are always relative to the file you’re editing.
 
@@ -563,6 +563,8 @@ The `features` section of the configuration YAML lets you define what predefined
 - `enable_host_users` specifies whether or not Fleet collects user data from hosts (default: `true`).
 - `enable_software_inventory` specifies whether or not Fleet collects software inventory from hosts (default: `true`).
 
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+
 #### Example
 
 ```yaml
@@ -594,6 +596,8 @@ org_settings:
 The `host_expiry_settings` section lets you define if and when hosts should be automatically deleted from Fleet if they have not checked in.
 - `host_expiry_enabled` (default: `false`)
 - `host_expiry_window` if a host has not communicated with Fleet in the specified number of days, it will be removed. Must be > `0` when host expiry is enabled (default: `0`).
+
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
 #### Example
 
@@ -631,6 +635,8 @@ org_settings:
 ### secrets
 
 The `secrets` section defines the valid secrets that hosts can use to enroll to Fleet. Supply one of these secrets when generating the fleetd agent you'll use to [enroll hosts](https://fleetdm.com/docs/using-fleet/enroll-hosts).
+
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
 #### Example
 
@@ -702,6 +708,8 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+
 #### Example
 
 `default.yml`
@@ -736,8 +744,15 @@ integrations:
 
 #### google_calendar
 
+For all teams (`org_settings`):
+
 - `api_key_json` is the contents of the JSON file downloaded when you create your Google Workspace service account API key (default: `""`).
 - `domain` is the primary domain used to identify your end user's work calendar (default: `""`).
+
+For custom teams (`team_settings`):
+
+- `enable_calendar_events` to enable calendar events for a team (default: `false`).
+- `webhook_url` is the webhook URL triggered during a user's calendar event (default: `""`).
 
 #### jira
 
@@ -745,6 +760,8 @@ integrations:
 - `username` is the username of your Jira account (default: `""`).
 - `api_token` is the Jira API token (default: `""`).
 - `project_key` is the project key location in your Jira project's URL. For example, in "jira.example.com/projects/EXMPL," "EXMPL" is the project key (default: `""`).
+
+Can only be configured for all teams (`org_settings`). Use API to configure Jira for custom teams and default "No team".
 
 #### zendesk
 
@@ -791,6 +808,8 @@ org_settings:
         client_secret: $HYDRANT_CLIENT_SECRET
 ```
 
+Can only be configured for all teams (`org_settings`). Use API to configure Zendesk for custom teams and default "No team".
+
 #### digicert
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -803,6 +822,8 @@ org_settings:
 - `certificate_user_principal_names` is the certificate's user principal names (UPN) attribute in Subject Alternative Name (SAN).
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
 
+Can only be configured for all teams (`org_settings`).
+
 #### ndes_scep_proxy
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -811,6 +832,8 @@ org_settings:
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
 - `password` is the password of the NDES admin endpoint (default: `""`).
+
+Can only be configured for all teams (`org_settings`).
 
 #### custom_scep_proxy
 
@@ -829,6 +852,8 @@ org_settings:
 - `client_id` is the client ID provided by Hydrant.
 - `client_secret` is the client secret provided by Hydrant.
 
+Can only be configured for all teams (`org_settings`).
+
 ### webhook_settings
 
 The `webhook_settings` section lets you define webhook settings for failing policy, vulnerability, and host status [automations](https://fleetdm.com/docs/using-fleet/automations).
@@ -837,6 +862,8 @@ The `webhook_settings` section lets you define webhook settings for failing poli
 
 - `enable_activities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when an activity is generated (default: `""`)
+
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
 
 ### Example
 
@@ -879,6 +906,8 @@ org_settings:
 - `days_count` is the number of days that hosts need to be offline to count as part of the percentage (default: `0`).
 - `host_percentage` is the percentage of hosts that need to be offline to trigger the webhook. (default: `0`).
 
+Can only be configured for all teams (`org_settings`) and custom teams (`team_settings`).
+
 #### Example
 
 ```yaml
@@ -897,6 +926,8 @@ org_settings:
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
 
+Can only be configured for all teams (`org_settings`).
+
 #### Example
 
 ```yaml
@@ -908,8 +939,6 @@ org_settings:
       host_batch_size: 0
 ```
 
-Can only be configured for all teams (`org_settings`).
-
 ### mdm
 
 #### apple_business_manager
@@ -920,6 +949,8 @@ After [adding an Apple Business Manager (ABM) token via the UI](https://fleetdm.
 - `macos_team` is the team where macOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 - `ios_team` is the the team where iOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
 - `ipados_team` is the team where iPadOS hosts are automatically added when they appear in Apple Business Manager. If not specified, defaults to "No team".
+
+Can only be configured for all teams (`org_settings`).
 
 #### Example
 
@@ -933,14 +964,14 @@ org_settings:
       ipados_team: 🔳🏢 Company-owned iPads
 ```
 
-> Apple Business Manager settings can only be configured for all teams (`org_settings`).
-
 #### volume_purchasing_program
 
 After you've uploaded a [Volume Purchasing Program](https://fleetdm.com/guides/macos-mdm-setup#volume-purchasing-program-vpp) (VPP) token, the  `volume_purchasing_program` section lets you configure the teams in Fleet that have access to that VPP token's App Store apps. Currently, adding a VPP token is only available using Fleet's UI.
 
 - `location` is the name of the location in the Apple Business Manager account.
 - `teams` is a list of team names. If you choose specific teams, App Store apps in this VPP account will only be available to install on hosts in these teams. If not specified, App Store apps are available to install on hosts in all teams.
+
+Can only be configured for all teams (`org_settings`).
 
 #### Example
 
@@ -956,20 +987,18 @@ org_settings:
       - 🔳🏢 Company-owned iPads
 ```
 
-Can only be configured for all teams (`org_settings`).
-
 #### end_user_authentication
 
 The `end_user_authentication` section lets you define the identity provider (IdP) settings used for [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-eula) during Automated Device Enrollment (ADE).
 
 Once the IdP settings are configured, you can use the [`controls.macos_setup.enable_end_user_authentication`](#macos-setup) key to control the end user experience during ADE.
 
-Can only be configured for all teams (`org_settings`):
-
 - `idp_name` is the human-friendly name for the identity provider that will provide single sign-on authentication (default: `""`).
 - `entity_id` is the entity ID: a Uniform Resource Identifier (URI) that you use to identify Fleet when configuring the identity provider. It must exactly match the Entity ID field used in identity provider configuration (default: `""`).
 - `metadata` is the metadata (in XML format) provided by the identity provider. (default: `""`)
 - `metadata_url` is the URL that references the identity provider metadata. Only one of  `metadata` or `metadata_url` is required (default: `""`).
+
+Can only be configured for all teams (`org_settings`):
 
 #### Example
 
@@ -983,13 +1012,13 @@ org_settings:
       metadata_url: ""
 ```
 
-Can only be configured for all teams (`org_settings`).
-
 ##### end_user_license_agreement
 
 You can require an end user to agree to an end user license agreement (EULA) before they can use their new Mac. `end_user_authentication` must be configured, and `controls.enable_end_user_authentication` must be set to `true`.
 
 - `end_user_license_agreement` is the path to the PDF document.
+
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
@@ -999,13 +1028,13 @@ org_settings:
     end_user_license_agreement: ./lib/eula.pdf
 ```
 
-Can only be configured for all teams (`org_settings`).
-
 ##### apple_server_url
 
 Update this URL if you're self-hosting Fleet and you want your hosts to talk to this URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.)
 
 If this URL changes and hosts already have MDM turned on, the end users will have to turn MDM off and back on to use MDM features.
+
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
@@ -1015,12 +1044,13 @@ org_settings:
     apple_server_url: https://instance.fleet.com
 ```
 
-Can only be configured for all teams (`org_settings`).
-
 #### yara_rules
 
 The `yara_rules` section lets you define [YARA rules](https://virustotal.github.io/yara/) that will be served by Fleet's [authenticated
 YARA rule](https://fleetdm.com/guides/remote-yara-rules) functionality.
+
+Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
+queries referencing the rules to the desired teams.
 
 ##### Example
 
@@ -1031,8 +1061,6 @@ org_settings:
     - path: ./lib/rule2.yar
 ```
 
-Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
-queries referencing the rules to the desired teams.
 
 #### smtp_settings
 
@@ -1041,6 +1069,8 @@ If you're self hosting Fleet, the `smtp_settings` section lets you configure an 
 If you're using Fleet's managed-cloud offering, an SMTP server is already setup for you.
 
 For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
+
+Can only be configured for all teams (`org_settings`).
 
 ##### Example
 
@@ -1053,8 +1083,6 @@ org_settings:
     port: 1025
     authentication_type: none
 ```
-
-Can only be configured for all teams (`org_settings`).
 
 Unlike other options, ommitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
