@@ -23,20 +23,31 @@ type Task struct {
 	clock       clock.Clock
 	taskConfigs map[config.AsyncTaskName]config.AsyncProcessingConfig
 	seenHostSet seenHostSet
+	otelEnabled bool
 }
 
 // NewTask configures and returns a Task.
-func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf config.OsqueryConfig) *Task {
+func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, fleetConfig *config.FleetConfig) *Task {
 	taskCfgs := make(map[config.AsyncTaskName]config.AsyncProcessingConfig)
-	taskCfgs[config.AsyncTaskLabelMembership] = conf.AsyncConfigForTask(config.AsyncTaskLabelMembership)
-	taskCfgs[config.AsyncTaskPolicyMembership] = conf.AsyncConfigForTask(config.AsyncTaskPolicyMembership)
-	taskCfgs[config.AsyncTaskHostLastSeen] = conf.AsyncConfigForTask(config.AsyncTaskHostLastSeen)
-	taskCfgs[config.AsyncTaskScheduledQueryStats] = conf.AsyncConfigForTask(config.AsyncTaskScheduledQueryStats)
+
+	var osqueryConf config.OsqueryConfig
+	otelEnabled := false
+	if fleetConfig != nil {
+		osqueryConf = fleetConfig.Osquery
+		otelEnabled = fleetConfig.OTELEnabled()
+	}
+
+	taskCfgs[config.AsyncTaskLabelMembership] = osqueryConf.AsyncConfigForTask(config.AsyncTaskLabelMembership)
+	taskCfgs[config.AsyncTaskPolicyMembership] = osqueryConf.AsyncConfigForTask(config.AsyncTaskPolicyMembership)
+	taskCfgs[config.AsyncTaskHostLastSeen] = osqueryConf.AsyncConfigForTask(config.AsyncTaskHostLastSeen)
+	taskCfgs[config.AsyncTaskScheduledQueryStats] = osqueryConf.AsyncConfigForTask(config.AsyncTaskScheduledQueryStats)
+
 	return &Task{
 		datastore:   ds,
 		pool:        pool,
 		clock:       clck,
 		taskConfigs: taskCfgs,
+		otelEnabled: otelEnabled,
 	}
 }
 

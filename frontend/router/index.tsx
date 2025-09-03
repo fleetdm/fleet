@@ -83,6 +83,7 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
+import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -286,8 +287,10 @@ const routes = (
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
-                <Route path="scripts" component={Scripts} />
-                <Route path="scripts/:section" component={Scripts} />
+                <Route path="scripts">
+                  <IndexRedirect to="library" />
+                  <Route path=":section" component={Scripts} />
+                </Route>
                 <Route path="variables" component={Secrets} />
                 <Route
                   path="setup-experience/:section"
@@ -295,6 +298,10 @@ const routes = (
                 />
               </Route>
             </Route>
+            <Route
+              path="controls/scripts/progress/:batch_execution_id"
+              component={ScriptBatchDetailsPage}
+            />
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />

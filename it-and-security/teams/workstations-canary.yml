@@ -75,6 +75,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
+      - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/company-portal-sso-extension.mobileconfig
         labels_include_any:
           - "Conditional access test group"

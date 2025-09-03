@@ -251,13 +251,21 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			Name: "Global",
 		},
 	}
-	noTeam := teamToProcess{
-		ID: ptr.Uint(0),
-		Team: &fleet.Team{
-			ID:   0,
-			Name: "No team",
-		},
+
+	// Only fetch "No Team" configuration if we have a premium license
+	var noTeam teamToProcess
+	if cmd.AppConfig.License.IsPremium() {
+		noTeamData, err := cmd.Client.GetTeam(0)
+		if err != nil {
+			_, _ = fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting 'No team': %s\n", err)
+			return ErrGeneric
+		}
+		noTeam = teamToProcess{
+			ID:   ptr.Uint(0),
+			Team: noTeamData,
+		}
 	}
+
 	switch {
 	case cmd.CLI.String("team") == "global" || !cmd.AppConfig.License.IsPremium():
 		teamsToProcess = []teamToProcess{globalTeam}
@@ -353,8 +361,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			cmd.FilesToWrite[fileName].(map[string]interface{})["labels"] = labels
 
-		} else if team.ID != 0 {
-			// Generate team settings and agent options for the team.
+		} else {
+			// Generate team settings and agent options for the team (including "No team" with ID 0).
 			teamSettings, err := cmd.generateTeamSettings(fileName, team)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating org settings: %s\n", err)
@@ -362,9 +370,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 
 			cmd.FilesToWrite[fileName].(map[string]interface{})["team_settings"] = teamSettings
-			cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
 
-			mdmConfig = team.Config.MDM
+			// Only add agent_options for regular teams (not "No Team")
+			if team.ID != 0 {
+				cmd.FilesToWrite[fileName].(map[string]interface{})["agent_options"] = team.Config.AgentOptions
+				mdmConfig = team.Config.MDM
+			}
 		}
 
 		// Generate controls.
@@ -696,6 +707,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["team_integrations"].(map[string]interface{})
 
 		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		// https://github.com/fleetdm/fleet/issues/20287
 		delete(result, "jira")
 		delete(result, "zendesk")
 
@@ -850,6 +862,21 @@ func (cmd *GenerateGitopsCommand) generateYaraRules(yaraRules []fleet.YaraRule) 
 
 func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fleet.Team) (teamSettings map[string]interface{}, err error) {
 	t := reflect.TypeOf(fleet.TeamConfig{})
+
+	// For "No Team" (team ID 0), only include webhook settings
+	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
+	// See https://github.com/fleetdm/fleet/issues/20287
+	if team.ID == 0 {
+		webhookSettings := map[string]any{
+			"failing_policies_webhook": team.Config.WebhookSettings.FailingPoliciesWebhook,
+		}
+		teamSettings = map[string]any{
+			jsonFieldName(t, "WebhookSettings"): webhookSettings,
+		}
+		return teamSettings, nil
+	}
+
+	// For regular teams, include all settings
 	teamSettings = map[string]interface{}{
 		jsonFieldName(t, "Features"):           team.Config.Features,
 		jsonFieldName(t, "HostExpirySettings"): team.Config.HostExpirySettings,

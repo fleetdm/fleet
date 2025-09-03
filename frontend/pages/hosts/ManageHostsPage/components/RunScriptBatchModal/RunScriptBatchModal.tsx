@@ -174,26 +174,26 @@ const RunScriptBatchModal = ({
         if (runMode === "schedule") {
           renderFlash(
             "success",
-            <span className={`${baseClass}__success-message`}>
-              <span>Successfully scheduled script.</span>
+            <>
+              Successfully scheduled script.{" "}
               <Link
                 to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=scheduled&team_id=${teamId})`}
               >
                 Show schedule
               </Link>
-            </span>
+            </>
           );
         } else {
           renderFlash(
             "success",
-            <span className={`${baseClass}__success-message`}>
-              <span>Successfully ran script.</span>
+            <>
+              Successfully ran script.{" "}
               <Link
                 to={`${PATHS.CONTROLS_SCRIPTS_BATCH_PROGRESS}?status=started&team_id=${teamId})`}
               >
                 Show script activity
               </Link>
-            </span>
+            </>
           );
         }
         onCancel();
