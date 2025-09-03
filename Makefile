@@ -695,10 +695,11 @@ endif
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	xattr -cr $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
 ifneq ($(codesign-identity),)
 	@echo "Replacing Swift Dialog signatures"
-	codesign --force --options runtime --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
+	codesign --force --timestamp --options runtime --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
 ifeq ($(notarize), true)
 	@echo "Notarizing now-signed swift dialog"
 	xcrun notarytool store-credentials "notarytool-profile" --apple-id "${NOTARIZATION_USERNAME}" --team-id "${NOTARIZATION_TEAM_ID}" --password "${NOTARIZATION_PASSWORD}"
