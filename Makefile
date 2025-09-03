@@ -673,7 +673,7 @@ endif
 # Generate swiftDialog.app.tar.gz bundle from the swiftDialog repo.
 #
 # Usage:
-# make swift-dialog-app-tar-gz version=2.5.6 build=4805 out-path=. codesign-identity="a1b2c3...[your codesign cert serial, optional]"
+# make swift-dialog-app-tar-gz version=2.5.6 build=4805 out-path=.
 swift-dialog-app-tar-gz:
 ifneq ($(shell uname), Darwin)
 	@echo "Makefile target swift-dialog-app-tar-gz is only supported on macOS"
@@ -695,27 +695,9 @@ endif
 	pkgutil --expand $(TMP_DIR)/swiftDialog-$(version).pkg $(TMP_DIR)/swiftDialog_pkg_expanded
 	mkdir -p $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	tar xvf $(TMP_DIR)/swiftDialog_pkg_expanded/tmp-package.pkg/Payload --directory $(TMP_DIR)/swiftDialog_pkg_payload_expanded
+	# Remove xattrs which are included in the .pkg(erroneously?) in some versions
 	xattr -cr $(TMP_DIR)/swiftDialog_pkg_payload_expanded
 	$(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/Contents/MacOS/Dialog --version
-ifneq ($(codesign-identity),)
-	@echo "Replacing Swift Dialog signatures"
-	codesign --force --timestamp --options runtime --sign "$(codesign-identity)" $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app/
-ifeq ($(notarize), true)
-	@echo "Notarizing now-signed swift dialog"
-	xcrun notarytool store-credentials "notarytool-profile" --apple-id "${NOTARIZATION_USERNAME}" --team-id "${NOTARIZATION_TEAM_ID}" --password "${NOTARIZATION_PASSWORD}"
-	ditto -c -k --keepParent $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app "notarization.zip"
-	xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
-	xcrun stapler staple $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/Dialog.app
-	@echo "Successfully notarized Swift Dialog"
-else
-	@echo "Skipping notarization of swift dialog"
-endif
-else
-	@echo "Skipping signing swift dialog"
-ifeq ($(notarize), true)
-	@echo "Skipping requested notarization of swift dialog since signing was skipped"
-endif
-endif
 	tar czf $(out-path)/swiftDialog.app.tar.gz -C $(TMP_DIR)/swiftDialog_pkg_payload_expanded/Library/Application\ Support/Dialog/ Dialog.app
 	rm -rf $(TMP_DIR)
 

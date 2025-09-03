@@ -43,29 +43,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Import signing keys
+      - name: Generate swiftDialog.app.tar.gz
         env:
-          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
-          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-        run: |
-          echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p $KEYCHAIN_PASSWORD build.keychain
-          security import certificate.p12 -k build.keychain -P $APPLE_APPLICATION_CERTIFICATE_PASSWORD -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k $KEYCHAIN_PASSWORD build.keychain
-          security find-identity -vv
-          rm certificate.p12
-
-      - name: Generate and sign swiftDialog.app.tar.gz
-        env:
-          NOTARIZATION_USERNAME: ${{ secrets.APPLE_USERNAME }}
-          NOTARIZATION_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          NOTARIZATION_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CODESIGN_IDENTITY: 51049B247B25B3119FAE7E9C0CC4375A43E47237
         run: make swift-dialog-app-tar-gz version=${SWIFT_DIALOG_VERSION} build=${SWIFT_DIALOG_BUILD} out-path=.
-        #codesign-identity=${CODESIGN_IDENTITY} notarize=true
 
       - name: Upload swiftDialog.app.tar.gz
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
