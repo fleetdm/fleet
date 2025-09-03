@@ -59,6 +59,7 @@ const SelectSoftwareModal = ({
         currentTeamId,
         selectedSoftwareIds
       );
+      renderFlash("success", "Updated software for install on setup.");
     } catch (e) {
       renderFlash("error", "Couldn't save software. Please try again.");
     }
