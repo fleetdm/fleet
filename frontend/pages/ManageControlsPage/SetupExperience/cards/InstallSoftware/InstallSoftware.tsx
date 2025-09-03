@@ -57,13 +57,14 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     AxiosError,
     ISoftwareTitle[] | null
   >(
-    ["mac-install-software", currentTeamId],
+    ["install-software", currentTeamId, selectedPlatform],
     () =>
       mdmAPI.getSetupExperienceSoftware(selectedPlatform, {
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
     {
+      enabled: selectedPlatform !== "windows", // remove next iteration
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
     }
@@ -122,7 +123,6 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
       return <DataError />;
     }
 
-    // TODO - can linux SW be null?
     if (softwareTitles || softwareTitles === null) {
       return (
         <SetupExperienceContentContainer>

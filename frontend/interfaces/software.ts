@@ -186,6 +186,7 @@ export interface ISoftwareVersion {
   hosts_count?: number;
 }
 
+// TODO - confirm which of these are possible options for linux packages, create similar mapping
 export const SOURCE_TYPE_CONVERSION = {
   apt_sources: "Package (APT)",
   deb_packages: "Package (deb)",

@@ -10,16 +10,13 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
-export interface IEnhancedSoftwareTitle extends ISoftwareTitle {
-  versionForRender: string;
-}
-
-type ISelectSoftwareTableConfig = Column<IEnhancedSoftwareTitle>;
-type ITableHeaderProps = IHeaderProps<IEnhancedSoftwareTitle>;
-type ITableStringCellProps = IStringCellProps<IEnhancedSoftwareTitle>;
-type ISelectionCellProps = CellProps<IEnhancedSoftwareTitle>;
+type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
+type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
+type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
+type ISelectionCellProps = CellProps<ISoftwareTitle>;
 
 const generateTableConfig = (
+  platform: SetupExperiencePlatform,
   onSelectAll: (selectAll: boolean) => void,
   onSelectSoftware: (select: boolean, id: number) => void
 ): ISelectSoftwareTableConfig[] => {
@@ -89,9 +86,13 @@ const generateTableConfig = (
     {
       Header: "Version",
       disableSortBy: true,
-      accessor: "versionForRender",
       Cell: (cellProps: ITableStringCellProps) => {
-        return <TextCell value={cellProps.row.original.versionForRender} />;
+        let versionFoRender = cellProps.row.original.software_package?.version;
+        if (versionFoRender && platform === "linux") {
+          // TODO - append package type for linux
+          versionFoRender = versionFoRender.concat("");
+        }
+        return <TextCell value={versionFoRender} />;
       },
       sortType: "caseInsensitive",
     },
@@ -100,21 +101,21 @@ const generateTableConfig = (
   return headerConfigs;
 };
 
-export const generateDataSet = (
-  platform: SetupExperiencePlatform,
-  swTitles: ISoftwareTitle[]
-): IEnhancedSoftwareTitle[] => {
-  return swTitles.map((title) => {
-    let version = title?.software_package?.version;
-    if (version && platform === "linux") {
-      // TODO - append package type for linux
-      version = version.concat("");
-    }
-    return {
-      ...title,
-      versionForRender: version ?? "",
-    };
-  });
-};
+// export const generateDataSet = (
+//   platform: SetupExperiencePlatform,
+//   swTitles: ISoftwareTitle[]
+// ): IEnhancedSoftwareTitle[] => {
+//   return swTitles.map((title) => {
+//     let version = title?.software_package?.version;
+//     if (version && platform === "linux") {
+//       // TODO - append package type for linux
+//       version = version.concat("");
+//     }
+//     return {
+//       ...title,
+//       versionForRender: version ?? "",
+//     };
+//   });
+// };
 
 export default generateTableConfig;

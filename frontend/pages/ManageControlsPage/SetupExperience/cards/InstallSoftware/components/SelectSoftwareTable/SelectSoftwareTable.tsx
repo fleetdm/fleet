@@ -7,9 +7,7 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import TableCount from "components/TableContainer/TableCount";
 
-import generateTableConfig, {
-  generateDataSet,
-} from "./SelectSoftwareTableConfig";
+import generateTableConfig from "./SelectSoftwareTableConfig";
 
 const baseClass = "select-software-table";
 
@@ -38,9 +36,13 @@ const SelectSoftwareTable = ({
   onChangeSelectAll,
   platform,
 }: ISelectSoftwareTableProps) => {
-  const tabelConfig = useMemo(() => {
-    return generateTableConfig(onChangeSelectAll, onChangeSoftwareSelect);
-  }, [onChangeSelectAll, onChangeSoftwareSelect]);
+  const tableConfig = useMemo(() => {
+    return generateTableConfig(
+      platform,
+      onChangeSelectAll,
+      onChangeSoftwareSelect
+    );
+  }, [onChangeSelectAll, onChangeSoftwareSelect, platform]);
 
   const initialSelectedSoftwareRows = useMemo(() => {
     return generateSelectedRows(softwareTitles);
@@ -57,8 +59,9 @@ const SelectSoftwareTable = ({
   return (
     <TableContainer
       className={baseClass}
-      data={generateDataSet(platform, softwareTitles)}
-      columnConfigs={tabelConfig}
+      // data={generateDataSet(platform, softwareTitles)}
+      data={softwareTitles}
+      columnConfigs={tableConfig}
       isLoading={false}
       emptyComponent={() => (
         <EmptyTable
