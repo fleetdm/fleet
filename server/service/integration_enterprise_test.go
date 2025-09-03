@@ -12132,14 +12132,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		return result
 	}
 
+	// get icon from file system
+	file, err := os.Open("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	defer file.Close()
+
+	// get icon size for later
+	fileInfo, err := file.Stat()
+	require.NoError(t, err)
+	iconSize := fileInfo.Size()
+
 	// create proper form data to post
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	fileWriter, err := writer.CreateFormFile("icon", "icon.png")
 	require.NoError(t, err)
-	file, err := os.Open("testdata/icons/valid-icon.png")
-	require.NoError(t, err)
-	defer file.Close()
 	_, err = io.Copy(fileWriter, file)
 	require.NoError(t, err)
 	err = writer.Close()
@@ -12149,7 +12156,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	// create software title icon
+	// PUT: create new software title icon
 	resp := s.DoRawWithHeaders(
 		"PUT",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
@@ -12182,7 +12189,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Equal(t, iconUrl, *details.SoftwareIconURL)
 	require.Equal(t, titleID, details.SoftwareTitleID)
 
-	// gitops workflow, passing in sha256 & filename
+	// PUT: gitops workflow, passing in sha256 & filename
 	var storedIcons []fleet.SoftwareTitleIcon
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
@@ -12239,6 +12246,55 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		}
 	}
 	require.Len(t, editedSoftwareActivities, 1)
+
+	// GET software title icon
+	headers = map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	assert.Equal(t, "image/png", resp.Header.Get("Content-Type"))
+	assert.Equal(t, fmt.Sprintf(`inline; filename="%s"`, "icon.png"), resp.Header.Get("Content-Disposition"))
+	assert.Equal(t, fmt.Sprintf("%d", iconSize), resp.Header.Get("Content-Length"))
+
+	// DELETE software title icon
+	resp = s.DoRawWithHeaders(
+		"DELETE",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	require.NoError(t, err)
+
+	// verify new activity was created
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
+	editedSoftwareActivities = make([]fleet.Activity, 0)
+	for _, activity := range activities.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivities, 2)
+
+	// ensure there is an activity where the icon url is set to empty
+	// signifying it's deleted
+	var deletedSoftwareActivity fleet.Activity
+	for _, editedSoftwareActivity := range editedSoftwareActivities {
+		var details fleet.ActivityTypeEditedSoftware
+		err = json.Unmarshal(*editedSoftwareActivity.Details, &details)
+		require.NoError(t, err)
+		require.Equal(t, titleID, details.SoftwareTitleID)
+		if *details.SoftwareIconURL == "" {
+			deletedSoftwareActivity = editedSoftwareActivity
+		}
+	}
+	require.NotNil(t, deletedSoftwareActivity)
 
 	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
