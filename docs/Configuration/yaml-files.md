@@ -400,23 +400,23 @@ For macOS configuration profiles, you can use any of Apple's [built-in variables
 
 Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
 
-Fleet also supports [Fleet secret variables](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) (`$FLEET_SECRET_*`) in configuration profiles. These allow you to securely store sensitive values like API tokens or certificates. See the [secrets guide](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles) for detailed usage.
 
-> **Important for Apple profiles:** Fleet secret variables (`$FLEET_SECRET_*`) cannot be used in the `PayloadDisplayName` field. This field becomes the visible name of the profile and could expose sensitive information. Use secrets in other fields like `PayloadDescription`, `Password`, or `PayloadContent` instead.
+In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
-In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_` (currently available only for Apple profiles). Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
+| Name | Platforms | Description |
+| ---- | --------- | ----------- |
+| <span style="display: inline-block; min-width: 240px;">`$FLEET_VAR_NDES_SCEP_CHALLENGE`</span> | macOS, iOS, iPadOS | Fleet-managed one-time NDES challenge password used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_NDES_SCEP_PROXY_URL`                   | macOS, iOS, iPadOS | Fleet-managed NDES SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`            | macOS, iOS, iPadOS | Host's IdP username. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART` | macOS, iOS, iPadOS | Local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`              | macOS, iOS, iPadOS | Comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`          | macOS, iOS, iPadOS | Host's IdP department. When this changes, Fleet will automatically resend the profile. |
+| `$FLEET_VAR_HOST_UUID`                             | Windows | Host's hardware UUID. (Equivalent of Apple's built-in `%HardwareUUID%`.) |
+| `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed one-time challenge password used during SCEP certificate configuration profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy). |
+| `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`       | macOS, iOS, iPadOS | Fleet-managed SCEP proxy endpoint URL used during SCEP certificate configuration profile deployment. |
+| `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>`           | macOS, iOS, iPadOS | Fleet-managed password required to decode the base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). | 
+| `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`               | macOS, iOS, iPadOS | Fleet-managed base64-encoded certificate data issued by a specified DigiCert certificate authority during PKCS12 profile deployment. `<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert). |
 
-- `$FLEET_VAR_NDES_SCEP_CHALLENGE`
-- `$FLEET_VAR_NDES_SCEP_PROXY_URL`
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`: host's IdP username. When this changes, Fleet will automatically resend the profile.
-- `$FLEET_VAR_HOST_END_USER_IDP_FULL_NAME`: host's IdP full name. When this changes, Fleet will automatically resend the profile.
-- `$FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART`: local part of the email (e.g. john from john@example.com). When this changes, Fleet will automatically resend the profile.
-- `$FLEET_VAR_HOST_END_USER_IDP_GROUPS`: comma separated IdP groups that host belongs to. When these change, Fleet will automatically resend the profile.
-- `$FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT`: host's IdP department. When this changes, Fleet will automatically resend the profile.
-- `$FLEET_VAR_CUSTOM_SCEP_CHALLENGE_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [scep_proxy](#scep-proxy).)
-- `$FLEET_VAR_CUSTOM_SCEP_PROXY_URL_<CA_NAME>`
-- `$FLEET_VAR_DIGICERT_PASSWORD_<CA_NAME>` (`<CA_NAME>` should be replaced with name of the certificate authority configured in [digicert](#digicert).)
-- `$FLEET_VAR_DIGICERT_DATA_<CA_NAME>`
 
 The dollar sign (`$`) can be escaped so it's not considered a variable by using a backslash (e.g. `\$100`). Additionally, `MY${variable}HERE` syntax can be used to put strings around the variable.
 
@@ -1032,6 +1032,30 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
+
+#### smtp_settings
+
+If you're self hosting Fleet, the `smtp_settings` section lets you configure an e-mail (SMTP) server. This enables Fleet to send user invite and password reset emails.
+
+If you're using Fleet's managed-cloud offering, an SMTP server is already setup for you.
+
+For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
+
+##### Example
+
+```yaml
+org_settings:
+  smtp_settings:
+    enable_smtp: true
+    sender_address: organization@example.com
+    server: localhost
+    port: 1025
+    authentication_type: none
+```
+
+Can only be configured for all teams (`org_settings`).
+
+Unlike other options, ommitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">

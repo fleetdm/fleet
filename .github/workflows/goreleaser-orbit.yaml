@@ -204,10 +204,11 @@ jobs:
     needs: goreleaser-windows
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:
-      attest: 'true'
+      attest: true
       filename: orbit.exe
       upload_name: orbit-windows
     secrets:
@@ -257,10 +258,11 @@ jobs:
     needs: goreleaser-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
     permissions:
+      contents: read
       id-token: write # required for attestations
       attestations: write # required for attestations
     with:
-      attest: 'true'
+      attest: true
       filename: orbit.exe
       upload_name: orbit-windows-arm64
       download_name: unsigned-windows-arm64
