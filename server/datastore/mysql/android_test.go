@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -34,6 +35,7 @@ func TestAndroid(t *testing.T) {
 		{"DeleteMDMAndroidConfigProfile", testDeleteMDMAndroidConfigProfile},
 		{"GetMDMAndroidProfilesSummary", testMDMAndroidProfilesSummary},
 		{"ListMDMAndroidProfilesToSend", testListMDMAndroidProfilesToSend},
+		{"GetMDMAndroidProfilesContents", testGetMDMAndroidProfilesContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -949,4 +951,51 @@ func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
 		{ProfileUUID: p5.ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: p5.Name},
 		{ProfileUUID: p3.ProfileUUID, HostUUID: hosts[1].UUID, ProfileName: p3.Name},
 	}, profs)
+}
+
+func testGetMDMAndroidProfilesContents(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	p1 := androidProfileForTest("p1")
+	p1.RawJSON = []byte(`{"v": 1}`)
+	p2 := androidProfileForTest("p2")
+	p2.RawJSON = []byte(`{"v": 2}`)
+	p3 := androidProfileForTest("p3")
+	p3.RawJSON = []byte(`{"v": 3}`)
+
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	require.NoError(t, err)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	require.NoError(t, err)
+
+	cases := []struct {
+		uuids []string
+		want  map[string]json.RawMessage
+	}{
+		{[]string{}, nil},
+		{nil, nil},
+		{[]string{p1.ProfileUUID}, map[string]json.RawMessage{p1.ProfileUUID: p1.RawJSON}},
+		{[]string{p1.ProfileUUID, p2.ProfileUUID}, map[string]json.RawMessage{
+			p1.ProfileUUID: p1.RawJSON,
+			p2.ProfileUUID: p2.RawJSON,
+		}},
+		{[]string{p1.ProfileUUID, p2.ProfileUUID, p3.ProfileUUID}, map[string]json.RawMessage{
+			p1.ProfileUUID: p1.RawJSON,
+			p2.ProfileUUID: p2.RawJSON,
+			p3.ProfileUUID: p3.RawJSON,
+		}},
+		{[]string{p1.ProfileUUID, p2.ProfileUUID, "no-such-uuid"}, map[string]json.RawMessage{
+			p1.ProfileUUID: p1.RawJSON,
+			p2.ProfileUUID: p2.RawJSON,
+		}},
+	}
+
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v", c.uuids), func(t *testing.T) {
+			out, err := ds.GetMDMAndroidProfilesContents(ctx, c.uuids)
+			require.NoError(t, err)
+			require.Equal(t, c.want, out)
+		})
+	}
 }
