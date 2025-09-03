@@ -1297,7 +1297,7 @@ type CreateOrUpdateSoftwareTitleIconFunc func(ctx context.Context, payload *flee
 
 type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (*fleet.SoftwareTitleIcon, error)
 
-type GetTeamIdsWithStorageIdFunc func(ctx context.Context, storageID string) ([]uint, error)
+type GetTeamIdsForIconStorageIdFunc func(ctx context.Context, storageID string) ([]uint, error)
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
@@ -3401,8 +3401,8 @@ type DataStore struct {
 	GetSoftwareTitleIconFunc        GetSoftwareTitleIconFunc
 	GetSoftwareTitleIconFuncInvoked bool
 
-	GetTeamIdsWithStorageIdFunc        GetTeamIdsWithStorageIdFunc
-	GetTeamIdsWithStorageIdFuncInvoked bool
+	GetTeamIdsForIconStorageIdFunc        GetTeamIdsForIconStorageIdFunc
+	GetTeamIdsForIconStorageIdFuncInvoked bool
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
@@ -8151,11 +8151,11 @@ func (s *DataStore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, title
 	return s.GetSoftwareTitleIconFunc(ctx, teamID, titleID)
 }
 
-func (s *DataStore) GetTeamIdsWithStorageId(ctx context.Context, storageID string) ([]uint, error) {
+func (s *DataStore) GetTeamIdsForIconStorageId(ctx context.Context, storageID string) ([]uint, error) {
 	s.mu.Lock()
-	s.GetTeamIdsWithStorageIdFuncInvoked = true
+	s.GetTeamIdsForIconStorageIdFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetTeamIdsWithStorageIdFunc(ctx, storageID)
+	return s.GetTeamIdsForIconStorageIdFunc(ctx, storageID)
 }
 
 func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {

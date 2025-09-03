@@ -52,7 +52,7 @@ func (ds *Datastore) GetSoftwareTitleIcon(ctx context.Context, teamID uint, titl
 	return &icon, nil
 }
 
-func (ds *Datastore) GetTeamIdsWithStorageId(ctx context.Context, storageID string) ([]uint, error) {
+func (ds *Datastore) GetTeamIdsForIconStorageId(ctx context.Context, storageID string) ([]uint, error) {
 	var teamIds []uint
 	query := `SELECT team_id FROM software_title_icons WHERE storage_id = ?`
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &teamIds, query, storageID)

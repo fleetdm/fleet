@@ -171,7 +171,7 @@ func (svc *Service) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 }
 
 func userHasAccessToStorageID(ctx context.Context, svc *Service, teamId uint, storageID string) (bool, error) {
-	teamIds, err := svc.ds.GetTeamIdsWithStorageId(ctx, storageID)
+	teamIds, err := svc.ds.GetTeamIdsForIconStorageId(ctx, storageID)
 	if err != nil {
 		return false, err
 	}
@@ -179,14 +179,12 @@ func userHasAccessToStorageID(ctx context.Context, svc *Service, teamId uint, st
 		return true, nil
 	}
 
-	if len(teamIds) > 0 {
-		for _, tmID := range teamIds {
-			if authErr := svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: tmID}, fleet.ActionWrite); authErr != nil {
-				continue
-			}
-
-			return true, nil
+	for _, tmID := range teamIds {
+		if authErr := svc.authz.Authorize(ctx, &fleet.SoftwareTitleIcon{TeamID: tmID}, fleet.ActionWrite); authErr != nil {
+			continue
 		}
+
+		return true, nil
 	}
 
 	return false, nil

@@ -20,7 +20,7 @@ func TestSoftwareTitleIcons(t *testing.T) {
 	}{
 		{"CreateOrUpdateSoftwareTitleIcon", testCreateOrUpdateSoftwareTitleIcon},
 		{"GetSoftwareTitleIcon", testGetSoftwareTitleIcon},
-		{"GetTeamIdsWithStorageId", testGetTeamIdsWithStorageId},
+		{"GetTeamIdsForIconStorageId", testGetTeamIdsForIconStorageId},
 		{"DeleteSoftwareTitleIcon", testDeleteSoftwareTitleIcon},
 		{"ActivityDetailsForSoftwareTitleIcon", testActivityDetailsForSoftwareTitleIcon},
 	}
@@ -173,7 +173,7 @@ func testGetSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testGetTeamIdsWithStorageId(t *testing.T, ds *Datastore) {
+func testGetTeamIdsForIconStorageId(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	var teamID, titleID uint
@@ -187,7 +187,7 @@ func testGetTeamIdsWithStorageId(t *testing.T, ds *Datastore) {
 			"no matching storage id exists",
 			func(ds *Datastore) {
 			}, func(t *testing.T, ds *Datastore) {
-				teamIds, err := ds.GetTeamIdsWithStorageId(ctx, "storage-id")
+				teamIds, err := ds.GetTeamIdsForIconStorageId(ctx, "storage-id")
 				require.NoError(t, err)
 				require.Nil(t, teamIds)
 			},
@@ -205,7 +205,7 @@ func testGetTeamIdsWithStorageId(t *testing.T, ds *Datastore) {
 				})
 				require.NoError(t, err)
 			}, func(t *testing.T, ds *Datastore) {
-				teamIds, err := ds.GetTeamIdsWithStorageId(ctx, "storage-id")
+				teamIds, err := ds.GetTeamIdsForIconStorageId(ctx, "storage-id")
 				require.NoError(t, err)
 				require.Contains(t, teamIds, teamID)
 			},
