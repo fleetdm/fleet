@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -159,8 +160,10 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	return nil
 }
 
+// TODO(ap): maybe refactor, bit ugly with so many parameters but it's nice to
+// have a func that processes one host at a time.
 func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client,
-	hostUUID string, profiles []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) error {
+	hostUUID string, profilesToMerge, profilesToRemove []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
 
 	// We need a deterministic order to merge the profiles, and I opted to go
 	// by name, alphabetically ascending, as it's simple, deterministic (names
@@ -168,24 +171,27 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 	// also discussed upload time of the profile but it may not be
 	// deterministic for batch-set profiles (same timestamp when inserted in a
 	// transaction) and is not readily visible in the UI.
-	slices.SortFunc(profiles, func(a, b *fleet.MDMAndroidProfilePayload) int {
+	slices.SortFunc(profilesToMerge, func(a, b *fleet.MDMAndroidProfilePayload) int {
 		return cmp.Compare(a.ProfileName, b.ProfileName)
 	})
 
+	bulkProfiles := make([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, 0, len(profilesToMerge)+len(profilesToRemove))
+
 	// merge the profiles in that order, keeping track of what profile overrides
 	// what other one
-	settingFromProfile := make(map[string]string) // setting name -> "winning" profile UUID
+	settingFromProfile := make(map[string]string)   // setting name -> "winning" profile UUID
+	overriddenSettings := make(map[string][]string) // profile UUID -> overridden setting names
 	var finalJSON map[string]json.RawMessage
-	for _, prof := range profiles {
+	for _, prof := range profilesToMerge {
 		content, ok := profilesContents[prof.ProfileUUID]
 		if !ok {
 			// should never happen
-			return ctxerr.Errorf(ctx, "missing content for profile %s", prof.ProfileUUID)
+			return nil, ctxerr.Errorf(ctx, "missing content for profile %s", prof.ProfileUUID)
 		}
 
 		var profJSON map[string]json.RawMessage
 		if err := json.Unmarshal(content, &profJSON); err != nil {
-			return ctxerr.Wrapf(ctx, err, "unmarshal profile %s content", prof.ProfileUUID)
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal profile %s content", prof.ProfileUUID)
 		}
 
 		if finalJSON == nil {
@@ -193,16 +199,54 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 			for k := range profJSON {
 				settingFromProfile[k] = prof.ProfileUUID
 			}
-			continue
+		} else {
+			for k, v := range profJSON {
+				if _, alreadySet := finalJSON[k]; alreadySet {
+					// TODO: mark settingFromProfile[k] as failed/overridden
+					failedProfUUID := settingFromProfile[k]
+					overriddenSettings[failedProfUUID] = append(overriddenSettings[failedProfUUID], k)
+				}
+				finalJSON[k] = v
+				settingFromProfile[k] = prof.ProfileUUID
+			}
 		}
 
-		for k, v := range profJSON {
-			if _, alreadySet := finalJSON[k]; alreadySet {
-				// TODO: mark settingFromProfile[k] as failed/overridden
+		var detail string
+		status := fleet.MDMDeliveryPending
+		if overridden, ok := overriddenSettings[prof.ProfileUUID]; ok && len(overridden) > 0 {
+			status = fleet.MDMDeliveryFailed
+
+			slices.Sort(overridden)
+
+			var sb strings.Builder
+			for range len(overridden) - 1 {
+				sb.WriteString("%q, ")
 			}
-			finalJSON[k] = v
-			settingFromProfile[k] = prof.ProfileUUID
+			if len(overridden) > 1 {
+				sb.WriteString("and ")
+			}
+			sb.WriteString("%q")
+			if len(overridden) > 1 {
+				sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+			} else {
+				sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+			}
+
+			args := make([]any, len(overridden))
+			for i, s := range overridden {
+				args[i] = s
+			}
+			detail = fmt.Sprintf(sb.String(), args...)
 		}
+		// TODO(ap): record included into policy version once the API call is made, and/or track failures
+		bulkProfiles = append(bulkProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			HostUUID:      hostUUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			ProfileUUID:   prof.ProfileUUID,
+			ProfileName:   prof.ProfileName,
+			Detail:        detail,
+		})
 	}
 	panic("unimplemented")
 }
