@@ -2,7 +2,7 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareTitle } from "interfaces/software";
+import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
@@ -10,10 +10,25 @@ import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
+
+const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
+  switch (source) {
+    case "rpm_packages":
+      return "rpm";
+    case "deb_packages":
+      return "deb";
+    case "tgz_packages":
+      return "tar";
+    default:
+      return null;
+  }
+};
 
 const generateTableConfig = (
   platform: SetupExperiencePlatform,
@@ -87,10 +102,17 @@ const generateTableConfig = (
       Header: "Version",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
-        let versionFoRender = cellProps.row.original.software_package?.version;
-        if (versionFoRender && platform === "linux") {
-          // TODO - append package type for linux
-          versionFoRender = versionFoRender.concat("");
+        const title = cellProps.row.original;
+        let versionFoRender = title.software_package?.version;
+        if (platform === "linux") {
+          const packageTypeCopy = getSetupExperienceLinuxPackageCopy(
+            title.source
+          );
+          if (packageTypeCopy) {
+            versionFoRender = (
+              versionFoRender ?? DEFAULT_EMPTY_CELL_VALUE
+            ).concat(` (.${packageTypeCopy})`);
+          }
         }
         return <TextCell value={versionFoRender} />;
       },
@@ -100,22 +122,5 @@ const generateTableConfig = (
 
   return headerConfigs;
 };
-
-// export const generateDataSet = (
-//   platform: SetupExperiencePlatform,
-//   swTitles: ISoftwareTitle[]
-// ): IEnhancedSoftwareTitle[] => {
-//   return swTitles.map((title) => {
-//     let version = title?.software_package?.version;
-//     if (version && platform === "linux") {
-//       // TODO - append package type for linux
-//       version = version.concat("");
-//     }
-//     return {
-//       ...title,
-//       versionForRender: version ?? "",
-//     };
-//   });
-// };
 
 export default generateTableConfig;
