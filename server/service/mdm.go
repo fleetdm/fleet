@@ -1631,7 +1631,7 @@ func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface
 			LabelsExcludeAny: p.LabelsExcludeAny,
 		}
 	}
-	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, ptr.Bool(false), false); err != nil {
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
 	return batchModifyMDMConfigProfilesResponse{}, nil
