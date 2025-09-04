@@ -501,8 +501,6 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
   
-> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
-
 #### Example
 
 ##### With URL
