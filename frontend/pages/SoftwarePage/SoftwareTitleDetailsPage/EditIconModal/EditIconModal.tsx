@@ -401,10 +401,12 @@ const EditIconModal = ({
               }}
             />
           ) : (
+            // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
+            // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
               name={software.name}
               source={previewInfo.source}
-              url={isSoftwarePackage ? undefined : software.icon_url}
+              url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
             />
           )}

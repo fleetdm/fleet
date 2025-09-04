@@ -138,7 +138,7 @@ interface ISoftwareNameCellProps {
   hasInstaller?: boolean;
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
-  /** e.g. app_store_app's override default icons with URLs */
+  /** e.g. custom icons & app_store_app's override default icons with URLs */
   iconUrl?: string | null;
 }
 

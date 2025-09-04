@@ -55,8 +55,7 @@ describe("EditIconModal", () => {
   it("calls onExit handler when modal close is triggered", async () => {
     const render = createCustomRenderer({ withBackendMock: true });
     const { user } = render(<EditIconModal {...MOCK_PROPS} />);
-    // Simulate pressing ESC or the close button
-    // If you have a close button, select it by role or label/text
+
     await user.keyboard("{Escape}");
 
     expect(MOCK_PROPS.onExit).toHaveBeenCalled();

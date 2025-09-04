@@ -82,7 +82,7 @@ const SoftwareSummaryCard = ({
           }}
           name={title.name}
           source={title.source}
-          iconUrl={title.icon_url || softwareInstaller?.icon_url || null} // fallback to installer icon if title icon is null
+          iconUrl={title.icon_url}
           iconUploadedAt={iconUploadedAt}
           onClickEditIcon={canEditIcon ? onClickEditIcon : undefined}
         />
