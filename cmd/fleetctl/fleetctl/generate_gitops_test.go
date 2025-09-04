@@ -414,7 +414,7 @@ func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
 }
 
-func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	if teamID == 1 {
 		return []fleet.SoftwareTitleListResult{
 			{

@@ -1,0 +1,3 @@
+- Added API endpoints for Linux setup experience.
+  - Device API endpoints for fleetd: `POST /api/fleet/orbit/setup_experience/init` and `POST /api/v1/fleet/device/{token}/setup_experience/status`
+  - New admin API endpoints for configuring setup experience software for Linux: `PUT /api/v1/fleet/setup_experience/{macos|linux}/software` and `GET /api/v1/fleet/setup_experience/{macos|linux}/software`.

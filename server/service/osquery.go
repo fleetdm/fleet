@@ -836,15 +836,46 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
-	if host.Platform != string(fleet.MacOSPlatform) {
+func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	switch {
+	case host.Platform == string(fleet.MacOSPlatform):
+		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+		}
+		return inSetupExperience, nil
+	case fleet.IsLinux(host.Platform):
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
+		}
+		return inSetupExperience, nil
+	default:
 		return false, nil
 	}
-	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+}
+
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
-	return inSetupExperience, nil
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "invalid row")
+		}
+
+		switch status.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
@@ -857,11 +888,11 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
 	// requests from live connected hosts will not reach this point
-	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	hostRunningSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
-	if disablePolicies {
+	if hostRunningSetupExperience {
 		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
 		return nil, false, nil
 	}
