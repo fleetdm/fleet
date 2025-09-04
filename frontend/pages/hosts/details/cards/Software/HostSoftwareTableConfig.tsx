@@ -8,7 +8,7 @@ import {
   isIpadOrIphoneSoftwareSource,
   SoftwareSource,
 } from "interfaces/software";
-import { isLinuxLike } from "interfaces/platform";
+import { HostPlatform, isLinuxLike } from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
