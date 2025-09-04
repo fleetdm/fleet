@@ -58,7 +58,7 @@ To migrate hosts from other MDM solution, you must first unenroll hosts from you
 
 When you turn off Android MDM in Fleet, your Android Enterprise will be deleted, and MDM will be turned off on all hosts. The work profile from all BYOD hosts will be deleted.
 
-When you delete Android Enterprise in [Google Admin console](https://admin.google.com), Android MDM will be turned off in Fleet, and the work profile from all BYOD hosts will be deleted.
+If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts.
 
 <meta name="articleTitle" value="Android MDM setup">
 <meta name="authorFullName" value="Marko Lisica">
