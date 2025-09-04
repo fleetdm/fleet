@@ -2125,6 +2125,17 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// // TODO(AP): Uncomment to enable activity logging for Android profiles once implemented
+	// 	if updates.AndroidProfile {
+	// 	if err := svc.NewActivity(
+	// 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
+	// 			TeamID:   tmID,
+	// 			TeamName: tmName,
+	// 		}); err != nil {
+	// 		return ctxerr.Wrap(ctx, err, "logging activity for edited android profiles")
+	// 	}
+	// }
+
 	return nil
 }
 
