@@ -969,23 +969,6 @@ type batchScriptExecutionStatusResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-// TODO - remove these once we retire batch script summary endpoint and code.
-type (
-	batchScriptExecutionSummaryRequest  batchScriptExecutionStatusRequest
-	batchScriptExecutionSummaryResponse struct {
-		ScriptID    uint      `json:"script_id" db:"script_id"`
-		ScriptName  string    `json:"script_name" db:"script_name"`
-		TeamID      *uint     `json:"team_id" db:"team_id"`
-		CreatedAt   time.Time `json:"created_at" db:"created_at"`
-		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
-		NumPending  *uint     `json:"pending" db:"num_pending"`
-		NumRan      *uint     `json:"ran" db:"num_ran"`
-		NumErrored  *uint     `json:"errored" db:"num_errored"`
-		NumCanceled *uint     `json:"canceled" db:"num_canceled"`
-		Err         error     `json:"error,omitempty"`
-	}
-)
-
 type batchScriptExecutionListResponse struct {
 	BatchScriptExecutions []fleet.BatchActivity    `json:"batch_executions"`
 	Count                 uint                     `json:"count"`
@@ -1094,8 +1077,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	return scriptResponses, nil
 }
 
-func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
-func (r batchScriptExecutionStatusResponse) Error() error  { return r.Err }
+func (r batchScriptExecutionStatusResponse) Error() error { return r.Err }
 
 func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionHostResultsRequest)
