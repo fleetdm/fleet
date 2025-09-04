@@ -12148,6 +12148,10 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
+	// get activities before the PUT request
+	activitiesBefore := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesBefore)
+
 	// PUT: create new software title icon
 	resp := s.DoRawWithHeaders(
 		"PUT",
@@ -12161,20 +12165,32 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Nil(t, result.Err)
 	require.Contains(t, result.IconUrl, iconUrl)
 
-	// verify activity was created properly
-	activities := listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
-	var editedSoftwareActivities []fleet.Activity
-	var editedSoftwareActivity fleet.Activity
-	for _, activity := range activities.Activities {
+	// get activities after the PUT request
+	activitiesAfter := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfter)
+
+	// verify exactly 1 new edited_software activity was created
+	var editedSoftwareActivitiesBefore []fleet.Activity
+	var editedSoftwareActivitiesAfter []fleet.Activity
+	
+	for _, activity := range activitiesBefore.Activities {
 		if activity.Type == "edited_software" {
-			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+			editedSoftwareActivitiesBefore = append(editedSoftwareActivitiesBefore, *activity)
 		}
 	}
-	require.Len(t, editedSoftwareActivities, 1)
-	editedSoftwareActivity = editedSoftwareActivities[0]
+	
+	for _, activity := range activitiesAfter.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfter = append(editedSoftwareActivitiesAfter, *activity)
+		}
+	}
+	
+	require.Len(t, editedSoftwareActivitiesAfter, len(editedSoftwareActivitiesBefore)+1, "Expected exactly 1 new edited_software activity")
+	
+	// verify the new activity has the correct details
+	newActivity := editedSoftwareActivitiesAfter[0]  // most recent activity is first
 	var details fleet.ActivityTypeEditedSoftware
-	err = json.Unmarshal(*editedSoftwareActivity.Details, &details)
+	err = json.Unmarshal(*newActivity.Details, &details)
 	require.NoError(t, err)
 	require.Equal(t, "foo", details.SoftwareTitle)
 	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
@@ -12229,15 +12245,16 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Equal(t, storedIcon.StorageID, storedIcons[0].StorageID)
 	require.Equal(t, storedIcon.Filename, storedIcons[0].Filename)
 
-	// verify no new activity was created
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
-	editedSoftwareActivities = make([]fleet.Activity, 0)
-	for _, activity := range activities.Activities {
+	// verify no new activity was created (should still be the same count as before)
+	activitiesAfterGitops := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterGitops)
+	var editedSoftwareActivitiesAfterGitops []fleet.Activity
+	for _, activity := range activitiesAfterGitops.Activities {
 		if activity.Type == "edited_software" {
-			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+			editedSoftwareActivitiesAfterGitops = append(editedSoftwareActivitiesAfterGitops, *activity)
 		}
 	}
-	require.Len(t, editedSoftwareActivities, 1)
+	require.Len(t, editedSoftwareActivitiesAfterGitops, len(editedSoftwareActivitiesAfter), "No new activity should be created for gitops upload")
 
 	// GET software title icon
 	headers = map[string]string{
@@ -12264,20 +12281,21 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	)
 	require.NoError(t, err)
 
-	// verify new activity was created
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
-	editedSoftwareActivities = make([]fleet.Activity, 0)
-	for _, activity := range activities.Activities {
+	// verify new activity was created (should be one more than before)
+	activitiesAfterDelete := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterDelete)
+	var editedSoftwareActivitiesAfterDelete []fleet.Activity
+	for _, activity := range activitiesAfterDelete.Activities {
 		if activity.Type == "edited_software" {
-			editedSoftwareActivities = append(editedSoftwareActivities, *activity)
+			editedSoftwareActivitiesAfterDelete = append(editedSoftwareActivitiesAfterDelete, *activity)
 		}
 	}
-	require.Len(t, editedSoftwareActivities, 2)
+	require.Len(t, editedSoftwareActivitiesAfterDelete, len(editedSoftwareActivitiesAfter)+1, "Expected exactly 1 new activity after delete")
 
 	// ensure there is an activity where the icon url is set to empty
 	// signifying it's deleted
 	var deletedSoftwareActivity fleet.Activity
-	for _, editedSoftwareActivity := range editedSoftwareActivities {
+	for _, editedSoftwareActivity := range editedSoftwareActivitiesAfterDelete {
 		var details fleet.ActivityTypeEditedSoftware
 		err = json.Unmarshal(*editedSoftwareActivity.Details, &details)
 		require.NoError(t, err)
