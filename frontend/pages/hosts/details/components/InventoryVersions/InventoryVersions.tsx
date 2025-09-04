@@ -11,6 +11,7 @@ import {
 
 import Card from "components/Card";
 import DataSet from "components/DataSet";
+import TooltipWrapper from "components/TooltipWrapper";
 
 export const sourcesWithLastOpenedTime = new Set([
   "programs",
@@ -66,7 +67,18 @@ const InventoryVersion = ({
         )}
         {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
           <DataSet
-            title="Last opened"
+            title={
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    The last time the package was opened by the end user <br />
+                    or accessed by any process on the host.
+                  </>
+                }
+              >
+                Last opened
+              </TooltipWrapper>
+            }
             value={
               version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
             }
