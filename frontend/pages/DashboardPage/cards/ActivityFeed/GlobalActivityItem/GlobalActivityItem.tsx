@@ -1515,17 +1515,20 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedCertificateAuthority("NDES");
     }
     case ActivityType.AddedCustomScepProxy:
-    case ActivityType.AddedDigicert: {
+    case ActivityType.AddedDigicert:
+    case ActivityType.AddedHydrant: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
-    case ActivityType.DeletedDigicert: {
+    case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedHydrant: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
-    case ActivityType.EditedDigicert: {
+    case ActivityType.EditedDigicert:
+    case ActivityType.EditedHydrant: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );

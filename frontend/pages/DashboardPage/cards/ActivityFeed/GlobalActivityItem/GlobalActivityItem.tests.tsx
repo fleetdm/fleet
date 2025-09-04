@@ -1535,4 +1535,52 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
   });
+
+  it("renders addedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
 });
