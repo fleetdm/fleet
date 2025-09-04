@@ -201,8 +201,13 @@ func TestValidGitOpsYaml(t *testing.T) {
 					for _, pkg := range gitops.Software.Packages {
 						if strings.Contains(pkg.URL, "MicrosoftTeams") {
 							assert.Equal(t, "testdata/lib/uninstall.sh", pkg.UninstallScript.Path)
+							assert.Contains(t, pkg.LabelsIncludeAny, "a")
+							assert.Contains(t, pkg.Categories, "Communication")
+							assert.Empty(t, pkg.LabelsExcludeAny)
 						} else {
 							assert.Empty(t, pkg.UninstallScript.Path)
+							assert.Contains(t, pkg.LabelsExcludeAny, "a")
+							assert.Empty(t, pkg.LabelsIncludeAny)
 						}
 					}
 					require.Len(t, gitops.Software.FleetMaintainedApps, 2)
@@ -314,6 +319,8 @@ func TestValidGitOpsYaml(t *testing.T) {
 					require.Len(t, gitops.Software.Packages, 2)
 					if name == "team_config_with_paths_and_only_sha256" {
 						require.Empty(t, gitops.Software.Packages[0].URL)
+						require.True(t, gitops.Software.Packages[0].InstallDuringSetup.Value)
+						require.True(t, gitops.Software.Packages[1].InstallDuringSetup.Value)
 					} else {
 						require.Equal(t, "https://statics.teams.cdn.office.net/production-osx/enterprise/webview2/lkg/MicrosoftTeams.pkg", gitops.Software.Packages[0].URL)
 					}
