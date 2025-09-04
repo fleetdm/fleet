@@ -1,1 +1,1 @@
-* Optimized GetHostScriptExecutionResults MySQL query for for large numbers of script results.
+* Optimized the query used to list a host’s script results so it performs well with large result sets.
