@@ -48,7 +48,7 @@ Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.co
 
 ## Migration
 
-To migrate hosts from other MDM solution, you must first unenroll hosts from old solution, and ask end users to [enroll to Fleet](https://fleetdm.com/guides/enroll-hosts#ui).
+To migrate hosts from other MDM solution, you must first unenroll hosts from your old solution and share a link with your end users so they can enroll to Fleet. Learn how to find your enrollment link in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
 ## Turn off
 
