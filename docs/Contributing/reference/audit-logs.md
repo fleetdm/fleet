@@ -1898,7 +1898,7 @@ This activity contains the following fields:
 
 ## added_conditional_access_integration_microsoft
 
-Generated when Microsoft Entra is connected for conditonal access.
+Generated when Microsoft Entra is connected for conditional access.
 
 This activity does not contain any detail fields.
 
