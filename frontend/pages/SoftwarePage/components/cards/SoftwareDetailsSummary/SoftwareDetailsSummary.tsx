@@ -42,6 +42,8 @@ interface ISoftwareDetailsSummaryProps {
   onClickEditIcon?: () => void;
   /** undefined unless previewing icon, in which case is string or null */
   iconPreviewUrl?: string | null;
+  /** timestamp of when icon was last uploaded, used to force refresh of cached icon */
+  iconUploadedAt?: string;
 }
 
 const SoftwareDetailsSummary = ({
@@ -57,6 +59,7 @@ const SoftwareDetailsSummary = ({
   isOperatingSystem,
   onClickEditIcon,
   iconPreviewUrl,
+  iconUploadedAt,
 }: ISoftwareDetailsSummaryProps) => {
   const hostCountPath = getPathWithQueryParams(paths.MANAGE_HOSTS, queryParams);
 
@@ -74,8 +77,15 @@ const SoftwareDetailsSummary = ({
         />
       );
     }
+
     return (
-      <SoftwareIcon name={name} source={source} url={iconUrl} size="xlarge" />
+      <SoftwareIcon
+        name={name}
+        source={source}
+        url={iconUrl}
+        uploadedAt={iconUploadedAt}
+        size="xlarge"
+      />
     );
   };
 

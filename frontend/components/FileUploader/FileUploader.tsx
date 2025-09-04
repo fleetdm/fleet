@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -213,7 +213,7 @@ export const FileUploader = ({
 
   return (
     <Card color="grey" className={classes}>
-      {isFileSelected && fileDetails ? (
+      {fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}
           fileDetails={fileDetails}
