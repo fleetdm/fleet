@@ -2084,7 +2084,7 @@ func (c *Client) DoGitOps(
 			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
 		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			requireBitlockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
+			requireBitLockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
 		if !enableDiskEncryption && requireBitLockerPIN {
 			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
@@ -2145,7 +2145,7 @@ func (c *Client) DoGitOps(
 				return nil, nil, err
 			}
 			// Apply webhook settings for "No Team"
-			if err := c.doGitOpsNoTeamWebhookSettings(config, appConfig, logFn, dryRun); err != nil {
+			if err := c.doGitOpsNoTeamWebhookSettings(incoming, appConfig, logFn, dryRun); err != nil {
 				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
