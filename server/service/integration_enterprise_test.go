@@ -2552,7 +2552,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 			require.Equal(t, "https://example.com/webhook", cfg.WebhookURL.String())
 			require.Equal(t, 100, cfg.HostBatchSize)
 			return nil
-		}, false)
+		})
 	require.NoError(t, err)
 
 	// Verify the webhook was called
