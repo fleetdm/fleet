@@ -2061,6 +2061,121 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
 	})
 
+	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
+		// Trigger "Setup experience" for the Ubuntu host (should clear any items from a previous setup experience).
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["vim"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+		// Modify the vim installer, which should cause the setup experience item to fail.
+		// update should succeed
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:       ptr.Bool(true),
+			InstallScript:     ptr.String("some updated install script"),
+			PreInstallQuery:   ptr.String("some new pre install query"),
+			PostInstallScript: ptr.String("some new post install script"),
+			Filename:          "vim.deb",
+			TitleID:           debVimTitleID,
+			TeamID:            &team.ID,
+		}, http.StatusOK, "")
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
+			"host_id": %d,
+			"host_display_name": %q,
+			"software_title": %q,
+			"software_package": %q,
+			"install_uuid": %q,
+			"status": "failed",
+			"self_service": false,
+			"policy_name": null,
+			"policy_id": null
+		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
+
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		// Editing the software causes the queued setup experience installation to be marked as failure.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+	})
+
 	// Transfer the Ubuntu host to "No team".
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{ubuntuHost.ID}}, http.StatusOK)
