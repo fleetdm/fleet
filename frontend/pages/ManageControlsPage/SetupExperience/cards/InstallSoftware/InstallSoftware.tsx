@@ -52,7 +52,12 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     setSelectedPlatform,
   ] = useState<SetupExperiencePlatform>(DEFAULT_PLATFORM);
 
-  const { data: softwareTitles, isLoading, isError, refetch } = useQuery<
+  const {
+    data: softwareTitles,
+    isLoading,
+    isError,
+    refetch: refetchSoftwareTitles,
+  } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
     ISoftwareTitle[] | null
@@ -90,7 +95,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
   const onSave = async () => {
     setShowSelectSoftwareModal(false);
-    refetch();
+    refetchSoftwareTitles();
   };
 
   const handleTabChange = useCallback((index: number) => {

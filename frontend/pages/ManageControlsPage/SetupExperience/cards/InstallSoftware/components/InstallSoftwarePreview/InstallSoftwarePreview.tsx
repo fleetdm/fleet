@@ -2,7 +2,7 @@ import React from "react";
 
 import Card from "components/Card";
 
-// TODO - update this video once full flow is tested
+// TODO - update this video once full UI/Server/Agent/End user flow is integrated
 import InstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/install-software-preview.mp4";
 
 const baseClass = "install-software-preview";

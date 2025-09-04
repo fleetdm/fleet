@@ -44,7 +44,7 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
     remove: removeScriptFromCache,
   } = useQuery<IGetSetupExperienceScriptResponse, AxiosError>(
     ["setup-experience-script", currentTeamId],
-    () => mdmAPI.getMacSetupExperienceScript(currentTeamId),
+    () => mdmAPI.getSetupExperienceScript(currentTeamId),
     { ...DEFAULT_USE_QUERY_OPTIONS, retry: false }
   );
 
