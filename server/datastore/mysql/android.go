@@ -660,3 +660,35 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	)
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
+
+func (ds *Datastore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
+	// TODO(AP): confirm whether we should be hiding any profile names for Android like we do
+	// for other platforms
+	stmt := fmt.Sprintf(`
+SELECT
+	profile_uuid,
+	profile_name AS name,
+	-- internally, a NULL status implies that the cron needs to pick up
+	-- this profile, for the user that difference doesn't exist, the
+	-- profile is effectively pending. This is consistent with all our
+	-- aggregation functions.
+	COALESCE(status, '%s') AS status,
+	COALESCE(operation_type, '') AS operation_type,
+	COALESCE(detail, '') AS detail
+FROM
+	host_mdm_android_profiles
+WHERE
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+		fleet.MDMDeliveryPending,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
+	)
+
+	var profiles []fleet.HostMDMAndroidProfile
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt); err != nil {
+		return nil, err
+	}
+	return profiles, nil
+}
