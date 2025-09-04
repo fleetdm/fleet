@@ -1048,6 +1048,12 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 		}
 		var policyInstallSoftwareSpec fleet.SoftwarePackageSpec
 		if err := YamlUnmarshal(fileBytes, &policyInstallSoftwareSpec); err != nil {
+			// see if the issue is that a package path was passed in that references multiple packages
+			var multiplePackages []*fleet.SoftwarePackageSpec
+			if err := YamlUnmarshal(fileBytes, &multiplePackages); err == nil {
+				return fmt.Errorf("file %q contains multiple packages, so cannot be used as a target for policy automation", policy.InstallSoftware.PackagePath)
+			}
+
 			return MaybeParseTypeError(policy.InstallSoftware.PackagePath, []string{"policy", "install_software", "package_path"}, err)
 		}
 		installerOnTeamFound := false
