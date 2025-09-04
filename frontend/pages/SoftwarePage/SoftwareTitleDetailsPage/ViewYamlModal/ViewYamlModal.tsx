@@ -165,7 +165,7 @@ const ViewYamlModal = ({
             readOnly
             name="filename"
             label="Filename"
-            value={`${hyphenatedSoftwareTitle}.yml`}
+            value={`${hyphenatedSoftwareTitle}.package.yml`}
           />
           <Editor label="Contents" value={packageYaml} enableCopy />
         </div>
