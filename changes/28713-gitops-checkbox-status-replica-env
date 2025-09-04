@@ -1,0 +1,1 @@
+* Refactored PATH fleet/config end-point to use the primary DB node for both persisting changes and fetching modified App Config.

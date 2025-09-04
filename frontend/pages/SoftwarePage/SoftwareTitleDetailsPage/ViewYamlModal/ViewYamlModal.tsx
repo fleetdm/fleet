@@ -148,6 +148,7 @@ const ViewYamlModal = ({
               text="How to use YAML"
               newTab
               multiline
+              variant="banner-link"
             />
           </p>
         </InfoBanner>

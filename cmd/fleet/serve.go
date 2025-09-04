@@ -83,6 +83,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
@@ -146,12 +147,18 @@ the way that the Fleet server works.
 			// Init tracing
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
-				client := otlptracegrpc.NewClient()
+				client := otlptracegrpc.NewClient(
+					// Enable gzip compression to reduce message size
+					otlptracegrpc.WithCompressor("gzip"),
+				)
 				otlpTraceExporter, err := otlptrace.New(ctx, client)
 				if err != nil {
 					initFatal(err, "Failed to initialize tracing")
 				}
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider := sdktrace.NewTracerProvider(
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
@@ -266,6 +273,10 @@ the way that the Fleet server works.
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
+				Region:                    config.Redis.Region,
+				CacheName:                 config.Redis.CacheName,
+				StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
+				StsExternalID:             config.Redis.StsExternalID,
 				ConnTimeout:               config.Redis.ConnectTimeout,
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
@@ -398,7 +409,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
+			task := async.NewTask(ds, redisPool, clock.C, &config)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
@@ -936,7 +947,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
