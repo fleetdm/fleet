@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "4.18.1",
+      "version": "4.19.0",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'notion.id';"
       },
-      "installer_url": "https://desktop-release.notion-static.com/Notion-4.18.1-arm64.dmg",
+      "installer_url": "https://desktop-release.notion-static.com/Notion-4.19.0-arm64.dmg",
       "install_script_ref": "ac717b8d",
       "uninstall_script_ref": "21cd1000",
-      "sha256": "8bd6fa2324defb1ab3302d186192d738c8e68bdca5def2558058dfb12b56239e",
+      "sha256": "bd1ba4a037d394e0ed9bd678465e373d8365a5ae0257105d6a45dfbbe879c817",
       "default_categories": [
         "Productivity"
       ]
