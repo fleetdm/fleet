@@ -1,5 +1,13 @@
 .setting-up-your-device {
   &__header {
+    display: inline-flex;
+    justify-content: space-between;
+  }
+  &__title {
     font-weight: $bold;
+  }
+  h2 {
+    font-size: $medium;
+    margin: 0;
   }
 }

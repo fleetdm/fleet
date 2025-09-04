@@ -85,6 +85,7 @@ import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
 
 import SettingUpYourDevice from "./components/SettingUpYourDevice";
+import InfoButton from "./components/InfoButton";
 
 const baseClass = "device-user";
 
@@ -403,11 +404,7 @@ const DeviceUserPage = ({
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
-        <Button onClick={() => setShowInfoModal(true)} variant="text-icon">
-          <>
-            Info <Icon name="info" size="small" />
-          </>
-        </Button>
+        <InfoButton toggleInfoModal={toggleInfoModal} />
       </div>
     );
   };
@@ -491,7 +488,10 @@ const DeviceUserPage = ({
     if (getIsSettingUpSoftware(softwareSetupStatuses)) {
       // at this point, softwareSetupStatuses will be non-empty
       return (
-        <SettingUpYourDevice softwareStatuses={softwareSetupStatuses || []} />
+        <SettingUpYourDevice
+          softwareStatuses={softwareSetupStatuses || []}
+          toggleInfoModal={toggleInfoModal}
+        />
       );
     }
     return (
@@ -643,7 +643,6 @@ const DeviceUserPage = ({
               )}
             </Tabs>
           </TabNav>
-          {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
           {showEnrollMdmModal &&
             (host.dep_assigned_to_fleet ? (
               <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
@@ -735,6 +734,7 @@ const DeviceUserPage = ({
       ) : (
         <div className="core-wrapper">{renderDeviceUserPage()}</div>
       )}
+      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
     </div>
   );
 };
