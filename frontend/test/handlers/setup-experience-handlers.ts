@@ -13,12 +13,11 @@ import {
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
-import { SUFFIXES } from "utilities/endpoints";
 import { SetupExperiencePlatform } from "interfaces/platform";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
 const setupExperienceInstallSoftwareUrl = (platform: SetupExperiencePlatform) =>
-  baseUrl(SUFFIXES.SETUP_EXPERIENCE_SOFTWARE(platform));
+  baseUrl(`/setup_experience/${platform}/software`);
 const setupExperienceBootstrapMetadataUrl = baseUrl(
   "/mdm/bootstrap/:teamId/metadata"
 );
