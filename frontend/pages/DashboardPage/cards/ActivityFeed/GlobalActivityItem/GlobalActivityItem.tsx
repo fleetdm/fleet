@@ -35,13 +35,28 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.CanceledScriptBatch,
 ]);
 
+const getProfilesPlatformDisplayName = (
+  platform: "apple" | "windows" | "android"
+) => {
+  switch (platform) {
+    case "apple":
+      return "macOS, iOS, and iPadOS";
+    case "android":
+      return "Android";
+    case "windows":
+      return "Windows";
+    default:
+      // this should not happen but just in case
+      return platform;
+  }
+};
+
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "apple" | "windows",
+  platform: "apple" | "windows" | "android",
   teamName?: string | null
 ) => {
-  const platformDisplayName =
-    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  const platformDisplayName = getProfilesPlatformDisplayName(platform);
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -415,6 +430,66 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -1504,6 +1579,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
+    }
+    case ActivityType.CreatedAndroidProfile: {
+      return TAGGED_TEMPLATES.createdAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedAndroidProfile: {
+      return TAGGED_TEMPLATES.deletedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidProfile: {
+      return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
     }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
