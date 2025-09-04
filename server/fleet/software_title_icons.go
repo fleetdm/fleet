@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
 )
 
-const SoftwareTitleIconURLPattern = "fleet/software/titles/%d/icon?team_id=%d"
+var SoftwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?team_id=\d+`)
 
 type UploadSoftwareTitleIconPayload struct {
 	TitleID   uint
