@@ -1610,7 +1610,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 	}
 
 	// Setup experience enabled for us and is now kicked off, open a browser
-	if true || resp.Enabled {
+	if resp.Enabled {
 		if err := openMyDevicePage(); err != nil {
 			return fmt.Errorf("opening my device page: %w", err)
 		}
