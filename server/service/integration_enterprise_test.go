@@ -12310,17 +12310,30 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 
 	// ensure there is an activity where the icon url is set to empty
 	// signifying it's deleted
-	var deletedSoftwareActivity fleet.Activity
-	for _, editedSoftwareActivity := range editedSoftwareActivitiesAfterDelete {
-		var details fleet.ActivityTypeEditedSoftware
-		err = json.Unmarshal(*editedSoftwareActivity.Details, &details)
-		require.NoError(t, err)
-		require.Equal(t, titleID, details.SoftwareTitleID)
-		if *details.SoftwareIconURL == "" {
-			deletedSoftwareActivity = editedSoftwareActivity
+	var deleteActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfterDelete {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesAfter {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			deleteActivity = &afterActivity
+			break
 		}
 	}
-	require.NotNil(t, deletedSoftwareActivity)
+	require.NotNil(t, deleteActivity, "Should have found exactly one new activity from delete operation")
+
+	// verify the delete activity has the correct details
+	var deleteDetails fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*deleteActivity.Details, &deleteDetails)
+	require.NoError(t, err)
+	require.Equal(t, titleID, deleteDetails.SoftwareTitleID)
+	require.Equal(t, "foo", deleteDetails.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *deleteDetails.SoftwarePackage)
+	require.Equal(t, "", *deleteDetails.SoftwareIconURL, "Icon URL should be empty after deletion")
 
 	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
 	require.NoError(t, err)
