@@ -1,9 +1,6 @@
-## Orbit 1.47.1 (Sep 03, 2025)
+## Orbit 1.47.2 (Sep 04, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
-
-* Orbit now sets `DEBIAN_FRONTEND=noninteractive` by default when installing Debian packages. This prevents package installation from hanging for debconf questions. Administrators may override this in install scripts if desired.
-  * Note that installs can still hang when a configuration file differs from the version originally installed by the package. You'll need to include `--force-confdef` (or `confnew` or `confold`) in the `dpkg` command (wrap with `-o Dpkg::Options='...'` if installing using `apt`) to prevent dpkg from hanging in these cases.
 
 * Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
 
