@@ -509,7 +509,11 @@ func getDeviceSoftwareIconEndpoint(ctx context.Context, request interface{}, svc
 	}
 
 	req := request.(*getDeviceSoftwareIconRequest)
-	iconData, size, filename, err := svc.GetDeviceSoftwareIconsTitleIcon(ctx, *host.TeamID, req.SoftwareTitleID)
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+	iconData, size, filename, err := svc.GetDeviceSoftwareIconsTitleIcon(ctx, teamID, req.SoftwareTitleID)
 	if err != nil {
 		var vppErr *fleet.VPPIconAvailable
 		if errors.As(err, &vppErr) {
