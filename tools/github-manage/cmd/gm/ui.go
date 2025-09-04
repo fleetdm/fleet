@@ -21,6 +21,7 @@ const (
 	IssuesCommand CommandType = iota
 	ProjectCommand
 	EstimatedCommand
+	SprintCommand
 )
 
 type WorkflowState int
@@ -104,12 +105,14 @@ type asyncStatusMsg struct {
 }
 
 type model struct {
-	choices       []ghapi.Issue
-	cursor        int
-	selected      map[int]struct{}
-	spinner       spinner.Model
-	totalCount    int
-	selectedCount int
+	choices         []ghapi.Issue
+	cursor          int
+	selected        map[int]struct{}
+	spinner         spinner.Model
+	totalCount      int
+	totalAvailable  int // reported total items in project (may exceed totalCount if limited)
+	rawFetchedCount int // number of items actually fetched before mode-specific filtering
+	selectedCount   int
 	// Scrolling support
 	viewOffset int // Offset for scrolling view
 	viewHeight int // Number of visible lines for issues
@@ -142,7 +145,11 @@ type model struct {
 	statusChan         chan ghapi.Status // Channel for receiving status updates from AsyncManager
 }
 
-type issuesLoadedMsg []ghapi.Issue
+type issuesLoadedMsg struct {
+	issues         []ghapi.Issue
+	totalAvailable int
+	rawFetched     int
+}
 
 type workflowResultMsg struct {
 	message string
@@ -188,6 +195,8 @@ func initializeModel() model {
 		selected:           make(map[int]struct{}),
 		spinner:            s,
 		totalCount:         0,
+		totalAvailable:     0,
+		rawFetchedCount:    0,
 		selectedCount:      0,
 		viewOffset:         0,
 		viewHeight:         15, // Default height, will be adjusted based on screen size
@@ -228,6 +237,14 @@ func initializeModelForProject(projectID, limit int) model {
 func initializeModelForEstimated(projectID, limit int) model {
 	m := initializeModel()
 	m.commandType = EstimatedCommand
+	m.projectID = projectID
+	m.limit = limit
+	return m
+}
+
+func initializeModelForSprint(projectID, limit int) model {
+	m := initializeModel()
+	m.commandType = SprintCommand
 	m.projectID = projectID
 	m.limit = limit
 	return m
@@ -394,18 +411,18 @@ func fetchIssues(search string) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		return issuesLoadedMsg(issues)
+		return issuesLoadedMsg{issues: issues, totalAvailable: len(issues), rawFetched: len(issues)}
 	}
 }
 
 func fetchProjectItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		items, err := ghapi.GetProjectItems(projectID, limit)
+		items, total, err := ghapi.GetProjectItemsWithTotal(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		return issuesLoadedMsg(issues)
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
 	}
 }
 
@@ -416,7 +433,19 @@ func fetchEstimatedItems(projectID, limit int) tea.Cmd {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		return issuesLoadedMsg(issues)
+		// Estimated issues are filtered from drafting project so available equals fetched length
+		return issuesLoadedMsg{issues: issues, totalAvailable: len(items), rawFetched: len(items)}
+	}
+}
+
+func fetchSprintItems(projectID, limit int) tea.Cmd {
+	return func() tea.Msg {
+		items, total, err := ghapi.GetCurrentSprintItemsWithTotal(projectID, limit)
+		if err != nil {
+			return err
+		}
+		issues := ghapi.ConvertItemsToIssues(items)
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
 	}
 }
 
@@ -429,6 +458,8 @@ func (m model) Init() tea.Cmd {
 		fetchCmd = fetchProjectItems(m.projectID, m.limit)
 	case EstimatedCommand:
 		fetchCmd = fetchEstimatedItems(m.projectID, m.limit)
+	case SprintCommand:
+		fetchCmd = fetchSprintItems(m.projectID, m.limit)
 	default:
 		fetchCmd = fetchIssues("")
 	}
@@ -668,8 +699,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case issuesLoadedMsg:
-		m.choices = []ghapi.Issue(msg)
+		m.choices = msg.issues
 		m.totalCount = len(m.choices)
+		m.totalAvailable = msg.totalAvailable
+		m.rawFetchedCount = msg.rawFetched
 		m.workflowState = NormalMode
 		m.applyFilter()         // Initialize filter state
 		m.adjustViewForCursor() // Ensure view is properly initialized
@@ -1088,7 +1121,14 @@ func (m model) View() string {
 		} else {
 			headerText = fmt.Sprintf("GitHub Issues (%d/%d):\n\n", currentPos, m.totalCount)
 		}
-		s = headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
+
+		warningBanner := ""
+		if m.totalAvailable > 0 && m.totalAvailable > m.rawFetchedCount {
+			missing := m.totalAvailable - m.rawFetchedCount
+			warningBanner = errorStyle.Render(fmt.Sprintf("⚠ %d items not shown (limit=%d, total=%d). Increase --limit to include all issues.", missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
+		}
+
+		s = warningBanner + headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
 			m.selectedCount, m.totalCount)
 
 		// Show indicator if there are issues above the visible area
