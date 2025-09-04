@@ -1549,7 +1549,7 @@ describe("Activity Feed", () => {
     expect(
       screen.getByText(/added a certificate authority/)
     ).toBeInTheDocument();
-    expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
   });
 
   it("renders editedHydrant activity correctly", () => {
