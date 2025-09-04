@@ -45,7 +45,11 @@ const AddIntegrationModal = ({
   };
 
   return (
-    <Modal title="Add integration" onExit={onCancel} className={baseClass}>
+    <Modal
+      title="Add ticket destination"
+      onExit={onCancel}
+      className={baseClass}
+    >
       <div className="form">
         {!testingConnection && (
           <>

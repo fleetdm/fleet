@@ -89,6 +89,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			computer_name,
 			uuid,
 			platform,
+			platform_like,
 			osquery_version,
 			os_version,
 			uptime,
@@ -101,7 +102,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			hardware_serial,
 			refetch_critical_queries_until
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -115,6 +116,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.ComputerName,
 			host.UUID,
 			host.Platform,
+			host.PlatformLike,
 			host.OsqueryVersion,
 			host.OSVersion,
 			host.Uptime,

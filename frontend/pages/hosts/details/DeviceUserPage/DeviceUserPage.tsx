@@ -4,7 +4,6 @@ import { useQuery } from "react-query";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 
 import { pick } from "lodash";
-import Modal from "components/Modal";
 
 import { NotificationContext } from "context/notification";
 

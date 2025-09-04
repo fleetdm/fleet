@@ -350,6 +350,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:       true,
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
+				Categories:        []string{"Browsers"},
 			},
 		}, nil
 	case 2:
@@ -364,6 +365,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label D",
 				}},
+				Categories:  []string{"Productivity", "Utilities"},
+				SelfService: true,
 			},
 		}, nil
 	default:
@@ -411,7 +414,7 @@ func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
 }
 
-func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	if teamID == 1 {
 		return []fleet.SoftwareTitleListResult{
 			{
@@ -487,6 +490,40 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	res := fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                  "some-digicert-name",
+				URL:                   "https://some-digicert-url.com",
+				APIToken:              "some-digicert-api-token",
+				ProfileID:             "some-digicert-profile-id",
+				CertificateCommonName: "some-digicert-certificate-common-name",
+				CertificateUserPrincipalNames: []string{
+					"some-digicert-certificate-user-principal-name",
+					"some-other-digicert-certificate-user-principal-name",
+				},
+				CertificateSeatID: "some-digicert-certificate-seat-id",
+			},
+		},
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://some-ndes-scep-proxy-url.com",
+			AdminURL: "https://some-ndes-admin-url.com",
+			Username: "some-ndes-username",
+			Password: "some-ndes-password",
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			{
+				Name:      "some-custom-scep-proxy-name",
+				URL:       "https://some-custom-scep-proxy-url.com",
+				Challenge: "some-custom-scep-proxy-challenge",
+			},
+		},
+	}
+
+	return &res, nil
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {

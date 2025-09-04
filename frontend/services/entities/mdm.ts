@@ -9,6 +9,8 @@ import {
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import { ISoftwareTitle } from "interfaces/software";
+import { SetupExperiencePlatform } from "interfaces/platform";
+
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
@@ -358,30 +360,32 @@ const mdmService = {
   },
 
   getSetupExperienceSoftware: (
+    platform: SetupExperiencePlatform,
     params: IGetSetupExperienceSoftwareParams
   ): Promise<IGetSetupExperienceSoftwareResponse> => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        ...params,
-      }
-    )}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
+      platform
+    )}?${buildQueryStringFromParams({
+      ...params,
+    })}`;
 
     return sendRequest("GET", path);
   },
 
   updateSetupExperienceSoftware: (
+    platform: SetupExperiencePlatform,
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
-      {
-        team_id: teamId,
-      }
-    )}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
+      platform
+    )}?${buildQueryStringFromParams({
+      team_id: teamId,
+    })}`;
 
     return sendRequest("PUT", path, {
       team_id: teamId,

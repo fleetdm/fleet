@@ -38,6 +38,7 @@ const MainContent = ({
   const {
     config,
     isPremiumTier,
+    isAndroidEnterpriseDeleted,
     isApplePnsExpired,
     isAppleBmExpired,
     isVppExpired,
@@ -59,8 +60,7 @@ const MainContent = ({
     if (isPremiumTier) {
       if (isApplePnsExpired || willApplePnsExpire) {
         banner = <ApplePNCertRenewalMessage expired={isApplePnsExpired} />;
-      } else if (false) {
-        // TODO: remove this when API is ready
+      } else if (isAndroidEnterpriseDeleted) {
         banner = <AndroidEnterpriseDeletedMessage />;
       } else if (isAppleBmExpired || willAppleBmExpire) {
         banner = <AppleBMRenewalMessage expired={isAppleBmExpired} />;
