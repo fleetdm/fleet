@@ -21,7 +21,8 @@ import (
 )
 
 type MockClient struct {
-	IsFree bool
+	IsFree           bool
+	TeamNameOverride string
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -53,19 +54,19 @@ func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 	return spec, nil
 }
 
-func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
+func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
+	var config fleet.TeamConfig
 	b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	if err != nil {
 		return nil, err
 	}
-	var config fleet.TeamConfig
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 	teams := []fleet.Team{
 		{
 			ID:     1,
-			Name:   "Team A",
+			Name:   "Team A 👍",
 			Config: config,
 			Secrets: []*fleet.EnrollSecret{
 				{
@@ -73,6 +74,9 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 				},
 			},
 		},
+	}
+	if c.TeamNameOverride != "" {
+		teams[0].Name = c.TeamNameOverride
 	}
 	return teams, nil
 }
@@ -1221,5 +1225,52 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	} {
 		require.Contains(t, mdmRaw, key)
 		require.Empty(t, mdmRaw[key])
+	}
+}
+
+func TestSillyTeamNames(t *testing.T) {
+	sillyTeamNames := map[string]string{
+		"🫆": "🫆.yml",
+		"🪾": "🪾.yml",
+		"🫜": "🫜.yml",
+		"🪉": "🪉.yml",
+		"🪏": "🪏.yml",
+		"🫟": "🫟.yml",
+		"👍": "👍.yml",
+		"a/team\\with:all*the?footguns\"in<it>omg|": "aateambwithcalldtheefootgunsfingithomgi.yml",
+	}
+
+	fleetClient := &MockClient{}
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+
+	for name, expectedFilename := range sillyTeamNames {
+		t.Run(name, func(t *testing.T) {
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			flagSet.String("dir", tempDir, "")
+			flagSet.Bool("force", true, "")
+			fleetClient.TeamNameOverride = name
+			action := createGenerateGitopsAction(fleetClient)
+			buf := new(bytes.Buffer)
+			cliContext := cli.NewContext(&cli.App{
+				Name:      "test",
+				Usage:     "test",
+				Writer:    buf,
+				ErrWriter: buf,
+			}, flagSet, nil)
+			// Get the test app config.
+			err := action(cliContext)
+			require.NoError(t, err, buf.String())
+
+			// Expect a correctly-named .yaml
+			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			_, err = os.Stat(tgtPath)
+			require.NoError(t, err)
+		})
 	}
 }

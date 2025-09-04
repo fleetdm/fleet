@@ -90,9 +90,9 @@ org_settings:
       url: https://some-zendesk-url.com
   mdm:
     apple_business_manager:
-    - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      macos_team: "\U0001F4BB Workstations"
+    - ios_team: "📱🏢 Company-owned mobile devices"
+      ipados_team: "📱🏢 Company-owned mobile devices"
+      macos_team: "💻 Workstations"
       organization_name: Fleet Device Management Inc.
     apple_server_url: http://some-apple-server-url.com
     end_user_authentication:
@@ -105,10 +105,10 @@ org_settings:
     volume_purchasing_program:
     - location: Fleet Device Management Inc.
       teams:
-      - "\U0001F4BB Workstations"
-      - "\U0001F4BB\U0001F423 Workstations (canary)"
-      - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
-      - "\U0001F4F1\U0001F510 Personal mobile devices"
+      - "💻 Workstations"
+      - "💻🐣 Workstations (canary)"
+      - "📱🏢 Company-owned mobile devices"
+      - "📱🔐 Personal mobile devices"
   org_info:
     contact_url: https://fleetdm.com/company/contact
     org_logo_url: http://some-org-logo-url.com
