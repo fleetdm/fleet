@@ -409,7 +409,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -498,7 +498,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -524,7 +524,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -550,7 +550,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			req, err := newApplyRequest(testCopy, false)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -612,25 +612,25 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		})
 
 		t.Run("digicert happy path add then delete", func(t *testing.T) {
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
 			req, err := newApplyRequest(goodDigiCertCA, true)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run should not change anything
 			req.DryRun = false
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // now it should be applied
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // now it should be applied
 
 			// sending empty CAs deletes existing one
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
 		})
 
 		t.Run("digicert happy path add one, delete one, modify one", func(t *testing.T) {
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
 			// setup the test by creating two CAs
 			test1 := goodDigiCertCA
@@ -643,7 +643,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", initialReq, http.StatusOK)
-			checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities)
 
 			// add third
 			test3 := goodDigiCertCA
@@ -659,14 +659,14 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: true,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", modifiedReq, http.StatusOK)
-			checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, initialReq.CertificateAuthorities) // dry run should not change anything
 			modifiedReq.DryRun = false
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", modifiedReq, http.StatusOK)
-			checkAppliedCAs(t, s.ds, modifiedReq.CertificateAuthorities) // now it should be applied
+			s.checkAppliedCAs(t, s.ds, modifiedReq.CertificateAuthorities) // now it should be applied
 
 			// delete the rest
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", fleet.GroupedCertificateAuthorities{}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 		})
 	})
 
@@ -717,7 +717,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -796,25 +796,25 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 		})
 
 		t.Run("custom scep happy path add then delete", func(t *testing.T) {
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
 			req, err := newApplyRequest(goodDigiCertCA, true)
 			require.NoError(t, err)
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run
 			req.DryRun = false
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			// sending empty CAs deletes existing one
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 		})
 
 		t.Run("custom scep happy path add one, delete one, modify one", func(t *testing.T) {
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
 			// setup the test by creating two CAs
 			test1 := goodCustomSCEPCA
@@ -827,7 +827,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			// add third
 			test3 := goodCustomSCEPCA
@@ -843,14 +843,14 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: true,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
 			req2.DryRun = false
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req2.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities)
 
 			// delete the rest
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", fleet.GroupedCertificateAuthorities{}, http.StatusOK)
-			checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 		})
 	})
 
@@ -902,7 +902,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				DryRun: false,
 			}
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
 
 			t.Cleanup(func() {
 				mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -964,9 +964,10 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 	})
 }
 
-func checkAppliedCAs(t *testing.T, ds fleet.Datastore, expectedCAs fleet.GroupedCertificateAuthorities) {
-	gotCAs, err := ds.GetGroupedCertificateAuthorities(context.Background(), true)
-	require.NoError(t, err)
+func (s *integrationMDMTestSuite) checkAppliedCAs(t *testing.T, ds fleet.Datastore, expectedCAs fleet.GroupedCertificateAuthorities) {
+	var gotResp getCertificateAuthoritiesSpecResponse
+	s.DoJSON("GET", "/api/v1/fleet/spec/certificate_authorities?include_secrets=true", nil, http.StatusOK, &gotResp)
+	gotCAs := gotResp.CertificateAuthorities
 
 	if len(expectedCAs.DigiCert) != 0 {
 		assert.Len(t, gotCAs.DigiCert, len(expectedCAs.DigiCert))
