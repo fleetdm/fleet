@@ -12172,23 +12172,39 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	// verify exactly 1 new edited_software activity was created
 	var editedSoftwareActivitiesBefore []fleet.Activity
 	var editedSoftwareActivitiesAfter []fleet.Activity
-	
+
 	for _, activity := range activitiesBefore.Activities {
 		if activity.Type == "edited_software" {
 			editedSoftwareActivitiesBefore = append(editedSoftwareActivitiesBefore, *activity)
 		}
 	}
-	
+
 	for _, activity := range activitiesAfter.Activities {
 		if activity.Type == "edited_software" {
 			editedSoftwareActivitiesAfter = append(editedSoftwareActivitiesAfter, *activity)
 		}
 	}
-	
+
 	require.Len(t, editedSoftwareActivitiesAfter, len(editedSoftwareActivitiesBefore)+1, "Expected exactly 1 new edited_software activity")
-	
+
+	// find the new activity by comparing before and after lists
+	var newActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfter {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesBefore {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			newActivity = &afterActivity
+			break
+		}
+	}
+	require.NotNil(t, newActivity, "Should have found exactly one new activity")
+
 	// verify the new activity has the correct details
-	newActivity := editedSoftwareActivitiesAfter[0]  // most recent activity is first
 	var details fleet.ActivityTypeEditedSoftware
 	err = json.Unmarshal(*newActivity.Details, &details)
 	require.NoError(t, err)
