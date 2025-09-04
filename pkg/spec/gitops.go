@@ -1284,7 +1284,7 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			softwarePackageSpecs = append(softwarePackageSpecs, &softwarePackageSpec)
 		}
 
-		for _, softwarePackageSpec := range softwarePackageSpecs {
+		for i, softwarePackageSpec := range softwarePackageSpecs {
 			if softwarePackageSpec.InstallScript.Path != "" {
 				if err := gatherFileSecrets(result, softwarePackageSpec.InstallScript.Path); err != nil {
 					multiError = multierror.Append(multiError, err)
@@ -1312,7 +1312,15 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 				continue
 			}
 			if softwarePackageSpec.SHA256 == "" && softwarePackageSpec.URL == "" {
-				multiError = multierror.Append(multiError, errors.New("at least one of hash_sha256 or url is required for each software package"))
+				errorMessage := "at least one of hash_sha256 or url is required for each software package"
+				if softwarePackageSpec.ReferencedYamlPath != "" {
+					errorMessage += fmt.Sprintf("; missing in %s", softwarePackageSpec.ReferencedYamlPath)
+				}
+				if len(softwarePackageSpecs) > 1 {
+					errorMessage += fmt.Sprintf(", list item #%d", i+1)
+				}
+
+				multiError = multierror.Append(multiError, errors.New(errorMessage))
 				continue
 			}
 			if len(softwarePackageSpec.URL) > fleet.SoftwareInstallerURLMaxLength {
