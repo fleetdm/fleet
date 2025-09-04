@@ -520,7 +520,6 @@ type SoftwarePackageOrApp struct {
 	Version       string                 `json:"version"`
 	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
-	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`

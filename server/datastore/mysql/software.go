@@ -3121,7 +3121,6 @@ func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
 		Version:     version,
 		Platform:    platform,
 		SelfService: softwareTitleRecord.VPPAppSelfService,
-		IconURL:     softwareTitleRecord.VPPAppIconURL,
 	}
 	if softwareTitleRecord.VPPAppPlatform != nil {
 		softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform

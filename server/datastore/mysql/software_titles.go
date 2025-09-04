@@ -47,7 +47,8 @@ SELECT
 	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
-	COUNT(vat.adam_id) AS vpp_apps_count
+	COUNT(vat.adam_id) AS vpp_apps_count,
+	vap.icon_url AS icon_url
 FROM software_titles st
 LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND sthc.hosts_count > 0 AND (%s)
 LEFT JOIN software_installers si ON si.title_id = st.id AND %s
@@ -60,7 +61,8 @@ GROUP BY
 	st.name,
 	st.source,
 	st.browser,
-	st.bundle_identifier
+	st.bundle_identifier,
+	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
 	var title fleet.SoftwareTitle
@@ -80,9 +82,6 @@ GROUP BY
 		return nil, ctxerr.Wrap(ctx, err, "get software title version")
 	}
 
-	if title.AppStoreApp != nil {
-		title.IconUrl = title.AppStoreApp.IconURL
-	}
 	if teamID != nil {
 		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, id)
 		if err != nil && !fleet.IsNotFound(err) {
@@ -219,7 +218,6 @@ func (ds *Datastore) ListSoftwareTitles(
 				Version:            version,
 				Platform:           platform,
 				SelfService:        title.VPPAppSelfService,
-				IconURL:            title.VPPAppIconURL,
 				InstallDuringSetup: title.VPPInstallDuringSetup,
 			}
 			title.IconUrl = title.VPPAppIconURL
