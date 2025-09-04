@@ -2195,6 +2195,7 @@ type ActivityDeletedAppStoreApp struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
+	IconUrl          *string                 `json:"icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2217,6 +2218,7 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
