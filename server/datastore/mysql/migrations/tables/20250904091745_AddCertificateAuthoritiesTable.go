@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
+	MigrationClient.AddMigration(Up_20250904091745, Down_20250904091745)
 }
 
 // LegacyIntegrationsWithCertAuthorities represents the legacy integrations configuration when it included certificate authorities.
@@ -48,7 +48,7 @@ type dbCertificateAuthority struct {
 	ClientSecretEncrypted []byte `db:"client_secret_encrypted"`
 }
 
-func Up_20250811084533(tx *sql.Tx) error {
+func Up_20250904091745(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	stmt := `
 	CREATE TABLE IF NOT EXISTS certificate_authorities (
@@ -250,6 +250,6 @@ INSERT INTO certificate_authorities (
 	return nil
 }
 
-func Down_20250811084533(tx *sql.Tx) error {
+func Down_20250904091745(tx *sql.Tx) error {
 	return nil
 }
