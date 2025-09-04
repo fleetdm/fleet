@@ -498,6 +498,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
+- `custom_script.path` is the script for creating a no-op package. If provided, install/uninstall/post-install scripts should bot be included.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
   
@@ -529,6 +530,14 @@ You can view the hash for existing software in the software detail page in the F
 ```yaml
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+```
+
+##### No-op package
+
+```yaml
+custom_script:
+  path: ../lib/software/custom-script.sh
+self_service: true
 ```
 
 ### app_store_apps
