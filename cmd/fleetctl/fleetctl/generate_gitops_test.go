@@ -492,6 +492,40 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
 }
 
+func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	res := fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                  "some-digicert-name",
+				URL:                   "https://some-digicert-url.com",
+				APIToken:              "some-digicert-api-token",
+				ProfileID:             "some-digicert-profile-id",
+				CertificateCommonName: "some-digicert-certificate-common-name",
+				CertificateUserPrincipalNames: []string{
+					"some-digicert-certificate-user-principal-name",
+					"some-other-digicert-certificate-user-principal-name",
+				},
+				CertificateSeatID: "some-digicert-certificate-seat-id",
+			},
+		},
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://some-ndes-scep-proxy-url.com",
+			AdminURL: "https://some-ndes-admin-url.com",
+			Username: "some-ndes-username",
+			Password: "some-ndes-password",
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			{
+				Name:      "some-custom-scep-proxy-name",
+				URL:       "https://some-custom-scep-proxy-url.com",
+				Challenge: "some-custom-scep-proxy-challenge",
+			},
+		},
+	}
+
+	return &res, nil
+}
+
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
 	err := filepath.WalkDir(sourceDir, func(srcPath string, d os.DirEntry, walkErr error) error {
 		if d.IsDir() {

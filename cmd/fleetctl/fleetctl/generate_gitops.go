@@ -2,6 +2,7 @@ package fleetctl
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	pathUtils "path"
@@ -76,6 +77,7 @@ type generateGitopsClient interface {
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
+	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -602,16 +604,25 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
 		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
 	}
+
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "Integrations")] = integrations
+
+	certificateAuthorities, err := cmd.generateCertificateAuthorities("default.yml")
+	if err != nil {
+		return nil, err
+	}
+	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
+
 	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "MDM")] = mdm
+
 	yaraRules, err := cmd.generateYaraRules(cmd.AppConfig.YaraRules)
 	if err != nil {
 		return nil, err
@@ -745,6 +756,46 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				})
 			}
 		}
+	}
+
+	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string) (map[string]interface{}, error) {
+	// TODO(hca): Implement this!
+	if filePath != "default.yml" {
+		// TODO(hca): confirm desired behavior
+		return nil, errors.New("certificate authorities are only supported in the default yaml")
+	}
+
+	// // TODO(hca): Confirm that we still want users to be able to extract their CA information via
+	// // generate gitops if their license is downgraded.
+	// if !cmd.AppConfig.License.IsPremium() {
+	// 	return map[string]interface{}{}, nil
+	// }
+
+	includeSecrets := cmd.CLI.Bool("insecure")
+
+	// Get the certificate authorities spec
+	cas, err := cmd.Client.GetCertificateAuthoritiesSpec(includeSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
+	// to get the keys we want.
+	b, err := yaml.Marshal(cas)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling certificate authorities: %s\n", err)
+		return nil, err
+	}
+	var result map[string]interface{}
+	if err := yaml.Unmarshal(b, &result); err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling certificate authorities: %s\n", err)
+		return nil, err
+	}
+
+	if !includeSecrets {
 		if digicert, ok := result["digicert"]; ok && digicert != nil {
 			for _, intg := range digicert.([]interface{}) {
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
