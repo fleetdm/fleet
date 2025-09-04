@@ -4,6 +4,7 @@ import (
 	"crypto/md5" // nolint:gosec // used only to hash for efficient comparisons
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -19,7 +20,7 @@ func md5ChecksumBytes(b []byte) string {
 
 func TestUp_20250811084533(t *testing.T) {
 	db := applyUpToPrev(t)
-	var legacyIntegrations LegacyIntegrationsWithCertAuthorties
+	var appConfigJSON fleet.AppConfig
 	const (
 		digicertCA1Name   = "DigiCert_CA_1"
 		digicertCA2Name   = "DigiCert_CA_2"
@@ -66,21 +67,56 @@ func TestUp_20250811084533(t *testing.T) {
 		Name:      customSCEPCA2Name,
 		Challenge: fleet.MaskedPassword,
 	}}
-
-	legacyIntegrations.CustomSCEPProxy.Value = customSCEPProxyCAs
-	legacyIntegrations.CustomSCEPProxy.Set = true
-	legacyIntegrations.CustomSCEPProxy.Valid = true
-	legacyIntegrations.NDESSCEPProxy.Value = ndesCA
-	legacyIntegrations.NDESSCEPProxy.Set = true
-	legacyIntegrations.NDESSCEPProxy.Valid = true
-	legacyIntegrations.DigiCert.Value = digicertCAs
-	legacyIntegrations.DigiCert.Set = true
-	legacyIntegrations.DigiCert.Valid = true
-
-	jsonBytes, err := json.Marshal(&legacyIntegrations)
-	if err != nil {
-		t.Fatalf("failed to marshal legacyIntegrations: %v", err)
+	// Create legacy integrations structure separately and populate it
+	var integrations LegacyIntegrationsWithCertAuthorities
+	integrations.ConditionalAccessEnabled.Set = true
+	integrations.ConditionalAccessEnabled.Valid = true
+	integrations.ConditionalAccessEnabled.Value = true
+	integrations.Jira = []*fleet.JiraIntegration{
+		{
+			URL:        "https://example.atlassian.net",
+			Username:   "testuser",
+			APIToken:   "fleet-test",
+			ProjectKey: "FLEET",
+		},
 	}
+	integrations.GoogleCalendar = []*fleet.GoogleCalendarIntegration{
+		{
+			Domain: "example.com",
+			ApiKey: map[string]string{
+				"fleet": "test",
+			},
+		},
+	}
+
+	integrations.Zendesk = []*fleet.ZendeskIntegration{
+		{
+			URL:      "https://example.zendesk.com",
+			Email:    "fleetie@example.com",
+			APIToken: "fleet-zendesk-test",
+		},
+	}
+
+	integrations.CustomSCEPProxy.Value = customSCEPProxyCAs
+	integrations.CustomSCEPProxy.Set = true
+	integrations.CustomSCEPProxy.Valid = true
+	integrations.NDESSCEPProxy.Value = ndesCA
+	integrations.NDESSCEPProxy.Set = true
+	integrations.NDESSCEPProxy.Valid = true
+	integrations.DigiCert.Value = digicertCAs
+	integrations.DigiCert.Set = true
+	integrations.DigiCert.Valid = true
+
+	jsonBytes, err := json.Marshal(&appConfigJSON)
+	if err != nil {
+		t.Fatalf("failed to marshal appConfigJSON: %v", err)
+	}
+
+	integrationJSONBytes, err := json.Marshal(&integrations)
+	if err != nil {
+		t.Fatalf("failed to marshal integrationsJSON: %v", err)
+	}
+	fmt.Printf("Marshalled integrations_json: %s\n", string(integrationJSONBytes))
 
 	insertNDESPasswordStmt := `INSERT INTO mdm_config_assets (name, value, md5_checksum) VALUES (?, ?, UNHEX(?))` // nolint:gosec // just test data, not hardcoded credentials
 	_, err = db.Exec(insertNDESPasswordStmt, fleet.MDMAssetNDESPassword, ndesEncryptedPassword, md5ChecksumBytes(ndesEncryptedPassword))
@@ -96,11 +132,18 @@ func TestUp_20250811084533(t *testing.T) {
 	require.NoError(t, err, "failed to insert ca_config_assets")
 
 	_, err = db.Exec(
-		`UPDATE app_config_json SET json_value = (SELECT JSON_SET(json_value, '$.integrations', ?))`,
+		`INSERT INTO app_config_json(json_value) VALUES(?) ON DUPLICATE KEY UPDATE json_value = VALUES(json_value)`,
 		jsonBytes,
 	)
 	if err != nil {
 		require.NoError(t, err, "failed to insert app_config_json")
+	}
+	_, err = db.Exec(
+		`UPDATE app_config_json SET json_value = JSON_SET(json_value, '$.integrations', CAST(? AS JSON))`,
+		integrationJSONBytes,
+	)
+	if err != nil {
+		require.NoError(t, err, "failed to insert integrations_json into app_config_json")
 	}
 	// Apply current migration.
 	applyNext(t, db)
@@ -149,12 +192,14 @@ FROM certificate_authorities`
 				expectedCA = digicertCAs[1]
 				expectedAPIToken = digicertCA2EncryptedPassword
 			}
+			require.NotNil(t, ca.URL)
 			assert.Equal(t, expectedCA.URL, *ca.URL)
 			assert.Equal(t, expectedAPIToken, ca.APITokenEncrypted)
 			require.NotNil(t, ca.ProfileID)
 			assert.Equal(t, expectedCA.ProfileID, *ca.ProfileID)
 			require.NotNil(t, ca.CertificateCommonName)
 			assert.Equal(t, expectedCA.CertificateCommonName, *ca.CertificateCommonName)
+			require.NotNil(t, ca.CertificateUserPrincipalNames)
 			assert.Equal(t, expectedCA.CertificateUserPrincipalNames, *ca.CertificateUserPrincipalNames)
 			require.NotNil(t, ca.CertificateSeatID)
 			assert.Equal(t, expectedCA.CertificateSeatID, *ca.CertificateSeatID)
@@ -166,6 +211,7 @@ FROM certificate_authorities`
 				expectedCA = customSCEPProxyCAs[1]
 				expectedChallenge = customSCEPCA2EncryptedChallenge
 			}
+			require.NotNil(t, ca.URL)
 			assert.Equal(t, expectedCA.URL, *ca.URL)
 			assert.Equal(t, expectedChallenge, ca.ChallengeEncrypted)
 			assert.Nil(t, ca.CertificateUserPrincipalNames)
@@ -173,6 +219,7 @@ FROM certificate_authorities`
 			assert.Equal(t, "NDES", *ca.Name)
 			require.NotNil(t, ca.AdminURL)
 			assert.Equal(t, ndesCA.AdminURL, *ca.AdminURL)
+			require.NotNil(t, ca.URL)
 			assert.Equal(t, ndesCA.URL, *ca.URL)
 			require.NotNil(t, ca.Username)
 			assert.Equal(t, ndesCA.Username, *ca.Username)
@@ -183,4 +230,26 @@ FROM certificate_authorities`
 		}
 	}
 	require.ElementsMatch(t, []string{digicertCA1Name, digicertCA2Name, customSCEPCA1Name, customSCEPCA2Name, "NDES"}, casFound)
+
+	// Verify that the legacy integrations were removed from app_config_json
+	appConfigSelect := `SELECT json_value->>"$.integrations" FROM app_config_json LIMIT 1`
+	var integrationsAfterMigration LegacyIntegrationsWithCertAuthorities
+	err = db.Get(&jsonBytes, appConfigSelect)
+	require.NoError(t, err)
+
+	err = json.Unmarshal(jsonBytes, &integrationsAfterMigration)
+	require.NoError(t, err)
+
+	// Verify that the legacy integrations were removed
+	assert.False(t, integrationsAfterMigration.CustomSCEPProxy.Set)
+	assert.False(t, integrationsAfterMigration.NDESSCEPProxy.Set)
+	assert.False(t, integrationsAfterMigration.DigiCert.Set)
+
+	// Verify that other integrations were left intact
+	require.Len(t, integrationsAfterMigration.Jira, 1)
+	assert.Equal(t, *integrationsAfterMigration.Jira[0], *integrations.Jira[0])
+	require.Len(t, integrationsAfterMigration.Zendesk, 1)
+	assert.Equal(t, *integrationsAfterMigration.Zendesk[0], *integrations.Zendesk[0])
+	require.Len(t, integrationsAfterMigration.GoogleCalendar, 1)
+	assert.Equal(t, *integrationsAfterMigration.GoogleCalendar[0], *integrations.GoogleCalendar[0])
 }
