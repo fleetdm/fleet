@@ -626,6 +626,8 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 				CertificateSeatID:             &existing.CertificateSeatID,
 			})
 		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
 	}
 
 	for name, incoming := range incomingByName {
