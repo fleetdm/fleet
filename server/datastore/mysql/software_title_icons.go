@@ -137,7 +137,7 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
 			software_installers.filename AS filename,
-			COALESCE(teams.name, 'no team') AS team_name,
+			teams.name AS team_name,
 			COALESCE(teams.id, 0) AS team_id,
 			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
 			software_titles.id AS software_title_id,
