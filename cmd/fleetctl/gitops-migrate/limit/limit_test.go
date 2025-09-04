@@ -10,6 +10,8 @@ import (
 
 func TestLimit(t *testing.T) {
 	t.Run("basic", func(t *testing.T) {
+		t.Parallel()
+
 		// Init a limiter.
 		l := New(2)
 
@@ -20,7 +22,7 @@ func TestLimit(t *testing.T) {
 		l.Go(testBlocker(ctx))
 
 		// Wait brieeeeefly to avoid a race in G spawn.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Ensure we see the expected number of concurrent jobs running.
 		require.Equal(t, int32(2), l.jobsConcurrent.Load())
@@ -29,7 +31,7 @@ func TestLimit(t *testing.T) {
 		cancel()
 
 		// Wait brieeeeefly to avoid a race in G exit.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Expect 0 concurrent jobs, 0 queued jobs.
 		require.Equal(t, int32(0), l.jobsConcurrent.Load())
@@ -38,6 +40,8 @@ func TestLimit(t *testing.T) {
 		require.NoError(t, l.WaitContext(t.Context()))
 	})
 	t.Run("wait-context-deadlines", func(t *testing.T) {
+		t.Parallel()
+
 		// Init a limiter.
 		l := New(2)
 
@@ -53,6 +57,8 @@ func TestLimit(t *testing.T) {
 		require.NoError(t, l.WaitContext(t.Context()))
 	})
 	t.Run("queued-jobs-stall-until-queue-frees-up", func(t *testing.T) {
+		t.Parallel()
+
 		// Here we test
 		l := New(2)
 
@@ -66,14 +72,14 @@ func TestLimit(t *testing.T) {
 		l.Go(testBlocker(ctx1))
 
 		// Wait brieeeeefly to avoid a race in setup.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Spawn two more jobs.
 		l.Go(testBlocker(ctx2))
 		l.Go(testBlocker(ctx2))
 
 		// Wait brieeeeefly to avoid a race in setup.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Expect two 2 jobs queued and 2 jobs active.
 		require.Equal(t, int32(2), l.jobsQueued.Load())
@@ -83,7 +89,7 @@ func TestLimit(t *testing.T) {
 		cancel1()
 
 		// Wait brieeeeefly to avoid a race in G exit.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Expect two 0 jobs queued and 2 jobs active.
 		require.Equal(t, int32(0), l.jobsQueued.Load())
@@ -93,7 +99,7 @@ func TestLimit(t *testing.T) {
 		cancel2()
 
 		// Wait brieeeeefly to avoid a race in G exit.
-		<-time.After(100 * time.Millisecond)
+		<-time.After(250 * time.Millisecond)
 
 		// Expect two 0 jobs queued and 0 jobs active.
 		require.Equal(t, int32(0), l.jobsQueued.Load())
