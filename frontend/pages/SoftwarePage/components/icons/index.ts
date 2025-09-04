@@ -38,6 +38,7 @@ import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
+import OmnissaHorizonClient from "./OmnissaHorizonClient";
 import AmazonDCV from "./AmazonDCV";
 import IntuneCompanyPortal from "./IntuneCompanyPortal";
 import Santa from "./Santa";
@@ -83,6 +84,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
+  "omnissa horizon client": OmnissaHorizonClient,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
