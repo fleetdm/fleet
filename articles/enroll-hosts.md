@@ -1,19 +1,30 @@
 # Enroll hosts
 
-Fleet gathers information from an [osquery](https://github.com/osquery/osquery) agent installed on each of your hosts. The recommended way to install osquery is using fleetd.
+You can enroll macOS, Windows, Linux, iOS, iPadOS, Android, and ChromeOS hosts to Fleet.
 
-Fleet creates a host record when a device is enrolled. Note that “enrolled” and “MDM turned on” are not always the same action.
+To manually enroll macOS, Windows, and Linux hosts, install Fleet’s agent (fleetd). You can generate fleetd via the [UI](#ui) or [CLI](#cli). 
 
-- For macOS, Windows, and Linux: installing Fleet’s agent (fleetd) creates the host record in Fleet (enrollment). Turning on MDM is a separate step that can be performed after fleetd is installed.
-- For iOS, iPadOS, and Android: hosts enroll into Fleet through the MDM enrollment. In other words, enrollment and enabling MDM happen at the same time — when the host is enrolled into MDM, the host record is created in Fleet, and MDM is turned on.
+For iOS, iPadOS, and Android hosts, share the enrollment link from the [Fleet UI](#ui) with your end users.
 
-You can enroll macOS, Windows, and Linux hosts via the [CLI](#cli) or [UI](#ui). You can enroll iOS, iPadOS, and Android hostsvia the [UI](#ui).
+You can also automatically enroll macOS, Windows, iOS, and iPadOS hosts. To automatically enroll Apple (macOS, iOS, and iPadOS) hosts, [connect Fleet to Apple Business Manager (ABM)](https://fleetdm.com/guides/macos-mdm-setup#apple-business-manager-abm). To automatically enroll Windows hosts, [connect Fleet to Microsoft Entra](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment).
 
-To learn how to enroll Chromebooks, see [Enroll Chromebooks](#enroll-chromebooks).
+To learn how to enroll Chromebooks, see the [Enroll Chromebooks guide](#enroll-chromebooks).
 
-### Supported osquery versions
+## UI
 
-Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
+To manually enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
+
+1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+2. Select the tab for your desired platform (e.g. **macOS**).
+3. Copy the command to generate fleetd and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
+4. Install fleetd on your host(s) to enroll it to Fleet.
+
+To manually enroll iOS, iPadOS, or Android hosts, follow the steps below:
+
+1. Go to the **Hosts** page, select the team you want your host(s) to enroll to, and select **Add hosts**.
+2. Select the tab for your desired platform (e.g. **iOS**).
+3. Copy the enrollment link from the UI and share it with your end users.
+4. When your end users visit the link and follow the steps provided on the enrollment page, their host will be enrolled.
 
 ## CLI
 
@@ -45,21 +56,6 @@ fleetctl package --type pkg --fleet-url=example.fleetinstance.com --enroll-secre
 ```
 
 Tip: To see all options for `fleetctl package` command, run `fleetctl package -h` in your Terminal.
-
-## UI
-
-To enroll macOS, Windows, or Linux hosts, generate Fleet's agent (fleetd) through Fleet UI:
-
-1. Go to the **Hosts** page, select team, and select **Add hosts**.
-2. Select the tab for your desired platform (e.g. macOS).
-3. A CLI command with all necessary flags to generate an install package will be generated. Copy and run the command with [fleetctl](https://fleetdm.com/docs/using-fleet/fleetctl-cli) installed.
-
-To enroll iOS, iPadOS, or Android hosts, send link to the end user, following the steps below:
-
-1. Go to the **Hosts** page, select team, and select **Add hosts**.
-2. Select the tab for your desired platform (e.g. iOS).
-3. Copy the link from the UI and share it with your end user.
-4. Once they visit the link and follow the steps provided on the enrollment web page, their host will get enrolled.
 
 ### Install fleetd
 
@@ -155,6 +151,7 @@ How to unenroll a host from Fleet:
 
 ## Advanced
 
+- [Supported osquery versions](#supported-osquery-versions)
 - [Best practice for dual-boot workstations](#best-partice-for-dual-boot-workstations)
 - [Fleet agent (fleetd) components](#fleetd-components)
 - [Signing fleetd](#signing-fleetd)
@@ -168,6 +165,10 @@ How to unenroll a host from Fleet:
 - [Generating fleetd for Windows using local WiX toolset](#generating-fleetd-for-windows-using-local-wix-toolset)
 - [Config-less fleetd agent deployment](#config-less-fleetd-agent-deployment)
 - [Experimental features](#experimental-features)
+
+### Supported osquery versions
+
+Fleet supports the [latest version of osquery](https://github.com/osquery/osquery/tags). 
 
 ### Best practice for dual-boot workstations
 
