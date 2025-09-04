@@ -8,20 +8,17 @@ import { getMatchedSoftwareIcon } from "../";
 
 const baseClass = "software-icon";
 
-/**
- * Props for the SoftwareIcon component
- * @property name     The software's name (used for fallback icon matching)
- * @property source   The software's source (used for fallback icon matching)
- * @property size     The icon size (default: 'small' 24x24 px)
- * @property url      The image URL or API path to fetch custom icon blob
- * @property uploadedAt Timestamp string of when the icon was last uploaded
- *                    (used to refetch stale icon if it was updated)
- */
 interface ISoftwareIconProps {
+  /**  The software's name (used for fallback icon matching) */
   name?: string;
+  /** The software's source (used for fallback icon matching) */
   source?: string;
+  /** The icon size (default: 'small' 24x24 px) */
   size?: SoftwareIconSizes;
+  /**  The image URL or API path to fetch custom icon blob */
   url?: string | null;
+  /** Timestamp string of when the icon was last uploaded
+   * (used to refetch stale icon if it was updated) */
   uploadedAt?: string;
 }
 

@@ -101,10 +101,6 @@ export const FileUploader = ({
     fileInputRef.current?.click();
   };
 
-  useEffect(() => {
-    setIsFileSelected(!!fileDetails);
-  }, [fileDetails]);
-
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     onFileUpload(files);
@@ -217,7 +213,7 @@ export const FileUploader = ({
 
   return (
     <Card color="grey" className={classes}>
-      {isFileSelected && fileDetails ? (
+      {fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}
           fileDetails={fileDetails}
