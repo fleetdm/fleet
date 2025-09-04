@@ -1,4 +1,7 @@
 .install-software {
+  .react-tabs__tab-list {
+    margin-bottom: $pad-small;
+  }
   &__windows {
     display: flex;
     flex-direction: column;
