@@ -62,6 +62,35 @@ func (ds *Datastore) GetTeamIdsForIconStorageId(ctx context.Context, storageID s
 	return teamIds, nil
 }
 
+func (ds *Datastore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error) {
+	if len(titleIDs) == 0 {
+		return map[uint]fleet.SoftwareTitleIcon{}, nil
+	}
+
+	var args []interface{}
+	query := `
+		SELECT team_id, software_title_id, storage_id, filename
+		FROM software_title_icons
+		WHERE software_title_id IN (?) AND team_id = ?
+	`
+	query, args, err := sqlx.In(query, titleIDs, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query for get software title icons")
+	}
+
+	var icons []fleet.SoftwareTitleIcon
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &icons, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get software title icons")
+	}
+
+	iconsBySoftwareTitleID := make(map[uint]fleet.SoftwareTitleIcon, len(icons))
+	for _, icon := range icons {
+		iconsBySoftwareTitleID[icon.SoftwareTitleID] = icon
+	}
+
+	return iconsBySoftwareTitleID, nil
+}
+
 func (ds *Datastore) DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error {
 	query := `
 		DELETE FROM software_title_icons

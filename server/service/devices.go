@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
 )
+
+var softwareTitleIconURLRegex = regexp.MustCompile(`fleet/software/titles/\d+/icon\?team_id=\d+`)
 
 /////////////////////////////////////////////////////////////////////////////////
 // Ping device endpoint
@@ -803,6 +806,18 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 
 	req := request.(*getDeviceSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.HostSoftwareTitleListOptions)
+	for _, s := range res {
+		// convert api style iconURL to device token URL
+		if s.IconUrl != nil && *s.IconUrl != "" {
+			matched := softwareTitleIconURLRegex.MatchString(*s.IconUrl)
+			if matched {
+				icon := fleet.SoftwareTitleIcon{SoftwareTitleID: s.ID}
+				deviceIconURL := icon.IconUrlWithDeviceToken(req.Token)
+				s.IconUrl = ptr.String(deviceIconURL)
+			}
+		}
+	}
+
 	if err != nil {
 		return getDeviceSoftwareResponse{Err: err}, nil
 	}

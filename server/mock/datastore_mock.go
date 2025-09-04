@@ -1299,6 +1299,8 @@ type GetSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uin
 
 type GetTeamIdsForIconStorageIdFunc func(ctx context.Context, storageID string) ([]uint, error)
 
+type GetSoftwareIconsByTeamAndTitleIdsFunc func(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error)
+
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
 type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error)
@@ -3403,6 +3405,9 @@ type DataStore struct {
 
 	GetTeamIdsForIconStorageIdFunc        GetTeamIdsForIconStorageIdFunc
 	GetTeamIdsForIconStorageIdFuncInvoked bool
+
+	GetSoftwareIconsByTeamAndTitleIdsFunc        GetSoftwareIconsByTeamAndTitleIdsFunc
+	GetSoftwareIconsByTeamAndTitleIdsFuncInvoked bool
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
@@ -8156,6 +8161,13 @@ func (s *DataStore) GetTeamIdsForIconStorageId(ctx context.Context, storageID st
 	s.GetTeamIdsForIconStorageIdFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetTeamIdsForIconStorageIdFunc(ctx, storageID)
+}
+
+func (s *DataStore) GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error) {
+	s.mu.Lock()
+	s.GetSoftwareIconsByTeamAndTitleIdsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSoftwareIconsByTeamAndTitleIdsFunc(ctx, teamID, titleIDs)
 }
 
 func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error {
