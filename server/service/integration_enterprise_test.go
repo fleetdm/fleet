@@ -12263,7 +12263,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	assert.Equal(t, fmt.Sprintf("%d", iconSize), resp.Header.Get("Content-Length"))
 
 	// DELETE software title icon
-	resp = s.DoRawWithHeaders(
+	s.DoRawWithHeaders(
 		"DELETE",
 		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
 		nil,
