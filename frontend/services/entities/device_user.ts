@@ -1,6 +1,10 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware } from "interfaces/software";
+import {
+  IDeviceSoftware,
+  ISetupSoftwareStatus,
+  SetupSoftwareStatus,
+} from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -9,6 +13,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 import { IMdmCommandResult } from "interfaces/mdm";
 
 import { IHostSoftwareQueryParams } from "./hosts";
+import { ListEntitiesResponseCommon, PaginationParams } from "./common";
 
 export type ILoadHostDetailsExtension = "macadmins";
 
@@ -46,6 +51,17 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 
 export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
+}
+export interface IGetSetupSoftwareStatusesResponse {
+  // TODO ?
+  // extends ListEntitiesResponseCommon {
+  setup_experience_results: { software: ISetupSoftwareStatus[] };
+}
+
+// TODO?
+// export interface IGetSetupSoftwareStatusParams extends PaginationParams {
+export interface IGetSetupSoftwareStatusesParams {
+  token: string;
 }
 
 export default {
@@ -156,5 +172,13 @@ export default {
     })}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSetupSoftwareStatuses: ({
+    token,
+  }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
+    const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
+    const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+    return sendRequest("POST", path);
   },
 };
