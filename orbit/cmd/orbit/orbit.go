@@ -1615,7 +1615,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 			return fmt.Errorf("opening my device page: %w", err)
 		}
 	} else {
-		log.Debug().Msg("setup experience not enabled")
+		log.Debug().Msg("setup experience not enabled on team")
 	}
 
 	// Even if it wasn't enabled, mark it as complete so we don't start it again later
