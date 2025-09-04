@@ -260,7 +260,7 @@ const HostSoftware = ({
           onShowInventoryVersions,
           platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
