@@ -216,9 +216,3 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 	}
 	return *host.OsqueryHostID, nil
 }
-
-// SetupExperienceInitPayload is the payload returned when the orbit client manually initiates
-// setup experience for non-darwin platforms
-type SetupExperienceInitPayload struct {
-	Enabled bool `json:"enabled"`
-}
