@@ -1522,13 +1522,45 @@ func main() {
 		isLinux := runtime.GOOS == "linux"
 		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		log.Debug().Bool("isLinux", isLinux).Bool("serverHasSetup", serverHasWebSetup).Bool("notDisabled", setupExperienceNotDisabled).Msg("checking setup experience preflight values")
 		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
+		log.Debug().
+			Bool("isLinux", isLinux).
+			Bool("serverHasSetup", serverHasWebSetup).
+			Bool("notDisabled", setupExperienceNotDisabled).
+			Msg("checking setup experience preflight values")
+
+		openMyDevicePage := func() error {
+			log.Debug().Msg("launching browser for my device page")
+			loggedInUser, err := user.UserLoggedInViaGui()
+			if err != nil {
+				return fmt.Errorf("get logged in user: %w", err)
+			}
+
+			if loggedInUser == nil {
+				return errors.New("no user logged in")
+			}
+
+			token, err := trw.Read()
+			if err != nil {
+				return fmt.Errorf("getting device token: %w", err)
+			}
+			// My Device page
+			browserURL := deviceClient.BrowserDeviceURL(token)
+
+			var opts []execuser.Option
+			opts = append(opts, execuser.WithUser(*loggedInUser))
+			opts = append(opts, execuser.WithArg(browserURL, ""))
+			if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
+				return fmt.Errorf("opening browser with xdg-open: %w", err)
+			}
+
+			return nil
+		}
 
 		if runSetupExperience {
 			log.Debug().Msg("web setup experience enabled")
-			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceCompleteFilename)
-			if err := processSetupExperience(orbitClient, deviceClient, trw, setupExpPath); err != nil {
+			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceFilename)
+			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
 			}
 		}
@@ -1550,7 +1582,7 @@ func main() {
 	}
 }
 
-func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, trw *token.ReadWriter, setupExperienceStatusPath string) error {
+func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
 	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
 	if err != nil {
@@ -1560,7 +1592,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 	// Setup experience has been completed
 	if exp != nil && exp.TimeInitiated != nil {
 		log.Debug().Msg("setup experience already completed")
-		return nil
+		// return nil
 	}
 
 	log.Debug().Msg("initiating setup experience")
@@ -1571,28 +1603,8 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 
 	// Setup experience enabled for us and is now kicked off, open a browser
 	if resp.Enabled {
-		log.Debug().Msg("launching firefox for setup experience web view")
-		loggedInUser, err := user.UserLoggedInViaGui()
-		if err != nil {
-			return fmt.Errorf("get logged in user: %w", err)
-		}
-
-		if loggedInUser == nil {
-			return errors.New("no user logged in")
-		}
-
-		token, err := trw.Read()
-		if err != nil {
-			return fmt.Errorf("getting device token: %w", err)
-		}
-		// My Device page
-		browserURL := dc.BrowserDeviceURL(token)
-
-		var opts []execuser.Option
-		opts = append(opts, execuser.WithUser(*loggedInUser))
-		opts = append(opts, execuser.WithArg(browserURL, ""))
-		if _, err := execuser.Run("/usr/bin/firefox", opts...); err != nil {
-			return fmt.Errorf("opening firefox: %w", err)
+		if err := openMyDevicePage(); err != nil {
+			return fmt.Errorf("opening my device page: %w", err)
 		}
 	} else {
 		log.Debug().Msg("setup experience not enabled")
@@ -1611,7 +1623,7 @@ func processSetupExperience(oc *service.OrbitClient, dc *service.DeviceClient, t
 }
 
 type SetupExperienceInfo struct {
-	TimeInitiated *time.Time `json:"time,omitempty"`
+	TimeInitiated *time.Time `json:"time_initiated,omitempty"`
 }
 
 // Returns the time setup experience was completed, or nil if it hasn't
