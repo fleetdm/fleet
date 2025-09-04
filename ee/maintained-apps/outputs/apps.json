@@ -184,6 +184,13 @@
       "description": "Slack is a team communication and collaboration software for modern workplaces"
     },
     {
+      "name": "Slack",
+      "slug": "slack/windows",
+      "platform": "windows",
+      "unique_identifier": "Slack",
+      "description": ""
+    },
+    {
       "name": "TeamViewer",
       "slug": "teamviewer/darwin",
       "platform": "darwin",
