@@ -1025,7 +1025,7 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-Unlike other options, ommitting `smtp_settings` or leaving it blank won't reset the values back to the default.
+Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
