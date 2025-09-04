@@ -43,7 +43,7 @@ The `--type` flag is used to specify the fleetd installer type.
 
 > `fleetctl` on Windows can only generate MSI packages.
 
-A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enrollment secret) must be specified in order to communicate with Fleet instance.
+A `--fleet-url` (Fleet instance URL) and `--enroll-secret` (Fleet enroll secret) must be specified in order to communicate with Fleet instance.
 
 To generate fleetd for an Arm Linux or Windows host, use the `--arch=arm64` flag.
 
@@ -65,7 +65,7 @@ You can use your tool of choice, like [Munki](https://www.munki.org/munki/) on m
 
 With hosts segmented into teams, you can apply unique queries and give users access to only the hosts in specific teams. [Learn more about teams](https://fleetdm.com/docs/using-fleet/segment-hosts).
 
-To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enrollment secret will be included in the generated command or on the enrollment web page for iOS, iPadOS, and Android hosts.
+To enroll to a specific team: from the **Hosts** page, select the desired team from the menu at the top of the screen, then follow the instructions above for generating Fleet's agent (fleetd). The team's enroll secret will be included in the generated command or on the enrollment page for iOS, iPadOS, and Android hosts.
 
 ### Fleet Desktop
 
@@ -203,7 +203,7 @@ The `fleetctl package` command supports signing and notarizing macOS fleetd via 
 Check out the example below:
 
 ```sh
-  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET]
+  AC_USERNAME=appleid@example.com AC_PASSWORD=app-specific-password fleetctl package --type pkg --sign-identity=[PATH TO SIGN IDENTITY] --notarize --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET]
 ```
 
 The above command must be run on a macOS device, as the notarizing and signing of macOS fleetd can only be done on macOS devices.
@@ -423,7 +423,7 @@ so:
   3. Run `fleetctl package`, and pass the absolute path above as the string argument to the
      `--local-wix-dir` flag. For example:
      ```
-      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
+      fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLL SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
 
@@ -431,7 +431,7 @@ so:
 
 ### Config-less fleetd agent deployment
 
-Config-less deployment allows for Fleet's agent (fleetd) to be installed without embedding configuration settings directly into the package. This approach is ideal for environments requiring flexibility in managing enrollment secrets and server URLs. For detailed instructions, visit the [Config-less fleetd agent deployment guide](https://fleetdm.com/guides/config-less-fleetd-agent-deployment).
+Config-less deployment allows for Fleet's agent (fleetd) to be installed without embedding configuration settings directly into the package. This approach is ideal for environments requiring flexibility in managing enroll secrets and server URLs. For detailed instructions, visit the [Config-less fleetd agent deployment guide](https://fleetdm.com/guides/config-less-fleetd-agent-deployment).
 
 >**Warning:** If you remove the configuration profile with the settings from macOS, `fleetd` won't work anymore until a similar profile is installed again. If the profile is delivered via MDM, and MDM is turned off, you might face this scenario.
 
