@@ -3607,7 +3607,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		`{"profile_name": "android-global-profile", "team_id": null, "team_name": null}`,
 		0,
 	)
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", testTeam.ID), nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAndroidProfUUID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
 		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": null}`, testTeam.ID),
