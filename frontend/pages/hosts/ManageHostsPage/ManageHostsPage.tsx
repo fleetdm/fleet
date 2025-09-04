@@ -505,7 +505,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: osVersions } = useQuery<
+  const { data: osVersions, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     Error,
     IOperatingSystemVersion[],
@@ -1832,6 +1832,7 @@ const ManageHostsPage = ({
           isLoadingHosts ||
           isLoadingHostsCount ||
           isLoadingPolicy ||
+          isLoadingOsVersions ||
           isLoadingConfigProfile ||
           isLoadingScriptBatchSummary
         }
