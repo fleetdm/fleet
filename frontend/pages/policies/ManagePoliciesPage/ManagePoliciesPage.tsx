@@ -363,8 +363,7 @@ const ManagePolicyPage = ({
 
   const canAddOrDeletePolicies =
     isGlobalAdmin || isGlobalMaintainer || isTeamMaintainer || isTeamAdmin;
-  const canManageAutomations =
-    isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
+  const canManageAutomations = canAddOrDeletePolicies;
 
   const {
     data: globalConfig,
@@ -1338,7 +1337,10 @@ const ManagePolicyPage = ({
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
-            availableIntegrations={automationsConfig.integrations}
+            availableIntegrations={
+              // Although TypeScript thinks globalConfig could be undefined here, in practice it will always be present for users with canManageAutomations/canAddOrDeletePolicies permissions.
+              globalConfig?.integrations || automationsConfig.integrations
+            }
             availablePolicies={policiesAvailableToAutomate}
             isUpdating={isUpdatingPolicies}
             onExit={toggleOtherWorkflowsModal}
