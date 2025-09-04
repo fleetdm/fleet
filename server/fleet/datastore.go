@@ -2308,6 +2308,27 @@ type Datastore interface {
 	// UpdateHostIdentityCertHostIDBySerial updates the host ID associated with a certificate using its serial number.
 	UpdateHostIdentityCertHostIDBySerial(ctx context.Context, serialNumber uint64, hostID uint) error
 
+	// /////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+	// NewCertificateAuthority creates a new certificate authority.
+	NewCertificateAuthority(ctx context.Context, ca *CertificateAuthority) (*CertificateAuthority, error)
+	// GetCertificateAuthorityByID gets a certificate authority by its ID.
+	GetCertificateAuthorityByID(ctx context.Context, id uint, includeSecrets bool) (*CertificateAuthority, error)
+	// GetAllCertificateAuthorities returns all certificate authorities.
+	GetAllCertificateAuthorities(ctx context.Context, includeSecrets bool) ([]*CertificateAuthority, error)
+	// GetGroupedCertificateAuthorities returns all certificate authorities grouped by type
+	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
+	// ListCertificateAuthorities returns a summary of all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
+	// DeleteCertificateAuthority deletes the certificate authority of the provided ID, returns not found if it does not exist
+	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) (*CertificateAuthoritySummary, error)
+	// UpdateCertificateAuthorityByID updates the certificate authority of the provided ID, returns not found if it does not exist
+	UpdateCertificateAuthorityByID(ctx context.Context, id uint, certificateAuthority *CertificateAuthority) error
+	// BatchApplyCertificateAuthorities applies a batch of certificate authority changes (add,
+	// update, delete). Deletes are processed first based on name and type. Adds and updates are
+	// processed together as upserts using INSERT...ON DUPLICATE KEY UPDATE.
+	BatchApplyCertificateAuthorities(ctx context.Context, ops CertificateAuthoritiesBatchOperations) error
+
 	// GetCurrentTime gets the current time from the database
 	GetCurrentTime(ctx context.Context) (time.Time, error)
 }
