@@ -1529,29 +1529,42 @@ func main() {
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
-		openMyDevicePage := func() error {
-			log.Debug().Msg("launching browser for my device page")
-			loggedInUser, err := user.UserLoggedInViaGui()
-			if err != nil {
-				return fmt.Errorf("get logged in user: %w", err)
-			}
-
-			if loggedInUser == nil {
-				return errors.New("no user logged in")
-			}
-
+		getMyDeviceUrl := func() (string, error) {
 			token, err := trw.Read()
 			if err != nil {
-				return fmt.Errorf("getting device token: %w", err)
+				return "", fmt.Errorf("getting device token: %w", err)
 			}
 			// My Device page
-			browserURL := deviceClient.BrowserDeviceURL(token)
+			return deviceClient.BrowserDeviceURL(token), nil
+		}
 
-			var opts []execuser.Option
-			opts = append(opts, execuser.WithUser(*loggedInUser))
-			opts = append(opts, execuser.WithArg(browserURL, ""))
-			if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
-				return fmt.Errorf("opening browser with xdg-open: %w", err)
+		openMyDevicePage := func() error {
+			log.Debug().Msg("launching browser for my device page")
+			switch runtime.GOOS {
+			case "linux":
+				loggedInUser, err := user.UserLoggedInViaGui()
+				if err != nil {
+					return fmt.Errorf("get logged in user: %w", err)
+				}
+
+				if loggedInUser == nil {
+					return errors.New("no user logged in")
+				}
+
+				browserURL, err := getMyDeviceUrl()
+				if err != nil {
+					return fmt.Errorf("creating my device url: %w", err)
+				}
+
+				var opts []execuser.Option
+				opts = append(opts, execuser.WithUser(*loggedInUser))
+				opts = append(opts, execuser.WithArg(browserURL, ""))
+				if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
+					return fmt.Errorf("opening browser with xdg-open: %w", err)
+				}
+			default:
+				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
+				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
 			}
 
 			return nil
@@ -1592,7 +1605,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 	// Setup experience has been completed
 	if exp != nil && exp.TimeInitiated != nil {
 		log.Debug().Msg("setup experience already completed")
-		// return nil
+		return nil
 	}
 
 	log.Debug().Msg("initiating setup experience")
@@ -1602,7 +1615,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 	}
 
 	// Setup experience enabled for us and is now kicked off, open a browser
-	if resp.Enabled {
+	if true || resp.Enabled {
 		if err := openMyDevicePage(); err != nil {
 			return fmt.Errorf("opening my device page: %w", err)
 		}
