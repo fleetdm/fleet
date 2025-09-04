@@ -970,83 +970,84 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 	}
 
 	sql := `
+WITH all_latest_activities AS (
+	-- Use window function to efficiently find the latest execution per script
+	-- This is O(n) (a self-join approach would be O(n²))
+	SELECT * FROM (
+		SELECT
+			id,
+			host_id,
+			script_id,
+			execution_id,
+			created_at,
+			exit_code,
+			'completed' as source,
+			ROW_NUMBER() OVER (
+				PARTITION BY script_id
+				ORDER BY created_at DESC, id DESC
+			) AS row_num
+		FROM
+			host_script_results
+		WHERE
+			host_id = ? AND
+			canceled = 0
+	) completed_ranked
+	WHERE row_num = 1
+	
+	UNION ALL
+	
+	-- latest from upcoming_activities
+	SELECT * FROM (
+		SELECT
+			NULL as id,
+			ua.host_id,
+			sua.script_id,
+			ua.execution_id,
+			ua.created_at,
+			NULL as exit_code,
+			'upcoming' as source,
+			ROW_NUMBER() OVER (
+				PARTITION BY sua.script_id
+				ORDER BY ua.created_at DESC, ua.id DESC
+			) AS row_num
+		FROM
+			upcoming_activities ua
+			INNER JOIN script_upcoming_activities sua
+				ON ua.id = sua.upcoming_activity_id
+		WHERE
+			ua.host_id = ? AND
+			ua.activity_type = 'script'
+	) upcoming_ranked
+	WHERE row_num = 1
+)
 SELECT
 	s.id AS script_id,
 	s.name,
-	hsr.id AS hsr_id,
-	hsr.created_at AS executed_at,
-	hsr.execution_id,
-	hsr.exit_code
+	latest.id AS hsr_id,
+	latest.created_at AS executed_at,
+	latest.execution_id,
+	latest.exit_code
 FROM
 	scripts s
 	LEFT JOIN (
-		-- latest is in host_script_results only if none in upcoming_activities
-		SELECT
-			r.id,
-			r.host_id,
-			r.script_id,
-			r.execution_id,
-			r.created_at,
-			r.exit_code
-		FROM
-			host_script_results r
-			LEFT OUTER JOIN host_script_results r2
-				ON r.host_id = r2.host_id AND
-					r.script_id = r2.script_id AND
-					r2.canceled = 0 AND
-					(r2.created_at > r.created_at OR (r.created_at = r2.created_at AND r2.id > r.id))
-		WHERE
-			r.host_id = ? AND
-			r.canceled = 0 AND
-			r2.id IS NULL AND -- no other row at a later time
-			NOT EXISTS (
-				SELECT 1
-				FROM upcoming_activities ua
-				INNER JOIN script_upcoming_activities sua
-					ON ua.id = sua.upcoming_activity_id
-				WHERE
-					ua.host_id = r.host_id AND
-					ua.activity_type = 'script' AND
-					sua.script_id = r.script_id
-			)
-
-	UNION
-
-	-- latest is in upcoming_activities
-	SELECT
-		NULL as id,
-		ua.host_id,
-		sua.script_id,
-		ua.execution_id,
-		ua.created_at,
-		NULL as exit_code
-	FROM
-		upcoming_activities ua
-		INNER JOIN script_upcoming_activities sua
-			ON ua.id = sua.upcoming_activity_id
-	WHERE
-		ua.host_id = ? AND
-		ua.activity_type = 'script' AND
-		NOT EXISTS (
-			-- no later entry in upcoming activities, not sure how
-			-- or if it can be done with the LEFT OUTER JOIN approach
-			-- because it involves 2 tables.
+		-- Pick the most recent between completed and upcoming for each script
+		SELECT * FROM (
 			SELECT
-				1
-			FROM
-				upcoming_activities ua2
-				INNER JOIN script_upcoming_activities sua2
-					ON ua2.id = sua2.upcoming_activity_id
-			WHERE
-				ua.host_id = ua2.host_id AND
-				ua2.activity_type = 'script' AND
-				sua.script_id = sua2.script_id AND
-				(ua2.created_at > ua.created_at OR (ua.created_at = ua2.created_at AND ua2.id > ua.id))
-			)
-	) hsr
-	ON s.id = hsr.script_id
+				*,
+				ROW_NUMBER() OVER (
+					PARTITION BY script_id
+					ORDER BY 
+						CASE WHEN source = 'upcoming' THEN 1 ELSE 2 END,  -- Prefer upcoming over completed
+						created_at DESC,
+						id DESC
+				) AS final_rn
+			FROM all_latest_activities
+		) final_ranked
+		WHERE final_rn = 1
+	) latest
+	ON s.id = latest.script_id
 WHERE
-	(hsr.host_id IS NULL OR hsr.host_id = ?)
+	(latest.host_id IS NULL OR latest.host_id = ?)
 	AND s.global_or_team_id = ?
 `
 
