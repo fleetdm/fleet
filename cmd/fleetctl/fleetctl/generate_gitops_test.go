@@ -350,6 +350,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:       true,
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
+				Categories:        []string{"Browsers"},
 			},
 		}, nil
 	case 2:
@@ -364,6 +365,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label D",
 				}},
+				Categories:  []string{"Productivity", "Utilities"},
+				SelfService: true,
 			},
 		}, nil
 	default:
