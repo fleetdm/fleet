@@ -1529,17 +1529,15 @@ func main() {
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
-		getMyDeviceUrl := func() (string, error) {
-			token, err := trw.Read()
-			if err != nil {
-				return "", fmt.Errorf("getting device token: %w", err)
-			}
-			// My Device page
-			return deviceClient.BrowserDeviceURL(token), nil
-		}
-
 		openMyDevicePage := func() error {
 			log.Debug().Msg("launching browser for my device page")
+			token, err := trw.Read()
+			if err != nil {
+				return fmt.Errorf("getting device token: %w", err)
+			}
+			// My Device page
+			browserURL := deviceClient.BrowserDeviceURL(token)
+
 			switch runtime.GOOS {
 			case "linux":
 				loggedInUser, err := user.UserLoggedInViaGui()
@@ -1549,11 +1547,6 @@ func main() {
 
 				if loggedInUser == nil {
 					return errors.New("no user logged in")
-				}
-
-				browserURL, err := getMyDeviceUrl()
-				if err != nil {
-					return fmt.Errorf("creating my device url: %w", err)
 				}
 
 				var opts []execuser.Option
@@ -1576,6 +1569,8 @@ func main() {
 			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
 			}
+		} else {
+			log.Debug().Msg("not running setup experience")
 		}
 
 		if err := g.Run(); err != nil {
