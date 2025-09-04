@@ -211,7 +211,7 @@ func (svc *Service) BatchApplyCertificateAuthorities(ctx context.Context, incomi
 }
 
 type getCertificateAuthoritiesSpecRequest struct {
-	IncludeSecrets bool `query:"include_secrets,optional"`
+	IncludeSecrets bool `json:"-" query:"include_secrets,optional"`
 }
 
 type getCertificateAuthoritiesSpecResponse struct {
