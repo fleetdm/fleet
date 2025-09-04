@@ -413,6 +413,73 @@ func testActivityDetailsForSoftwareTitleIcon(t *testing.T, ds *Datastore) {
 			require.Len(t, activity.LabelsIncludeAny, 1)
 			require.Equal(t, "label2", activity.LabelsIncludeAny[0].Name)
 		}},
+		{"team id 0", func(ds *Datastore) {
+			user := test.NewUser(t, ds, "user1", "user1@example.com", false)
+			host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+			software1 := []fleet.Software{
+				{Name: "foo", Version: "0.0.3", Source: "apps", BundleIdentifier: "foo.bundle.id"},
+			}
+			_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+			require.NoError(t, err)
+			var titles []struct{ ID uint }
+			err = ds.writer(ctx).Select(&titles, `SELECT id from software_titles`)
+			require.NoError(t, err)
+			teamID = uint(0)
+			titleID = titles[0].ID
+
+			tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+			require.NoError(t, err)
+			installerID, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+				InstallScript:    "hello",
+				InstallerFile:    tfr1,
+				StorageID:        "storage1",
+				Filename:         "foo.pkg",
+				Title:            "foo",
+				Version:          "0.0.3",
+				Source:           "apps",
+				TeamID:           &teamID,
+				UserID:           user.ID,
+				BundleIdentifier: "foo.bundle.id",
+				ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+			})
+			require.NoError(t, err)
+			var softwareInstallerTitleIds []struct {
+				ID             uint  `db:"title_id"`
+				TeamID         *uint `db:"team_id"`
+				GlobalOrTeamId uint  `db:"global_or_team_id"`
+			}
+			err = ds.writer(ctx).Select(&softwareInstallerTitleIds, `SELECT title_id, team_id, global_or_team_id from software_installers`)
+			require.NoError(t, err)
+			require.Len(t, softwareInstallerTitleIds, 1)
+			require.Equal(t, titleID, softwareInstallerTitleIds[0].ID)
+			require.Nil(t, softwareInstallerTitleIds[0].TeamID)
+			require.Equal(t, teamID, softwareInstallerTitleIds[0].GlobalOrTeamId)
+
+			_, err = ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+				TeamID:    teamID,
+				TitleID:   titleID,
+				StorageID: "storage-id-1",
+				Filename:  "test-icon-updated.png",
+			})
+			require.NoError(t, err)
+		}, func(t *testing.T, ds *Datastore) {
+			activity, err := ds.ActivityDetailsForSoftwareTitleIcon(ctx, teamID, titleID)
+			require.NoError(t, err)
+
+			require.Equal(t, installerID, *activity.SoftwareInstallerID)
+			require.Nil(t, activity.AdamID)
+			require.Nil(t, activity.VPPAppTeamID)
+			require.Nil(t, activity.VPPIconUrl)
+			require.Equal(t, "foo", activity.SoftwareTitle)
+			require.Equal(t, "foo.pkg", *activity.Filename)
+			require.Equal(t, "team1", "no team")
+			require.Equal(t, teamID, activity.TeamID)
+			require.False(t, activity.SelfService)
+			require.Equal(t, titleID, activity.SoftwareTitleID)
+			require.Nil(t, activity.Platform)
+			require.Nil(t, activity.LabelsExcludeAny)
+			require.Nil(t, activity.LabelsIncludeAny)
+		}},
 	}
 
 	for _, tc := range testCases {

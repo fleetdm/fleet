@@ -137,14 +137,14 @@ func (ds *Datastore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, te
 			vpp_apps.icon_url AS vpp_icon_url,
 			COALESCE(software_titles.name, vpp_apps.name) AS software_title,
 			software_installers.filename AS filename,
-			teams.name AS team_name,
-			teams.id AS team_id,
+			COALESCE(teams.name, 'no team') AS team_name,
+			COALESCE(teams.id, 0) AS team_id,
 			COALESCE(software_installers.self_service, vpp_apps_teams.self_service) AS self_service,
 			software_titles.id AS software_title_id,
 			vpp_apps.platform AS platform
 		FROM software_title_icons
 		INNER JOIN software_titles ON software_title_icons.software_title_id = software_titles.id
-		INNER JOIN teams ON software_title_icons.team_id = teams.id
+		LEFT JOIN teams ON software_title_icons.team_id = teams.id
 		LEFT JOIN software_installers ON software_installers.title_id = software_titles.id
 		LEFT JOIN vpp_apps ON vpp_apps.title_id = software_titles.id
 		LEFT JOIN vpp_apps_teams ON vpp_apps_teams.adam_id = vpp_apps.adam_id AND vpp_apps_teams.platform = vpp_apps.platform
