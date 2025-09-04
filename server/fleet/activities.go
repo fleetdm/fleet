@@ -198,6 +198,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
