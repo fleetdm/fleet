@@ -25,7 +25,11 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice } from "interfaces/platform";
+import {
+  HOST_LINUX_PLATFORMS,
+  isAppleDevice,
+  isLinuxLike,
+} from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
@@ -79,6 +83,8 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+
+import SettingUpYourDevice from "./components/SettingUpYourDevice";
 
 const baseClass = "device-user";
 
@@ -320,7 +326,6 @@ const DeviceUserPage = ({
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const {
-    // TODO - iron out layering of this data
     data: softwareSetupStatuses,
     isLoading: isLoadingSetupSoftware,
     isError: isErrorSetupSoftware,
@@ -335,7 +340,7 @@ const DeviceUserPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.setup_experience_results.software,
-      enabled: host && ["linux", "darwin"].includes(host.platform), // TODO - add windows with next iteration
+      enabled: host && isLinuxLike(host.platform), // TODO - add windows with next iteration?
       refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
     }
@@ -484,9 +489,10 @@ const DeviceUserPage = ({
       return <DataError description="Could not get software setup status." />;
     }
     if (getIsSettingUpSoftware(softwareSetupStatuses)) {
-      return <></>;
-      // TODO
-      // return <SettingUpYourDevice softwareStatuses={softwareSetupStatuses} />;
+      // at this point, softwareSetupStatuses will be non-empty
+      return (
+        <SettingUpYourDevice softwareStatuses={softwareSetupStatuses || []} />
+      );
     }
     return (
       <>

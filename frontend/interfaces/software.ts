@@ -587,11 +587,11 @@ export interface IFleetMaintainedAppDetails {
 }
 
 export const SETUP_SOFTWARE_STATUSES = [
-  "success",
-  "running",
   "pending",
+  "running",
+  "success",
   "failure",
-  "cancelled",
+  "cancelled", // server should be aggregating cancelled installs with failed, check here just in case
 ] as const;
 
 export type SetupSoftwareStatus = typeof SETUP_SOFTWARE_STATUSES[number];
