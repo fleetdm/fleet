@@ -2079,7 +2079,7 @@ func (c *Client) DoGitOps(
 
 		// Put in default value for enable_disk_encryption
 		enableDiskEncryption := false
-		requireBitLockerPIN := false	
+		requireBitLockerPIN := false
 		if incoming.Controls.EnableDiskEncryption != nil {
 			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
 		}
