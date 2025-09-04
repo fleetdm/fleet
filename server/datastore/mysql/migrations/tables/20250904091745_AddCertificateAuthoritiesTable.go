@@ -8,16 +8,17 @@ import (
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250811084533, Down_20250811084533)
+	MigrationClient.AddMigration(Up_20250904091745, Down_20250904091745)
 }
 
-// LegacyIntegrationsWithCertAuthorties represents the legacy integrations configuration when it included certificate authorities.
-type LegacyIntegrationsWithCertAuthorties struct {
+// LegacyIntegrationsWithCertAuthorities represents the legacy integrations configuration when it included certificate authorities.
+type LegacyIntegrationsWithCertAuthorities struct {
 	Jira           []*fleet.JiraIntegration           `json:"jira"`
 	Zendesk        []*fleet.ZendeskIntegration        `json:"zendesk"`
 	GoogleCalendar []*fleet.GoogleCalendarIntegration `json:"google_calendar"`
@@ -47,7 +48,7 @@ type dbCertificateAuthority struct {
 	ClientSecretEncrypted []byte `db:"client_secret_encrypted"`
 }
 
-func Up_20250811084533(tx *sql.Tx) error {
+func Up_20250904091745(tx *sql.Tx) error {
 	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 	stmt := `
 	CREATE TABLE IF NOT EXISTS certificate_authorities (
@@ -97,11 +98,12 @@ func Up_20250811084533(tx *sql.Tx) error {
 
 	// Populate the table with existing data from app_config_json
 	appConfigSelect := `SELECT json_value->>"$.integrations" FROM app_config_json LIMIT 1`
-	var integrations LegacyIntegrationsWithCertAuthorties
+	var integrations LegacyIntegrationsWithCertAuthorities
 	jsonBytes := []byte{}
 	if err := txx.Get(&jsonBytes, appConfigSelect); err != nil {
 		return fmt.Errorf("failed to get app_config_json: %w", err)
 	}
+
 	if err := json.Unmarshal(jsonBytes, &integrations); err != nil {
 		return fmt.Errorf("failed to unmarshal app_config_json: %w", err)
 	}
@@ -177,11 +179,10 @@ FROM
 
 		// Insert NDES SCEP Proxy data
 		ndesCA := integrations.NDESSCEPProxy.Value
-		name := "NDES"
 		dbNDESCA := dbCertificateAuthority{
 			CertificateAuthority: fleet.CertificateAuthority{
 				Type:     string(fleet.CATypeNDESSCEPProxy),
-				Name:     &name,
+				Name:     ptr.String("NDES"),
 				URL:      &ndesCA.URL,
 				AdminURL: &ndesCA.AdminURL,
 				Username: &ndesCA.Username,
@@ -238,9 +239,17 @@ INSERT INTO certificate_authorities (
 		}
 	}
 
+	// Remove existing CAs from appconfig. We are specifically deleting them by path to avoid any
+	// potential issues roundtripping the JSON value itself
+	removeStmt := `UPDATE app_config_json SET json_value=JSON_REMOVE(json_value, '$.integrations.custom_scep_proxy', '$.integrations.ndes_scep_proxy', '$.integrations.digicert')`
+	_, err = txx.Exec(removeStmt)
+	if err != nil {
+		return fmt.Errorf("failed to remove certificate authorities from app_config: %w", err)
+	}
+
 	return nil
 }
 
-func Down_20250811084533(tx *sql.Tx) error {
+func Down_20250904091745(tx *sql.Tx) error {
 	return nil
 }
