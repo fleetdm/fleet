@@ -11425,7 +11425,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TitleID:           titleID,
 			TeamID:            nil,
 		}, http.StatusOK, "")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11485,7 +11485,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11504,7 +11504,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
@@ -11628,7 +11628,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -11718,7 +11718,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": true}`, 0)
+			`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null, "team_id": null, "self_service": true}`, 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -12098,17 +12098,9 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	}
 	_, err = s.ds.UpdateHostSoftware(ctx, host1.ID, software1)
 	require.NoError(t, err)
-	var titleID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		err := sqlx.GetContext(ctx, q, &titleID, "SELECT id FROM software_titles")
-		if err != nil {
-			return err
-		}
-		return nil
-	})
 	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
 	require.NoError(t, err)
-	_, _, err = s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+	_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		InstallScript:    "hello",
 		InstallerFile:    tfr1,
 		StorageID:        "storage1",
