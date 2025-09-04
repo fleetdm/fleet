@@ -62,6 +62,10 @@ func NewClient(addr string, insecureSkipVerify bool, rootCA, urlPrefix string, o
 		}
 	}
 
+	if client.errWriter == nil {
+		client.errWriter = os.Stderr
+	}
+
 	return client, nil
 }
 
@@ -249,12 +253,18 @@ func (l *logRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
 	fmt.Fprintf(os.Stderr, "%s %s %s (%s)\n", res.Request.Method, res.Request.URL, res.Status, took)
 
 	resBody := &bytes.Buffer{}
-	resBodyReader := io.TeeReader(res.Body, resBody)
-	if _, err := io.Copy(os.Stderr, resBodyReader); err != nil {
-		fmt.Fprintf(os.Stderr, "Read body error: %v", err)
-		return nil, err
+	if _, err := io.Copy(resBody, res.Body); err != nil {
+		return nil, fmt.Errorf("response buffer copy: %w", err)
 	}
 	res.Body = io.NopCloser(resBody)
+
+	// Only print text output, don't flood the terminal with binary content
+	if utf8.Valid(resBody.Bytes()) {
+		fmt.Fprintf(os.Stderr, "[body length: %d bytes]\n", resBody.Len())
+		fmt.Fprint(os.Stderr, resBody.String())
+	} else {
+		fmt.Fprintf(os.Stderr, "[binary output suppressed: %d bytes]\n", resBody.Len())
+	}
 
 	return res, nil
 }
@@ -357,15 +367,46 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 			if platform == "macos" {
 				switch ext {
 				case ".mobileconfig", ".xml": // allowing .xml for backwards compatibility
-					mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
-					if err != nil {
-						errForMsg := errors.Unwrap(err)
-						if errForMsg == nil {
-							errForMsg = err
+					// For validation, we need to expand FLEET_SECRET_ variables in <data> tags so the XML parser
+					// can properly validate the profile structure. However, we must be careful not to expose
+					// secrets in the profile name.
+					containsSecrets := len(fleet.ContainsPrefixVars(string(fileContents), fleet.ServerSecretPrefix)) > 0
+
+					if containsSecrets {
+						// If profile contains secrets, check for secrets in PayloadDisplayName first
+						if err := fleet.ValidateNoSecretsInProfileName(fileContents); err != nil {
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, err)
 						}
-						return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+
+						// Expand secrets for validation
+						validationContents, expandErr := spec.ExpandEnvBytesIncludingSecrets(fileContents)
+						if expandErr != nil {
+							return nil, fmt.Errorf("%s: expanding secrets for validation: %w", prefixErrMsg, expandErr)
+						}
+
+						// Validate the profile structure with expanded secrets
+						mcExpanded, validationErr := fleet.NewMDMAppleConfigProfile(validationContents, nil)
+						if validationErr != nil {
+							errForMsg := errors.Unwrap(validationErr)
+							if errForMsg == nil {
+								errForMsg = validationErr
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+
+						name = strings.TrimSpace(mcExpanded.Name)
+					} else {
+						// No secrets, parse normally
+						mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
+						if err != nil {
+							errForMsg := errors.Unwrap(err)
+							if errForMsg == nil {
+								errForMsg = err
+							}
+							return nil, fmt.Errorf("%s: %w", prefixErrMsg, errForMsg)
+						}
+						name = strings.TrimSpace(mc.Name)
 					}
-					name = strings.TrimSpace(mc.Name)
 				case ".json":
 					if mdm.GetRawProfilePlatform(fileContents) != "darwin" {
 						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Declaration profiles should include valid JSON.")
@@ -412,6 +453,16 @@ type fileContent struct {
 	Filename string
 	Content  []byte
 }
+
+type errConflictingSoftwareSetupExperienceDeclarations struct {
+	URL string
+}
+
+func (e errConflictingSoftwareSetupExperienceDeclarations) Error() string {
+	return fmt.Sprintf("Couldn't edit software (%s). Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.", e.URL)
+}
+
+var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app store apps. Setup experience may only be specified directly on software or within macos_setup, but not both. See https://fleetdm.com/learn-more-about/yaml-software-setup-experience.")
 
 // TODO: as confirmed by Noah and Marko on Slack:
 //
@@ -776,6 +827,13 @@ func (c *Client) ApplyGroup(
 					_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{AppStoreID: app.AppStoreID}]
 					installDuringSetup = &ok
 				}
+				if app.InstallDuringSetup.Valid {
+					if len(installDuringSetupKeys) > 0 {
+						return nil, nil, nil, nil, errConflictingVPPSetupExperienceDeclarations
+					}
+					installDuringSetup = &app.InstallDuringSetup.Value
+				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -1107,6 +1165,14 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			_, ok := installDuringSetupKeys[fleet.MacOSSetupSoftware{PackagePath: si.ReferencedYamlPath}]
 			installDuringSetup = &ok
 		}
+
+		if si.InstallDuringSetup.Valid {
+			if len(installDuringSetupKeys) > 0 {
+				return nil, errConflictingSoftwareSetupExperienceDeclarations{si.URL}
+			}
+			installDuringSetup = &si.InstallDuringSetup.Value
+		}
+
 		softwarePayloads[i] = fleet.SoftwareInstallerPayload{
 			URL:                si.URL,
 			SelfService:        si.SelfService,
@@ -1612,8 +1678,7 @@ func (c *Client) DoGitOps(
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 	teamDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions,
-	appConfig *fleet.EnrichedAppConfig,
-	// pass-by-ref to build lists
+	appConfig *fleet.EnrichedAppConfig, // pass-by-ref to build lists
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
@@ -2011,17 +2076,22 @@ func (c *Client) DoGitOps(
 				windowsUpdates["grace_period_days"] = nil
 			}
 		}
+
 		// Put in default value for enable_disk_encryption
+		enableDiskEncryption := false
+		requireBitLockerPIN := false	
 		if incoming.Controls.EnableDiskEncryption != nil {
-			mdmAppConfig["enable_disk_encryption"] = incoming.Controls.EnableDiskEncryption
-		} else {
-			mdmAppConfig["enable_disk_encryption"] = false
+			enableDiskEncryption = incoming.Controls.EnableDiskEncryption.(bool)
 		}
 		if incoming.Controls.RequireBitLockerPIN != nil {
-			mdmAppConfig["windows_require_bitlocker_pin"] = incoming.Controls.RequireBitLockerPIN
-		} else {
-			mdmAppConfig["windows_require_bitlocker_pin"] = false
+			requireBitlockerPIN = incoming.Controls.RequireBitLockerPIN.(bool)
 		}
+		if !enableDiskEncryption && requireBitLockerPIN {
+			return nil, nil, errors.New("enable_disk_encryption cannot be false if windows_require_bitlocker_pin is true")
+		}
+
+		mdmAppConfig["enable_disk_encryption"] = enableDiskEncryption
+		mdmAppConfig["windows_require_bitlocker_pin"] = requireBitLockerPIN
 
 		if incoming.TeamName != nil {
 			team["gitops_filename"] = filename
@@ -2073,6 +2143,10 @@ func (c *Client) DoGitOps(
 			noTeamSoftwareInstallers, noTeamVPPApps, err := c.doGitOpsNoTeamSetupAndSoftware(incoming, baseDir, appConfig, logFn, dryRun)
 			if err != nil {
 				return nil, nil, err
+			}
+			// Apply webhook settings for "No Team"
+			if err := c.doGitOpsNoTeamWebhookSettings(config, appConfig, logFn, dryRun); err != nil {
+				return nil, nil, fmt.Errorf("applying no team webhook settings: %w", err)
 			}
 			teamSoftwareInstallers = noTeamSoftwareInstallers
 			teamVPPApps = noTeamVPPApps
@@ -2156,6 +2230,13 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 			appsByAppID[vppApp.AppStoreID] = *vppApp
 
 			_, installDuringSetup := noTeamSoftwareMacOSSetup[fleet.MacOSSetupSoftware{AppStoreID: vppApp.AppStoreID}]
+			if vppApp.InstallDuringSetup.Valid {
+				if len(noTeamSoftwareMacOSSetup) > 0 {
+					return nil, nil, errConflictingVPPSetupExperienceDeclarations
+				}
+				installDuringSetup = vppApp.InstallDuringSetup.Value
+			}
+
 			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
@@ -2199,6 +2280,71 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		logFn("[+] applied 'No Team' software packages\n")
 	}
 	return softwareInstallers, vppApps, nil
+}
+
+// extractFailingPoliciesWebhook extracts and processes failing policies webhook settings from a map
+func extractFailingPoliciesWebhook(webhookSettings interface{}) fleet.FailingPoliciesWebhookSettings {
+	// Marshal the interface{} to JSON, which handles type conversions
+	jsonBytes, err := json.Marshal(webhookSettings)
+	if err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	// Unmarshal into a wrapper struct to extract failing_policies_webhook
+	var ws struct {
+		FailingPoliciesWebhook fleet.FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+	}
+	if err := json.Unmarshal(jsonBytes, &ws); err != nil {
+		return fleet.FailingPoliciesWebhookSettings{Enable: false}
+	}
+
+	return ws.FailingPoliciesWebhook
+}
+
+func (c *Client) doGitOpsNoTeamWebhookSettings(
+	config *spec.GitOps,
+	appCfg *fleet.EnrichedAppConfig,
+	logFn func(format string, args ...interface{}),
+	dryRun bool,
+) error {
+	// Check if premium license is available for No Team webhook settings
+	if !config.IsNoTeam() || appCfg == nil || appCfg.License == nil || !appCfg.License.IsPremium() {
+		return nil
+	}
+
+	// Apply webhook settings for "No Team"
+	// If webhook_settings are not specified, they will be applied as nil to clear existing settings
+	teamPayload := fleet.TeamPayload{
+		WebhookSettings: &fleet.TeamWebhookSettings{
+			FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+				Enable: false,
+			},
+		},
+	}
+
+	// Extract webhook settings if they exist
+	if config.TeamSettings != nil {
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			fpw := extractFailingPoliciesWebhook(webhookSettings)
+			teamPayload.WebhookSettings.FailingPoliciesWebhook = fpw
+		}
+	}
+
+	logFn("[+] applying webhook settings for 'No team'\n")
+
+	if !dryRun {
+		// Apply the webhook settings to team ID 0 using the PATCH endpoint
+		var teamResp interface{}
+		err := c.authenticatedRequest(teamPayload, "PATCH", "/api/latest/fleet/teams/0", &teamResp)
+		if err != nil {
+			return fmt.Errorf("applying no team webhook settings: %w", err)
+		}
+		logFn("[+] applied webhook settings for 'No team'\n")
+	} else {
+		logFn("[+] would've applied webhook settings for 'No team'\n")
+	}
+
+	return nil
 }
 
 func pluralize(count int, ifSingle string, ifPlural string) string {

@@ -32,7 +32,7 @@ import { SingleValue } from "react-select-5";
 import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import TableContainer from "components/TableContainer";
 import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-import Button from "components/buttons/Button";
+
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import CustomLink from "components/CustomLink";
@@ -41,7 +41,6 @@ import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
 import SearchField from "components/forms/fields/SearchField";
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
-import Pagination from "components/Pagination";
 
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
@@ -50,8 +49,10 @@ import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetai
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 
+import UpdatesCard from "./UpdatesCard/UpdatesCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
+import SoftwareInstructionsModal from "./OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
@@ -63,7 +64,6 @@ import {
 } from "./helpers";
 import CategoriesMenu from "./CategoriesMenu";
 import { getUiStatus } from "../helpers";
-import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 const baseClass = "software-self-service";
 
@@ -123,10 +123,14 @@ export const parseSelfServiceQueryParams = (queryParams: {
   };
 };
 
-const getUpdatesPageSize = (width: number): number => {
-  if (width >= 1400) return 4;
-  if (width >= 880) return 3;
-  return 2;
+const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
+  if (hostSW.source === "apps" && hostSW.installed_versions) {
+    const filePath = hostSW.installed_versions[0].installed_paths[0];
+    // Match the last segment ending in .app and extract the name before .app
+    const match = filePath.match(/\/([^/]+)\.app$/);
+    return match ? match[1] : hostSW.name;
+  }
+  return hostSW.name;
 };
 
 const SoftwareSelfService = ({
@@ -168,9 +172,8 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
-  const [updatesPage, setUpdatesPage] = useState(0);
-  const [updatesPageSize, setUpdatesPageSize] = useState(() =>
-    getUpdatesPageSize(window.innerWidth)
+  const [showOpenInstructionsModal, setShowOpenInstructionsModal] = useState(
+    false
   );
 
   const enhancedSoftware = useMemo(() => {
@@ -181,68 +184,16 @@ const SoftwareSelfService = ({
     }));
   }, [selfServiceData, hostSoftwareUpdatedAt]);
 
-  const updateSoftware = enhancedSoftware.filter(
-    (software) =>
-      software.ui_status === "updating" ||
-      software.ui_status === "recently_updated" ||
-      software.ui_status === "pending_update" || // Should never show as self-service = host online
-      software.ui_status === "update_available" ||
-      software.ui_status === "failed_install_update_available" ||
-      software.ui_status === "failed_uninstall_update_available"
-  );
-
-  // The page size only changes at 2 breakpoints and state update is very lightweight.
-  // Page size controls the number of shown cards and current page; no API calls or
-  // expensive UI updates occur so debouncing the resize handler isn’t necessary.
-  useEffect(() => {
-    const handleResize = () => {
-      const newPageSize = getUpdatesPageSize(window.innerWidth);
-      setUpdatesPageSize(() => {
-        const newTotalPages = Math.ceil(updateSoftware.length / newPageSize);
-        setUpdatesPage((prevPage) => {
-          // If the current page is now out of range, go to the last valid page
-          return Math.min(prevPage, Math.max(0, newTotalPages - 1));
-        });
-        return newPageSize;
-      });
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, [updateSoftware.length]);
-
-  const paginatedUpdates = useMemo(() => {
-    const start = updatesPage * updatesPageSize;
-    return updateSoftware.slice(start, start + updatesPageSize);
-  }, [updateSoftware, updatesPage, updatesPageSize]);
-
-  const totalUpdatesPages = Math.ceil(updateSoftware.length / updatesPageSize);
-
-  const onNextUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.min(prev + 1, totalUpdatesPages - 1));
-  };
-
-  const onPreviousUpdatesPage = () => {
-    setUpdatesPage((prev) => Math.max(prev - 1, 0));
-  };
-
-  const disableUpdateAllButton = useMemo(() => {
-    // Disable if all statuses are "updating" or "recently_updated"
-    return (
-      updateSoftware.length > 0 &&
-      updateSoftware.every(
-        (software) =>
-          software.ui_status === "updating" ||
-          software.ui_status === "recently_updated"
-      )
-    );
-  }, [updateSoftware]);
-
-  const selectedSoftware = useRef<{
+  const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
     softwareName: string;
     softwareInstallerType?: string;
     version: string;
+  } | null>(null);
+
+  const selectedSoftwareForInstructions = useRef<{
+    softwareName: string;
+    softwareSource: string;
   } | null>(null);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
@@ -432,7 +383,7 @@ const SoftwareSelfService = ({
 
   const onClickUninstallAction = useCallback(
     (hostSW: IHostSoftwareWithUiStatus) => {
-      selectedSoftware.current = {
+      selectedSoftwareForUninstall.current = {
         softwareId: hostSW.id,
         softwareName: hostSW.name,
         softwareInstallerType: getExtensionFromFileName(
@@ -441,6 +392,17 @@ const SoftwareSelfService = ({
         version: hostSW.software_package?.version || "",
       };
       setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
+  const onClickOpenInstructionsAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftwareForInstructions.current = {
+        softwareName: getInstallerName(hostSW),
+        softwareSource: hostSW.source,
+      };
+      setShowOpenInstructionsModal(true);
     },
     []
   );
@@ -601,13 +563,18 @@ const SoftwareSelfService = ({
     }
   };
 
+  const onExitSoftwareInstructionsModal = () => {
+    selectedSoftwareForUninstall.current = null;
+    setShowOpenInstructionsModal(false);
+  };
+
   const onExitUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
   };
 
   const onSuccessUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
     onInstallOrUninstall();
   };
@@ -654,6 +621,7 @@ const SoftwareSelfService = ({
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
+      onClickOpenInstructionsAction,
     });
   }, [
     onShowUpdateDetails,
@@ -662,46 +630,8 @@ const SoftwareSelfService = ({
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
+    onClickOpenInstructionsAction,
   ]);
-
-  const renderUpdatesCard = () => {
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      return <DeviceUserError />;
-    }
-
-    return (
-      <>
-        <div className={`${baseClass}__items`}>
-          {paginatedUpdates.map((s) => {
-            return (
-              <UpdateSoftwareItem
-                key={s.id}
-                software={s}
-                onClickUpdateAction={onClickUpdateAction}
-                onShowInstallerDetails={() => {
-                  onClickFailedUpdateStatus(s);
-                }}
-              />
-            );
-          })}
-        </div>
-        <Pagination
-          disableNext={updatesPage >= totalUpdatesPages - 1}
-          disablePrev={updatesPage === 0}
-          hidePagination={
-            updatesPage >= totalUpdatesPages - 1 && updatesPage === 0
-          }
-          onNextPage={onNextUpdatesPage}
-          onPrevPage={onPreviousUpdatesPage}
-          className={`${baseClass}__pagination`}
-        />
-      </>
-    );
-  };
 
   const renderSelfServiceCard = () => {
     const renderHeaderFilters = () => (
@@ -808,33 +738,14 @@ const SoftwareSelfService = ({
 
   return (
     <div className={baseClass}>
-      {paginatedUpdates.length > 0 && (
-        <Card
-          className={`${baseClass}__updates-card`}
-          borderRadiusSize="xxlarge"
-          paddingSize="xlarge"
-          includeShadow
-        >
-          <div className={`${baseClass}__header`}>
-            <CardHeader
-              header="Updates"
-              subheader={
-                <>
-                  Your device has outdated software. Update to address potential
-                  security vulnerabilities or compatibility issues.
-                </>
-              }
-            />
-            <Button
-              disabled={disableUpdateAllButton}
-              onClick={onClickUpdateAll}
-            >
-              Update all
-            </Button>
-          </div>
-          {renderUpdatesCard()}
-        </Card>
-      )}
+      <UpdatesCard
+        enhancedSoftware={enhancedSoftware}
+        isLoading={isLoading}
+        isError={isError}
+        onClickUpdateAll={onClickUpdateAll}
+        onClickUpdateAction={onClickUpdateAction}
+        onClickFailedUpdateStatus={onClickFailedUpdateStatus}
+      />
       <Card
         className={`${baseClass}__self-service-card`}
         borderRadiusSize="xxlarge"
@@ -857,15 +768,22 @@ const SoftwareSelfService = ({
         />
         {renderSelfServiceCard()}
       </Card>
-      {showUninstallSoftwareModal && selectedSoftware.current && (
+      {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
-          softwareId={selectedSoftware.current.softwareId}
-          softwareName={selectedSoftware.current.softwareName}
-          softwareInstallerType={selectedSoftware.current.softwareInstallerType}
-          version={selectedSoftware.current.version}
+          softwareId={selectedSoftwareForUninstall.current.softwareId}
+          softwareName={selectedSoftwareForUninstall.current.softwareName}
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {showOpenInstructionsModal && selectedSoftwareForInstructions.current && (
+        <SoftwareInstructionsModal
+          softwareName={selectedSoftwareForInstructions.current.softwareName}
+          softwareSource={
+            selectedSoftwareForInstructions.current.softwareSource
+          }
+          onExit={onExitSoftwareInstructionsModal}
         />
       )}
       {selectedHostSWInstallDetails && (

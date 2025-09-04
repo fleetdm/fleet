@@ -93,9 +93,9 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	<key>PayloadContent</key>
 	<array/>
 	<key>PayloadDisplayName</key>
-	<string>$FLEET_SECRET_INVALID</string>
+	<string>My profile</string>
 	<key>PayloadIdentifier</key>
-	<string>N3</string>
+	<string>$FLEET_SECRET_INVALID</string>
 	<key>PayloadType</key>
 	<string>Configuration</string>
 	<key>PayloadUUID</key>
@@ -109,6 +109,31 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "$FLEET_SECRET_INVALID")
+
+	invalidSecretsProfile = []byte(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array/>
+	<key>PayloadDisplayName</key>
+	<string>$FLEET_SECRET_INVALID</string>
+	<key>PayloadIdentifier</key>
+	<string>N3</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>601E0B42-0989-4FAD-A61B-18656BA3670E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
+`)
+
+	res = s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{invalidSecretsProfile}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 
 	// create a new team
 	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "batch_set_mdm_profiles"})
@@ -204,7 +229,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Use secret variables in a profile
 	secretIdentifier := "secret-identifier-1"
 	secretType := "secret.type.1"
-	secretName := "secretName"
 	secretProfile := string(mobileconfigForTest("NS1", "IS1"))
 	req := createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
@@ -215,10 +239,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 			{
 				Name:  "FLEET_SECRET_TYPE",
 				Value: secretType,
-			},
-			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName,
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -233,7 +253,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	teamProfiles = [][]byte{
 		mobileconfigForTest("N4", "I4"),
 		mobileconfigForTestWithContent("N5", "I5", "$FLEET_SECRET_IDENTIFIER", "${FLEET_SECRET_TYPE}",
-			"$FLEET_SECRET_NAME"),
+			"InnerName5"),
 		// The whole profile is one big secret.
 		[]byte("$FLEET_SECRET_PROFILE"),
 	}
@@ -253,7 +273,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	// Manually replace the expected secret variables in the profile
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_IDENTIFIER", secretIdentifier))
 	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfiles[1] = []byte(strings.ReplaceAll(string(wantTeamProfiles[1]), "$FLEET_SECRET_NAME", secretName))
 	wantTeamProfiles[2] = []byte(secretProfile)
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfiles, installs)
@@ -272,12 +291,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "newSecretName"
+	secretType = "new.secret.type.1"
 	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -297,7 +320,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
@@ -343,12 +365,16 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	require.Empty(t, removes)
 
 	// Change the secret variable and upload the profiles again. We should see the profile with updated secret installed.
-	secretName = "new2SecretName"
+	secretType = "new2.secret.type.1"
 	req = createSecretVariablesRequest{
 		SecretVariables: []fleet.SecretVariable{
 			{
-				Name:  "FLEET_SECRET_NAME",
-				Value: secretName, // changed
+				Name:  "FLEET_SECRET_IDENTIFIER",
+				Value: secretIdentifier, // did not change
+			},
+			{
+				Name:  "FLEET_SECRET_TYPE",
+				Value: secretType, // changed
 			},
 			{
 				Name:  "FLEET_SECRET_PROFILE",
@@ -368,7 +394,6 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_IDENTIFIER",
 		secretIdentifier))
 	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "${FLEET_SECRET_TYPE}", secretType))
-	wantTeamProfilesChanged[0] = []byte(strings.ReplaceAll(string(wantTeamProfilesChanged[0]), "$FLEET_SECRET_NAME", secretName))
 	// verify that we should install the team profiles
 	s.signedProfilesMatch(wantTeamProfilesChanged, installs)
 	wantTeamProfiles[1] = wantTeamProfilesChanged[0]
@@ -2436,7 +2461,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	}
 
 	triggerReconcileProfilesMarkVerifying := func() {
+		t.Logf("[TestHostMDMAppleProfilesStatus] Calling awaitTriggerProfileSchedule at %s", time.Now().Format(time.RFC3339))
 		s.awaitTriggerProfileSchedule(t)
+		t.Logf("[TestHostMDMAppleProfilesStatus] awaitTriggerProfileSchedule completed, updating profiles to verifying at %s", time.Now().Format(time.RFC3339))
 		// this will only mark them as "pending", as the response to confirm
 		// profile deployment is asynchronous, so we simulate it here by
 		// updating any "pending" (not NULL) profiles to "verifying"
@@ -2444,6 +2471,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 			_, err := q.ExecContext(ctx, `UPDATE host_mdm_apple_profiles SET status = ? WHERE status = ?`, fleet.OSSettingsVerifying, fleet.OSSettingsPending)
 			return err
 		})
+		t.Logf("[TestHostMDMAppleProfilesStatus] Profiles updated to verifying status at %s", time.Now().Format(time.RFC3339))
 	}
 
 	assignHostToTeam := func(h *fleet.Host, teamID *uint) {
@@ -2509,7 +2537,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	h2, _, _ := createManualMDMEnrollWithOrbit(globalEnrollSec, false)
 	require.Nil(t, h2.TeamID)
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting FIRST cron run (after h1, h2 enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] FIRST cron run completed at %s", time.Now().Format(time.RFC3339))
 
 	// G3 is user-scoped and the h2 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and fail the profile
@@ -2547,7 +2577,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.Equal(t, tm1.ID, *h4.TeamID)
 
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting SECOND cron run (after h3, h4 enrolled in team1) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] SECOND cron run completed at %s", time.Now().Format(time.RFC3339))
 
 	// T1.3 is user-scoped and the h4 host doesn't have a user-channel yet (and
 	// enrolled just now, so the minimum delay to give up and send the
@@ -2580,9 +2612,11 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	assert.Contains(t, enrollmentIds, h4.UUID)
 
 	// switch a no team host (h1) to a team (tm2)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Transferring host h1 (id=%d) from no team to team tm2 (id=%d) at %s", h1.ID, tm2.ID, time.Now().Format(time.RFC3339))
 	var moveHostResp addHostsToTeamResponse
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &tm2.ID, HostIDs: []uint{h1.ID}}, http.StatusOK, &moveHostResp)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Host h1 transfer completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
 			{Identifier: "G1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2610,7 +2644,9 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	require.NoError(t, err)
 
 	// run the cron
+	t.Logf("[TestHostMDMAppleProfilesStatus] Starting THIRD cron run (after h3->tm2, h4 user enrolled) at %s", time.Now().Format(time.RFC3339))
 	s.awaitTriggerProfileSchedule(t)
+	t.Logf("[TestHostMDMAppleProfilesStatus] THIRD cron run completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},
@@ -2630,8 +2666,10 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// switch a team host (h4) to no team
+	t.Logf("[TestHostMDMAppleProfilesStatus] Transferring host h4 (id=%d) from team tm1 to NO TEAM (nil) at %s", h4.ID, time.Now().Format(time.RFC3339))
 	s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{h4.ID}}, http.StatusOK, &moveHostResp)
+	t.Logf("[TestHostMDMAppleProfilesStatus] Host h4 transfer to NO TEAM completed at %s", time.Now().Format(time.RFC3339))
 	s.assertHostAppleConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h3: {
 			{Identifier: "T1.1", OperationType: fleet.MDMOperationTypeRemove, Status: &fleet.MDMDeliveryPending},

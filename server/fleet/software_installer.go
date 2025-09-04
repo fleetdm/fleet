@@ -546,14 +546,15 @@ type SoftwarePackageOrApp struct {
 }
 
 type SoftwarePackageSpec struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	URL                string                `json:"url"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 
 	// FMA
 	Slug *string `json:"slug"`
@@ -580,6 +581,11 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	return spec
 }
 
+func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
+		spec.SelfService || spec.InstallDuringSetup.Valid
+}
+
 func resolveApplyRelativePath(baseDir string, path string) string {
 	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
 		return filepath.Join(baseDir, path)
@@ -589,27 +595,29 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug              string                `json:"slug"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
-	Categories        []string              `json:"categories"`
+	Slug               string                `json:"slug"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	Categories         []string              `json:"categories"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
-		Slug:              &spec.Slug,
-		PreInstallQuery:   spec.PreInstallQuery,
-		InstallScript:     spec.InstallScript,
-		PostInstallScript: spec.PostInstallScript,
-		UninstallScript:   spec.UninstallScript,
-		SelfService:       spec.SelfService,
-		LabelsIncludeAny:  spec.LabelsIncludeAny,
-		LabelsExcludeAny:  spec.LabelsExcludeAny,
+		Slug:               &spec.Slug,
+		PreInstallQuery:    spec.PreInstallQuery,
+		InstallScript:      spec.InstallScript,
+		PostInstallScript:  spec.PostInstallScript,
+		UninstallScript:    spec.UninstallScript,
+		SelfService:        spec.SelfService,
+		LabelsIncludeAny:   spec.LabelsIncludeAny,
+		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		InstallDuringSetup: spec.InstallDuringSetup,
 	}
 }
 
@@ -626,6 +634,94 @@ type SoftwareSpec struct {
 	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
 	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
 	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
+}
+
+// Copy returns a deep copy of SoftwareSpec.
+func (s *SoftwareSpec) Copy() *SoftwareSpec {
+	if s == nil {
+		return nil
+	}
+
+	out := &SoftwareSpec{}
+
+	// Packages
+	out.Packages.Set = s.Packages.Set
+	if s.Packages.Set {
+		if len(s.Packages.Value) > 0 {
+			out.Packages.Value = make([]SoftwarePackageSpec, len(s.Packages.Value))
+			for i := range s.Packages.Value {
+				p := s.Packages.Value[i]
+				pCopy := p
+				if p.LabelsIncludeAny != nil {
+					pCopy.LabelsIncludeAny = append([]string(nil), p.LabelsIncludeAny...)
+				}
+				if p.LabelsExcludeAny != nil {
+					pCopy.LabelsExcludeAny = append([]string(nil), p.LabelsExcludeAny...)
+				}
+				if p.Categories != nil {
+					pCopy.Categories = append([]string(nil), p.Categories...)
+				}
+				if p.Slug != nil {
+					slugVal := *p.Slug
+					pCopy.Slug = &slugVal
+				}
+				out.Packages.Value[i] = pCopy
+			}
+		} else {
+			// Preserve Set=true even when the slice is empty
+			out.Packages.Value = nil
+		}
+	}
+
+	// FleetMaintainedApps
+	out.FleetMaintainedApps.Set = s.FleetMaintainedApps.Set
+	if s.FleetMaintainedApps.Set {
+		if len(s.FleetMaintainedApps.Value) > 0 {
+			out.FleetMaintainedApps.Value = make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value))
+			for i := range s.FleetMaintainedApps.Value {
+				m := s.FleetMaintainedApps.Value[i]
+				mCopy := m
+				if m.LabelsIncludeAny != nil {
+					mCopy.LabelsIncludeAny = append([]string(nil), m.LabelsIncludeAny...)
+				}
+				if m.LabelsExcludeAny != nil {
+					mCopy.LabelsExcludeAny = append([]string(nil), m.LabelsExcludeAny...)
+				}
+				if m.Categories != nil {
+					mCopy.Categories = append([]string(nil), m.Categories...)
+				}
+				out.FleetMaintainedApps.Value[i] = mCopy
+			}
+		} else {
+			out.FleetMaintainedApps.Value = nil
+		}
+	}
+
+	// AppStoreApps
+	out.AppStoreApps.Set = s.AppStoreApps.Set
+	if s.AppStoreApps.Set {
+		if len(s.AppStoreApps.Value) > 0 {
+			out.AppStoreApps.Value = make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value))
+			for i := range s.AppStoreApps.Value {
+				app := s.AppStoreApps.Value[i]
+				appCopy := app
+				if app.LabelsIncludeAny != nil {
+					appCopy.LabelsIncludeAny = append([]string(nil), app.LabelsIncludeAny...)
+				}
+				if app.LabelsExcludeAny != nil {
+					appCopy.LabelsExcludeAny = append([]string(nil), app.LabelsExcludeAny...)
+				}
+				if app.Categories != nil {
+					appCopy.Categories = append([]string(nil), app.Categories...)
+				}
+				out.AppStoreApps.Value[i] = appCopy
+			}
+		} else {
+			out.AppStoreApps.Value = nil
+		}
+	}
+
+	return out
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

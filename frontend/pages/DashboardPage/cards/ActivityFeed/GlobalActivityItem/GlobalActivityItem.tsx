@@ -173,10 +173,19 @@ const TAGGED_TEMPLATES = {
     );
   },
   userFailedLogin: (activity: IActivity) => {
+    const { email, public_ip } = activity.details || {};
+
+    const actor = email ? (
+      <>
+        Somebody using <b>{email}</b>
+      </>
+    ) : (
+      <>Somebody</>
+    );
+
     return (
       <>
-        Somebody using <b>{activity.details?.email}</b> failed to log in from
-        public IP {activity.details?.public_ip}.
+        {actor} failed to log in from public IP {public_ip}.
       </>
     );
   },
@@ -1365,6 +1374,7 @@ const TAGGED_TEMPLATES = {
     } else if (activity.details?.team_id === 0) {
       teamText = (
         <>
+          {" "}
           for <b>No Team</b>
         </>
       );

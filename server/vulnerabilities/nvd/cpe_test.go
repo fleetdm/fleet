@@ -1313,7 +1313,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.7.1",
 				BundleIdentifier: "com.docker.docker",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.7.1:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1321,7 +1321,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.16.2",
 				BundleIdentifier: "com.electron.dockerdesktop",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.16.2:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1329,7 +1329,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "3.5.0",
 				BundleIdentifier: "com.electron.docker-frontend",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:3.5.0:*:*:*:*:macos:*:*",
 		},
 		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
 		{

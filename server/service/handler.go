@@ -117,7 +117,13 @@ func MakeHandler(
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled {
 		if config.Logging.TracingType == "opentelemetry" {
-			r.Use(otmiddleware.Middleware("fleet"))
+			r.Use(otmiddleware.Middleware(
+				"service",
+				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
+					// Use the guideline for span names: {method} {target}
+					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+					return r.Method + " " + route
+				})))
 		} else {
 			apmgorilla.Instrument(r)
 		}
@@ -503,6 +509,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/cancel", batchScriptCancelEndpoint, batchScriptCancelRequest{})
 	// Deprecated, will remove in favor of batchScriptExecutionStatusEndpoint when batch script details page is ready.
 	ue.GET("/api/_version_/fleet/scripts/batch/summary/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionSummaryEndpoint, batchScriptExecutionSummaryRequest{})
+	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host-results", batchScriptExecutionHostResultsEndpoint, batchScriptExecutionHostResultsRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionStatusEndpoint, batchScriptExecutionStatusRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, batchScriptExecutionListRequest{})
 

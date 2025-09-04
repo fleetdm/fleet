@@ -784,6 +784,12 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	r = bytes.NewReader(mcBytes)
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	mcBytes = mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	r = bytes.NewReader(mcBytes)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {
@@ -806,6 +812,23 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 </dict>
 </plist>
 `, name, identifier, uuid))
+}
+
+func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
+	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	profileWithSecret := mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+
+	// Test multiple profiles where one has a secret in PayloadDisplayName
+	goodProfile := mcBytesForTest("Good Profile", "good.identifier", "UUID1")
+	badProfile := mcBytesForTest("Bad $FLEET_SECRET_KEY Profile", "bad.identifier", "UUID2")
+	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+	assert.ErrorContains(t, err, "profiles[1]")
 }
 
 func TestNewMDMAppleDeclaration(t *testing.T) {
@@ -903,6 +926,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 		return time.Time{}, nil
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
 		return nil
 	}
 	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
@@ -5082,6 +5108,93 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
+		{
+			desc:           "profile with scim full name, user has full name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						GivenName:  ptr.String("First"),
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has given name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:  "fake",
+						GivenName: ptr.String("First"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has family name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user has no full name value",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName: "fake",
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Len(t, targets, 0)
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -5447,6 +5560,17 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				"DIGICERT_PASSWORD_caName", "DIGICERT_DATA_caName", "NDES_SCEP_CHALLENGE", "NDES_SCEP_PROXY_URL",
 				"SCEP_RENEWAL_ID",
 			},
+		},
+		{
+			name: "Custom profile with IdP full name var",
+			profile: string(scopedMobileconfigForTest(
+				"FullName Var",
+				"com.example.fullname",
+				nil,
+				"HOST_END_USER_IDP_FULL_NAME", // will be prefixed to $FLEET_VAR_ by helper
+			)),
+			errMsg: "",
+			vars:   []string{"HOST_END_USER_IDP_FULL_NAME"},
 		},
 	}
 	for _, tc := range cases {

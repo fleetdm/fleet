@@ -177,6 +177,23 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 }
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
+	if teamID == 0 {
+		// Return "No Team" configuration with webhook settings
+		return &fleet.Team{
+			ID:   0,
+			Name: "No team",
+			Config: fleet.TeamConfig{
+				WebhookSettings: fleet.TeamWebhookSettings{
+					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-webhook",
+						PolicyIDs:      []uint{1, 2, 3},
+						HostBatchSize:  100,
+					},
+				},
+			},
+		}, nil
+	}
 	if teamID == 1 {
 		b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 		if err != nil {
@@ -333,6 +350,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:       true,
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
+				Categories:        []string{"Browsers"},
 			},
 		}, nil
 	case 2:
@@ -347,6 +365,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label D",
 				}},
+				Categories:  []string{"Productivity", "Utilities"},
+				SelfService: true,
 			},
 		}, nil
 	default:

@@ -592,11 +592,15 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 		require.NoError(t, ds.LoadHostSoftware(ctx, h, false))
 	}
 
-	require.NoError(t, ds.UpdateOSVersions(ctx))
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+	updateMappings := func() {
+		require.NoError(t, ds.UpdateOSVersions(ctx))
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+		require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+		require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+	}
+
+	updateMappings()
 
 	expectedCVEs := []string{"CVE-2025-0001", "CVE-2025-0002"}
 
@@ -639,11 +643,7 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostOperatingSystem(ctx, host5.ID, *os2))
 	addKernelToHost(host5)
 
-	require.NoError(t, ds.UpdateOSVersions(ctx))
-	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
-	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
-	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-	require.NoError(t, ds.InsertKernelSoftwareMapping(ctx))
+	updateMappings()
 
 	kernels, err = ds.ListKernelsByOS(ctx, os2.OSVersionID, &team1.ID)
 	require.NoError(t, err)
@@ -658,5 +658,22 @@ func testKernelVulnsHostCount(t *testing.T, ds *Datastore) {
 	require.Len(t, kernels, 1)
 	assert.ElementsMatchf(t, expectedCVEs, kernels[0].Vulnerabilities, "unexpected vulnerabilities for kernel %s", kernels[0].Version)
 	assert.Equal(t, uint(4), kernels[0].HostsCount)
+
+	// Delete host 1. We should see the count for the kernel go down to 0.
+	require.NoError(t, ds.DeleteHost(ctx, host1.ID))
+
+	updateMappings()
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		var count uint
+		err := sqlx.GetContext(ctx, q, &count, "SELECT hosts_count FROM kernel_host_counts WHERE os_version_id = ?", os1.OSVersionID)
+		require.NoError(t, err)
+		assert.Zero(t, count)
+		return nil
+	})
+
+	kernels, err = ds.ListKernelsByOS(ctx, os1.OSVersionID, nil)
+	require.NoError(t, err)
+	require.Empty(t, kernels)
 
 }

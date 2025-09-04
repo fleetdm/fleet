@@ -307,6 +307,7 @@ const PlatformWrapper = ({
                 text="adding hosts"
                 newTab
                 multiline
+                variant="banner-link"
               />
             </InfoBanner>
           </div>

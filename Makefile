@@ -232,7 +232,7 @@ endif
 .help-short--test-schema:
 	@echo "Update schema.sql from current migrations"
 test-schema:
-	go run ./tools/dbutils ./server/datastore/mysql/schema.sql ./server/mdm/android/mysql/schema.sql
+	go run ./tools/dbutils ./server/datastore/mysql/schema.sql
 dump-test-schema: test-schema
 
 # This is the base command to run Go tests.
@@ -307,7 +307,7 @@ FAST_PKGS_TO_TEST := \
 	./server/mdm/scep/x509util \
 	./server/policies
 FLEETCTL_PKGS_TO_TEST := ./cmd/fleetctl/...
-MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/... ./server/mdm/android/mysql
+MYSQL_PKGS_TO_TEST := ./server/datastore/mysql/...
 SCRIPTS_PKGS_TO_TEST := ./orbit/pkg/scripts
 SERVICE_PKGS_TO_TEST := ./server/service
 VULN_PKGS_TO_TEST := ./server/vulnerabilities/...

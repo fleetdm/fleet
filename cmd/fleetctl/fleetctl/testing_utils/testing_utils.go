@@ -242,6 +242,14 @@ func SetupFullGitOpsPremiumServer(t *testing.T) (*mock.Store, **fleet.AppConfig,
 	}
 	AddLabelMocks(ds)
 
+	// Add DefaultTeamConfig mocks for enterprise features
+	ds.DefaultTeamConfigFunc = func(ctx context.Context) (*fleet.TeamConfig, error) {
+		return &fleet.TeamConfig{}, nil
+	}
+	ds.SaveDefaultTeamConfigFunc = func(ctx context.Context, config *fleet.TeamConfig) error {
+		return nil
+	}
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appConfigCopy := *savedAppConfig
 		return &appConfigCopy, nil
