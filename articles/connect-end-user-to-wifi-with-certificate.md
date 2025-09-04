@@ -299,9 +299,7 @@ To connect end users to Wi-Fi or VPN with Hydrant, we'll do the following steps:
 - [Request a certificate from a device](#step-3-request-a-certificate-from-a-device)
 
 
-The flow for Hydrant differs from the other certificate authorities (CA's), since they use a configuration profile to request a certificate, where the Hydrant flow will require the device itself to make a request to the `/request_certificate` Fleet endpoint for a valid Hydrant integration.
-
-^^ TODO: ADD LINK for endpoint.
+The flow for Hydrant differs from the other certificate authorities (CA's), since they use a configuration profile to request a certificate, where the Hydrant flow will require the device itself to make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint for a valid Hydrant integration.
 
 **It is required to have an IDP session to use this CA, as you will be required to provide the IDP url, the device's current session token and the IDP client ID so the Fleet server can verify the IDP session is valid to request a certificate.**
 
@@ -325,10 +323,8 @@ The flow for Hydrant differs from the other certificate authorities (CA's), sinc
 
 1. Generate an active IDP session token for the device requesting a certificate.
 1. Generate a certificate signing request (CSR) with the relevant attributes needed on the device.
-1. Make a request to the `/request_certificates` Fleet endpoint, with the necessary parameters and body values.
+1. Make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint, with the necessary parameters and body values.
 1. Retrieve a PEM wrapped base64 encoded certificate.
-
-^^ TODO: Add link to rest-api docs.
 
 ## How the SCEP proxy works
 
