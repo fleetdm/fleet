@@ -44,7 +44,7 @@ Now you have managed Google domain with an Android Enterprise subscription. Opti
 
 ## Enrollment
 
-Learn how to [enroll Android hosts](https://fleetdm.com/guides/enroll-hosts#ui).
+Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
 
 ## Migration
 
