@@ -245,6 +245,13 @@
       "platform": "darwin",
       "unique_identifier": "us.zoom.xos",
       "description": "Zoom is a leading video communication platform for meetings, webinars, and collaboration."
+    },
+    {
+      "name": "Zoom",
+      "slug": "zoom/windows",
+      "platform": "windows",
+      "unique_identifier": "Zoom",
+      "description": ""
     }
   ]
 }
