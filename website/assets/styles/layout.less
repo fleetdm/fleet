@@ -72,7 +72,7 @@ html, body {
   justify-content: center;
   align-items: center;
   background: #0587FF;
-  color: var(--color-brand-white, #FFF);
+  color: #FFF;
   font-family: Inter;
   font-size: 14px;
   font-style: normal;
@@ -376,6 +376,7 @@ html, body {
       width: 16px;
     }
   }
+
   [purpose='mobile-nav'] {
     position: fixed;
     max-height: 100vh;
@@ -488,6 +489,9 @@ html, body {
       [purpose='dropdown-item-link'] {
         padding: 8px 0px;
       }
+      [purpose='dropdown-item'] {
+        white-space: normal;
+      }
       [purpose='dropdown-cta'] {
         text-decoration: none;
         margin-top: 4px;
@@ -499,9 +503,9 @@ html, body {
           display: flex;
           flex-direction: row;
           align-items: center;
-          border-radius: var(--spacing-1, 8px);
-          border: 1px solid var(--border-border-primary, #E2E4EA);
-          background: var(--surface-surface-primary, #FFF);
+          border-radius: 8px;
+          border: 1px solid #E2E4EA;
+          background: #FFF;
           [purpose='dropdown-cta-image'] {
             margin-right: 8px;
             background-image: url('/images/nav-cta-meow-wolf-100x160@2x.png');
@@ -516,43 +520,6 @@ html, body {
     }
     [purpose='mobile-nav-cta'] {
       padding: 0px 32px 32px 32px;
-    }
-  }
-  [purpose='dropdown-item'] {
-    text-decoration: none;
-    padding: 0px;
-    [purpose='dropdown-item-link'] {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      [purpose='dropdown-item-icon'] {
-        margin-right: 16px;
-        img {
-          height: 40px;
-        }
-      }
-      [purpose='dropdown-item-text'] {
-        [purpose='nav-item-heading'] {
-          color: var(--text-text-brand, #192147);
-          font-family: Inter;
-          font-size: 13px;
-          font-style: normal;
-          font-weight: 600;
-          line-height: 20px; /* 153.846% */
-          margin-bottom: 0px;
-        }
-        [purpose='nav-item-body'] {
-          color: var(--text-text-primary, #515774);
-          margin-bottom: 0px;
-
-          /* Body XS (FKA p small) */
-          font-family: Inter;
-          font-size: 12px;
-          font-style: normal;
-          font-weight: 400;
-          line-height: 18px; /* 150% */
-        }
-      }
     }
   }
   [purpose='header-nav'] {
@@ -636,9 +603,9 @@ html, body {
       }
       position: absolute;
       top: 61px;
-      border-radius: var(--spacing-1, 8px);
-      border: 1px solid var(--border-border-primary, #E2E4EA);
-      background: var(--surface-surface-primary, #FFF);
+      border-radius: 8px;
+      border: 1px solid #E2E4EA;
+      background: #FFF;
       box-shadow: 0 4px 4px 0 rgba(0, 0, 0, 0.05);
       flex-direction: column;
       min-width: 460px;
@@ -665,6 +632,7 @@ html, body {
       }
       [purpose='dropdown-item'] {
         padding: 8px;
+        white-space: nowrap;
       }
       [purpose='dropdown-column'] {
         display: flex;
@@ -672,7 +640,41 @@ html, body {
         margin-right: 4px;
       }
     }
-
+  }
+  [purpose='dropdown-item'] {
+    text-decoration: none;
+    padding: 0px;
+    [purpose='dropdown-item-link'] {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      [purpose='dropdown-item-icon'] {
+        margin-right: 16px;
+        img {
+          height: 40px;
+        }
+      }
+      [purpose='dropdown-item-text'] {
+        [purpose='nav-item-heading'] {
+          color: #192147;
+          font-family: Inter;
+          font-size: 13px;
+          font-style: normal;
+          font-weight: 600;
+          line-height: 20px;
+          margin-bottom: 0px;
+        }
+        [purpose='nav-item-body'] {
+          color: #515774;
+          margin-bottom: 0px;
+          font-family: Inter;
+          font-size: 12px;
+          font-style: normal;
+          font-weight: 400;
+          line-height: 18px;
+        }
+      }
+    }
   }
   [purpose='dropdown-cta'] {
     [purpose='dropdown-cta-link'] {
@@ -681,9 +683,9 @@ html, body {
       display: flex;
       flex-direction: row;
       align-items: center;
-      border-radius: var(--spacing-1, 8px);
-      border: 1px solid var(--border-border-primary, #E2E4EA);
-      background: var(--surface-surface-primary, #FFF);
+      border-radius: 8px;
+      border: 1px solid #E2E4EA;
+      background: #FFF;
       [purpose='dropdown-cta-image'] {
         margin-right: 8px;
         background-image: url('/images/nav-cta-meow-wolf-100x160@2x.png');
@@ -696,7 +698,7 @@ html, body {
         padding: 5px 9px;
         width: 160px;
         [purpose='dropdown-cta-heading'] {
-          color: var(--text-text-brand, #192147);
+          color: #192147;
           font-family: Inter;
           font-size: 13px;
           font-style: normal;
@@ -705,7 +707,7 @@ html, body {
           margin-bottom: 8px;
         }
         [purpose='dropdown-cta-body'] {
-          color: var(--text-text-primary, #515774);
+          color: #515774;
           font-family: Inter;
           font-size: 12px;
           font-style: normal;
@@ -714,7 +716,7 @@ html, body {
           margin-bottom: 8px;
         }
         [purpose='cta-animated-arrow-button'] {
-          color: var(--Core-Fleet-Black, #192147);
+          color: #192147;
           text-align: center;
           font-family: Inter;
           font-size: 12px;
