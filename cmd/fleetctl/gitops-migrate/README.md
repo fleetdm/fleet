@@ -12,14 +12,14 @@ The `4.74` release moves GitOps YAML keys: `self_service`, `categories`, `labels
 
 Download the appropriate binary for your operating system and architecture:
 
-| Operating System | Architecture | Download Link                                                                                                                                               |
-| ---------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `macos`          | `arm64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-darwin-arm64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-darwin-arm64.sha256))           |
-| `macos`          | `amd64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-darwin-amd64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-darwin-amd64.sha256))           |
-| `windows`        | `amd64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-windows-amd64.exe)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-windows-amd64.exe.sha256)) |
-| `windows`        | `arm64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-windows-arm64.exe)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-windows-arm64.exe.sha256)) |
-| `linux`          | `amd64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-linux-amd64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-linux-amd64.sha256))             |
-| `linux`          | `arm64`      | [Here](https://custom-tools.fleetdm.com/gitops-migrate-linux-arm64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-linux-arm64.sha256))             |
+| Operating System | Architecture | Download Link                                                                                                                                                   |
+| ---------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `macos`          | `arm64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-darwin-arm64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-darwin-arm64.sha256))           |
+| `macos`          | `amd64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-darwin-amd64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-darwin-amd64.sha256))           |
+| `windows`        | `amd64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-windows-amd64.exe)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-windows-amd64.exe.sha256)) |
+| `windows`        | `arm64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-windows-arm64.exe)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-windows-arm64.exe.sha256)) |
+| `linux`          | `amd64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-linux-amd64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-linux-amd64.sha256))             |
+| `linux`          | `arm64`      | [Download](https://custom-tools.fleetdm.com/gitops-migrate-linux-arm64)([Hash](https://custom-tools.fleetdm.com/gitops-migrate-linux-arm64.sha256))             |
 
 ## Method 2: Go Install
 
