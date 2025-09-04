@@ -3610,7 +3610,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", testTeam.ID), nil, http.StatusOK, &deleteResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeDeletedAndroidProfile{}.ActivityName(),
-		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": null}`, teamAndroidProfUUID),
+		fmt.Sprintf(`{"profile_name": "android-team-profile", "team_id": %d, "team_name": null}`, testTeam.ID),
 		0,
 	)
 	// delete non-existing Android profiles
