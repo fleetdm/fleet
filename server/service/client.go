@@ -770,7 +770,7 @@ func (c *Client) ApplyGroup(
 
 		tmSoftwarePackages := extractTmSpecsSoftwarePackages(specs.Teams)
 		tmSoftwarePackagesPayloads := make(map[string][]fleet.SoftwareInstallerPayload, len(tmSoftwarePackages))
-		tmSoftwarePackageByPath := make(map[string]map[string]fleet.SoftwarePackageSpec, len(tmSoftwarePackages))
+		tmSoftwarePackagesWithPaths := make(map[string]map[string]struct{}, len(tmSoftwarePackages))
 		for tmName, software := range tmSoftwarePackages {
 			installDuringSetupKeys := tmSoftwareMacOSSetup[tmName]
 			softwarePayloads, err := buildSoftwarePackagesPayload(software, installDuringSetupKeys)
@@ -781,10 +781,11 @@ func (c *Client) ApplyGroup(
 			for _, swSpec := range software {
 				if swSpec.ReferencedYamlPath != "" {
 					// can be referenced by macos_setup.software.package_path
-					if tmSoftwarePackageByPath[tmName] == nil {
-						tmSoftwarePackageByPath[tmName] = make(map[string]fleet.SoftwarePackageSpec, len(software))
+					if tmSoftwarePackagesWithPaths[tmName] == nil {
+						tmSoftwarePackagesWithPaths[tmName] = make(map[string]struct{}, len(software))
 					}
-					tmSoftwarePackageByPath[tmName][swSpec.ReferencedYamlPath] = swSpec
+
+					tmSoftwarePackagesWithPaths[tmName][swSpec.ReferencedYamlPath] = struct{}{}
 				}
 			}
 		}
@@ -842,7 +843,7 @@ func (c *Client) ApplyGroup(
 		// if macos_setup.software has some values, they must exist in the software
 		// packages or vpp apps.
 		for tmName, setupSw := range tmMacSetupSoftware {
-			if err := validateTeamOrNoTeamMacOSSetupSoftware(tmName, setupSw, tmSoftwarePackageByPath[tmName], tmSoftwareAppsByAppID[tmName]); err != nil {
+			if err := validateTeamOrNoTeamMacOSSetupSoftware(tmName, setupSw, tmSoftwarePackagesWithPaths[tmName], tmSoftwareAppsByAppID[tmName]); err != nil {
 				return nil, nil, nil, nil, err
 			}
 		}
@@ -1037,7 +1038,7 @@ func extractTeamOrNoTeamMacOSSetupSoftware(baseDir string, software []*fleet.Mac
 	return m, nil
 }
 
-func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware []*fleet.MacOSSetupSoftware, packagesByPath map[string]fleet.SoftwarePackageSpec, vppAppsByAppID map[string]fleet.TeamSpecAppStoreApp) error {
+func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware []*fleet.MacOSSetupSoftware, pathsWithPackages map[string]struct{}, vppAppsByAppID map[string]fleet.TeamSpecAppStoreApp) error {
 	// if macos_setup.software has some values, they must exist in the software
 	// packages or vpp apps.
 	for _, ssw := range macOSSetupSoftware {
@@ -1048,7 +1049,7 @@ func validateTeamOrNoTeamMacOSSetupSoftware(teamName string, macOSSetupSoftware 
 		} else if ssw.PackagePath != "" {
 			// check that it exists in the team's Software installers (PackagePath is
 			// already resolved to abs dir)
-			_, valid = packagesByPath[ssw.PackagePath]
+			_, valid = pathsWithPackages[ssw.PackagePath]
 		}
 		if !valid {
 			label := ssw.AppStoreID
@@ -2204,13 +2205,13 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 	var softwareInstallers []fleet.SoftwarePackageResponse
 
 	packages := make([]fleet.SoftwarePackageSpec, 0, len(config.Software.Packages))
-	packagesByPath := make(map[string]fleet.SoftwarePackageSpec, len(config.Software.Packages))
+	packagesWithPaths := make(map[string]struct{}, len(config.Software.Packages))
 	for _, software := range config.Software.Packages {
 		if software != nil {
 			packages = append(packages, *software)
 			if software.ReferencedYamlPath != "" {
 				// can be referenced by macos_setup.software
-				packagesByPath[software.ReferencedYamlPath] = *software
+				packagesWithPaths[software.ReferencedYamlPath] = struct{}{}
 			}
 		}
 	}
@@ -2243,7 +2244,7 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesByPath, appsByAppID); err != nil {
+	if err := validateTeamOrNoTeamMacOSSetupSoftware(*config.TeamName, macOSSetup.Software.Value, packagesWithPaths, appsByAppID); err != nil {
 		return nil, nil, err
 	}
 	swPkgPayload, err := buildSoftwarePackagesPayload(packages, noTeamSoftwareMacOSSetup)
