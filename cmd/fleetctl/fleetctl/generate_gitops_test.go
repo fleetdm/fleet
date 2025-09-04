@@ -1195,23 +1195,31 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 }
 
 func TestSillyTeamNames(t *testing.T) {
-	sillyTeamNames := []string{
-		"🫆",
-		"🪾",
-		"🫜",
-		"🪉",
-		"🪏",
-		"🫟",
-		"👍",
+	sillyTeamNames := map[string]string{
+		"🫆": "🫆.yml",
+		"🪾": "🪾.yml",
+		"🫜": "🫜.yml",
+		"🪉": "🪉.yml",
+		"🪏": "🪏.yml",
+		"🫟": "🫟.yml",
+		"👍": "👍.yml",
+		"a/team\\with:all*the?footguns\"in<it>omg|": "aateambwithcalldtheefootgunsfingithomgi.yml",
 	}
 
 	fleetClient := &MockClient{}
+	tempDir := os.TempDir() + "/" + uuid.New().String()
 
-	for _, name := range sillyTeamNames {
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+
+	for name, expectedFilename := range sillyTeamNames {
 		t.Run(name, func(t *testing.T) {
-			tempDir := os.TempDir() + "/" + uuid.New().String()
 			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
 			flagSet.String("dir", tempDir, "")
+			flagSet.Bool("force", true, "")
 			fleetClient.TeamNameOverride = name
 			action := createGenerateGitopsAction(fleetClient)
 			buf := new(bytes.Buffer)
@@ -1226,12 +1234,9 @@ func TestSillyTeamNames(t *testing.T) {
 			require.NoError(t, err, buf.String())
 
 			// Expect a correctly-named .yaml
-			tgtPath := filepath.Join(tempDir, "teams", fmt.Sprintf("%s.yml", name))
+			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
 			_, err = os.Stat(tgtPath)
 			require.NoError(t, err)
-			if err := os.RemoveAll(tempDir); err != nil {
-				t.Fatalf("failed to remove temp dir: %v", err)
-			}
 		})
 	}
 }
