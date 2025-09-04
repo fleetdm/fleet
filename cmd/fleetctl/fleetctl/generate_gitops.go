@@ -8,6 +8,7 @@ import (
 	pathUtils "path"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -487,12 +488,11 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			// Replace any empty values with a blank.
 			b = emptyVal.ReplaceAll(b, []byte(":"))
+			// Unescape any unicode chars added by the YAML marshaler.
+			b = unescapeUnicodeU8(b)
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
-
-		// Unescape any unicode chars added by the YAML marshaler.
-		b = unescapeUnicodeU8(b)
 
 		// If --print is set, print the file to stdout.
 		if cmd.CLI.Bool("print") {
@@ -561,6 +561,8 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+var footguns = []rune{'/', '\\', ':', '*', '?', '"', '<', '>', '|'}
+
 // Given a name, generate a filename by replacing spaces with dashes and
 // removing any non-alphanumeric characters.
 func generateFilename(name string) string {
@@ -570,6 +572,12 @@ func generateFilename(name string) string {
 			return unicode.ToLower(r)
 		case unicode.IsSpace(r):
 			return '-'
+		// replace common footguns with unique letters.
+		case slices.Contains(footguns, r):
+			return rune('a' + slices.Index(footguns, r))
+		// bail on control characters
+		case r < 0x20:
+			panic("Cannot process filename " + name + " because it has control characters in it.")
 		default:
 			return r
 		}
