@@ -4,6 +4,7 @@ import { dateAgo } from "utilities/date_format";
 
 import {
   formatSoftwareType,
+  INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
   ISoftwareInstallVersion,
   SoftwareSource,
@@ -53,6 +54,22 @@ const InventoryVersion = ({
     signature_information: signatureInformation,
   } = version;
 
+  const lastOpenedTitle =
+    INSTALLABLE_SOURCE_PLATFORM_CONVERSION[source] === "linux" ? (
+      <TooltipWrapper
+        tipContent={
+          <>
+            The last time the package was opened by the end user <br />
+            or accessed by any process on the host.
+          </>
+        }
+      >
+        Last opened
+      </TooltipWrapper>
+    ) : (
+      "Last opened"
+    );
+
   return (
     <Card
       className={`${baseClass}__version`}
@@ -67,18 +84,7 @@ const InventoryVersion = ({
         )}
         {version.last_opened_at || sourcesWithLastOpenedTime.has(source) ? (
           <DataSet
-            title={
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    The last time the package was opened by the end user <br />
-                    or accessed by any process on the host.
-                  </>
-                }
-              >
-                Last opened
-              </TooltipWrapper>
-            }
+            title={lastOpenedTitle}
             value={
               version.last_opened_at ? dateAgo(version.last_opened_at) : "Never"
             }

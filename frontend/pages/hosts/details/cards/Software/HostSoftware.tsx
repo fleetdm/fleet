@@ -258,6 +258,7 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
+          platform,
         });
   }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
 
