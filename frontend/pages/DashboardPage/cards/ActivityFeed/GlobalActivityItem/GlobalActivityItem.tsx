@@ -1,4 +1,4 @@
-import { find, lowerCase, noop, trimEnd } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
@@ -14,6 +14,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 
@@ -1423,6 +1424,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedSetupExperienceSoftware: (activity: IActivity) => {
+    const { platform, team_name, team_id } = activity.details || {};
+    return (
+      <>
+        {" "}
+        edited setup experience software for{" "}
+        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
+        enroll to{" "}
+        {team_id === API_NO_TEAM_ID ? (
+          "no team"
+        ) : (
+          <>
+            the <b>{team_name}</b> team
+          </>
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1749,6 +1769,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
 
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+
+    case ActivityType.EditedSetupExperienceSoftware: {
+      return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
 
     default: {
