@@ -1,4 +1,4 @@
-## Orbit 1.47.0 (Sep 02, 2025)
+## Orbit 1.47.1 (Sep 03, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
 
@@ -8,6 +8,8 @@
 * Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
 
 * Updated go to 1.24.6
+
+* Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
 
 ## Orbit 1.46.0 (Aug 15, 2025)
 
