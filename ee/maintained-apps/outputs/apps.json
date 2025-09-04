@@ -160,7 +160,7 @@
       "slug": "omnissa-horizon-client/darwin",
       "platform": "darwin",
       "unique_identifier": "com.omnissa.horizon.client.mac",
-      "description": ""
+      "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
       "name": "Postman",
@@ -174,7 +174,7 @@
       "slug": "santa/darwin",
       "platform": "darwin",
       "unique_identifier": "com.northpolesec.santa",
-      "description": "Omnissa Horizon Client is a virtual machine client."
+      "description": ""
     },
     {
       "name": "Slack",
