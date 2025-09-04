@@ -1051,7 +1051,7 @@ func parsePolicyInstallSoftware(baseDir string, teamName *string, policy *Policy
 			// see if the issue is that a package path was passed in that references multiple packages
 			var multiplePackages []*fleet.SoftwarePackageSpec
 			if err := YamlUnmarshal(fileBytes, &multiplePackages); err != nil || len(multiplePackages) == 0 {
-				return MaybeParseTypeError(policy.InstallSoftware.PackagePath, []string{"policy", "install_software", "package_path"}, err)
+				return fmt.Errorf("file %q does not contain a valid software package definition", policy.InstallSoftware.PackagePath)
 			}
 
 			if len(multiplePackages) > 1 {
