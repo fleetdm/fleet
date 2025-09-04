@@ -488,6 +488,18 @@ func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
 	return h.AppStoreApp != nil
 }
 
+func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if h.IconUrl != nil && *h.IconUrl != "" {
+		matched := SoftwareTitleIconURLRegex.MatchString(*h.IconUrl)
+		if matched {
+			icon := SoftwareTitleIcon{SoftwareTitleID: h.ID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			h.IconUrl = ptr.String(deviceIconURL)
+		}
+	}
+}
+
 type AutomaticInstallPolicy struct {
 	ID      uint   `json:"id" db:"id"`
 	Name    string `json:"name" db:"name"`

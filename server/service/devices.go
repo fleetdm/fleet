@@ -804,15 +804,8 @@ func getDeviceSoftwareEndpoint(ctx context.Context, request interface{}, svc fle
 	req := request.(*getDeviceSoftwareRequest)
 	res, meta, err := svc.ListHostSoftware(ctx, host.ID, req.HostSoftwareTitleListOptions)
 	for _, s := range res {
-		// convert api style iconURL to device token URL
-		if s.IconUrl != nil && *s.IconUrl != "" {
-			matched := fleet.SoftwareTitleIconURLRegex.MatchString(*s.IconUrl)
-			if matched {
-				icon := fleet.SoftwareTitleIcon{SoftwareTitleID: s.ID}
-				deviceIconURL := icon.IconUrlWithDeviceToken(req.Token)
-				s.IconUrl = ptr.String(deviceIconURL)
-			}
-		}
+		// mutate HostSoftwareWithInstaller records for my device page
+		s.ForMyDevicePage(req.Token)
 	}
 
 	if err != nil {
