@@ -1,0 +1,1 @@
+* Optimized GetHostScriptExecutionResults MySQL query for for large numbers of script results.
