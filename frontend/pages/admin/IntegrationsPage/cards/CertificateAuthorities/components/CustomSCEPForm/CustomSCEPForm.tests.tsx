@@ -63,7 +63,7 @@ describe("CustomSCEPForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
-  it("submit button is disabled if isDirty is false", async () => {
+  it("submit button is disabled if isDirty is false", () => {
     render(
       <CustomSCEPForm
         formData={createTestFormData()}
@@ -79,7 +79,7 @@ describe("CustomSCEPForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
-  it("submit button is enabled if isDirty", async () => {
+  it("submit button is enabled if isDirty", () => {
     render(
       <CustomSCEPForm
         formData={createTestFormData()}

@@ -67,7 +67,7 @@ describe("DigicertForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
-  it("submit button is disabled if isDirty is false", async () => {
+  it("submit button is disabled if isDirty is false", () => {
     render(
       <DigicertForm
         formData={createTestFormData()}
@@ -83,7 +83,7 @@ describe("DigicertForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
-  it("submit button is enabled if isDirty", async () => {
+  it("submit button is enabled if isDirty", () => {
     render(
       <DigicertForm
         formData={createTestFormData()}
