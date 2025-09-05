@@ -18,6 +18,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   platform: "darwin",
   status: "verified",
   detail: "This is verified",
+  scope: "device",
+  managed_local_account: "",
 };
 
 export const createMockHostMdmProfile = (
