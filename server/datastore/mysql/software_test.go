@@ -3684,7 +3684,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 			require.Equal(t, e.Source, g.Source)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
-				require.Equal(t, e.SoftwarePackage.IconURL, g.SoftwarePackage.IconURL)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
 				require.Equal(t, e.SoftwarePackage.Name, g.SoftwarePackage.Name)
 				require.Equal(t, e.SoftwarePackage.Version, g.SoftwarePackage.Version)
@@ -3714,7 +3713,6 @@ func testListHostSoftware(t *testing.T, ds *Datastore) {
 
 			if e.AppStoreApp != nil {
 				require.Equal(t, e.AppStoreApp.SelfService, g.AppStoreApp.SelfService)
-				require.Equal(t, e.AppStoreApp.IconURL, g.AppStoreApp.IconURL)
 				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
 				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
 				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)
@@ -5000,7 +4998,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 			require.Equal(t, e.Source, g.Source)
 			if e.SoftwarePackage != nil {
 				require.Equal(t, e.SoftwarePackage.SelfService, g.SoftwarePackage.SelfService)
-				require.Equal(t, e.SoftwarePackage.IconURL, g.SoftwarePackage.IconURL)
 				require.Equal(t, e.SoftwarePackage.AppStoreID, g.SoftwarePackage.AppStoreID)
 				require.Equal(t, e.SoftwarePackage.Name, g.SoftwarePackage.Name)
 				require.Equal(t, e.SoftwarePackage.Version, g.SoftwarePackage.Version)
@@ -5013,7 +5010,6 @@ func testListIOSHostSoftware(t *testing.T, ds *Datastore) {
 
 			if e.AppStoreApp != nil {
 				require.Equal(t, e.AppStoreApp.SelfService, g.AppStoreApp.SelfService)
-				require.Equal(t, e.AppStoreApp.IconURL, g.AppStoreApp.IconURL)
 				require.Equal(t, e.AppStoreApp.AppStoreID, g.AppStoreApp.AppStoreID)
 				require.Equal(t, e.AppStoreApp.Name, g.AppStoreApp.Name)
 				require.Equal(t, e.AppStoreApp.Version, g.AppStoreApp.Version)

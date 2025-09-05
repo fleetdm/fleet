@@ -1948,6 +1948,7 @@ type ActivityTypeEditedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
@@ -1973,6 +1974,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1992,6 +1994,7 @@ type ActivityTypeDeletedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2014,6 +2017,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2191,6 +2195,7 @@ type ActivityDeletedAppStoreApp struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
+	IconUrl          *string                 `json:"icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2213,6 +2218,7 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2281,6 +2287,7 @@ type ActivityEditedAppStoreApp struct {
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
+	IconUrl          *string                 `json:"icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2307,6 +2314,7 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
