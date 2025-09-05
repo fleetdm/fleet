@@ -207,6 +207,13 @@ type DigiCertCAUpdatePayload struct {
 	CertificateSeatID             *string   `json:"certificate_seat_id"`
 }
 
+// IsEmpty checks if the struct only has all empty values
+func (dcp DigiCertCAUpdatePayload) IsEmpty() bool {
+	return dcp.Name == nil && dcp.URL == nil && dcp.APIToken == nil &&
+		dcp.ProfileID == nil && dcp.CertificateCommonName == nil &&
+		dcp.CertificateUserPrincipalNames == nil && dcp.CertificateSeatID == nil
+}
+
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the URL is provided then the API token must also be provided.
 func (dcp *DigiCertCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
@@ -234,6 +241,11 @@ type NDESSCEPProxyCAUpdatePayload struct {
 	AdminURL *string `json:"admin_url"`
 	Username *string `json:"username"`
 	Password *string `json:"password"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (ndesp *NDESSCEPProxyCAUpdatePayload) IsEmpty() bool {
+	return ndesp.URL == nil && ndesp.AdminURL == nil && ndesp.Username == nil && ndesp.Password == nil
 }
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
@@ -264,6 +276,11 @@ type CustomSCEPProxyCAUpdatePayload struct {
 	Challenge *string `json:"challenge"`
 }
 
+// IsEmpty checks if the struct only has all empty values
+func (cscepp CustomSCEPProxyCAUpdatePayload) IsEmpty() bool {
+	return cscepp.Name == nil && cscepp.URL == nil && cscepp.Challenge == nil
+}
+
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
 // For example if the Name is provided then the Challenge must also be provided.
 func (cscepp *CustomSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
@@ -288,6 +305,11 @@ type HydrantCAUpdatePayload struct {
 	URL          *string `json:"url"`
 	ClientID     *string `json:"client_id"`
 	ClientSecret *string `json:"client_secret"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (hp HydrantCAUpdatePayload) IsEmpty() bool {
+	return hp.Name == nil && hp.URL == nil && hp.ClientID == nil && hp.ClientSecret == nil
 }
 
 // ValidateRelatedFields verifies that fields that are related to each other are set correctly.
