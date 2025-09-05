@@ -2,7 +2,7 @@ import React from "react";
 import { screen } from "@testing-library/react";
 
 import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import {
   createSetupExperienceScriptHandler,
   errorNoSetupExperienceScriptHandler,
@@ -15,7 +15,7 @@ describe("RunScript", () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<RunScript currentTeamId={1} />);
+    render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(await screen.findByRole("button", { name: "Upload" })).toBeVisible();
   });
@@ -24,7 +24,7 @@ describe("RunScript", () => {
     mockServer.use(createSetupExperienceScriptHandler());
     const render = createCustomRenderer({ withBackendMock: true });
 
-    render(<RunScript currentTeamId={1} />);
+    render(<RunScript router={createMockRouter()} currentTeamId={1} />);
 
     expect(
       await screen.findByText("Script will run during setup:")
