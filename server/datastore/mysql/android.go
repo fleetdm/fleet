@@ -787,19 +787,19 @@ WHERE
 	}
 
 	// Insert or update incoming profiles
-	insertNewOrEditedProfile := fmt.Sprintf(`
+	const insertNewOrEditedProfile = `
 	INSERT INTO mdm_android_configuration_profiles (
 		profile_uuid,
 		team_id,
 		name,
 		raw_json,
 		uploaded_at
-	) VALUES (CONCAT('%s', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
+	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
 		name = VALUES(name),
 		raw_json = VALUES(raw_json),
 		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
-	`, fleet.MDMAndroidProfileUUIDPrefix)
+`
 
 	for _, p := range profiles {
 		var res sql.Result
