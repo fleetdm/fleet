@@ -46,6 +46,7 @@ const DigicertForm = ({
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
+  const [isDirty, setIsDirty] = useState(false);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
@@ -78,6 +79,7 @@ const DigicertForm = ({
       )
     );
     onChange(update);
+    setIsDirty(true);
   };
 
   return (
@@ -166,7 +168,7 @@ const DigicertForm = ({
         >
           <Button
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
             type="submit"
           >
             {submitBtnText}

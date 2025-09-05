@@ -41,7 +41,11 @@ describe("HydrantForm", () => {
       />
     );
 
-    // data is valid, submit should be enabled
+    // data is valid, but no changes have been made so submit should be disabled
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+
+    // name is valid and now changed so submit should be enabled
+    await user.type(screen.getByLabelText("Name"), "Updated_Name");
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
 
     // name input is invalidated, submit should be disabled
@@ -62,5 +66,24 @@ describe("HydrantForm", () => {
     );
 
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+  });
+
+  it("has submit disabled when no changes have been made", async () => {
+    const { user } = renderWithSetup(
+      <HydrantForm
+        formData={createTestFormData()}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
+
+    // Update a field
+    await user.type(screen.getByLabelText("Name"), "Updated_Name");
+    expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
   });
 });

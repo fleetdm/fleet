@@ -42,6 +42,7 @@ const CustomSCEPForm = ({
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
+  const [isDirty, setIsDirty] = useState(false);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
@@ -68,6 +69,7 @@ const CustomSCEPForm = ({
       )
     );
     onChange(update);
+    setIsDirty(true);
   };
 
   return (
@@ -113,7 +115,7 @@ const CustomSCEPForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
           >
             {submitBtnText}
           </Button>

@@ -42,6 +42,7 @@ const HydrantForm = ({
   onSubmit,
   onCancel,
 }: IHydrantFormProps) => {
+  const [isDirty, setIsDirty] = useState(false);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
@@ -66,6 +67,7 @@ const HydrantForm = ({
       )
     );
     onChange(update);
+    setIsDirty(true);
   };
 
   return (
@@ -118,7 +120,7 @@ const HydrantForm = ({
         >
           <Button
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
             type="submit"
           >
             {submitBtnText}

@@ -35,6 +35,7 @@ const NDESForm = ({
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
+  const [isDirty, setIsDirty] = useState(false);
   const [formValidation, setFormValidation] = useState<INDESFormValidation>(
     () => validateFormData(formData)
   );
@@ -51,6 +52,7 @@ const NDESForm = ({
       validateFormData({ ...formData, [update.name]: update.value })
     );
     onChange(update);
+    setIsDirty(true);
   };
 
   return (
@@ -107,7 +109,7 @@ const NDESForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
           >
             {submitBtnText}
           </Button>
