@@ -200,7 +200,7 @@ func generateEditActivityForSoftwareTitleIcon(ctx context.Context, svc *Service,
 			TeamID:           &activityDetailsForSoftwareTitleIcon.TeamID,
 			Platform:         *activityDetailsForSoftwareTitleIcon.Platform,
 			SelfService:      activityDetailsForSoftwareTitleIcon.SelfService,
-			IconUrl:          &iconUrl,
+			SoftwareIconURL:  &iconUrl,
 			LabelsIncludeAny: activityDetailsForSoftwareTitleIcon.LabelsIncludeAny,
 			LabelsExcludeAny: activityDetailsForSoftwareTitleIcon.LabelsExcludeAny,
 		}); err != nil {

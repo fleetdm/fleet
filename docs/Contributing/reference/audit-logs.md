@@ -1529,7 +1529,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
-  "icon_url": "",
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
