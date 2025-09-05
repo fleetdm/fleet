@@ -1011,13 +1011,26 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 	t.Run("Errors on empty inner update payload", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
-
-		payload := fleet.CertificateAuthorityUpdatePayload{
-			DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{},
+		payloadMap := map[uint]fleet.CertificateAuthorityUpdatePayload{
+			digicertID: {
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{},
+			},
+			hydrantID: {
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{},
+			},
+			scepID: {
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{},
+			},
+			ndesID: {
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{},
+			},
 		}
 
-		err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
-		require.EqualError(t, err, "Couldn't edit certificate authority. DigiCert CA update payload is empty")
+		for id, payload := range payloadMap {
+
+			err := svc.UpdateCertificateAuthority(ctx, id, payload)
+			require.Contains(t, err.Error(), "update payload is empty")
+		}
 	})
 
 	t.Run("Errors on wrong existing CA type", func(t *testing.T) {
