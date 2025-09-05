@@ -389,7 +389,7 @@ func TestDeleteSoftwareTitleIcon(t *testing.T) {
 					TeamID:           ptr.Uint(1),
 					Platform:         fleet.MacOSPlatform,
 					SelfService:      false,
-					IconUrl:          ptr.String("fleetdm.com/icon.png"), // note this is supposed to be the vpp_apps.icon_url
+					SoftwareIconURL:  ptr.String("fleetdm.com/icon.png"), // note this is supposed to be the vpp_apps.icon_url
 					LabelsIncludeAny: nil,
 					LabelsExcludeAny: nil,
 				}
