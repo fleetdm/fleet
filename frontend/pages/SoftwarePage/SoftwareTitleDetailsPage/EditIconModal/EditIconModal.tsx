@@ -512,6 +512,7 @@ const EditIconModal = ({
               type="submit"
               onClick={onClickSave}
               isLoading={isUpdatingIcon}
+              disabled={isUpdatingIcon}
             >
               Save
             </Button>
