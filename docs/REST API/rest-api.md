@@ -6652,22 +6652,30 @@ Set software that will be automatically installed during setup. Software that is
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-| platform | string  | query |  Platform to update software for. Either `"macos"` or `"linux"`.  Defaults to `"macos"`. |
-| team_id | integer | query | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
+| platform | string  | body |  Platform to update software for. Either `"macos"` or `"linux"`.  Defaults to `"macos"`. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the team to set the software for. If not specified, it will set the software for hosts with no team. |
 | software_title_ids | array | body | The ID of software titles to install during setup. |
 
 #### Example
 
 `PUT /api/v1/fleet/setup_experience/software?team_id=3`
 
+##### Request body
+
+```json
+{
+  "platform": "linux",
+  "team_id": 1,
+  "software_title_ids": [3000, 3001]
+}
+```
+
 ##### Default response
 
 `Status: 200`
 
 ```json
-{
-  "software_title_ids": [23,3411,5032]
-}
+{}
 ```
 
 ### Add script (setup experience)
