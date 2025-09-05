@@ -2285,7 +2285,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Resend host's configuration profile](#resend-hosts-configuration-profile)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -3323,7 +3322,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 ##### Example
 
@@ -5319,8 +5318,8 @@ Deletes the label specified by ID.
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
-- [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
-- [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
+- [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
+- [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
 
 
 ### Add custom OS setting (configuration profile)
@@ -5602,7 +5601,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host.
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -5621,6 +5620,26 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
+### Resend custom OS setting (configuration profile) by device token
+
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+
+`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+
+##### Default response
+
+`Status: 202`
 
 ### Batch-resend custom OS setting (configuration profile)
 
