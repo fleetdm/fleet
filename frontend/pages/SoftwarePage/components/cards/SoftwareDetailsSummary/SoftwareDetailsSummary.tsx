@@ -19,6 +19,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-details-summary";
 
@@ -68,7 +69,7 @@ const SoftwareDetailsSummary = ({
     source !== "tgz_packages" && iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {
-    if (typeof iconPreviewUrl === "string") {
+    if (iconPreviewUrl && isSafeImagePreviewUrl(iconPreviewUrl)) {
       return (
         <img
           src={iconPreviewUrl}

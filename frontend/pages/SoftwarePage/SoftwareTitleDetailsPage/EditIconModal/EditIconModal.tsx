@@ -20,6 +20,7 @@ import CardHeader from "components/CardHeader";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
 import Spinner from "components/Spinner";
 
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
 
@@ -397,7 +398,8 @@ const EditIconModal = ({
           />
         </div>
         <div className={`${baseClass}__self-service-preview`}>
-          {iconState.previewUrl ? (
+          {iconState.previewUrl &&
+          isSafeImagePreviewUrl(iconState.previewUrl) ? (
             <img
               src={iconState.previewUrl}
               alt="Uploaded self-service icon"
