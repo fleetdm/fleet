@@ -51,41 +51,40 @@ const DeviceUserBanners = ({
     </Button>
   );
 
-  if (showTurnOnAppleMdmBanner) {
-    return (
-      <div className={baseClass}>
+  const renderBanner = () => {
+    if (showTurnOnAppleMdmBanner) {
+      return (
         <InfoBanner color="yellow" cta={turnOnMdmButton}>
           Mobile device management (MDM) is off. MDM allows your organization to
           change settings and install software. This lets your organization keep
           your device up to date so you don&apos;t have to.
         </InfoBanner>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (showMacDiskEncryptionKeyResetRequired) {
-    return (
-      <div className={baseClass}>
+    if (showMacDiskEncryptionKeyResetRequired) {
+      return (
         <InfoBanner color="yellow">
           Disk encryption: Log out of your device or restart it to safeguard
           your data in case your device is lost or stolen. After, select{" "}
           <strong>Refetch</strong> to clear this banner.
         </InfoBanner>
-      </div>
-    );
-  }
+      );
+    }
 
-  // setting applies to a supported Linux host
-  if (
-    hostPlatform &&
-    isDiskEncryptionSupportedLinuxPlatform(hostPlatform, hostOsVersion ?? "") &&
-    diskEncryptionOSSetting?.status
-  ) {
-    // host not in compliance with setting
-    if (!diskIsEncrypted) {
-      // banner 1
-      return (
-        <div className={baseClass}>
+    // setting applies to a supported Linux host
+    if (
+      hostPlatform &&
+      isDiskEncryptionSupportedLinuxPlatform(
+        hostPlatform,
+        hostOsVersion ?? ""
+      ) &&
+      diskEncryptionOSSetting?.status
+    ) {
+      // host not in compliance with setting
+      if (!diskIsEncrypted) {
+        // banner 1
+        return (
           <InfoBanner
             cta={
               <CustomLink
@@ -100,14 +99,12 @@ const DeviceUserBanners = ({
             your device. This lets your organization help you unlock your device
             if you forget your password.
           </InfoBanner>
-        </div>
-      );
-    }
-    // host disk is encrypted, so in compliance with the setting
-    if (!diskEncryptionKeyAvailable) {
-      // key is not escrowed: banner 3
-      return (
-        <div className={baseClass}>
+        );
+      }
+      // host disk is encrypted, so in compliance with the setting
+      if (!diskEncryptionKeyAvailable) {
+        // key is not escrowed: banner 3
+        return (
           <InfoBanner
             cta={
               <Button
@@ -124,17 +121,15 @@ const DeviceUserBanners = ({
             organization help you unlock your device if you forget your
             passphrase.
           </InfoBanner>
-        </div>
-      );
+        );
+      }
     }
-  }
 
-  if (
-    hostPlatform === "windows" &&
-    diskEncryptionOSSetting?.status === "action_required"
-  ) {
-    return (
-      <div className={baseClass}>
+    if (
+      hostPlatform === "windows" &&
+      diskEncryptionOSSetting?.status === "action_required"
+    ) {
+      return (
         <InfoBanner
           color="yellow"
           cta={
@@ -147,11 +142,13 @@ const DeviceUserBanners = ({
           your device is lost or stolen. After, select <strong>Refetch</strong>{" "}
           to clear this banner.
         </InfoBanner>
-      </div>
-    );
-  }
+      );
+    }
 
-  return null;
+    return null;
+  };
+
+  return <div className={baseClass}>{renderBanner()}</div>;
 };
 
 export default DeviceUserBanners;
