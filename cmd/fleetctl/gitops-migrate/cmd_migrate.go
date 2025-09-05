@@ -276,45 +276,51 @@ func cmdMigrateExec(ctx context.Context, args Args) error {
 								}
 
 								// Look for 'labels_include' items.
-								if v, ok := pkg[keyLabelsInclude].([]any); ok && len(v) > 0 {
-									labelIncludes := make([]string, 0, len(v))
-									for i := range len(v) {
-										if labelInclude, ok := v[i].(string); ok {
-											labelIncludes = append(labelIncludes, labelInclude)
+								if v, ok := pkg[keyLabelsInclude]; ok {
+									if v, ok := v.([]any); ok {
+										labelIncludes := make([]string, 0, len(v))
+										for i := range len(v) {
+											if labelInclude, ok := v[i].(string); ok {
+												labelIncludes = append(labelIncludes, labelInclude)
+											}
 										}
-									}
-									if len(labelIncludes) > 0 {
-										state[keyLabelsInclude] = labelIncludes
+										if len(labelIncludes) > 0 {
+											state[keyLabelsInclude] = labelIncludes
+										}
 									}
 									delete(pkg, keyLabelsInclude)
 									pkgChangeCount += 1
 								}
 
 								// Look for 'labels_exclude' items.
-								if v, ok := pkg[keyLabelsExclude].([]any); ok && len(v) > 0 {
-									labelExcludes := make([]string, 0, len(v))
-									for i := range len(v) {
-										if labelExclude, ok := v[i].(string); ok {
-											labelExcludes = append(labelExcludes, labelExclude)
+								if v, ok := pkg[keyLabelsExclude]; ok {
+									if v, ok := v.([]any); ok {
+										labelExcludes := make([]string, 0, len(v))
+										for i := range len(v) {
+											if labelExclude, ok := v[i].(string); ok {
+												labelExcludes = append(labelExcludes, labelExclude)
+											}
 										}
-									}
-									if len(labelExcludes) > 0 {
-										state[keyLabelsExclude] = labelExcludes
+										if len(labelExcludes) > 0 {
+											state[keyLabelsExclude] = labelExcludes
+										}
 									}
 									delete(pkg, keyLabelsExclude)
 									pkgChangeCount += 1
 								}
 
 								// Look for 'categories' items.
-								if v, ok := pkg[keyCategories].([]any); ok && len(v) > 0 {
-									categories := make([]string, 0, len(v))
-									for i := range len(v) {
-										if category, ok := v[i].(string); ok {
-											categories = append(categories, category)
+								if v, ok := pkg[keyCategories]; ok {
+									if v, ok := v.([]any); ok {
+										categories := make([]string, 0, len(v))
+										for i := range len(v) {
+											if category, ok := v[i].(string); ok {
+												categories = append(categories, category)
+											}
 										}
-									}
-									if len(categories) > 0 {
-										state[keyCategories] = categories
+										if len(categories) > 0 {
+											state[keyCategories] = categories
+										}
 									}
 									delete(pkg, keyCategories)
 									pkgChangeCount += 1
