@@ -162,6 +162,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
 		{"ListHostsLiteByUUIDs", testHostsListHostsLiteByUUIDs},
@@ -9805,6 +9806,59 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Enroll orbit first.
+	h, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   "some-unique-uuid",
+			HardwareSerial: "some-unique-serial",
+			Platform:       "ubuntu",
+			PlatformLike:   "debian",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+	)
+	require.NoError(t, err)
+
+	orbitHost, err := ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+
+	// Check platform and platform_like are set.
+	h, err = ds.LoadHostByOrbitNodeKey(ctx, *orbitHost.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, "ubuntu", h.Platform)
+	require.Equal(t, "debian", h.PlatformLike)
+
+	// Enroll osquery after orbit.
+	// Should not clear platform and platform_like.
+	osqueryHost, err := ds.EnrollHost(ctx,
+		fleet.WithEnrollHostOsqueryHostID("some-unique-uuid"),
+		fleet.WithEnrollHostHardwareUUID("some-unique-uuid"),
+		fleet.WithEnrollHostHardwareSerial("some-unique-uuid"),
+		fleet.WithEnrollHostNodeKey("osquery"),
+	)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, osqueryHost.ID, orbitHost.ID)
+	require.Equal(t, "ubuntu", osqueryHost.Platform)
+	require.Equal(t, "debian", osqueryHost.PlatformLike)
+
+	h, err = ds.LoadHostByOrbitNodeKey(ctx, *orbitHost.OrbitNodeKey)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, orbitHost.ID, h.ID)
+	require.Equal(t, "ubuntu", h.Platform)
+	require.Equal(t, "debian", h.PlatformLike)
+
+	oh, err := ds.LoadHostByNodeKey(ctx, *osqueryHost.NodeKey)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, orbitHost.ID, oh.ID)
+	require.Equal(t, "ubuntu", oh.Platform)
+	require.Equal(t, "debian", oh.PlatformLike)
 }
 
 func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
