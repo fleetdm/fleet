@@ -876,6 +876,13 @@ func expectAndroidProfiles(
 	return m
 }
 
+// androidConfigProfileForTest helps create a new MDMAndroidConfigProfile for testing.
+//
+// content is the profile content as a map, which will be marshaled to JSON, name will be set in the content.
+//
+// labels are optional labels to associate with the profile.
+// If a label starts with `exclude-` it will be seen as `LabelsExcludeAny` and if starts with `include-any-` it will be seen as `LabelsIncludeAny`,
+// otherwise it will be seen as `LabelsIncludeAll`.
 func androidConfigProfileForTest(t *testing.T, name string, content map[string]any, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	if content == nil {
 		content = make(map[string]any)
