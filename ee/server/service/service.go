@@ -17,24 +17,24 @@ import (
 type Service struct {
 	fleet.Service
 
-	ds                    fleet.Datastore
-	logger                kitlog.Logger
-	config                config.FleetConfig
-	clock                 clock.Clock
-	authz                 *authz.Authorizer
-	depStorage            storage.AllDEPStorage
-	mdmAppleCommander     fleet.MDMAppleCommandIssuer
-	ssoSessionStore       sso.SessionStore
-	depService            *apple_mdm.DEPService
-	profileMatcher        fleet.ProfileMatcher
-	softwareInstallStore  fleet.SoftwareInstallerStore
-	bootstrapPackageStore fleet.MDMBootstrapPackageStore
+	ds                     fleet.Datastore
+	logger                 kitlog.Logger
+	config                 config.FleetConfig
+	clock                  clock.Clock
+	authz                  *authz.Authorizer
+	depStorage             storage.AllDEPStorage
+	mdmAppleCommander      fleet.MDMAppleCommandIssuer
+	ssoSessionStore        sso.SessionStore
+	depService             *apple_mdm.DEPService
+	profileMatcher         fleet.ProfileMatcher
+	softwareInstallStore   fleet.SoftwareInstallerStore
+	bootstrapPackageStore  fleet.MDMBootstrapPackageStore
 	softwareTitleIconStore fleet.SoftwareTitleIconStore
-	distributedLock       fleet.Lock
-	keyValueStore         fleet.KeyValueStore
-	scepConfigService     fleet.SCEPConfigService
-	digiCertService       fleet.DigiCertService
-	hydrantService        fleet.HydrantService
+	distributedLock        fleet.Lock
+	keyValueStore          fleet.KeyValueStore
+	scepConfigService      fleet.SCEPConfigService
+	digiCertService        fleet.DigiCertService
+	hydrantService         fleet.HydrantService
 }
 
 func NewService(
@@ -63,25 +63,25 @@ func NewService(
 	}
 
 	eeservice := &Service{
-		Service:               svc,
-		ds:                    ds,
-		logger:                logger,
-		config:                config,
-		clock:                 c,
-		authz:                 authorizer,
-		depStorage:            depStorage,
-		mdmAppleCommander:     mdmAppleCommander,
-		ssoSessionStore:       sso,
-		depService:            apple_mdm.NewDEPService(ds, depStorage, logger),
-		profileMatcher:        profileMatcher,
-		softwareInstallStore:  softwareInstallStore,
-		bootstrapPackageStore: bootstrapPackageStore,
+		Service:                svc,
+		ds:                     ds,
+		logger:                 logger,
+		config:                 config,
+		clock:                  c,
+		authz:                  authorizer,
+		depStorage:             depStorage,
+		mdmAppleCommander:      mdmAppleCommander,
+		ssoSessionStore:        sso,
+		depService:             apple_mdm.NewDEPService(ds, depStorage, logger),
+		profileMatcher:         profileMatcher,
+		softwareInstallStore:   softwareInstallStore,
+		bootstrapPackageStore:  bootstrapPackageStore,
 		softwareTitleIconStore: softwareTitleIconStore,
-		distributedLock:       distributedLock,
-		keyValueStore:         keyValueStore,
-		scepConfigService:     scepConfigService,
-		digiCertService:       digiCertService,
-		hydrantService:        hydrantService,
+		distributedLock:        distributedLock,
+		keyValueStore:          keyValueStore,
+		scepConfigService:      scepConfigService,
+		digiCertService:        digiCertService,
+		hydrantService:         hydrantService,
 	}
 
 	// Override methods that can't be easily overriden via
