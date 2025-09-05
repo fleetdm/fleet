@@ -16,10 +16,10 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
-import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 
 const baseClass = "software-details-summary";
 
