@@ -8,7 +8,10 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
 
-import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
+import {
+  createMockSetupSoftwareStatus,
+  createMockSetupSoftwareStatusesResponse,
+} from "__mocks__/deviceUserMock";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -172,6 +175,35 @@ export default {
   }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
     const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
-    return sendRequest("POST", path);
+    return sendRequest("POST", path).then(() => {
+      return Promise.resolve(
+        createMockSetupSoftwareStatusesResponse({
+          setup_experience_results: {
+            software: [
+              createMockSetupSoftwareStatus({
+                name: "1Password",
+                status: "failure",
+              }),
+              createMockSetupSoftwareStatus({
+                name: "Chrome",
+                status: "failure",
+              }),
+              createMockSetupSoftwareStatus({
+                name: "Firefox",
+                status: "success",
+              }),
+              createMockSetupSoftwareStatus({
+                name: "Slack",
+                status: "success",
+              }),
+              createMockSetupSoftwareStatus({
+                name: "Zoom",
+                status: "success",
+              }),
+            ],
+          },
+        })
+      );
+    });
   },
 };

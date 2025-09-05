@@ -315,7 +315,8 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
-  const isSetupExperienceSoftwareHost = isLinuxLike(host?.platform || "");
+  // const isSetupExperienceSoftwareHost = isLinuxLike(host?.platform || "");
+  const isSetupExperienceSoftwareHost = true;
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 

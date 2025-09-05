@@ -10,10 +10,13 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const getIsSettingUpSoftware = (
   statuses: ISetupSoftwareStatus[] | null | undefined
 ) => {
-  if (!statuses || statuses.length === 0) {
-    // not configured or no software selected
-    return false;
-  }
+  return true;
+  // return false;
 
-  return statuses.some((s) => ["pending", "running"].includes(s.status));
+  // if (!statuses || statuses.length === 0) {
+  //   // not configured or no software selected
+  //   return false;
+  // }
+
+  // return statuses.some((s) => ["pending", "running"].includes(s.status));
 };
