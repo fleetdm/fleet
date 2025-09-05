@@ -386,9 +386,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	//
 	// Setup experience software endpoints:
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
-	ue.PUT("/api/_version_/fleet/setup_experience/{platform}/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/setup_experience/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
-	ue.GET("/api/_version_/fleet/setup_experience/{platform}/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
 	// Setup experience script endpoints:
 	ue.GET("/api/_version_/fleet/setup_experience/script", getSetupExperienceScriptEndpoint, getSetupExperienceScriptRequest{})
 	ue.POST("/api/_version_/fleet/setup_experience/script", setSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})

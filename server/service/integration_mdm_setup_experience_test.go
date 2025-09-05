@@ -1615,7 +1615,10 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 	// Get "Setup experience" items.
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/linux/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team.ID))
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience,
+		"platform", "linux",
+		"team_id", fmt.Sprint(team.ID),
+	)
 	require.Empty(t, respGetSetupExperience.SoftwareTitles)
 
 	// Add a deb package to the team.
@@ -1650,7 +1653,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 	// Configure the deb, rpm, and tar.gz packages to run as part of the setup experience for Linux hosts.
 	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/linux/software", putSetupExperienceSoftwareRequest{
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
 		TeamID:   team.ID,
 		TitleIDs: []uint{debVimTitleID, rubyVimTitleID, tarGzPackageTitleID},
 	}, http.StatusOK, &swInstallResp)
@@ -1661,10 +1665,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 	// Get "Setup experience" items.
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/linux/software",
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
 		getSetupExperienceSoftwareRequest{},
 		http.StatusOK,
 		&respGetSetupExperience,
+		"platform", "linux",
 		"team_id", fmt.Sprint(team.ID),
 		"order_key", "id",
 		"order_direction", "asc",
@@ -2203,10 +2208,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 	// Get "Setup experience" items for "No team".
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/linux/software",
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
 		getSetupExperienceSoftwareRequest{},
 		http.StatusOK,
 		&respGetSetupExperience,
+		"platform", "linux",
 		"team_id", "0",
 		"order_key", "id",
 		"order_direction", "asc",
@@ -2303,16 +2309,21 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	noPlatformTitles := respGetSetupExperience.SoftwareTitles
 	require.Len(t, noPlatformTitles, 1)
 	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/macos/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "macos",
+		"team_id", fmt.Sprint(team1.ID),
+	)
 	macOSPlatformTitles := respGetSetupExperience.SoftwareTitles
 	require.Equal(t, macOSPlatformTitles, noPlatformTitles)
 
 	// Test invalid platform in GET and PUT.
-	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/foobar/software", []byte(`{"team_id": 0}`), http.StatusBadRequest, nil)
+	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/software", []byte(`{"platform": "foobar", "team_id": 0}`), http.StatusBadRequest, nil)
 	errMsg := extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
 	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
-	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/foobar/software?team_id=0", nil, http.StatusBadRequest, nil)
+	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/software?platform=foobar&team_id=0", nil, http.StatusBadRequest, nil)
 	errMsg = extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
 	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
@@ -2351,6 +2362,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsPlatformIsolation(
 
 	// Get setup experience items for macOS should return the one item.
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
-	s.DoJSON("GET", "/api/latest/fleet/setup_experience/macos/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "macos",
+		"team_id", fmt.Sprint(team1.ID),
+	)
 	require.Len(t, respGetSetupExperience.SoftwareTitles, 1)
 }

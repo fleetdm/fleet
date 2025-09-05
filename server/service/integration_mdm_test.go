@@ -15885,7 +15885,11 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, team1.ID, team1.Name), 0)
 
 	respPutSetupExperience = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   team1.ID,
+		TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID},
+	}, http.StatusOK, &respPutSetupExperience)
 	require.Nil(t, respPutSetupExperience.Error())
 
 	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
