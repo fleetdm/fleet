@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_202500905090000, Down_202500905090000)
+	MigrationClient.AddMigration(Up_20250905090000, Down_20250905090000)
 }
 
-func Up_202500905090000(tx *sql.Tx) error {
+func Up_20250905090000(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 		CREATE TABLE IF NOT EXISTS software_title_icons (
 			id INT AUTO_INCREMENT PRIMARY KEY,
@@ -25,7 +25,7 @@ func Up_202500905090000(tx *sql.Tx) error {
 	return err
 }
 
-func Down_202500905090000(tx *sql.Tx) error {
+func Down_20250905090000(tx *sql.Tx) error {
 	_, err := tx.Exec("DROP TABLE IF EXISTS `software_title_icons`;")
 	return err
 }
