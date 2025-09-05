@@ -789,7 +789,6 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 	includeSecrets := cmd.CLI.Bool("insecure")
 
 	// Get the certificate authorities spec
-	fmt.Println("Is insecure", includeSecrets)
 	cas, err := cmd.Client.GetCertificateAuthoritiesSpec(includeSecrets)
 	if err != nil {
 		return nil, err
