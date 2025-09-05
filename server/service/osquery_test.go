@@ -1787,6 +1787,7 @@ func TestDetailQueries(t *testing.T) {
 		ID:             1,
 		Platform:       "linux",
 		HardwareSerial: "HW_SRL",
+		OsqueryHostID:  ptr.String("foobar"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1848,6 +1849,9 @@ func TestDetailQueries(t *testing.T) {
 	}
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated

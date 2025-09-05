@@ -1,0 +1,1 @@
+* Moved `self_service`, `labels_include_any`, `labels_exclude_any`, `categories`, and `setup_experience` declarations to team level for software in GitOps; `setup_experience` can now be set on a software package, Fleet Maintained App, or App Store app.

@@ -198,6 +198,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -221,6 +224,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityCreatedCustomVariable{},
 	ActivityDeletedCustomVariable{},
+
+	ActivityEditedSetupExperienceSoftware{},
 }
 
 type ActivityDetails interface {
@@ -2448,6 +2453,51 @@ func (a ActivityEditedDigiCert) Documentation() (activity string, details string
 }`
 }
 
+type ActivityAddedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedHydrant) ActivityName() string {
+	return "added_hydrant"
+}
+
+func (a ActivityAddedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityDeletedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedHydrant) ActivityName() string {
+	return "deleted_hydrant"
+}
+
+func (a ActivityDeletedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityEditedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedHydrant) ActivityName() string {
+	return "edited_hydrant"
+}
+
+func (a ActivityEditedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
 type ActivityTypeEnabledAndroidMDM struct{}
 
 func (a ActivityTypeEnabledAndroidMDM) ActivityName() string { return "enabled_android_mdm" }
@@ -2766,5 +2816,27 @@ func (a ActivityDeletedCustomVariable) Documentation() (activity string, details
 - "custom_variable_name": the name of the custom variable.`, `{
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityEditedSetupExperienceSoftware struct {
+	Platform string `json:"platform"`
+	TeamID   uint   `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
+	return "edited_setup_experience_software"
+}
+
+func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits setup experience software.`,
+		`This activity contains the following fields:
+- "platform": the platform of the host ("linux", "darwin").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }

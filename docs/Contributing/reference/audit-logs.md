@@ -1721,6 +1721,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_hydrant
+
+Generated when Hydrant certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## deleted_hydrant
+
+Generated when Hydrant certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## edited_hydrant
+
+Generated when Hydrant certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled
@@ -1994,6 +2039,25 @@ This activity contains the following fields:
 {
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## edited_setup_experience_software
+
+Generated when a user edits setup experience software.
+
+This activity contains the following fields:
+- "platform": the platform of the host ("linux", "darwin").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").
+
+#### Example
+
+```json
+{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 

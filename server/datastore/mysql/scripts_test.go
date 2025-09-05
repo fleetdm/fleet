@@ -2341,6 +2341,28 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Failf(t, "forgot to check a host", "host_id: %d", hostResult.HostID)
 		}
 	}
+
+	// Schedule script that we will subsequently cancel.
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, hostNoScripts.ID, 0xbeef}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	err = ds.CancelBatchScript(ctx, execID)
+	require.NoError(t, err)
+
+	// Get the summary again
+	summaryList, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, summaryList, 1)
+	summary := (summaryList)[0]
+	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(0))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumRan, uint(0))
+	require.Equal(t, *summary.NumCanceled, uint(5))
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
@@ -2435,6 +2457,29 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
+
+	// Edge case -- batch activity with no hosts.
+	// In reality this could happen if all the hosts in a batch get deleted.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO batch_activities (execution_id, status, script_id, activity_type) VALUES (?, ?, ?, ?)",
+			"abc123", fleet.ScheduledBatchExecutionStarted, script.ID, "script")
+		return err
+	})
+
+	// Mark activities as completed
+	err = ds.MarkActivitiesAsCompleted(ctx)
+	require.NoError(t, err)
+
+	// First activity should be marked as finished and updated accordingly.
+	batchActivity, err = ds.GetBatchActivity(ctx, "abc123")
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(0), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumRan)
+	require.Equal(t, uint(0), *batchActivity.NumErrored)
+	require.Equal(t, uint(0), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(0), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
 }
 
 func testBatchScriptCancel(t *testing.T, ds *Datastore) {

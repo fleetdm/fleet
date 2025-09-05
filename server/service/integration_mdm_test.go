@@ -14369,11 +14369,18 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
 	defer cleanup()
 
-	appConf, err := s.ds.AppConfig(context.Background())
-	require.NoError(t, err)
-	appConf.Integrations.NDESSCEPProxy.Valid = true
-	appConf.Integrations.NDESSCEPProxy.Value.URL = testServer.URL
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	// Bypass service validation to insert a bad url
+	adminUrl := "bad-admin-url"
+	username := "user"
+	password := "pass"
+	ca, err := s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Name:     ptr.String("bad-url"),
+		URL:      &testServer.URL,
+		AdminURL: &adminUrl,
+		Username: &username,
+		Password: &password,
+	})
 	require.NoError(t, err)
 
 	res = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusInternalServerError, nil, "operation", "GetCACaps")
@@ -14400,9 +14407,19 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 		*s.scepConfig.Timeout = 10 * time.Second
 		ndesTimeoutServer.Close()
 	})
-	appConf.Integrations.NDESSCEPProxy.Value.URL = ndesTimeoutServer.URL
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
+
+	// Bypass service validation to verify timeout behaviour
+	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
+	ca, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Name:     ptr.String("bad-url"),
+		URL:      &ndesTimeoutServer.URL,
+		AdminURL: &adminUrl,
+		Username: &username,
+		Password: &password,
+	})
 	require.NoError(t, err)
+
 	// GetCACaps
 	_ = s.DoRawWithHeaders("GET", apple_mdm.SCEPProxyPath+identifier, nil, http.StatusRequestTimeout, nil, "operation", "GetCACaps")
 	// GetCACert
@@ -14414,8 +14431,15 @@ func (s *integrationMDMTestSuite) TestSCEPProxy() {
 
 	scepServer := scep_server.StartTestSCEPServer(t)
 
-	appConf.Integrations.NDESSCEPProxy.Value.URL = scepServer.URL + "/scep"
-	err = s.ds.SaveAppConfig(context.Background(), appConf)
+	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
+	_, err = s.ds.NewCertificateAuthority(ctx, &fleet.CertificateAuthority{
+		Type:     string(fleet.CATypeNDESSCEPProxy),
+		Name:     ptr.String("bad-url"),
+		URL:      ptr.String(scepServer.URL + "/scep"),
+		AdminURL: &adminUrl,
+		Username: &username,
+		Password: &password,
+	})
 	require.NoError(t, err)
 
 	// GetCACaps
@@ -14526,56 +14550,55 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
 	defer cleanup()
 
-	caBad := getDigiCertIntegration(testServer.URL, "ca")
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{caBad},
+	caBad := newMockDigicertCA(testServer.URL, "ca")
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &caBad,
 		},
 	}
-	raw, err := json.Marshal(appConfig)
-	require.NoError(t, err)
-	var req modifyAppConfigRequest
-	req.RawMessage = raw
-	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg := extractServerErrorText(rawRes.Body)
-	require.Contains(t, errMsg, "Could not verify DigiCert profile ID")
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	assert.True(t, fleet.IsNotFound(err))
+	res := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
 
 	// Add 3 DigiCert integrations
-	ca0 := getDigiCertIntegration(digiCertServer.server.URL, "ca0")
+	ca0 := newMockDigicertCA(digiCertServer.server.URL, "ca0")
 	ca0.APIToken = "api_token0"
-	ca1 := getDigiCertIntegration(digiCertServer.server.URL, "ca1")
+	ca1 := newMockDigicertCA(digiCertServer.server.URL, "ca1")
 	ca1.APIToken = "api_token1"
-	ca2 := getDigiCertIntegration(digiCertServer.server.URL, "ca2")
+	ca2 := newMockDigicertCA(digiCertServer.server.URL, "ca2")
 	ca2.APIToken = "api_token2"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca0, ca1, ca2},
-		},
-	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req = modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
-	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	assert.True(t, fleet.IsNotFound(err))
+	certPayload.CertificateAuthorityPayload.DigiCert = &ca0
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+	certPayload.CertificateAuthorityPayload.DigiCert = &ca1
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+	certPayload.CertificateAuthorityPayload.DigiCert = &ca2
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
 
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.DigiCert.Value, 3)
-	for _, ca := range res.Integrations.DigiCert.Value {
-		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
+	listRes := listCertificateAuthoritiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/certificate_authorities", &listCertificateAuthoritiesRequest{}, http.StatusOK, &listRes)
+
+	digiCerts := []*fleet.CertificateAuthority{}
+	digiCertsWithSecrets := []*fleet.CertificateAuthority{}
+	for _, ca := range listRes.CertificateAuthorities {
+		if ca.Type == string(fleet.CATypeDigiCert) {
+			getRes := getCertificateAuthorityResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), &getCertificateAuthorityRequest{}, http.StatusOK, &getRes)
+			digiCerts = append(digiCerts, getRes.CertificateAuthority)
+
+			caWithSecret, err := s.ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+			require.NoError(t, err)
+			digiCertsWithSecrets = append(digiCertsWithSecrets, caWithSecret)
+		}
 	}
-	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	require.NoError(t, err)
-	require.Len(t, assets, 3)
-	assert.EqualValues(t, "api_token0", assets["ca0"].Value)
-	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
-	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
+	assert.Len(t, digiCerts, 3)
+
+	for _, ca := range digiCerts {
+		assert.Equal(t, fleet.MaskedPassword, *ca.APIToken)
+	}
+
+	require.Len(t, digiCertsWithSecrets, 3)
+	assert.EqualValues(t, "api_token0", *digiCertsWithSecrets[0].APIToken)
+	assert.EqualValues(t, "api_token1", *digiCertsWithSecrets[1].APIToken)
+	assert.EqualValues(t, "api_token2", *digiCertsWithSecrets[2].APIToken)
 
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
@@ -14597,109 +14620,105 @@ func (s *integrationMDMTestSuite) TestDigiCertConfig() {
 	slices.Sort(caNames)
 	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
 
-	// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
-	ca1.URL += "//"
-	ca3 := getDigiCertIntegration(digiCertServer.server.URL, "ca3")
-	ca3.APIToken = "api_token3"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca3, ca2, ca1},
-		},
-	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	require.Len(t, res.Integrations.DigiCert.Value, 3)
-	assert.NotEqual(t, res.Integrations.DigiCert.Value[0].Name, res.Integrations.DigiCert.Value[1].Name)
-	assert.NotEqual(t, res.Integrations.DigiCert.Value[1].Name, res.Integrations.DigiCert.Value[2].Name)
-	for _, ca := range res.Integrations.DigiCert.Value {
-		switch ca.Name {
-		case "ca1":
-			assert.True(t, ca.Equals(&ca1))
-		case "ca2":
-			assert.True(t, ca.Equals(&ca2))
-		case "ca3":
-			assert.True(t, ca.Equals(&ca3))
-		default:
-			t.Fatalf("unexpected ca name: %s", ca.Name)
+	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
+	/*
+		// Add 1, modify 1, delete 1, keep 1 the same (DigiCert integrations)
+		ca1.URL += "//"
+		ca3 := getDigiCertIntegration(digiCertServer.server.URL, "ca3")
+		ca3.APIToken = "api_token3"
+		appConfig = map[string]interface{}{
+			"integrations": map[string]interface{}{
+				"digicert": []fleet.DigiCertCA{ca3, ca2, ca1},
+			},
 		}
-		assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
-	}
-	assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	require.NoError(t, err)
-	require.Len(t, assets, 3)
-	assert.EqualValues(t, "api_token1", assets["ca1"].Value)
-	assert.EqualValues(t, "api_token2", assets["ca2"].Value)
-	assert.EqualValues(t, "api_token3", assets["ca3"].Value)
-
-	listActivities = listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
-	activity = fleet.ActivityAddedDigiCert{}
-	editActivity := fleet.ActivityEditedDigiCert{}
-	delActivity := fleet.ActivityDeletedDigiCert{}
-	var numFound int
-	for _, act := range listActivities.Activities {
-		switch act.Type {
-		case activity.ActivityName():
-			err := json.Unmarshal(*act.Details, &activity)
-			require.NoError(t, err)
-			assert.Equal(t, activity.Name, ca3.Name)
-			numFound++
-		case editActivity.ActivityName():
-			err := json.Unmarshal(*act.Details, &editActivity)
-			require.NoError(t, err)
-			assert.Equal(t, editActivity.Name, ca1.Name)
-			numFound++
-		case delActivity.ActivityName():
-			err := json.Unmarshal(*act.Details, &delActivity)
-			require.NoError(t, err)
-			assert.Equal(t, delActivity.Name, ca0.Name)
-			numFound++
+		raw, err = json.Marshal(appConfig)
+		require.NoError(t, err)
+		req.RawMessage = raw
+		res = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
+		require.Len(t, res.Integrations.DigiCert.Value, 3)
+		assert.NotEqual(t, res.Integrations.DigiCert.Value[0].Name, res.Integrations.DigiCert.Value[1].Name)
+		assert.NotEqual(t, res.Integrations.DigiCert.Value[1].Name, res.Integrations.DigiCert.Value[2].Name)
+		for _, ca := range res.Integrations.DigiCert.Value {
+			switch ca.Name {
+			case "ca1":
+				assert.True(t, ca.Equals(&ca1))
+			case "ca2":
+				assert.True(t, ca.Equals(&ca2))
+			case "ca3":
+				assert.True(t, ca.Equals(&ca3))
+			default:
+				t.Fatalf("unexpected ca name: %s", ca.Name)
+			}
+			assert.Equal(t, ca.APIToken, fleet.MaskedPassword)
 		}
-		if numFound == 3 {
-			break
-		}
-	}
-	assert.Equal(t, 3, numFound)
+		assets, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
+		require.NoError(t, err)
+		require.Len(t, assets, 3)
+		assert.EqualValues(t, "api_token1", assets["ca1"].Value)
+		assert.EqualValues(t, "api_token2", assets["ca2"].Value)
+		assert.EqualValues(t, "api_token3", assets["ca3"].Value)
 
-	// Clear DigiCert integrations
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": nil,
-		},
-	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Empty(t, res.Integrations.DigiCert.Value)
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigDigiCert)
-	assert.True(t, fleet.IsNotFound(err))
-
-	// Check that 3 deleted activities are present
-	listActivities = listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
-	delActivity = fleet.ActivityDeletedDigiCert{}
-	caNames = make([]string, 0, 3)
-	for _, act := range listActivities.Activities {
-		if act.Type == delActivity.ActivityName() {
-			err := json.Unmarshal(*act.Details, &delActivity)
-			require.NoError(t, err)
-			caNames = append(caNames, delActivity.Name)
-			if len(caNames) == 3 {
+		listActivities = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		require.True(t, len(listActivities.Activities) > 0)
+		activity = fleet.ActivityAddedDigiCert{}
+		editActivity := fleet.ActivityEditedDigiCert{}
+		delActivity := fleet.ActivityDeletedDigiCert{}
+		var numFound int
+		for _, act := range listActivities.Activities {
+			switch act.Type {
+			case activity.ActivityName():
+				err := json.Unmarshal(*act.Details, &activity)
+				require.NoError(t, err)
+				assert.Equal(t, activity.Name, ca3.Name)
+				numFound++
+			case editActivity.ActivityName():
+				err := json.Unmarshal(*act.Details, &editActivity)
+				require.NoError(t, err)
+				assert.Equal(t, editActivity.Name, ca1.Name)
+				numFound++
+			case delActivity.ActivityName():
+				err := json.Unmarshal(*act.Details, &delActivity)
+				require.NoError(t, err)
+				assert.Equal(t, delActivity.Name, ca0.Name)
+				numFound++
+			}
+			if numFound == 3 {
 				break
 			}
 		}
+		assert.Equal(t, 3, numFound)
+	*/
+
+	// Clear DigiCert integrations
+	for _, ca := range digiCerts {
+		s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	}
-	slices.Sort(caNames)
-	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+
+	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
+	/*
+		// Check that 3 deleted activities are present
+		listActivities = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		require.True(t, len(listActivities.Activities) > 0)
+		delActivity := fleet.ActivityDeletedDigiCert{}
+		caNames = make([]string, 0, 3)
+		for _, act := range listActivities.Activities {
+			if act.Type == delActivity.ActivityName() {
+				err := json.Unmarshal(*act.Details, &delActivity)
+				require.NoError(t, err)
+				caNames = append(caNames, delActivity.Name)
+				if len(caNames) == 3 {
+					break
+				}
+			}
+		}
+		slices.Sort(caNames)
+		assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+	*/
 }
 
 func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
@@ -14709,20 +14728,15 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	digiCertServer := createMockDigiCertServer(t)
 
 	// Add DigiCert config
-	ca := getDigiCertIntegration(digiCertServer.server.URL, "my_CA")
+	ca := newMockDigicertCA(digiCertServer.server.URL, "my_CA")
 	ca.APIToken = "api_token0"
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca},
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &ca,
 		},
 	}
-	raw, err := json.Marshal(appConfig)
-	require.NoError(t, err)
-	var req modifyAppConfigRequest
-	req.RawMessage = raw
-	var res appConfigResponse
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.DigiCert.Value, 1)
+	res := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
 
 	// Create a host and then enroll to MDM.
 	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -14821,20 +14835,15 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 	// ////////////////////////////////
 	// Try a DigiCert CA that will fail
-	caFail := getDigiCertIntegration(digiCertServer.server.URL, "fail_CA")
+	caFail := newMockDigicertCA(digiCertServer.server.URL, "fail_CA")
 	caFail.CertificateCommonName = "Fail"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail},
+	certPayload = createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &caFail,
 		},
 	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req = modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.DigiCert.Value, 2)
+	resFail := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resFail)
 
 	profileFail := digiCertForTest("N3", "I3", "fail_CA")
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -14881,7 +14890,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 
 		return err
 	})
-	caFleetVars := fleet.DigiCertIntegration{
+	caFleetVars := fleet.DigiCertCA{
 		Name:                          "FleetVars",
 		URL:                           digiCertServer.server.URL,
 		APIToken:                      "api_token",
@@ -14890,18 +14899,13 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 		CertificateUserPrincipalNames: []string{"_${FLEET_VAR_" + string(fleet.FleetVarHostEndUserEmailIDP) + "}_"},
 		CertificateSeatID:             "_${FLEET_VAR_" + string(fleet.FleetVarHostHardwareSerial) + "}_",
 	}
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+	certPayload = createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			DigiCert: &caFleetVars,
 		},
 	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req = modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.DigiCert.Value, 3)
+	resFleetVars := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &resFleetVars)
 
 	profileFleetVars := digiCertForTest("N4", "I4", "FleetVars")
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
@@ -15056,9 +15060,10 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	caFleetVars.CertificateCommonName = "common_name"
 	caFleetVars.CertificateUserPrincipalNames = nil
 	caFleetVars.CertificateSeatID = "seat_id"
-	appConfig = map[string]interface{}{
+	// TODO(HCA): Call update endpoint to follow logic below once implemented
+	/* appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"digicert": []fleet.DigiCertIntegration{ca, caFail, caFleetVars},
+			"digicert": []fleet.DigiCertCA{ca, caFail, caFleetVars},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -15067,7 +15072,7 @@ func (s *integrationMDMTestSuite) TestDigiCertIntegration() {
 	req.RawMessage = raw
 	res = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.DigiCert.Value, 3)
+	assert.Len(t, res.Integrations.DigiCert.Value, 3)*/
 }
 
 //go:embed testdata/profiles/digicert.mobileconfig
@@ -15216,60 +15221,59 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	scepServer := scep_server.StartTestSCEPServer(t)
 	scepServerURL := scepServer.URL + "/scep"
 
-	// Add custom SCEP integration with bad URL using local test server
-	testServer, cleanup := createTestServerWithStatusCode(http.StatusGone)
-	defer cleanup()
+	// TODO(hca): Update test to use apply group CA endpoint?
 
-	caBad := getCustomSCEPIntegration(testServer.URL, "ca")
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{caBad},
+	caBad := newMockCustomSCEPProxyCA(scepServer.URL, "ca")
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &caBad,
 		},
 	}
-	raw, err := json.Marshal(appConfig)
-	require.NoError(t, err)
-	var req modifyAppConfigRequest
-	req.RawMessage = raw
-	rawRes := s.Do("PATCH", "/api/latest/fleet/config", &req, http.StatusUnprocessableEntity, "dry_run", "true")
-	errMsg := extractServerErrorText(rawRes.Body)
-	assert.Contains(t, errMsg, "invalid SCEP URL")
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
-	assert.True(t, fleet.IsNotFound(err))
+	res := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusBadRequest, &res)
 
 	// Add 3 CustomSCEPProxy integrations
-	ca0 := getCustomSCEPIntegration(scepServerURL, "ca0")
+	ca0 := newMockCustomSCEPProxyCA(scepServerURL, "ca0")
 	ca0.Challenge = "challenge0"
-	ca1 := getCustomSCEPIntegration(scepServerURL, "ca1")
+	ca1 := newMockCustomSCEPProxyCA(scepServerURL, "ca1")
 	ca1.Challenge = "challenge1"
-	ca2 := getCustomSCEPIntegration(scepServerURL, "ca2")
+	ca2 := newMockCustomSCEPProxyCA(scepServerURL, "ca2")
 	ca2.Challenge = "challenge2"
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1, ca2},
-		},
-	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req = modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res, "dry_run", "true")
-	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
-	assert.True(t, fleet.IsNotFound(err))
+	certPayload.CertificateAuthorityPayload.CustomSCEPProxy = &ca0
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+	certPayload.CertificateAuthorityPayload.CustomSCEPProxy = &ca1
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
+	certPayload.CertificateAuthorityPayload.CustomSCEPProxy = &ca2
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res)
 
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 3)
-	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
-		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
+	listRes := listCertificateAuthoritiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/certificate_authorities", &listCertificateAuthoritiesRequest{}, http.StatusOK, &listRes)
+
+	customScepProxies := []*fleet.CertificateAuthority{}
+	customScepProxiesWithSecrets := []*fleet.CertificateAuthority{}
+	for _, ca := range listRes.CertificateAuthorities {
+		if ca.Type == string(fleet.CATypeCustomSCEPProxy) {
+			getRes := getCertificateAuthorityResponse{}
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), &getCertificateAuthorityRequest{}, http.StatusOK, &getRes)
+			customScepProxies = append(customScepProxies, getRes.CertificateAuthority)
+
+			caWithSecret, err := s.ds.GetCertificateAuthorityByID(ctx, ca.ID, true)
+			require.NoError(t, err)
+			customScepProxiesWithSecrets = append(customScepProxiesWithSecrets, caWithSecret)
+		} else {
+			t.Fatalf("found ca that is not a scep proxy")
+		}
 	}
-	assets, err := s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
-	require.NoError(t, err)
-	require.Len(t, assets, 3)
-	assert.EqualValues(t, "challenge0", assets["ca0"].Value)
-	assert.EqualValues(t, "challenge1", assets["ca1"].Value)
-	assert.EqualValues(t, "challenge2", assets["ca2"].Value)
+	assert.Len(t, customScepProxies, 3)
+
+	for _, ca := range customScepProxies {
+		assert.Equal(t, fleet.MaskedPassword, *ca.Challenge)
+	}
+
+	require.Len(t, customScepProxiesWithSecrets, 3)
+	assert.EqualValues(t, "challenge0", *customScepProxiesWithSecrets[0].Challenge)
+	assert.EqualValues(t, "challenge1", *customScepProxiesWithSecrets[1].Challenge)
+	assert.EqualValues(t, "challenge2", *customScepProxiesWithSecrets[2].Challenge)
 
 	// Check 3 added activities are present
 	var listActivities listActivitiesResponse
@@ -15291,13 +15295,14 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 	slices.Sort(caNames)
 	assert.EqualValues(t, caNames, []string{"ca0", "ca1", "ca2"})
 
-	// Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
+	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
+	/* // Add 1, modify 1, delete 1, keep 1 the same (CustomSCEPProxy integrations)
 	ca1.Challenge = "challenge1-modified"
-	ca3 := getCustomSCEPIntegration(scepServerURL, "ca3")
+	ca3 := newMockCustomSCEPProxyCA(scepServerURL, "ca3")
 	ca3.Challenge = "challenge3"
 	appConfig = map[string]interface{}{
 		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca3, ca2, ca1},
+			"custom_scep_proxy": []fleet.CustomSCEPProxyCA{ca3, ca2, ca1},
 		},
 	}
 	raw, err = json.Marshal(appConfig)
@@ -15358,42 +15363,35 @@ func (s *integrationMDMTestSuite) TestCustomSCEPConfig() {
 			break
 		}
 	}
-	assert.Equal(t, 3, numFound)
+	assert.Equal(t, 3, numFound) */
 
 	// Clear CustomSCEPProxy integrations
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"custom_scep_proxy": nil,
-		},
+	for _, ca := range customScepProxies {
+		s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", ca.ID), nil, http.StatusNoContent)
 	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
-	_, err = s.ds.GetAllCAConfigAssetsByType(ctx, fleet.CAConfigCustomSCEPProxy)
-	assert.True(t, fleet.IsNotFound(err))
 
-	// Check that 3 deleted activities are present
-	listActivities = listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
-		&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
-	require.True(t, len(listActivities.Activities) > 0)
-	delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
-	caNames = make([]string, 0, 3)
-	for _, act := range listActivities.Activities {
-		if act.Type == delActivity.ActivityName() {
-			err := json.Unmarshal(*act.Details, &delActivity)
-			require.NoError(t, err)
-			caNames = append(caNames, delActivity.Name)
-			if len(caNames) == 3 {
-				break
+	// TODO(HCA): Re enable and switch out with endpoints once update endpoint is implemented.
+	/*
+		// Check that 3 deleted activities are present
+		listActivities = listActivitiesResponse{}
+		s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK,
+			&listActivities, "order_key", "a.id", "order_direction", "desc", "per_page", "10")
+		require.True(t, len(listActivities.Activities) > 0)
+		delActivity = fleet.ActivityDeletedCustomSCEPProxy{}
+		caNames = make([]string, 0, 3)
+		for _, act := range listActivities.Activities {
+			if act.Type == delActivity.ActivityName() {
+				err := json.Unmarshal(*act.Details, &delActivity)
+				require.NoError(t, err)
+				caNames = append(caNames, delActivity.Name)
+				if len(caNames) == 3 {
+					break
+				}
 			}
 		}
-	}
-	slices.Sort(caNames)
-	assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+		slices.Sort(caNames)
+		assert.EqualValues(t, caNames, []string{"ca1", "ca2", "ca3"})
+	*/
 }
 
 func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
@@ -15403,7 +15401,7 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 	scepServerURL := scepServer.URL + "/scep"
 
 	// parseSCEPProfile returns the parsed SCEP profile along with the identifier from the profile URL
-	parseSCEPProfile := func(t *testing.T, raw []byte, scepConfig fleet.CustomSCEPProxyIntegration) (SCEPProfileContent, string) {
+	parseSCEPProfile := func(t *testing.T, raw []byte, scepConfig fleet.CustomSCEPProxyCA) (SCEPProfileContent, string) {
 		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(raw, &fullCmd))
 		require.NotNil(t, fullCmd.Command)
@@ -15522,24 +15520,19 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// /////////////////////////////////////////
 	// Add custom SCEP config
-	ca0 := getCustomSCEPIntegration(scepServerURL, "scepName")
-	ca1 := getCustomSCEPIntegration(scepServerURL, "scepName2")
+	ca0 := newMockCustomSCEPProxyCA(scepServerURL, "scepName")
+	ca1 := newMockCustomSCEPProxyCA(scepServerURL, "scepName2")
 	t.Logf("scepName2 challenge:%s", ca1.Challenge)
-	appConfig := map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"custom_scep_proxy": []fleet.CustomSCEPProxyIntegration{ca0, ca1},
+	certPayload := createCertificateAuthorityRequest{
+		CertificateAuthorityPayload: fleet.CertificateAuthorityPayload{
+			CustomSCEPProxy: &ca0,
 		},
 	}
-	raw, err := json.Marshal(appConfig)
-	require.NoError(t, err)
-	req := modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res := appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Len(t, res.Integrations.CustomSCEPProxy.Value, 2)
-	for _, ca := range res.Integrations.CustomSCEPProxy.Value {
-		assert.Equal(t, fleet.MaskedPassword, ca.Challenge)
-	}
+	res1 := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res1)
+	certPayload.CertificateAuthorityPayload.CustomSCEPProxy = &ca1
+	res2 := createCertificateAuthorityResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/certificate_authorities", &certPayload, http.StatusOK, &res2)
 
 	// //////////////////////////////////////////////
 	// Upload a profile with two valid SCEP payloads.
@@ -15784,18 +15777,8 @@ func (s *integrationMDMTestSuite) TestCustomSCEPIntegration() {
 
 	// ////////////////////////////////////////////
 	// Remove the CAs and try to re-send the profile
-	appConfig = map[string]interface{}{
-		"integrations": map[string]interface{}{
-			"custom_scep_proxy": nil,
-		},
-	}
-	raw, err = json.Marshal(appConfig)
-	require.NoError(t, err)
-	req = modifyAppConfigRequest{}
-	req.RawMessage = raw
-	res = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", &req, http.StatusOK, &res)
-	assert.Empty(t, res.Integrations.CustomSCEPProxy.Value)
+	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", res1.ID), nil, http.StatusNoContent)
+	s.DoRaw("DELETE", fmt.Sprintf("/api/latest/fleet/certificate_authorities/%d", res2.ID), nil, http.StatusNoContent)
 	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, profileUUID), nil, http.StatusAccepted)
 	s.awaitTriggerProfileSchedule(t)
 	getHostResp = getDeviceHostResponse{}
@@ -15897,6 +15880,16 @@ func (s *integrationMDMTestSuite) TestSetupExperience() {
 	var respPutSetupExperience putSetupExperienceSoftwareResponse
 	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
 	require.Nil(t, respPutSetupExperience.Error())
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, team1.ID, team1.Name), 0)
+
+	respPutSetupExperience = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/latest/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{respListTitles.SoftwareTitles[0].ID, respListTitles.SoftwareTitles[1].ID}}, http.StatusOK, &respPutSetupExperience)
+	require.Nil(t, respPutSetupExperience.Error())
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"platform": "darwin", "team_id": %d, "team_name": "%s"}`, team1.ID, team1.Name), 0)
 
 	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience, "team_id", fmt.Sprint(team1.ID))
 	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
