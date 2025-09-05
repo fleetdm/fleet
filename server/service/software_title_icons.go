@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"math"
 	"mime/multipart"
 	"net/http"
 	"strconv"
@@ -120,6 +121,9 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "invalid title_id"}
 	}
+	if titleIDUint64 > math.MaxUint {
+		return nil, &fleet.BadRequestError{Message: "title_id value too large"}
+	}
 	teamID := r.URL.Query().Get("team_id")
 	if teamID == "" {
 		return nil, &fleet.BadRequestError{Message: "team_id is required"}
@@ -127,6 +131,9 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 	teamIDUint64, err := strconv.ParseUint(teamID, 10, 64)
 	if err != nil {
 		return nil, &fleet.BadRequestError{Message: "invalid team_id"}
+	}
+	if teamIDUint64 > math.MaxUint {
+		return nil, &fleet.BadRequestError{Message: "team_id value too large"}
 	}
 	teamIDUint := uint(teamIDUint64)
 
