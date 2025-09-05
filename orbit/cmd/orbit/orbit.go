@@ -753,6 +753,7 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			PlatformLike:   osqueryHostInfo.PlatformLike,
 			ComputerName:   osqueryHostInfo.ComputerName,
 			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
@@ -1441,10 +1442,11 @@ func main() {
 						ErrorTimestamp:     time.Now(),
 						ErrorMessage:       msg,
 						ErrorAdditionalInfo: map[string]interface{}{
-							"orbit_version":   build.Version,
-							"osquery_version": osqueryHostInfo.OsqueryVersion,
-							"os_platform":     osqueryHostInfo.Platform,
-							"os_version":      osqueryHostInfo.OSVersion,
+							"orbit_version":    build.Version,
+							"osquery_version":  osqueryHostInfo.OsqueryVersion,
+							"os_platform":      osqueryHostInfo.Platform,
+							"os_platform_like": osqueryHostInfo.PlatformLike,
+							"os_version":       osqueryHostInfo.OSVersion,
 						},
 					}
 					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
@@ -2041,6 +2043,8 @@ type osqueryHostInfo struct {
 	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
+	// PlatformLike is the device's platform_like as defined by osquery (extracted from `os_version` osquery table).
+	PlatformLike string `json:"platform_like"`
 	// InstanceID is the osquery's randomly generated instance ID
 	// (extracted from `osquery_info` osquery table).
 	InstanceID string `json:"instance_id"`
@@ -2064,6 +2068,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		si.computer_name,
 		si.hardware_model,
 		os.platform,
+		os.platform_like,
 		os.version as os_version,
 		oi.instance_id,
 		oi.version as osquery_version

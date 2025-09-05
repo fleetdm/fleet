@@ -89,14 +89,14 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOsqueryAgentRequest)
-	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
 		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
 	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
-func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -156,15 +156,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx,
-		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
-		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
-		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
-		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
-		fleet.WithEnrollHostNodeKey(nodeKey),
-		fleet.WithEnrollHostTeamID(secret.TeamID),
-		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
-		fleet.WithEnrollHostIdentityCert(identityCert),
+	host, err := svc.ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+		fleet.WithEnrollOsqueryHardwareSerial(hardwareSerial),
+		fleet.WithEnrollOsqueryNodeKey(nodeKey),
+		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
+		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())

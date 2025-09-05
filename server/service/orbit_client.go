@@ -501,6 +501,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		HardwareSerial:    oc.hostInfo.HardwareSerial,
 		Hostname:          oc.hostInfo.Hostname,
 		Platform:          oc.hostInfo.Platform,
+		PlatformLike:      oc.hostInfo.PlatformLike,
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,

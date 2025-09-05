@@ -8266,7 +8266,7 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 }
 
-func (s *integrationTestSuite) TestEnrollHost() {
+func (s *integrationTestSuite) TestEnrollOsquery() {
 	t := s.T()
 
 	// set the enroll secret
