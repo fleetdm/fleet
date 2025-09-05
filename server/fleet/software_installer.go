@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,34 +27,6 @@ type SoftwareInstallerStore interface {
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, fileID string) (string, error)
-}
-
-// FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
-// that fails all operations. It is used when S3 is not configured and the
-// local filesystem store could not be setup.
-type FailingSoftwareInstallerStore struct{}
-
-func (FailingSoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
-	return nil, 0, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	return errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
-	return false, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
-	// do not fail for the failing store's cleanup, as unlike the other store
-	// methods, this will be called even if software installers are otherwise not
-	// used (by the cron job).
-	return 0, nil
-}
-
-func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
-	return "", errors.New("software installer store not properly configured")
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -99,6 +70,8 @@ type SoftwareInstaller struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Extension is the file extension of the software package, inferred from package contents.
 	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
@@ -493,6 +466,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
@@ -512,6 +486,18 @@ func (h *HostSoftwareWithInstaller) IsPackage() bool {
 
 func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
 	return h.AppStoreApp != nil
+}
+
+func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if h.IconUrl != nil && *h.IconUrl != "" {
+		matched := SoftwareTitleIconURLRegex.MatchString(*h.IconUrl)
+		if matched {
+			icon := SoftwareTitleIcon{SoftwareTitleID: h.ID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			h.IconUrl = ptr.String(deviceIconURL)
+		}
+	}
 }
 
 type AutomaticInstallPolicy struct {
@@ -534,7 +520,6 @@ type SoftwarePackageOrApp struct {
 	Version       string                 `json:"version"`
 	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
-	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`

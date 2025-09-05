@@ -67,6 +67,7 @@ export const generateSoftwareTableHeaders = ({
           source,
           app_store_app,
           software_package,
+          icon_url,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -85,7 +86,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}

@@ -4,7 +4,10 @@ import { IDeviceSoftware } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  getPathWithQueryParams,
+} from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
 
@@ -82,9 +85,13 @@ export default {
     const { DEVICE_SOFTWARE } = endpoints;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, scope, ...rest } = params;
-    const queryString = buildQueryStringFromParams(rest);
-    return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
+
+    const path = getPathWithQueryParams(DEVICE_SOFTWARE(id), rest);
+    return sendRequest("GET", path);
   },
+
+  // getSoftwareIcon doesn't need its own service function because the logic is encapsulated in
+  // softwareAPI.getSoftwareIconFromApiUrl in /entities/software.ts
 
   installSelfServiceSoftware: (
     deviceToken: string,

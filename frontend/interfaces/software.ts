@@ -44,9 +44,13 @@ export interface ISoftware {
   installed_paths?: string[];
   browser?: string;
   vendor?: string;
+  icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
 
-export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
+export type IVulnerabilitySoftware = Omit<
+  ISoftware,
+  "vulnerabilities" | "icon_url"
+> & {
   resolved_in_version: string;
 };
 
@@ -136,6 +140,7 @@ export interface IAppStoreApp {
 export interface ISoftwareTitle {
   id: number;
   name: string;
+  icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
   hosts_count: number;
@@ -148,6 +153,7 @@ export interface ISoftwareTitle {
 export interface ISoftwareTitleDetails {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
@@ -418,6 +424,7 @@ export interface IHostAppStoreApp {
 export interface IHostSoftware {
   id: number;
   name: string;
+  icon_url: string | null;
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;

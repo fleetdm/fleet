@@ -21,12 +21,13 @@
     overflow-wrap: anywhere; // Prevent long file name overflow
   }
 
-  &__platform {
+  &__description {
     font-size: $xx-small;
     color: $ui-fleet-black-75;
   }
 
-  &__edit {
+  &__edit,
+  &__delete {
     display: flex;
     align-items: center; // Center the button vertically
     margin-right: -$pad-medium; // Adjust for button padding
