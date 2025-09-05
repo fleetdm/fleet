@@ -1549,11 +1549,18 @@ func main() {
 					return errors.New("no user logged in")
 				}
 
+				browserBin := "/usr/bin/xdg-open"
+				firefoxBin := "/usr/bin/firefox"
+				if _, err := os.Stat(firefoxBin); os.IsExist(err) {
+					browserBin = firefoxBin
+				}
+
 				var opts []execuser.Option
 				opts = append(opts, execuser.WithUser(*loggedInUser))
 				opts = append(opts, execuser.WithArg(browserURL, ""))
-				if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
-					return fmt.Errorf("opening browser with xdg-open: %w", err)
+				log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
+				if _, err := execuser.Run(browserBin, opts...); err != nil {
+					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
@@ -1612,7 +1619,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 	// Setup experience enabled for us and is now kicked off, open a browser
 	if resp.Enabled {
 		if err := openMyDevicePage(); err != nil {
-			return fmt.Errorf("opening my device page: %w", err)
+			log.Err(err).Msg("opening setup experience my device page using")
 		}
 	} else {
 		log.Debug().Msg("setup experience not enabled on team")
@@ -1644,7 +1651,7 @@ func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperi
 		return nil, fmt.Errorf("read setup experience file: %w", err)
 	}
 	var exp *SetupExperienceInfo
-	if err := json.NewDecoder(f).Decode(&exp); err != nil {
+	if err := json.NewDecoder(f).Decode(exp); err != nil {
 		return nil, fmt.Errorf("decoding setup experience file: %w", err)
 	}
 
