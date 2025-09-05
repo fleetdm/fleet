@@ -27,6 +27,7 @@ interface ICustomSCEPFormProps {
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -38,11 +39,11 @@ const CustomSCEPForm = ({
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: ICustomSCEPFormProps) => {
-  const [isDirty, setIsDirty] = useState(false);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
@@ -69,7 +70,6 @@ const CustomSCEPForm = ({
       )
     );
     onChange(update);
-    setIsDirty(true);
   };
 
   return (

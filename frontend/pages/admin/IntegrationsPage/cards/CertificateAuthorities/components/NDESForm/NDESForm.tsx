@@ -21,6 +21,7 @@ interface INDESFormProps {
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -31,11 +32,11 @@ const NDESForm = ({
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: INDESFormProps) => {
-  const [isDirty, setIsDirty] = useState(false);
   const [formValidation, setFormValidation] = useState<INDESFormValidation>(
     () => validateFormData(formData)
   );
@@ -52,7 +53,6 @@ const NDESForm = ({
       validateFormData({ ...formData, [update.name]: update.value })
     );
     onChange(update);
-    setIsDirty(true);
   };
 
   return (

@@ -27,6 +27,7 @@ interface IHydrantFormProps {
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -38,11 +39,11 @@ const HydrantForm = ({
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: IHydrantFormProps) => {
-  const [isDirty, setIsDirty] = useState(false);
   const validations = useMemo(
     () => generateFormValidations(certAuthorities ?? [], isEditing),
     [certAuthorities, isEditing]
@@ -67,7 +68,6 @@ const HydrantForm = ({
       )
     );
     onChange(update);
-    setIsDirty(true);
   };
 
   return (
