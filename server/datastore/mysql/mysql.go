@@ -78,28 +78,6 @@ type Datastore struct {
 	// for tests set to override the default batch size.
 	testSelectMDMProfilesBatchSize int
 
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
-	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
-	// existing ones, "reselect" to reload existing ones after insert, and "labels"
-	// to simulate an error in batch setting the profile label associations.
-	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
-	// sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
-	testBatchSetMDMAppleProfilesErr string
-
-	// set this in tests to simulate an error at various stages in the
-	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
-	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
-	// load existing ones, "reselect" to reload existing ones after insert, and
-	// "labels" to simulate an error in batch setting the profile label
-	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
-	// fail the sqlx.In before the corresponding statement.
-	//
-	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
-	testBatchSetMDMWindowsProfilesErr string
-
 	// set this to the execution ids of activities that should be activated in
 	// the next call to activateNextUpcomingActivity, instead of picking the next
 	// available activity based on normal prioritization and creation date
