@@ -218,7 +218,7 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 
 1. From the side menu, select **Directory > Federation and Social login**.
 2. Select **Create**, **LDAP Source**, and **Next**.
-3. Add a friendly name (e.g. "Google LDA"P").
+3. Add a friendly name (e.g. "Google LDAP").
 4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
 5. In the **Server URL** enter `ldap://ldap.google.com`. For more information, refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
 6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
