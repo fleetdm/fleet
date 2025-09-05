@@ -472,7 +472,6 @@ func (s *enterpriseIntegrationGitopsTestSuite) TestCAIntegrations() {
 	dirPath, err := filepath.Abs(filepath.Clean(dirPath))
 	require.NoError(t, err)
 
-	// TODO(HCA): Remove this once gitops flow has been changed to hit new API endpoints instead of patching app config.
 	apiToken := "digicert_api_token" // nolint:gosec // G101: Potential hardcoded credentials
 	profileID := "digicert_profile_id"
 	certCN := "digicert_cn"
@@ -518,7 +517,7 @@ org_settings:
         api_token: digicert_api_token
         profile_id: digicert_profile_id
         certificate_common_name: digicert_cn
-        certificate_user_principal_names: [%q]
+        certificate_user_principal_names: ["digicert_upn"]
         certificate_seat_id: digicert_seat_id
     custom_scep_proxy:
       - name: CustomScepProxy
@@ -529,7 +528,6 @@ queries:
 `,
 		dirPath,
 		digiCertServer.URL,
-		"digicert_upn-2", // modified user principal name so gitops run is not a no-op and triggers call to external digicert service
 		scepServer.URL+"/scep",
 	))
 	require.NoError(t, err)
@@ -552,10 +550,10 @@ queries:
 	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
 	require.Equal(t, "digicert_profile_id", digicertCA.ProfileID)
 	require.Equal(t, "digicert_cn", digicertCA.CertificateCommonName)
-	require.Equal(t, []string{"digicert_upn2"}, digicertCA.CertificateUserPrincipalNames)
+	require.Equal(t, []string{"digicert_upn"}, digicertCA.CertificateUserPrincipalNames)
 	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
 	gotProfileMu.Lock()
-	require.True(t, gotProfile) // external digicert service was called
+	require.False(t, gotProfile) // external digicert service was NOT called because stored config was not modified
 	gotProfileMu.Unlock()
 
 	// check custom SCEP proxy
@@ -568,6 +566,63 @@ queries:
 	profiles, _, err := s.DS.ListMDMConfigProfiles(context.Background(), nil, fleet.ListOptions{})
 	require.NoError(t, err)
 	assert.Len(t, profiles, 1)
+
+	// now modify the stored config and confirm that external digicert service is called
+	_, err = globalFile.WriteString(fmt.Sprintf(`
+agent_options:
+controls:
+  macos_settings:
+    custom_settings:
+      - path: %s/testdata/gitops/lib/scep-and-digicert.mobileconfig
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+  certificate_authorities:
+    digicert:
+      - name: DigiCert
+        url: %s
+        api_token: digicert_api_token
+        profile_id: digicert_profile_id
+        certificate_common_name: digicert_cn
+        certificate_user_principal_names: [%q]
+        certificate_seat_id: digicert_seat_id
+    custom_scep_proxy:
+      - name: CustomScepProxy
+        url: %s
+        challenge: challenge
+policies:
+queries:
+`,
+		dirPath,
+		digiCertServer.URL,
+		"digicert_upn_2", // minor modification to stored config so gitops run is not a no-op and triggers call to external digicert service
+		scepServer.URL+"/scep",
+	))
+	require.NoError(t, err)
+
+	// Apply configs
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name(), "--dry-run"})
+	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile.Name()})
+
+	groupedCAs, err = s.DS.GetGroupedCertificateAuthorities(t.Context(), false)
+	require.NoError(t, err)
+
+	// check digicert
+	require.Len(t, groupedCAs.DigiCert, 1)
+	digicertCA = groupedCAs.DigiCert[0]
+	require.Equal(t, "DigiCert", digicertCA.Name)
+	require.Equal(t, digiCertServer.URL, digicertCA.URL)
+	require.Equal(t, fleet.MaskedPassword, digicertCA.APIToken)
+	require.Equal(t, "digicert_profile_id", digicertCA.ProfileID)
+	require.Equal(t, "digicert_cn", digicertCA.CertificateCommonName)
+	require.Equal(t, []string{"digicert_upn_2"}, digicertCA.CertificateUserPrincipalNames)
+	require.Equal(t, "digicert_seat_id", digicertCA.CertificateSeatID)
+	gotProfileMu.Lock()
+	require.True(t, gotProfile) // external digicert service was called because stored config was modified
+	gotProfileMu.Unlock()
 
 	// Now test that we can clear the configs
 	_, err = globalFile.WriteString(`
