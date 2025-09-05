@@ -539,10 +539,7 @@ const EditIconModal = ({
               type="submit"
               onClick={onClickSave}
               isLoading={isUpdatingIcon}
-<<<<<<< Updated upstream
-=======
-              disabled={!canSaveIcon}
->>>>>>> Stashed changes
+              disabled={!canSaveIcon || isUpdatingIcon}
             >
               Save
             </Button>
