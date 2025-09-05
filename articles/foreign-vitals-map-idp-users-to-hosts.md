@@ -230,8 +230,8 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 ![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings-960x270@2x.png)
 11. Under **Additional settings**, enter values below:
 **User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
-13. Select **Finish** to save your configuration. 
-14. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
+12. Select **Finish** to save your configuration. 
+13. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
 
 #### Step 5: Map users to hosts in Fleet
 
