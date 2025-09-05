@@ -64,6 +64,9 @@ export default {
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
   },
+  DEVICE_SETUP_SOFTWARE_STATUSES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/setup_experience/status`;
+  },
 
   // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
