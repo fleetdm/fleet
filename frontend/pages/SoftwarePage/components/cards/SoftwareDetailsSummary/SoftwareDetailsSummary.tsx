@@ -69,7 +69,10 @@ const SoftwareDetailsSummary = ({
     source !== "tgz_packages" && iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {
-    if (iconPreviewUrl && isSafeImagePreviewUrl(iconPreviewUrl)) {
+    if (
+      typeof iconPreviewUrl === "string" &&
+      isSafeImagePreviewUrl(iconPreviewUrl)
+    ) {
       return (
         <img
           src={iconPreviewUrl}
