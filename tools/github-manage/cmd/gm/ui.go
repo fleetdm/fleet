@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/logger"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -118,6 +119,7 @@ type model struct {
 	choices         []ghapi.Issue
 	cursor          int
 	selected        map[int]struct{}
+	relatedCache    map[int][]int // issue number -> related issue numbers
 	spinner         spinner.Model
 	totalCount      int
 	totalAvailable  int // reported total items in project (may exceed totalCount if limited)
@@ -209,6 +211,7 @@ func initializeModel() model {
 		choices:            nil,
 		cursor:             0,
 		selected:           make(map[int]struct{}),
+		relatedCache:       make(map[int][]int),
 		spinner:            s,
 		totalCount:         0,
 		totalAvailable:     0,
@@ -592,6 +595,51 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						m.selected[originalIndex] = struct{}{}
 					}
 					m.selectedCount = len(m.selected)
+				}
+			case "s":
+				// Toggle selection of related issues (parent/sub-tasks)
+				currentChoices := m.getCurrentChoices()
+				if m.cursor < len(currentChoices) {
+					issue := currentChoices[m.cursor]
+					// Load from cache or fetch
+					related, ok := m.relatedCache[issue.Number]
+					if !ok {
+						if rel, err := ghapi.GetRelatedIssueNumbers(issue.Number); err == nil {
+							related = rel
+							m.relatedCache[issue.Number] = related
+						}
+					}
+					related = append(related, issue.Number)
+					logger.Debugf("Related issues for #%d: %v", issue.Number, related)
+					if len(related) > 0 {
+						// Determine if all related currently selected
+						allSelected := true
+						for _, rn := range related {
+							// find index for issue number in m.choices
+							for idx, iss := range m.choices {
+								if iss.Number == rn {
+									if _, ok := m.selected[idx]; !ok {
+										allSelected = false
+									}
+									break
+								}
+							}
+						}
+						// Toggle accordingly
+						for _, rn := range related {
+							for idx, iss := range m.choices {
+								if iss.Number == rn {
+									if allSelected {
+										delete(m.selected, idx)
+									} else {
+										m.selected[idx] = struct{}{}
+									}
+									break
+								}
+							}
+						}
+						m.selectedCount = len(m.selected)
+					}
 				}
 			case "l":
 				// Select all visible (filtered) issues
