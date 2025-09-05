@@ -6658,7 +6658,7 @@ Set software that will be automatically installed during setup. Software that is
 
 #### Example
 
-`PUT /api/v1/fleet/setup_experience/software?team_id=3`
+`PUT /api/v1/fleet/setup_experience/software`
 
 ##### Request body
 
