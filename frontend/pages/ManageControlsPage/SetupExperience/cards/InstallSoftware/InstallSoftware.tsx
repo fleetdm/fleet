@@ -64,7 +64,8 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   >(
     ["install-software", currentTeamId, selectedPlatform],
     () =>
-      mdmAPI.getSetupExperienceSoftware(selectedPlatform, {
+      mdmAPI.getSetupExperienceSoftware({
+        platform: selectedPlatform,
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
