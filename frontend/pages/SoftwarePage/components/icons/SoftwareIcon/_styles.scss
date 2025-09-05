@@ -5,22 +5,32 @@
   flex-shrink: 0;
 
   &__xsmall {
+    width: 20px;
+    height: 20px;
     border-radius: $border-radius;
   }
 
   &__small {
+    width: 24px;
+    height: 24px;
     border-radius: $border-radius;
   }
 
   &__medium {
+    width: 40px;
+    height: 40px;
     border-radius: $border-radius-xlarge;
   }
 
   &__large {
+    width: 64px;
+    height: 64px;
     border-radius: $border-radius-xxlarge;
   }
 
   &__xlarge {
+    width: 96px;
+    height: 96px;
     border-radius: $border-radius-xxlarge;
   }
 
