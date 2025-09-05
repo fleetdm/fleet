@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
@@ -116,6 +117,8 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		if cfg.EndpointURL != "" && strings.Contains(cfg.EndpointURL, "storage.googleapis.com") {
 			// GCS alters the Accept-Encoding header which breaks the request signature
 			ignoreSigningHeaders(o, []string{"Accept-Encoding"})
+			// GCS also has issues with trailing checksums in UploadPart and PutObject operations
+			disableTrailingChecksumForGCS(o)
 		}
 	})
 
@@ -206,4 +209,31 @@ func restoreIgnored() middleware.FinalizeMiddleware {
 			return next.HandleFinalize(ctx, in)
 		},
 	)
+}
+
+// disableTrailingChecksumForGCS disables trailing checksums for UploadPart and PutObject operations using reflection
+// This is part of the GCS compatibility workaround as GCS doesn't support trailing checksums
+func disableTrailingChecksumForGCS(o *s3.Options) {
+	o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+		return stack.Initialize.Add(middleware.InitializeMiddlewareFunc(
+			"DisableTrailingChecksum",
+			func(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (out middleware.InitializeOutput, metadata middleware.Metadata, err error) {
+				// Check if this is an UploadPart or PutObject operation
+				if opName := middleware.GetOperationName(ctx); opName == "UploadPart" || opName == "PutObject" {
+					// Use reflection to disable trailing checksums in the checksum middleware
+					// This is a hack, but it's the only way to disable trailing checksums currently
+					if checksumMiddleware, ok := stack.Finalize.Get("AWSChecksum:ComputeInputPayloadChecksum"); ok {
+						if v := reflect.ValueOf(checksumMiddleware).Elem(); v.IsValid() {
+							if field := v.FieldByName("EnableTrailingChecksum"); field.IsValid() && field.CanSet() && field.Kind() == reflect.Bool {
+								field.SetBool(false)
+							}
+						}
+					}
+					// Remove the trailing checksum middleware entirely
+					_, _ = stack.Finalize.Remove("addInputChecksumTrailer")
+				}
+				return next.HandleInitialize(ctx, in)
+			},
+		), middleware.Before)
+	})
 }
