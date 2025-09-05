@@ -138,7 +138,7 @@ const EditIconModal = ({
   const [iconState, setIconState] = useState<IconState>(defaultIconState);
   const [previewTabIndex, setPreviewTabIndex] = useState(0);
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
-  /** Shows loading spinner only if a custom icon and it's information is loading from API */
+  /** Shows loading spinner only if a custom icon and its information is loading from API */
   const [isFirstLoadWithCustomIcon, setIsFirstLoadWithCustomIcon] = useState(
     shouldFetchCustomIcon
   );
