@@ -63,7 +63,12 @@ interface IFileDetails {
   description: string;
 }
 
-// Icon preview state management
+/**
+ * Icon preview state management
+ *   - "apiCustom": Icon fetched directly via API, for custom uploads.
+ *   - "customUpload": User-selected custom icon (not yet saved to backend).
+ *   - "fallback": VPP app default or generic fallback icon.
+ */
 type IconStatus = "customUpload" | "apiCustom" | "fallback";
 
 /**
@@ -132,6 +137,19 @@ const EditIconModal = ({
   const [previewTabIndex, setPreviewTabIndex] = useState(0);
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
 
+  const originalIsApiCustom =
+    !!previewInfo.currentIconUrl &&
+    previewInfo.currentIconUrl.startsWith("/api/");
+  const originalIsVpp =
+    !!previewInfo.currentIconUrl &&
+    !previewInfo.currentIconUrl.startsWith("/api/");
+  const isCustomUpload = iconState.status === "customUpload";
+  const isRemovedCustom =
+    originalIsApiCustom &&
+    iconState.status === "fallback" &&
+    !iconState.formData;
+  const canSaveIcon = isCustomUpload || isRemovedCustom;
+
   // Sets state after fetching current API custom icon
   const setCurrentApiCustomIcon = (
     file: File,
@@ -157,14 +175,22 @@ const EditIconModal = ({
     });
 
   // Reset state to fallback/default icon when a current or new custom icon is removed
-  const resetIconState = () =>
+  const resetIconState = () => {
+    // Default to VPP icon if available, otherwise fall back to default icon
+    const defaultPreviewUrl =
+      previewInfo.currentIconUrl &&
+      !previewInfo.currentIconUrl.startsWith("/api/")
+        ? previewInfo.currentIconUrl
+        : null;
+
     setIconState({
-      previewUrl: null,
+      previewUrl: defaultPreviewUrl,
       formData: null,
       dimensions: null,
       fileDetails: null,
       status: "fallback",
     });
+  };
 
   // Fetch current custom icon from API if applicable
   const shouldFetchCustomIcon =
@@ -241,9 +267,10 @@ const EditIconModal = ({
   // If there's currently a custom API icon and no new upload has happened yet,
   // populate icon info from API-fetched custom icon
   useEffect(() => {
+    // Handle API custom icon blob conversion and initialization
     if (
-      iconState.status === "apiCustom" &&
       shouldFetchCustomIcon &&
+      iconState.status === "apiCustom" &&
       customIconData &&
       !iconState.previewUrl
     ) {
@@ -252,7 +279,6 @@ const EditIconModal = ({
         fetch(customIconData.url)
           .then((res) => {
             const filename = customIconData.filename || "icon.png";
-
             return res.blob().then((blob) => ({ blob, filename }));
           })
           .then(({ blob, filename }) => {
@@ -264,12 +290,25 @@ const EditIconModal = ({
           });
       };
       img.src = customIconData.url;
+      return; // Don't run fallback block below on initial load
+    }
+
+    // Or handle VPP fallback initialization (only when not using API custom icon)
+    if (originalIsVpp && iconState.status !== "customUpload") {
+      setIconState({
+        previewUrl: previewInfo.currentIconUrl,
+        formData: null,
+        dimensions: null,
+        fileDetails: null,
+        status: "fallback",
+      });
     }
   }, [
     customIconData,
     iconState.status,
     shouldFetchCustomIcon,
     iconState.previewUrl,
+    previewInfo.currentIconUrl,
   ]);
 
   const fileDetails =
@@ -500,6 +539,10 @@ const EditIconModal = ({
               type="submit"
               onClick={onClickSave}
               isLoading={isUpdatingIcon}
+<<<<<<< Updated upstream
+=======
+              disabled={!canSaveIcon}
+>>>>>>> Stashed changes
             >
               Save
             </Button>
