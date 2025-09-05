@@ -61,6 +61,7 @@ func JSONStrictDecode(r io.Reader, v interface{}) error {
 	return nil
 }
 
+// Preprocess trims and normalises unicode characters of the given input
 func Preprocess(input string) string {
 	// Remove leading/trailing whitespace.
 	input = strings.TrimSpace(input)

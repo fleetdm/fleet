@@ -460,7 +460,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		for _, i := range inserted {
 			// We don't support installing browser plugins as of 2024/08/22
 			if i.Browser == "" {
-				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
+				key := UniqueSoftwareTitleStr(BundleIdentifierOrName(i.BundleIdentifier, i.Name), i.Source)
 				delete(deletedTitles, key)
 			}
 		}

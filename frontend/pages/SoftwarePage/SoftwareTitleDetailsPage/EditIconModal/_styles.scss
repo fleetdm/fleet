@@ -20,6 +20,10 @@
         white-space: nowrap;
         text-overflow: ellipsis;
       }
+
+      img {
+        border-radius: $border-radius-xxlarge;
+      }
     }
 
     &__self-service {

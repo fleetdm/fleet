@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -274,6 +275,10 @@ the way that the Fleet server works.
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
+				Region:                    config.Redis.Region,
+				CacheName:                 config.Redis.CacheName,
+				StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
+				StsExternalID:             config.Redis.StsExternalID,
 				ConnTimeout:               config.Redis.ConnectTimeout,
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
@@ -708,6 +713,8 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
 				ctx,
@@ -733,8 +740,8 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
-				eeservice.NewSCEPConfigService(logger, nil),
-				digicert.NewService(digicert.WithLogger(logger)),
+				scepConfigMgr,
+				digiCertService,
 				conditionalAccessMicrosoftProxy,
 			)
 			if err != nil {
@@ -757,6 +764,7 @@ the way that the Fleet server works.
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
+				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -848,6 +856,9 @@ the way that the Fleet server works.
 					softwareTitleIconStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
+					scepConfigMgr,
+					digiCertService,
+					hydrantService,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -966,7 +977,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}

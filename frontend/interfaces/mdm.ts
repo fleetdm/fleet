@@ -167,6 +167,7 @@ export type MdmDDMProfileStatus =
   | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
+export type ProfileScope = "device" | "user";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -175,6 +176,8 @@ export interface IHostMdmProfile {
   platform: ProfilePlatform;
   status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
   detail: string;
+  scope: ProfileScope | null;
+  managed_local_account: string | null;
 }
 
 // TODO - move disk encryption related types to dedicated file

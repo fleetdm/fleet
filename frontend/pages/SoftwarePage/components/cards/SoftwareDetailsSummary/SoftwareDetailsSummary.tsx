@@ -16,6 +16,7 @@ import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
@@ -68,7 +69,7 @@ const SoftwareDetailsSummary = ({
     source !== "tgz_packages" && iconPreviewUrl === undefined;
 
   const renderSoftwareIcon = () => {
-    if (typeof iconPreviewUrl === "string") {
+    if (iconPreviewUrl && isSafeImagePreviewUrl(iconPreviewUrl)) {
       return (
         <img
           src={iconPreviewUrl}

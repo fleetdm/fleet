@@ -241,6 +241,11 @@ func main() {
 			Usage:   "Configures fleetd to use TPM-backed key to sign HTTP requests. This functionality is licensed under the Fleet EE License. Usage requires a current Fleet EE subscription.",
 			EnvVars: []string{"ORBIT_FLEET_MANAGED_HOST_IDENTITY_CERTIFICATE"},
 		},
+		&cli.BoolFlag{
+			Name:    "disable-setup-experience",
+			Usage:   "Disables checking for setup experience on Linux hosts",
+			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -1514,6 +1519,60 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
+		isLinux := runtime.GOOS == "linux"
+		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
+		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
+		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
+		log.Debug().
+			Bool("isLinux", isLinux).
+			Bool("serverHasSetup", serverHasWebSetup).
+			Bool("notDisabled", setupExperienceNotDisabled).
+			Msg("checking setup experience preflight values")
+
+		openMyDevicePage := func() error {
+			log.Debug().Msg("launching browser for my device page")
+			token, err := trw.Read()
+			if err != nil {
+				return fmt.Errorf("getting device token: %w", err)
+			}
+			// My Device page
+			browserURL := deviceClient.BrowserDeviceURL(token)
+
+			switch runtime.GOOS {
+			case "linux":
+				loggedInUser, err := user.UserLoggedInViaGui()
+				if err != nil {
+					return fmt.Errorf("get logged in user: %w", err)
+				}
+
+				if loggedInUser == nil {
+					return errors.New("no user logged in")
+				}
+
+				var opts []execuser.Option
+				opts = append(opts, execuser.WithUser(*loggedInUser))
+				opts = append(opts, execuser.WithArg(browserURL, ""))
+				if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
+					return fmt.Errorf("opening browser with xdg-open: %w", err)
+				}
+			default:
+				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
+				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
+			}
+
+			return nil
+		}
+
+		if runSetupExperience {
+			log.Debug().Msg("web setup experience enabled")
+			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceFilename)
+			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
+				log.Error().Err(err).Msg("initiating setup experience")
+			}
+		} else {
+			log.Debug().Msg("not running setup experience")
+		}
+
 		if err := g.Run(); err != nil {
 			log.Error().Err(err).Msg("unexpected exit")
 		}
@@ -1529,6 +1588,80 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		log.Error().Err(err).Msg("run orbit failed")
 	}
+}
+
+func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath string, openMyDevicePage func() error) error {
+	log.Debug().Msg("checking setup experience file")
+	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
+	if err != nil {
+		return fmt.Errorf("read setup experience file: %w", err)
+	}
+
+	// Setup experience has been completed
+	if exp != nil && exp.TimeInitiated != nil {
+		log.Debug().Msg("setup experience already completed")
+		return nil
+	}
+
+	log.Debug().Msg("initiating setup experience")
+	resp, err := oc.InitiateSetupExperience()
+	if err != nil {
+		return fmt.Errorf("initializing server-side setup experience: %w", err)
+	}
+
+	// Setup experience enabled for us and is now kicked off, open a browser
+	if resp.Enabled {
+		if err := openMyDevicePage(); err != nil {
+			return fmt.Errorf("opening my device page: %w", err)
+		}
+	} else {
+		log.Debug().Msg("setup experience not enabled on team")
+	}
+
+	// Even if it wasn't enabled, mark it as complete so we don't start it again later
+	log.Debug().Msg("writing setup experience file")
+	initTime := time.Now()
+	if err := writeSetupExperienceStatusFile(setupExperienceStatusPath, &SetupExperienceInfo{
+		TimeInitiated: &initTime,
+	}); err != nil {
+		return fmt.Errorf("writing setup experience file: %w", err)
+	}
+
+	return nil
+}
+
+type SetupExperienceInfo struct {
+	TimeInitiated *time.Time `json:"time_initiated,omitempty"`
+}
+
+// Returns the time setup experience was completed, or nil if it hasn't
+func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
+	f, err := os.Open(experienceCompletedPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read setup experience file: %w", err)
+	}
+	var exp *SetupExperienceInfo
+	if err := json.NewDecoder(f).Decode(&exp); err != nil {
+		return nil, fmt.Errorf("decoding setup experience file: %w", err)
+	}
+
+	return exp, nil
+}
+
+func writeSetupExperienceStatusFile(experienceCompletedPath string, exp *SetupExperienceInfo) error {
+	f, err := os.Create(experienceCompletedPath)
+	if err != nil {
+		return fmt.Errorf("create setup experience completed file: %w", err)
+	}
+
+	if err := json.NewEncoder(f).Encode(exp); err != nil {
+		return fmt.Errorf("write setup experience completed file: %w", err)
+	}
+
+	return nil
 }
 
 func deleteSecretPathIfExists(enrollSecretPath string) {

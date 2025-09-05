@@ -13,9 +13,11 @@ import {
   IGetSetupExperienceScriptResponse,
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
+import { SetupExperiencePlatform } from "interfaces/platform";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
-const setupExperienceInstallSoftwareUrl = baseUrl("/setup_experience/software");
+const setupExperienceInstallSoftwareUrl = (platform: SetupExperiencePlatform) =>
+  baseUrl(`/setup_experience/${platform}/software`);
 const setupExperienceBootstrapMetadataUrl = baseUrl(
   "/mdm/bootstrap/:teamId/metadata"
 );
@@ -45,9 +47,10 @@ export const errorNoSetupExperienceScriptHandler = http.get(
 );
 
 export const createSetupExperienceSoftwareHandler = (
-  overrides?: Partial<IGetSetupExperienceSoftwareResponse>
+  overrides?: Partial<IGetSetupExperienceSoftwareResponse>,
+  platform: SetupExperiencePlatform = "macos"
 ) =>
-  http.get(setupExperienceInstallSoftwareUrl, () => {
+  http.get(setupExperienceInstallSoftwareUrl(platform), () => {
     return HttpResponse.json(
       createMockSetupExperienceSoftwareResponse({ ...overrides })
     );
