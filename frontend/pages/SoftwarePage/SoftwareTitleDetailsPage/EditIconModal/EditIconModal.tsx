@@ -18,6 +18,7 @@ import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
 import TableCount from "components/TableContainer/TableCount";
 import CardHeader from "components/CardHeader";
 import TooltipTruncatedText from "components/TooltipTruncatedText";
+import Spinner from "components/Spinner";
 
 import SoftwareDetailsSummary from "pages/SoftwarePage/components/cards/SoftwareDetailsSummary/SoftwareDetailsSummary";
 import { SELF_SERVICE_SUBHEADER } from "pages/hosts/details/cards/Software/SelfService/SelfService";
@@ -127,10 +128,19 @@ const EditIconModal = ({
 
   const isSoftwarePackage = installerType === "package";
 
+  // Fetch current custom icon from API if applicable
+  const shouldFetchCustomIcon =
+    !!previewInfo.currentIconUrl &&
+    previewInfo.currentIconUrl.startsWith("/api/");
+
   // Encapsulates icon preview/upload/edit state
   const [iconState, setIconState] = useState<IconState>(defaultIconState);
   const [previewTabIndex, setPreviewTabIndex] = useState(0);
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false);
+  /** Shows loading spinner only if a custom icon and it's information is loading from API */
+  const [isFirstLoadWithCustomIcon, setIsFirstLoadWithCustomIcon] = useState(
+    shouldFetchCustomIcon
+  );
 
   // Sets state after fetching current API custom icon
   const setCurrentApiCustomIcon = (
@@ -165,11 +175,6 @@ const EditIconModal = ({
       fileDetails: null,
       status: "fallback",
     });
-
-  // Fetch current custom icon from API if applicable
-  const shouldFetchCustomIcon =
-    !!previewInfo.currentIconUrl &&
-    previewInfo.currentIconUrl.startsWith("/api/");
 
   const { data: customIconData } = useQuery(
     ["softwareIcon", softwareId, teamIdForApi, iconUploadedAt],
@@ -240,6 +245,8 @@ const EditIconModal = ({
 
   // If there's currently a custom API icon and no new upload has happened yet,
   // populate icon info from API-fetched custom icon
+  // useQuery does not handle dimension extraction, so this is required for updating
+  // state with image details after loading the icon blob in the browser
   useEffect(() => {
     if (
       iconState.status === "apiCustom" &&
@@ -261,6 +268,7 @@ const EditIconModal = ({
               img.width,
               customIconData.url
             );
+            setIsFirstLoadWithCustomIcon(false);
           });
       };
       img.src = customIconData.url;
@@ -493,7 +501,11 @@ const EditIconModal = ({
       onExit={onExitEditIconModal}
     >
       <>
-        {renderForm()}
+        {isFirstLoadWithCustomIcon ? (
+          <Spinner includeContainer={false} />
+        ) : (
+          renderForm()
+        )}
         <ModalFooter
           primaryButtons={
             <Button
