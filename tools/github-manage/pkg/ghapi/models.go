@@ -35,6 +35,7 @@ type Issue struct {
 	Labels    []Label    `json:"labels"`
 	Milestone *Milestone `json:"milestone,omitempty"`
 	Estimate  int        `json:"estimate,omitempty"` // Custom field for estimate
+	Status    string     `json:"status,omitempty"`   // Custom field for status
 }
 
 type Sprint struct {
@@ -131,6 +132,7 @@ func ConvertItemsToIssues(items []ProjectItem) []Issue {
 			})
 		}
 		issue.Estimate = item.Estimate
+		issue.Status = item.Status
 		for _, label := range item.Labels {
 			if label == "story" {
 				issue.Typename = "Feature"
