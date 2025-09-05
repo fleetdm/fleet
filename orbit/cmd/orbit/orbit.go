@@ -1551,7 +1551,7 @@ func main() {
 
 				browserBin := "/usr/bin/xdg-open"
 				firefoxBin := "/usr/bin/firefox"
-				if _, err := os.Stat(firefoxBin); os.IsExist(err) {
+				if _, err := os.Stat(firefoxBin); err != nil {
 					browserBin = firefoxBin
 				}
 
