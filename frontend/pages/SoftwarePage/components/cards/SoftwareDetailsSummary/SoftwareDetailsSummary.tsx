@@ -67,11 +67,35 @@ const SoftwareDetailsSummary = ({
   const showHostCount =
     source !== "tgz_packages" && iconPreviewUrl === undefined;
 
+  // Helper to check safe image src
+  const isSafeImagePreviewUrl = (url?: string | null) => {
+    if (typeof url !== "string" || !url) return false;
+    try {
+      const parsed = new URL(url, window.location.origin);
+      // Allow only blob:, data: (for images), or https/http
+      if (
+        parsed.protocol === "blob:" ||
+        parsed.protocol === "data:" ||
+        parsed.protocol === "https:" ||
+        parsed.protocol === "http:"
+      ) {
+        // Optionally, for data: URLs, ensure it's an image mime
+        if (parsed.protocol === "data:" && !/^data:image\/png/.test(url)) {
+          return false;
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
   const renderSoftwareIcon = () => {
-    if (typeof iconPreviewUrl === "string") {
+    if (isSafeImagePreviewUrl(iconPreviewUrl)) {
       return (
         <img
-          src={iconPreviewUrl}
+          src={iconPreviewUrl!}
           alt="Uploaded icon preview"
           style={{ width: 96, height: 96 }}
         />
