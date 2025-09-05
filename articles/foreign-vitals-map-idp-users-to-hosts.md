@@ -1,4 +1,4 @@
-# Foreign host vitals: Identity provider (IdP) username, groups, and deptarment
+# Foreign host vitals: Identity provider (IdP) username, groups, and department
 
 ![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png)
 
