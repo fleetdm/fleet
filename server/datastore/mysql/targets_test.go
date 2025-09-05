@@ -282,9 +282,9 @@ func testTargetsHostStatus(t *testing.T, ds *Datastore) {
 
 	mockClock := clock.NewMockClock()
 
-	h, err := ds.EnrollHost(context.Background(),
-		fleet.WithEnrollHostOsqueryHostID("1"),
-		fleet.WithEnrollHostNodeKey("key1"),
+	h, err := ds.EnrollOsquery(context.Background(),
+		fleet.WithEnrollOsqueryHostID("1"),
+		fleet.WithEnrollOsqueryNodeKey("key1"),
 	)
 	require.NoError(t, err)
 

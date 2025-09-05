@@ -765,7 +765,7 @@ type VerifyEnrollSecretFunc func(ctx context.Context, secret string) (*fleet.Enr
 
 type IsEnrollSecretAvailableFunc func(ctx context.Context, secret string, isNew bool, teamID *uint) (bool, error)
 
-type EnrollHostFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error)
+type EnrollOsqueryFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error)
 
 type EnrollOrbitFunc func(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error)
 
@@ -2607,8 +2607,8 @@ type DataStore struct {
 	IsEnrollSecretAvailableFunc        IsEnrollSecretAvailableFunc
 	IsEnrollSecretAvailableFuncInvoked bool
 
-	EnrollHostFunc        EnrollHostFunc
-	EnrollHostFuncInvoked bool
+	EnrollOsqueryFunc        EnrollOsqueryFunc
+	EnrollOsqueryFuncInvoked bool
 
 	EnrollOrbitFunc        EnrollOrbitFunc
 	EnrollOrbitFuncInvoked bool
@@ -6299,11 +6299,11 @@ func (s *DataStore) IsEnrollSecretAvailable(ctx context.Context, secret string, 
 	return s.IsEnrollSecretAvailableFunc(ctx, secret, isNew, teamID)
 }
 
-func (s *DataStore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
+func (s *DataStore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
 	s.mu.Lock()
-	s.EnrollHostFuncInvoked = true
+	s.EnrollOsqueryFuncInvoked = true
 	s.mu.Unlock()
-	return s.EnrollHostFunc(ctx, opts...)
+	return s.EnrollOsqueryFunc(ctx, opts...)
 }
 
 func (s *DataStore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnrollOrbitOption) (*fleet.Host, error) {

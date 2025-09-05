@@ -2336,9 +2336,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	return &host, nil
 }
 
-// EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+// EnrollOsquery enrolls the osquery agent to Fleet.
+func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 	for _, opt := range opts {
 		opt(enrollConfig)
 	}

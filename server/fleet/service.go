@@ -41,7 +41,7 @@ type EnterpriseOverrides struct {
 }
 
 type OsqueryService interface {
-	EnrollAgent(
+	EnrollOsquery(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
 	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
