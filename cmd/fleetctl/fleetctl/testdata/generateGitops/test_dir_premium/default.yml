@@ -47,6 +47,10 @@ org_settings:
       profile_id: some-digicert-profile-id
       url: https://some-digicert-url.com
     hydrant:
+    - client_id: some-hydrant-client-id
+      client_secret: # TODO: Add your Hydrant client secret here
+      name: some-hydrant-name
+      url: https://some-hydrant-url.com
     ndes_scep_proxy:
       admin_url: https://some-ndes-admin-url.com
       password: # TODO: Add your NDES SCEP proxy password here

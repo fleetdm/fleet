@@ -502,7 +502,7 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 			{
 				Name:                  "some-digicert-name",
 				URL:                   "https://some-digicert-url.com",
-				APIToken:              "some-digicert-api-token",
+				APIToken:              maskSecret("some-digicert-api-token", includeSecrets),
 				ProfileID:             "some-digicert-profile-id",
 				CertificateCommonName: "some-digicert-certificate-common-name",
 				CertificateUserPrincipalNames: []string{
@@ -516,18 +516,33 @@ func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.Gro
 			URL:      "https://some-ndes-scep-proxy-url.com",
 			AdminURL: "https://some-ndes-admin-url.com",
 			Username: "some-ndes-username",
-			Password: "some-ndes-password",
+			Password: maskSecret("some-ndes-password", includeSecrets),
 		},
 		CustomScepProxy: []fleet.CustomSCEPProxyCA{
 			{
 				Name:      "some-custom-scep-proxy-name",
 				URL:       "https://some-custom-scep-proxy-url.com",
-				Challenge: "some-custom-scep-proxy-challenge",
+				Challenge: maskSecret("some-custom-scep-proxy-challenge", includeSecrets),
+			},
+		},
+		Hydrant: []fleet.HydrantCA{
+			{
+				Name:         "some-hydrant-name",
+				URL:          "https://some-hydrant-url.com",
+				ClientID:     "some-hydrant-client-id",
+				ClientSecret: maskSecret("some-hydrant-client-secret", includeSecrets),
 			},
 		},
 	}
 
 	return &res, nil
+}
+
+func maskSecret(value string, shouldShowSecret bool) string {
+	if shouldShowSecret {
+		return value
+	}
+	return "********"
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {

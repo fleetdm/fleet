@@ -833,6 +833,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				})
 			}
 		}
+		if hydrant, ok := result["hydrant"]; ok && hydrant != nil {
+			for _, intg := range hydrant.([]interface{}) {
+				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "integrations.hydrant.client_secret",
+				})
+			}
+		}
 	}
 
 	return result, nil
