@@ -102,12 +102,16 @@ export const FileUploader = ({
   };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    onFileUpload(files);
-    setIsFileSelected(true);
+    const target = e.currentTarget;
+    // Ensure target is the expected input element to prevent DOM manipulation
+    if (target && target.type === "file") {
+      const files = target.files;
+      onFileUpload(files);
+      setIsFileSelected(true);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
