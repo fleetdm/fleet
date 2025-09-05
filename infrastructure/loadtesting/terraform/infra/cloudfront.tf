@@ -1,6 +1,5 @@
 module "cloudfront-software-installers" {
-  # source            = "github.com/fleetdm/fleet-terraform/addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.0"
-  source            = "github.com/fleetdm/fleet-terraform/addons/cloudfront-software-installers?ref=internal-lb-support"
+  source            = "github.com/fleetdm/fleet-terraform/addons/cloudfront-software-installers?ref=tf-mod-addon-cloudfront-software-installers-v1.0.1"
   customer          = terraform.workspace
   s3_bucket         = module.loadtest.byo-db.byo-ecs.fleet_s3_software_installers_config.bucket_name
   s3_kms_key_id     = module.loadtest.byo-db.byo-ecs.fleet_s3_software_installers_config.kms_key_id

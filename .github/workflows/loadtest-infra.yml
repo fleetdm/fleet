@@ -14,18 +14,18 @@ on:
         required: true
       fleet_task_count:
         description: "The number of ECS tasks, fleet containers, that should be deployed"
-        type: integer
-        default: 5
+        type: string
+        default: "5"
         required: true
       fleet_task_memory:
-        description: "The number of ECS tasks, fleet containers, that should be deployed"
-        type: integer
-        default: 4096
+        description: "The amount of memoery allocated in Megabytes for the ECS tasks"
+        type: string
+        default: "4096"
         required: true
       fleet_task_cpu:
-        description: "The number of ECS tasks, fleet containers, that should be deployed"
-        type: integer
-        default: 512
+        description: "The amount of CPU allocated in hertz for the ECS tasks"
+        type: string
+        default: "512"
         required: true
       fleet_database_instance_size:
         description: "AWS Instance size for the Fleet database instances"
@@ -34,7 +34,7 @@ on:
         required: true
       fleet_database_instance_count:
         description: "Number of database instance replicas (including the writer)"
-        type: integer
+        type: string
         default: 2
         required: true
       fleet_redis_instance_size:
@@ -44,7 +44,7 @@ on:
         required: true
       fleet_redis_instance_count:
         description: "Number of redis instance replicas (including the writer)"
-        type: integer
+        type: string
         default: 3
         required: true
       terraform_action:

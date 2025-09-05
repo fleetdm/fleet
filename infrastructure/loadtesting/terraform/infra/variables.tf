@@ -28,14 +28,14 @@ variable "fleet_task_cpu" {
 
 variable "database_instance_size" {
   description = "The instance size for Aurora database instances"
-  type = string
-  default = "db.t4g.medium"
+  type        = string
+  default     = "db.t4g.medium"
 }
 
 variable "database_instance_count" {
   description = "The number of Aurora database instances"
-  type = number
-  default = 2
+  type        = number
+  default     = 2
 
   validation {
     condition     = var.database_instance_count >= 1
@@ -45,14 +45,14 @@ variable "database_instance_count" {
 
 variable "redis_instance_size" {
   description = "The instance size for Elasticache nodes"
-  type = string
-  default = "cache.t4g.micro"
+  type        = string
+  default     = "cache.t4g.micro"
 }
 
 variable "redis_instance_count" {
   description = "The number of Elasticache nodes"
-  type = number
-  default = 3
+  type        = number
+  default     = 3
 
   validation {
     condition     = var.redis_instance_count >= 3
@@ -61,6 +61,6 @@ variable "redis_instance_count" {
 }
 
 variable "run_migrations" {
-  type = bool
+  type    = bool
   default = false
 }

@@ -7,7 +7,7 @@ data "git_repository" "tf" {
 }
 
 module "osquery_perf" {
-  source                     = "github.com/fleetdm/fleet-terraform//addons/osquery-perf?ref=tf-mod-addon-osquery-perf-v1.1.0"
+  source                     = "github.com/fleetdm/fleet-terraform//addons/osquery-perf?ref=tf-mod-addon-osquery-perf-v1.1.1"
   customer_prefix            = local.customer
   ecs_cluster                = data.terraform_remote_state.infra.outputs.ecs_cluster
   loadtest_containers        = local.loadtest_containers

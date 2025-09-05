@@ -10,15 +10,16 @@ on:
       tag:
         description: "Tag for osquery-perf deployment"
         type: string
-        default: "fleet-v4.72.0"
-        required: false
+        default: "v4.72.0"
+        required: true
       git_branch:
         description: "git branch for osquery-perf deployment"
         type: string
-        required: false
+        default: "main"
+        required: true
       loadtest_containers:
         description: "Count of osquery-perf tasks to run"
-        type: integer
+        type: string
         required: true
       extra_flags:
         description: "Extra flags for osquery-perf. Example: [\"--orbit_prob\", \"0.0\"]"

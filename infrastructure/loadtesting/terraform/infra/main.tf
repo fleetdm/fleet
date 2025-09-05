@@ -30,7 +30,7 @@ resource "aws_route53_record" "main" {
 }
 
 module "loadtest" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=internal-lb-support"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.1"
   vpc_config = {
     name   = local.customer
     vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
@@ -142,9 +142,10 @@ module "loadtest" {
     sidecars = local.sidecars
   }
   alb_config = {
-    name            = local.customer
-    certificate_arn = data.aws_acm_certificate.certificate.arn
-    subnets         = data.terraform_remote_state.shared.outputs.vpc.public_subnets
+    name                       = local.customer
+    enable_deletion_protection = false
+    certificate_arn            = data.aws_acm_certificate.certificate.arn
+    subnets                    = data.terraform_remote_state.shared.outputs.vpc.public_subnets
     access_logs = {
       bucket  = module.logging_alb.log_s3_bucket_id
       prefix  = local.customer
@@ -159,9 +160,9 @@ module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name        = "${local.customer}.loadtest.fleetdm.com"
-  zone_id            = data.aws_route53_zone.main.id
-  create_certificate = false
+  domain_name         = "${local.customer}.loadtest.fleetdm.com"
+  zone_id             = data.aws_route53_zone.main.id
+  create_certificate  = false
   wait_for_validation = false
 }
 
