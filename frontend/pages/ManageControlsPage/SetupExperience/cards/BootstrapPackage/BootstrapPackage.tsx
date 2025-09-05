@@ -2,6 +2,8 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
+import { AppContext } from "context/app";
+
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -18,6 +20,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -26,6 +29,8 @@ import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModa
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
+import { SetupEmptyState } from "../../SetupExperience";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "bootstrap-package";
 
@@ -44,11 +49,9 @@ export const getManualAgentInstallSetting = (
   return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
 };
 
-interface IBootstrapPackageProps {
-  currentTeamId: number;
-}
-
-const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
+const BootstrapPackageContent = ({
+  currentTeamId,
+}: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
   const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
@@ -212,8 +215,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     isLoadingSoftware;
 
   return (
-    <section className={baseClass}>
-      <SectionHeader title="Bootstrap package" />
+    <>
       {isLoading ? <Spinner /> : renderBootstrapView()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
@@ -221,8 +223,36 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
           onCancel={() => setShowDeleteBootstrapPackageModal(false)}
         />
       )}
-    </section>
+    </>
   );
 };
 
+export const BootstrapPackage = ({
+  currentTeamId,
+  router,
+}: ISetupExperienceCardProps) => {
+  const { config } = useContext(AppContext);
+  const renderContent = () => {
+    if (!config?.mdm.enabled_and_configured) {
+      return (
+        <TurnOnMdmMessage
+          header="Manage setup experience for macOS"
+          info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
+          buttonText="Turn on"
+          router={router}
+        />
+      );
+    }
+    if (!config?.mdm.apple_bm_enabled_and_configured) {
+      return <SetupEmptyState router={router} />;
+    }
+    return <BootstrapPackageContent currentTeamId={currentTeamId} />;
+  };
+  return (
+    <section className={baseClass}>
+      <SectionHeader title="Bootstrap package" />
+      {renderContent()}
+    </section>
+  );
+};
 export default BootstrapPackage;

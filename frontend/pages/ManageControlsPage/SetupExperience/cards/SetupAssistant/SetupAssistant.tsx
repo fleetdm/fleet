@@ -21,14 +21,13 @@ import SetupAssistantProfileCard from "./components/SetupAssistantProfileCard/Se
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "setup-assistant";
 
-interface ISetupAssistantProps {
-  currentTeamId: number;
-}
-
-const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
+const SetupAssistant = ({
+  currentTeamId,
+}: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
 
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<

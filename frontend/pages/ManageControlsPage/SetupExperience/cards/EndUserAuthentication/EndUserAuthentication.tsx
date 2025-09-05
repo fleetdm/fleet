@@ -15,6 +15,7 @@ import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAu
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
 import EndUserExperiencePreview from "./components/EndUserExperiencePreview";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "end-user-authentication";
 
@@ -45,15 +46,10 @@ const isIdPConfigured = ({
   );
 };
 
-interface IEndUserAuthenticationProps {
-  currentTeamId: number;
-  router: InjectedRouter;
-}
-
 const EndUserAuthentication = ({
   currentTeamId,
   router,
-}: IEndUserAuthenticationProps) => {
+}: ISetupExperienceCardProps) => {
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error

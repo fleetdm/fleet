@@ -26,6 +26,7 @@ import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 
 const baseClass = "install-software";
 
@@ -41,11 +42,9 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
 ];
 
-interface IInstallSoftwareProps {
-  currentTeamId: number;
-}
-
-const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
+const InstallSoftware = ({
+  currentTeamId,
+}: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [
     selectedPlatform,

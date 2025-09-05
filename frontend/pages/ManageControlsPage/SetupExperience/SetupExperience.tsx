@@ -18,7 +18,7 @@ interface ISetupEmptyState {
   router: InjectedRouter;
 }
 
-const SetupEmptyState = ({ router }: ISetupEmptyState) => {
+export const SetupEmptyState = ({ router }: ISetupEmptyState) => {
   const onClickEmptyConnect = () => {
     router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
   };
@@ -46,7 +46,7 @@ const SetupExperience = ({
   teamIdForApi,
 }: ISetupExperienceProps) => {
   const { section } = params;
-  const { isPremiumTier, config } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
 
   // Not premium shows premium message
   if (!isPremiumTier) {
@@ -55,22 +55,6 @@ const SetupExperience = ({
         className={`${baseClass}__premium-feature-message`}
       />
     );
-  }
-
-  // MDM is not on so show messaging for user to enable it.
-  if (!config?.mdm.enabled_and_configured) {
-    return (
-      <TurnOnMdmMessage
-        header="Manage setup experience for macOS"
-        info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
-        buttonText="Turn on"
-        router={router}
-      />
-    );
-  }
-  // User has not set up Apple Business Manager.
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
-    return <SetupEmptyState router={router} />;
   }
 
   const DEFAULT_SETTINGS_SECTION = SETUP_EXPERIENCE_NAV_ITEMS[0];

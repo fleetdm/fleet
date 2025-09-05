@@ -1,7 +1,7 @@
 import React from "react";
 import { screen } from "@testing-library/react";
 
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import {
   createSetupExperienceBootstrapPackageHandler,
@@ -48,7 +48,7 @@ describe("BootstrapPackage", () => {
     setuDefaultBackendMocks();
 
     const render = createCustomRenderer({ withBackendMock: true });
-    render(<BootstrapPackage currentTeamId={0} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/status/gi);
 
@@ -65,7 +65,7 @@ describe("BootstrapPackage", () => {
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
     const render = createCustomRenderer({ withBackendMock: true });
-    render(<BootstrapPackage currentTeamId={0} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/Upload a bootstrap package/gi);
 
@@ -86,7 +86,9 @@ describe("BootstrapPackage", () => {
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
     const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
@@ -112,7 +114,9 @@ describe("BootstrapPackage", () => {
     );
 
     const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
@@ -128,7 +132,9 @@ describe("BootstrapPackage", () => {
     mockServer.use(createSetupExperienceScriptHandler());
 
     const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
