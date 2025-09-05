@@ -10,6 +10,7 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
+  IGetSetupSoftwareStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -24,18 +25,17 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import { isAppleDevice } from "interfaces/platform";
+import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
+import DataError from "components/DataError";
 
 import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
@@ -53,7 +53,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage } from "./helpers";
+import { getErrorMessage, getIsSettingUpSoftware } from "./helpers";
 
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -77,6 +77,9 @@ import {
 import HostHeader from "../cards/HostHeader/HostHeader";
 import InventoryVersionsModal from "../modals/InventoryVersionsModal";
 import { REFETCH_HOST_DETAILS_POLLING_INTERVAL } from "../HostDetailsPage/HostDetailsPage";
+
+import SettingUpYourDevice from "./components/SettingUpYourDevice";
+import InfoButton from "./components/InfoButton";
 
 const baseClass = "device-user";
 
@@ -317,6 +320,26 @@ const DeviceUserPage = ({
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
+  const {
+    data: softwareSetupStatuses,
+    isLoading: isLoadingSetupSoftware,
+    isError: isErrorSetupSoftware,
+  } = useQuery<
+    IGetSetupSoftwareStatusesResponse,
+    Error,
+    IGetSetupSoftwareStatusesResponse["setup_experience_results"]["software"]
+  >(
+    ["software-setup-statuses", deviceAuthToken],
+    () => deviceUserAPI.getSetupSoftwareStatuses({ token: deviceAuthToken }),
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      select: (res) => res.setup_experience_results.software,
+      enabled: host && isLinuxLike(host.platform), // TODO - add windows with next iteration
+      refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
+      refetchIntervalInBackground: true,
+    }
+  );
+
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
   }, [showInfoModal, setShowInfoModal]);
@@ -374,11 +397,7 @@ const DeviceUserPage = ({
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
-        <Button onClick={() => setShowInfoModal(true)} variant="text-icon">
-          <>
-            Info <Icon name="info" size="small" />
-          </>
-        </Button>
+        <InfoButton toggleInfoModal={toggleInfoModal} />
       </div>
     );
   };
@@ -448,184 +467,191 @@ const DeviceUserPage = ({
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
+    if (
+      !host ||
+      isLoadingHost ||
+      isLoadingDeviceCertificates ||
+      isLoadingSetupSoftware
+    ) {
+      return <Spinner />;
+    }
+    if (isErrorSetupSoftware) {
+      return <DataError description="Could not get software setup status." />;
+    }
+    if (getIsSettingUpSoftware(softwareSetupStatuses)) {
+      // at this point, softwareSetupStatuses will be non-empty
+      return (
+        <SettingUpYourDevice
+          softwareStatuses={softwareSetupStatuses || []}
+          toggleInfoModal={toggleInfoModal}
+        />
+      );
+    }
     return (
-      <div className="core-wrapper">
-        {!host || isLoadingHost || isLoadingDeviceCertificates ? (
-          <Spinner />
-        ) : (
-          <div className={`${baseClass} main-content`}>
-            <DeviceUserBanners
-              hostPlatform={host.platform}
-              hostOsVersion={host.os_version}
-              mdmEnrollmentStatus={host.mdm.enrollment_status}
-              mdmEnabledAndConfigured={
-                !!globalConfig?.mdm.enabled_and_configured
-              }
-              connectedToFleetMdm={!!host.mdm.connected_to_fleet}
-              macDiskEncryptionStatus={
-                host.mdm.macos_settings?.disk_encryption ?? null
-              }
-              diskEncryptionActionRequired={
-                host.mdm.macos_settings?.action_required ?? null
-              }
-              onTurnOnMdm={toggleEnrollMdmModal}
-              onClickCreatePIN={() => setShowBitLockerPINModal(true)}
-              onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
-              diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
-              diskIsEncrypted={host.disk_encryption_enabled}
-              diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
-            />
-            <HostHeader
-              summaryData={summaryData}
-              showRefetchSpinner={showRefetchSpinner}
-              onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionButtons}
-              deviceUser
-            />
-            <TabNav className={`${baseClass}__tab-nav`}>
-              <Tabs
-                selectedIndex={findSelectedTab(location.pathname)}
-                onSelect={(i) => router.push(tabPaths[i])}
-              >
-                <TabList>
-                  {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                    <Tab>
-                      <TabText>Self-service</TabText>
-                    </Tab>
-                  )}
-                  <Tab>
-                    <TabText>Details</TabText>
-                  </Tab>
-                  {isSoftwareEnabled && (
-                    <Tab>
-                      <TabText>Software</TabText>
-                    </Tab>
-                  )}
-                  {isPremiumTier && (
-                    <Tab>
-                      <TabText
-                        count={failingPoliciesCount}
-                        countVariant="alert"
-                      >
-                        Policies
-                      </TabText>
-                    </Tab>
-                  )}
-                </TabList>
+      <>
+        <div className={`${baseClass} main-content`}>
+          <DeviceUserBanners
+            hostPlatform={host.platform}
+            hostOsVersion={host.os_version}
+            mdmEnrollmentStatus={host.mdm.enrollment_status}
+            mdmEnabledAndConfigured={!!globalConfig?.mdm.enabled_and_configured}
+            connectedToFleetMdm={!!host.mdm.connected_to_fleet}
+            macDiskEncryptionStatus={
+              host.mdm.macos_settings?.disk_encryption ?? null
+            }
+            diskEncryptionActionRequired={
+              host.mdm.macos_settings?.action_required ?? null
+            }
+            onTurnOnMdm={toggleEnrollMdmModal}
+            onClickCreatePIN={() => setShowBitLockerPINModal(true)}
+            onTriggerEscrowLinuxKey={onTriggerEscrowLinuxKey}
+            diskEncryptionOSSetting={host.mdm.os_settings?.disk_encryption}
+            diskIsEncrypted={host.disk_encryption_enabled}
+            diskEncryptionKeyAvailable={host.mdm.encryption_key_available}
+          />
+          <HostHeader
+            summaryData={summaryData}
+            showRefetchSpinner={showRefetchSpinner}
+            onRefetchHost={onRefetchHost}
+            renderActionDropdown={renderActionButtons}
+            deviceUser
+          />
+          <TabNav className={`${baseClass}__tab-nav`}>
+            <Tabs
+              selectedIndex={findSelectedTab(location.pathname)}
+              onSelect={(i) => router.push(tabPaths[i])}
+            >
+              <TabList>
                 {isPremiumTier && isSoftwareEnabled && hasSelfService && (
-                  <TabPanel>
-                    <SelfService
-                      contactUrl={orgContactURL}
-                      deviceToken={deviceAuthToken}
-                      isSoftwareEnabled
-                      pathname={location.pathname}
-                      queryParams={parseSelfServiceQueryParams(location.query)}
-                      router={router}
-                      refetchHostDetails={refetchHostDetails}
-                      isHostDetailsPolling={showRefetchSpinner}
-                      hostSoftwareUpdatedAt={host.software_updated_at}
-                      hostDisplayName={host?.hostname || ""}
-                    />
-                  </TabPanel>
+                  <Tab>
+                    <TabText>Self-service</TabText>
+                  </Tab>
                 )}
-                <TabPanel className={`${baseClass}__details-panel`}>
-                  <HostSummaryCard
-                    className={fullWidthCardClass}
-                    summaryData={summaryData}
-                    bootstrapPackageData={bootstrapPackageData}
-                    isPremiumTier={isPremiumTier}
-                    toggleOSSettingsModal={toggleOSSettingsModal}
-                    hostSettings={host?.mdm.profiles ?? []}
-                    osSettings={host?.mdm.os_settings}
-                  />
-                  <AboutCard
-                    className={
-                      showUsersCard ? defaultCardClass : fullWidthCardClass
-                    }
-                    aboutData={aboutData}
-                    munki={deviceMacAdminsData?.munki}
-                  />
-                  {showUsersCard && (
-                    <UserCard
-                      className={defaultCardClass}
-                      platform={host.platform}
-                      endUsers={host.end_users ?? []}
-                      enableAddEndUser={false}
-                      disableFullNameTooltip
-                      disableGroupsTooltip
-                    />
-                  )}
-                  {isAppleHost && !!deviceCertificates?.certificates.length && (
-                    <CertificatesCard
-                      className={fullWidthCardClass}
-                      isMyDevicePage
-                      data={deviceCertificates}
-                      isError={isErrorDeviceCertificates}
-                      page={certificatePage}
-                      pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
-                      sortHeader={sortCerts.order_key}
-                      sortDirection={sortCerts.order_direction}
-                      hostPlatform={host.platform}
-                      onSelectCertificate={onSelectCertificate}
-                      onNextPage={() => setCertificatePage(certificatePage + 1)}
-                      onPreviousPage={() =>
-                        setCertificatePage(certificatePage - 1)
-                      }
-                      onSortChange={setSortCerts}
-                    />
-                  )}
-                </TabPanel>
+                <Tab>
+                  <TabText>Details</TabText>
+                </Tab>
                 {isSoftwareEnabled && (
-                  <TabPanel>
-                    <SoftwareCard
-                      id={deviceAuthToken}
-                      softwareUpdatedAt={host.software_updated_at}
-                      router={router}
-                      pathname={location.pathname}
-                      queryParams={parseHostSoftwareQueryParams(location.query)}
-                      isMyDevicePage
-                      platform={host.platform}
-                      hostTeamId={host.team_id || 0}
-                      isSoftwareEnabled={isSoftwareEnabled}
-                      onShowInventoryVersions={setHostSWForInventoryVersions}
-                    />
-                  </TabPanel>
+                  <Tab>
+                    <TabText>Software</TabText>
+                  </Tab>
                 )}
                 {isPremiumTier && (
-                  <TabPanel>
-                    <PoliciesCard
-                      policies={host?.policies || []}
-                      isLoading={isLoadingHost}
-                      deviceUser
-                      togglePolicyDetailsModal={togglePolicyDetailsModal}
-                      hostPlatform={host?.platform || ""}
-                      router={router}
-                    />
-                  </TabPanel>
+                  <Tab>
+                    <TabText count={failingPoliciesCount} countVariant="alert">
+                      Policies
+                    </TabText>
+                  </Tab>
                 )}
-              </Tabs>
-            </TabNav>
-            {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
-            {showEnrollMdmModal &&
-              (host.dep_assigned_to_fleet ? (
-                <AutoEnrollMdmModal
-                  host={host}
-                  onCancel={toggleEnrollMdmModal}
+              </TabList>
+              {isPremiumTier && isSoftwareEnabled && hasSelfService && (
+                <TabPanel>
+                  <SelfService
+                    contactUrl={orgContactURL}
+                    deviceToken={deviceAuthToken}
+                    isSoftwareEnabled
+                    pathname={location.pathname}
+                    queryParams={parseSelfServiceQueryParams(location.query)}
+                    router={router}
+                    refetchHostDetails={refetchHostDetails}
+                    isHostDetailsPolling={showRefetchSpinner}
+                    hostSoftwareUpdatedAt={host.software_updated_at}
+                    hostDisplayName={host?.hostname || ""}
+                  />
+                </TabPanel>
+              )}
+              <TabPanel className={`${baseClass}__details-panel`}>
+                <HostSummaryCard
+                  className={fullWidthCardClass}
+                  summaryData={summaryData}
+                  bootstrapPackageData={bootstrapPackageData}
+                  isPremiumTier={isPremiumTier}
+                  toggleOSSettingsModal={toggleOSSettingsModal}
+                  hostSettings={host?.mdm.profiles ?? []}
+                  osSettings={host?.mdm.os_settings}
                 />
-              ) : (
-                <ManualEnrollMdmModal
-                  host={host}
-                  onCancel={toggleEnrollMdmModal}
-                  token={deviceAuthToken}
+                <AboutCard
+                  className={
+                    showUsersCard ? defaultCardClass : fullWidthCardClass
+                  }
+                  aboutData={aboutData}
+                  munki={deviceMacAdminsData?.munki}
                 />
-              ))}
-            {showBitLockerPINModal && (
-              <BitLockerPinModal
-                onCancel={() => setShowBitLockerPINModal(false)}
+                {showUsersCard && (
+                  <UserCard
+                    className={defaultCardClass}
+                    platform={host.platform}
+                    endUsers={host.end_users ?? []}
+                    enableAddEndUser={false}
+                    disableFullNameTooltip
+                    disableGroupsTooltip
+                  />
+                )}
+                {isAppleHost && !!deviceCertificates?.certificates.length && (
+                  <CertificatesCard
+                    className={fullWidthCardClass}
+                    isMyDevicePage
+                    data={deviceCertificates}
+                    isError={isErrorDeviceCertificates}
+                    page={certificatePage}
+                    pageSize={DEFAULT_CERTIFICATES_PAGE_SIZE}
+                    sortHeader={sortCerts.order_key}
+                    sortDirection={sortCerts.order_direction}
+                    hostPlatform={host.platform}
+                    onSelectCertificate={onSelectCertificate}
+                    onNextPage={() => setCertificatePage(certificatePage + 1)}
+                    onPreviousPage={() =>
+                      setCertificatePage(certificatePage - 1)
+                    }
+                    onSortChange={setSortCerts}
+                  />
+                )}
+              </TabPanel>
+              {isSoftwareEnabled && (
+                <TabPanel>
+                  <SoftwareCard
+                    id={deviceAuthToken}
+                    softwareUpdatedAt={host.software_updated_at}
+                    router={router}
+                    pathname={location.pathname}
+                    queryParams={parseHostSoftwareQueryParams(location.query)}
+                    isMyDevicePage
+                    platform={host.platform}
+                    hostTeamId={host.team_id || 0}
+                    isSoftwareEnabled={isSoftwareEnabled}
+                    onShowInventoryVersions={setHostSWForInventoryVersions}
+                  />
+                </TabPanel>
+              )}
+              {isPremiumTier && (
+                <TabPanel>
+                  <PoliciesCard
+                    policies={host?.policies || []}
+                    isLoading={isLoadingHost}
+                    deviceUser
+                    togglePolicyDetailsModal={togglePolicyDetailsModal}
+                    hostPlatform={host?.platform || ""}
+                    router={router}
+                  />
+                </TabPanel>
+              )}
+            </Tabs>
+          </TabNav>
+          {showEnrollMdmModal &&
+            (host.dep_assigned_to_fleet ? (
+              <AutoEnrollMdmModal host={host} onCancel={toggleEnrollMdmModal} />
+            ) : (
+              <ManualEnrollMdmModal
+                host={host}
+                onCancel={toggleEnrollMdmModal}
+                token={deviceAuthToken}
               />
-            )}
-          </div>
-        )}
+            ))}
+          {showBitLockerPINModal && (
+            <BitLockerPinModal
+              onCancel={() => setShowBitLockerPINModal(false)}
+            />
+          )}
+        </div>
         {!!host && showPolicyDetailsModal && (
           <PolicyDetailsModal
             onCancel={onCancelPolicyDetailsModal}
@@ -670,7 +696,7 @@ const DeviceUserPage = ({
             onExit={() => setSelectedCertificate(null)}
           />
         )}
-      </div>
+      </>
     );
   };
 
@@ -696,7 +722,12 @@ const DeviceUserPage = ({
           </ul>
         </div>
       </nav>
-      {isDeviceUserError ? <DeviceUserError /> : renderDeviceUserPage()}
+      {isDeviceUserError ? (
+        <DeviceUserError />
+      ) : (
+        <div className="core-wrapper">{renderDeviceUserPage()}</div>
+      )}
+      {showInfoModal && <InfoModal onCancel={toggleInfoModal} />}
     </div>
   );
 };

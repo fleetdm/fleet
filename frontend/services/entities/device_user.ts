@@ -1,12 +1,14 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware } from "interfaces/software";
+import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
+
+import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -46,6 +48,13 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 
 export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
+}
+export interface IGetSetupSoftwareStatusesResponse {
+  setup_experience_results: { software: ISetupSoftwareStatus[] };
+}
+
+export interface IGetSetupSoftwareStatusesParams {
+  token: string;
 }
 
 export default {
@@ -156,5 +165,13 @@ export default {
     })}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSetupSoftwareStatuses: ({
+    token,
+  }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
+    const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
+    const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+    return sendRequest("POST", path);
   },
 };
