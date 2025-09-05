@@ -16,6 +16,7 @@ import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
 import { ISoftwareTitlesResponse } from "./software";
+import { PaginationParams } from "./common";
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -89,9 +90,9 @@ export interface IGetSetupExperienceScriptResponse {
   updated_at: string;
 }
 
-interface IGetSetupExperienceSoftwareParams {
+interface IGetSetupExperienceSoftwareParams extends Partial<PaginationParams> {
   team_id: number;
-  per_page: number;
+  platform: SetupExperiencePlatform;
 }
 
 export type IGetSetupExperienceSoftwareResponse = ISoftwareTitlesResponse & {
@@ -360,16 +361,15 @@ const mdmService = {
   },
 
   getSetupExperienceSoftware: (
-    platform: SetupExperiencePlatform,
     params: IGetSetupExperienceSoftwareParams
   ): Promise<IGetSetupExperienceSoftwareResponse> => {
     const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
 
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
-      platform
-    )}?${buildQueryStringFromParams({
-      ...params,
-    })}`;
+    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE}?${buildQueryStringFromParams(
+      {
+        ...params,
+      }
+    )}`;
 
     return sendRequest("GET", path);
   },
@@ -379,17 +379,10 @@ const mdmService = {
     teamId: number,
     softwareTitlesIds: number[]
   ) => {
-    const { MDM_SETUP_EXPERIENCE_SOFTWARE } = endpoints;
-
-    const path = `${MDM_SETUP_EXPERIENCE_SOFTWARE(
-      platform
-    )}?${buildQueryStringFromParams({
-      team_id: teamId,
-    })}`;
-
-    return sendRequest("PUT", path, {
-      team_id: teamId,
+    return sendRequest("PUT", endpoints.MDM_SETUP_EXPERIENCE_SOFTWARE, {
       software_title_ids: softwareTitlesIds,
+      team_id: teamId,
+      platform,
     });
   },
 

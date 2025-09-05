@@ -182,10 +182,7 @@ export default {
 
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
-  // maintained for backwards compatibility, use MDM_SETUP_EXPERIENCE_SOFTWARE endpoint
-  MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
-  MDM_SETUP_EXPERIENCE_SOFTWARE: (platform: SetupExperiencePlatform) =>
-    `/${API_VERSION}/fleet/setup_experience/${platform}/software`,
+  MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
   MDM_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
