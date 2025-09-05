@@ -172,8 +172,6 @@ export default {
   }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
     const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
-    return sendRequest("POST", path).then(() => {
-      return Promise.resolve(createMockSetupSoftwareStatusesResponse());
-    });
+    return sendRequest("POST", path);
   },
 };

@@ -10,14 +10,11 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const getIsSettingUpSoftware = (
   statuses: ISetupSoftwareStatus[] | null | undefined
 ) => {
-  // return false;
-  return true;
-  // TODO - confirm whether need to distinguish null from undefined
+  // TODO - need to distinguish null from undefined?
   if (!statuses || statuses.length === 0) {
     // not configured or no software selected
     return false;
   }
 
-  // TODO - confirm condition of completion
   return statuses.some((s) => ["pending", "running"].includes(s.status));
 };
