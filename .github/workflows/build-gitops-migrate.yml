@@ -20,6 +20,8 @@ jobs:
       BIN_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' }}
       # Ex: gitops-migrate-windows-amd64.exe.sha256
       BIN_HASH_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' }}.sha256
+      # This serves as the root path we `aws s3 cp` all built binaries to.
+      S3_URI: s3://download/tools
     strategy:
       fail-fast: true
       matrix:
@@ -75,10 +77,10 @@ jobs:
       - name: Upload Binary & SHA-256 Hash to Cloudflare R2 Bucket
         shell: bash
         env:
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CUSTOM_TOOLS_SECRET_ACCESS_KEY }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.R2_CUSTOM_TOOLS_ACCESS_KEY_ID }}
-          AWS_ENDPOINT_URL: ${{ secrets.R2_CUSTOM_TOOLS_ENDPOINT_URL }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_DOWNLOAD_ACCESS_KEY_ID }}
+          AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT }}
           AWS_DEFAULT_REGION: auto
         run: |-
-          aws s3 cp ${{ env.BIN_NAME }} s3://${{ secrets.R2_CUSTOM_TOOLS_BUCKET_NAME }}
-          aws s3 cp ${{ env.BIN_HASH_NAME }} s3://${{ secrets.R2_CUSTOM_TOOLS_BUCKET_NAME }}
+          aws s3 cp '${{ env.BIN_NAME }}' '${{ env.S3_URI }}'
+          aws s3 cp '${{ env.BIN_HASH_NAME }}' '${{ env.S3_URI }}'

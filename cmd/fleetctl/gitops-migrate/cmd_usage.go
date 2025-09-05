@@ -73,8 +73,7 @@ var tmplText = `
 Welcome to the {{ $gitops }} migration utility!
 
 The purpose of this package is to assist with automated GitOps YAML file
-transformations during the {{ $changeVer }} release. See [LINK TODO] for more
-details.
+transformations during the {{ $changeVer }} release.
 
 {{ magenta ">> Commands" }}
 
