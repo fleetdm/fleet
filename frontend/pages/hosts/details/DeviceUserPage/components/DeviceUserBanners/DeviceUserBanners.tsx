@@ -148,7 +148,8 @@ const DeviceUserBanners = ({
     return null;
   };
 
-  return <div className={baseClass}>{renderBanner()}</div>;
+  const banner = renderBanner();
+  return banner ? <div className={baseClass}>{banner}</div> : null;
 };
 
 export default DeviceUserBanners;
