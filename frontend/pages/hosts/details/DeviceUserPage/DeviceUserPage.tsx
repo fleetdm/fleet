@@ -25,21 +25,15 @@ import {
   IHostCertificate,
   CERTIFICATES_DEFAULT_SORT,
 } from "interfaces/certificates";
-import {
-  HOST_LINUX_PLATFORMS,
-  isAppleDevice,
-  isLinuxLike,
-} from "interfaces/platform";
+import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import Spinner from "components/Spinner";
-import Button from "components/buttons/Button";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import Icon from "components/Icon/Icon";
 import FlashMessage from "components/FlashMessage";
 import DataError from "components/DataError";
 
@@ -333,7 +327,6 @@ const DeviceUserPage = ({
   } = useQuery<
     IGetSetupSoftwareStatusesResponse,
     Error,
-    // SetupSoftwareStatus[] | null
     IGetSetupSoftwareStatusesResponse["setup_experience_results"]["software"]
   >(
     ["software-setup-statuses", deviceAuthToken],
@@ -341,7 +334,7 @@ const DeviceUserPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.setup_experience_results.software,
-      enabled: host && isLinuxLike(host.platform), // TODO - add windows with next iteration?
+      enabled: host && isLinuxLike(host.platform), // TODO - add windows with next iteration
       refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
     }

@@ -2,12 +2,9 @@ import React from "react";
 
 import { CellProps, Column } from "react-table";
 
-import { ISetupSoftwareStatus, SetupSoftwareStatus } from "interfaces/software";
+import { ISetupSoftwareStatus } from "interfaces/software";
 
-import Icon from "components/Icon";
-import Spinner from "components/Spinner";
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
-import { IconNames } from "components/icons";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
 
 type ISetupSoftwareStatusTableConfig = Column<ISetupSoftwareStatus>;

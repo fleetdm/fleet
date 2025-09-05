@@ -50,13 +50,9 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupSoftwareStatusesResponse {
-  // TODO ?
-  // extends ListEntitiesResponseCommon {
   setup_experience_results: { software: ISetupSoftwareStatus[] };
 }
 
-// TODO?
-// export interface IGetSetupSoftwareStatusParams extends PaginationParams {
 export interface IGetSetupSoftwareStatusesParams {
   token: string;
 }

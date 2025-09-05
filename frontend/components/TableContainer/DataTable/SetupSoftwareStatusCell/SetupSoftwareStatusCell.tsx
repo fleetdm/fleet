@@ -1,8 +1,10 @@
+import React from "react";
+
+import { SetupSoftwareStatus } from "interfaces/software";
+
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";
 import Spinner from "components/Spinner";
-import { SetupSoftwareStatus } from "interfaces/software";
-import React from "react";
 
 const baseClass = "setup-software-status-cell";
 

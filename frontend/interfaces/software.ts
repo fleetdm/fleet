@@ -599,5 +599,4 @@ export type SetupSoftwareStatus = typeof SETUP_SOFTWARE_STATUSES[number];
 export interface ISetupSoftwareStatus {
   name: string | null;
   status: SetupSoftwareStatus;
-  // TODO - looks like there may be more fields here?
 }

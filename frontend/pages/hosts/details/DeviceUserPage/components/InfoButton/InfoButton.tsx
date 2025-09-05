@@ -10,7 +10,11 @@ interface IInfoButton {
 
 const InfoButton = ({ toggleInfoModal }: IInfoButton) => {
   return (
-    <Button onClick={() => toggleInfoModal()} variant="text-icon">
+    <Button
+      className={baseClass}
+      onClick={() => toggleInfoModal()}
+      variant="text-icon"
+    >
       <>
         Info <Icon name="info" size="small" />
       </>
