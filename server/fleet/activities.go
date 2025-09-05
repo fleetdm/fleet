@@ -198,6 +198,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -2442,7 +2445,6 @@ func (a ActivityEditedDigiCert) Documentation() (activity string, details string
 }`
 }
 
-// TODO HCA regen docs for newly added CA activity
 type ActivityAddedHydrant struct {
 	Name string `json:"name"`
 }

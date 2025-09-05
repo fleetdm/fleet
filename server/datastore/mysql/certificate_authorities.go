@@ -41,7 +41,9 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		password_encrypted,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted
+		client_secret_encrypted,
+		created_at,
+		updated_at
 		FROM
 			certificate_authorities
 		WHERE
@@ -133,7 +135,9 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		password_encrypted,
 		challenge_encrypted,
 		client_id,
-		client_secret_encrypted
+		client_secret_encrypted,
+		created_at,
+		updated_at
 		FROM
 			certificate_authorities
 		`

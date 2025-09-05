@@ -1717,6 +1717,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_hydrant
+
+Generated when Hydrant certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## deleted_hydrant
+
+Generated when Hydrant certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## edited_hydrant
+
+Generated when Hydrant certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled
