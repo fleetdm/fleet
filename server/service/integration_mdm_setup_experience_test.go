@@ -2197,7 +2197,8 @@ func (s *integrationMDMTestSuite) TestSetupExperienceLinuxWithSoftware() {
 
 	// Configure the deb package to run as part of the setup experience for Linux hosts in "No team".
 	swInstallResp = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/linux/software", putSetupExperienceSoftwareRequest{
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
 		TeamID:   0,
 		TitleIDs: []uint{debEmacsTitleID},
 	}, http.StatusOK, &swInstallResp)
@@ -2301,7 +2302,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
 	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{TeamID: team1.ID, TitleIDs: []uint{titleID}}, http.StatusOK, &swInstallResp)
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
+		TeamID:   team1.ID,
+		TitleIDs: []uint{titleID},
+	}, http.StatusOK, &swInstallResp)
 
 	// Get "Setup experience" items using platform and the endpoint without platform that we cannot remove (for backwards compatibility).
 	var respGetSetupExperience getSetupExperienceSoftwareResponse
@@ -2348,14 +2353,16 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsPlatformIsolation(
 	s.uploadSoftwareInstaller(t, payloadDummy, http.StatusOK, "")
 	titleID := getSoftwareTitleID(t, s.ds, payloadDummy.Title, "apps")
 	var swInstallResp putSetupExperienceSoftwareResponse
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/macos/software", putSetupExperienceSoftwareRequest{
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
 		TeamID:   team1.ID,
 		TitleIDs: []uint{titleID},
 	}, http.StatusOK, &swInstallResp)
 
 	// Clear all Linux software on the setup experience.
 	swInstallResp = putSetupExperienceSoftwareResponse{}
-	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/linux/software", putSetupExperienceSoftwareRequest{
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "macos",
 		TeamID:   team1.ID,
 		TitleIDs: []uint{},
 	}, http.StatusOK, &swInstallResp)
