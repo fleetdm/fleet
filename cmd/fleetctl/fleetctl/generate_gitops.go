@@ -789,6 +789,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 	includeSecrets := cmd.CLI.Bool("insecure")
 
 	// Get the certificate authorities spec
+	fmt.Println("Is insecure", includeSecrets)
 	cas, err := cmd.Client.GetCertificateAuthoritiesSpec(includeSecrets)
 	if err != nil {
 		return nil, err
@@ -830,6 +831,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.custom_scep_proxy.challenge",
+				})
+			}
+		}
+		if hydrant, ok := result["hydrant"]; ok && hydrant != nil {
+			for _, intg := range hydrant.([]interface{}) {
+				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "integrations.hydrant.client_secret",
 				})
 			}
 		}
