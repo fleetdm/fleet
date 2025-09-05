@@ -86,7 +86,7 @@ describe("NDESForm", () => {
         formData={createTestFormData()}
         isSubmitting={false}
         submitBtnText="Submit"
-        isDirty={true}
+        isDirty
         onChange={noop}
         onSubmit={noop}
         onCancel={noop}
