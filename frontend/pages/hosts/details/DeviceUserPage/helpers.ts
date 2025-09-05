@@ -10,11 +10,8 @@ export const getErrorMessage = (e: unknown, hostName: string) => {
 export const getIsSettingUpSoftware = (
   statuses: ISetupSoftwareStatus[] | null | undefined
 ) => {
-  // for dev - todo remove
-  if (statuses === undefined) {
-    return true;
-    return false;
-  }
+  // return false;
+  return true;
   // TODO - confirm whether need to distinguish null from undefined
   if (!statuses || statuses.length === 0) {
     // not configured or no software selected

@@ -2,6 +2,7 @@ import Card from "components/Card";
 import { ISetupSoftwareStatus } from "interfaces/software";
 import React from "react";
 import InfoButton from "../InfoButton";
+import SetupSoftwareStatusTable from "./SetupSoftwareStatusTable";
 
 const baseClass = "setting-up-your-device";
 
@@ -27,7 +28,6 @@ const SettingUpYourDevice = ({
           Please don&apos;t attempt to restart or shut down the computer unless
           prompted to do so.
         </p>
-        <>Software Status Table</>
         <SetupSoftwareStatusTable statuses={softwareStatuses} />
       </Card>
     </div>

@@ -1,10 +1,6 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import {
-  IDeviceSoftware,
-  ISetupSoftwareStatus,
-  SetupSoftwareStatus,
-} from "interfaces/software";
+import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -12,8 +8,9 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
 
+import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
+
 import { IHostSoftwareQueryParams } from "./hosts";
-import { ListEntitiesResponseCommon, PaginationParams } from "./common";
 
 export type ILoadHostDetailsExtension = "macadmins";
 
@@ -179,6 +176,8 @@ export default {
   }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
     const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
-    return sendRequest("POST", path);
+    return sendRequest("POST", path).then(() => {
+      return Promise.resolve(createMockSetupSoftwareStatusesResponse());
+    });
   },
 };

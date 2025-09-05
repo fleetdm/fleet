@@ -6,8 +6,16 @@
   &__title {
     font-weight: $bold;
   }
+  .card {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
   h2 {
     font-size: $medium;
+    margin: 0;
+  }
+  p {
     margin: 0;
   }
 }
