@@ -398,7 +398,7 @@ const DeviceUserPage = ({
   const renderActionButtons = () => {
     return (
       <div className={`${baseClass}__action-button-container`}>
-        <InfoButton toggleInfoModal={toggleInfoModal} />
+        <InfoButton onClick={toggleInfoModal} />
       </div>
     );
   };

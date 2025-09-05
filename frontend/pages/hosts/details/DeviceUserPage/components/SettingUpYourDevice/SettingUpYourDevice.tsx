@@ -19,7 +19,7 @@ const SettingUpYourDevice = ({
     <div className={`${baseClass} main-content device-user`}>
       <span className={`${baseClass}__header`}>
         <h1 className={`${baseClass}__title`}>My device</h1>
-        <InfoButton toggleInfoModal={toggleInfoModal} />
+        <InfoButton onClick={toggleInfoModal} />
       </span>
       <Card borderRadiusSize="xxlarge" paddingSize="xlarge" includeShadow>
         <h2>Setting up your device...</h2>

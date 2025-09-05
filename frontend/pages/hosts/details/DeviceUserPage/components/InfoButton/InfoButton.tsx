@@ -5,16 +5,12 @@ import React from "react";
 const baseClass = "info-button";
 
 interface IInfoButton {
-  toggleInfoModal: () => void;
+  onClick: () => void;
 }
 
-const InfoButton = ({ toggleInfoModal }: IInfoButton) => {
+const InfoButton = ({ onClick }: IInfoButton) => {
   return (
-    <Button
-      className={baseClass}
-      onClick={() => toggleInfoModal()}
-      variant="text-icon"
-    >
+    <Button className={baseClass} onClick={onClick} variant="text-icon">
       <>
         Info <Icon name="info" size="small" />
       </>
