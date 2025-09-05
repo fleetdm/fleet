@@ -11,8 +11,8 @@
     &__tab-list {
       display: inline-flex;
       align-items: flex-start;
-      gap: $pad-xxlarge;
-      border-bottom: 1px solid $ui-fleet-black-10;
+      gap: calc($pad-smedium / 2);
+      border-bottom: none;
       width: 100%;
       height: 43px;
     }
@@ -34,9 +34,10 @@
     }
 
     &__tab {
-      padding: 5px 0 $pad-medium;
       font-size: $x-small;
+      border-radius: $border-radius;
       border: none;
+      padding: 6px $pad-smedium;
       display: inline-flex;
       flex-direction: column;
       align-items: center;
@@ -51,10 +52,13 @@
         }
       }
 
+      &:hover {
+        background-color: $ui-fleet-black-5;
+      }
+
       // focus-visible only highlights when tabbing not clicking
       &:focus-visible {
         .tab-text {
-          border-radius: $border-radius;
           // Outline used instead of border not to shift component
           outline: 1px solid $ui-vibrant-blue-25;
           outline-offset: -1px;
@@ -74,49 +78,13 @@
       }
 
       &--selected {
+        border-radius: $border-radius;
         font-weight: $bold;
-
-        &::after {
-          content: "";
-          width: 100%;
-          height: 0;
-          border-bottom: 2px solid $core-vibrant-blue;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
-      }
-
-      &:hover {
-        &::after {
-          content: "";
-          width: 100%;
-          height: 0;
-          border-bottom: 2px solid $core-vibrant-blue;
-          position: absolute;
-          bottom: 0;
-          left: 0;
-        }
+        background-color: $ui-fleet-black-5;
       }
 
       &--disabled {
         cursor: not-allowed;
-
-        &:hover {
-          &::after {
-            content: "";
-            width: 100%;
-            height: 0;
-            border-bottom: 0;
-            position: absolute;
-            bottom: 0;
-            left: 0;
-          }
-        }
-      }
-
-      &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
-        bottom: -2px;
       }
     }
     &__tab-panel {
