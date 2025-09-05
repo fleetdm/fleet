@@ -27,6 +27,7 @@ interface ICustomSCEPFormProps {
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
@@ -38,6 +39,7 @@ const CustomSCEPForm = ({
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
@@ -113,7 +115,7 @@ const CustomSCEPForm = ({
           <Button
             type="submit"
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
           >
             {submitBtnText}
           </Button>

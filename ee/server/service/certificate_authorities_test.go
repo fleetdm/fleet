@@ -1009,6 +1009,30 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		require.EqualError(t, err, "Couldn't edit certificate authority. Certificate authority with ID 999 does not exist.")
 	})
 
+	t.Run("Errors on empty inner update payload", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+		payloadMap := map[uint]fleet.CertificateAuthorityUpdatePayload{
+			digicertID: {
+				DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{},
+			},
+			hydrantID: {
+				HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{},
+			},
+			scepID: {
+				CustomSCEPProxyCAUpdatePayload: &fleet.CustomSCEPProxyCAUpdatePayload{},
+			},
+			ndesID: {
+				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{},
+			},
+		}
+
+		for id, payload := range payloadMap {
+
+			err := svc.UpdateCertificateAuthority(ctx, id, payload)
+			require.Contains(t, err.Error(), "update payload is empty")
+		}
+	})
+
 	t.Run("Errors on wrong existing CA type", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
