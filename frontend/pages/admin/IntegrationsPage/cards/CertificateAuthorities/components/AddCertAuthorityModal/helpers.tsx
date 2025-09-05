@@ -171,22 +171,22 @@ const INVALID_CHALLENGE_ERROR =
  */
 export const getDisplayErrMessage = (err: unknown) => {
   let message: string | JSX.Element = DEFAULT_ERROR;
-  const reason = getErrorReason(err);
+  const reason = getErrorReason(err).toLowerCase();
 
-  if (reason.includes("invalid API token")) {
+  if (reason.includes("invalid api token")) {
     message = INVALID_API_TOKEN_ERROR;
-  } else if (reason.includes("invalid profile GUID")) {
+  } else if (reason.includes("invalid profile guid")) {
     message = INVALID_PROFILE_GUID_ERROR;
   } else if (
-    reason.includes("invalid URL") ||
+    reason.includes("invalid url") ||
     reason.includes("no such host")
   ) {
     message = INVALID_URL_ERROR;
   } else if (reason.includes("private key")) {
     message = PRIVATE_KEY_NOT_CONFIGURED_ERROR;
-  } else if (reason.includes("invalid SCEP URL")) {
+  } else if (reason.includes("invalid scep url")) {
     message = INVALID_SCEP_URL_ERROR;
-  } else if (reason.includes("invalid admin URL or credentials")) {
+  } else if (reason.includes("invalid admin url or credentials")) {
     message = INVALID_ADMIN_URL_OR_CREDENTIALS_ERROR;
   } else if (reason.includes("password cache is full")) {
     message = NDES_PASSWORD_CACHE_FULL_ERROR;
