@@ -47,11 +47,6 @@ CREATE TABLE mdm_android_configuration_profiles (
 		return fmt.Errorf("create mdm_android_configuration_profiles table: %w", err)
 	}
 
-	// TODO(ap): not sure how to handle the 3 retries before marking a profile as
-	// failed, does that mean that after 3 failures we stop merging any proflies
-	// that were part of those failures, and send only other (newer) profiles? Or
-	// do we stop sending any policy for that host from that point on?
-
 	// The table android_policy_requests tracks the API requests made to create
 	// or update the policy to apply to a given host.
 	createRequestsTable := `
@@ -108,6 +103,10 @@ CREATE TABLE host_mdm_android_profiles (
   -- we won't have the request uuid until the request is ready to be sent
   policy_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   device_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  -- counts the number of consecutive failures for AMAPI requests
+  request_fail_count    TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  -- the latest policy version that includes this profile
+  included_in_policy_version INT DEFAULT NULL,
 
   created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),

@@ -1,10 +1,14 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -15,8 +19,6 @@ import (
 	"google.golang.org/api/googleapi"
 )
 
-// TODO(ap): using fleet.Datastore for now as I list all hosts by label, but
-// could eventually be fleet.AndroidDatastore (if that's still a thing).
 func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger, licenseKey string) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -34,38 +36,47 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	// TODO(ap): here would come the queries to identify the profiles to add and
-	// remove from the host, and merge the final payload. This will all be part
-	// of the upcoming https://github.com/fleetdm/fleet/issues/32032 work, not of
-	// the current work. For the current ticket, I'll just assume we have the
-	// final payload.
-	//
-	// Would probably be a good idea to generate the canonical JSON form of the
-	// payload and keep track of the hash of the last applied payload, to avoid
-	// re-applying if there are no changes. Also, I'm not sure how _removing_ a
-	// setting/profile would work, does it get "removed" just by the fact that
-	// the settings are not present in the new profile applied?
-	//
-	// We also need to agree on a determined order to merge the profiles. I'd go
-	// by name, alphabetically ascending, as it's simple and the order
-	// information can be viewed by the user in the UI, but we had discussed
-	// upload time of the profile (which may not be deterministic for batch-set
-	// profiles).
-	//
-	// Due to the logic needed to merge the "profiles" to form a final "policy"
-	// payload, I don't think we can use SQL queries to find out what hosts need
-	// to be updated or not, I think that at best we can generate a minimal
-	// subset of affected hosts via queries by using things like last policy
-	// timestamp vs timestamps of the profiles involved, and if it looks like a
-	// host may need an update, compute the final payload and use the checksum to
-	// see if it has actually changed or not.
-	//
-	// The profiles to apply should have status=NULL at this point, and will switch
-	// to explicit status=Pending after the API requests (or Failed if there is a
-	// profile overridden with another). On the pubsub status report, it will transition
-	// to Verified.
+	// get the list of hosts that need to have their profiles applied
+	// TODO(ap): for hosts without profiles, we need the exact profiles to remove, as we
+	// will have to update the host_mdm_android_profiles table to set operation remove and
+	// status pending, until the pub-sub status report that will delete the row.
+	hostsApplicableProfiles, hostsWithoutProfiles, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "identify android profiles to send")
+	}
 
+	profilesByHostUUID := make(map[string][]*fleet.MDMAndroidProfilePayload)
+	profilesToLoad := make(map[string]struct{})
+	for _, hostProf := range hostsApplicableProfiles {
+		profilesByHostUUID[hostProf.HostUUID] = append(profilesByHostUUID[hostProf.HostUUID], hostProf)
+
+		// keep a deduplicated list of profiles to load the JSON only once for each
+		// distinct one
+		profilesToLoad[hostProf.ProfileUUID] = struct{}{}
+	}
+
+	profilesContents, err := ds.GetMDMAndroidProfilesContents(ctx, slices.Collect(maps.Keys(profilesToLoad)))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "load android profiles content")
+	}
+
+	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
 	client := newAMAPIClient(ctx, logger, licenseKey)
+
+	// for each host, send the merged policy
+	for _, hostUUID := range hostsWithoutProfiles {
+		if err := sendHostProfiles(ctx, ds, client, hostUUID, nil, nil); err != nil {
+		}
+	}
+	for hostUUID, profiles := range profilesByHostUUID {
+		if err := sendHostProfiles(ctx, ds, client, hostUUID, profiles, profilesContents); err != nil {
+		}
+	}
+
+	// TODO(ap): The profiles to apply should (may?) have status=NULL at this
+	// point, and will switch to explicit status=Pending after the API requests
+	// (or Failed if there is a profile overridden with another). On the pubsub
+	// status report, it will transition to Verified.
 
 	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
 	// updated. Let's simulate it for any existing Android hosts for now.
@@ -84,68 +95,160 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return nil
 	}
 
-	for _, h := range hosts {
-		// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
-		// for now.
-		policy := &androidmanagement.Policy{
-			CameraDisabled: true,
-			FunDisabled:    false,
-		}
-
-		// for every policy, we want to enforce some settings
-		applyFleetEnforcedSettings(policy)
-
-		// using the host uuid as policy id, so we don't need to track the id mapping
-		// to the host.
-		// TODO(ap): are we seeing any downsides to this?
-		policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
-		skip, err := patchPolicy(ctx, client, ds, h.UUID, policyName, policy)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "patch policy for host %d", h.ID)
-		}
-		if skip {
-			continue
-		}
-
-		androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
-		}
-		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
-			// that policy name is already applied to this host, it will pick up the new version
-			// (confirmed in tests)
-			continue
-		}
-
-		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
-		device := &androidmanagement.Device{
-			PolicyName: policyName,
-			// State must be specified when updating a device, otherwise it fails with
-			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
-			// TODO: should we send whatever the previous state was? If it was DISABLED,
-			// we probably don't want to re-enable it by accident. Those are the only
-			// 2 valid states when patching a device.
-			//
-			// > Note that when calling enterprises.devices.patch, ACTIVE and
-			// > DISABLED are the only allowable values.
-			State: "ACTIVE",
-		}
-		_, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
-		}
-
-		// From what I can see in tests, after the PATCH /devices, the device
-		// returned will still have the old applied policy/version in the Applied
-		// fields, but the PolicyName will be the new one (presumably pending
-		// status report that reports the new policy as applied). Confirmed by a
-		// subsequent run that returned the new policy as applied, with the
-		// expected version. Note that with "funDisabled: true", I did get a
-		// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
-		// PolicyCompliant was still true.
-	}
+	// for _, h := range hosts {
+	// 	// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
+	// 	// for now.
+	// 	policy := &androidmanagement.Policy{
+	// 		CameraDisabled: true,
+	// 		FunDisabled:    false,
+	// 	}
+	//
+	// 	// for every policy, we want to enforce some settings
+	// 	applyFleetEnforcedSettings(policy)
+	//
+	// 	// using the host uuid as policy id, so we don't need to track the id mapping
+	// 	// to the host.
+	// 	// TODO(ap): are we seeing any downsides to this?
+	// 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), h.UUID)
+	// 	skip, err := patchPolicy(ctx, client, ds, h.UUID, policyName, policy)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "patch policy for host %d", h.ID)
+	// 	}
+	// 	if skip {
+	// 		continue
+	// 	}
+	//
+	// 	androidHost, err := ds.AndroidHostLiteByHostID(ctx, h.ID)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "get android host by host ID %d", h.ID)
+	// 	}
+	// 	if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == h.UUID {
+	// 		// that policy name is already applied to this host, it will pick up the new version
+	// 		// (confirmed in tests)
+	// 		continue
+	// 	}
+	//
+	// 	deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+	// 	device := &androidmanagement.Device{
+	// 		PolicyName: policyName,
+	// 		// State must be specified when updating a device, otherwise it fails with
+	// 		// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
+	// 		// TODO: should we send whatever the previous state was? If it was DISABLED,
+	// 		// we probably don't want to re-enable it by accident. Those are the only
+	// 		// 2 valid states when patching a device.
+	// 		//
+	// 		// > Note that when calling enterprises.devices.patch, ACTIVE and
+	// 		// > DISABLED are the only allowable values.
+	// 		State: "ACTIVE",
+	// 	}
+	// 	_, err = patchDevice(ctx, client, ds, h.UUID, deviceName, device)
+	// 	if err != nil {
+	// 		return ctxerr.Wrapf(ctx, err, "patch device for host %d", h.ID)
+	// 	}
+	//
+	// 	// From what I can see in tests, after the PATCH /devices, the device
+	// 	// returned will still have the old applied policy/version in the Applied
+	// 	// fields, but the PolicyName will be the new one (presumably pending
+	// 	// status report that reports the new policy as applied). Confirmed by a
+	// 	// subsequent run that returned the new policy as applied, with the
+	// 	// expected version. Note that with "funDisabled: true", I did get a
+	// 	// NonComplianceDetails for it with reason "MANAGEMENT_MODE", but the field
+	// 	// PolicyCompliant was still true.
+	// }
+	_ = enterprise
 
 	return nil
+}
+
+// TODO(ap): maybe refactor, bit ugly with so many parameters but it's nice to
+// have a func that processes one host at a time.
+func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client,
+	hostUUID string, profilesToMerge, profilesToRemove []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
+
+	// We need a deterministic order to merge the profiles, and I opted to go
+	// by name, alphabetically ascending, as it's simple, deterministic (names
+	// are unique) and the ordering can be viewed by the user in the UI. We had
+	// also discussed upload time of the profile but it may not be
+	// deterministic for batch-set profiles (same timestamp when inserted in a
+	// transaction) and is not readily visible in the UI.
+	slices.SortFunc(profilesToMerge, func(a, b *fleet.MDMAndroidProfilePayload) int {
+		return cmp.Compare(a.ProfileName, b.ProfileName)
+	})
+
+	bulkProfiles := make([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, 0, len(profilesToMerge)+len(profilesToRemove))
+
+	// merge the profiles in that order, keeping track of what profile overrides
+	// what other one
+	settingFromProfile := make(map[string]string)   // setting name -> "winning" profile UUID
+	overriddenSettings := make(map[string][]string) // profile UUID -> overridden setting names
+	var finalJSON map[string]json.RawMessage
+	for _, prof := range profilesToMerge {
+		content, ok := profilesContents[prof.ProfileUUID]
+		if !ok {
+			// should never happen
+			return nil, ctxerr.Errorf(ctx, "missing content for profile %s", prof.ProfileUUID)
+		}
+
+		var profJSON map[string]json.RawMessage
+		if err := json.Unmarshal(content, &profJSON); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal profile %s content", prof.ProfileUUID)
+		}
+
+		if finalJSON == nil {
+			finalJSON = profJSON
+			for k := range profJSON {
+				settingFromProfile[k] = prof.ProfileUUID
+			}
+		} else {
+			for k, v := range profJSON {
+				if _, alreadySet := finalJSON[k]; alreadySet {
+					// TODO: mark settingFromProfile[k] as failed/overridden
+					failedProfUUID := settingFromProfile[k]
+					overriddenSettings[failedProfUUID] = append(overriddenSettings[failedProfUUID], k)
+				}
+				finalJSON[k] = v
+				settingFromProfile[k] = prof.ProfileUUID
+			}
+		}
+
+		var detail string
+		status := fleet.MDMDeliveryPending
+		if overridden, ok := overriddenSettings[prof.ProfileUUID]; ok && len(overridden) > 0 {
+			status = fleet.MDMDeliveryFailed
+
+			slices.Sort(overridden)
+
+			var sb strings.Builder
+			for range len(overridden) - 1 {
+				sb.WriteString("%q, ")
+			}
+			if len(overridden) > 1 {
+				sb.WriteString("and ")
+			}
+			sb.WriteString("%q")
+			if len(overridden) > 1 {
+				sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+			} else {
+				sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+			}
+
+			args := make([]any, len(overridden))
+			for i, s := range overridden {
+				args[i] = s
+			}
+			detail = fmt.Sprintf(sb.String(), args...)
+		}
+		// TODO(ap): record included into policy version once the API call is made, and/or track failures
+		bulkProfiles = append(bulkProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			HostUUID:      hostUUID,
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			ProfileUUID:   prof.ProfileUUID,
+			ProfileName:   prof.ProfileName,
+			Detail:        detail,
+		})
+	}
+	panic("unimplemented")
 }
 
 func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
