@@ -141,11 +141,12 @@ export const createPackageYaml = ({
 `;
 
   if (url) {
-    yaml += `url: ${url}
+    yaml += `- url: ${url}
 `;
   }
 
   if (sha256) {
+    yaml += url ? "  " : "- ";
     yaml += `hash_sha256: ${sha256}
 `;
   }
@@ -153,26 +154,26 @@ export const createPackageYaml = ({
   const hyphenatedSWTitle = hyphenateString(softwareTitle);
 
   if (preInstallQuery) {
-    yaml += `pre_install_query:
-  path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
+    yaml += `  pre_install_query:
+    path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
 `;
   }
 
   if (installScript) {
-    yaml += `install_script:
-  path: ../scripts/install-${hyphenatedSWTitle}.sh
+    yaml += `  install_script:
+    path: ../scripts/install-${hyphenatedSWTitle}.sh
 `;
   }
 
   if (postInstallScript) {
-    yaml += `post_install_script:
-  path: ../scripts/post-install-${hyphenatedSWTitle}.sh
+    yaml += `  post_install_script:
+    path: ../scripts/post-install-${hyphenatedSWTitle}.sh
 `;
   }
 
   if (uninstallScript) {
-    yaml += `uninstall_script:
-  path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
+    yaml += `  uninstall_script:
+    path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
 `;
   }
 
