@@ -2229,6 +2229,9 @@ type Datastore interface {
 	// assigned to any team).
 	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
 
+	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
+	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
+
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
 	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
 

@@ -86,3 +86,27 @@ type MDMAndroidPolicyRequest struct {
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
+
+// HostMDMAndroidProfile represents the status of an MDM profile for a Android host.
+type HostMDMAndroidProfile struct {
+	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
+	RequestUUID   string             `db:"request_uuid" json:"request_uuid"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
+	Name          string             `db:"name" json:"name"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string             `db:"detail" json:"detail"`
+}
+
+func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileUUID:   p.ProfileUUID,
+		Name:          p.Name,
+		Identifier:    "",
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "android",
+	}
+}
