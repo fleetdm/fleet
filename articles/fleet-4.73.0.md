@@ -1,4 +1,4 @@
-# Fleet 4.73.0 | TODO
+# Fleet 4.73.0 | Linux OS vulnerabilities, schedule scripts, custom variables, and more...
 
 <div purpose="embedded-content">
    <iframe src="https://www.youtube.com/embed/NagFKf2BErQ?si=X-iavois5ZU9Bs28" frameborder="0" allowfullscreen></iframe>
@@ -11,11 +11,10 @@ Fleet 4.73.0 is now available. See the complete [changelog](https://github.com/f
 - Linux OS vulnerabilities
 - Custom severity (CVSS) filters
 - Schedule scripts
-- Custom variables in scripts and configuration profiles
 - BitLocker PIN enforcement
-- Linux software usage
-- Enroll BYOD with IdP authentication
-- Windows configuration profile variable: Hardware UUID
+- IdP authentication before BYOD enrollment
+- Custom variables in scripts and configuration profiles
+- Windows configuration profile variable: UUID
 
 ### Linux OS vulnerabilities
 
@@ -25,25 +24,21 @@ See and prioritize vulnerabilities in Linux operating systems, not just software
 
 Filter software by a custom severity (CVSS base score) range, like CVSS ≥ 7.5, to focus on what matters to your security team.
 
-### Schedue scripts
+### Schedule scripts
 
-TODO
-
-### Linux software usage
-
-See the last time a Linux app was opened. Optimize license spend by identifying unused software.
+Choose a specific time for a script to run. This is ideal for maintenance windows, policy changes, or planned rollouts. Learn more in the [scripts guide](https://fleetdm.com/guides/scripts#batch-execute-scripts).
 
 ### BitLocker PIN enforcement
 
-TODO
+Require a [BitLocker PIN](https://learn.microsoft.com/en-us/windows/security/operating-system-security/data-protection/bitlocker/countermeasures#preboot-authentication) (not to be confused with BitLocker recovery key) at startup. Fleet Desktop now shows a banner instructing users to create a PIN, and reports who has or hasn’t set one.
 
-### Enroll BYOD with IdP authentication
+### IdP authentication before BYOD enrollment
 
-TODO
+Add a layer of security by requiring users to authenticate with your identity provider (IdP) before enrolling their personal (BYOD) iPhone, iPad, or Android device. Learn more in the [end user authentication guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
 
 ### Custom variables in scripts and configuration profiles
 
-TODO
+You can now manage variables (used in scripts and config profiles) directly in the Fleet UI. No need to touch the API or GitOps if you don't want to. Learn more in the [custom variables guide](https://fleetdm.com/guides/secrets-in-scripts-and-configuration-profiles).
 
 ### Windows configuration profile variable: UUID
 
