@@ -286,40 +286,40 @@ const DropdownWrapper = ({
         boxShadow: "none",
         borderRadius: "4px",
         borderColor: state.isFocused
-          ? COLORS["core-fleet-blue"]
+          ? COLORS["ui-fleet-black-5"]
           : COLORS["ui-fleet-black-10"],
         "&:hover": {
           boxShadow: "none",
-          borderColor: COLORS["core-vibrant-blue-over"],
+          borderColor: COLORS["ui-fleet-black-50"],
           ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-over"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-over"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-over"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         // When tabbing
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
           borderColor: state.isFocused
-            ? COLORS["core-vibrant-blue-down"]
+            ? COLORS["ui-fleet-black-5"]
             : COLORS["ui-fleet-black-10"],
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         ...(state.isFocused && {
           ".dropdown-wrapper__placeholder": {
-            color: COLORS["core-vibrant-blue-down"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
         }),
         ...(state.isDisabled && {
@@ -335,13 +335,13 @@ const DropdownWrapper = ({
         }),
         "&:active": {
           ".dropdown-wrapper__single-value": {
-            color: COLORS["core-vibrant-blue-down"],
+            color: COLORS["ui-fleet-black-75"],
           },
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-vibrant-blue-down"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           ".filter-icon path": {
-            fill: COLORS["core-vibrant-blue-down"],
+            fill: COLORS["ui-fleet-black-75"],
           },
         },
         ...(state.menuIsOpen && {

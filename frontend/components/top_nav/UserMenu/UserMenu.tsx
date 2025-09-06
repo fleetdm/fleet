@@ -29,15 +29,6 @@ interface IUserMenuProps {
   currentUser: IUser;
 }
 
-const bounceDownAnimation = keyframes`
-  0%, 100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(3px);
-  }
-`;
-
 const getOptionBackgroundColor = (
   state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
 ) => {
@@ -55,7 +46,7 @@ const CustomDropdownIndicator = (
     <components.DropdownIndicator {...props} className={baseClass}>
       <Icon
         name="chevron-down"
-        color="core-fleet-white"
+        color="ui-fleet-black-75"
         className={`${baseClass}__icon`}
         size="small"
       />
@@ -178,13 +169,10 @@ const UserMenu = ({
       cursor: "pointer",
       "&:hover": {
         boxShadow: "none",
-        ".user-menu-select__indicator svg": {
-          animation: `${bounceDownAnimation} 0.3s ease-in-out`,
-        },
       },
       ...(state.isFocused &&
         isKeyboardFocus && {
-          border: `2px solid ${COLORS["ui-blue-25"]}`,
+          border: `2px solid ${COLORS["ui-fleet-black-5"]}`,
         }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
@@ -231,10 +219,7 @@ const UserMenu = ({
       color: COLORS["tooltip-bg"],
       whiteSpace: "nowrap",
       "&:hover": {
-        backgroundColor: COLORS["ui-vibrant-blue-10"],
-      },
-      "&:active": {
-        backgroundColor: COLORS["ui-vibrant-blue-25"],
+        backgroundColor: COLORS["ui-fleet-black-5"],
       },
       "&:last-child, &:nth-last-of-type(2)": {
         borderTop: `1px solid ${COLORS["ui-fleet-black-10"]}`,
