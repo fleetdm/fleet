@@ -85,9 +85,10 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 	// - Compare the `hash.Hasher` result to the `manager.UploadOutput` hash to
 	//   verify upload integrity, cancelling the context if the hashes don't match.
 	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
-		Bucket: &s.bucket,
-		Body:   content,
-		Key:    &key,
+		Bucket:            &s.bucket,
+		Body:              content,
+		Key:               &key,
+		ChecksumAlgorithm: types.ChecksumAlgorithmCrc32c, // Required for GCS
 	})
 
 	return err
