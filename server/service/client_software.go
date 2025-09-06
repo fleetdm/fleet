@@ -32,10 +32,10 @@ func (c *Client) ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResu
 }
 
 // Get the software titles available for the setup experience.
-func (c *Client) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+func (c *Client) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/software"
 	var responseBody getSetupExperienceSoftwareResponse
-	query := fmt.Sprintf("team_id=%d", teamID)
+	query := fmt.Sprintf("platform=%s&team_id=%d", platform, teamID)
 	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	if err != nil {
 		return nil, err
