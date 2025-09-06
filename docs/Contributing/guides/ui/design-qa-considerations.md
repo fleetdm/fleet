@@ -142,6 +142,8 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 ## Responsiveness and low-width browsers
 - Long database names rendered in the UI e.g. team names, scripts, software titles...
 - Wide tables with many columns or wide columns (horizontal scroll vs. old, bad pattern of hiding columns)
+- Page load expectations (how long should it take for a page to load with x number of items in the API response)
+- Cron run time expectations (what is an acceptable change in amount of time it takes for a scheduled cron to complete)
 
 ## Actionable components (e.g. buttons, links, form fields, navigation)
 - Keyboard accessibility
