@@ -33,7 +33,7 @@ Render is a cloud hosting service that makes it easy to get up and running fast,
 
 > **Add a license key:** After successful deployment, navigate to the environment variables section of the Render blueprint to manually add your license key. 
 
-> Support for add/install software features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+> Support for add/install software features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 <meta name="articleTitle" value="Deploy Fleet on Render">
 <meta name="authorGitHubUsername" value="edwardsb">

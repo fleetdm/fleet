@@ -85,7 +85,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Remove Manual label
 - Add host to an existing label
 - Remove a host from a label
-- Label selecion (policy / profile / software)
+- Label selection (policy / profile / software)
   - Include all
   - Include any
   - Exclude all
