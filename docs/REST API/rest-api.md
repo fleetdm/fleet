@@ -9401,7 +9401,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Uninstall software](#uninstall-software)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
-- [Delete software](#delete-package-or-app-store-app)
+- [Delete software](#delete-software)
 
 ### List software
 
