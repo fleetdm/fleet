@@ -61,11 +61,6 @@ func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, 
 
 func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		err := ds.saveCAAssets(ctx, tx, info)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "saving CA assets")
-		}
-
 		configBytes, err := json.Marshal(info)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "marshaling config")
@@ -81,59 +76,6 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 
 		return nil
 	})
-}
-
-// saveCAAssets encrypts and saves the CA assets (passwords, API tokens, etc.) to the database.
-func (ds *Datastore) saveCAAssets(ctx context.Context, tx sqlx.ExtContext, info *fleet.AppConfig) error {
-	if info.Integrations.NDESSCEPProxy.Valid {
-		if info.Integrations.NDESSCEPProxy.Set &&
-			info.Integrations.NDESSCEPProxy.Value.Password != "" &&
-			info.Integrations.NDESSCEPProxy.Value.Password != fleet.MaskedPassword {
-			err := ds.insertOrReplaceConfigAsset(ctx, tx, fleet.MDMConfigAsset{
-				Name:  fleet.MDMAssetNDESPassword,
-				Value: []byte(info.Integrations.NDESSCEPProxy.Value.Password),
-			})
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "processing NDES SCEP proxy password")
-			}
-		}
-		info.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
-	}
-
-	if info.Integrations.DigiCert.Valid || info.Integrations.CustomSCEPProxy.Valid {
-		tokensToSave := make([]fleet.CAConfigAsset, 0, len(info.Integrations.DigiCert.Value)+len(info.Integrations.CustomSCEPProxy.Value))
-		if info.Integrations.DigiCert.Valid {
-			for i, ca := range info.Integrations.DigiCert.Value {
-				if ca.APIToken != "" && ca.APIToken != fleet.MaskedPassword {
-					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
-						Name:  ca.Name,
-						Value: []byte(ca.APIToken),
-						Type:  fleet.CAConfigDigiCert,
-					})
-				}
-				info.Integrations.DigiCert.Value[i].APIToken = fleet.MaskedPassword
-			}
-		}
-
-		if info.Integrations.CustomSCEPProxy.Valid {
-			for i, ca := range info.Integrations.CustomSCEPProxy.Value {
-				if ca.Challenge != "" && ca.Challenge != fleet.MaskedPassword {
-					tokensToSave = append(tokensToSave, fleet.CAConfigAsset{
-						Name:  ca.Name,
-						Value: []byte(ca.Challenge),
-						Type:  fleet.CAConfigCustomSCEPProxy,
-					})
-				}
-				info.Integrations.CustomSCEPProxy.Value[i].Challenge = fleet.MaskedPassword
-			}
-		}
-		err := ds.saveCAConfigAssets(ctx, tx, tokensToSave)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "saving CA assets")
-		}
-	}
-
-	return nil
 }
 
 func (ds *Datastore) InsertOrReplaceMDMConfigAsset(ctx context.Context, asset fleet.MDMConfigAsset) error {

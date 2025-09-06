@@ -61,6 +61,8 @@ type Options struct {
 	FleetDesktopAlternativeBrowserHost string
 	// DisableUpdates disables auto updates on the generated package.
 	DisableUpdates bool
+	// DisableSetupExperience disables setup experience for Linux hosts
+	DisableSetupExperience bool
 	// OrbitChannel is the update channel to use for Orbit.
 	OrbitChannel string
 	// OsquerydChannel is the update channel to use for Osquery (osqueryd).

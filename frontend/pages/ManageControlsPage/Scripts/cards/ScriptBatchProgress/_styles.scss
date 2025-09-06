@@ -33,19 +33,9 @@
   }
 
   &__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
-    padding: 40px;
-    gap: 8px;
-    font-size: $small;
-    p {
-      margin: 0;
-      @include help-text;
-    }
+    @include tab-empty-state;
   }
+
   .paginated-list .loading-overlay {
     position: initial;
     top: initial;
