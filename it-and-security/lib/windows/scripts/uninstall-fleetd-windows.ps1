@@ -39,6 +39,65 @@ function Stop-Orbit {
   Start-Sleep -Milliseconds 1000
 }
 
+#Remove MDM enrollment
+function Remove-MDM-Enrollment {
+  try {
+    Write-Host "Removing MDM enrollment..."
+    
+    # Remove MDM enrollment certificates
+    $certificates = Get-ChildItem -Path "Cert:\LocalMachine\My" | Where-Object {$_.Subject -like "*MDM*" -or $_.Subject -like "*DeviceManagement*"}
+    foreach ($cert in $certificates) {
+      Remove-Item -Path $cert.PSPath -Force -ErrorAction "Continue"
+      Write-Host "Removed certificate: $($cert.Subject)"
+    }
+    
+    # Remove MDM enrollment registry entries
+    $mdmPaths = @(
+      "HKLM:\SOFTWARE\Microsoft\Enrollments",
+      "HKLM:\SOFTWARE\Microsoft\Enrollments\Status",
+      "HKLM:\SOFTWARE\Microsoft\PolicyManager",
+      "HKLM:\SOFTWARE\Microsoft\PolicyManager\AdmxInstall",
+      "HKLM:\SOFTWARE\Microsoft\PolicyManager\Providers",
+      "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Aik\Certificates",
+      "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Aik\Certificates\S-1-5-18"
+    )
+    
+    foreach ($path in $mdmPaths) {
+      if (Test-Path $path) {
+        Remove-Item -Path $path -Recurse -Force -ErrorAction "Continue"
+        Write-Host "Removed registry path: $path"
+      }
+    }
+    
+    # Remove specific MDM enrollment keys
+    $enrollmentKeys = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction "SilentlyContinue"
+    foreach ($key in $enrollmentKeys) {
+      if ($key.Name -match "MDM|DeviceManagement") {
+        Remove-Item -Path $key.PSPath -Recurse -Force -ErrorAction "Continue"
+        Write-Host "Removed enrollment key: $($key.Name)"
+      }
+    }
+    
+    # Remove MDM scheduled tasks
+    $mdmTasks = Get-ScheduledTask | Where-Object {$_.TaskName -like "*MDM*" -or $_.TaskName -like "*DeviceManagement*"}
+    foreach ($task in $mdmTasks) {
+      Unregister-ScheduledTask -TaskName $task.TaskName -Confirm:$false -ErrorAction "Continue"
+      Write-Host "Removed scheduled task: $($task.TaskName)"
+    }
+    
+    # Write success log
+    "MDM enrollment successfully removed at $(Get-Date)" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    return $true
+  }
+  catch {
+    Write-Host "There was a problem removing MDM enrollment"
+    Write-Host "$(Resolve-Error-Detailed)"
+    # Write error log
+    "Error removing MDM enrollment at $(Get-Date): $($Error[0])" | Out-File -Append -FilePath "$env:TEMP\fleet_remove_log.txt"
+    return $false
+  }
+}
+
 #Remove Orbit footprint from registry and disk
 function Force-Remove-Orbit {
   try {
@@ -89,7 +148,7 @@ function Main {
       Exit -1
     }
 
-    Write-Host "About to uninstall fleetd..."
+    Write-Host "About to uninstall fleetd and remove MDM enrollment..."
 
     if ($args[0] -eq "remove") {
       # "remove" is received as argument to the script when called as the
@@ -101,11 +160,32 @@ function Main {
       # sleep to give time to fleetd to send the script results to Fleet
       Start-Sleep -Seconds 20
       
-      if (Force-Remove-Orbit) {
-        Write-Host "fleetd was uninstalled."
-        Exit 0
+      $orbitRemoved = Force-Remove-Orbit
+      
+      # Check if MDM is enabled before attempting removal
+      $mdmEnabled = Test-Path "HKLM:\SOFTWARE\Microsoft\Enrollments" -ErrorAction "SilentlyContinue"
+      if ($mdmEnabled) {
+        $mdmRemoved = Remove-MDM-Enrollment
       } else {
-        Write-Host "There was a problem uninstalling fleetd."
+        Write-Host "MDM not detected on this system, skipping MDM removal."
+        $mdmRemoved = $true  # Consider it "successful" since there's nothing to remove
+      }
+      
+      if ($orbitRemoved -and $mdmRemoved) {
+        if ($mdmEnabled) {
+          Write-Host "fleetd and MDM enrollment were successfully removed."
+        } else {
+          Write-Host "fleetd was successfully removed. (No MDM enrollment detected)"
+        }
+        Exit 0
+      } elseif ($orbitRemoved) {
+        Write-Host "fleetd was uninstalled, but there was a problem removing MDM enrollment."
+        Exit 1
+      } elseif ($mdmRemoved) {
+        Write-Host "MDM enrollment was removed, but there was a problem uninstalling fleetd."
+        Exit 1
+      } else {
+        Write-Host "There were problems uninstalling both fleetd and MDM enrollment."
         Exit -1
       }
     } else {
@@ -113,7 +193,7 @@ function Main {
       # remove the agent. Instead, it starts a new detached process that
       # will do the actual removal.
       
-      Write-Host "Removing fleetd, system will be unenrolled in 20 seconds..."
+      Write-Host "Removing fleetd and MDM enrollment, system will be unenrolled in 20 seconds..."
       Write-Host "Executing detached child process"
       
       $execName = $MyInvocation.ScriptName
