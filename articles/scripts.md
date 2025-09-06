@@ -79,7 +79,7 @@ Fleet UI:
 
 After you've initiated a batch script run, you can see its status by navigating to **Controls > Scripts**, and clicking on the **Batch progress** item in the side menu. Batches that have started running will be listed under the **Started** tab. Batches scheduled for a future date will be listed under **Scheduled**, and batches that have completed their run or have been canceled will appear under **Finished**.
 
-To see a breakdown of the hosts targeted by a specific batch script run, click on that run's entry in the **Started**, Scheduled or Finished list.  
+To see a breakdown of the hosts targeted by a specific batch script run, click on that run's entry in the **Started**, **Scheduled**, or **Finished** list.  
 
 To cancel a current or future batch script run:
 1. Select the batch run you wish to cancel from the **Started** or **Scheduled** list.
