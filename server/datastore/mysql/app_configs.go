@@ -310,6 +310,19 @@ func (ds *Datastore) ApplyYaraRules(ctx context.Context, rules []fleet.YaraRule)
 }
 
 func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.YaraRule) error {
+	// First, load existing rules to check if there are any changes
+	existingRules, err := getYaraRulesDB(ctx, q)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get existing yara rules")
+	}
+
+	// Check if rules have changed
+	if yaraRulesEqual(existingRules, rules) {
+		// No changes needed, avoid unnecessary database operations
+		return nil
+	}
+
+	// Rules have changed, proceed with delete and insert
 	const delStmt = "DELETE FROM yara_rules"
 	if _, err := q.ExecContext(ctx, delStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "clear before insert")
@@ -332,12 +345,48 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 }
 
 func (ds *Datastore) GetYaraRules(ctx context.Context) ([]fleet.YaraRule, error) {
+	return getYaraRulesDB(ctx, ds.reader(ctx))
+}
+
+// getYaraRulesDB is a helper to get YARA rules using a specific database connection/transaction
+func getYaraRulesDB(ctx context.Context, q sqlx.QueryerContext) ([]fleet.YaraRule, error) {
 	sql := "SELECT name, contents FROM yara_rules"
 	rules := []fleet.YaraRule{}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rules, sql); err != nil {
+	if err := sqlx.SelectContext(ctx, q, &rules, sql); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get yara rules")
 	}
 	return rules, nil
+}
+
+// yaraRulesEqual compares two slices of YARA rules for equality
+func yaraRulesEqual(a, b []fleet.YaraRule) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Create maps for efficient comparison
+	aMap := make(map[string]string, len(a))
+	for _, rule := range a {
+		aMap[rule.Name] = rule.Contents
+	}
+
+	bMap := make(map[string]string, len(b))
+	for _, rule := range b {
+		bMap[rule.Name] = rule.Contents
+	}
+
+	// Compare maps
+	if len(aMap) != len(bMap) {
+		return false
+	}
+
+	for name, contents := range aMap {
+		if bContents, ok := bMap[name]; !ok || contents != bContents {
+			return false
+		}
+	}
+
+	return true
 }
 
 func (ds *Datastore) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {

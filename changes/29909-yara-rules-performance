@@ -1,0 +1,1 @@
+- Improved performance when modifying config (PATCH /api/latest/fleet/config) with a large number of unchanged yara rules.

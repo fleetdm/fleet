@@ -36,6 +36,7 @@ func TestAppConfig(t *testing.T) {
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
 		{"YaraRulesRoundtrip", testYaraRulesRoundtrip},
+		{"YaraRulesEqual", testYaraRulesEqual},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -627,6 +628,61 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, &expectedRules[1], rule)
 
+	// Apply the same rules again - this should be a no-op due to optimization
+	// (rules haven't changed, so no DELETE/INSERT should occur)
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	// Test edge case: Apply same rules but in different order
+	reorderedRules := []fleet.YaraRule{expectedRules[1], expectedRules[0]}
+	err = ds.ApplyYaraRules(ctx, reorderedRules)
+	require.NoError(t, err)
+	// Verify both rules still exist
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[0].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[0], rule)
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[1], rule)
+
+	// Test: Modify only the content of one rule (same name, different content)
+	modifiedContentRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		},
+		{
+			Name: "jump-modified.yar",
+			Contents: `rule JumpExample
+{
+    strings:
+        $hex_string = true
+
+    condition:
+        $hex_string
+}`,
+		},
+	}
+	err = ds.ApplyYaraRules(ctx, modifiedContentRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	// Verify the content was actually updated
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+	assert.Contains(t, rule.Contents, "E2 34 ?? C8 A? FB FF")
+
 	// Clear rules
 	expectedRules = []fleet.YaraRule{}
 	err = ds.ApplyYaraRules(ctx, expectedRules)
@@ -638,4 +694,101 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	// Get rule that doesn't exist
 	_, err = ds.YaraRuleByName(ctx, "wildcard.yar")
 	require.Error(t, err)
+}
+
+func testYaraRulesEqual(t *testing.T, ds *Datastore) {
+	// Test cases for yaraRulesEqual function
+	testCases := []struct {
+		name     string
+		rulesA   []fleet.YaraRule
+		rulesB   []fleet.YaraRule
+		expected bool
+	}{
+		{
+			name:     "empty slices are equal",
+			rulesA:   []fleet.YaraRule{},
+			rulesB:   []fleet.YaraRule{},
+			expected: true,
+		},
+		{
+			name:     "nil and empty are equal",
+			rulesA:   nil,
+			rulesB:   []fleet.YaraRule{},
+			expected: true, // Both have len() == 0
+		},
+		{
+			name: "same rules in same order",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2"},
+			},
+			expected: true,
+		},
+		{
+			name: "same rules in different order",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule2", Contents: "content2"},
+				{Name: "rule1", Contents: "content1"},
+			},
+			expected: true,
+		},
+		{
+			name: "different number of rules",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2"},
+			},
+			expected: false,
+		},
+		{
+			name: "same names but different content",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+				{Name: "rule2", Contents: "content2_modified"},
+			},
+			expected: false,
+		},
+		{
+			name: "different names but same content",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content1"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule1_renamed", Contents: "content1"},
+			},
+			expected: false,
+		},
+		{
+			name: "whitespace differences matter",
+			rulesA: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content with spaces"},
+			},
+			rulesB: []fleet.YaraRule{
+				{Name: "rule1", Contents: "content  with  spaces"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := yaraRulesEqual(tc.rulesA, tc.rulesB)
+			assert.Equal(t, tc.expected, result, "yaraRulesEqual(%v, %v) should be %v", tc.rulesA, tc.rulesB, tc.expected)
+		})
+	}
 }
