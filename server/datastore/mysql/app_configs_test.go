@@ -36,7 +36,6 @@ func TestAppConfig(t *testing.T) {
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
 		{"YaraRulesRoundtrip", testYaraRulesRoundtrip},
-		{"YaraRulesEqual", testYaraRulesEqual},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -675,13 +674,52 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	}
 	err = ds.ApplyYaraRules(ctx, modifiedContentRules)
 	require.NoError(t, err)
-	rules, err = ds.GetYaraRules(ctx)
-	require.NoError(t, err)
 	// Verify the content was actually updated
 	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
 	require.NoError(t, err)
 	assert.Contains(t, rule.Contents, "WildcardExampleModified")
 	assert.Contains(t, rule.Contents, "E2 34 ?? C8 A? FB FF")
+
+	// Test: Mixed operations - add new, keep one unchanged, delete one
+	mixedRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		}, // unchanged from previous
+		// jump-modified.yar is deleted
+		{
+			Name:     "new-rule.yar",
+			Contents: `rule NewRule { condition: true }`,
+		}, // new rule
+	}
+	err = ds.ApplyYaraRules(ctx, mixedRules)
+	require.NoError(t, err)
+
+	// Verify mixed operation results
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	// Check wildcard.yar is unchanged
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+
+	// Check jump-modified.yar is deleted
+	_, err = ds.YaraRuleByName(ctx, "jump-modified.yar")
+	require.Error(t, err)
+
+	// Check new-rule.yar is added
+	rule, err = ds.YaraRuleByName(ctx, "new-rule.yar")
+	require.NoError(t, err)
+	assert.Equal(t, `rule NewRule { condition: true }`, rule.Contents)
 
 	// Clear rules
 	expectedRules = []fleet.YaraRule{}
@@ -696,7 +734,7 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 }
 
-func testYaraRulesEqual(t *testing.T, ds *Datastore) {
+func TestYaraRulesEqual(t *testing.T) {
 	// Test cases for yaraRulesEqual function
 	testCases := []struct {
 		name     string

@@ -322,17 +322,60 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 		return nil
 	}
 
-	// Rules have changed, proceed with delete and insert
-	const delStmt = "DELETE FROM yara_rules"
-	if _, err := q.ExecContext(ctx, delStmt); err != nil {
-		return ctxerr.Wrap(ctx, err, "clear before insert")
+	// Create maps for efficient comparison
+	existingMap := make(map[string]string, len(existingRules))
+	for _, rule := range existingRules {
+		existingMap[rule.Name] = rule.Contents
 	}
 
-	if len(rules) > 0 {
+	newMap := make(map[string]string, len(rules))
+	for _, rule := range rules {
+		newMap[rule.Name] = rule.Contents
+	}
+
+	// Determine which rules to delete (removed or need updating)
+	var toDelete []string
+
+	// Rules that exist in DB but not in new rules (removed)
+	for name := range existingMap {
+		if _, exists := newMap[name]; !exists {
+			toDelete = append(toDelete, name)
+		}
+	}
+
+	// Determine which rules to insert (new or updated)
+	var toInsert []fleet.YaraRule
+	for _, rule := range rules {
+		existingContent, exists := existingMap[rule.Name]
+		if !exists || existingContent != rule.Contents {
+			// Rule is new or has been modified
+			toInsert = append(toInsert, rule)
+
+			// If it exists but content changed, we need to delete it first
+			if exists {
+				toDelete = append(toDelete, rule.Name)
+			}
+		}
+	}
+
+	// Single DELETE for both removed rules and rules that need updating
+	if len(toDelete) > 0 {
+		stmt := fmt.Sprintf("DELETE FROM yara_rules WHERE name IN (%s)", strings.TrimSuffix(strings.Repeat("?,", len(toDelete)), ","))
+		args := make([]any, len(toDelete))
+		for i, name := range toDelete {
+			args[i] = name
+		}
+		if _, err := q.ExecContext(ctx, stmt, args...); err != nil {
+			return ctxerr.Wrap(ctx, err, "delete yara rules")
+		}
+	}
+
+	// Insert new and updated rules
+	if len(toInsert) > 0 {
 		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
 		var args []interface{}
-		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(rules)), ","))
-		for _, r := range rules {
+		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(toInsert)), ","))
+		for _, r := range toInsert {
 			args = append(args, r.Name, r.Contents)
 		}
 
