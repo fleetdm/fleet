@@ -316,12 +316,6 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 		return ctxerr.Wrap(ctx, err, "get existing yara rules")
 	}
 
-	// Check if rules have changed
-	if yaraRulesEqual(existingRules, rules) {
-		// No changes needed, avoid unnecessary database operations
-		return nil
-	}
-
 	// Create maps for efficient comparison
 	existingMap := make(map[string]string, len(existingRules))
 	for _, rule := range existingRules {
@@ -399,37 +393,6 @@ func getYaraRulesDB(ctx context.Context, q sqlx.QueryerContext) ([]fleet.YaraRul
 		return nil, ctxerr.Wrap(ctx, err, "get yara rules")
 	}
 	return rules, nil
-}
-
-// yaraRulesEqual compares two slices of YARA rules for equality
-func yaraRulesEqual(a, b []fleet.YaraRule) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	// Create maps for efficient comparison
-	aMap := make(map[string]string, len(a))
-	for _, rule := range a {
-		aMap[rule.Name] = rule.Contents
-	}
-
-	bMap := make(map[string]string, len(b))
-	for _, rule := range b {
-		bMap[rule.Name] = rule.Contents
-	}
-
-	// Compare maps
-	if len(aMap) != len(bMap) {
-		return false
-	}
-
-	for name, contents := range aMap {
-		if bContents, ok := bMap[name]; !ok || contents != bContents {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (ds *Datastore) YaraRuleByName(ctx context.Context, name string) (*fleet.YaraRule, error) {
