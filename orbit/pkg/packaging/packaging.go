@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -211,6 +212,14 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get %s version: %w", constant.OsqueryTUFTargetName, err)
 	}
 
+	// Remove osqueryd tar.gz after extraction to prevent it from being included
+	// in the package (on macOS, osqueryd comes as osqueryd.app.tar.gz)
+	if strings.HasSuffix(osquerydLocalTarget.Path, ".tar.gz") {
+		if err := os.Remove(osquerydLocalTarget.Path); err != nil {
+			log.Debug().Err(err).Str("path", osquerydLocalTarget.Path).Msg("failed to remove osqueryd tar.gz after extraction")
+		}
+	}
+
 	orbitLocalTarget, err := updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s: %w", constant.OrbitTUFTargetName, err)
@@ -241,6 +250,14 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		}
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
 			return nil, fmt.Errorf("failed to get %s version: %w", constant.DesktopTUFTargetName, err)
+		}
+
+		// Remove the tar.gz file after extraction to prevent it from being included
+		// in the package (fixes duplicate fleet-desktop in .deb and .pkg packages)
+		if strings.HasSuffix(desktopLocalTarget.Path, ".tar.gz") {
+			if err := os.Remove(desktopLocalTarget.Path); err != nil {
+				log.Debug().Err(err).Str("path", desktopLocalTarget.Path).Msg("failed to remove desktop tar.gz after extraction")
+			}
 		}
 	}
 
