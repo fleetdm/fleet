@@ -140,6 +140,10 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
+	// IconHash is the SHA256 hash of the software icon, if a custom icon is set (blank otherwise)
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the software icon, if a custom icon is et (blank otherwise)
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -153,6 +157,10 @@ type VPPAppResponse struct {
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
 	Platform AppleDevicePlatform `json:"platform" db:"platform"`
+	// IconHash is the SHA256 hash of the software icon, if a custom icon is set (blank otherwise)
+	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
+	// IconFilename is the filename of the software icon, if a custom icon is et (blank otherwise)
+	IconFilename string `json:"icon_filename" db:"icon_filename"`
 }
 
 // AuthzType implements authz.AuthzTyper.

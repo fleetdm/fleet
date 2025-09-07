@@ -201,6 +201,15 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		return nil, ctxerr.Wrap(ctx, err, "set team vpp assets")
 	}
 
+	// Do cleanup here because this is API call 2 of 2 for setting software from GitOps
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+	if err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, tmID); err != nil {
+		return nil, err // returned error already includes context that we could include here
+	}
+
 	if len(vppAppTeams) == 0 {
 		return []fleet.VPPAppResponse{}, nil
 	}
