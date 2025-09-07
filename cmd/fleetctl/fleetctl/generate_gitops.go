@@ -1294,6 +1294,10 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 }
 
 func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string) (map[string]interface{}, error) {
+	if !cmd.AppConfig.License.IsPremium() {
+		return nil, nil // software is premium-only
+	}
+
 	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
@@ -1433,41 +1437,39 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			}
 		}
 
-		if cmd.AppConfig.License.IsPremium() {
-			var labels []fleet.SoftwareScopeLabel
-			var labelKey string
-			if softwareTitle.SoftwarePackage != nil {
-				if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
-			} else {
-				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
-					labelKey = "labels_include_any"
-				}
-				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
-					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
-					labelKey = "labels_exclude_any"
-				}
-				if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
-					softwareSpec["setup_experience"] = true
-				}
+		var labels []fleet.SoftwareScopeLabel
+		var labelKey string
+		if softwareTitle.SoftwarePackage != nil {
+			if len(softwareTitle.SoftwarePackage.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsIncludeAny
+				labelKey = "labels_include_any"
 			}
-			if len(labels) > 0 {
-				labelsList := make([]string, len(labels))
-				for i, label := range labels {
-					labelsList[i] = label.LabelName
-				}
-				softwareSpec[labelKey] = labelsList
+			if len(softwareTitle.SoftwarePackage.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
 			}
+			if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+				softwareSpec["setup_experience"] = true
+			}
+		} else {
+			if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsIncludeAny
+				labelKey = "labels_include_any"
+			}
+			if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
+				labels = softwareTitle.AppStoreApp.LabelsExcludeAny
+				labelKey = "labels_exclude_any"
+			}
+			if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+				softwareSpec["setup_experience"] = true
+			}
+		}
+		if len(labels) > 0 {
+			labelsList := make([]string, len(labels))
+			for i, label := range labels {
+				labelsList[i] = label.LabelName
+			}
+			softwareSpec[labelKey] = labelsList
 		}
 
 		if sw.SoftwarePackage != nil {
