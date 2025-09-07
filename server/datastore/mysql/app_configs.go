@@ -324,6 +324,9 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 
 	newMap := make(map[string]string, len(rules))
 	for _, rule := range rules {
+		if _, exists := newMap[rule.Name]; exists {
+			return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: fmt.Sprintf("duplicate YARA rule name: %s", rule.Name)}, "duplicate rule name")
+		}
 		newMap[rule.Name] = rule.Contents
 	}
 
@@ -367,7 +370,7 @@ func applyYaraRulesDB(ctx context.Context, q sqlx.ExtContext, rules []fleet.Yara
 	// Insert new and updated rules
 	if len(toInsert) > 0 {
 		const insStmt = `INSERT INTO yara_rules (name, contents) VALUES %s`
-		var args []interface{}
+		args := make([]any, 0, len(toInsert)*2)
 		sql := fmt.Sprintf(insStmt, strings.TrimSuffix(strings.Repeat(`(?, ?),`, len(toInsert)), ","))
 		for _, r := range toInsert {
 			args = append(args, r.Name, r.Contents)
