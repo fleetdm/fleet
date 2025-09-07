@@ -1393,6 +1393,236 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	require.True(t, found)
 }
 
+// TestAppleMDMMigrationAssistantDuplicateHost reproduces the issue described in:
+// https://github.com/fleetdm/fleet/issues/31934
+// where macOS Migration Assistant copies Fleet enrollment files, causing
+// duplicate host records or confused host states.
+func (s *integrationMDMTestSuite) TestAppleMDMMigrationAssistantDuplicateHost() {
+	t := s.T()
+
+	// Step 1: Enroll two separate Apple devices via MDM
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+
+	// Device A (Serial 1234) - the source device for Migration Assistant
+	deviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
+	deviceA.SerialNumber = "SOURCE1234"
+	err := deviceA.Enroll()
+	require.NoError(t, err)
+
+	// Device B (Serial 2345) - the target device that will receive migrated data
+	deviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, "MacBookPro16,1")
+	deviceB.SerialNumber = "TARGET2345"
+	err = deviceB.Enroll()
+	require.NoError(t, err)
+
+	// Verify both hosts exist in Fleet
+	listHostsRes := listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	require.Len(t, listHostsRes.Hosts, 2)
+
+	// Find host IDs
+	var hostAID, hostBID uint
+	for _, host := range listHostsRes.Hosts {
+		if host.UUID == deviceA.UUID {
+			hostAID = host.ID
+		} else if host.UUID == deviceB.UUID {
+			hostBID = host.ID
+		}
+	}
+	require.NotZero(t, hostAID, "Device A host not found")
+	require.NotZero(t, hostBID, "Device B host not found")
+
+	// Step 2: Set up enroll secrets for osquery enrollment
+	var applyResp applyEnrollSecretSpecResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/enroll_secret", applyEnrollSecretSpecRequest{
+		Spec: &fleet.EnrollSecretSpec{
+			Secrets: []*fleet.EnrollSecret{{Secret: t.Name()}},
+		},
+	}, http.StatusOK, &applyResp)
+
+	// Step 3: Enroll Device A via osquery/Orbit
+	// This simulates fleetd/orbit being installed on Device A
+	j, err := json.Marshal(&contract.EnrollOsqueryAgentRequest{
+		EnrollSecret:   t.Name(),
+		HostIdentifier: deviceA.UUID,
+	})
+	require.NoError(t, err)
+	var enrollRespA contract.EnrollOsqueryAgentResponse
+	hres := s.DoRawNoAuth("POST", "/api/osquery/enroll", j, http.StatusOK)
+	defer hres.Body.Close()
+	require.NoError(t, json.NewDecoder(hres.Body).Decode(&enrollRespA))
+	require.NotEmpty(t, enrollRespA.NodeKey)
+
+	// First, let's check what the hosts look like before migration simulation
+	var getHostRespBefore getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostAID), nil, http.StatusOK, &getHostRespBefore)
+	t.Logf("Host A before migration: UUID=%s, Serial=%s", getHostRespBefore.Host.UUID, getHostRespBefore.Host.HardwareSerial)
+	require.Equal(t, "SOURCE1234", getHostRespBefore.Host.HardwareSerial)
+	require.Equal(t, deviceA.UUID, getHostRespBefore.Host.UUID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostBID), nil, http.StatusOK, &getHostRespBefore)
+	t.Logf("Host B before migration: UUID=%s, Serial=%s", getHostRespBefore.Host.UUID, getHostRespBefore.Host.HardwareSerial)
+	require.Equal(t, "TARGET2345", getHostRespBefore.Host.HardwareSerial)
+	require.Equal(t, deviceB.UUID, getHostRespBefore.Host.UUID)
+
+	// Step 4: Simulate what REALLY happens after Migration Assistant:
+	// Device B has Device A's node key file and uses it directly
+	// WITHOUT re-enrolling
+
+	// Device B boots up with copied Orbit/osquery files and immediately
+	// starts using Device A's node key for all API calls
+	t.Log("Simulating Device B using Device A's node key directly (no re-enrollment)")
+
+	// Device B checks in for config using Device A's node key
+	configReqFromDeviceB := getClientConfigRequest{
+		NodeKey: enrollRespA.NodeKey, // Device B is using Device A's actual node key!
+	}
+	var configRespB getClientConfigResponse
+	s.DoJSON("POST", "/api/osquery/config", configReqFromDeviceB, http.StatusOK, &configRespB)
+	t.Log("Device B successfully got config using Device A's node key")
+
+	// Device B submits distributed query results using Device A's node key
+	// This is where the hardware info gets updated!
+	// The system_info detail query will update Host A with Device B's hardware
+
+	distributedReqFromDeviceB := submitDistributedQueryResultsRequestShim{
+		NodeKey: enrollRespA.NodeKey,
+		Results: map[string]json.RawMessage{
+			"fleet_detail_query_system_info": json.RawMessage(`[{
+				"hostname": "device-b-hostname",
+				"uuid": "` + deviceB.UUID + `",
+				"cpu_type": "arm64",
+				"cpu_subtype": "ARM64E",
+				"cpu_brand": "Apple M1 Pro",
+				"cpu_physical_cores": "10",
+				"cpu_logical_cores": "10",
+				"physical_memory": "17179869184",
+				"hardware_vendor": "Apple Inc.",
+				"hardware_model": "MacBookPro16,1",
+				"hardware_version": "1.0",
+				"hardware_serial": "TARGET2345",
+				"computer_name": "Device B"
+			}]`),
+		},
+		Statuses: map[string]interface{}{
+			"fleet_detail_query_system_info": fleet.StatusOK,
+		},
+	}
+
+	var distributedRespB submitDistributedQueryResultsResponse
+	s.DoJSON("POST", "/api/osquery/distributed/write", distributedReqFromDeviceB, http.StatusOK, &distributedRespB)
+	t.Log("Device B successfully sent detail query results using Device A's node key")
+
+	// Step 5: Now Device A also checks in (the original device)
+	// Both devices are using the same node key!
+	configReqFromDeviceA := getClientConfigRequest{
+		NodeKey: enrollRespA.NodeKey, // Device A using its own node key
+	}
+	var configRespA getClientConfigResponse
+	s.DoJSON("POST", "/api/osquery/config", configReqFromDeviceA, http.StatusOK, &configRespA)
+	t.Log("Device A also checked in with its node key")
+
+	// Step 6: Device B's MDM check-in with its own certificate
+	// Migration Assistant does NOT transfer MDM certificates (they're in system keychain)
+	// So Device B still has its own MDM cert and will check in as itself for MDM
+	t.Log("Device B MDM check-in with its own certificate (not migrated)")
+
+	// Device B authenticates with its own MDM cert/UUID
+	err = deviceB.Authenticate()
+	require.NoError(t, err)
+	t.Log("Device B MDM authenticated as Host B (using its own cert)")
+
+	// Now we have a split situation:
+	// - Device B's osquery is updating Host A (via migrated node key)
+	// - Device B's MDM is updating Host B (via its own cert)
+	// - Device B is split across two host records!
+
+	// Step 7: Verify the problematic state
+	// Check hosts again after MDM check-in
+	listHostsRes = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+	t.Logf("Total hosts after migration simulation: %d", len(listHostsRes.Hosts))
+
+	// Check each host's state and look for duplicates
+	serialCounts := make(map[string]int)
+	for _, host := range listHostsRes.Hosts {
+		t.Logf("Host ID=%d, UUID=%s, Serial=%s", host.ID, host.UUID, host.HardwareSerial)
+		serialCounts[host.HardwareSerial]++
+	}
+
+	// Check if we have duplicate serials (the customer's issue)
+	var duplicateSerials []string
+	for serial, count := range serialCounts {
+		if count > 1 {
+			duplicateSerials = append(duplicateSerials, serial)
+			t.Logf("DUPLICATE SERIAL FOUND: %s appears %d times!", serial, count)
+		}
+	}
+
+	// Check Host A's current state
+	var getHostA getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostAID), nil, http.StatusOK, &getHostA)
+	t.Logf("Host A after: UUID=%s, Serial=%s", getHostA.Host.UUID, getHostA.Host.HardwareSerial)
+
+	// Check Host B's current state
+	var getHostB getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostBID), nil, http.StatusOK, &getHostB)
+	t.Logf("Host B after: UUID=%s, Serial=%s", getHostB.Host.UUID, getHostB.Host.HardwareSerial)
+
+	// The Migration Assistant issue we're reproducing:
+	// After Device B submits its hardware info using Host A's node key,
+	// Host A should now have Device B's serial number "TARGET2345"
+	// Host B still has serial "TARGET2345" from its MDM enrollment
+	// Result: Duplicate serial numbers!
+
+	if len(duplicateSerials) > 0 {
+		t.Logf("MIGRATION ASSISTANT BUG REPRODUCED: Found %d duplicate serial(s)", len(duplicateSerials))
+		// This is the bug - we should have duplicate TARGET2345 serial
+		require.Contains(t, duplicateSerials, "TARGET2345", "Expected TARGET2345 to be duplicated")
+
+		// Host A should now have Device B's hardware (incorrectly)
+		require.Equal(t, "TARGET2345", getHostA.Host.HardwareSerial, "Host A should have Device B's serial after detail query")
+		require.Equal(t, deviceB.UUID, getHostA.Host.UUID, "Host A should have Device B's UUID after detail query")
+
+		// Host B should still have its original hardware
+		require.Equal(t, "TARGET2345", getHostB.Host.HardwareSerial, "Host B should still have its own serial")
+		require.Equal(t, deviceB.UUID, getHostB.Host.UUID, "Host B should still have its own UUID")
+	} else {
+		t.Log("Bug NOT reproduced - no duplicate serials found")
+		t.Log("This might indicate the issue has been fixed since v4.71.0")
+	}
+
+	// Additional verification - check if Host A was corrupted even if duplicates not detected
+	if len(duplicateSerials) == 0 {
+		// Even without duplicate detection, check if Host A's serial changed
+		if getHostA.Host.HardwareSerial == "TARGET2345" {
+			t.Log("🔴 ISSUE FOUND: Host A's serial was overwritten with Device B's serial!")
+			t.Logf("Host A serial changed from SOURCE1234 to %s", getHostA.Host.HardwareSerial)
+
+			// If Host A has Device B's serial, and Host B also has it, we have duplicates!
+			if getHostB.Host.HardwareSerial == "TARGET2345" {
+				t.Log("🔴 DUPLICATE SERIALS: Both Host A and Host B have serial TARGET2345!")
+				t.Log("This is exactly the customer's issue from #31934")
+				require.Fail(t, "Duplicate serials exist but were not detected in the list")
+			}
+		}
+
+		// Check if Host A's UUID changed
+		if getHostA.Host.UUID == deviceB.UUID {
+			t.Log("🔴 ISSUE FOUND: Host A's UUID was overwritten with Device B's UUID!")
+
+			if getHostB.Host.UUID == deviceB.UUID {
+				t.Log("🔴 DUPLICATE UUIDs: Both Host A and Host B have the same UUID!")
+				require.Fail(t, "Duplicate UUIDs exist but were not detected")
+			}
+		}
+	}
+}
+
 func (s *integrationMDMTestSuite) TestDeviceMultipleAuthMessages() {
 	t := s.T()
 
