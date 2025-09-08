@@ -1,6 +1,6 @@
 # Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26 
 
-![Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26](..website/assets/images/articles/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26.jpg)
+![Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26](/website/assets/images/articles/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26.jpg)
 
 _Photo by [MariuszBlach](https://www.istockphoto.com/photo/lake-tahoe-gm480641071-36497954)_
 
@@ -8,7 +8,7 @@ With Apple’s release of macOS 26 Tahoe, iOS 26, and iPadOS 26, Fleet continues
 
 ## Simplified MDM migration with Apple Business Manager
 
-macOS, iOS, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
+MacOS, iOS, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
 
 From there, users receive clear notifications that enrollment into a new management service is required. If they don’t act before the deadline, the system guides them through enrollment automatically. This eliminates the need for device wipes, scripts, or manual workarounds that previously made migrations complex and time-consuming.
 
