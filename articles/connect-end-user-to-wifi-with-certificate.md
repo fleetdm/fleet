@@ -322,10 +322,10 @@ The flow for Hydrant differs from the other certificate authorities (CA's), sinc
 ### Step 3: Request a certificate from a Device
 
 1. _Optional: Generate an active IDP session token for the device requesting a certificate._
-1. Generate a certificate signing request (CSR) with the relevant attributes needed on the device.
-    1. If IDP validation is requested, the CSR must include exactly 1 email which matches the IDP username and must include a UPN attribute which is either a prefix of the IDP username or the username itself(i.e. if the IDP username is bob@example.com, the UPN may be bob or bob@example.com)
-1. Make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint, with the necessary parameters and body values.
-1. Retrieve a PEM wrapped base64 encoded certificate.
+2. Generate a certificate signing request (CSR) with the relevant attributes needed on the device.
+    + If IDP validation is requested, the CSR must include exactly 1 email which matches the IDP username and must include a UPN attribute which is either a prefix of the IDP username or the username itself(i.e. if the IDP username is bob@example.com, the UPN may be bob or bob@example.com)
+3. Make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint, with the necessary parameters and body values.
+4. Retrieve a PEM wrapped base64 encoded certificate.
 
 #### Example CSR generation script
 
