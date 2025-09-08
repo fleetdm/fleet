@@ -129,5 +129,23 @@ func (c *Client) applyAppStoreAppsAssociation(vppBatchPayload []fleet.VPPBatchPa
 	if err != nil {
 		return nil, err
 	}
-	return appsResponse.Apps, nil
+	return matchAppStoreAppCustomIcons(vppBatchPayload, appsResponse.Apps), nil
+}
+
+// matchAppStoreAppCustomIcons hydrates VPP responses with references to icons in the request payload, so we can track
+// which API calls to make to add/update/delete icons
+func matchAppStoreAppCustomIcons(request []fleet.VPPBatchPayload, response []fleet.VPPAppResponse) []fleet.VPPAppResponse {
+	var byAdamID map[string]fleet.VPPBatchPayload
+	for _, clientSide := range request {
+		byAdamID[clientSide.AppStoreID] = clientSide
+	}
+
+	for _, serverSide := range response { // O(n^2) but n is
+		if clientSide, ok := byAdamID[serverSide.AppStoreID]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+		}
+	}
+
+	return response
 }

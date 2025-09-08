@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1133,6 +1135,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		iconHash, err := getIconHashIfValid(si.Icon.Path)
+		if err != nil {
+			return nil, fmt.Errorf("Couldn't edit software (%s). Invalid icon file %s: %w", si.URL, si.Icon.Path, err)
+		}
+
 		var ic []byte
 		if si.InstallScript.Path != "" {
 			installScriptFile := si.InstallScript.Path
@@ -1186,6 +1193,8 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			IconPath:           si.Icon.Path,
+			IconHash:           iconHash,
 		}
 
 		if si.Slug != nil {
@@ -1194,6 +1203,34 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	}
 
 	return softwarePayloads, nil
+}
+
+func getIconHashIfValid(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	// TODO cache hash for a given path so we don't have to duplicate reads for multiple references to the same icon
+	iconReader, err := os.OpenFile(path, os.O_RDONLY, 0o0755)
+	if err != nil {
+		return "", fmt.Errorf("reading icon file: %w", err)
+	}
+
+	defer iconReader.Close()
+	if err = ValidateIcon(iconReader); err != nil {
+		return "", err
+	}
+
+	if _, err = iconReader.Seek(0, 0); err != nil {
+		return "", fmt.Errorf("preparing to hash icon file: %w", err)
+	}
+
+	h := sha256.New()
+	if _, err := io.Copy(h, iconReader); err != nil {
+		return "", fmt.Errorf("hashing icon file: %w", err)
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -2160,6 +2197,10 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	// TODO apply icon changes
+
+	// TODO don't repeat icon uploads when we know another team has them
+
 	// We currently don't support queries for "No team" thus
 	// we just do GitOps for queries for global and team files.
 	if !incoming.IsNoTeam() {
@@ -2238,10 +2279,17 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				installDuringSetup = vppApp.InstallDuringSetup.Value
 			}
 
+			iconHash, err := getIconHashIfValid(vppApp.Icon.Path)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
+			}
+
 			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				IconPath:           vppApp.Icon.Path,
+				IconHash:           iconHash,
 			})
 		}
 	}

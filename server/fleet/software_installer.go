@@ -140,10 +140,17 @@ type SoftwarePackageResponse struct {
 	HashSHA256 string `json:"hash_sha256" db:"hash_sha256"`
 	// ID of the Fleet Maintained App this package uses, if any
 	FleetMaintainedAppID *uint `json:"fleet_maintained_app_id" db:"fleet_maintained_app_id"`
-	// IconHash is the SHA256 hash of the software icon, if a custom icon is set (blank otherwise)
+
+	//// Custom icon fields (blank if not set)
+
+	// IconHash is the SHA256 hash of the icon server-side
 	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
-	// IconFilename is the filename of the software icon, if a custom icon is et (blank otherwise)
+	// IconFilename is the filename of the icon server-side
 	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
 }
 
 // VPPAppResponse is the response type used when applying app store apps by batch.
@@ -157,10 +164,17 @@ type VPPAppResponse struct {
 	AppStoreID string `json:"app_store_id" db:"app_store_id"`
 	// Platform is the platform this title ID corresponds to
 	Platform AppleDevicePlatform `json:"platform" db:"platform"`
-	// IconHash is the SHA256 hash of the software icon, if a custom icon is set (blank otherwise)
+
+	//// Custom icon fields (blank if not set; override for icon supplied by Apple)
+
+	// IconHash is the SHA256 hash of the custom icon server-side
 	IconHash string `json:"icon_hash_sha256" db:"icon_hash_sha256"`
-	// IconFilename is the filename of the software icon, if a custom icon is et (blank otherwise)
+	// IconFilename is the filename of the custom icon server-side
 	IconFilename string `json:"icon_filename" db:"icon_filename"`
+	// LocalIconHash is the SHA256 hash of the custom icon specified in YAML
+	LocalIconHash string `json:"-" db:"-"`
+	// LocalIconPath is the path to the custom icon specified in YAML
+	LocalIconPath string `json:"-" db:"-"`
 }
 
 // AuthzType implements authz.AuthzTyper.
@@ -548,6 +562,7 @@ type SoftwarePackageSpec struct {
 	LabelsIncludeAny   []string              `json:"labels_include_any"`
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
 
 	// FMA
 	Slug *string `json:"slug"`
@@ -570,6 +585,7 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 
 	return spec
 }
@@ -598,6 +614,7 @@ type MaintainedAppSpec struct {
 	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
 	Categories         []string              `json:"categories"`
 	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+	Icon               TeamSpecSoftwareAsset `json:"icon"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
@@ -611,6 +628,7 @@ func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 		LabelsIncludeAny:   spec.LabelsIncludeAny,
 		LabelsExcludeAny:   spec.LabelsExcludeAny,
 		InstallDuringSetup: spec.InstallDuringSetup,
+		Icon:               spec.Icon,
 	}
 }
 
@@ -619,6 +637,7 @@ func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) Mainta
 	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
 	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
 	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+	spec.Icon.Path = resolveApplyRelativePath(baseDir, spec.Icon.Path)
 
 	return spec
 }

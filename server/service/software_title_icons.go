@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"io"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -190,9 +191,13 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 		defer file.Close()
 
 		// ensure icon is png and fits sizing restrictions
-		err = iconValidator(file)
+		err = ValidateIcon(file)
 		if err != nil {
 			return putSoftwareTitleIconResponse{Err: err}, nil
+		}
+
+		if _, err := file.Seek(0, 0); err != nil {
+			return putSoftwareTitleIconResponse{Err: &fleet.BadRequestError{Message: "failed to rewind file"}}, nil
 		}
 
 		tfr, err := fleet.NewTempFileReader(file, nil)
@@ -227,7 +232,7 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	return fleet.SoftwareTitleIcon{}, fleet.ErrMissingLicense
 }
 
-func iconValidator(file multipart.File) error {
+func ValidateIcon(file io.Reader) error {
 	config, format, err := image.DecodeConfig(file)
 	if err != nil || format != "png" {
 		return &fleet.BadRequestError{Message: "icon must be a PNG image"}
@@ -244,10 +249,6 @@ func iconValidator(file multipart.File) error {
 	}
 	if config.Width != config.Height {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("icon must be a square image (detected %dx%d pixels)", config.Width, config.Height)}
-	}
-
-	if _, err := file.Seek(0, 0); err != nil {
-		return &fleet.BadRequestError{Message: "failed to rewind file"}
 	}
 
 	return nil

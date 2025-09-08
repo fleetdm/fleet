@@ -90,11 +90,33 @@ func (c *Client) applySoftwareInstallers(softwareInstallers []fleet.SoftwareInst
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusFailed:
 			return nil, errors.New(resp.Message)
 		case resp.Status == fleet.BatchSetSoftwareInstallersStatusCompleted:
-			return resp.Packages, nil
+			return matchPackageIcons(softwareInstallers, resp.Packages), nil
 		default:
 			return nil, fmt.Errorf("unknown status: %q", resp.Status)
 		}
 	}
+}
+
+// matchPackageIcons hydrates software responses with references to icons in the request payload, so we can track
+// which API calls to make to add/update/delete icons
+func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []fleet.SoftwarePackageResponse) []fleet.SoftwarePackageResponse {
+	type lookup struct {
+		Hash string
+		URL  string
+	}
+	var byLookup map[lookup]fleet.SoftwareInstallerPayload
+	for _, clientSide := range request {
+		byLookup[lookup{Hash: clientSide.SHA256, URL: clientSide.URL}] = clientSide
+	}
+
+	for _, serverSide := range response { // O(n^2) but n is
+		if clientSide, ok := byLookup[lookup{Hash: serverSide.HashSHA256, URL: serverSide.URL}]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
+		}
+	}
+
+	return response
 }
 
 // InstallSoftware triggers a software installation (VPP or software package)

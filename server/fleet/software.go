@@ -488,6 +488,8 @@ type VPPBatchPayload struct {
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
+	IconPath   string   `json:"-"`
+	IconHash   string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {
