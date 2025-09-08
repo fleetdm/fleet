@@ -2247,9 +2247,8 @@ type Datastore interface {
 	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
 
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
-	// their configuration profiles (Android policy) sent. If a host needs to have
-	// the policy applied but has no applicable profile (due to previously-applied profiles
-	// needing to be removed), it is included in the second return value.
+	// their configuration profiles (Android policy) sent. It returns two lists,
+	// the list of profiles to apply and the list of profiles to remove.
 	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
 
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
