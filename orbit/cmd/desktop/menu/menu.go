@@ -160,8 +160,8 @@ func (m *Manager) UpdateFailingPolicies(failingPolicies *uint) {
 	}
 
 	if count > 0 {
-		if runtime.GOOS == "windows" {
-			// Windows doesn't support color emoji in system tray
+		if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+			// Windows and Linux don't reliably support color emoji in system tray
 			if count == 1 {
 				m.Items.MyDevice.SetTitle("My device (1 issue)")
 			} else {
@@ -171,7 +171,7 @@ func (m *Manager) UpdateFailingPolicies(failingPolicies *uint) {
 			m.Items.MyDevice.SetTitle(fmt.Sprintf("🔴 My device (%d)", count))
 		}
 	} else {
-		if runtime.GOOS == "windows" {
+		if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
 			m.Items.MyDevice.SetTitle("My device")
 		} else {
 			m.Items.MyDevice.SetTitle("🟢 My device")
