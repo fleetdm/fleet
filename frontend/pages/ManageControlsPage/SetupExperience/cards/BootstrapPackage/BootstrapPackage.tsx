@@ -31,6 +31,7 @@ import SetupExperienceContentContainer from "../../components/SetupExperienceCon
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
 import { SetupEmptyState } from "../../SetupExperience";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "bootstrap-package";
 
@@ -231,27 +232,12 @@ export const BootstrapPackage = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
-  const { config } = useContext(AppContext);
-  const renderContent = () => {
-    if (!config?.mdm.enabled_and_configured) {
-      return (
-        <TurnOnMdmMessage
-          header="Manage setup experience for macOS"
-          info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
-          buttonText="Turn on"
-          router={router}
-        />
-      );
-    }
-    if (!config?.mdm.apple_bm_enabled_and_configured) {
-      return <SetupEmptyState router={router} />;
-    }
-    return <BootstrapPackageContent currentTeamId={currentTeamId} />;
-  };
   return (
     <section className={baseClass}>
       <SectionHeader title="Bootstrap package" />
-      {renderContent()}
+      <SetupMdmEnabledWrapper router={router}>
+        <BootstrapPackageContent currentTeamId={currentTeamId} />
+      </SetupMdmEnabledWrapper>
     </section>
   );
 };

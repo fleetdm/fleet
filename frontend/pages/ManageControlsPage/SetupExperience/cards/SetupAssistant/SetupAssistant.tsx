@@ -22,10 +22,11 @@ import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfil
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "setup-assistant";
 
-const SetupAssistant = ({
+const SetupAssistantContent = ({
   currentTeamId,
 }: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
@@ -138,5 +139,17 @@ const SetupAssistant = ({
     </section>
   );
 };
+
+const SetupAssistant = ({
+  currentTeamId,
+  router,
+}: ISetupExperienceCardProps) => (
+  <section className={baseClass}>
+    <SectionHeader title="Setup assistant" />
+    <SetupMdmEnabledWrapper router={router}>
+      <SetupAssistantContent currentTeamId={currentTeamId} />
+    </SetupMdmEnabledWrapper>
+  </section>
+);
 
 export default SetupAssistant;

@@ -31,6 +31,7 @@ import SetupExperienceContentContainer from "../../components/SetupExperienceCon
 import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import { SetupEmptyState } from "../../SetupExperience";
+import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "run-script";
 
@@ -139,29 +140,12 @@ const RunScriptContent = ({
 };
 
 const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
-  const { config } = useContext(AppContext);
-
-  const renderContent = () => {
-    if (!config?.mdm.enabled_and_configured) {
-      return (
-        <TurnOnMdmMessage
-          header="Manage setup experience for macOS"
-          info="To install software and run scripts when Macs first boot, first turn on automatic enrollment."
-          buttonText="Turn on"
-          router={router}
-        />
-      );
-    }
-    if (!config?.mdm.apple_bm_enabled_and_configured) {
-      return <SetupEmptyState router={router} />;
-    }
-    return <RunScriptContent currentTeamId={currentTeamId} />;
-  };
-
   return (
     <section className={baseClass}>
       <SectionHeader title="Run script" />
-      <>{renderContent()}</>
+      <SetupMdmEnabledWrapper router={router}>
+        <RunScriptContent currentTeamId={currentTeamId} />
+      </SetupMdmEnabledWrapper>
     </section>
   );
 };
