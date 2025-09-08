@@ -898,7 +898,6 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			return ctxerr.Wrap(ctx, err, "list android host applicable profiles")
 		}
 
-		// TODO(ap): where not in desired state...
 		listToRemoveProfilesStmt := fmt.Sprintf(`
 	SELECT
 		hmap.profile_uuid,
@@ -908,7 +907,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 	FROM ( %s ) ds
 		RIGHT OUTER JOIN host_mdm_android_profiles hmap
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
-	WHERE 
+	WHERE
 		hmap.host_uuid IN (?) AND
 		ds.host_uuid IS NULL
 `, fmt.Sprintf(androidApplicableProfilesQuery, "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)", "h.uuid IN (?)"))
