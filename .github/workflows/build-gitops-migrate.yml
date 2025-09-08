@@ -2,8 +2,11 @@ name: Build GitOps Migrate
 
 on:
   push:
-    branches: [main] # TODO: Disabled for testing.
-    paths: ['cmd/gitops-migrate/**/*.go']
+    branches: [main]
+    paths: [
+      'cmd/gitops-migrate/**/*.go',
+      '.github/workflows/build-gitops-migrate.yml'
+    ]
 
 concurrency:
   # Only allow a single occurrence of this job to run at any given time.
@@ -17,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Ex: gitops-migrate-windows-amd64.exe
-      BIN_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' }}
+      BIN_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' || '' }}
       # Ex: gitops-migrate-windows-amd64.exe.sha256
-      BIN_HASH_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' }}.sha256
+      BIN_HASH_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' || '' }}.sha256
       # This serves as the root path we `aws s3 cp` all built binaries to.
       S3_URI: s3://download/tools
     strategy:
