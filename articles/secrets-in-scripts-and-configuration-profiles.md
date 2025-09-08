@@ -43,9 +43,9 @@ Variables are global, meaning they can be used in scripts and profiles across al
 
 When GitOps syncs the configuration, it looks for variables in scripts and profiles, extracts the variable's values from the environment, and uploads them to Fleet.
 
-On subsequent GitOps syncs, if a variable is used by a configuration profile has been updated, the profile will be resent to the host device(s).
+On subsequent GitOps syncs, if a variable is used by an updated configuration profile, the profile will be resent to the host device(s).
 
-> Profiles with variables are not entirely validated during a GitOps dry run because variables may not be present/correct in the database during the dry run. Hence, there is an increased chance of GitOps non-dry run failure when using a profile with a variable. Try uploading this profile to a test team first.
+> Profiles with variables are not entirely validated during a GitOps dry run because the required variables may not exist or may be incorrect in the database. As a result, these profiles have a higher chance of failing during a non-dry run. Test them by uploading to a small team first.
 
 ## Using the secret on a configuration profile
 
