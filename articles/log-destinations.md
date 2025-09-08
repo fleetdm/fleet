@@ -7,7 +7,7 @@ Log destinations can be used in Fleet to log:
 
 By default, logs are stored in the local filesystem on each host.
 
-To configure an external log destination, you must set the correct logging configuration options in Fleet. Currently, only self-managed users and customers can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
+To configure an external log destination, you must set the correct logging configuration options in Fleet. Currently, only self-hosted users can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
 ## Amazon Kinesis Data Firehose
 
