@@ -46,7 +46,7 @@
 					<key>aboutUpdateURL</key>
 					<string>https://support.apple.com/en-us/120283</string>
 					<key>requiredMinimumOSVersion</key>
-					<string>latest-minor</string>
+					<string>15.6</string>
 					<key>targetedOSVersionsRule</key>
 					<string>15</string>
 				</dict>
