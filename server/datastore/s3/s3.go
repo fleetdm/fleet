@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/aws_common"
@@ -114,7 +113,7 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		// Apply workaround if using Google Cloud Storage (GCS) endpoint
 		// This fixes signature issues with AWS SDK v2 when using GCS
 		// See: https://github.com/aws/aws-sdk-go-v2/issues/1816#issuecomment-1927281540
-		if cfg.EndpointURL != "" && strings.Contains(cfg.EndpointURL, "storage.googleapis.com") {
+		if cfg.EndpointURL != "" && isGCS(cfg.EndpointURL) {
 			// GCS alters the Accept-Encoding header which breaks the request signature
 			ignoreSigningHeaders(o, []string{"Accept-Encoding"})
 			// GCS also has issues with trailing checksums in UploadPart and PutObject operations
