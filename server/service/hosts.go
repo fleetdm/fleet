@@ -1299,8 +1299,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 				profs = []fleet.HostMDMAndroidProfile{}
 			}
 			for _, p := range profs {
-				// TODO(AP): confirm whether we need to add special messages for Android here or if
-				// we can count on the detail being formatted for the API by the pub/sub handlers
 				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
 				profiles = append(profiles, p.ToHostMDMProfile())
 			}
