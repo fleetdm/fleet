@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"strings"
 	"time"
 
@@ -104,9 +103,6 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 	// We allow DELETED notification type to be received since user may be in the process of disabling Android MDM.
 	// Otherwise, we authenticate below in authenticatePubSub
 	svc.authz.SkipAuthorization(ctx)
-
-	fmt.Println(">>>>>>> STATUS_REPORT:")
-	fmt.Println(string(rawData))
 
 	var device androidmanagement.Device
 	err := json.Unmarshal(rawData, &device)
