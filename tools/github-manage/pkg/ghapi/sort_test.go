@@ -3,6 +3,7 @@ package ghapi
 import (
 	"math/rand"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -42,11 +43,8 @@ func tPriorityRank(it Issue) int {
 
 func tCustProspectRank(it Issue) int {
 	for _, l := range it.Labels {
-		n := l.Name
-		if len(n) >= 10 && (n[:10] == "customer-" || (len(n) >= 9 && n[:9] == "prospect-")) {
-			return 0
-		}
-		if len(n) >= 9 && n[:9] == "prospect-" { // redundant safeguard
+		n := strings.ToLower(l.Name)
+		if strings.HasPrefix(n, "customer-") || strings.HasPrefix(n, "prospect-") {
 			return 0
 		}
 	}
