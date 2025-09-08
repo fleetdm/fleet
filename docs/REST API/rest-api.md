@@ -8862,7 +8862,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
-- [Get batch script summary](#get-batch-script-summary)
+- [List batch scripts](#list-batch-scripts)
+- [Get batch script](#get-batch-script)
+- [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script)
+- [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8963,6 +8966,7 @@ The script will be added to each host's list of upcoming activities.
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
 | filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
 
 ##### Filters
@@ -8973,6 +8977,8 @@ The script will be added to each host's list of upcoming activities.
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | team_id                           | number  | ID of the team to filter by. |
+
+> Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the time the batch script was added_. To see all targeted hosts, use the [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script) endpoint.
 
 
 #### Example
@@ -8986,7 +8992,8 @@ Request (using `host_ids`):
 ```json
 {
   "script_id": 123,
-  "host_ids": [1, 2, 3]
+  "host_ids": [1, 2, 3],
+  "not_before": "2025-07-01T15:00:00Z"
 }
 ```
 
@@ -9012,22 +9019,89 @@ Request (using `filters`):
 }
 ```
 
-### Get batch script summary
+### List batch scripts
 
-Get statuses and host counts for a batch-run script.
+Returns a list of batch script executions.
 
-`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
+`GET /api/v1/fleet/scripts/batch`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
-| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
+| team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
+| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or `"finished"`. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
 
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/summary/abc-def`
+`GET /api/v1/fleet/scripts/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 123,
+  "status": "completed"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "batch_executions": [
+    {
+      "script_id": 555,
+      "script_name": "my-script.sh",
+      "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "team_id": 123,
+      "not_before": "2025-07-01T15:00:00Z",
+      "finished_at": "2025-07-06T15:00:00Z",
+      "started_at": "2025-07-06T14:00:00Z",
+      "status": "finished",
+      "canceled": false,
+      "targeted_host_count": 12599,
+      "ran_host_count": 12345,
+      "pending_host_count": 234,
+      "errored_host_count": 18,
+      "incompatible_host_count": 3,
+      "canceled_host_count": 2,
+      "created_at": "2025-07-01T10:00:00Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+```
+
+### Get batch script
+
+Returns a summary of a batch-run script, including host counts and current status.
+
+> The [Get batch script summary](https://github.com/fleetdm/fleet/blob/fleet-v4.71.1/docs/REST%20API/rest-api.md#get-batch-script-summary) endpoint is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use this endpoint instead.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                 |
+| ------------------ | ------- | ---- | --------------------------------------------|
+| batch_execution_id | string  | path | **Required**. The ID returned from a batch script run. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def`
+
+
 
 ##### Default response
 
@@ -9036,16 +9110,72 @@ Get statuses and host counts for a batch-run script.
 
 ```json
 {
-  "ran": 12345,
-  "pending": 234,
-  "errored": 18,
-  "canceled": 2,
-  "targeted": 12599,
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123
+  "team_id": 123,
+  "not_before": "2025-07-01T15:00:00Z",
+  "finished_at": "2025-07-06T15:00:00Z",
+  "started_at": "2025-07-06T14:00:00Z",
+  "status": "finished",
+  "canceled": false,
+  "targeted_host_count": 12599,
+  "ran_host_count": 12345,
+  "pending_host_count": 234,
+  "errored_host_count": 18,
+  "incompatible_host_count": 3,
+  "canceled_host_count": 2,
+  "created_at": "2025-07-01T10:00:00Z"
 }
 ```
+
+### List hosts targeted in batch script
+
+Returns a list hosts targeted in a batch script run, along with their script execution status.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host-results`
+
+#### Parameters
+
+| Name                | Type    | In    | Description                                                                                    |
+| --------------------| ------- | ----- | --------------------------------------------                                                   |
+| batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
+| status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| page                | integer | query | Page number of the results to fetch. |
+| per_page            | integer | query | Results per page. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=ran`
+
+
+##### Default response
+
+`Status: 200`
+
+
+```json
+{
+  "hosts": [
+    {
+      "id": 123,
+      "display_name": "Anna's MacBook Pro",
+      "script_status": "ran",
+      "script_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "script_executed_at": "2024-09-11T20:30:24Z",
+      "script_output_preview": "hello world"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+### Cancel batch script
+
+`POST /scripts/batch/abc-def/cancel`
 
 ### Add script
 
