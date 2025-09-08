@@ -285,7 +285,7 @@ func (r *profileReconciler) sendHostProfiles(
 			// > Note that when calling enterprises.devices.patch, ACTIVE and
 			// > DISABLED are the only allowable values.
 
-			// TODO: should we send whatever the previous state was? If it was DISABLED,
+			// TODO(ap): should we send whatever the previous state was? If it was DISABLED,
 			// we probably don't want to re-enable it by accident. Those are the only
 			// 2 valid states when patching a device.
 			State: "ACTIVE",
