@@ -36,8 +36,25 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
+	client := newAMAPIClient(ctx, logger, licenseKey)
+	reconciler := &profileReconciler{
+		ds:         ds,
+		enterprise: enterprise,
+		client:     client,
+	}
+	return reconciler.ReconcileProfiles(ctx)
+}
+
+// struct to facilitate testability
+type profileReconciler struct {
+	ds         fleet.Datastore
+	enterprise *android.Enterprise
+	client     androidmgmt.Client
+}
+
+func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 	// get the list of hosts that need to have their profiles applied
-	hostsApplicableProfiles, hostsProfsToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	hostsApplicableProfiles, hostsProfsToRemove, err := r.ds.ListMDMAndroidProfilesToSend(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "identify android profiles to send")
 	}
@@ -52,13 +69,10 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		profilesToLoad[hostProf.ProfileUUID] = struct{}{}
 	}
 
-	profilesContents, err := ds.GetMDMAndroidProfilesContents(ctx, slices.Collect(maps.Keys(profilesToLoad)))
+	profilesContents, err := r.ds.GetMDMAndroidProfilesContents(ctx, slices.Collect(maps.Keys(profilesToLoad)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load android profiles content")
 	}
-
-	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
-	client := newAMAPIClient(ctx, logger, licenseKey)
 
 	// index the to-remove profiles by host so we can pass them to sendHostProfiles
 	toRemoveByHostUUID := make(map[string][]*fleet.MDMAndroidProfilePayload)
@@ -66,32 +80,39 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		toRemoveByHostUUID[prof.HostUUID] = append(toRemoveByHostUUID[prof.HostUUID], prof)
 	}
 
+	var bulkHostProfs []*fleet.MDMAndroidBulkUpsertHostProfilePayload
 	for hostUUID, toInstallProfs := range profilesByHostUUID {
 		toRemove := toRemoveByHostUUID[hostUUID]
-		if _, err := sendHostProfiles(ctx, ds, client, enterprise, hostUUID, toInstallProfs, toRemove, profilesContents); err != nil {
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
+		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 		delete(toRemoveByHostUUID, hostUUID)
 	}
 
 	// if there are hosts with only profiles to remove, process them too
 	for hostUUID, toRemove := range toRemoveByHostUUID {
-		if _, err := sendHostProfiles(ctx, ds, client, enterprise, hostUUID, nil, toRemove, nil); err != nil {
+		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, nil, toRemove, nil)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "send profiles for host %s", hostUUID)
 		}
+		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 	}
 
-	// TODO(ap): The profiles to apply should (may?) have status=NULL at this
-	// point, and will switch to explicit status=Pending after the API requests
-	// (or Failed if there is a profile overridden with another). On the pubsub
-	// status report, it will transition to Verified.
-
+	if err := r.ds.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	}
 	return nil
 }
 
-// TODO(ap): maybe refactor, bit ugly with so many parameters but it's nice to
-// have a func that processes one host at a time.
-func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client, enterprise *android.Enterprise,
-	hostUUID string, profilesToMerge, profilesToRemove []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
-
+func (r *profileReconciler) sendHostProfiles(
+	ctx context.Context,
+	hostUUID string,
+	profilesToMerge []*fleet.MDMAndroidProfilePayload,
+	profilesToRemove []*fleet.MDMAndroidProfilePayload,
+	profilesContents map[string]json.RawMessage,
+) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
 	const maxRequestFailures = 3
 
 	// We need a deterministic order to merge the profiles, and I opted to go by
@@ -214,8 +235,8 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 
 	// using the host uuid as policy id, so we don't need to track the id mapping
 	// to the host.
-	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), hostUUID)
-	policyReq, skip, err := patchPolicy(ctx, client, ds, hostUUID, policyName, &policy, settingFromProfile)
+	policyName := fmt.Sprintf("%s/policies/%s", r.enterprise.Name(), hostUUID)
+	policyReq, skip, err := r.patchPolicy(ctx, hostUUID, policyName, &policy, settingFromProfile)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "patch policy for host %s", hostUUID)
 	}
@@ -244,7 +265,7 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 	if !skip {
 		// check if we need to patch the device too (if that policy name is not already
 		// associated with the device)
-		androidHost, err = ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		androidHost, err = r.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
@@ -255,20 +276,21 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 
 	if !skip {
 		// we need to associate the device with that policy
-		deviceName := fmt.Sprintf("%s/devices/%s", enterprise.Name(), androidHost.DeviceID)
+		deviceName := fmt.Sprintf("%s/devices/%s", r.enterprise.Name(), androidHost.DeviceID)
 		device := &androidmanagement.Device{
 			PolicyName: policyName,
 			// State must be specified when updating a device, otherwise it fails with
 			// "Illegal state transition from ACTIVE to DEVICE_STATE_UNSPECIFIED"
-			// TODO: should we send whatever the previous state was? If it was DISABLED,
-			// we probably don't want to re-enable it by accident. Those are the only
-			// 2 valid states when patching a device.
 			//
 			// > Note that when calling enterprises.devices.patch, ACTIVE and
 			// > DISABLED are the only allowable values.
+
+			// TODO: should we send whatever the previous state was? If it was DISABLED,
+			// we probably don't want to re-enable it by accident. Those are the only
+			// 2 valid states when patching a device.
 			State: "ACTIVE",
 		}
-		deviceReq, skip, err := patchDevice(ctx, client, ds, hostUUID, deviceName, device)
+		deviceReq, skip, err := r.patchDevice(ctx, hostUUID, deviceName, device)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "patch device for host %s", hostUUID)
 		}
@@ -334,14 +356,14 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 	return fmt.Sprintf(sb.String(), args...)
 }
 
-func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
-	policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
+	policy *androidmanagement.Policy, metadata map[string]string) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := r.client.EnterprisesPoliciesPatch(ctx, policyName, policy)
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
@@ -366,7 +388,7 @@ func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datast
 		policyRequest.PolicyVersion.Valid = true
 	}
 
-	if err := ds.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+	if err := r.ds.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
 	return policyRequest, skip, nil
@@ -391,14 +413,14 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 	}, nil
 }
 
-func patchDevice(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
-	policyID, deviceName string, device *androidmanagement.Device) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
+	device *androidmanagement.Device) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
 	}
 
-	applied, apiErr := client.EnterprisesDevicesPatch(ctx, deviceName, device)
+	applied, apiErr := r.client.EnterprisesDevicesPatch(ctx, deviceName, device)
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
@@ -416,7 +438,7 @@ func patchDevice(ctx context.Context, client androidmgmt.Client, ds fleet.Datast
 		deviceRequest.AppliedPolicyVersion.Valid = true
 	}
 
-	if err := ds.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+	if err := r.ds.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "save android device request")
 	}
 	return deviceRequest, skip, nil
