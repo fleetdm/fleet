@@ -2466,7 +2466,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": true
       },
       {
         "name": "parent",
@@ -2489,6 +2489,15 @@
       {
         "name": "model",
         "description": "Block device model string identifier",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "serial",
+        "description": "Disk serial number",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -4423,7 +4432,7 @@
       },
       {
         "name": "rotation",
-        "description": "The orientation of the display.",
+        "description": "The rotation of the display (0, 90, 180, or 270 degrees). This field is -1 if display rotation is not supported.",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -6221,6 +6230,48 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/dconf_read.yml"
   },
   {
+    "name": "deb_package_files",
+    "description": "Installed files from DEB packages that are currently installed on the system.",
+    "url": "https://fleetdm.com/tables/deb_package_files",
+    "platforms": [
+      "linux"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "columns": [
+      {
+        "name": "package",
+        "description": "DEB package name",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "path",
+        "description": "File path within the package",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": true
+      },
+      {
+        "name": "admindir",
+        "description": "libdpkg admindir. Defaults to /var/lib/dpkg",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/deb_package_files.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fdeb_package_files.yml&value=name%3A%20deb_package_files%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+  },
+  {
     "name": "deb_packages",
     "description": "The installed DEB package database.",
     "url": "https://fleetdm.com/tables/deb_packages",
@@ -6857,7 +6908,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": false
+        "index": true
       },
       {
         "name": "uuid",
@@ -23658,7 +23709,7 @@
   },
   {
     "name": "rpm_package_files",
-    "description": "RPM packages that are currently installed on the host system.",
+    "description": "Installed files from RPM packages that are currently installed on the system.",
     "url": "https://fleetdm.com/tables/rpm_package_files",
     "platforms": [
       "linux"
@@ -25657,6 +25708,15 @@
         "hidden": false,
         "required": false,
         "index": false
+      },
+      {
+        "name": "entitlements",
+        "description": "JSON representation of the code signing entitlements",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/signature.yml"
@@ -26947,6 +27007,40 @@
       }
     ],
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/system_info.yml"
+  },
+  {
+    "name": "system_profiler",
+    "description": "Query system_profiler data types and return the full result as JSON. Returns only the data types specified in the constraints. See available data types with `system_profiler -listDataTypes`.",
+    "url": "https://fleetdm.com/tables/system_profiler",
+    "platforms": [
+      "darwin"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "",
+    "examples": "```\nselect json_extract(value, '$.platform_UUID') from system_profiler where data_type = 'SPHardwareDataType';\n```",
+    "columns": [
+      {
+        "name": "data_type",
+        "description": "The system profiler data type (e.g., SPHardwareDataType)",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": true,
+        "index": true
+      },
+      {
+        "name": "value",
+        "description": "A JSON representation of the full result dictionary for the data type",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/darwin/system_profiler.table",
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fsystem_profiler.yml&value=name%3A%20system_profiler%0Adescription%3A%20%7C-%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C-%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C-%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20Markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description.%20Note%3A%20this%20field%20supports%20Markdown%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
   },
   {
     "name": "system_state",
@@ -28883,7 +28977,7 @@
       },
       {
         "name": "vscode_edition",
-        "description": "VSCode or VSCode Insiders",
+        "description": "The VSCode edition (vscode, vscode_insiders, vscodium, vscodium_insiders, cursor, windsurf, trae)",
         "type": "text",
         "notes": "",
         "hidden": false,
