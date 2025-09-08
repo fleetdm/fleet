@@ -2422,12 +2422,15 @@ LIMIT %d OFFSET %d
 		if filter.Status != nil && *filter.Status != "" {
 			whereClauses = append(whereClauses, "ba.status = ?")
 			args = append(args, *filter.Status)
-			if *filter.Status == string(fleet.ScheduledBatchExecutionScheduled) {
+			switch *filter.Status {
+			case string(fleet.ScheduledBatchExecutionScheduled):
 				orderBy = append([]string{"u.not_before ASC"}, orderBy...)
-			} else if *filter.Status == string(fleet.ScheduledBatchExecutionStarted) {
+			case string(fleet.ScheduledBatchExecutionStarted):
 				orderBy = append([]string{"u.started_at DESC"}, orderBy...)
-			} else if *filter.Status == string(fleet.ScheduledBatchExecutionFinished) {
+			case string(fleet.ScheduledBatchExecutionFinished):
 				orderBy = append([]string{"u.finished_at DESC"}, orderBy...)
+			default:
+				// no additional ordering
 			}
 		}
 		if filter.TeamID != nil {
