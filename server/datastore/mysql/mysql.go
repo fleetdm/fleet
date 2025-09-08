@@ -217,6 +217,16 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
+// withReadTx provides a common way to commit/rollback a txFn
+func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+	reader := ds.reader(ctx)
+	readerDB, ok := reader.(*sqlx.DB)
+	if !ok {
+		return fmt.Errorf("failed to cast reader to *sqlx.DB")
+	}
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+}
+
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &common_mysql.DBOptions{

@@ -3383,6 +3383,17 @@ func generateEntitiesToRemoveQuery(entityType string) string {
 
 // Optional hostUUID to list profiles to install for a single host instead of all.
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
+	var profiles []*fleet.MDMAppleProfilePayload
+	err := ds.withReadTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		profiles, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, hostUUID)
+		return err
+	})
+
+	return profiles, err
+}
+
+func (ds *Datastore) listMDMAppleProfilesToInstallTransaction(ctx context.Context, tx sqlx.ExtContext, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -3397,11 +3408,22 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context, hostUUID
 	FROM %s `,
 		generateEntitiesToInstallQuery("profile", hostUUID))
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
+	err := sqlx.SelectContext(ctx, tx, &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
 	return profiles, err
 }
 
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	var profiles []*fleet.MDMAppleProfilePayload
+	err := ds.withReadTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		profiles, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
+		return err
+	})
+
+	return profiles, err
+}
+
+func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleProfilePayload, error) {
 	// Note: although some of these values (like secrets_updated_at) are not strictly necessary for profile removal,
 	// we are keeping them here for consistency.
 	query := fmt.Sprintf(`
@@ -3422,6 +3444,25 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
 
 	return profiles, err
+}
+
+func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, []*fleet.MDMAppleProfilePayload, error) {
+	var profilesToInstall []*fleet.MDMAppleProfilePayload
+	var profilesToRemove []*fleet.MDMAppleProfilePayload
+	err := ds.withReadTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		profilesToInstall, err = ds.listMDMAppleProfilesToInstallTransaction(ctx, tx, "")
+		if err != nil {
+			return err
+		}
+		profilesToRemove, err = ds.listMDMAppleProfilesToRemoveTransaction(ctx, tx)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	return profilesToInstall, profilesToRemove, err
 }
 
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {
