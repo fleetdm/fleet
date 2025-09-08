@@ -2496,7 +2496,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	err = ds.MarkActivitiesAsCompleted(ctx)
 	require.NoError(t, err)
 
-	// First activity should be marked as finished and updated accordingly.
+	// Activity should be marked as finished and updated accordingly.
 	batchActivity, err = ds.GetBatchActivity(ctx, "abc123")
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
