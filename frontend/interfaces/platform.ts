@@ -205,3 +205,11 @@ export const isOsSettingsDisplayPlatform = (
   }
   return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
 };
+
+export const SETUP_EXPERIENCE_PLATFORMS = [
+  "macos",
+  "windows",
+  "linux",
+] as const;
+
+export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];

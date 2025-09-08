@@ -54,30 +54,72 @@ func getAliasKeys() []string {
 }
 
 // ParseJSONtoProjectItems converts JSON data to a slice of ProjectItem structs.
-func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, error) {
+func ParseJSONtoProjectItems(jsonData []byte, limit int) ([]ProjectItem, int, error) {
 	var items ProjectItemsResponse
 	err := json.Unmarshal(jsonData, &items)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	if items.TotalCount > limit {
 		logger.Infof("Project item limit less than total, could be missing items - l: %d, t: %d", limit, items.TotalCount)
 	}
-	return items.Items, nil
+	return items.Items, items.TotalCount, nil
+}
+
+// GetProjectItemsWithTotal retrieves project items and returns the server reported total count.
+func GetProjectItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
+	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
+	if err != nil {
+		return nil, 0, err
+	}
+	items, total, err := ParseJSONtoProjectItems(results, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
 }
 
 // GetProjectItems retrieves project items for a specific project with a limit.
-func GetProjectItems(projectID, limit int) ([]ProjectItem, error) {
-	// Run the command to get project items
-	results, err := RunCommandAndReturnOutput(fmt.Sprintf("gh project item-list --owner fleetdm --format json --limit %d %d", limit, projectID))
+func GetProjectItems(projectID, limit int) ([]ProjectItem, error) { // backward compatible helper
+	items, _, err := GetProjectItemsWithTotal(projectID, limit)
+	return items, err
+}
+
+// GetCurrentSprintItems returns only the items in the current sprint for a project.
+// It first fetches all items (up to limit) and then filters to those that have a non-nil
+// Sprint field whose Title matches the active iteration. The active iteration is determined
+// by looking up the sprint field configuration and selecting the first iteration (same logic
+// used by SetCurrentSprint when applying @current).
+// GetCurrentSprintItemsWithTotal returns current sprint items plus total available items in project.
+func GetCurrentSprintItemsWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
+	items, total, err := GetProjectItemsWithTotal(projectID, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	items, err := ParseJSONtoProjectItems(results, limit)
+	projectNodeID, err := getProjectNodeID(projectID)
 	if err != nil {
-		return nil, err
+		return nil, total, fmt.Errorf("failed to get project node id: %v", err)
 	}
-	return items, nil
+	sprintField, err := LookupProjectFieldName(projectID, "sprint")
+	if err != nil {
+		return []ProjectItem{}, total, nil // no sprint field
+	}
+	currentIterationID, err := getCurrentIterationID(projectNodeID, sprintField.ID)
+	if err != nil {
+		return nil, total, fmt.Errorf("failed to get current iteration id: %v", err)
+	}
+	var filtered []ProjectItem
+	for _, it := range items {
+		if it.Sprint != nil && it.Sprint.IterationId == currentIterationID {
+			filtered = append(filtered, it)
+		}
+	}
+	return filtered, total, nil
+}
+
+func GetCurrentSprintItems(projectID, limit int) ([]ProjectItem, error) { // backward compatible
+	items, _, err := GetCurrentSprintItemsWithTotal(projectID, limit)
+	return items, err
 }
 
 // GetProjectFields retrieves all fields for a specific project.

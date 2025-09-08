@@ -70,12 +70,12 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, app_store_app } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             pageContext="deviceUser"
             isSelfService
           />

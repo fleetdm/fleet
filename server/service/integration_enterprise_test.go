@@ -71,9 +71,10 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
-	redisPool            fleet.RedisPool
-	calendarSchedule     *schedule.Schedule
-	softwareInstallStore fleet.SoftwareInstallerStore
+	redisPool              fleet.RedisPool
+	calendarSchedule       *schedule.Schedule
+	softwareInstallStore   fleet.SoftwareInstallerStore
+	softwareTitleIconStore fleet.SoftwareTitleIconStore
 
 	lq *live_query_mock.MockLiveQuery
 }
@@ -90,6 +91,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(dir)
 	require.NoError(s.T(), err)
 	s.softwareInstallStore = softwareInstallStore
+
+	// Create a software title icon store
+	iconDir := s.T().TempDir()
+	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	require.NoError(s.T(), err)
+	s.softwareTitleIconStore = softwareTitleIconStore
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -118,6 +125,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			},
 		},
 		SoftwareInstallStore:            softwareInstallStore,
+		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -2552,7 +2560,7 @@ func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger()
 			require.Equal(t, "https://example.com/webhook", cfg.WebhookURL.String())
 			require.Equal(t, 100, cfg.HostBatchSize)
 			return nil
-		}, false)
+		})
 	require.NoError(t, err)
 
 	// Verify the webhook was called
@@ -11426,7 +11434,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TitleID:           titleID,
 			TeamID:            nil,
 		}, http.StatusOK, "")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11486,7 +11494,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11505,7 +11513,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
@@ -11629,7 +11637,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -11719,7 +11727,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": true}`, 0)
+			`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null, "team_id": null, "self_service": true}`, 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -11926,26 +11934,30 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
 		{
-			URL:               "http://foo.com",
-			SelfService:       true,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			URL:                "http://foo.com",
+			SelfService:        true,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			URL:               "http://bar.com",
-			SelfService:       false,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			URL:                "http://bar.com",
+			SelfService:        false,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
 		{
-			AppStoreID: "1234",
+			AppStoreID:         "1234",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			AppStoreID: "5678",
+			AppStoreID:         "5678",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 
@@ -12078,6 +12090,266 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
+	t := s.T()
+	ctx := context.Background()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+	host1 := test.NewHost(t, s.ds, "host1", "", "host1key", "host1uuid", time.Now())
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create software installer + software title
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "apps", BundleIdentifier: "foo.bundle.id"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "hello",
+		InstallerFile:    tfr1,
+		StorageID:        "storage1",
+		Filename:         "foo.pkg",
+		Title:            "foo",
+		Version:          "0.0.3",
+		Source:           "apps",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		BundleIdentifier: "foo.bundle.id",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	parsePutResponse := func(resp *http.Response) putSoftwareTitleIconResponse {
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		result := putSoftwareTitleIconResponse{}
+		err = json.Unmarshal(body, &result)
+		require.NoError(t, err)
+		return result
+	}
+
+	// get icon from file system
+	file, err := os.Open("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	defer file.Close()
+
+	// get icon size for later
+	fileInfo, err := file.Stat()
+	require.NoError(t, err)
+	iconSize := fileInfo.Size()
+
+	// create proper form data to post
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	fileWriter, err := writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fileWriter, file)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers := map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	// get activities before the PUT request
+	activitiesBefore := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesBefore)
+
+	// PUT: create new software title icon
+	resp := s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result := parsePutResponse(resp)
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// get activities after the PUT request
+	activitiesAfter := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfter)
+
+	// verify exactly 1 new edited_software activity was created
+	var editedSoftwareActivitiesBefore []fleet.Activity
+	var editedSoftwareActivitiesAfter []fleet.Activity
+
+	for _, activity := range activitiesBefore.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesBefore = append(editedSoftwareActivitiesBefore, *activity)
+		}
+	}
+
+	for _, activity := range activitiesAfter.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfter = append(editedSoftwareActivitiesAfter, *activity)
+		}
+	}
+
+	require.Len(t, editedSoftwareActivitiesAfter, len(editedSoftwareActivitiesBefore)+1, "Expected exactly 1 new edited_software activity")
+
+	// find the new activity by comparing before and after lists
+	var newActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfter {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesBefore {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			newActivity = &afterActivity
+			break
+		}
+	}
+	require.NotNil(t, newActivity, "Should have found exactly one new activity")
+
+	// verify the new activity has the correct details
+	var details fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*newActivity.Details, &details)
+	require.NoError(t, err)
+	require.Equal(t, "foo", details.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
+	require.Equal(t, iconUrl, *details.SoftwareIconURL)
+	require.Equal(t, titleID, details.SoftwareTitleID)
+
+	// PUT: gitops workflow, passing in sha256 & filename
+	var storedIcons []fleet.SoftwareTitleIcon
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+
+	storedIcon := storedIcons[0]
+	var buf2 bytes.Buffer
+	writer = multipart.NewWriter(&buf2)
+	err = writer.WriteField("hash_sha256", storedIcon.StorageID)
+	require.NoError(t, err)
+	err = writer.WriteField("filename", storedIcon.Filename)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf2.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result = parsePutResponse(resp)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// verify no new software title icons were created
+	storedIcons = make([]fleet.SoftwareTitleIcon, 0)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+	require.Equal(t, storedIcon.StorageID, storedIcons[0].StorageID)
+	require.Equal(t, storedIcon.Filename, storedIcons[0].Filename)
+
+	// verify no new activity was created (should still be the same count as before)
+	activitiesAfterGitops := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterGitops)
+	var editedSoftwareActivitiesAfterGitops []fleet.Activity
+	for _, activity := range activitiesAfterGitops.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfterGitops = append(editedSoftwareActivitiesAfterGitops, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivitiesAfterGitops, len(editedSoftwareActivitiesAfter), "No new activity should be created for gitops upload")
+
+	// GET software title icon
+	headers = map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	assert.Equal(t, "image/png", resp.Header.Get("Content-Type"))
+	assert.Equal(t, fmt.Sprintf(`inline; filename="%s"`, "icon.png"), resp.Header.Get("Content-Disposition"))
+	assert.Equal(t, fmt.Sprintf("%d", iconSize), resp.Header.Get("Content-Length"))
+
+	// DELETE software title icon
+	s.DoRawWithHeaders(
+		"DELETE",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	require.NoError(t, err)
+
+	// verify new activity was created (should be one more than before)
+	activitiesAfterDelete := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterDelete)
+	var editedSoftwareActivitiesAfterDelete []fleet.Activity
+	for _, activity := range activitiesAfterDelete.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfterDelete = append(editedSoftwareActivitiesAfterDelete, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivitiesAfterDelete, len(editedSoftwareActivitiesAfter)+1, "Expected exactly 1 new activity after delete")
+
+	// ensure there is an activity where the icon url is set to empty
+	// signifying it's deleted
+	var deleteActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfterDelete {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesAfter {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			deleteActivity = &afterActivity
+			break
+		}
+	}
+	require.NotNil(t, deleteActivity, "Should have found exactly one new activity from delete operation")
+
+	// verify the delete activity has the correct details
+	var deleteDetails fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*deleteActivity.Details, &deleteDetails)
+	require.NoError(t, err)
+	require.Equal(t, titleID, deleteDetails.SoftwareTitleID)
+	require.Equal(t, "foo", deleteDetails.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *deleteDetails.SoftwarePackage)
+	require.Equal(t, "", *deleteDetails.SoftwareIconURL, "Icon URL should be empty after deletion")
+
+	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
+	require.NoError(t, err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {

@@ -44,6 +44,28 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
   );
 };
 
+const formatAndroidProfileNotAppliedError = (
+  detail: IHostMdmProfile["detail"]
+) => {
+  if (
+    detail.includes("settings couldn't apply to a host") ||
+    detail.includes("Other settings are applied")
+  ) {
+    return (
+      <>
+        {detail}{" "}
+        <CustomLink
+          text="Learn more"
+          url="https://fleetdm.com/learn-more-about/android-profile-errors"
+          newTab
+          variant="tooltip-link"
+        />
+      </>
+    );
+  }
+  return null;
+};
+
 /**
  * formatDetailCertificateError generates the formatted detail for certain errors related to
  * certificate profiles. It return a JSX element with the formatted message or null if
@@ -195,6 +217,13 @@ const generateErrorTooltip = (
   const certificateError = formatDetailCertificateError(profile.detail);
   if (certificateError) {
     return certificateError;
+  }
+
+  const androidProfileNotAppliedError = formatAndroidProfileNotAppliedError(
+    profile.detail
+  );
+  if (androidProfileNotAppliedError) {
+    return androidProfileNotAppliedError;
   }
 
   if (profile.platform === "windows") {

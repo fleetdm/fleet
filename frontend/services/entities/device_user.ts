@@ -1,12 +1,17 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware } from "interfaces/software";
+import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { buildQueryStringFromParams } from "utilities/url";
+import {
+  buildQueryStringFromParams,
+  getPathWithQueryParams,
+} from "utilities/url";
 
 import { IMdmCommandResult } from "interfaces/mdm";
+
+import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
 
 import { IHostSoftwareQueryParams } from "./hosts";
 
@@ -47,6 +52,13 @@ export interface IGetDeviceCertsRequestParams extends IListOptions {
 export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
+export interface IGetSetupSoftwareStatusesResponse {
+  setup_experience_results: { software: ISetupSoftwareStatus[] };
+}
+
+export interface IGetSetupSoftwareStatusesParams {
+  token: string;
+}
 
 export default {
   loadHostDetails: ({
@@ -82,9 +94,13 @@ export default {
     const { DEVICE_SOFTWARE } = endpoints;
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, scope, ...rest } = params;
-    const queryString = buildQueryStringFromParams(rest);
-    return sendRequest("GET", `${DEVICE_SOFTWARE(id)}?${queryString}`);
+
+    const path = getPathWithQueryParams(DEVICE_SOFTWARE(id), rest);
+    return sendRequest("GET", path);
   },
+
+  // getSoftwareIcon doesn't need its own service function because the logic is encapsulated in
+  // softwareAPI.getSoftwareIconFromApiUrl in /entities/software.ts
 
   installSelfServiceSoftware: (
     deviceToken: string,
@@ -156,5 +172,13 @@ export default {
     })}`;
 
     return sendRequest("GET", path);
+  },
+
+  getSetupSoftwareStatuses: ({
+    token,
+  }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
+    const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
+    const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+    return sendRequest("POST", path);
   },
 };

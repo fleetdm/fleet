@@ -89,6 +89,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			computer_name,
 			uuid,
 			platform,
+			platform_like,
 			osquery_version,
 			os_version,
 			uptime,
@@ -101,7 +102,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			hardware_serial,
 			refetch_critical_queries_until
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -115,6 +116,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.ComputerName,
 			host.UUID,
 			host.Platform,
+			host.PlatformLike,
 			host.OsqueryVersion,
 			host.OSVersion,
 			host.Uptime,
@@ -1385,8 +1387,8 @@ func (ds *Datastore) applyHostFilters(
 }
 
 func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.HostListOptions) (batchScriptExecutionJoin string, batchScriptExecutionFilter string, updatedWhereParams []interface{}) {
-	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
-	batchScriptExecutionFilter = `bsehr.batch_execution_id = ?`
+	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id JOIN batch_activities ba ON bsehr.batch_execution_id = ba.execution_id`
+	batchScriptExecutionFilter = `ba.execution_id = ?`
 	whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
 	if opt.BatchScriptExecutionStatusFilter.IsValid() {
 		batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
@@ -1400,13 +1402,16 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			//                      but either way we haven't canceled it.
 			// bsehr.error IS NULL <- this means the batch script framework didn't mark this host as incompatible
 			//                        with this script run.
-			batchScriptExecutionFilter += ` AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)`
+			batchScriptExecutionFilter += ` AND ((hsr.host_id AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)) OR (hsr.host_id is NULL AND ba.canceled = 0 AND bsehr.error IS NULL))`
 		case fleet.BatchScriptExecutionErrored:
 			batchScriptExecutionFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
 		case fleet.BatchScriptExecutionIncompatible:
 			batchScriptExecutionFilter += ` AND bsehr.error IS NOT NULL`
 		case fleet.BatchScriptExecutionCanceled:
-			batchScriptExecutionFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+			// A host may have a host_script_results record if the batch started, in which case canceling will set that record's `canceled` field.
+			// Or it may not have one, if it's a scheduled batch, in which case if the batch is marked as canceled then we'll count
+			// the host as canceled as well.
+			batchScriptExecutionFilter += ` AND ((hsr.exit_code IS NULL AND hsr.canceled = 1) OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
 		}
 	}
 	return batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams
@@ -2302,8 +2307,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostname,
 					computer_name,
 					hardware_model,
-					platform
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+					platform,
+					platform_like
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert,
 				zeroTime,
@@ -2320,6 +2326,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
 				hostInfo.Platform,
+				hostInfo.PlatformLike,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
@@ -2355,9 +2362,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	return &host, nil
 }
 
-// EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+// EnrollOsquery enrolls the osquery agent to Fleet.
+func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 	for _, opt := range opts {
 		opt(enrollConfig)
 	}

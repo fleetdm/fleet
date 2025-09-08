@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -73,16 +74,18 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                               clock.Clock                   = clock.C
 		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
 		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-		mdmStorage            fleet.MDMAppleStore
-		mdmPusher             nanomdm_push.Pusher
-		ssoStore              sso.SessionStore
-		profMatcher           fleet.ProfileMatcher
-		softwareInstallStore  fleet.SoftwareInstallerStore
-		bootstrapPackageStore fleet.MDMBootstrapPackageStore
-		distributedLock       fleet.Lock
-		keyValueStore         fleet.KeyValueStore
+		mdmStorage             fleet.MDMAppleStore
+		mdmPusher              nanomdm_push.Pusher
+		ssoStore               sso.SessionStore
+		profMatcher            fleet.ProfileMatcher
+		softwareInstallStore   fleet.SoftwareInstallerStore
+		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
+		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		distributedLock        fleet.Lock
+		keyValueStore          fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -134,6 +137,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].BootstrapPackageStore != nil {
 			bootstrapPackageStore = opts[0].BootstrapPackageStore
+		}
+		if opts[0].SoftwareTitleIconStore != nil {
+			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
 
 		// allow to explicitly set MDM storage to nil
@@ -235,8 +241,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
+			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
+			scepConfigService,
+			digiCertService,
+			hydrantService,
 		)
 		if err != nil {
 			panic(err)
@@ -363,6 +373,7 @@ type TestServerOpts struct {
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
 	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
+	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool

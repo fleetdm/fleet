@@ -2032,7 +2032,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -2125,17 +2125,33 @@ func (svc *Service) BatchSetMDMProfiles(
 		}
 	}
 
+	// // TODO(AP): Uncomment to enable activity logging for Android profiles once implemented
+	// 	if updates.AndroidProfile {
+	// 	if err := svc.NewActivity(
+	// 		ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
+	// 			TeamID:   tmID,
+	// 			TeamName: tmName,
+	// 		}); err != nil {
+	// 		return ctxerr.Wrap(ctx, err, "logging activity for edited android profiles")
+	// 	}
+	// }
+
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig), lic)
+		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}

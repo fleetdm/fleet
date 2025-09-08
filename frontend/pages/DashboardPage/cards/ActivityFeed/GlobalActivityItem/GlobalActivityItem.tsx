@@ -1,4 +1,4 @@
-import { find, lowerCase, noop, trimEnd } from "lodash";
+import { capitalize, find, lowerCase, noop, trimEnd } from "lodash";
 import React from "react";
 
 import { ActivityType, IActivity } from "interfaces/activity";
@@ -14,6 +14,7 @@ import {
 
 import ActivityItem from "components/ActivityItem";
 import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem";
+import { API_NO_TEAM_ID } from "interfaces/team";
 
 const baseClass = "global-activity-item";
 
@@ -35,13 +36,28 @@ const ACTIVITIES_WITH_DETAILS = new Set([
   ActivityType.CanceledScriptBatch,
 ]);
 
+const getProfilesPlatformDisplayName = (
+  platform: "apple" | "windows" | "android"
+) => {
+  switch (platform) {
+    case "apple":
+      return "macOS, iOS, and iPadOS";
+    case "android":
+      return "Android";
+    case "windows":
+      return "Windows";
+    default:
+      // this should not happen but just in case
+      return platform;
+  }
+};
+
 const getProfileMessageSuffix = (
   isPremiumTier: boolean,
-  platform: "apple" | "windows",
+  platform: "apple" | "windows" | "android",
   teamName?: string | null
 ) => {
-  const platformDisplayName =
-    platform === "apple" ? "macOS, iOS, and iPadOS" : "Windows";
+  const platformDisplayName = getProfilesPlatformDisplayName(platform);
   let messageSuffix = <>all {platformDisplayName} hosts</>;
   if (isPremiumTier) {
     messageSuffix = teamName ? (
@@ -415,6 +431,66 @@ const TAGGED_TEMPLATES = {
         {getProfileMessageSuffix(
           isPremiumTier,
           "apple",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
+      </>
+    );
+  },
+  createdAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        added{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  deletedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    const profileName = activity.details?.profile_name;
+    return (
+      <>
+        {" "}
+        deleted{" "}
+        {profileName ? (
+          <>
+            configuration profile <b>{profileName}</b>
+          </>
+        ) : (
+          <>a configuration profile</>
+        )}{" "}
+        from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
+          activity.details?.team_name
+        )}
+        .
+      </>
+    );
+  },
+  editedAndroidProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    return (
+      <>
+        {" "}
+        edited configuration profiles for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "android",
           activity.details?.team_name
         )}{" "}
         via fleetctl.
@@ -1423,6 +1499,25 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  editedSetupExperienceSoftware: (activity: IActivity) => {
+    const { platform, team_name, team_id } = activity.details || {};
+    return (
+      <>
+        {" "}
+        edited setup experience software for{" "}
+        {platform === "darwin" ? "macOS" : capitalize(platform)} hosts that
+        enroll to{" "}
+        {team_id === API_NO_TEAM_ID ? (
+          "no team"
+        ) : (
+          <>
+            the <b>{team_name}</b> team
+          </>
+        )}
+        .
+      </>
+    );
+  },
 };
 
 const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
@@ -1505,6 +1600,15 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     case ActivityType.EditedAppleOSProfile: {
       return TAGGED_TEMPLATES.editedAppleOSProfile(activity, isPremiumTier);
     }
+    case ActivityType.CreatedAndroidProfile: {
+      return TAGGED_TEMPLATES.createdAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.DeletedAndroidProfile: {
+      return TAGGED_TEMPLATES.deletedAndroidProfile(activity, isPremiumTier);
+    }
+    case ActivityType.EditedAndroidProfile: {
+      return TAGGED_TEMPLATES.editedAndroidProfile(activity, isPremiumTier);
+    }
     case ActivityType.AddedNdesScepProxy: {
       return TAGGED_TEMPLATES.addedCertificateAuthority("NDES");
     }
@@ -1515,17 +1619,20 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
       return TAGGED_TEMPLATES.editedCertificateAuthority("NDES");
     }
     case ActivityType.AddedCustomScepProxy:
-    case ActivityType.AddedDigicert: {
+    case ActivityType.AddedDigicert:
+    case ActivityType.AddedHydrant: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
-    case ActivityType.DeletedDigicert: {
+    case ActivityType.DeletedDigicert:
+    case ActivityType.DeletedHydrant: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
-    case ActivityType.EditedDigicert: {
+    case ActivityType.EditedDigicert:
+    case ActivityType.EditedHydrant: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -1749,6 +1856,10 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
 
     case ActivityType.DeletedCustomVariable: {
       return TAGGED_TEMPLATES.deletedCustomVariable(activity);
+    }
+
+    case ActivityType.EditedSetupExperienceSoftware: {
+      return TAGGED_TEMPLATES.editedSetupExperienceSoftware(activity);
     }
 
     default: {
