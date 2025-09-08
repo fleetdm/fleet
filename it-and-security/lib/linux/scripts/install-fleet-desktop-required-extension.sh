@@ -37,8 +37,8 @@ fi
 # Determine extension name and installation method based on distribution
 case "$distro_id" in
 	"opensuse-leap"|"opensuse-tumbleweed"|"opensuse")
-		extension_name="ubuntu-appindicators@ubuntu.com"
-		install_method="zypper"
+		extension_name="appindicatorsupport@rgcjonas.gmail.com"
+		install_method="gnome-extensions"
 		;;
 	"fedora"|"debian"|"ubuntu")
 		extension_name="appindicatorsupport@rgcjonas.gmail.com"
@@ -51,12 +51,11 @@ case "$distro_id" in
 		;;
 esac
 
-# Check if any AppIndicator extension is already installed
-fedora_extension_path="/home/$username/.local/share/gnome-shell/extensions/appindicatorsupport@rgcjonas.gmail.com"
-opensuse_extension_path="/home/$username/.local/share/gnome-shell/extensions/ubuntu-appindicators@ubuntu.com"
+# Check if the AppIndicator extension is already installed
+extension_path="/home/$username/.local/share/gnome-shell/extensions/$extension_name"
 
 extension_installed=false
-if [ -d "$fedora_extension_path" ] || [ -d "$opensuse_extension_path" ]; then
+if [ -d "$extension_path" ]; then
 	extension_installed=true
 fi
 
@@ -73,38 +72,25 @@ if [ "$extension_installed" = false ]; then
 	# Give some time to user to see notification.
 	sleep 10
 
-	if [ "$install_method" = "zypper" ]; then
-		# For OpenSUSE, install via package manager
-		zypper install -y gnome-shell-extension-appindicator
-		
-		# Wait for package installation to complete
-		sleep 5
-	else
-		# For Fedora/Debian, use GNOME Extensions
-		sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-			gdbus call --session \
-			--dest org.gnome.Shell.Extensions \
-			--object-path /org/gnome/Shell/Extensions \
-			--method org.gnome.Shell.Extensions.InstallRemoteExtension \
-			"$extension_name"
+	# Use GNOME Extensions for all distributions (including OpenSUSE)
+	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
+		gdbus call --session \
+		--dest org.gnome.Shell.Extensions \
+		--object-path /org/gnome/Shell/Extensions \
+		--method org.gnome.Shell.Extensions.InstallRemoteExtension \
+		"$extension_name"
 
-		# Wait until the extension is accepted by the user ("gdbus call" command above is asynchronous).
-		while [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" ]; do
-			sleep 1
-		done
+	# Wait until the extension is accepted by the user ("gdbus call" command above is asynchronous).
+	while [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" ]; do
+		sleep 1
+	done
 
-		# Sleep to give some time for files to be downloaded.
-		sleep 15
-	fi
+	# Sleep to give some time for files to be downloaded.
+	sleep 15
 fi
 
-# Enable the appropriate extension(s)
-if [ -d "$fedora_extension_path" ]; then
+# Enable the extension
+if [ -d "$extension_path" ]; then
 	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-		gnome-extensions enable "appindicatorsupport@rgcjonas.gmail.com"
-fi
-
-if [ -d "$opensuse_extension_path" ]; then
-	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-		gnome-extensions enable "ubuntu-appindicators@ubuntu.com"
+		gnome-extensions enable "$extension_name"
 fi
