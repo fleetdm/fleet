@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/ansi"
 )
 
 // The default number of stack frames to skip when we grab the program counter

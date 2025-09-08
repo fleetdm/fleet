@@ -26,7 +26,7 @@ Download the appropriate binary for your operating system and architecture:
 [Install Go](https://go.dev/doc/install) and install `gitops-migrate` by running:
 
 ```shell
-$ go install github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate@latest
+$ go install github.com/fleetdm/fleet/v4/cmd/gitops-migrate@latest
 ```
 
 You can verify the installation was successful by running `gitops-migrate usage` which should display the help text.

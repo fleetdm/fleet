@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/log"
 )
 
 // backup creates a backup of the path provided via 'from', to a gzipped tarball

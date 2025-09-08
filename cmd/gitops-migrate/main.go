@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/log"
 )
 
 func main() {

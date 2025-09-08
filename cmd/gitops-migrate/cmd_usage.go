@@ -9,8 +9,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/ansi"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/log"
 )
 
 const (

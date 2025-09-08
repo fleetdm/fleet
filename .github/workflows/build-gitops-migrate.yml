@@ -3,7 +3,7 @@ name: Build GitOps Migrate
 on:
   push:
     branches: [main] # TODO: Disabled for testing.
-    paths: ['cmd/fleetctl/gitops-migrate/**/*.go']
+    paths: ['cmd/gitops-migrate/**/*.go']
 
 concurrency:
   # Only allow a single occurrence of this job to run at any given time.
@@ -48,7 +48,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
-          sparse-checkout: cmd/fleetctl/gitops-migrate
+          sparse-checkout: cmd/gitops-migrate
 
       - name: Setup Go
         uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
@@ -60,7 +60,7 @@ jobs:
         env:
           GOOS: ${{ matrix.GOOS }}
           GOARCH: ${{ matrix.GOARCH }}
-        run: go build -o ${{ env.BIN_NAME }} ./cmd/fleetctl/gitops-migrate
+        run: go build -o ${{ env.BIN_NAME }} ./cmd/gitops-migrate
 
       - name: Produce SHA-256 Hash of Built Binary
         shell: bash

@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/limit"
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/limit"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/log"
 	"gopkg.in/yaml.v3"
 )
 

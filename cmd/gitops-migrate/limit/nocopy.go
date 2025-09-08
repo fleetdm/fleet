@@ -12,7 +12,7 @@ var _ sync.Locker = noCopy{}
 // receiver, rather than a pointer receiver, and run the following, you'll see
 // an error logged about the copy:
 //
-//	$ go vet -copylocks ./cmd/fleetctl/gitops-migrate/...
+//	$ go vet -copylocks ./cmd/gitops-migrate/...
 type noCopy struct{}
 
 func (noCopy) Lock()   {}

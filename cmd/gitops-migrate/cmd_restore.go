@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 
-	"github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/log"
+	"github.com/fleetdm/fleet/v4/cmd/gitops-migrate/log"
 )
 
 const cmdRestore = "restore"

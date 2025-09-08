@@ -1,6 +1,6 @@
 package log
 
-import "github.com/fleetdm/fleet/v4/cmd/fleetctl/gitops-migrate/ansi"
+import "github.com/fleetdm/fleet/v4/cmd/gitops-migrate/ansi"
 
 var (
 	// Define the various ANSI colors used throughout the package.
