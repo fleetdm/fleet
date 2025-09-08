@@ -1210,7 +1210,6 @@ Generated when a user adds a new Android configuration profile to a team (or no 
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "identifier": Identifier of the profile.
 - "team_id": The ID of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
 - "team_name": The name of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
 
@@ -1219,7 +1218,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "android-passcode-requirements",
-  "profile_identifier": "94e2ba9e-1417-4fed-b922-9dcd3969e3d2",
   "team_id": 123,
   "team_name": "Workstations"
 }
@@ -1231,7 +1229,6 @@ Generated when a user removes Android configuration profile from a team (or no t
 
 This activity contains the following fields:
 - "profile_name": Name of the profile.
-- "identifier": Identifier of the profile.
 - "team_id": The ID of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
 - "team_name": The name of the team that the profile applies to, `null` if it applies to hosts that are not in a team.
 
@@ -1240,7 +1237,6 @@ This activity contains the following fields:
 ```json
 {
   "profile_name": "android-passcode-requirements",
-  "profile_identifier": "94e2ba9e-1417-4fed-b922-9dcd3969e3d2",
   "team_id": 123,
   "team_name": "Workstations"
 }
