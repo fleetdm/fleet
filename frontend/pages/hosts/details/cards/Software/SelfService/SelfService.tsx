@@ -571,7 +571,7 @@ const SoftwareSelfService = ({
         router={router}
         pathname={pathname}
       />
-      {showUninstallSoftwareModal && selectedSoftware.current && (
+      {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
           softwareId={selectedSoftwareForUninstall.current.softwareId}
           softwareName={selectedSoftwareForUninstall.current.softwareName}
