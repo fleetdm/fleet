@@ -299,7 +299,7 @@ To connect end users to Wi-Fi or VPN with Hydrant, we'll do the following steps:
 - [Request a certificate from a device](#step-3-request-a-certificate-from-a-device)
 
 
-The flow for Hydrant differs from the other certificate authorities (CA's), since they use a configuration profile to request a certificate, where the Hydrant flow will require the device itself to make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint for a valid Hydrant integration.
+The flow for Hydrant differs from the other certificate authorities (CA's), since they use a configuration profile to request a certificate, whereas the Hydrant flow will require the device itself to make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint for a valid Hydrant integration.
 
 **It is possible to optionally provide IDP related attributes, to further verify the IdP session matches the signed CSR.**
 
@@ -323,8 +323,20 @@ The flow for Hydrant differs from the other certificate authorities (CA's), sinc
 
 1. _Optional: Generate an active IDP session token for the device requesting a certificate._
 1. Generate a certificate signing request (CSR) with the relevant attributes needed on the device.
+    1. If IDP validation is requested, the CSR must include exactly 1 email which matches the IDP username and must include a UPN attribute which is either a prefix of the IDP username or the username itself(i.e. if the IDP username is bob@example.com, the UPN may be bob or bob@example.com)
 1. Make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint, with the necessary parameters and body values.
 1. Retrieve a PEM wrapped base64 encoded certificate.
+
+#### Example CSR generation script
+
+The following script generates a password protected private key CSR appropriate for the request certificate API for bob@example.com, including the required UPN and email configuration for IDP validation. The CN can be changed and DNS attribute omitted if your Hydrant configuration allows it.
+```shell
+#!/bin/bash
+PASSWORD='password'
+USERNAME='bob@example.com'
+openssl genpkey -algorithm RSA -out private.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:$PASSWORD
+openssl req -new -sha256 -key private.key -out request.csr -subj /CN=NetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:$PASSWORD
+```
 
 ## How the SCEP proxy works
 

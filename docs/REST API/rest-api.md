@@ -844,8 +844,9 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 | -------- | ------- | ---- | ------------------------------------------- |
 | id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
-| idp_oauth_url | string | body | OAuth URL from your identity provider (IdP). Required if `idp_token` is specified. |
+| idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 
 #### Example
 
@@ -856,8 +857,9 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 ```json
 {
   "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
-  "idp_oauth_url": "https://idp.oauth.com",
-  "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046"
+  "idp_oauth_url": "https://idp.oauth.com/introspection",
+  "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046",
+  "idp_client_id": "1o2czkDnUVwTqSOc747"
 }
 ```
 
@@ -867,7 +869,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 ```json
 {
-  "certificate": "c3Viamdlkjfid098)d8f2k34jl;Yy4iLCBPVSA9IE1hbmFnZWQgTGludXgsIENOID0gQ2lzY29Vc2VyTmV0d29ya0FjY2Vzcwppc3N1ZXI9TyA9IENpc2NvLCBPVSA9IEVyaWRhbnVzLCBDTiA9IENpc2NvTmV0d29ya0FjY2VzcwotLS0tLUJFR0lOIENFUlRJRklDQVRFLS0tLS0KTUlJRkpUQ0NCQTJnQXdJQkFnSVVlSjdhYlBKd29QL0tXRlhvOXE4RmVrQlVqN293RFFZSktvWklodmNOQVFFTApCUUF3UURFT01Bd0dBMVVFQ2hNRlEybHpZMjh4RVRBUEJnTlZCQXNUQ0VWeWFXUmhiblZ6TVJzd0dRWURWUVFECkV4SkRhWE5qYjA1bGRIalskdjf098)DFj23lk4jRVMldoY05NalV3TnpJME1UYzAKTlRVMldqQlhNUnd3R2dZRFZRUUtEQk5EYVhOamJ5QlRlWE4wWlcxekxDQkpibU11TVJZd0ZBWURWUVFMREExTgpZVzVoWjJWa0lFeHBiblY0TVI4d0hRWURWUVFEREJaRGFYTmpiMVZ6WlhKT1pYUjNiM0pyUVdOalpYTnpNSUlCCklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF4dFZmWE1xaVMyelRPTEI4WE1ESFBEZmEKMjZIY2ZBdHpmOUVmMk1rQkdrL1VHNVJaTGFrZU0rTDltc0NXaWV0Wllkdf098DSlk23n34,nxo0dfQVdkRHpDbjM0MG1iaUFhS1lIb3JIczVYWW1uSmlrRkYyQgpsQThWWWpTZFZPNGVEN2QvVytwaGo2a2FZQ212dDcwL2tUaDFYL0QzZmM1U0Z4T09OSnZHeVY2MzlvVm9Qd0lECkFRQUJvNElCL2pDQ0Fmb3dEQVlEVlIwVEFRSC9CQUl3QURBZkJnTlZIU01FR0RBV2dCUmpwK2lwUENWTHJXWnkKTlIxdnBDc0owd2Y5WURDQmdnWUlLd1lCQlFVSEFRRUVkakIwTUVNR0NDc0dBUVVGQnpBQ2hqZG9kSFJ3T2k4dgpZM0pzTG1sdWRHVnlibUZzYUc5emRHNWhiV1Z6TG1OdmJTOURhWE5qYjA1bGRIZHZjbXRCWTJObGMzTXVZM0owCk1DMEdDQ3NHQVFVRkJ6QUJoaUZvZEhSd09pOHZiMk56Y0M1cGJuUmxjbTVoYkdodmMzUnVZVzFsY3k1amIyMHcKZ1p3R0ExVWRFUVNCbERDQmtZSVdRMmx6WTI5VmMyVnlUbVYwZDI5eWEwRmpZMlZ6YzRJSlkybHpZMjh1WTI5dApnUkp5WVdocGJXWjBaRUJqYVhOamJ5NWpiMjJnSWdZS0t3WUJCQUdDTnhRQ0E2QVVEQkp5WVdocGJXWjBaRUJqCmFYTmpieTVqYjIyR05FbEVPa1pzWldWMFJFMDZSMVZKUkRwa05XVmtOamMwWXkweU5XTXpMVEV4WWpJdFlUZzEKWXkxalpXTm1NVGc1WVRneFpUSXdGd1lEVlIwZ0JCQXdEakFNQmdvckJnRUVBUWtWQVNvQk1CTUdBMVVkSlFRTQpNQW9HQ0NzR0FRVUZCd01DTUVnR0ExVWRId1JCTUQ4d1BhQTdvRG1HTjJoMGRIQTZMeTlqY213dWFXNTBaWEp1CllXeG9iM04wYm1GdFpYTXVZMjl0TDBOcGMyTnZUbVYwZDI5eWEwRmpZMlZ6Y3k1amNtd3dIUVlEVlIwT0JCWUUKRkF0NjBHd0FwbVoyUkUrNFZsbkxEYkZhZGErTE1BNEdBMVVkRHdFQi93UUVBd0lGb0RBTkJna3Foa2lHOXcwQgpBUXNGQUFPQ0FRRUFsdnRseFJUaVlOVEQvWGpldkswT1BsaVhOdUtjVWlRcW5VSDlIZXowa0d6aWpHUkxrZ1VvCnRLbEJDRTB5QjNyOGhJd3dKbDRPS1cvUzdITXFnY2FNanJTaHIwamlsNDQwNXdOaHBGbzZHRkQwSTFzWjE5eFoKL21BMndsUkY0QkZoZ2QraUE5ZnpRNmNxdVFuV3JlemQxcUxNV0hpOGR5QUJ1c1VBQVZ1OUZORFU4N3BZa0Y4MgpsTjJVSTRLSUZlRDJnTDBXeFpzOVlWTGJlZG1MY0FhZk9HcmtuUDZvVlZMNGxzV1VYQlYxR2tydlkxNWUySnVkCkhVSVEvOTVKTWlkbm1EQVZCbjg1MjA2eDkxbXM3S1lYSmI0aW0yOFBtc1BrN1JJVnJNb2w5dkFlU2ppbHQ1eS8KVitacFBwSmtwWWRyNVpEeWI3WDcwMjR0ZU42QUxmZWRjZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0KCg=="
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
 }
 ```
 
