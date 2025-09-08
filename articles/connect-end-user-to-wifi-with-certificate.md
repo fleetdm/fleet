@@ -316,7 +316,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's), sinc
 1. Select **Add CA** and then choose **Hydrant EST** in the dropdown
 1. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION")
 1. Add your Hydrant EST **URL**
-1. Add the ID and Key which was aquired from the Hydrant user in step 2.4
+1. Add the ID and Key which were acquired from the Hydrant user in step 2.4
 1. Click **Add CA**. Your Hydrant CA should now appear in the list in Fleet
 
 ### Step 3: Request a certificate from a Device
