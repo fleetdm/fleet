@@ -810,13 +810,13 @@ const androidApplicableProfilesQuery = `
 //
 // So with that in mind, what this method does is return the full set of
 // applicable profiles for each host that has a change in that set of
-// applicable profiles, so that it needs to be sent again.
+// applicable profiles, so that it needs to be sent again, along with the list
+// of of previously-applied profiles that need to be removed (which is just
+// "not merging them" in the Android policy, but until this policy is fully
+// applied on the host we need to mark those profiles as pending removal).
 //
 // See https://github.com/fleetdm/fleet/issues/32032#issuecomment-3229548389
 // for more details on the rationale of that approach.
-//
-// It returns the list of applicable profiles for hosts that need to be sent,
-// and the list of previously-applied profiles that need to be removed.
 func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	var toApplyProfiles, toRemoveProfiles []*fleet.MDMAndroidProfilePayload
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
