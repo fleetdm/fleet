@@ -262,7 +262,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 	return result, nil
 }
 
-func (ds *Datastore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*fleet.AndroidHost, error) {
+func (ds *Datastore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
 		TeamID *uint `db:"team_id"`
 		*android.Device
@@ -276,20 +276,20 @@ func (ds *Datastore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (
 		ad.last_policy_sync_time,
 		ad.applied_policy_id,
 		ad.applied_policy_version
-		FROM android_devices ad
+	FROM android_devices ad
 		JOIN hosts h ON ad.host_id = h.id
-		WHERE ad.host_id = ?`
+	WHERE h.uuid = ?`
 	var host liteHost
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostID)
-	switch {
+	switch err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, hostUUID); {
 	case errors.Is(err, sql.ErrNoRows):
-		return nil, common_mysql.NotFound("Android device").WithID(hostID)
+		return nil, common_mysql.NotFound("Android device").WithName(hostUUID)
 	case err != nil:
-		return nil, ctxerr.Wrap(ctx, err, "getting android device by host ID")
+		return nil, ctxerr.Wrap(ctx, err, "getting android device by host UUID")
 	}
 	result := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			ID:     host.Device.HostID,
+			UUID:   hostUUID,
 			TeamID: host.TeamID,
 		},
 		Device: host.Device,

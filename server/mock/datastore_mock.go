@@ -1421,7 +1421,7 @@ type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *an
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
 
-type AndroidHostLiteByHostIDFunc func(ctx context.Context, hostID uint) (*fleet.AndroidHost, error)
+type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error)
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
@@ -3623,8 +3623,8 @@ type DataStore struct {
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
 
-	AndroidHostLiteByHostIDFunc        AndroidHostLiteByHostIDFunc
-	AndroidHostLiteByHostIDFuncInvoked bool
+	AndroidHostLiteByHostUUIDFunc        AndroidHostLiteByHostUUIDFunc
+	AndroidHostLiteByHostUUIDFuncInvoked bool
 
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
@@ -8675,11 +8675,11 @@ func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID st
 	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
 }
 
-func (s *DataStore) AndroidHostLiteByHostID(ctx context.Context, hostID uint) (*fleet.AndroidHost, error) {
+func (s *DataStore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
 	s.mu.Lock()
-	s.AndroidHostLiteByHostIDFuncInvoked = true
+	s.AndroidHostLiteByHostUUIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.AndroidHostLiteByHostIDFunc(ctx, hostID)
+	return s.AndroidHostLiteByHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {

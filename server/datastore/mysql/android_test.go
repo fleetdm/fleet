@@ -70,14 +70,14 @@ func testNewAndroidHost(t *testing.T, ds *Datastore) {
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
 	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
 
-	resultLite, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID)
+	resultLite, err = ds.AndroidHostLiteByHostUUID(testCtx(), result.Host.UUID)
 	require.NoError(t, err)
 	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
 	assert.Equal(t, result.Device.ID, resultLite.Device.ID)
 
 	_, err = ds.AndroidHostLite(testCtx(), "non-existent")
 	require.Error(t, err)
-	_, err = ds.AndroidHostLiteByHostID(testCtx(), result.Host.ID+1000)
+	_, err = ds.AndroidHostLiteByHostUUID(testCtx(), "no-such-host")
 	require.Error(t, err)
 
 	// Inserting the same host again should be fine.

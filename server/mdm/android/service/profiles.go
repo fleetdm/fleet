@@ -12,8 +12,8 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
-	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/androidmanagement/v1"
 	"google.golang.org/api/googleapi"
@@ -63,37 +63,20 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 	// TODO(ap): a way to mock the client for tests, maybe via the license key or context? Or just an env var.
 	client := newAMAPIClient(ctx, logger, licenseKey)
 
-	// for each host, send the merged policy
-	for _, hostUUID := range hostsWithoutProfiles {
-		if err := sendHostProfiles(ctx, ds, client, hostUUID, nil, nil); err != nil {
-		}
-	}
-	for hostUUID, profiles := range profilesByHostUUID {
-		if err := sendHostProfiles(ctx, ds, client, hostUUID, profiles, profilesContents); err != nil {
-		}
-	}
+	// // for each host, send the merged policy
+	// for _, hostUUID := range hostsWithoutProfiles {
+	// 	if err := sendHostProfiles(ctx, ds, client, hostUUID, nil, nil); err != nil {
+	// 	}
+	// }
+	// for hostUUID, profiles := range profilesByHostUUID {
+	// 	if err := sendHostProfiles(ctx, ds, client, hostUUID, profiles, profilesContents); err != nil {
+	// 	}
+	// }
 
 	// TODO(ap): The profiles to apply should (may?) have status=NULL at this
 	// point, and will switch to explicit status=Pending after the API requests
 	// (or Failed if there is a profile overridden with another). On the pubsub
 	// status report, it will transition to Verified.
-
-	// TODO(ap): at this point, we'd have a bunch of hosts that need to have their policy
-	// updated. Let's simulate it for any existing Android hosts for now.
-	mapIDs, err := ds.LabelIDsByName(ctx, []string{"Android"})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get android label ID")
-	}
-
-	filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-	hosts, err := ds.ListHostsInLabel(ctx, filter, mapIDs["Android"], fleet.HostListOptions{})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "list android hosts")
-	}
-
-	if len(hosts) == 0 {
-		return nil
-	}
 
 	// for _, h := range hosts {
 	// 	// TODO(ap): let's use a simulated policy (that would be generated from the merged profiles)
@@ -162,7 +145,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 
 // TODO(ap): maybe refactor, bit ugly with so many parameters but it's nice to
 // have a func that processes one host at a time.
-func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client,
+func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgmt.Client, enterprise *android.Enterprise,
 	hostUUID string, profilesToMerge, profilesToRemove []*fleet.MDMAndroidProfilePayload, profilesContents map[string]json.RawMessage) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
 
 	// We need a deterministic order to merge the profiles, and I opted to go
@@ -175,7 +158,8 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 		return cmp.Compare(a.ProfileName, b.ProfileName)
 	})
 
-	bulkProfiles := make([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, 0, len(profilesToMerge)+len(profilesToRemove))
+	// map of the bulk struct keyed by profile UUID
+	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidBulkUpsertHostProfilePayload, len(profilesToMerge)+len(profilesToRemove))
 
 	// merge the profiles in that order, keeping track of what profile overrides
 	// what other one
@@ -202,7 +186,6 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 		} else {
 			for k, v := range profJSON {
 				if _, alreadySet := finalJSON[k]; alreadySet {
-					// TODO: mark settingFromProfile[k] as failed/overridden
 					failedProfUUID := settingFromProfile[k]
 					overriddenSettings[failedProfUUID] = append(overriddenSettings[failedProfUUID], k)
 				}
@@ -215,40 +198,81 @@ func sendHostProfiles(ctx context.Context, ds fleet.Datastore, client androidmgm
 		status := fleet.MDMDeliveryPending
 		if overridden, ok := overriddenSettings[prof.ProfileUUID]; ok && len(overridden) > 0 {
 			status = fleet.MDMDeliveryFailed
-
-			slices.Sort(overridden)
-
-			var sb strings.Builder
-			for range len(overridden) - 1 {
-				sb.WriteString("%q, ")
-			}
-			if len(overridden) > 1 {
-				sb.WriteString("and ")
-			}
-			sb.WriteString("%q")
-			if len(overridden) > 1 {
-				sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
-			} else {
-				sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
-			}
-
-			args := make([]any, len(overridden))
-			for i, s := range overridden {
-				args[i] = s
-			}
-			detail = fmt.Sprintf(sb.String(), args...)
+			detail = buildPolicyFieldsOverriddenErrorMessage(overridden)
 		}
+
 		// TODO(ap): record included into policy version once the API call is made, and/or track failures
-		bulkProfiles = append(bulkProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
 			HostUUID:      hostUUID,
 			Status:        &status,
 			OperationType: fleet.MDMOperationTypeInstall,
 			ProfileUUID:   prof.ProfileUUID,
 			ProfileName:   prof.ProfileName,
 			Detail:        detail,
-		})
+		}
 	}
+
+	// unmarshal the final JSON into the AMAPI policy struct
+	var policy androidmanagement.Policy
+	if finalJSON != nil {
+		b, err := json.Marshal(finalJSON)
+		if err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "marshal generic map of merged json")
+		}
+		if err := json.Unmarshal(b, &policy); err != nil {
+			return nil, ctxerr.Wrapf(ctx, err, "unmarshal merged json into policy struct")
+		}
+	}
+
+	// for every policy, we want to enforce some settings
+	applyFleetEnforcedSettings(&policy)
+
+	// using the host uuid as policy id, so we don't need to track the id mapping
+	// to the host.
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), hostUUID)
+	skip, err := patchPolicy(ctx, client, ds, hostUUID, policyName, &policy)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "patch policy for host %s", hostUUID)
+	}
+	if skip {
+		// done, return
+	}
+
+	androidHost, err := ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
+	}
+	if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == hostUUID {
+		// that policy name is already applied to this host, it will pick up the new version
+		// (confirmed in tests)
+	}
+
+	// call the AMAPI endpoint to define the new policy
 	panic("unimplemented")
+}
+
+func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
+	slices.Sort(overriddenFields)
+
+	var sb strings.Builder
+	for range len(overriddenFields) - 1 {
+		sb.WriteString("%q, ")
+	}
+	if len(overriddenFields) > 1 {
+		sb.WriteString("and ")
+	}
+	sb.WriteString("%q")
+	if len(overriddenFields) > 1 {
+		sb.WriteString(" aren't applied. They are overridden by other configuration profile.")
+	} else {
+		sb.WriteString(" isn't applied. It's overridden by other configuration profile.")
+	}
+
+	args := make([]any, len(overriddenFields))
+	for i, s := range overriddenFields {
+		args[i] = s
+	}
+	return fmt.Sprintf(sb.String(), args...)
 }
 
 func patchPolicy(ctx context.Context, client androidmgmt.Client, ds fleet.Datastore,
