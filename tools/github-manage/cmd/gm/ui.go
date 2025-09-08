@@ -339,6 +339,8 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 func (m *model) applyFilter() {
 	if m.filterInput == "" {
 		// No filter, show all issues
+		// Ensure base list is sorted
+		ghapi.SortIssuesForDisplay(m.choices)
 		m.filteredChoices = m.choices
 		m.originalIndices = make([]int, len(m.choices))
 		for i := range m.originalIndices {
@@ -351,6 +353,8 @@ func (m *model) applyFilter() {
 	m.filteredChoices = nil
 	m.originalIndices = nil
 
+	// Ensure base list is sorted before applying filter
+	ghapi.SortIssuesForDisplay(m.choices)
 	for i, issue := range m.choices {
 		if m.matchesFilter(issue, filter) {
 			m.filteredChoices = append(m.filteredChoices, issue)
@@ -363,6 +367,11 @@ func (m *model) applyFilter() {
 		m.cursor = 0
 	}
 }
+
+// --- Sorting helpers for Normal view ordering ---
+
+// labelNamesLower returns a set of lowercase label names for fast lookup.
+// Sorting moved to ghapi.SortIssuesForDisplay
 
 func (m *model) matchesFilter(issue ghapi.Issue, filter string) bool {
 	// Check issue number
