@@ -1836,9 +1836,9 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart},
-		profGroup.ProfileUUID:    {fleet.FleetVarHostEndUserIDPGroups},
-		profAll.ProfileUUID:      {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups},
+		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
@@ -1937,7 +1937,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", GivenName: ptr.String("A")})
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2141,11 +2141,11 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	// create a team and make host2 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []string{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
 	require.NoError(t, err)
@@ -2376,6 +2376,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID st
 	}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		token := uuid.New() // Generate binary UUID
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
 				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
 			VALUES
@@ -2384,7 +2385,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID st
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
+			profile.Identifier, hostUUID, actualStatus, operation, token[:], profile.Name, profile.DeclarationUUID)
 		return err
 	})
 }

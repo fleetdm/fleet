@@ -11,9 +11,9 @@ import (
 
 var _ fleet.DigiCertService = (*Service)(nil)
 
-type VerifyProfileIDFunc func(ctx context.Context, config fleet.DigiCertIntegration) error
+type VerifyProfileIDFunc func(ctx context.Context, config fleet.DigiCertCA) error
 
-type GetCertificateFunc func(ctx context.Context, config fleet.DigiCertIntegration) (*fleet.DigiCertCertificate, error)
+type GetCertificateFunc func(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error)
 
 type Service struct {
 	VerifyProfileIDFunc        VerifyProfileIDFunc
@@ -25,14 +25,14 @@ type Service struct {
 	mu sync.Mutex
 }
 
-func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertIntegration) error {
+func (s *Service) VerifyProfileID(ctx context.Context, config fleet.DigiCertCA) error {
 	s.mu.Lock()
 	s.VerifyProfileIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.VerifyProfileIDFunc(ctx, config)
 }
 
-func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertIntegration) (*fleet.DigiCertCertificate, error) {
+func (s *Service) GetCertificate(ctx context.Context, config fleet.DigiCertCA) (*fleet.DigiCertCertificate, error) {
 	s.mu.Lock()
 	s.GetCertificateFuncInvoked = true
 	s.mu.Unlock()

@@ -64,6 +64,7 @@ import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/Windo
 import AppleMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleMdmPage";
 import AndroidMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AndroidMdmPage";
 import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
+import Secrets from "pages/ManageControlsPage/Secrets/Secrets";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsAutomaticEnrollmentPage";
 import AppleBusinessManagerPage from "pages/admin/IntegrationsPage/cards/MdmSettings/AppleBusinessManagerPage";
 import VppPage from "pages/admin/IntegrationsPage/cards/MdmSettings/VppPage";
@@ -82,6 +83,7 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
+import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -149,6 +151,10 @@ const routes = (
           <Route path="login/denied" component={NoAccessPage} />
           <Route path="mdm/sso/callback" component={MDMAppleSSOCallbackPage} />
           <Route path="mdm/sso" component={MDMAppleSSOPage} />
+          <Route
+            path="mdm/apple/account_driven_enroll/sso"
+            component={MDMAppleSSOPage}
+          />
         </Route>
       </Route>
       <Route component={AuthenticatedRoutes as RouteComponent}>
@@ -170,13 +176,18 @@ const routes = (
             <Route component={SettingsWrapper}>
               <Route component={AuthGlobalAdminRoutes}>
                 <Route path="organization" component={OrgSettingsPage} />
+                {/* Forward old routes to new */}
+                <Redirect from="organization/sso" to="integrations/sso" />
+                <Redirect
+                  from="organization/host-status-webhook"
+                  to="integrations/host-status-webhook"
+                />
                 <Route
                   path="organization/:section"
                   component={OrgSettingsPage}
                 />
                 <Route path="integrations" component={AdminIntegrationsPage} />
-                {/* This redirect is used to handle the old URL for these two
-                pages */}
+                {/* Forward old routes to new */}
                 <Redirect
                   from="integrations/automatic-enrollment"
                   to="integrations/mdm"
@@ -247,6 +258,7 @@ const routes = (
               component={ManageHostsPage}
             />
             <Route path=":host_id" component={HostDetailsPage}>
+              <IndexRedirect to="details" />
               <Redirect from="schedule" to="queries" />
               <Route path="details" component={HostDetailsPage} />
               <Route path="scripts" component={HostDetailsPage} />
@@ -275,13 +287,21 @@ const routes = (
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
-                <Route path="scripts" component={Scripts} />
+                <Route path="scripts">
+                  <IndexRedirect to="library" />
+                  <Route path=":section" component={Scripts} />
+                </Route>
+                <Route path="variables" component={Secrets} />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
                 />
               </Route>
             </Route>
+            <Route
+              path="controls/scripts/progress/:batch_execution_id"
+              component={ScriptBatchDetailsPage}
+            />
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />

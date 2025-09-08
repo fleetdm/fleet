@@ -15,7 +15,7 @@ import {
 } from "services/entities/mdm";
 
 const setupExperienceScriptUrl = baseUrl("/setup_experience/script");
-const setupExperienceInstallSoftwareUrl = baseUrl("/setup_experience/software");
+const setupExperienceInstallSoftwareUrl = baseUrl(`/setup_experience/software`);
 const setupExperienceBootstrapMetadataUrl = baseUrl(
   "/mdm/bootstrap/:teamId/metadata"
 );

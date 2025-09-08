@@ -1,0 +1,1 @@
+* Fixed an issue where a host could be stuck with a "Unlock Pending" label even if the unlock script was canceled.

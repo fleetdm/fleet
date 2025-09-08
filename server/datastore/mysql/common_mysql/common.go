@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net"
 	"net/url"
 	"time"
 
@@ -13,7 +14,15 @@ import (
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/ngrok/sqlmw"
+	_ "github.com/shogo82148/rdsmysql/v2"
 )
+
+// TestSQLMode combines ANSI mode components with MySQL 8 default strict modes for testing
+// ANSI mode includes: REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, ONLY_FULL_GROUP_BY
+// We add all MySQL 8.0 default strict modes to match production behavior
+// Note: The value needs to be wrapped in single quotes when passed to MySQL DSN due to comma separation
+// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
+const TestSQLMode = "'REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'"
 
 type DBOptions struct {
 	// MaxAttempts configures the number of retries to connect to the DB
@@ -29,6 +38,25 @@ type DBOptions struct {
 
 func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*sqlx.DB, error) {
 	driverName := "mysql"
+
+	// Parse host and port
+	host, port, err := net.SplitHostPort(conf.Address)
+	if err != nil {
+		host = conf.Address
+		port = "3306"
+	}
+
+	// Auto-detect RDS and use IAM auth if no password is provided
+	var iamTokenGen *awsIAMAuthTokenGenerator
+	useIAMAuth := false
+	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
+		useIAMAuth = true
+		iamTokenGen, err = newAWSIAMAuthTokenGenerator(host, conf.Username, port, conf.Region, conf.StsAssumeRoleArn, conf.StsExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create IAM token generator: %w", err)
+		}
+	}
+
 	if opts.TracingConfig != nil && opts.TracingConfig.TracingEnabled {
 		if opts.TracingConfig.TracingType == "opentelemetry" {
 			driverName = otelDriverName
@@ -44,8 +72,22 @@ func NewDB(conf *config.MysqlConfig, opts *DBOptions, otelDriverName string) (*s
 		conf.SQLMode = opts.SqlMode
 	}
 
-	dsn := generateMysqlConnectionString(*conf)
-	db, err := sqlx.Open(driverName, dsn)
+	var db *sqlx.DB
+	if useIAMAuth {
+		connector := &awsIAMAuthConnector{
+			driverName: driverName,
+			baseDSN:    generateMysqlConnectionString(*conf),
+			tokenGen:   iamTokenGen,
+			logger:     opts.Logger,
+		}
+		db = sqlx.NewDb(sql.OpenDB(connector), driverName)
+	} else {
+		dsn := generateMysqlConnectionString(*conf)
+		db, err = sqlx.Open(driverName, dsn)
+		if err != nil {
+			return nil, err
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +132,12 @@ func generateMysqlConnectionString(conf config.MysqlConfig) string {
 		"group_concat_max_len": []string{"4194304"},
 		"multiStatements":      []string{"true"},
 	}
-	if conf.TLSConfig != "" {
+	if conf.Password == "" && conf.PasswordPath == "" && conf.Region != "" {
+		params.Set("allowCleartextPasswords", "true")
+		if conf.TLSConfig == "" {
+			params.Set("tls", "rdsmysql")
+		}
+	} else if conf.TLSConfig != "" {
 		params.Set("tls", conf.TLSConfig)
 	}
 	if conf.SQLMode != "" {

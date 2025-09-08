@@ -36,7 +36,7 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	}, fleet.DeviceMappingGoogleChromeProfiles))
 	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(context.Background(), hosts[0].ID, "c@b.c", fleet.DeviceMappingCustomInstaller)
 	require.NoError(t, err)
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", ""))
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", "", false))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -286,7 +286,6 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	require.NoError(s.T(), err)
 	config.SMTPSettings.SMTPConfigured = false
 	require.NoError(s.T(), s.ds.SaveAppConfig(context.Background(), config))
-
 }
 
 func (s *integrationTestSuite) TestErrorReporting() {
@@ -453,5 +452,4 @@ func (s *integrationTestSuite) TestErrorReporting() {
 
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 2)
-
 }

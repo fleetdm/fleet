@@ -44,9 +44,9 @@ const WindowsAutomaticEnrollmentPage = () => {
           />
         </p>
         <p>
-          Some Intune/Entra deployments enable automatic enrollement into
-          Intune. Check to ensure <b>Automatic Enrollment</b> is not enabled, or
-          your devices will not appear in Fleet.{" "}
+          Some Intune/Entra deployments enable automatic enrollment into Intune.
+          Check to ensure <b>Automatic Enrollment</b> is not enabled, or your
+          devices will not appear in Fleet.{" "}
         </p>
         <p>
           In your Intune settings, select <b>Devices</b>, and under{" "}

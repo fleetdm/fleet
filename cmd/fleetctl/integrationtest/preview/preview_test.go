@@ -1,10 +1,8 @@
 package preview
 
 import (
-	"bytes"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"testing"
 
@@ -30,10 +28,8 @@ func TestIntegrationsPreview(t *testing.T) {
 		require.Equal(t, "", fleetctl.RunAppForTest(t, []string{"preview", "--config", configPath, "stop"}))
 	})
 
-	var output *bytes.Buffer
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
-		var err error
-		output, err = fleetctl.RunAppNoChecks([]string{
+		_, err := fleetctl.RunAppNoChecks([]string{
 			"preview",
 			"--config", configPath,
 			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
@@ -43,17 +39,12 @@ func TestIntegrationsPreview(t *testing.T) {
 		return err
 	}))
 
-	queriesRe := regexp.MustCompile(`applied ([0-9]+) queries`)
-	policiesRe := regexp.MustCompile(`applied ([0-9]+) policies`)
-	require.True(t, queriesRe.MatchString(output.String()))
-	require.True(t, policiesRe.MatchString(output.String()))
-
 	// run some sanity checks on the preview environment
 
-	// standard queries must have been loaded
+	// starter library queries must have been loaded
 	queries := fleetctl.RunAppForTest(t, []string{"get", "queries", "--config", configPath, "--json"})
 	n := strings.Count(queries, `"kind":"query"`)
-	require.Greater(t, n, 10)
+	require.Greater(t, n, 0)
 
 	// app configuration must disable analytics
 	appConf := fleetctl.RunAppForTest(t, []string{"get", "config", "--include-server-config", "--config", configPath, "--yaml"})

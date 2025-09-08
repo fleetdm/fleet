@@ -8,6 +8,7 @@ parasails.registerPage('basic-article', {
     subtopics: [],
     lastScrollTop: 0,
     scrollDistance: 0,
+    isIpadOS: false,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -17,6 +18,10 @@ parasails.registerPage('basic-article', {
     //…
   },
   mounted: async function() {
+    // Set a flag to determine whether or not this is an ipad. (Used to show/hide an embeded PDF)
+    if(navigator.maxTouchPoints > 1 && bowser.mac) {
+      this.isIpadOS = true;
+    }
     this.subtopics = (() => {
       let subtopics = $('[purpose="article-content"]').find('h2.markdown-heading').map((_, el) => el);
       subtopics = $.makeArray(subtopics).map((subheading) => {

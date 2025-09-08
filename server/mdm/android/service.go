@@ -2,6 +2,7 @@ package android
 
 import (
 	"context"
+	"net/http"
 )
 
 type Service interface {
@@ -12,7 +13,7 @@ type Service interface {
 	EnterpriseSignupSSE(ctx context.Context) (chan string, error)
 
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
-	CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*EnrollmentToken, error)
+	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
 }
 
@@ -25,6 +26,18 @@ type DefaultResponse struct {
 
 func (r DefaultResponse) Error() error { return r.Err }
 
+// StatusCode implements the go-kit http StatusCoder interface to preserve HTTP status codes from errors
+func (r DefaultResponse) StatusCode() int {
+	if r.Err != nil {
+		// Check if the error has a custom status code (like errors created with .WithStatus())
+		if sc, ok := r.Err.(interface{ StatusCode() int }); ok {
+			return sc.StatusCode()
+		}
+	}
+	// Default to 200 OK if no error or no custom status code
+	return http.StatusOK
+}
+
 type GetEnterpriseResponse struct {
 	EnterpriseID string `json:"android_enterprise_id"`
 	DefaultResponse
@@ -32,5 +45,10 @@ type GetEnterpriseResponse struct {
 
 type EnterpriseSignupResponse struct {
 	Url string `json:"android_enterprise_signup_url"`
+	DefaultResponse
+}
+
+type EnrollmentTokenResponse struct {
+	*EnrollmentToken
 	DefaultResponse
 }

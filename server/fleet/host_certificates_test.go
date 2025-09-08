@@ -13,6 +13,12 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 		OrganizationalUnit: "Fleet Device Management Inc.",
 		CommonName:         "FleetDM",
 	}
+	expectedWithSlash := HostCertificateNameDetails{
+		Country:            "US",
+		Organization:       "Fleet Device Management Inc.",
+		OrganizationalUnit: "Fleet Device Management Inc.",
+		CommonName:         "FleetDM/valid",
+	}
 
 	cases := []struct {
 		name     string
@@ -46,7 +52,17 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 			expected: &expected,
 		},
 		{
-			name:  "invalid format with extra slash",
+			name:     "valid format with extra slash",
+			input:    `/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM\/valid`,
+			expected: &expectedWithSlash,
+		},
+		{
+			name:     "valid with safe escape sequence",
+			input:    `/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM<<SLASH>>valid`,
+			expected: &expectedWithSlash,
+		},
+		{
+			name:  "invalid format with extra slash without escape",
 			input: "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/invalid",
 			err:   true,
 		},

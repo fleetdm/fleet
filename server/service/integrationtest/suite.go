@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -53,7 +54,9 @@ func SetUpMySQLAndService(t *testing.T, uniqueTestName string, opts ...*service.
 	config.FleetConfig,
 	fleet.Service, context.Context,
 ) {
-	ds := mysql.CreateMySQLDS(t)
+	ds := mysql.CreateMySQLDSWithOptions(t, &testing_utils.DatastoreTestOptions{
+		UniqueTestName: uniqueTestName,
+	})
 	test.AddAllHostsLabel(t, ds)
 
 	// Set up the required fields on AppConfig

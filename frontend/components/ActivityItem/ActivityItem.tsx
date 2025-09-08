@@ -143,6 +143,7 @@ const ActivityItem = ({
           size="small"
           hasWhiteBackground
           useFleetAvatar={activity.fleet_initiated}
+          useApiOnlyAvatar={activity.actor_api_only}
         />
         <div className={`${baseClass}__avatar-lower-dash`} />
       </div>

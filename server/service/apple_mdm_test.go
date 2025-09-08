@@ -292,18 +292,26 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 		_, err = svc.ListMDMAppleDevices(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
+	}
 
-		// check EULA routes
-		_, err = svc.MDMGetEULAMetadata(ctx)
+	// some eula methods read and write access for gitops users. We test them separately
+	// from the other MDM methods.
+	testEULAMethods := func(t *testing.T, user *fleet.User, shouldFailWithAuth bool) {
+		ctx := test.UserContext(ctx, user)
+		_, err := svc.MDMGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")), false)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMDeleteEULA(ctx, "foo")
+		err = svc.MDMDeleteEULA(ctx, "foo", false)
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
 	// Only global admins can access the endpoints.
 	testAuthdMethods(t, test.UserAdmin, false)
+
+	// Global admin and gitops users can access the eula endpoints.
+	testEULAMethods(t, test.UserAdmin, false)
+	testEULAMethods(t, test.UserGitOps, false)
 
 	// All other users should not have access to the endpoints.
 	for _, user := range []*fleet.User{
@@ -314,6 +322,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		test.UserTeamAdminTeam1,
 	} {
 		testAuthdMethods(t, user, true)
+		testEULAMethods(t, user, true)
 	}
 	// Token authenticated endpoints can be accessed by anyone.
 	ctx = test.UserContext(ctx, test.UserNoRoles)
@@ -632,7 +641,7 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 		},
 	}
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		return &cp, nil
 	}
 	ds.ListMDMAppleConfigProfilesFunc = func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
@@ -647,6 +656,9 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 	mockGetFuncWithTeamID := func(teamID uint) mock.GetMDMAppleConfigProfileFunc {
 		return func(ctx context.Context, puid string) (*fleet.MDMAppleConfigProfile, error) {
@@ -744,7 +756,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	mcBytes := mcBytesForTest("Foo", identifier, "UUID")
 	r := bytes.NewReader(mcBytes)
 
-	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []string) (*fleet.MDMAppleConfigProfile, error) {
+	ds.NewMDMAppleConfigProfileFunc = func(ctx context.Context, cp fleet.MDMAppleConfigProfile, usesVars []fleet.FleetVarName) (*fleet.MDMAppleConfigProfile, error) {
 		require.Equal(t, "Foo", cp.Name)
 		assert.Equal(t, identifier, cp.Identifier)
 		require.Equal(t, mcBytes, []byte(cp.Mobileconfig))
@@ -756,6 +768,9 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
 	) (updates fleet.MDMProfilesUpdates, err error) {
 		return fleet.MDMProfilesUpdates{}, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
 	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
@@ -769,6 +784,12 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 	r = bytes.NewReader(mcBytes)
 	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	mcBytes = mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	r = bytes.NewReader(mcBytes)
+	_, err = svc.NewMDMAppleConfigProfile(ctx, 0, r, nil, fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
 }
 
 func mcBytesForTest(name, identifier, uuid string) []byte {
@@ -793,6 +814,23 @@ func mcBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
+func TestBatchSetMDMAppleProfilesWithSecrets(t *testing.T) {
+	svc, ctx, _ := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	// Test profile with FLEET_SECRET in PayloadDisplayName
+	profileWithSecret := mcBytesForTest("Profile $FLEET_SECRET_PASSWORD", "test.identifier", "UUID")
+	err := svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{profileWithSecret}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+
+	// Test multiple profiles where one has a secret in PayloadDisplayName
+	goodProfile := mcBytesForTest("Good Profile", "good.identifier", "UUID1")
+	badProfile := mcBytesForTest("Bad $FLEET_SECRET_KEY Profile", "bad.identifier", "UUID2")
+	err = svc.BatchSetMDMAppleProfiles(ctx, nil, nil, [][]byte{goodProfile, badProfile}, false, false)
+	assert.ErrorContains(t, err, "PayloadDisplayName cannot contain FLEET_SECRET variables")
+	assert.ErrorContains(t, err, "profiles[1]")
+}
+
 func TestNewMDMAppleDeclaration(t *testing.T) {
 	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
@@ -801,6 +839,11 @@ func TestNewMDMAppleDeclaration(t *testing.T) {
 	b := declBytesForTest("D1", "d1content $FLEET_VAR_BOZO")
 	_, err := svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
 	assert.ErrorContains(t, err, "Fleet variable")
+
+	// decl type missing actual type
+	b = declarationForTestWithType("D1", "com.apple.configuration")
+	_, err = svc.NewMDMAppleDeclaration(ctx, 0, bytes.NewReader(b), nil, "name", fleet.LabelsIncludeAll)
+	assert.ErrorContains(t, err, "Only configuration declarations (com.apple.configuration.) are supported")
 
 	ds.NewMDMAppleDeclarationFunc = func(ctx context.Context, d *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 		return d, nil
@@ -884,6 +927,12 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	}
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
@@ -1135,10 +1184,11 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
 
-	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
 		require.Equal(t, uuid, mdmHost.UUID)
 		require.Equal(t, serial, mdmHost.HardwareSerial)
 		require.Equal(t, model, mdmHost.HardwareModel)
+		require.False(t, fromPersonalEnrollment)
 		return nil
 	}
 
@@ -1161,7 +1211,9 @@ func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 		require.True(t, ok)
 		require.Nil(t, user)
 		require.Equal(t, "mdm_enrolled", activity.ActivityName())
-		require.Equal(t, serial, a.HostSerial)
+		require.NotNil(t, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.False(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
@@ -1200,10 +1252,11 @@ func TestMDMAuthenticateADE(t *testing.T) {
 	ctx := context.Background()
 	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
 
-	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
 		require.Equal(t, uuid, mdmHost.UUID)
 		require.Equal(t, serial, mdmHost.HardwareSerial)
 		require.Equal(t, model, mdmHost.HardwareModel)
+		require.False(t, fromPersonalEnrollment)
 		return nil
 	}
 
@@ -1226,7 +1279,9 @@ func TestMDMAuthenticateADE(t *testing.T) {
 		require.True(t, ok)
 		require.Nil(t, user)
 		require.Equal(t, "mdm_enrolled", activity.ActivityName())
-		require.Equal(t, serial, a.HostSerial)
+		require.NotNil(t, a.HostSerial)
+		require.Equal(t, serial, *a.HostSerial)
+		require.Nil(t, a.EnrollmentID)
 		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
 		require.True(t, a.InstalledFromDEP)
 		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
@@ -1285,7 +1340,11 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 		require.True(t, scepRenewalInProgress)
 		return nil
 	}
-	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host) error {
+	ds.MDMAppleUpsertHostFunc = func(ctx context.Context, mdmHost *fleet.Host, fromPersonalEnrollment bool) error {
+		require.Equal(t, uuid, mdmHost.UUID)
+		require.Equal(t, serial, mdmHost.HardwareSerial)
+		require.Equal(t, model, mdmHost.HardwareModel)
+		require.False(t, fromPersonalEnrollment)
 		return nil
 	}
 
@@ -2123,7 +2182,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil)
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -2329,7 +2388,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	contents5 := []byte("test-contents-5")
 
 	p1, p2, p3, p4, p5, p6 := "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString(), "a"+uuid.NewString()
-	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
+	ds.ListMDMAppleProfilesToInstallFunc = func(ctx context.Context, hostUUID string) ([]*fleet.MDMAppleProfilePayload, error) {
 		return []*fleet.MDMAppleProfilePayload{
 			{ProfileUUID: p1, ProfileIdentifier: "com.add.profile", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
 			{ProfileUUID: p2, ProfileIdentifier: "com.add.profile.two", HostUUID: hostUUID1, Scope: fleet.PayloadScopeSystem},
@@ -2361,7 +2420,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	}
 
 	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
-		require.Empty(t, payload)
+		require.ElementsMatch(t, payload, []*fleet.MDMAppleProfilePayload{{ProfileUUID: p6, ProfileIdentifier: "com.remove.profile.six", HostUUID: hostUUID2, Scope: fleet.PayloadScopeUser}})
 		return nil
 	}
 
@@ -2484,6 +2543,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		cmdUUIDByProfileUUIDRemove := make(map[string]string)
 		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
 		for i, p := range payload {
+			// clear the command UUID (in a copy so that it does not affect the
+			// pointed-to struct) from the payload for the subsequent checks
+			copyp := *p
+			copyp.CommandUUID = ""
+			copies[i] = &copyp
+
+			// Host with no user enrollment, so install fails
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
+
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
@@ -2501,11 +2571,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				}
 			}
 
-			// clear the command UUID (in a copy so that it does not affect the
-			// pointed-to struct) from the payload for the subsequent checks
-			copyp := *p
-			copyp.CommandUUID = ""
-			copies[i] = &copyp
 		}
 
 		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -2566,14 +2631,15 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				Status:            &fleet.MDMDeliveryPending,
 				Scope:             fleet.PayloadScopeUser,
 			},
-			// This host has no user enrollment so the profile is sent to the device enrollment
+			// This host has no user enrollment so the profile is errored
 			{
 				ProfileUUID:       p5,
 				ProfileIdentifier: "com.add.profile.five",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
-				Status:            &fleet.MDMDeliveryPending,
-				Scope:             fleet.PayloadScopeSystem,
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Status:            &fleet.MDMDeliveryFailed,
+				Scope:             fleet.PayloadScopeUser,
 			},
 			// This host has a user enrollment so the profile is removed from it
 			{
@@ -2584,6 +2650,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				Status:            &fleet.MDMDeliveryPending,
 				Scope:             fleet.PayloadScopeUser,
 			},
+			// Note that host2 has no user enrollment so the profile is not marked for removal
+			// from it
 		}, copies)
 		return nil
 	}
@@ -2593,6 +2661,9 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		appCfg.ServerSettings.ServerURL = "https://test.example.com"
 		appCfg.MDM.EnabledAndConfigured = true
 		return appCfg, nil
+	}
+	ds.GetGroupedCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+		return &fleet.GroupedCertificateAuthorities{}, nil
 	}
 
 	ds.BulkUpsertMDMAppleConfigProfilesFunc = func(ctx context.Context, p []*fleet.MDMAppleConfigProfile) error {
@@ -2683,7 +2754,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
 			failedCount++
 
-			require.Len(t, payload, 6) // the 6 install ops
+			require.Len(t, payload, 5) // the 5 install ops
 			require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 				{
 					ProfileUUID:       p1,
@@ -2728,15 +2799,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					CommandUUID:       "",
 					Scope:             fleet.PayloadScopeUser,
 				},
-				{
-					ProfileUUID:       p5,
-					ProfileIdentifier: "com.add.profile.five",
-					HostUUID:          hostUUID2,
-					OperationType:     fleet.MDMOperationTypeInstall,
-					Status:            nil,
-					CommandUUID:       "",
-					Scope:             fleet.PayloadScopeSystem,
-				},
 			}, payload)
 		}
 
@@ -2755,6 +2817,10 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ds.ListMDMAppleProfilesToRemoveFunc = func(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 		return nil, nil
 	}
+	ds.BulkDeleteMDMAppleHostsConfigProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleProfilePayload) error {
+		require.Empty(t, payload)
+		return nil
+	}
 	ds.BulkUpsertMDMAppleHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) error {
 		if failedCall {
 			failedCheck(payload)
@@ -2770,6 +2836,17 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		cmdUUIDByProfileUUIDRemove := make(map[string]string)
 		copies := make([]*fleet.MDMAppleBulkUpsertHostProfilePayload, len(payload))
 		for i, p := range payload {
+			// clear the command UUID (in a copy so that it does not affect the
+			// pointed-to struct) from the payload for the subsequent checks
+			copyp := *p
+			copyp.CommandUUID = ""
+			copies[i] = &copyp
+
+			// Host with no user enrollment, so install fails
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
+
 			if p.OperationType == fleet.MDMOperationTypeInstall {
 				existing, ok := cmdUUIDByProfileUUIDInstall[p.ProfileUUID]
 				if ok {
@@ -2786,12 +2863,6 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 					cmdUUIDByProfileUUIDRemove[p.ProfileUUID] = p.CommandUUID
 				}
 			}
-
-			// clear the command UUID (in a copy so that it does not affect the
-			// pointed-to struct) from the payload for the subsequent checks
-			copyp := *p
-			copyp.CommandUUID = ""
-			copies[i] = &copyp
 		}
 
 		require.ElementsMatch(t, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
@@ -2841,28 +2912,34 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 				ProfileIdentifier: "com.add.profile.five",
 				HostUUID:          hostUUID2,
 				OperationType:     fleet.MDMOperationTypeInstall,
-				Status:            &fleet.MDMDeliveryPending,
-				Scope:             fleet.PayloadScopeSystem,
+				Status:            &fleet.MDMDeliveryFailed,
+				Detail:            "This setting couldn't be enforced because the user channel doesn't exist for this host. Currently, Fleet creates the user channel for hosts that automatically enroll.",
+				Scope:             fleet.PayloadScopeUser,
 			},
 		}, copies)
 		return nil
 	}
 
-	// Enable NDES
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		appCfg := &fleet.AppConfig{}
 		appCfg.ServerSettings.ServerURL = "https://test.example.com"
 		appCfg.MDM.EnabledAndConfigured = true
-		appCfg.Integrations.NDESSCEPProxy.Valid = true
 		return appCfg, nil
 	}
+
+	// TODO(hca): Mock this to enable NDES?
+	// ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+	// 	return []*fleet.CertificateAuthority{}, nil
+	// }
+
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	ds.BulkUpsertMDMManagedCertificatesFunc = func(ctx context.Context, payload []*fleet.MDMManagedCertificate) error {
 		assert.Empty(t, payload)
 		return nil
 	}
 
-	t.Run("replace $FLEET_VAR_"+fleet.FleetVarNDESSCEPProxyURL, func(t *testing.T) {
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
+	t.Run("replace $FLEET_VAR_"+string(fleet.FleetVarNDESSCEPProxyURL), func(t *testing.T) {
 		var upsertCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -2887,6 +2964,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		require.NoError(t, err)
 		assert.Equal(t, 2, upsertCount)
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2894,7 +2972,8 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
-	t.Run("preprocessor fails on $FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP, func(t *testing.T) {
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
+	t.Run("preprocessor fails on $FLEET_VAR_"+string(fleet.FleetVarHostEndUserEmailIDP), func(t *testing.T) {
 		var failedCount int
 		failedCall = false
 		failedCheck = func(payload []*fleet.MDMAppleBulkUpsertHostProfilePayload) {
@@ -2913,6 +2992,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		}
 		err := ReconcileAppleProfiles(ctx, ds, cmdr, kitlog.NewNopLogger())
 		assert.ErrorContains(t, err, "GetHostEmailsFuncError")
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2920,6 +3000,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		checkAndReset(t, true, &ds.GetNanoMDMUserEnrollmentFuncInvoked)
 	})
 
+	// TODO(hca): ask Magnus where/how new tests cover the CA portion of this test
 	t.Run("bad $FLEET_VAR", func(t *testing.T) {
 		var failedCount int
 		failedCall = false
@@ -2959,9 +3040,13 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 			contents5 = originalContents5
 		})
 
-		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx)
+		profilesToInstall, _ := ds.ListMDMAppleProfilesToInstallFunc(ctx, "")
 		hostUUIDs = make([]string, 0, len(profilesToInstall))
 		for _, p := range profilesToInstall {
+			// This host will error before this point - should not be updated by the variable failure
+			if p.HostUUID == hostUUID2 && p.ProfileUUID == p5 {
+				continue
+			}
 			hostUUIDs = append(hostUUIDs, p.HostUUID)
 		}
 
@@ -2969,6 +3054,7 @@ func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, hostUUIDs, "all host+profile combinations should be updated")
 		require.Equal(t, 4, failedCount, "number of profiles with bad content")
+		// checkAndReset(t, true, &ds.GetAllCertificateAuthoritiesFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToInstallFuncInvoked)
 		checkAndReset(t, true, &ds.ListMDMAppleProfilesToRemoveFuncInvoked)
 		checkAndReset(t, true, &ds.GetMDMAppleProfilesContentsFuncInvoked)
@@ -2985,13 +3071,13 @@ func TestPreprocessProfileContents(t *testing.T) {
 	appCfg := &fleet.AppConfig{}
 	appCfg.ServerSettings.ServerURL = "https://test.example.com"
 	appCfg.MDM.EnabledAndConfigured = true
-	appCfg.Integrations.NDESSCEPProxy.Valid = true
+	// appCfg.Integrations.NDESSCEPProxy.Valid = true
 	ds := new(mock.Store)
 
 	// No-op
 	svc := eeservice.NewSCEPConfigService(logger, nil)
 	digiCertService := digicert.NewService(digicert.WithLogger(logger))
-	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, nil, nil, nil, nil)
+	err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, nil, nil, nil, nil, nil)
 	require.NoError(t, err)
 
 	hostUUID := "host-1"
@@ -3034,7 +3120,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	// Can't use NDES SCEP proxy with free tier
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierFree})
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "Premium license")
@@ -3042,10 +3128,10 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// Can't use NDES SCEP proxy without it being configured
 	ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: fleet.TierPremium})
-	appCfg.Integrations.NDESSCEPProxy.Valid = false
+	// appCfg.Integrations.NDESSCEPProxy.Valid = false
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, &fleet.GroupedCertificateAuthorities{})
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "not configured")
@@ -3056,10 +3142,10 @@ func TestPreprocessProfileContents(t *testing.T) {
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_BOZO"),
 	}
-	appCfg.Integrations.NDESSCEPProxy.Valid = true
+	// appCfg.Integrations.NDESSCEPProxy.Valid = true
 	updatedPayload = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 	require.NoError(t, err)
 	require.NotNil(t, updatedPayload)
 	assert.Contains(t, updatedPayload.Detail, "FLEET_VAR_BOZO")
@@ -3090,12 +3176,24 @@ func TestPreprocessProfileContents(t *testing.T) {
 		return nil
 	}
 
+	adminUrl := "https://example.com"
+	username := "admin"
+	password := "test-password"
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://test-example.com",
+			AdminURL: adminUrl,
+			Username: username,
+			Password: password,
+		},
+	}
+
 	// Could not get NDES SCEP challenge
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPChallenge),
 	}
 	scepConfig := &scep_mock.SCEPConfigService{}
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESInvalidError("NDES error")
 	}
@@ -3105,7 +3203,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload) // no profiles to update since FLEET VAR could not be populated
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3114,13 +3212,13 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Password cache full
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESPasswordCacheFullError("NDES error")
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3129,13 +3227,13 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Insufficient permissions
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", eeservice.NewNDESInsufficientPermissionsError("NDES error")
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3144,13 +3242,13 @@ func TestPreprocessProfileContents(t *testing.T) {
 	assert.Empty(t, targets)
 
 	// Other NDES challenge error
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return "", errors.New("NDES error")
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarNDESSCEPChallenge)
@@ -3161,7 +3259,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 
 	// NDES challenge
 	challenge := "ndes-challenge"
-	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+	scepConfig.GetNDESSCEPChallengeFunc = func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 		assert.Equal(t, ndesPassword, proxy.Password)
 		return challenge, nil
 	}
@@ -3178,7 +3276,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.NotNil(t, payload[0].ChallengeRetrievedAt)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3201,7 +3299,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		assert.Empty(t, payload)
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3222,7 +3320,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "FLEET_VAR_"+fleet.FleetVarHostEndUserEmailIDP)
@@ -3236,7 +3334,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3260,7 +3358,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	assert.Nil(t, updatedProfile)
 	require.NotEmpty(t, targets)
@@ -3279,7 +3377,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 	}
 	updatedProfile = nil
 	populateTargets()
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotNil(t, updatedProfile)
 	assert.Contains(t, updatedProfile.Detail, "Unexpected number of hosts (0) for UUID")
@@ -3294,7 +3392,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 	}
 	populateTargets()
-	appCfg.Integrations.NDESSCEPProxy.Valid = false // NDES will fail
+	groupedCAs.NDESSCEP = nil
 	profileContents = map[string]mobileconfig.Mobileconfig{
 		"p1": []byte("$FLEET_VAR_" + fleet.FleetVarNDESSCEPProxyURL),
 		"p2": []byte("$FLEET_VAR_" + fleet.FleetVarHostEndUserEmailIDP),
@@ -3342,7 +3440,7 @@ func TestPreprocessProfileContents(t *testing.T) {
 		}
 		return nil
 	}
-	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+	err = preprocessProfileContents(ctx, appCfg, ds, scepConfig, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	require.NoError(t, err)
 	require.NotEmpty(t, targets)
 	assert.Len(t, targets, 3)
@@ -3712,7 +3810,9 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 }
 
 // Helper for creating scoped mobileconfigs. scope is optional and if set to nil is not included in
-// the mobileconfig so that default behavior is used.
+// the mobileconfig so that default behavior is used. Note that because Fleet enforces that all
+// profiles sharing a given identifier have the same scope, it's a good idea to use a unique
+// identifier in your test or perhaps one with the scope in its name
 func scopedMobileconfigForTest(name, identifier string, scope *fleet.PayloadScope, vars ...string) []byte {
 	var varsStr strings.Builder
 	for i, v := range vars {
@@ -4036,6 +4136,153 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: "ref1"}}, nil
 				}
 
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					return map[string]error{}, errors.New("foo")
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "InstallProfile for userDeviceAssocs",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				wantCommandUUIDs := make(map[string]string)
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				user2Email := "user2@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID2": {
+							UUID:     "userUUID2",
+							Username: "user2",
+							Email:    user2Email,
+						},
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, 1, len(id))
+					_, idAlreadyExists := wantCommandUUIDs[id[0]]
+					// Should only get one for each host
+					require.False(t, idAlreadyExists, "Command UUID for host %s already exists: %s", id[0], wantCommandUUIDs[id[0]])
+					wantCommandUUIDs[id[0]] = cmd.CommandUUID
+
+					// Make sure the user's email made it into the profile
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					switch id[0] {
+					case "hostUUID1":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
+					case "hostUUID2":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user2Email)), "The profile for hostUUID 2 should contain the associated user email")
+					default:
+						require.Fail(t, "Unexpected host ID for command: %s", id[0])
+					}
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Contains(t, []string{"hostUUID1", "hostUUID2"}, assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUIDs[assocs[0].HostUUID])
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for userDeviceAssocs does not return email for one device",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				wantCommandUUIDs := make(map[string]string)
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
+					error,
+				) {
+					require.Equal(t, "InstallProfile", cmd.Command.Command.RequestType)
+					require.Equal(t, 1, len(id))
+					_, idAlreadyExists := wantCommandUUIDs[id[0]]
+					// Should only get one for each host
+					require.False(t, idAlreadyExists, "Command UUID for host %s already exists: %s", id[0], wantCommandUUIDs[id[0]])
+					wantCommandUUIDs[id[0]] = cmd.CommandUUID
+
+					// Make sure the user's email made it into the profile if it was returned
+					var fullCmd micromdm.CommandPayload
+					require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+					switch id[0] {
+					// Only hostUUID1 has an email associated with it
+					// so we expect it to be present in the profile
+					case "hostUUID1":
+						require.True(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte(user1Email)), "The profile for hostUUID 1 should contain the associated user email")
+					case "hostUUID2":
+						require.False(t, bytes.Contains(fullCmd.Command.InstallProfile.Payload, []byte("@example.com")), "The profile for hostUUID 2 should not contain any user email")
+					default:
+						require.Fail(t, "Unexpected host ID for command: %s", id[0])
+					}
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Contains(t, []string{"hostUUID1", "hostUUID2"}, assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUIDs[assocs[0].HostUUID])
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for userDeviceAssocs fails",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mdmmock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollmentType: "User Enrollment (Device)"}, {HostUUID: "hostUUID2", EnrollmentType: "User Enrollment (Device)"}}, nil
+				}
+				user1Email := "user1@example.com"
+				user2Email := "user2@example.com"
+				ds.GetMDMIdPAccountsByHostUUIDsFunc = func(ctx context.Context, hostUUIDs []string) (map[string]*fleet.MDMIdPAccount, error) {
+					require.Len(t, hostUUIDs, 2)
+					return map[string]*fleet.MDMIdPAccount{
+						"hostUUID2": {
+							UUID:     "userUUID2",
+							Username: "user2",
+							Email:    user2Email,
+						},
+						"hostUUID1": {
+							UUID:     "userUUID1",
+							Username: "user1",
+							Email:    user1Email,
+						},
+					}, nil
+				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.CommandWithSubtype) (map[string]error,
 					error,
 				) {
@@ -4573,6 +4820,9 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		assert.Equal(t, expectedStatus, *profile.Status)
 		return nil
 	}
+	ds.GetAllCertificateAuthoritiesFunc = func(ctx context.Context, includeSecrets bool) ([]*fleet.CertificateAuthority, error) {
+		return []*fleet.CertificateAuthority{}, nil
+	}
 
 	cases := []struct {
 		desc           string
@@ -4583,7 +4833,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	}{
 		{
 			desc:           "username only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4602,7 +4852,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username local part only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4621,7 +4871,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups only scim",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4643,7 +4893,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "multiple times username only scim",
-			profileContent: strings.Repeat("${FLEET_VAR_"+fleet.FleetVarHostEndUserIDPUsername+"}", 3),
+			profileContent: strings.Repeat("${FLEET_VAR_"+string(fleet.FleetVarHostEndUserIDPUsername)+"}", 3),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4662,7 +4912,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "all 3 vars with scim",
-			profileContent: "${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart + "}${FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups + "}",
+			profileContent: "${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart) + "}${FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups) + "}",
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4684,7 +4934,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username no scim, with idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4705,7 +4955,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username scim and idp",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4726,7 +4976,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "username, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsername,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsername),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4740,12 +4990,12 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME.")
 			},
 		},
 		{
 			desc:           "username local part, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPUsernameLocalPart,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPUsernameLocalPart),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4759,12 +5009,12 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			},
 			assert: func(output string) {
 				assert.Len(t, targets, 0) // target is not present
-				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
+				assert.Contains(t, updatedProfile.Detail, "There is no IdP username for this host. Fleet couldn't populate $FLEET_VAR_HOST_END_USER_IDP_USERNAME_LOCAL_PART.")
 			},
 		},
 		{
 			desc:           "groups, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4781,7 +5031,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "department, no idp user",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4798,7 +5048,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "groups with scim user but no group",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPGroups,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPGroups),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4815,7 +5065,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryPending,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4838,7 +5088,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 		},
 		{
 			desc:           "profile with scim department, user has no department",
-			profileContent: "$FLEET_VAR_" + fleet.FleetVarHostEndUserIDPDepartment,
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPDepartment),
 			expectedStatus: fleet.MDMDeliveryFailed,
 			setup: func() {
 				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
@@ -4858,6 +5108,93 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 				assert.Contains(t, updatedProfile.Detail, "There is no IdP department for this host. Fleet couldn’t populate $FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT.")
 			},
 		},
+		{
+			desc:           "profile with scim full name, user has full name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						GivenName:  ptr.String("First"),
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has given name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:  "fake",
+						GivenName: ptr.String("First"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "First", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user only has family name",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryPending,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName:   "fake",
+						FamilyName: ptr.String("Last"),
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Empty(t, updatedPayload.Detail) // no error detail
+				assert.Len(t, targets, 1)              // target is still present
+				require.Equal(t, "Last", output)
+			},
+		},
+		{
+			desc:           "profile with scim full name, user has no full name value",
+			profileContent: "$FLEET_VAR_" + string(fleet.FleetVarHostEndUserIDPFullname),
+			expectedStatus: fleet.MDMDeliveryFailed,
+			setup: func() {
+				ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+					require.EqualValues(t, 1, hostID)
+					return &fleet.ScimUser{
+						UserName: "fake",
+					}, nil
+				}
+				ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+					return nil, nil
+				}
+			},
+			assert: func(output string) {
+				assert.Contains(t, updatedProfile.Detail, fmt.Sprintf("There is no IdP full name for this host. Fleet couldn’t populate $FLEET_VAR_%s.", fleet.FleetVarHostEndUserIDPFullname))
+				assert.Len(t, targets, 0)
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -4872,7 +5209,7 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 			updatedPayload = nil
 			updatedProfile = nil
 
-			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+			err := preprocessProfileContents(ctx, appCfg, ds, svc, digiCertService, logger, targets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, nil)
 			require.NoError(t, err)
 			var output string
 			if expectedStatus == fleet.MDMDeliveryFailed {
@@ -4889,26 +5226,70 @@ func TestPreprocessProfileContentsEndUserIDP(t *testing.T) {
 	}
 }
 
+func TestValidateConfigProfileFleetVariablesLicense(t *testing.T) {
+	t.Parallel()
+	profileWithVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile with Fleet variable</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>$FLEET_VAR_HOST_END_USER_EMAIL_IDP</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+
+	// Test with free license
+	freeLic := &fleet.LicenseInfo{Tier: fleet.TierFree}
+	_, err := validateConfigProfileFleetVariables(profileWithVars, freeLic, nil)
+	require.ErrorIs(t, err, fleet.ErrMissingLicense)
+
+	// Test with premium license
+	premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+	vars, err := validateConfigProfileFleetVariables(profileWithVars, premiumLic, &fleet.GroupedCertificateAuthorities{})
+	require.NoError(t, err)
+	require.Contains(t, vars, "HOST_END_USER_EMAIL_IDP")
+
+	// Test profile without variables (should work with free license)
+	profileNoVars := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>Test profile without Fleet variables</string>
+	<key>PayloadDisplayName</key>
+	<string>Test Profile</string>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>ComputerName</key>
+			<string>StaticValue</string>
+		</dict>
+	</array>
+</dict>
+</plist>`
+	vars, err = validateConfigProfileFleetVariables(profileNoVars, freeLic, &fleet.GroupedCertificateAuthorities{})
+	require.NoError(t, err)
+	require.Empty(t, vars)
+}
+
 func TestValidateConfigProfileFleetVariables(t *testing.T) {
 	t.Parallel()
-	appConfig := &fleet.AppConfig{
-		Integrations: fleet.Integrations{
-			DigiCert: optjson.Slice[fleet.DigiCertIntegration]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.DigiCertIntegration{
-					getDigiCertIntegration("https://example.com", "caName"),
-					getDigiCertIntegration("https://example.com", "caName2"),
-				},
-			},
-			CustomSCEPProxy: optjson.Slice[fleet.CustomSCEPProxyIntegration]{
-				Set:   true,
-				Valid: true,
-				Value: []fleet.CustomSCEPProxyIntegration{
-					getCustomSCEPIntegration("https://example.com", "scepName"),
-					getCustomSCEPIntegration("https://example.com", "scepName2"),
-				},
-			},
+	groupedCAs := &fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			newMockDigicertCA("https://example.com", "caName"),
+			newMockDigicertCA("https://example.com", "caName2"),
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			newMockCustomSCEPProxyCA("https://example.com", "scepName"),
+			newMockCustomSCEPProxyCA("https://example.com", "scepName2"),
 		},
 	}
 
@@ -5180,10 +5561,23 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 				"SCEP_RENEWAL_ID",
 			},
 		},
+		{
+			name: "Custom profile with IdP full name var",
+			profile: string(scopedMobileconfigForTest(
+				"FullName Var",
+				"com.example.fullname",
+				nil,
+				"HOST_END_USER_IDP_FULL_NAME", // will be prefixed to $FLEET_VAR_ by helper
+			)),
+			errMsg: "",
+			vars:   []string{"HOST_END_USER_IDP_FULL_NAME"},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			vars, err := validateConfigProfileFleetVariables(appConfig, tc.profile)
+			// Pass a premium license for testing (we're not testing license validation here)
+			premiumLic := &fleet.LicenseInfo{Tier: fleet.TierPremium}
+			vars, err := validateConfigProfileFleetVariables(tc.profile, premiumLic, groupedCAs)
 			if tc.errMsg != "" {
 				assert.ErrorContains(t, err, tc.errMsg)
 				assert.Empty(t, vars)

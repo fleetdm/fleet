@@ -18,6 +18,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   platform: "darwin",
   status: "verified",
   detail: "This is verified",
+  scope: "device",
+  managed_local_account: "",
 };
 
 export const createMockHostMdmProfile = (
@@ -25,6 +27,8 @@ export const createMockHostMdmProfile = (
 ): IHostMdmProfile => {
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
 };
+
+export const DEFAULT_HOST_HOSTNAME = "9b20fc72a247";
 
 const DEFAULT_HOST_MOCK: IHost = {
   id: 1,
@@ -38,7 +42,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   seen_time: "2022-04-06T02:11:41Z",
   refetch_requested: false,
   refetch_critical_queries_until: null,
-  hostname: "9b20fc72a247",
+  hostname: DEFAULT_HOST_HOSTNAME,
   display_name: "9b20fc72a247",
   display_text: "mock host 1",
   uuid: "09b244f8-0000-0000-b5cc-791a15f11073",
@@ -153,7 +157,7 @@ export const createMockHostSummary = (overrides?: Partial<IHost>) => {
 
 const DEFAULT_HOST_SOFTWARE_PACKAGE_MOCK: IHostSoftwarePackage = {
   name: "mock software.app",
-  version: "1.0.0",
+  version: "1.0.0", // Used in version comparison tests
   self_service: false,
   icon_url: "https://example.com/icon.png",
   last_install: {
@@ -184,7 +188,7 @@ export const createMockHostAppStoreApp = (
 };
 
 export const DEFAULT_INSTALLED_VERSION = {
-  version: "1.0.0",
+  version: "1.0.0", // Used in version comparison tests
   last_opened_at: "2022-01-01T12:00:00Z",
   vulnerabilities: ["CVE-2020-0001"],
   installed_paths: ["/Applications/mock.app"],
@@ -200,6 +204,7 @@ export const DEFAULT_INSTALLED_VERSION = {
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
+  icon_url: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,
   source: "apps",

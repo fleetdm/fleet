@@ -35,21 +35,24 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string `yaml:"protocol"`
-	Address         string `yaml:"address"`
-	Username        string `yaml:"username"`
-	Password        string `yaml:"password"`
-	PasswordPath    string `yaml:"password_path"`
-	Database        string `yaml:"database"`
-	TLSCert         string `yaml:"tls_cert"`
-	TLSKey          string `yaml:"tls_key"`
-	TLSCA           string `yaml:"tls_ca"`
-	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	SQLMode         string `yaml:"sql_mode"`
+	Protocol         string `yaml:"protocol"`
+	Address          string `yaml:"address"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	PasswordPath     string `yaml:"password_path"`
+	Database         string `yaml:"database"`
+	TLSCert          string `yaml:"tls_cert"`
+	TLSKey           string `yaml:"tls_key"`
+	TLSCA            string `yaml:"tls_ca"`
+	TLSServerName    string `yaml:"tls_server_name"`
+	TLSConfig        string `yaml:"tls_config"` // tls=customValue in DSN
+	MaxOpenConns     int    `yaml:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
+	SQLMode          string `yaml:"sql_mode"`
+	Region           string `yaml:"region"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -58,7 +61,11 @@ type RedisConfig struct {
 	Username                  string
 	Password                  string
 	Database                  int
+	Region                    string        `yaml:"region"`
+	CacheName                 string        `yaml:"cache_name"`
 	UseTLS                    bool          `yaml:"use_tls"`
+	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
+	StsExternalID             string        `yaml:"sts_external_id"`
 	DuplicateResults          bool          `yaml:"duplicate_results"`
 	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
@@ -137,11 +144,12 @@ func (s *ServerConfig) DefaultHTTPServer(ctx context.Context, handler http.Handl
 	return server
 }
 
-// AuthConfig defines configs related to user authorization
+// AuthConfig defines configs related to user or host authorization
 type AuthConfig struct {
-	BcryptCost               int           `yaml:"bcrypt_cost"`
-	SaltKeySize              int           `yaml:"salt_key_size"`
-	SsoSessionValidityPeriod time.Duration `yaml:"sso_session_validity_period"`
+	BcryptCost                  int           `yaml:"bcrypt_cost"`
+	SaltKeySize                 int           `yaml:"salt_key_size"`
+	SsoSessionValidityPeriod    time.Duration `yaml:"sso_session_validity_period"`
+	RequireHTTPMessageSignature bool          `yaml:"require_http_message_signature"`
 }
 
 // AppConfig defines configs related to HTTP
@@ -540,6 +548,7 @@ type VulnerabilitiesConfig struct {
 	CPEDatabaseURL              string        `json:"cpe_database_url" yaml:"cpe_database_url"`
 	CPETranslationsURL          string        `json:"cpe_translations_url" yaml:"cpe_translations_url"`
 	CVEFeedPrefixURL            string        `json:"cve_feed_prefix_url" yaml:"cve_feed_prefix_url"`
+	CISAKnownExploitsURL        string        `json:"cisa_known_exploits_url" yaml:"cisa_known_exploits_url"`
 	CurrentInstanceChecks       string        `json:"current_instance_checks" yaml:"current_instance_checks"`
 	DisableSchedule             bool          `json:"disable_schedule" yaml:"disable_schedule"`
 	DisableDataSync             bool          `json:"disable_data_sync" yaml:"disable_data_sync"`
@@ -626,6 +635,10 @@ type FleetConfig struct {
 
 	// Deprecated: "packaging" fields were used for "Fleet Sandbox" which doesn't exist anymore.
 	Packaging PackagingConfig
+}
+
+func (f FleetConfig) OTELEnabled() bool {
+	return f.Logging.TracingEnabled && f.Logging.TracingType == "opentelemetry"
 }
 
 type PartnershipsConfig struct {
@@ -1043,6 +1056,9 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".region", "", "RDS region for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -1055,6 +1071,10 @@ func (man Manager) addConfigs() {
 		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
+	man.addConfigString("redis.cache_name", "",
+		"Redis server Elasticache cache name")
+	man.addConfigString("redis.region", "",
+		"Redis server Elasticache region")
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
@@ -1076,6 +1096,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
+	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
+	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1099,7 +1121,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
-	man.addConfigDuration("server.vpp_verify_timeout", 5*time.Minute, "Maximum amout of time to wait for VPP app install verification")
+	man.addConfigDuration("server.vpp_verify_timeout", 10*time.Minute, "Maximum amout of time to wait for VPP app install verification")
 	man.addConfigDuration("server.vpp_verify_request_delay", 5*time.Second, "Delay in between requests to verify VPP app installs")
 
 	// Hide the sandbox flag as we don't want it to be discoverable for users for now
@@ -1112,6 +1134,8 @@ func (man Manager) addConfigs() {
 		"Size of salt for passwords")
 	man.addConfigDuration("auth.sso_session_validity_period", 5*time.Minute,
 		"Timeout from SSO start to SSO callback")
+	man.addConfigBool("auth.require_http_message_signature", false,
+		"Require HTTP message signatures for fleetd requests (Premium feature)")
 
 	// App
 	man.addConfigString("app.token_key", "CHANGEME",
@@ -1363,6 +1387,8 @@ func (man Manager) addConfigs() {
 		"URL from which to get the latest CPE translations. If empty, it will be downloaded from the latest release available at https://github.com/fleetdm/nvd/releases.")
 	man.addConfigString("vulnerabilities.cve_feed_prefix_url", "",
 		"Prefix URL for the CVE data feed. If empty, default to https://nvd.nist.gov/")
+	man.addConfigString("vulnerabilities.cisa_known_exploits_url", "",
+		"URL from which to get the latest CISA (Known exploited vulnerabilities) database. If empty, it will be downloaded from https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json")
 	man.addConfigString("vulnerabilities.current_instance_checks", "auto",
 		"Allows to manually select an instance to do the vulnerability processing.")
 	man.addConfigBool("vulnerabilities.disable_schedule", false,
@@ -1468,21 +1494,24 @@ func (man Manager) LoadConfig() FleetConfig {
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
-			Protocol:        man.getConfigString(prefix + ".protocol"),
-			Address:         man.getConfigString(prefix + ".address"),
-			Username:        man.getConfigString(prefix + ".username"),
-			Password:        man.getConfigString(prefix + ".password"),
-			PasswordPath:    man.getConfigString(prefix + ".password_path"),
-			Database:        man.getConfigString(prefix + ".database"),
-			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
-			TLSKey:          man.getConfigString(prefix + ".tls_key"),
-			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
-			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
-			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
-			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
-			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
-			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
+			Protocol:         man.getConfigString(prefix + ".protocol"),
+			Address:          man.getConfigString(prefix + ".address"),
+			Username:         man.getConfigString(prefix + ".username"),
+			Password:         man.getConfigString(prefix + ".password"),
+			PasswordPath:     man.getConfigString(prefix + ".password_path"),
+			Database:         man.getConfigString(prefix + ".database"),
+			TLSCert:          man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:           man.getConfigString(prefix + ".tls_key"),
+			TLSCA:            man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:    man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:        man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:     man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			Region:           man.getConfigString(prefix + ".region"),
+			StsAssumeRoleArn: man.getConfigString(prefix + ".sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString(prefix + ".sts_external_id"),
 		}
 	}
 
@@ -1494,6 +1523,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
+			Region:                    man.getConfigString("redis.region"),
+			CacheName:                 man.getConfigString("redis.cache_name"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
 			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
 			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
@@ -1513,6 +1544,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:             man.getConfigString("redis.sts_external_id"),
 		},
 		Server: ServerConfig{
 			Address:                     man.getConfigString("server.address"),
@@ -1531,9 +1564,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			VPPVerifyRequestDelay:       man.getConfigDuration("server.vpp_verify_request_delay"),
 		},
 		Auth: AuthConfig{
-			BcryptCost:               man.getConfigInt("auth.bcrypt_cost"),
-			SaltKeySize:              man.getConfigInt("auth.salt_key_size"),
-			SsoSessionValidityPeriod: man.getConfigDuration("auth.sso_session_validity_period"),
+			BcryptCost:                  man.getConfigInt("auth.bcrypt_cost"),
+			SaltKeySize:                 man.getConfigInt("auth.salt_key_size"),
+			SsoSessionValidityPeriod:    man.getConfigDuration("auth.sso_session_validity_period"),
+			RequireHTTPMessageSignature: man.getConfigBool("auth.require_http_message_signature"),
 		},
 		App: AppConfig{
 			TokenKeySize:              man.getConfigInt("app.token_key_size"),
@@ -1667,6 +1701,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			CPEDatabaseURL:              man.getConfigString("vulnerabilities.cpe_database_url"),
 			CPETranslationsURL:          man.getConfigString("vulnerabilities.cpe_translations_url"),
 			CVEFeedPrefixURL:            man.getConfigString("vulnerabilities.cve_feed_prefix_url"),
+			CISAKnownExploitsURL:        man.getConfigString("vulnerabilities.cisa_known_exploits_url"),
 			CurrentInstanceChecks:       man.getConfigString("vulnerabilities.current_instance_checks"),
 			DisableSchedule:             man.getConfigBool("vulnerabilities.disable_schedule"),
 			DisableDataSync:             man.getConfigBool("vulnerabilities.disable_data_sync"),
@@ -2050,9 +2085,10 @@ func TestConfig() FleetConfig {
 			InviteTokenValidityPeriod: 5 * 24 * time.Hour,
 		},
 		Auth: AuthConfig{
-			BcryptCost:               6, // Low cost keeps tests fast
-			SaltKeySize:              24,
-			SsoSessionValidityPeriod: 5 * time.Minute,
+			BcryptCost:                  6, // Low cost keeps tests fast
+			SaltKeySize:                 24,
+			SsoSessionValidityPeriod:    5 * time.Minute,
+			RequireHTTPMessageSignature: false,
 		},
 		Session: SessionConfig{
 			KeySize:  64,

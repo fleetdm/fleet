@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
@@ -90,7 +90,7 @@ func (d *SCEPDepot) Put(name string, crt *x509.Certificate) error {
 	if !crt.SerialNumber.IsInt64() {
 		return errors.New("cannot represent serial number as int64")
 	}
-	certPEM := apple_mdm.EncodeCertPEM(crt)
+	certPEM := certificate.EncodeCertPEM(crt)
 	_, err := d.db.Exec(`
 INSERT INTO scep_certificates
     (serial, name, not_valid_before, not_valid_after, certificate_pem)

@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
 
@@ -216,7 +217,14 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.MSRCSource,
+		CreatedAt:  mockTime,
 	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Mock the time to make it easier to check
+		_, err := q.ExecContext(ctx, "UPDATE operating_system_vulnerabilities SET created_at = ? WHERE cve = ?", mockTime, expected.CVE.CVE)
+		return err
+	})
 
 	// No CVSSScores
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
@@ -224,6 +232,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// Team 1
 	expected.HostsCount = 4
@@ -232,6 +241,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// No Team
 	expected.HostsCount = 6
@@ -240,6 +250,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	expected = fleet.VulnerabilityWithMetadata{
 		CVE: fleet.CVE{
@@ -252,6 +263,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.MSRCSource,
+		CreatedAt:  mockTime,
 	}
 
 	// With CVSSScores
@@ -260,6 +272,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 }
 
 func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
@@ -312,7 +325,14 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.NVDSource,
+		CreatedAt:  mockTime,
 	}
+
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// Mock the time to make it easier to check
+		_, err := q.ExecContext(ctx, "UPDATE software_cve SET created_at = ? WHERE cve = ?", mockTime, expected.CVE.CVE)
+		return err
+	})
 
 	// Global (all teams)
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
@@ -320,6 +340,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// Team 1
 	expected.HostsCount = 4
@@ -328,6 +349,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// No Team
 	expected.HostsCount = 6
@@ -336,6 +358,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 
 	// With CVSSScores
 	expected = fleet.VulnerabilityWithMetadata{
@@ -349,6 +372,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		},
 		HostsCount: 10,
 		Source:     fleet.NVDSource,
+		CreatedAt:  mockTime,
 	}
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
@@ -356,6 +380,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
+	require.Equal(t, expected.CreatedAt, v.CreatedAt)
 }
 
 func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
@@ -682,7 +707,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	// move host 1 to team 1
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID}))
 	require.NoError(t, err)
 
 	err = ds.UpdateVulnerabilityHostCounts(context.Background(), 5)
@@ -718,7 +743,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i+4), fmt.Sprintf("192.168.0.%d", i+4), fmt.Sprintf("%d", i+4444), fmt.Sprintf("%d", i+4444), time.Now())
 		err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, macOS)
 		require.NoError(t, err)
-		err = ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{host.ID})
+		err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{host.ID}))
 		require.NoError(t, err)
 	}
 
@@ -826,7 +851,7 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	for i := 0; i < 2; i++ {
-		err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[i].ID})
+		err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hosts[i].ID}))
 		require.NoError(t, err)
 	}
 
@@ -1040,17 +1065,17 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// move 4 windows hosts to team 1
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team1.ID, hostids[:4])
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, hostids[:4]))
 	require.NoError(t, err)
 
 	// move 3 windows hosts to team 2
 	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(context.Background(), &team2.ID, hostids[4:7])
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, hostids[4:7]))
 	require.NoError(t, err)
 
 	// move 1 macOS host to team 2
-	err = ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{hostids[10]})
+	err = ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hostids[10]}))
 	require.NoError(t, err)
 
 	err = ds.UpdateOSVersions(context.Background())
@@ -1117,11 +1142,19 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		},
 		{
 			SoftwareID: 2,
+			CVE:        "CVE-2020-1235", // overlaps software ID 1
+		},
+		{
+			SoftwareID: 2,
 			CVE:        "CVE-2020-1236",
 		},
 		{
 			SoftwareID: 2,
 			CVE:        "CVE-2020-1237",
+		},
+		{
+			SoftwareID: 2,
+			CVE:        "CVE-2020-1238", // overlaps between software and OS
 		},
 	}
 
@@ -1349,7 +1382,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 
 	// Insert Software Vuln
 	for _, vuln := range softwareVulns {
-		_, err = ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+		_, err = ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.CustomSource)
 		require.NoError(t, err)
 	}
 

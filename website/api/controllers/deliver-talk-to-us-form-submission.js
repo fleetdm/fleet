@@ -46,10 +46,11 @@ module.exports = {
       required: true,
       description: 'What this user will be using Fleet for',
       isIn: [
-        'vm',
-        'mdm',
-        'eo-it',
-        'eo-security',
+        'it-major-mdm',
+        'it-gap-filler-mdm',
+        'it-misc',
+        'security-misc',
+        'security-vm',
       ],
     },
 
@@ -73,33 +74,26 @@ module.exports = {
     if(_.includes(sails.config.custom.bannedEmailDomainsForWebsiteSubmissions, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
-
+    let contactInformation = {
+      emailAddress: emailAddress,
+      firstName: firstName,
+      lastName: lastName,
+      organization: organization,
+      primaryBuyingSituation: primaryBuyingSituation === 'security-misc' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'it-misc' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'it-major-mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'it-gap-filler-mdm' ? 'IT - Gap-filler MDM' : primaryBuyingSituation === 'security-vm' ? 'Vulnerability management' : undefined,
+      contactSource: 'Website - Contact forms',
+      psychologicalStage: '4 - Has use case',
+      psychologicalStageChangeReason: 'Website - Contact forms'
+    };
     if(numberOfHosts >= 700){
-      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: emailAddress,
-        firstName: firstName,
-        lastName: lastName,
-        organization: organization,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        contactSource: 'Website - Contact forms',
-        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Number of hosts: ${numberOfHosts}`,
-        psychologicalStage: '4 - Has use case',
-        psychologicalStageChangeReason: 'Website - Contact forms'
-      }).exec((err)=>{
+      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Talk to us" event. Number of hosts: ${numberOfHosts}`;
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
         }
       });
     } else {
-      sails.helpers.salesforce.updateOrCreateContactAndAccount.with({
-        emailAddress: emailAddress,
-        firstName: firstName,
-        lastName: lastName,
-        organization: organization,
-        primaryBuyingSituation: primaryBuyingSituation === 'eo-security' ? 'Endpoint operations - Security' : primaryBuyingSituation === 'eo-it' ? 'Endpoint operations - IT' : primaryBuyingSituation === 'mdm' ? 'Device management (MDM)' : primaryBuyingSituation === 'vm' ? 'Vulnerability management' : undefined,
-        contactSource: 'Website - Contact forms',
-        description: `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Number of hosts: ${numberOfHosts}`,
-      }).exec((err)=>{
+      contactInformation.description = `Submitted the "Talk to us" form and was taken to the Calendly page for the "Let\'s get you set up!" event. Number of hosts: ${numberOfHosts}`;
+      sails.helpers.salesforce.updateOrCreateContactAndAccount.with(contactInformation).exec((err)=>{
         if(err) {
           sails.log.warn(`Background task failed: When a user submitted the "Talk to us" form, a lead/contact could not be updated in the CRM for this email address: ${emailAddress}.`, err);
         }

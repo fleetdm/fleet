@@ -15,11 +15,8 @@ spec:
     activity_expiry_window: 0
   integrations:
     conditional_access_enabled: null
-    custom_scep_proxy: null
-    digicert: null
     google_calendar: null
     jira: null
-    ndes_scep_proxy: null
     zendesk: null
   mdm:
     android_enabled_and_configured: false
@@ -31,6 +28,7 @@ spec:
     enabled_and_configured: true
     windows_enabled_and_configured: false
     enable_disk_encryption: false
+    windows_require_bitlocker_pin: null
     windows_migration_enabled: false
     macos_migration:
       enable: false
@@ -106,6 +104,7 @@ spec:
     issuer_uri: ""
     metadata: ""
     metadata_url: ""
+    sso_server_url: ""
   vulnerability_settings:
     databases_path: ""
   webhook_settings:

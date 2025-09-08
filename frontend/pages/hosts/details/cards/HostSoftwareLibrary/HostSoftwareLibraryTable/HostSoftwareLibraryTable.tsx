@@ -10,6 +10,7 @@ import { convertParamsToSnakeCase, QueryParams } from "utilities/url";
 import { SUPPORT_LINK } from "utilities/constants";
 
 import { HostPlatform, isAndroid } from "interfaces/platform";
+import { IHostSoftwareWithUiStatus } from "interfaces/software";
 
 import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 import TableContainer from "components/TableContainer";
@@ -30,6 +31,7 @@ const baseClass = "host-sw-library-table";
 interface IHostSoftwareLibraryTableProps {
   tableConfig: any; // TODO: type
   data?: IGetHostSoftwareResponse | IGetDeviceSoftwareResponse;
+  enhancedData?: IHostSoftwareWithUiStatus[];
   platform: HostPlatform;
   isLoading: boolean;
   router: InjectedRouter;
@@ -44,6 +46,7 @@ interface IHostSoftwareLibraryTableProps {
 const HostSoftwareLibraryTable = ({
   tableConfig,
   data,
+  enhancedData,
   platform,
   isLoading,
   router,
@@ -82,11 +85,12 @@ const HostSoftwareLibraryTable = ({
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
+        ...(selfService && { self_service: "true" }),
       };
 
       return newQueryParam;
     },
-    []
+    [selfService]
   );
 
   // TODO: Look into useDebounceCallback with dependencies
@@ -121,7 +125,7 @@ const HostSoftwareLibraryTable = ({
       orderDirection: sortDirection,
       orderKey: sortHeader,
       page: 0, // resets page index
-      selfService: value === "selfService",
+      ...(value === "selfService" && { selfService: true }),
     };
 
     router.replace(
@@ -193,7 +197,7 @@ const HostSoftwareLibraryTable = ({
       <TableContainer
         renderCount={memoizedSoftwareCount}
         columnConfigs={tableConfig}
-        data={data?.software || []}
+        data={enhancedData || []}
         isLoading={isLoading}
         defaultSortHeader={sortHeader}
         defaultSortDirection={sortDirection}

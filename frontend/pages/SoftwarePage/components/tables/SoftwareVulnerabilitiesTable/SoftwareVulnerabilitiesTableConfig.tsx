@@ -53,7 +53,7 @@ const generateTableConfig = (
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
-      title: "Vunerability",
+      title: "Vulnerability",
       accessor: "cve",
       disableSortBy: true,
       Header: "Vulnerability",

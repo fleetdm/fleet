@@ -15,6 +15,7 @@ interface ITooltipTruncatedTextCellProps {
    * By default the tooltip text breaks on any character. Default: false */
   tooltipBreakOnWord?: boolean;
   className?: string;
+  tooltipPosition?: "top" | "bottom" | "left" | "right";
 }
 
 const baseClass = "tooltip-truncated-text";
@@ -24,6 +25,7 @@ const TooltipTruncatedText = ({
   tooltip,
   tooltipBreakOnWord = false,
   className,
+  tooltipPosition = "top",
 }: ITooltipTruncatedTextCellProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
     "tooltip-break-on-word": tooltipBreakOnWord,
@@ -42,7 +44,7 @@ const TooltipTruncatedText = ({
         </div>
       </div>
       <ReactTooltip
-        place="top"
+        place={tooltipPosition}
         effect="solid"
         backgroundColor={COLORS["tooltip-bg"]}
         id={tooltipId}

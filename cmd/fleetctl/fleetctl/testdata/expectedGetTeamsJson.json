@@ -32,6 +32,7 @@
 			},
 			"mdm": {
 				"enable_disk_encryption": false,
+				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
 					"minimum_version": null,
 					"deadline": null
@@ -119,6 +120,7 @@
 			},
 			"mdm": {
 				"enable_disk_encryption": false,
+				"windows_require_bitlocker_pin": false,
 				"macos_updates": {
 					"minimum_version": "12.3.1",
 					"deadline": "2021-12-14"

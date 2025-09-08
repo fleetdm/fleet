@@ -522,7 +522,7 @@ func (g *GroupHandler) patchMembers(ctx context.Context, op string, v interface{
 		}
 	} else {
 		// For replace operation, replace all members
-		group.ScimUsers = userIDs
+		group.ScimUsers = userIDs // FIXME: List should be deduplicated by us? See https://github.com/fleetdm/fleet/issues/30086
 	}
 
 	return nil

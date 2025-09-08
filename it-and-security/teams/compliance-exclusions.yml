@@ -44,3 +44,15 @@ software:
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/slack-rpm.yml # Zoom for RHEL
+  fleet_maintained_apps:
+    # macOS apps
+    - slug: santa/darwin # Santa for macOS
+      self_service: true
+    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+      self_service: true
+    - slug: beyond-compare/darwin # Beyond Compare for macOS
+      self_service: true
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+    - slug: yubico-yubikey-manager/darwin # YubiKey Manager for macOS
+      self_service: true

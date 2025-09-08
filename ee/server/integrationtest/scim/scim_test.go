@@ -4125,6 +4125,110 @@ func testPatchGroupMembers(t *testing.T, s *Suite) {
 	s.DoJSON(t, "POST", scimPath("/Groups"), createGroupPayload, http.StatusCreated, &createResp)
 	groupID := createResp["id"].(string)
 
+	t.Run("Deduplicate members in replace payload", func(t *testing.T) {
+		// Setup: Ensure the group has only the first user
+		setupPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userIDs[0],
+						},
+					},
+				},
+			},
+		}
+		var setupResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), setupPayload, http.StatusOK, &setupResp)
+
+		// Verify setup was successful
+		members, ok := setupResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 1, len(members), "Group should have 1 member after setup")
+
+		// Test: Replace payload includes duplicate records of the second user
+		patchAddMemberPayload := map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op":   "replace",
+					"path": "members",
+					"value": []map[string]interface{}{
+						{
+							"value": userIDs[1],
+						},
+						{
+							"value": userIDs[0],
+						},
+						{
+							"value": userIDs[1], // Duplicate
+						},
+					},
+				},
+			},
+		}
+
+		var patchResp map[string]interface{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
+
+		// Verify the member was added
+		members, ok = patchResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
+
+		// Check that both users are in the members list
+		memberValues := make([]string, 0, len(members))
+		for _, m := range members {
+			member, ok := m.(map[string]interface{})
+			assert.True(t, ok, "Member should be an object")
+			memberValues = append(memberValues, member["value"].(string))
+		}
+		assert.ElementsMatch(t, memberValues, []string{userIDs[1], userIDs[0], userIDs[1]}) // FIXME: See above
+
+		// Test: Replace payload omits path includes duplicate records of the third user
+		patchAddMemberPayload = map[string]interface{}{
+			"schemas": []string{"urn:ietf:params:scim:api:messages:2.0:PatchOp"},
+			"Operations": []map[string]interface{}{
+				{
+					"op": "replace",
+					"value": map[string]interface{}{
+						"members": []map[string]interface{}{
+							{
+								"value": userIDs[2],
+							},
+							{
+								"value": userIDs[0],
+							},
+							{
+								"value": userIDs[2], // Duplicate
+							},
+						},
+					},
+				},
+			},
+		}
+
+		patchResp = map[string]interface{}{}
+		s.DoJSON(t, "PATCH", scimPath("/Groups/"+groupID), patchAddMemberPayload, http.StatusOK, &patchResp)
+
+		// Verify the member was added
+		members, ok = patchResp["members"].([]interface{})
+		require.True(t, ok, "Response should have members array")
+		assert.Equal(t, 3, len(members), "Group should now have 3 members") // FIXME: Response generated with createGroupResource echoes members from request prior to deduplication. Is this expected?
+
+		// Check that both users are in the members list
+		memberValues = make([]string, 0, len(members))
+		for _, m := range members {
+			member, ok := m.(map[string]interface{})
+			assert.True(t, ok, "Member should be an object")
+			memberValues = append(memberValues, member["value"].(string))
+		}
+		assert.ElementsMatch(t, memberValues, []string{userIDs[2], userIDs[0], userIDs[2]}) // FIXME: See above
+	})
+
 	t.Run("Add a member using path filtering", func(t *testing.T) {
 		// Setup: Ensure the group has only the first user
 		setupPayload := map[string]interface{}{

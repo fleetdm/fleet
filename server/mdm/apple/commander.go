@@ -326,6 +326,7 @@ func (svc *MDMAppleCommander) InstalledApplicationList(ctx context.Context, host
                 <string>Name</string>
                 <string>ShortVersion</string>
                 <string>Identifier</string>
+                <string>Installing</string>
             </array>
         </dict>
         <key>CommandUUID</key>

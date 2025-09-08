@@ -14,9 +14,9 @@ function remove_fleet {
     
     # Remove any package references
     if command -v dpkg > /dev/null; then
-        dpkg --purge fleetdm-orbit || true
+        dpkg --purge fleet-osquery || true
     elif command -v rpm > /dev/null; then
-        rpm -e fleetdm-orbit || true
+        rpm -e fleet-osquery || true
     fi
     
     # Kill any running Fleet processes

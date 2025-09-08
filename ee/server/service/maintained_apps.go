@@ -2,10 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -85,9 +82,10 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	h := sha256.New()
-	_, _ = io.Copy(h, installerTFR) // writes to a Hash can never fail
-	gotHash := hex.EncodeToString(h.Sum(nil))
+	gotHash, err := file.SHA256FromTempFileReader(installerTFR)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
+	}
 
 	// Validate the bytes we got are what we expected, if a valid SHA is supplied
 	if app.SHA256 != noCheckHash {
@@ -98,9 +96,6 @@ func (svc *Service) AddFleetMaintainedApp(
 		app.SHA256 = gotHash
 	}
 
-	if err := installerTFR.Rewind(); err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "rewind installer reader")
-	}
 	extension := strings.TrimLeft(filepath.Ext(filename), ".")
 
 	installScript = file.Dos2UnixNewlines(installScript)
@@ -128,12 +123,27 @@ func (svc *Service) AddFleetMaintainedApp(
 		appName = app.Name
 	}
 
+	version := app.Version
+	if version == "latest" { // download URL isn't version-pinned; extract version from installer
+		meta, err := file.ExtractInstallerMetadata(installerTFR)
+		if err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "extracting installer metadata")
+		}
+
+		// reset the reader (it was consumed to extract metadata)
+		if err := installerTFR.Rewind(); err != nil {
+			return 0, ctxerr.Wrap(ctx, err, "resetting installer file reader")
+		}
+
+		version = meta.Version
+	}
+
 	payload := &fleet.UploadSoftwareInstallerPayload{
 		InstallerFile:         installerTFR,
 		Title:                 appName,
 		UserID:                vc.UserID(),
 		TeamID:                teamID,
-		Version:               app.Version,
+		Version:               version,
 		Filename:              filename,
 		Platform:              app.Platform,
 		Source:                app.Source(),

@@ -4,10 +4,10 @@ import "github.com/fleetdm/fleet/v4/server/fleet"
 
 func (c *Client) SaveSecretVariables(secretVariables []fleet.SecretVariable, dryRun bool) error {
 	verb, path := "PUT", "/api/latest/fleet/spec/secret_variables"
-	params := secretVariablesRequest{
+	params := createSecretVariablesRequest{
 		SecretVariables: secretVariables,
 		DryRun:          dryRun,
 	}
-	var responseBody secretVariablesResponse
+	var responseBody createSecretVariablesResponse
 	return c.authenticatedRequest(params, verb, path, &responseBody)
 }

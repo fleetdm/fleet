@@ -1,71 +1,44 @@
 import React, { useContext, useState } from "react";
 
-import {
-  ICertificateAuthorityType,
-  ICertificateIntegration,
-} from "interfaces/integration";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
 import { NotificationContext } from "context/notification";
-import { AppContext } from "context/app";
 
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
-import {
-  generateCertAuthorityDisplayName,
-  useCertAuthorityDataGenerator,
-} from "./helpers";
-
 const baseClass = "delete-certificate-authority-modal";
 
 interface IDeleteCertificateAuthorityModalProps {
-  listItemId: string;
-  certAuthority: ICertificateIntegration;
+  certAuthority: ICertificateAuthorityPartial;
   onExit: () => void;
 }
 
 const DeleteCertificateAuthorityModal = ({
-  listItemId,
   certAuthority,
   onExit,
 }: IDeleteCertificateAuthorityModalProps) => {
-  const certAuthorityType = listItemId.split(
-    "-"
-  )[0] as ICertificateAuthorityType;
-
-  const { generateDeletePatchData } = useCertAuthorityDataGenerator(
-    certAuthorityType,
-    certAuthority
-  );
-  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const onDeleteCertAuthority = async () => {
     setIsUpdating(true);
     try {
-      const newConfig = await certificatesAPI.deleteCertificateAuthority(
-        generateDeletePatchData()
-      );
+      await certificatesAPI.deleteCertificateAuthority(certAuthority.id);
       renderFlash(
         "success",
         "Successfully deleted your certificate authority."
       );
-      setConfig(newConfig);
+      setIsUpdating(false);
+      onExit();
     } catch (e) {
+      setIsUpdating(false);
       renderFlash(
         "error",
         "Couldn't delete certificate authority. Please try again."
       );
     }
-    setIsUpdating(false);
-    onExit();
   };
-
-  const certAuthorityName = generateCertAuthorityDisplayName(
-    certAuthorityType,
-    certAuthority
-  );
 
   return (
     <Modal
@@ -76,7 +49,7 @@ const DeleteCertificateAuthorityModal = ({
       <>
         <p>
           Fleet won&apos;t remove certificates from the certificate authority (
-          <b>{certAuthorityName}</b>) on existing hosts.
+          <b>{certAuthority.name}</b>) on existing hosts.
         </p>
         <div className="modal-cta-wrap">
           <Button

@@ -11,6 +11,11 @@ describe("TitleVersionsTable", () => {
     const versions = [
       { id: 10, version: "1.2.3", vulnerabilities: [] },
       { id: 11, version: "1.2.4", vulnerabilities: [] },
+      { id: 12, version: "1.2.5", vulnerabilities: [] },
+      { id: 13, version: "1.2.6", vulnerabilities: [] },
+      { id: 14, version: "1.2.7", vulnerabilities: [] },
+      { id: 15, version: "1.2.8", vulnerabilities: [] },
+      { id: 16, version: "1.2.9", vulnerabilities: [] },
     ];
 
     render(
@@ -26,12 +31,13 @@ describe("TitleVersionsTable", () => {
 
     // There should be one cell with a link for the version
     const cells = screen.getAllByRole("cell");
-    expect(cells).toHaveLength(8);
+    // Version, Vulnerabilities, Hosts, View all hosts for each row
+    expect(cells).toHaveLength(4 * 7);
     expect(screen.getByText(/1.2.3/i)).toBeInTheDocument();
-    expect(screen.getByText(/1.2.4/i)).toBeInTheDocument();
+    expect(screen.getByText(/1.2.9/i)).toBeInTheDocument(); // make sure
 
     // Version count should be shown
-    expect(screen.getByText(/2 versions/i)).toBeInTheDocument();
+    expect(screen.getByText(/7 versions/i)).toBeInTheDocument();
 
     // Last updated info should be shown
     expect(screen.getByText(/updated/i)).toBeInTheDocument();

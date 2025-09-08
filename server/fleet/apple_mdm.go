@@ -5,9 +5,11 @@ import (
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -73,7 +75,7 @@ type MDMAppleEnrollmentProfile struct {
 	//
 	// DEPProfile is nil when Type is MDMAppleEnrollmentTypeManual.
 	DEPProfile *json.RawMessage `json:"dep_profile" db:"dep_profile"`
-	// EnrollmentURL is the URL where an enrollement is served.
+	// EnrollmentURL is the URL where an enrollment is served.
 	EnrollmentURL string `json:"enrollment_url" db:"-"`
 
 	UpdateCreateTimestamps
@@ -258,6 +260,24 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
+// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
+var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
+
+// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
+// in the raw XML content of a profile.
+func ValidateNoSecretsInProfileName(xmlContent []byte) error {
+	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			displayName := string(match[1])
+			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
+				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+			}
+		}
+	}
+	return nil
+}
+
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
@@ -274,29 +294,36 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID           string             `db:"host_uuid" json:"-"`
-	CommandUUID        string             `db:"command_uuid" json:"-"`
-	ProfileUUID        string             `db:"profile_uuid" json:"profile_uuid"`
-	Name               string             `db:"name" json:"name"`
-	Identifier         string             `db:"identifier" json:"-"`
-	Status             *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail             string             `db:"detail" json:"detail"`
-	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
-	Scope              PayloadScope       `db:"scope" json:"scope"`
+	HostUUID            string             `db:"host_uuid" json:"-"`
+	CommandUUID         string             `db:"command_uuid" json:"-"`
+	ProfileUUID         string             `db:"profile_uuid" json:"profile_uuid"`
+	Name                string             `db:"name" json:"name"`
+	Identifier          string             `db:"identifier" json:"-"`
+	Status              *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType       MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail              string             `db:"detail" json:"detail"`
+	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope               PayloadScope       `db:"scope" json:"scope"`
+	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
 func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
+	scope := "device"
+	if p.Scope == PayloadScopeUser {
+		scope = "user"
+	}
 	return HostMDMProfile{
-		HostUUID:      p.HostUUID,
-		ProfileUUID:   p.ProfileUUID,
-		Name:          p.Name,
-		Identifier:    p.Identifier,
-		Status:        p.Status,
-		OperationType: p.OperationType,
-		Detail:        p.Detail,
-		Platform:      platform,
+		HostUUID:            p.HostUUID,
+		ProfileUUID:         p.ProfileUUID,
+		Name:                p.Name,
+		Identifier:          p.Identifier,
+		Status:              p.Status,
+		OperationType:       p.OperationType,
+		Detail:              p.Detail,
+		Platform:            platform,
+		Scope:               &scope,
+		ManagedLocalAccount: &p.ManagedLocalAccount,
 	}
 }
 
@@ -530,6 +557,17 @@ type NanoEnrollment struct {
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
 }
 
+// NanoUser represents a row in the nano_users table of Managed Users, managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoUser struct {
+	ID            string `json:"-" db:"id"`
+	DeviceID      string `json:"-" db:"device_id"`
+	UserShortName string `json:"-" db:"user_short_name"`
+	UserLongName  string `json:"-" db:"user_long_name"`
+}
+
 // MDMAppleCommand represents an MDM Apple command that has been enqueued for
 // execution. It is similar to MDMAppleCommandResult, but a separate struct is
 // used as there are plans to evolve the `fleetctl get mdm-commands` command
@@ -601,6 +639,9 @@ type SCEPIdentityAssociation struct {
 	// EnrolledFromMigration is used for devices migrated via datababse
 	// dumps (ie: "touchless")
 	EnrolledFromMigration bool `db:"enrolled_from_migration"`
+	// EnrollmentType is nano_enrollment.type and should be examined to determine
+	// the proper enrollment profile.
+	EnrollmentType string `db:"type"`
 }
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -679,8 +720,8 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
-	if !strings.HasPrefix(r.Type, "com.apple.configuration") {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
+	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration.) are supported.")
 	}
 
 	return err
@@ -960,6 +1001,20 @@ type MDMAppleMachineInfo struct {
 	SupplementalOSVersionExtra  string `plist:"SUPPLEMENTAL_OS_VERSION_EXTRA,omitempty"`
 	UDID                        string `plist:"UDID"`
 	Version                     string `plist:"VERSION"`
+}
+
+// MDMAppleAccountDrivenUserEnrollDeviceInfo is a more minimal version of DeviceInfo sent on Account
+// Driven User Enrollment requests[1] that only describes the base product attempting enrollment.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/implementing-the-simple-authentication-user-enrollment-flow#Attempt-the-first-enrollment
+type MDMAppleAccountDrivenUserEnrollDeviceInfo struct {
+	Version  string `plist:"VERSION"`
+	Product  string `plist:"PRODUCT"`
+	Language string `plist:"LANGUAGE,omitempty"`
+	// The following keys are not described in the documentation above but have been observed in practice
+	OSVersion                string `plist:"OS_VERSION,omitempty"`
+	SoftwareUpdateDeviceID   string `plist:"SOFTWARE_UPDATE_DEVICE_ID,omitempty"`
+	SupplementalBuildVersion string `plist:"SUPPLEMENTAL_BUILD_VERSION,omitempty"`
 }
 
 // MDMAppleSoftwareUpdateRequiredCode is the [code][1] specified by Apple to indicate that the device

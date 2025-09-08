@@ -39,7 +39,7 @@ Next, edit your Fleet server configuration to set `app_config.mdm.macos_updates.
 valid (i.e. mimumum version follows the "13.0.1" pattern and deadline follows the "2023-12-31" pattern).
 
 At the next update interval, Orbit should download and install Nudge. After 30-60 seconds, try again
-to launch Nudge in demo mode and check the verison by clicking the info icon in the upper left
+to launch Nudge in demo mode and check the version by clicking the info icon in the upper left
 corner of the Nudge window. 
 
 ## Logs 
@@ -63,7 +63,7 @@ order for it to work with version 1.1.7.81411.
 	tar czf $(out-path)/nudge.app.tar.gz -C $(TMP_DIR)/nudge_pkg_payload_expanded/Applications/Utilities/ Nudge.app
 ```
 
-The change above was observered to work with several other prior versions tested as well. In other
+The change above was observed to work with several other prior versions tested as well. In other
 cases, you may need to inspect the directory structure of the expanded package and tweak the script
 accordingly. 
 

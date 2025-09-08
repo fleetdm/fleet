@@ -1,0 +1,10 @@
+name: 'Engineering metrics collector'
+description: 'Collects comprehensive GitHub engineering metrics including time to first review, time to merge, and GitHub Projects workflow metrics, then uploads them to BigQuery for analysis'
+
+runs:
+  using: 'node20'
+  main: 'src/index.js'
+
+branding:
+  icon: 'bar-chart-2'
+  color: 'blue'

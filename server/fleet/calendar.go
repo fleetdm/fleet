@@ -15,7 +15,7 @@ const (
 	CalendarDefaultDescription = "needs to make sure your device meets the organization's requirements."
 	CalendarDefaultResolution  = (`• Click the <a href="https://fleetdm.com/better" rel="noreferrer" target="_blank" >Fleet</a> icon in your computer&apos;s menu and<br />&nbsp;&nbsp;&nbsp;select <b>My device</b>
 • Navigate to the <b>Policies</b> tab
-• Follow instructions to resolve any policies marked "No"
+• Follow instructions to resolve any policies marked "Fail"
 • Click <b>Refetch</b>`)
 )
 

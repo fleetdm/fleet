@@ -1,6 +1,12 @@
 import React from "react";
 import { InjectedRouter } from "react-router";
-import { render, RenderOptions, RenderResult } from "@testing-library/react";
+import { Location } from "history";
+import {
+  render,
+  RenderOptions,
+  RenderResult,
+  waitFor,
+} from "@testing-library/react";
 import type { UserEvent } from "@testing-library/user-event/dist/types/setup/setup";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "react-query";
@@ -181,7 +187,20 @@ export const createMockRouter = (overrides?: Partial<InjectedRouter>) => {
   };
 };
 
-export const createMockLocation = (
+export const createMockLocation = (overrides?: Partial<Location>): Location => {
+  return {
+    pathname: "/",
+    search: "",
+    hash: "",
+    query: {},
+    state: undefined,
+    action: "POP",
+    key: "",
+    ...overrides,
+  };
+};
+
+export const createMockLocationExperimental = (
   overrides?: Partial<IRouterLocation>
 ): IRouterLocation => {
   // Default values for the location object
@@ -211,4 +230,10 @@ export const getFutureDate = (days: number) => {
   const targetDate = new Date();
   targetDate.setDate(targetDate.getDate() + days);
   return targetDate.toISOString();
+};
+
+export const waitForLoadingToFinish = async (container: HTMLElement) => {
+  await waitFor(() => {
+    expect(container.querySelector(".loading-overlay")).not.toBeInTheDocument();
+  });
 };

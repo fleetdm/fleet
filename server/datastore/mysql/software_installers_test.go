@@ -250,6 +250,9 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 	_, err = ds.InsertSoftwareInstallRequest(ctx, host3.ID, installerID1, fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
+	// Set LastEnrolledAt before deleting the host (simulating a DEP enrolled host)
+	host3.LastEnrolledAt = time.Now()
+
 	err = ds.DeleteHost(ctx, host3.ID)
 	require.NoError(t, err)
 
@@ -773,7 +776,7 @@ func testBatchSetSoftwareInstallers(t *testing.T, ds *Datastore) {
 	// create a couple hosts
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID, host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID, host2.ID}))
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
@@ -1194,7 +1197,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 
 	// create a host
 	host1 := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host1.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host1.ID}))
 	host1.TeamID = &team.ID
 	require.NoError(t, err)
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -1278,7 +1281,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 
 	// Add setup_experience_status_results for both installers
-	_, err = ds.EnqueueSetupExperienceItems(ctx, host1.UUID, *host1.TeamID)
+	_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", host1.UUID, *host1.TeamID)
 	require.NoError(t, err)
 
 	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
@@ -2222,7 +2225,7 @@ func testBatchSetSoftwareInstallersScopedViaLabels(t *testing.T, ds *Datastore) 
 		if len(c.payload) > 0 {
 			// create pending install requests for each updated installer, to see if
 			// it cancels it or not as expected.
-			err := ds.AddHostsToTeam(ctx, teamID, []uint{host.ID})
+			err := ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID}))
 			require.NoError(t, err)
 			for i, payload := range c.payload {
 				if payload.ShouldCancelPending != nil {
@@ -2426,6 +2429,18 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	})
 	require.NoError(t, err)
 
+	// check upgrade code handling
+	msiPackagesWithNoUpgradeCode, err := ds.GetMSIInstallersWithoutUpgradeCode(ctx)
+	require.NoError(t, err)
+	require.Equal(t, map[uint]string{installerID2: "storage2"}, msiPackagesWithNoUpgradeCode)
+	require.NoError(t, ds.UpdateInstallerUpgradeCode(ctx, installerID2, "upgradecode"))
+	msiPackagesWithNoUpgradeCode, err = ds.GetMSIInstallersWithoutUpgradeCode(ctx)
+	require.NoError(t, err)
+	require.Empty(t, msiPackagesWithNoUpgradeCode)
+	msiThatShouldHaveUpgradeCode, err := ds.GetSoftwareInstallerMetadataByID(ctx, installerID2)
+	require.NoError(t, err)
+	require.Equal(t, "upgradecode", msiThatShouldHaveUpgradeCode.UpgradeCode)
+
 	noTeamPolicies, _, err := ds.ListTeamPolicies(ctx, fleet.PolicyNoTeamID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, noTeamPolicies, 1)
@@ -2462,7 +2477,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
-	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
+	SELECT 1 FROM deb_packages WHERE name = 'Barfoo' AND status = 'install ok installed'
 );`, team2Policies[0].Query)
 	require.Equal(t, `Policy triggers automatic install of Barfoo on each host that's missing this software.
 Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)

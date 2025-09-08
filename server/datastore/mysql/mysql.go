@@ -17,6 +17,7 @@ import (
 	"github.com/XSAM/otelsql"
 	"github.com/doug-martin/goqu/v9"
 	"github.com/doug-martin/goqu/v9/exp"
+	hostidscepdepot "github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/depot"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -26,7 +27,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
-	android_mysql "github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	nano_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/log"
@@ -183,10 +183,16 @@ func (ds *Datastore) deleteCachedStmt(query string) {
 	}
 }
 
-// NewMDMAppleSCEPDepot returns a scep_depot.Depot that uses the Datastore
+// NewSCEPDepot returns a scep_depot.Depot that uses the Datastore
 // underlying MySQL writer *sql.DB.
 func (ds *Datastore) NewSCEPDepot() (scep_depot.Depot, error) {
 	return newSCEPDepot(ds.primary.DB, ds)
+}
+
+// NewHostIdentitySCEPDepot returns a scep_depot.Depot for host identity certs that uses the Datastore
+// underlying MySQL writer *sql.DB.
+func (ds *Datastore) NewHostIdentitySCEPDepot(logger log.Logger, cfg *config.FleetConfig) (scep_depot.Depot, error) {
+	return hostidscepdepot.NewHostIdentitySCEPDepot(ds.primary, ds, logger, cfg)
 }
 
 type entity struct {
@@ -259,7 +265,7 @@ func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore
 		stmtCache:           make(map[string]*sqlx.Stmt),
 		minLastOpenedAtDiff: options.MinLastOpenedAtDiff,
 		serverPrivateKey:    options.PrivateKey,
-		Datastore:           android_mysql.New(options.Logger, dbWriter, dbReader),
+		Datastore:           NewAndroidDatastore(options.Logger, dbWriter, dbReader),
 	}
 
 	go ds.writeChanLoop()

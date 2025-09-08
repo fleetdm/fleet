@@ -123,7 +123,7 @@ func (r CVEMatchingRules) ValidateAll() error {
 }
 
 // CheckCustomVulnerabilities matches software against custom rules and inserts vulnerabilities
-func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger log.Logger, periodicity time.Duration) ([]fleet.SoftwareVulnerability, error) {
+func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger log.Logger, startTime time.Time) ([]fleet.SoftwareVulnerability, error) {
 	rules := getCVEMatchingRules()
 	if err := rules.ValidateAll(); err != nil {
 		return nil, fmt.Errorf("invalid rules: %w", err)
@@ -151,7 +151,7 @@ func CheckCustomVulnerabilities(ctx context.Context, ds fleet.Datastore, logger 
 		}
 	}
 
-	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, 2*periodicity); err != nil {
+	if err := ds.DeleteOutOfDateVulnerabilities(ctx, fleet.CustomSource, startTime); err != nil {
 		level.Error(logger).Log("msg", "Error deleting out of date vulnerabilities", "err", err)
 	}
 

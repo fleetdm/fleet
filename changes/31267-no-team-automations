@@ -1,0 +1,2 @@
+* Allow configuring webhook and ticket policy (Jira/Zendesk) automations for "No team"
+* If using the FLEET_PARTNERSHIPS_ENABLE_PRIMO feature, please set FLEET_PARTNERSHIPS_ENABLE_PRIMO=1 environment variable before running database migrations (e.g., `fleet prepare db`). This one-time migration copies the failing policy webhook/ticket configurations from "All teams" to "No team". If migrations run without this environment variable, the migration is marked applied and won't copy settings later.

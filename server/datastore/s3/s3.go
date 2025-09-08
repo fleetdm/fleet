@@ -7,13 +7,13 @@ import (
 	"fmt"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/aws_common"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	aws_config "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
@@ -75,16 +75,6 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 		)))
 	}
 
-	// cfg.StsAssumeRoleArn has been marked as deprecated, but we still set it in case users are using it.
-	if cfg.StsAssumeRoleArn != "" {
-		opts = append(opts, aws_config.WithAssumeRoleCredentialOptions(func(r *stscreds.AssumeRoleOptions) {
-			r.RoleARN = cfg.StsAssumeRoleArn
-			if cfg.StsExternalID != "" {
-				r.ExternalID = &cfg.StsExternalID
-			}
-		}))
-	}
-
 	if cfg.Region == "" {
 		// Attempt to deduce region from bucket.
 		conf, err := aws_config.LoadDefaultConfig(context.Background(),
@@ -104,6 +94,13 @@ func newS3Store(cfg config.S3ConfigInternal) (*s3store, error) {
 	conf, err := aws_config.LoadDefaultConfig(context.Background(), opts...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create default config: %w", err)
+	}
+
+	if cfg.StsAssumeRoleArn != "" {
+		conf, err = aws_common.ConfigureAssumeRoleProvider(conf, opts, cfg.StsAssumeRoleArn, cfg.StsExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure assume role provider: %w", err)
+		}
 	}
 
 	s3Client := s3.NewFromConfig(conf, func(o *s3.Options) {

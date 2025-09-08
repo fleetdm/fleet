@@ -21,6 +21,7 @@ func TestJobs(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"QueueAndProcessJobs", testQueueAndProcessJobs},
+		{"QueueAndProcessJobs", testQueueAndProcessFilteredJobs},
 		{"CleanupWorkerJobs", testCleanupWorkerJobs},
 	}
 	for _, c := range cases {
@@ -79,6 +80,44 @@ func testQueueAndProcessJobs(t *testing.T, ds *Datastore) {
 	require.Equal(t, j2.ID, jobs[0].ID)
 	require.NotZero(t, jobs[0].NotBefore)
 	require.False(t, jobs[0].NotBefore.After(time.Now())) // before or equal
+}
+
+func testQueueAndProcessFilteredJobs(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no jobs yet
+	jobs, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
+	require.NoError(t, err)
+	require.Empty(t, jobs)
+
+	// add a couple of jobs
+	j1 := &fleet.Job{Name: "j1", State: fleet.JobStateQueued}
+	j2 := &fleet.Job{Name: "j2", State: fleet.JobStateQueued}
+	j1, err = ds.NewJob(ctx, j1)
+	require.NoError(t, err)
+	require.NotZero(t, j1.ID)
+	j2, err = ds.NewJob(ctx, j2)
+	require.NoError(t, err)
+	require.NotZero(t, j2.ID)
+
+	// only j1 is returned
+	jobs, err = ds.GetFilteredQueuedJobs(ctx, 10, time.Time{}, []string{"j1"})
+	require.NoError(t, err)
+	require.Len(t, jobs, 1)
+	require.Equal(t, j1.ID, jobs[0].ID)
+	require.NotZero(t, jobs[0].NotBefore)
+	require.False(t, jobs[0].NotBefore.After(time.Now())) // before or equal
+
+	// both returned
+	jobs, err = ds.GetFilteredQueuedJobs(ctx, 10, time.Time{}, []string{"j1", "j2"})
+	require.NoError(t, err)
+	require.Len(t, jobs, 2)
+	require.Equal(t, j1.ID, jobs[0].ID)
+	require.NotZero(t, jobs[0].NotBefore)
+	require.False(t, jobs[0].NotBefore.After(time.Now()))
+	require.Equal(t, j2.ID, jobs[1].ID)
+	require.NotZero(t, jobs[1].NotBefore)
+	require.False(t, jobs[1].NotBefore.After(time.Now()))
 }
 
 func testCleanupWorkerJobs(t *testing.T, ds *Datastore) {

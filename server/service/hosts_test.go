@@ -84,6 +84,9 @@ func TestHostDetails(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
 
 	opts := fleet.HostDetailOptions{
 		IncludeCVEScores: false,
@@ -135,6 +138,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	cases := []struct {
@@ -425,7 +431,10 @@ func TestHostDetailsMDMTimestamps(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
-	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+	ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
+		return fleet.DiskEncryptionConfig{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 		return false, nil
 	}
 
@@ -510,6 +519,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, hostID uint) (*fleet.HostDiskEncryptionKey, error) {
 		return &fleet.HostDiskEncryptionKey{}, nil
 	}
+	ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+		return &fleet.HostArchivedDiskEncryptionKey{}, nil
+	}
 	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
 		return nil, nil
 	}
@@ -518,6 +530,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	}
 	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
 		return nil, nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	type testCase struct {
@@ -562,8 +577,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
 			return &hmdm, nil
 		}
-		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (bool, error) {
+		ds.GetConfigEnableDiskEncryptionFunc = func(ctx context.Context, teamID *uint) (fleet.DiskEncryptionConfig, error) {
 			// testing API response when not enabled
+			return fleet.DiskEncryptionConfig{}, nil
+		}
+		ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
 			return false, nil
 		}
 	}
@@ -675,6 +693,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
@@ -735,7 +756,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
 		return nil, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 		return nil
 	}
 	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
@@ -805,8 +826,14 @@ func TestHostAuth(t *testing.T) {
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	testCases := []struct {
@@ -1089,9 +1116,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Equal(t, expectedTeam, teamID)
-		assert.Equal(t, expectedHostIDs, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Equal(t, expectedTeam, params.TeamID)
+		assert.Equal(t, expectedHostIDs, params.HostIDs)
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1133,8 +1160,8 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		}
 		return hosts, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
-		assert.Equal(t, expectedHostIDs, hostIDs)
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
+		assert.Equal(t, expectedHostIDs, params.HostIDs)
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1167,7 +1194,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
 		return []*fleet.Host{}, nil
 	}
-	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+	ds.AddHostsToTeamFunc = func(ctx context.Context, params *fleet.AddHostsToTeamParams) error {
 		return nil
 	}
 	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hids, tids []uint, puuids, uuids []string,
@@ -1271,7 +1298,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 
@@ -1315,7 +1342,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 	}
 
-	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 
@@ -1477,6 +1504,9 @@ func TestHostEncryptionKey(t *testing.T) {
 					Decryptable:     ptr.Bool(true),
 				}, nil
 			}
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+				return &fleet.HostArchivedDiskEncryptionKey{}, nil
+			}
 
 			ds.NewActivityFunc = func(
 				ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
@@ -1542,6 +1572,12 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.GetHostDiskEncryptionKeyFunc = func(ctx context.Context, id uint) (*fleet.HostDiskEncryptionKey, error) {
 			return nil, keyErr
 		}
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
 		ds.GetAllMDMConfigAssetsByNameFunc = func(ctx context.Context, assetNames []fleet.MDMAssetName,
 			_ sqlx.QueryerContext,
 		) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
@@ -1599,6 +1635,9 @@ func TestHostEncryptionKey(t *testing.T) {
 						Decryptable:     ptr.Bool(true),
 					}, nil
 				}
+				ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+					return &fleet.HostArchivedDiskEncryptionKey{}, nil
+				}
 				ds.NewActivityFunc = func(
 					ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 				) error {
@@ -1641,7 +1680,9 @@ func TestHostEncryptionKey(t *testing.T) {
 		ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 			return host, nil
 		}
-
+		ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+			return &fleet.HostArchivedDiskEncryptionKey{}, nil
+		}
 		ds.NewActivityFunc = func(
 			ctx context.Context, user *fleet.User, activity fleet.ActivityDetails, details []byte, createdAt time.Time,
 		) error {
@@ -1758,8 +1799,14 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
 		return nil
 	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
 	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
 		return time.Time{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
 	}
 
 	cases := []struct {
@@ -1809,6 +1856,197 @@ func TestHostMDMProfileDetail(t *testing.T) {
 			profs := *h.MDM.Profiles
 			require.Len(t, profs, 1)
 			require.Equal(t, tt.expectedDetail, profs[0].Detail)
+		})
+	}
+}
+
+// Fragile test: This test is fragile because of the large reliance on Datastore mocks. Consider refactoring test/logic or removing the test. It may be slowing us down more than helping us.
+func TestHostMDMProfileScopes(t *testing.T) {
+	ds := new(mock.Store)
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, "")
+
+	svc, ctx := newTestServiceWithConfig(t, ds, fleetCfg, nil, nil)
+	ctx = test.UserContext(ctx, test.UserAdmin)
+
+	appleHost := &fleet.Host{
+		ID:       1,
+		UUID:     "apple-host-uuid",
+		Platform: "darwin",
+	}
+
+	windowsHost := &fleet.Host{
+		ID:       2,
+		UUID:     "windows-host-uuid",
+		Platform: "windows",
+	}
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		if id == appleHost.ID {
+			return appleHost, nil
+		}
+		require.Equal(t, id, windowsHost.ID, "Host should only be called with Apple or Windows host IDs")
+		return windowsHost, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesForSingleHostFunc = func(ctx context.Context, hostID uint) error {
+		return nil
+	}
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				EnabledAndConfigured:        true,
+				WindowsEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.GetNanoMDMEnrollmentTimesFunc = func(ctx context.Context, hostUUID string) (*time.Time, *time.Time, error) {
+		return nil, nil, nil
+	}
+	ds.UpdateHostIssuesFailingPoliciesFunc = func(ctx context.Context, hostIDs []uint) error {
+		return nil
+	}
+	ds.GetHostIssuesLastUpdatedFunc = func(ctx context.Context, hostId uint) (time.Time, error) {
+		return time.Time{}, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+
+	appleCases := []struct {
+		name             string
+		storedProfiles   []fleet.HostMDMAppleProfile
+		expectedProfiles []fleet.HostMDMProfile
+	}{
+		{
+			name:             "no profiles",
+			storedProfiles:   nil,
+			expectedProfiles: nil,
+		},
+		{
+			name:             "system scoped profile",
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}},
+		},
+		{
+			name:             "User scoped profile with username",
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+		},
+		{
+			name:             "User scoped profile without username for some reason",
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("")}},
+		},
+		{
+			name:             "system + user scoped profiles",
+			storedProfiles:   []fleet.HostMDMAppleProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeSystem}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: fleet.PayloadScopeUser, ManagedLocalAccount: "fleetie"}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("device"), ManagedLocalAccount: ptr.String("")}, {OperationType: fleet.MDMOperationTypeInstall, HostUUID: appleHost.UUID, ProfileUUID: "profile-uuid2", Name: "Profile2", Status: &fleet.MDMDeliveryVerified, Scope: ptr.String("user"), ManagedLocalAccount: ptr.String("fleetie")}},
+		},
+	}
+
+	windowsCases := []struct {
+		name             string
+		storedProfiles   []fleet.HostMDMWindowsProfile
+		expectedProfiles []fleet.HostMDMProfile
+	}{
+		{
+			name:             "no profiles",
+			storedProfiles:   nil,
+			expectedProfiles: nil,
+		},
+		// Windows does not support scopes or managed local accounts yet but we should not error and
+		// should set these to nil which is checked below
+		{
+			name:             "example profile",
+			storedProfiles:   []fleet.HostMDMWindowsProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
+			expectedProfiles: []fleet.HostMDMProfile{{OperationType: fleet.MDMOperationTypeInstall, HostUUID: windowsHost.UUID, ProfileUUID: "profile-uuid1", Name: "Profile1", Status: &fleet.MDMDeliveryVerified}},
+		},
+	}
+
+	for _, tt := range appleCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMAppleProfile, error) {
+				return tt.storedProfiles, nil
+			}
+
+			h, err := svc.GetHost(ctx, appleHost.ID, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			if tt.storedProfiles == nil {
+				require.NotNil(t, h.MDM.Profiles)
+				require.Empty(t, *h.MDM.Profiles)
+				return
+			}
+			profs := *h.MDM.Profiles
+			require.Len(t, profs, len(tt.expectedProfiles))
+			for i := range profs {
+				require.Equal(t, tt.expectedProfiles[i].OperationType, profs[i].OperationType)
+				require.Equal(t, tt.expectedProfiles[i].HostUUID, profs[i].HostUUID)
+				require.Equal(t, tt.expectedProfiles[i].ProfileUUID, profs[i].ProfileUUID)
+				require.Equal(t, tt.expectedProfiles[i].Name, profs[i].Name)
+				require.Equal(t, tt.expectedProfiles[i].Status, profs[i].Status)
+				require.NotNil(t, profs[i].Scope)
+				require.Equal(t, *tt.expectedProfiles[i].Scope, *profs[i].Scope)
+				require.NotNil(t, profs[i].ManagedLocalAccount)
+				require.Equal(t, *tt.expectedProfiles[i].ManagedLocalAccount, *profs[i].ManagedLocalAccount)
+			}
+		})
+	}
+	for _, tt := range windowsCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, host_uuid string) ([]fleet.HostMDMWindowsProfile, error) {
+				return tt.storedProfiles, nil
+			}
+
+			h, err := svc.GetHost(ctx, windowsHost.ID, fleet.HostDetailOptions{})
+			require.NoError(t, err)
+			if tt.storedProfiles == nil {
+				require.NotNil(t, h.MDM.Profiles)
+				require.Empty(t, *h.MDM.Profiles)
+				return
+			}
+			profs := *h.MDM.Profiles
+			require.Len(t, profs, len(tt.expectedProfiles))
+			for i := range profs {
+				require.Equal(t, tt.expectedProfiles[i].OperationType, profs[i].OperationType)
+				require.Equal(t, tt.expectedProfiles[i].HostUUID, profs[i].HostUUID)
+				require.Equal(t, tt.expectedProfiles[i].ProfileUUID, profs[i].ProfileUUID)
+				require.Equal(t, tt.expectedProfiles[i].Name, profs[i].Name)
+				require.Equal(t, tt.expectedProfiles[i].Status, profs[i].Status)
+				require.Nil(t, profs[i].Scope)
+				require.Nil(t, profs[i].ManagedLocalAccount)
+			}
 		})
 	}
 }
@@ -1865,12 +2103,14 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, platform string) error {
 		return nil
 	}
-	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+	// Some functions use Host, others HostLite. For our purposes either is fine
+	ds.HostFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
 		return globalHost, nil
 	}
+	ds.HostLiteFunc = mock.HostLiteFunc(ds.HostFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}
@@ -2385,6 +2625,9 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return tt.appConfig, nil
 			}
+			ds.GetHostArchivedDiskEncryptionKeyFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostArchivedDiskEncryptionKey, error) {
+				return &fleet.HostArchivedDiskEncryptionKey{}, nil
+			}
 
 			if !tt.disableCapability {
 				r := http.Request{
@@ -2394,7 +2637,16 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			}
 
 			notifs := &fleet.OrbitConfigNotifications{}
-			err := svc.setDiskEncryptionNotifications(ctx, notifs, tt.host, tt.appConfig, tt.diskEncryptionConfigured, tt.isConnectedToFleetMDM, tt.mdmInfo)
+			err := svc.setDiskEncryptionNotifications(
+				ctx,
+				notifs,
+				tt.host,
+				tt.appConfig,
+				tt.diskEncryptionConfigured,
+				tt.isConnectedToFleetMDM,
+				tt.mdmInfo,
+			)
+
 			if tt.expectedError {
 				require.Error(t, err)
 			} else {
@@ -2403,4 +2655,95 @@ func TestSetDiskEncryptionNotifications(t *testing.T) {
 			require.Equal(t, tt.expectedNotifications.RotateDiskEncryptionKey, notifs.RotateDiskEncryptionKey)
 		})
 	}
+}
+
+func TestGetHostDetailsExcludeSoftwareFlag(t *testing.T) {
+	ds := new(mock.Store)
+	svc := &Service{ds: ds}
+
+	baseHost := &fleet.Host{ID: 42}
+
+	// common DS mocks
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Pack, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListUpcomingHostMaintenanceWindowsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostMaintenanceWindow, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.ScimUserByHostIDFunc = func(ctx context.Context, hostID uint) (*fleet.ScimUser, error) {
+		return nil, nil
+	}
+	ds.ListHostDeviceMappingFunc = func(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.IsHostDiskEncryptionKeyArchivedFunc = func(ctx context.Context, hostID uint) (bool, error) {
+		return false, nil
+	}
+
+	t.Run("ExcludeSoftware=true returns empty slice", func(t *testing.T) {
+		ds.LoadHostSoftwareFuncInvoked = false
+		ds.LoadHostSoftwareFunc = func(ctx context.Context, h *fleet.Host, includeCVEScores bool) error {
+			t.Fatalf("LoadHostSoftwareFunc should not be called when ExcludeSoftware is true")
+			return nil
+		}
+
+		opts := fleet.HostDetailOptions{ExcludeSoftware: true}
+		hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), baseHost, opts)
+		require.NoError(t, err)
+
+		require.NotNil(t, hostDetail.Software, "Software slice should not be nil")
+		assert.Len(t, hostDetail.Software, 0, "Software slice should be empty when excluded")
+	})
+
+	t.Run("ExcludeSoftware=false returns filled slice", func(t *testing.T) {
+		expectedSoftware := []fleet.HostSoftwareEntry{
+			{
+				Software: fleet.Software{
+					ID:      1,
+					Name:    "test-app",
+					Version: "1.0.0",
+					Source:  "apps",
+				},
+				InstalledPaths: []string{"/Applications/test-app.app"},
+			},
+			{
+				Software: fleet.Software{
+					ID:      2,
+					Name:    "another-app",
+					Version: "2.3.4",
+					Source:  "apps",
+				},
+				InstalledPaths: []string{"/Applications/another-app.app"},
+			},
+		}
+
+		ds.LoadHostSoftwareFuncInvoked = false
+		ds.LoadHostSoftwareFunc = func(ctx context.Context, h *fleet.Host, includeCVEScores bool) error {
+			h.HostSoftware.Software = expectedSoftware
+			return nil
+		}
+
+		opts := fleet.HostDetailOptions{ExcludeSoftware: false}
+		hostDetail, err := svc.getHostDetails(test.UserContext(context.Background(), test.UserAdmin), baseHost, opts)
+		require.NoError(t, err)
+
+		require.NotNil(t, hostDetail.Software)
+		assert.Equal(t, expectedSoftware, hostDetail.Software)
+		assert.True(t, ds.LoadHostSoftwareFuncInvoked, "LoadHostSoftwareFunc should have been called")
+	})
 }

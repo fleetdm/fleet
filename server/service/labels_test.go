@@ -543,7 +543,7 @@ func TestNewHostVitalsLabel(t *testing.T) {
 		require.NoError(t, err)
 		queryValuesJson, err := json.Marshal(queryValues)
 		require.NoError(t, err)
-		assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
+		assert.Equal(t, "SELECT %s FROM %s RIGHT JOIN host_scim_user ON (hosts.id = host_scim_user.host_id) JOIN scim_users ON (host_scim_user.scim_user_id = scim_users.id) LEFT JOIN scim_user_group ON (host_scim_user.scim_user_id = scim_user_group.scim_user_id) LEFT JOIN scim_groups ON (scim_user_group.group_id = scim_groups.id) WHERE scim_groups.display_name = ? GROUP BY hosts.id", query)
 		assert.Equal(t, `["admin"]`, string(queryValuesJson))
 	})
 }

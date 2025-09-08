@@ -20,11 +20,11 @@ import generateSoftwareTitleVersionsTableConfig from "./TitleVersionsTableConfig
 
 const DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
-const DEFAULT_PAGE_SIZE = 5;
+const DEFAULT_PAGE_SIZE = 10;
 
 const baseClass = "software-title-versions-table";
 
-const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
+export const TitleVersionsLastUpdatedInfo = (lastUpdatedAt: string) => {
   return (
     <LastUpdatedText
       lastUpdatedAt={lastUpdatedAt}

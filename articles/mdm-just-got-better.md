@@ -26,8 +26,7 @@ Apple Business Manager and Apple School Manager introduce:
 
 - Enforced migration deadlines with persistent user prompts  
 - Full-screen modals or reboot requirements if migration is delayed  
-- Preservation of Activation Lock and FileVault keys  
-- App and settings restoration if the new MDM provides them promptly  
+- Preservation of Activation Lock and FileVault keys 
 - Prompt to reconnect if the device is offline during migration  
 
 The barrier to change your MDM solution has never been lower.

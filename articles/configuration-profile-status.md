@@ -29,7 +29,7 @@ failed profiles to affected hosts.
     - **Pending**: the profile is pending install on the host
     - **Failed**: the profile failed to be installed on the host
 
-![](../website/assets/images/articles/profile-aggregate-stauts-650-440@2x.png)
+![](../website/assets/images/articles/profile-aggregate-stauts-650x440@2x.png)
 
 3. To resend a profile to all hosts where instialltion failed
     - Hover over the **Failed** status row.

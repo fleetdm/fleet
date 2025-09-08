@@ -12,11 +12,10 @@ import mdmAppleAPI, {
 import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 
 import MdmSettingsSection from "./components/MdmSettingsSection";
-import AutomaticEnrollmentSection from "./components/AutomaticEnrollmentSection";
-import VppSection from "./components/VppSection";
-import IdpSection from "./components/IdpSection";
+import AppleBusinessManagerSection from "./components/AppleBusinessManagerSection";
 import EulaSection from "./components/EulaSection";
 import EndUserMigrationSection from "./components/EndUserMigrationSection";
+import WindowsAutopilotSection from "./components/WindowsAutopilotSection";
 
 const baseClass = "mdm-settings";
 
@@ -93,8 +92,6 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
   const noVppTokenUploaded = !vppData || !vppData.vpp_tokens.length;
   const hasVppError = isVppError && !noVppTokenUploaded;
 
-  const noScepCredentials = !config?.integrations.ndes_scep_proxy;
-
   // We are relying on the API to give us a 404 to
   // tell use the user has not uploaded a eula.
   const noEulaUploaded = eulaError && eulaError.status === 404;
@@ -123,18 +120,17 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
       />
       {!isLoading && !hasError && hasAllData && (
         <>
-          <AutomaticEnrollmentSection
+          <AppleBusinessManagerSection
             router={router}
             isPremiumTier={!!isPremiumTier}
-          />
-          <VppSection
-            router={router}
             isVppOn={!noVppTokenUploaded}
+          />
+          <WindowsAutopilotSection
+            router={router}
             isPremiumTier={!!isPremiumTier}
           />
           {isPremiumTier && !!config?.mdm.apple_bm_enabled_and_configured && (
             <>
-              <IdpSection />
               <EulaSection
                 eulaMetadata={eulaMetadata}
                 isEulaUploaded={!noEulaUploaded}

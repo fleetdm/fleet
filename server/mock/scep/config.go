@@ -11,9 +11,9 @@ import (
 
 var _ fleet.SCEPConfigService = (*SCEPConfigService)(nil)
 
-type ValidateNDESSCEPAdminURLFunc func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error
+type ValidateNDESSCEPAdminURLFunc func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) error
 
-type GetNDESSCEPChallengeFunc func(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error)
+type GetNDESSCEPChallengeFunc func(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error)
 
 type ValidateSCEPURLFunc func(ctx context.Context, url string) error
 
@@ -30,14 +30,14 @@ type SCEPConfigService struct {
 	mu sync.Mutex
 }
 
-func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyCA) error {
 	s.mu.Lock()
 	s.ValidateNDESSCEPAdminURLFuncInvoked = true
 	s.mu.Unlock()
 	return s.ValidateNDESSCEPAdminURLFunc(ctx, proxy)
 }
 
-func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	s.mu.Lock()
 	s.GetNDESSCEPChallengeFuncInvoked = true
 	s.mu.Unlock()

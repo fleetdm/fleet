@@ -36,9 +36,13 @@ const (
 	SCEPPath = "/mdm/apple/scep"
 	// MDMPath is Fleet's HTTP path for the core MDM service.
 	MDMPath = "/mdm/apple/mdm"
+	// MDMServiceDiscoveryPath is Fleet's HTTP path for the MDM service discovery service.
+	ServiceDiscoveryPath = "/mdm/apple/service_discovery"
 
 	// EnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
 	EnrollPath = "/api/mdm/apple/enroll"
+	// AccountDrivenEnrollPath is the HTTP path that serves the mobile profile to devices when enrolling.
+	AccountDrivenEnrollPath = "/api/mdm/apple/account_driven_enroll"
 	// InstallerPath is the HTTP path that serves installers to Apple devices.
 	InstallerPath = "/api/mdm/apple/installer"
 
@@ -167,7 +171,11 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 		if endUserAuthEnabled {
-			jsonProf.ConfigurationWebURL = appCfg.MDMUrl() + "/mdm/sso"
+			mdmSSOURL, err := commonmdm.ResolveURL(appCfg.MDMUrl(), "/mdm/sso", false)
+			if err != nil {
+				return nil, fmt.Errorf("resolve MDM SSO URL: %w", err)
+			}
+			jsonProf.ConfigurationWebURL = mdmSSOURL
 		}
 	}
 
@@ -201,6 +209,10 @@ func (d *DEPService) buildJSONProfile(ctx context.Context, setupAsstJSON json.Ra
 // discover those hosts will be used to register the profile, and if a token
 // has that team as default team for a platform, it will also be used to
 // register the profile.
+//
+// Note that this means that a team must either have DEP hosts associated with
+// it with corresponding host_dep_assignment records or be the default team for a
+// class of devices(see GetABMTokenOrgNamesAssociatedWithTeam)
 //
 // On success, it returns the profile uuid and timestamp for the specific token
 // of interest to the caller (identified by its organization name).
@@ -531,6 +543,28 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 	return result
 }
 
+func (d *DEPService) GetMDMAppleServiceDiscoveryDetails(ctx context.Context, tokenOrgName string) (*godep.AccountDrivenEnrollmentProfileResponse, error) {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.FetchAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName)
+}
+
+func (d *DEPService) AssignMDMAppleServiceDiscoveryURL(ctx context.Context, tokenOrgName string, url string) error {
+	// TODO: In some of the other DEPService methods (e.g., RegisterProfileWithAppleDEPServiceE)
+	// we always create a new depClient specifically for that method. Why? Should we do the same
+	// here or should we update those other methods to use the d.depClient instance like we are here?
+	if d.depClient == nil {
+		d.depClient = NewDEPClient(d.depStorage, d.ds, d.logger)
+	}
+
+	return d.depClient.AssignAccountDrivenEnrollmentServiceDiscovery(ctx, tokenOrgName, url)
+}
+
 func NewDEPService(
 	ds fleet.Datastore,
 	depStorage nanodep_storage.AllDEPStorage,
@@ -736,7 +770,6 @@ func (d *DEPService) processDeviceResponse(
 			teamID = macOSTeamID
 		}
 		devicesByTeam[teamID] = append(devicesByTeam[teamID], newDevice)
-
 	}
 
 	// for all other hosts we received, find out the right DEP profile to
@@ -754,6 +787,14 @@ func (d *DEPService) processDeviceResponse(
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
 	}
 
+	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
+	// token if this is the first device DEP host for this token assigned to the team.
+	if len(existingHosts) > 0 {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
+		}
+	}
+
 	// assign the profile to each device
 	for team, devices := range devicesByTeam {
 		profUUID, err := d.getProfileUUIDForTeam(ctx, team, abmOrganizationName)
@@ -762,12 +803,6 @@ func (d *DEPService) processDeviceResponse(
 		}
 
 		profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
-	}
-
-	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
-		}
 	}
 
 	// keep track of the serials we're going to skip for all profiles in
@@ -816,6 +851,27 @@ func (d *DEPService) processDeviceResponse(
 					"msg", "assign profile",
 					"devices", len(serials),
 					"err", err,
+				)
+			}
+			// Verify that all serials assigned get some sort of terminal status. Otherwise an error
+			// that returns no devices at all(i.e. a network error) could result in a serial being
+			// dropped on the floor. Failed may or may not be the right status here since it will
+			// cause cooldowns to be applied however it ensures we retry these assignments
+			implicitlyFailedAssignments := 0
+			if apiResp.Devices == nil {
+				apiResp.Devices = make(map[string]string)
+			}
+			for _, serial := range serials {
+				if _, ok := apiResp.Devices[serial]; !ok {
+					apiResp.Devices[serial] = string(fleet.DEPAssignProfileResponseFailed)
+					implicitlyFailedAssignments++
+				}
+			}
+			// We don't expect to see this but log here just in case
+			if err != nil && implicitlyFailedAssignments > 0 {
+				level.Error(logger).Log(
+					"msg", "assign profile: no error was returned but some devices were not assigned a status in the response",
+					"devices", implicitlyFailedAssignments,
 				)
 			}
 
@@ -1106,6 +1162,89 @@ var enrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs
 </dict>
 </plist>`))
 
+var accountDrivenUserEnrollmentProfileMobileconfigTemplate = template.Must(template.New("").Funcs(funcMap).Parse(`
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadContent</key>
+			<dict>
+				<key>Key Type</key>
+				<string>RSA</string>
+				<key>Challenge</key>
+				<string>{{ .SCEPChallenge | xml }}</string>
+				<key>Key Usage</key>
+				<integer>5</integer>
+				<key>Keysize</key>
+				<integer>2048</integer>
+				<key>URL</key>
+				<string>{{ .SCEPURL }}</string>
+				<key>Subject</key>
+				<array>
+					<array><array><string>O</string><string>Fleet</string></array></array>
+					<array><array><string>CN</string><string>Fleet Identity</string></array></array>
+				</array>
+			</dict>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.scep</string>
+			<key>PayloadType</key>
+			<string>com.apple.security.scep</string>
+			<key>PayloadUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+		</dict>
+		<dict>
+			<key>CheckOutWhenRemoved</key>
+			<true/>
+			<key>IdentityCertificateUUID</key>
+			<string>BCA53F9D-5DD2-494D-98D3-0D0F20FF6BA1</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.fleet.mdm.apple.mdm</string>
+			<key>PayloadType</key>
+			<string>com.apple.mdm</string>
+			<key>PayloadUUID</key>
+			<string>29713130-1602-4D27-90C9-B822A295E44E</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>AssignedManagedAppleID</key>
+			<string>{{ .AssignedManagedAppleID | xml }}</string>
+			<key>EnrollmentMode</key>
+			<string>BYOD</string>
+			<key>ServerCapabilities</key>
+			<array>
+				<string>UserEnrollment</string>
+				<string>com.apple.mdm.per-user-connections</string>
+				<string>com.apple.mdm.bootstraptoken</string>
+			</array>
+			<key>ServerURL</key>
+			<string>{{ .ServerURL }}</string>
+			<key>SignMessage</key>
+			<true/>
+			<key>Topic</key>
+			<string>{{ .Topic }}</string>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>{{ .Organization | xml }} enrollment</string>
+	<key>PayloadIdentifier</key>
+	<string>` + FleetPayloadIdentifier + `</string>
+	<key>PayloadOrganization</key>
+	<string>{{ .Organization | xml }}</string>
+	<key>PayloadScope</key>
+	<string>User</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>5ACABE91-CE30-4C05-93E3-B235C152404E</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>`))
+
 func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic string) ([]byte, error) {
 	scepURL, err := ResolveAppleSCEPURL(fleetURL)
 	if err != nil {
@@ -1129,6 +1268,37 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		SCEPChallenge: scepChallenge,
 		Topic:         topic,
 		ServerURL:     serverURL,
+	}); err != nil {
+		return nil, fmt.Errorf("execute template: %w", err)
+	}
+	return buf.Bytes(), nil
+}
+
+func GenerateAccountDrivenEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, topic, assignedManagedAppleID string) ([]byte, error) {
+	scepURL, err := ResolveAppleSCEPURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple SCEP url: %w", err)
+	}
+	serverURL, err := ResolveAppleMDMURL(fleetURL)
+	if err != nil {
+		return nil, fmt.Errorf("resolve Apple MDM url: %w", err)
+	}
+
+	var buf bytes.Buffer
+	if err := accountDrivenUserEnrollmentProfileMobileconfigTemplate.Funcs(funcMap).Execute(&buf, struct {
+		Organization           string
+		SCEPURL                string
+		SCEPChallenge          string
+		Topic                  string
+		ServerURL              string
+		AssignedManagedAppleID string
+	}{
+		Organization:           orgName,
+		SCEPURL:                scepURL,
+		SCEPChallenge:          scepChallenge,
+		Topic:                  topic,
+		ServerURL:              serverURL,
+		AssignedManagedAppleID: assignedManagedAppleID,
 	}); err != nil {
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
@@ -1282,7 +1452,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	return nil
 }
 
-func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret string) ([]byte, error) {
+func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {
 	path, err := url.JoinPath(fleetURL, "/api/v1/fleet/ota_enrollment")
 	if err != nil {
 		return nil, fmt.Errorf("creating path for ota enrollment url: %w", err)
@@ -1295,6 +1465,9 @@ func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret st
 
 	q := enrollURL.Query()
 	q.Set("enroll_secret", enrollSecret)
+	if idpUUID != "" {
+		q.Set("idp_uuid", idpUUID)
+	}
 	enrollURL.RawQuery = q.Encode()
 
 	var profileBuf bytes.Buffer

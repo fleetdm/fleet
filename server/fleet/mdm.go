@@ -9,6 +9,7 @@ import (
 	"time"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/google/uuid"
 )
 
 const (
@@ -23,29 +24,40 @@ const (
 	// RefetchCriticalQueriesUntil field when migrating a device from a
 	// third-party MDM solution to Fleet.
 	RefetchMDMUnenrollCriticalQueryDuration = 3 * time.Minute
+)
 
+// FleetVarName represents the name of a Fleet variable (without the FLEET_VAR_ prefix).
+// It provides clearer semantics when used in function signatures and data structures.
+type FleetVarName string
+
+const (
 	// FleetVarNDESSCEPChallenge and other variables are used as $FLEET_VAR_<VARIABLE_NAME>.
 	// For example: $FLEET_VAR_NDES_SCEP_CHALLENGE
 	// Currently, we assume the variables are fully unique and not substrings of each other.
 	//
 	// NOTE: if you add new variables, make sure you create a DB migration to insert them
 	// in the fleet_variables table. At some point we should refactor those constants/regexp
-	// and the findFleetVariables logic to use the DB table instead of hardcoding them here
+	// and the FindFleetVariables logic to use the DB table instead of hardcoding them here
 	// (not doing it now because of time constraints to finish the story for the release).
-	FleetVarNDESSCEPChallenge               = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL                = "NDES_SCEP_PROXY_URL"
-	FleetVarHostEndUserEmailIDP             = "HOST_END_USER_EMAIL_IDP"
-	FleetVarHostHardwareSerial              = "HOST_HARDWARE_SERIAL"
-	FleetVarHostEndUserIDPUsername          = "HOST_END_USER_IDP_USERNAME"
-	FleetVarHostEndUserIDPUsernameLocalPart = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
-	FleetVarHostEndUserIDPGroups            = "HOST_END_USER_IDP_GROUPS"
-	FleetVarHostEndUserIDPDepartment        = "HOST_END_USER_IDP_DEPARTMENT"
-	FleetVarSCEPRenewalID                   = "SCEP_RENEWAL_ID"
 
-	FleetVarDigiCertDataPrefix        = "DIGICERT_DATA_"
-	FleetVarDigiCertPasswordPrefix    = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
-	FleetVarCustomSCEPChallengePrefix = "CUSTOM_SCEP_CHALLENGE_"
-	FleetVarCustomSCEPProxyURLPrefix  = "CUSTOM_SCEP_PROXY_URL_"
+	// Host variables
+	FleetVarHostEndUserEmailIDP             FleetVarName = "HOST_END_USER_EMAIL_IDP"
+	FleetVarHostHardwareSerial              FleetVarName = "HOST_HARDWARE_SERIAL"
+	FleetVarHostEndUserIDPUsername          FleetVarName = "HOST_END_USER_IDP_USERNAME"
+	FleetVarHostEndUserIDPUsernameLocalPart FleetVarName = "HOST_END_USER_IDP_USERNAME_LOCAL_PART"
+	FleetVarHostEndUserIDPGroups            FleetVarName = "HOST_END_USER_IDP_GROUPS"
+	FleetVarHostEndUserIDPDepartment        FleetVarName = "HOST_END_USER_IDP_DEPARTMENT"
+	FleetVarHostEndUserIDPFullname          FleetVarName = "HOST_END_USER_IDP_FULL_NAME"
+	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
+
+	// Certificate authority variables
+	FleetVarNDESSCEPChallenge         FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL          FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarSCEPRenewalID             FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarDigiCertDataPrefix        FleetVarName = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix    FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix  FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
@@ -169,12 +181,13 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
+	Sha256    []byte    `json:"sha256" db:"sha256"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
 func (e MDMEULA) AuthzType() string {
-	return "mdm_apple"
+	return "mdm_apple_eula"
 }
 
 // ExpectedMDMProfile represents an MDM profile that is expected to be installed on a host.
@@ -365,15 +378,17 @@ type MDMProfilesSummary struct {
 // HostMDMProfile is the status of an MDM profile on a host. It can be used to represent either
 // a Windows or macOS profile.
 type HostMDMProfile struct {
-	HostUUID      string             `db:"-" json:"-"`
-	CommandUUID   string             `db:"-" json:"-"`
-	ProfileUUID   string             `db:"-" json:"profile_uuid"`
-	Name          string             `db:"-" json:"name"`
-	Identifier    string             `db:"-" json:"-"`
-	Status        *MDMDeliveryStatus `db:"-" json:"status"`
-	OperationType MDMOperationType   `db:"-" json:"operation_type"`
-	Detail        string             `db:"-" json:"detail"`
-	Platform      string             `db:"-" json:"platform"`
+	HostUUID            string             `db:"-" json:"-"`
+	CommandUUID         string             `db:"-" json:"-"`
+	ProfileUUID         string             `db:"-" json:"profile_uuid"`
+	Name                string             `db:"-" json:"name"`
+	Identifier          string             `db:"-" json:"-"`
+	Status              *MDMDeliveryStatus `db:"-" json:"status"`
+	OperationType       MDMOperationType   `db:"-" json:"operation_type"`
+	Detail              string             `db:"-" json:"detail"`
+	Platform            string             `db:"-" json:"platform"`
+	Scope               *string            `db:"-" json:"scope"` // Scope and ManagedLocalAccount will be null on unsupported platforms
+	ManagedLocalAccount *string            `db:"-" json:"managed_local_account"`
 }
 
 // MDMDeliveryStatus is the status of an MDM command to apply a profile
@@ -459,6 +474,16 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+}
+
+// BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
+// performing a batch modify operation.
+type BatchModifyMDMConfigProfilePayload struct {
+	Profile          []byte   `json:"profile,omitempty"`
+	DisplayName      string   `json:"display_name,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
@@ -766,6 +791,10 @@ const (
 	MDMAssetAndroidPubSubToken MDMAssetName = "android_pubsub_token" // nolint:gosec // Ignore G101: Potential hardcoded credentials
 	// MDMAssetAndroidFleetServerSecret is the bearer token for Android requests sent to the fleetdm.com Android management proxy.
 	MDMAssetAndroidFleetServerSecret MDMAssetName = "android_fleet_server_secret" // nolint:gosec // Ignore G101: Potential hardcoded credentials
+	// MDMAssetHostIdentityCACert is the name of the root CA certificate used for host identity
+	MDMAssetHostIdentityCACert MDMAssetName = "host_identity_ca_cert"
+	// MDMAssetHostIdentityCAKey is the name of the root CA private key used for host identity
+	MDMAssetHostIdentityCAKey MDMAssetName = "host_identity_ca_key"
 )
 
 type MDMConfigAsset struct {
@@ -790,20 +819,6 @@ func (m MDMConfigAsset) Copy() MDMConfigAsset {
 	}
 
 	return clone
-}
-
-type CAConfigAssetType string
-
-const (
-	CAConfigNDES            CAConfigAssetType = "ndes"
-	CAConfigDigiCert        CAConfigAssetType = "digicert"
-	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
-)
-
-type CAConfigAsset struct {
-	Name  string            `db:"name"`
-	Value []byte            `db:"value"`
-	Type  CAConfigAssetType `db:"type"`
 }
 
 // MDMPlatform returns "darwin" or "windows" as MDM platforms
@@ -843,14 +858,45 @@ func FilterMacOSOnlyProfilesFromIOSIPadOS(profiles []*MDMAppleProfilePayload) []
 	return profiles[:i]
 }
 
+// FilterOutUserScopedProfiles returns a slice with only system-scoped profiles.
+func FilterOutUserScopedProfiles(profiles []*MDMAppleProfilePayload) []*MDMAppleProfilePayload {
+	var filtered []*MDMAppleProfilePayload
+	for _, p := range profiles {
+		if p.Scope != "User" {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
+}
+
 // RefetchBaseCommandUUIDPrefix and below command prefixes are the prefixes used for MDM commands used to refetch information from iOS/iPadOS devices.
 const (
-	RefetchBaseCommandUUIDPrefix           = "REFETCH-"
-	RefetchDeviceCommandUUIDPrefix         = RefetchBaseCommandUUIDPrefix + "DEVICE-"
-	RefetchAppsCommandUUIDPrefix           = RefetchBaseCommandUUIDPrefix + "APPS-"
-	RefetchCertsCommandUUIDPrefix          = RefetchBaseCommandUUIDPrefix + "CERTS-"
-	RefetchVPPAppInstallsCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "VPP-INSTALLS-"
+	RefetchBaseCommandUUIDPrefix   = "REFETCH-"
+	RefetchDeviceCommandUUIDPrefix = RefetchBaseCommandUUIDPrefix + "DEVICE-"
+	RefetchAppsCommandUUIDPrefix   = RefetchBaseCommandUUIDPrefix + "APPS-"
+	RefetchCertsCommandUUIDPrefix  = RefetchBaseCommandUUIDPrefix + "CERTS-"
 )
+
+func RefetchAppsCommandUUID() string {
+	return RefetchAppsCommandUUIDPrefix + uuid.NewString()
+}
+
+func ListAppleRefetchCommandPrefixes() []string {
+	return []string{
+		RefetchBaseCommandUUIDPrefix,
+		RefetchDeviceCommandUUIDPrefix,
+		RefetchAppsCommandUUIDPrefix,
+		RefetchCertsCommandUUIDPrefix,
+	}
+}
+
+// VerifySoftwareInstallVPPPrefix is the prefix used for MDM commands used to verify VPP app installs.
+const VerifySoftwareInstallVPPPrefix = "VERIFY-VPP-INSTALLS-"
+
+// VerifySoftwareInstallCommandUUID returns a UUID for a MDM command used to verify VPP app installs.
+func VerifySoftwareInstallCommandUUID() string {
+	return VerifySoftwareInstallVPPPrefix + uuid.NewString()
+}
 
 // VPPTokenInfo is the representation of the VPP token that we send out via API.
 type VPPTokenInfo struct {
@@ -983,8 +1029,8 @@ type MDMProfileUUIDFleetVariables struct {
 	ProfileUUID string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
-	// findFleetVariables).
-	FleetVariables []string
+	// FindFleetVariables).
+	FleetVariables []FleetVarName
 }
 
 // MDMProfileIdentifierFleetVariables represents the Fleet variables used by a
@@ -995,8 +1041,8 @@ type MDMProfileIdentifierFleetVariables struct {
 	Identifier string
 	// FleetVariables is the (deduplicated) list of Fleet variables used by the
 	// profile, without the "FLEET_VAR_" prefix (as returned by
-	// findFleetVariables).
-	FleetVariables []string
+	// FindFleetVariables).
+	FleetVariables []FleetVarName
 }
 
 // BatchResendMDMProfileFilters represents the filters to apply to hosts for
@@ -1029,4 +1075,4 @@ type MDMCommandResults interface {
 	HostUUID() string
 }
 
-type CommandHandler func(ctx context.Context, results MDMCommandResults) error
+type MDMCommandResultsHandler func(ctx context.Context, results MDMCommandResults) error

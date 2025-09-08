@@ -3,6 +3,7 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  windows_require_bitlocker_pin: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
@@ -151,7 +152,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -312,6 +313,87 @@ func TestAddFleetMaintainedApp(t *testing.T) {
 				Exists: "SELECT 1 FROM osquery_info;",
 			},
 			InstallerURL:       installerServer.URL + "/iexplode.exe",
+			InstallScriptRef:   "foobaz",
+			UninstallScriptRef: "foobaz",
+			SHA256:             noCheckHash,
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"foobaz": "Hello World!",
+			},
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
+
+	svc := newTestService(t, ds)
+
+	authCtx := authz_ctx.AuthorizationContext{}
+	ctx := authz_ctx.NewContext(context.Background(), &authCtx)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+	_, err = svc.AddFleetMaintainedApp(ctx, nil, 1, "", "", "", "", false, false, nil, nil)
+	require.ErrorContains(t, err, "forced error to short-circuit storage and activity creation")
+
+	require.True(t, ds.MatchOrCreateSoftwareInstallerFuncInvoked)
+}
+
+func TestExtractMaintainedAppVersionWhenLatest(t *testing.T) {
+	installerBytes, err := os.ReadFile(filepath.Join("testdata", "dummy_installer.pkg"))
+	require.NoError(t, err)
+
+	// this is the hash we expect to get in the DB
+	h := sha256.New()
+	_, err = h.Write(installerBytes)
+	require.NoError(t, err)
+	spoofedSHA := hex.EncodeToString(h.Sum(nil))
+
+	ds := new(mock.Store)
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+	ds.GetMaintainedAppByIDFunc = func(ctx context.Context, appID uint, teamID *uint) (*fleet.MaintainedApp, error) {
+		return &fleet.MaintainedApp{
+			ID:               1,
+			Name:             "Dummy",
+			Slug:             "dummy/darwin",
+			Platform:         "darwin",
+			TitleID:          nil,
+			UniqueIdentifier: "com.example.dummy",
+		}, nil
+	}
+	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
+		return []uint{}, nil
+	}
+
+	// Mock server to serve the dummy package
+	installerServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(installerBytes)
+	}))
+	defer installerServer.Close()
+	ds.MatchOrCreateSoftwareInstallerFunc = func(ctx context.Context, payload *fleet.UploadSoftwareInstallerPayload) (uint, uint, error) {
+		require.Equal(t, spoofedSHA, payload.StorageID)
+		require.Equal(t, "1.0.0", payload.Version)
+
+		// Can't easily inject a proper fleet.service so we bail early before NewActivity gets called and panics
+		return 0, 0, errors.New("forced error to short-circuit storage and activity creation")
+	}
+
+	// Mock server to serve the manifest
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "latest",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       installerServer.URL + "/dummy.pkg",
 			InstallScriptRef:   "foobaz",
 			UninstallScriptRef: "foobaz",
 			SHA256:             noCheckHash,

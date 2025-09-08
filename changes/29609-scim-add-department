@@ -1,1 +1,0 @@
-* Added support for ingesting user's "Department" via SCIM and added support to set the `FLEET_VAR_HOST_END_USER_IDP_DEPARTMENT` variable on configuration profiles.
