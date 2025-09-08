@@ -387,10 +387,11 @@ controls:
 
 Use `labels_include_all` to target hosts that have all labels, `labels_include_any` to target hosts that have any label, or `labels_exclude_any` to target hosts that don't have any of the labels. Only one of `labels_include_all`, `labels_include_any`, or `labels_exclude_any` can be specified. If none are specified, all hosts are targeted.
 
+#### Variables
+
 For macOS configuration profiles, you can use any of Apple's [built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 Fleet also supports adding [GitHub](https://docs.github.com/en/actions/learn-github-actions/variables#defining-environment-variables-for-a-single-workflow) or [GitLab](https://docs.gitlab.com/ci/variables/) environment variables in your configuration profiles. Use `$ENV_VARIABLE` format. 
-
 
 In Fleet Premium, you can use reserved variables beginning with `$FLEET_VAR_`. Fleet will populate these variables when profiles are sent to hosts. Supported variables are:
 
