@@ -222,7 +222,7 @@ func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (
 	reader := ds.reader(ctx)
 	readerDB, ok := reader.(*sqlx.DB)
 	if !ok {
-		return fmt.Errorf("failed to cast reader to *sqlx.DB")
+		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
 	}
 	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
 }
