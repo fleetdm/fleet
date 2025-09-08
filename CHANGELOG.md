@@ -1,33 +1,28 @@
-## Fleet 4.73.0 (Aug 15, 2025)
+## Fleet 4.73.0 (Sep 5, 2025)
 
-### Bug fixes
+### Security Engineers
+- Added new detail query, only executed if TPM PIN enforcement is required, for determining whether a BitLocker PIN is set.
+- Added new global activity created when a new disk encryption key is escrowed.
 
-* Fixed cases where the uninstall script population job introduced in Fleet 4.57.0 would attempt to extract package IDs on software that we don't generate uninstall scripts for, causing errors in logs and retries of the job.
-Clear label membership when label platform changes (via GitOps).
-* Revised stale vulnerabilities deletion (for false positive cleanup) to clear vulnerabilities touched before the current vulnerabilities run, instead of using a hard-coded threshold based on how often the vulns cron runs.
-- add permissions to os updates page so that only global admins and the team admin can see the page
-* Fleet UI: Removed unintended broken sort on Fleet Desktop > Software > type column
-- Validate Gitops mode URL on frontend and backend
-Fixed potential panic in error handler when Redis is down.
-* When multiple version of a software are installed the last used timestamp for each version is properly returned in the host inventory
-* Mark DDM profiles as failed if response comes back with Unknown Declaration Type error, and improve upload validation for declaration type.
-* Added new global activity created when a new disk encryption key is escrowed.
-- `fleetctl api` now supports sending data in the body of non-GET requests using the `-F` flag.
-  - For methods other than `GET`, using the syntax `-F field=<path`, the file at "path" will be read and the field will be set to the file's contents.
-  - For methods other than `GET`, using the syntax `-F field=@path`, the file at "path" will be uploaded as a multipart upload.
-  - When no file uploads are present, the body is encoded as a JSON dictionary.
-  - To ensure JSON values can be passed correctly, it is no longer possible to set multiple values for a repeatable flag using a comma (`,`). You must now specify the flag multiple times.
-  - `fleetctl` will attempt to parse values as JSON. If successful, the value will be embedded in the JSON body. For example, `fleetctl api -F field=true endpoint` will encode as `{"field":true}`. To use the literal string "true", write `-F 'field="true"'`.
-  - If the value cannot be parsed as JSON, it is sent as a string.
-  - When `--debug` is specified, the body is written to standard error, unless it contains non-Unicode characters.
-  - To upload a software package, use `fleetctl api -X POST -F software=@/path/to/software.pkg -F team_id=0 -F install_script=... -F uninstall_script=... software/package`
-* Added new detail query, only executed if TPM PIN enforcement is required, for determining whether a BitLocker PIN is set.
-* Fixes a potential race condition issue, where a host might get released because no profiles has been sent for installation before releasing the device, by checking the currently installed profiles against what is expected.
+### IT Admins
 - Added backend APIs for adding, deleting and listing secret variables.
+- Added IdP SSO authentication to the BYOD mobile devices enrollment if that option is enabled for the team.
+
+### Other improvements and bug fixes
+- Added permissions to OS updates page so that only global admins and the team admin can see the page.
+- Cleared label membership when label platform changes (via GitOps).
+- Improved public IP extraction for Fleet Desktop requests.
+- Marked DDM profiles as failed if response comes back with Unknown Declaration Type error, and improve upload validation for declaration type.
 - Modified `PUT /api/v1/fleet/spec/secret_variables` endpoint to only accept secret variables with uppercase letters, numbers and underscores.
-* Fixed invalid rate limiting applied on Fleet Desktop requests for which a public IP could not be determined.
-* Improved public IP extraction for Fleet Desktop requests.
-- Fleet UI: Fixed VPP token dropdown to allow user to choose "All teams" selection
+- Updated software inventory so that when multiple version of a software are installed the last used timestamp for each version is properly returned.
+- Revised stale vulnerabilities deletion (for false positive cleanup) to clear vulnerabilities touched before the current vulnerabilities run, instead of using a hard-coded threshold based on how often the vulns cron runs.
+- Removed unintended broken sort on Fleet Desktop > Software > type column.
+- Validated Gitops mode URL on frontend and backend.
+- Fixed cases where the uninstall script population job introduced in Fleet 4.57.0 would attempt to extract package IDs on software that we don't generate uninstall scripts for, causing errors in logs and retries of the job.
+- Fixed potential panic in error handler when Redis is down.
+- Fixed a potential race condition issue, where a host might get released because no profiles has been sent for installation before releasing the device, by checking the currently installed profiles against what is expected.
+- Fixed invalid rate limiting applied on Fleet Desktop requests for which a public IP could not be determined.
+- Fixed VPP token dropdown to allow user to choose "All teams" selection.
 - Added "Get batch script" and "List batch scripts" APIs
 * Do not log an error if EULA is missing for the `/setup_experience/eula/metadata` endpoint
 - Updated macOS 15 CIS policies to align with CIS Benchmark v1.1.0 (from v1.0.0).
