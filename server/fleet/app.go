@@ -1540,3 +1540,10 @@ type YaraRule struct {
 	Name     string `json:"name"`
 	Contents string `json:"contents"`
 }
+
+func (r *YaraRule) Clone() (Cloner, error) {
+	return &YaraRule{
+		Name:     r.Name,
+		Contents: r.Contents,
+	}, nil
+}
