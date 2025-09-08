@@ -67,5 +67,4 @@ made this year's conference happen!
 <meta name="authorFullName" value="Ian Littman">
 <meta name="publishedOn" value="2023-09-10">
 <meta name="articleTitle" value="Fleet goes to GopherCon 2025">
-<meta name="articleImageUrl" value="">
-<meta name="description" value="Engineering Fleeties made it out to New York for 2025's edition of GopherCon, and brought back learnings to make Fleet even better">
+<meta name="description" value="Engineering Fleeties made it out to New York for the 2025 edition of GopherCon, and brought back learnings to make Fleet even better">
