@@ -239,6 +239,12 @@ TIMESTAMP_PASSPHRASE_1PASSWORD_PATH="Private/UPDATES TIMESTAMP/password" \
 ACTION=release-to-production ./tools/tuf/releaser.sh
 ```
 4. Smoke test release on production.
+5. Update osquery schema and flags:
+```sh
+ACTION=update-osquery-schema \
+VERSION=5.19.0 \
+./tools/tuf/releaser.sh
+```
 
 #### Releasing `swiftDialog` to `stable`
 
