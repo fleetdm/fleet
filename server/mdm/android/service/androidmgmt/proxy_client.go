@@ -215,6 +215,33 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	return nil
 }
 
+func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.List().Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	resp, err := call.Do()
+	if err != nil {
+		// Convert proxy errors to proper googleapi.Error for service layer
+		var ae *googleapi.Error
+		switch {
+		case errors.As(err, &ae):
+			// Already a googleapi.Error, pass through
+			return nil, err
+		case isErrorCode(err, http.StatusForbidden):
+			// Convert 403 from proxy to proper googleapi.Error
+			return nil, &googleapi.Error{
+				Code:    http.StatusForbidden,
+				Message: "Enterprises list access forbidden",
+			}
+		default:
+			return nil, fmt.Errorf("listing enterprises: %w", err)
+		}
+	}
+	return resp.Enterprises, nil
+}
+
 func isErrorCode(err error, code int) bool {
 	if err == nil {
 		return false

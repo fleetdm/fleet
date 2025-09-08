@@ -70,17 +70,19 @@ const (
 )
 
 var (
-	fleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPChallenge))
-	fleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserEmailIDPRegexp             = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserEmailIDP))
 	fleetVarHostHardwareSerialRegexp              = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostHardwareSerial))
 	fleetVarHostEndUserIDPUsernameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsername))
 	fleetVarHostEndUserIDPDepartmentRegexp        = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPDepartment))
 	fleetVarHostEndUserIDPUsernameLocalPartRegexp = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPUsernameLocalPart))
 	fleetVarHostEndUserIDPGroupsRegexp            = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPGroups))
+	fleetVarNDESSCEPChallengeRegexp               = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPChallenge))
+	fleetVarNDESSCEPProxyURLRegexp                = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarNDESSCEPProxyURL))
 	fleetVarHostEndUserIDPFullnameRegexp          = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarHostEndUserIDPFullname))
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
+	// TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
+	// but that is not the case, digicert is totally supported just in a different way (multiple CA's)
 	fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
@@ -398,20 +400,18 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	// We validate Fleet variables before we unmarshal the profile because bad variables can break unmarshal.
-	// For example: <data>$FLEET_VAR_BOZO</data>
-	appConfig, err := svc.ds.AppConfig(ctx)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
-	}
-
 	// Get license for validation
 	lic, err := svc.License(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	profileVars, err := validateConfigProfileFleetVariables(appConfig, expanded, lic)
+	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
+	profileVars, err := validateConfigProfileFleetVariables(expanded, lic, groupedCAs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating fleet variables")
 	}
@@ -494,7 +494,7 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	return newCP, nil
 }
 
-func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
 	fleetVars := variables.FindKeepDuplicates(contents)
 	if len(fleetVars) == 0 {
 		return nil, nil
@@ -504,6 +504,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 	if lic == nil || !lic.IsPremium() {
 		return nil, fleet.ErrMissingLicense
 	}
+
 	var (
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
@@ -516,7 +517,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 			switch {
 			case strings.HasPrefix(k, string(fleet.FleetVarDigiCertDataPrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarDigiCertDataPrefix))
-				for _, ca := range appConfig.Integrations.DigiCert.Value {
+				for _, ca := range groupedCAs.DigiCert {
 					if ca.Name == caName {
 						found = true
 						digiCertVars, ok = digiCertVars.SetData(caName)
@@ -525,7 +526,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				}
 			case strings.HasPrefix(k, string(fleet.FleetVarDigiCertPasswordPrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarDigiCertPasswordPrefix))
-				for _, ca := range appConfig.Integrations.DigiCert.Value {
+				for _, ca := range groupedCAs.DigiCert {
 					if ca.Name == caName {
 						found = true
 						digiCertVars, ok = digiCertVars.SetPassword(caName)
@@ -534,7 +535,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				}
 			case strings.HasPrefix(k, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
-				for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+				for _, ca := range groupedCAs.CustomScepProxy {
 					if ca.Name == caName {
 						found = true
 						customSCEPVars, ok = customSCEPVars.SetURL(caName)
@@ -543,7 +544,7 @@ func validateConfigProfileFleetVariables(appConfig *fleet.AppConfig, contents st
 				}
 			case strings.HasPrefix(k, string(fleet.FleetVarCustomSCEPChallengePrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarCustomSCEPChallengePrefix))
-				for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+				for _, ca := range groupedCAs.CustomScepProxy {
 					if ca.Name == caName {
 						found = true
 						customSCEPVars, ok = customSCEPVars.SetChallenge(caName)
@@ -3488,7 +3489,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
 		// Enqueue setup experience items and mark the host as being in setup experience
-		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
+		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
 		if err != nil {
 			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 		}
@@ -4732,11 +4733,16 @@ func ReconcileAppleProfiles(
 		return ctxerr.Wrap(ctx, err, "get profile contents")
 	}
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	// Insert variables into profile contents of install targets. Variables may be host-specific.
 	err = preprocessProfileContents(ctx, appConfig, ds,
 		eeservice.NewSCEPConfigService(logger, nil),
 		digicert.NewService(digicert.WithLogger(logger)),
-		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap)
+		logger, installTargets, profileContents, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, groupedCAs)
 	if err != nil {
 		return err
 	}
@@ -4862,6 +4868,7 @@ func preprocessProfileContents(
 	profileContents map[string]mobileconfig.Mobileconfig,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
+	groupedCAs *fleet.GroupedCertificateAuthorities,
 ) error {
 	// This method replaces Fleet variables ($FLEET_VAR_<NAME>) in the profile
 	// contents, generating a unique profile for each host. For a 2KB profile and
@@ -4869,9 +4876,9 @@ func preprocessProfileContents(
 
 	var (
 		// Copy of NDES SCEP config which will contain unencrypted password, if needed
-		ndesConfig    *fleet.NDESSCEPProxyIntegration
-		digiCertCAs   map[string]*fleet.DigiCertIntegration
-		customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration
+		ndesConfig    *fleet.NDESSCEPProxyCA
+		digiCertCAs   map[string]*fleet.DigiCertCA
+		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -4915,7 +4922,7 @@ func preprocessProfileContents(
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
-				configured, err := isNDESSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
+				configured, err := isNDESSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, target)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking NDES SCEP configuration")
 				}
@@ -4938,9 +4945,9 @@ func preprocessProfileContents(
 					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix))
 				}
 				if digiCertCAs == nil {
-					digiCertCAs = make(map[string]*fleet.DigiCertIntegration)
+					digiCertCAs = make(map[string]*fleet.DigiCertCA)
 				}
-				configured, err := isDigiCertConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
+				configured, err := isDigiCertConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, digiCertCAs, profUUID, target, caName, fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking DigiCert configuration")
 				}
@@ -4957,9 +4964,9 @@ func preprocessProfileContents(
 					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix))
 				}
 				if customSCEPCAs == nil {
-					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyIntegration)
+					customSCEPCAs = make(map[string]*fleet.CustomSCEPProxyCA)
 				}
-				configured, err := isCustomSCEPConfigured(ctx, appConfig, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
+				configured, err := isCustomSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, customSCEPCAs, profUUID, target, caName,
 					fleetVar)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "checking custom SCEP configuration")
@@ -5018,16 +5025,7 @@ func preprocessProfileContents(
 				switch {
 				case fleetVar == string(fleet.FleetVarNDESSCEPChallenge):
 					if ndesConfig == nil {
-						// Retrieve the NDES admin password. This is done once per run.
-						configAssets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
-						if err != nil {
-							return ctxerr.Wrap(ctx, err, "getting NDES password")
-						}
-						// Copy config struct by value
-						configWithPassword := appConfig.Integrations.NDESSCEPProxy.Value
-						configWithPassword.Password = string(configAssets[fleet.MDMAssetNDESPassword].Value)
-						// Store the config with the password for later use
-						ndesConfig = &configWithPassword
+						ndesConfig = groupedCAs.NDESSCEP
 					}
 					// Insert the SCEP challenge into the profile contents
 					challenge, err := scepConfig.GetNDESSCEPChallenge(ctx, *ndesConfig)
@@ -5585,21 +5583,21 @@ func (d *digiCertVarsFound) SetPassword(value string) (*digiCertVarsFound, bool)
 	return d, !alreadyPresent
 }
 
-func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+func isDigiCertConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	digiCertCAs map[string]*fleet.DigiCertIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	existingDigiCertCAs map[string]*fleet.DigiCertCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "DigiCert integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
-	if _, ok := digiCertCAs[caName]; ok {
+	if _, ok := existingDigiCertCAs[caName]; ok {
 		return true, nil
 	}
 	configured := false
-	var digiCertCA *fleet.DigiCertIntegration
-	if appConfig.Integrations.DigiCert.Valid {
-		for _, ca := range appConfig.Integrations.DigiCert.Value {
+	var digiCertCA *fleet.DigiCertCA
+	if len(groupedCAs.DigiCert) > 0 {
+		for _, ca := range groupedCAs.DigiCert {
 			if ca.Name == caName {
 				digiCertCA = &ca
 				configured = true
@@ -5612,18 +5610,7 @@ func isDigiCertConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fl
 			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
-	// Get the API token
-	asset, err := ds.GetCAConfigAsset(ctx, digiCertCA.Name, fleet.CAConfigDigiCert)
-	switch {
-	case fleet.IsNotFound(err):
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
-			fmt.Sprintf("DigiCert CA '%s' is missing API token. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
-	case err != nil:
-		return false, ctxerr.Wrap(ctx, err, "getting CA config asset")
-	}
-	digiCertCA.APIToken = string(asset.Value)
-	digiCertCAs[caName] = digiCertCA
-
+	existingDigiCertCAs[caName] = digiCertCA
 	return true, nil
 }
 
@@ -5683,17 +5670,17 @@ func (n *ndesVarsFound) SetRenewalID() (*ndesVarsFound, bool) {
 	return n, !alreadyPresent
 }
 
-func isNDESSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+func isNDESSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload, userEnrollmentsToHostUUIDsMap map[string]string, profUUID string, target *cmdTarget,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "NDES SCEP Proxy requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
-	if !appConfig.Integrations.NDESSCEPProxy.Valid {
+	if groupedCAs.NDESSCEP == nil {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
 			"NDES SCEP Proxy is not configured. Please configure in Settings > Integrations > Certificates.", ptr.Time(time.Now().UTC()))
 	}
-	return appConfig.Integrations.NDESSCEPProxy.Valid, nil
+	return true, nil
 }
 
 type customSCEPVarsFound struct {
@@ -5795,21 +5782,21 @@ func (cs *customSCEPVarsFound) SetRenewalID() (*customSCEPVarsFound, bool) {
 	return cs, !alreadyPresent
 }
 
-func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds fleet.Datastore,
+func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
 	userEnrollmentsToHostUUIDsMap map[string]string,
-	customSCEPCAs map[string]*fleet.CustomSCEPProxyIntegration, profUUID string, target *cmdTarget, caName string, fleetVar string,
+	existingCustomSCEPCAs map[string]*fleet.CustomSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
 ) (bool, error) {
 	if !license.IsPremium(ctx) {
 		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Custom SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
 	}
-	if _, ok := customSCEPCAs[caName]; ok {
+	if _, ok := existingCustomSCEPCAs[caName]; ok {
 		return true, nil
 	}
 	configured := false
-	var scepCA *fleet.CustomSCEPProxyIntegration
-	if appConfig.Integrations.CustomSCEPProxy.Valid {
-		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+	var scepCA *fleet.CustomSCEPProxyCA
+	if len(groupedCAs.CustomScepProxy) > 0 {
+		for _, ca := range groupedCAs.CustomScepProxy {
 			if ca.Name == caName {
 				scepCA = &ca
 				configured = true
@@ -5822,18 +5809,7 @@ func isCustomSCEPConfigured(ctx context.Context, appConfig *fleet.AppConfig, ds 
 			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
 	}
 
-	// Get the challenge
-	asset, err := ds.GetCAConfigAsset(ctx, scepCA.Name, fleet.CAConfigCustomSCEPProxy)
-	switch {
-	case fleet.IsNotFound(err):
-		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
-			fmt.Sprintf("Custom SCEP CA '%s' is missing a challenge. Please configure in Settings > Integrations > Certificates.", caName), ptr.Time(time.Now().UTC()))
-	case err != nil:
-		return false, ctxerr.Wrap(ctx, err, "getting custom SCEP CA config asset")
-	}
-	scepCA.Challenge = string(asset.Value)
-	customSCEPCAs[caName] = scepCA
-
+	existingCustomSCEPCAs[caName] = scepCA
 	return true, nil
 }
 

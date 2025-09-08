@@ -57,6 +57,9 @@ export enum ActivityType {
   AddedCustomScepProxy = "added_custom_scep_proxy",
   DeletedCustomScepProxy = "deleted_custom_scep_proxy",
   EditedCustomScepProxy = "edited_custom_scep_proxy",
+  AddedHydrant = "added_hydrant",
+  DeletedHydrant = "deleted_hydrant",
+  EditedHydrant = "edited_hydrant",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -129,6 +132,7 @@ export enum ActivityType {
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
+  EditedSetupExperienceSoftware = "edited_setup_experience_software",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */

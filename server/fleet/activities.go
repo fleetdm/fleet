@@ -202,6 +202,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedDigiCert{},
 	ActivityDeletedDigiCert{},
 	ActivityEditedDigiCert{},
+	ActivityAddedHydrant{},
+	ActivityDeletedHydrant{},
+	ActivityEditedHydrant{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -225,6 +228,8 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityCreatedCustomVariable{},
 	ActivityDeletedCustomVariable{},
+
+	ActivityEditedSetupExperienceSoftware{},
 }
 
 type ActivityDetails interface {
@@ -1952,6 +1957,7 @@ type ActivityTypeEditedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 	SoftwareTitleID  uint                    `json:"software_title_id"`
@@ -1977,6 +1983,7 @@ func (a ActivityTypeEditedSoftware) Documentation() (string, string, string) {
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1996,6 +2003,7 @@ type ActivityTypeDeletedSoftware struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2018,6 +2026,7 @@ func (a ActivityTypeDeletedSoftware) Documentation() (string, string, string) {
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2195,6 +2204,7 @@ type ActivityDeletedAppStoreApp struct {
 	TeamName         *string                 `json:"team_name"`
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2217,6 +2227,7 @@ func (a ActivityDeletedAppStoreApp) Documentation() (activity string, details st
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2285,6 +2296,7 @@ type ActivityEditedAppStoreApp struct {
 	TeamID           *uint                   `json:"team_id"`
 	Platform         AppleDevicePlatform     `json:"platform"`
 	SelfService      bool                    `json:"self_service"`
+	SoftwareIconURL  *string                 `json:"software_icon_url"`
 	LabelsIncludeAny []ActivitySoftwareLabel `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []ActivitySoftwareLabel `json:"labels_exclude_any,omitempty"`
 }
@@ -2311,6 +2323,7 @@ func (a ActivityEditedAppStoreApp) Documentation() (activity string, details str
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -2441,6 +2454,51 @@ func (a ActivityEditedDigiCert) Documentation() (activity string, details string
 	return "Generated when DigiCert certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "DIGICERT_WIFI"
+}`
+}
+
+type ActivityAddedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedHydrant) ActivityName() string {
+	return "added_hydrant"
+}
+
+func (a ActivityAddedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityDeletedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedHydrant) ActivityName() string {
+	return "deleted_hydrant"
+}
+
+func (a ActivityDeletedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityEditedHydrant struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedHydrant) ActivityName() string {
+	return "edited_hydrant"
+}
+
+func (a ActivityEditedHydrant) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "HYDRANT_WIFI"
 }`
 }
 
@@ -2762,6 +2820,28 @@ func (a ActivityDeletedCustomVariable) Documentation() (activity string, details
 - "custom_variable_name": the name of the custom variable.`, `{
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}`
+}
+
+type ActivityEditedSetupExperienceSoftware struct {
+	Platform string `json:"platform"`
+	TeamID   uint   `json:"team_id"`
+	TeamName string `json:"team_name"`
+}
+
+func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
+	return "edited_setup_experience_software"
+}
+
+func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user edits setup experience software.`,
+		`This activity contains the following fields:
+- "platform": the platform of the host ("linux", "darwin").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }`
 }
 

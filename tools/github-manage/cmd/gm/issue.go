@@ -21,6 +21,9 @@ var issuesCmd = &cobra.Command{
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Error running Bubble Tea program: %v\n", err)
 		}
+		if model.exitMessage != "" {
+			fmt.Println(model.exitMessage)
+		}
 	},
 }
 

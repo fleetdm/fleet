@@ -41,6 +41,8 @@ export const generateWinDiskEncryptionSetting = (
     status: convertWinDiskEncryptionStatusToSettingStatus(diskEncryptionStatus),
     detail: generateWindowsDiskEncryptionMessage(diskEncryptionStatus, detail),
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 
@@ -61,6 +63,8 @@ export const generateLinuxDiskEncryptionSetting = (
     status: diskEncryptionStatus,
     detail,
     operation_type: null,
+    scope: null,
+    managed_local_account: null,
   };
 };
 

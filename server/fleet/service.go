@@ -35,13 +35,13 @@ type EnterpriseOverrides struct {
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
-	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
 type OsqueryService interface {
-	EnrollAgent(
+	EnrollOsquery(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
 	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
@@ -400,6 +400,8 @@ type Service interface {
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+
+	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints
 	// to bypass authentication, as they are public
@@ -1241,11 +1243,18 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	/////////////////////////////////////////////////////////////////////////////////
+	// Software title icons
+	//
+	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
+	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
+	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 
-	SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error
-	ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+	SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
@@ -1257,7 +1266,13 @@ type Service interface {
 	// SetupExperienceNextStep is a callback that processes the
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
-	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
+
+	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
+	// This is used for the "Setup experience" on non-darwin devices.
+	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
+	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
+	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
@@ -1310,6 +1325,26 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+
+	// ListCertificateAuthorities lists all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
+	// GetCertificateAuthority returns a CertificateAuthority by ID. Secrets are masked
+	GetCertificateAuthority(ctx context.Context, id uint) (*CertificateAuthority, error)
+	// NewCertificateAuthority creates a new certificate authority and returns the created object
+	// with its ID set. Secrets must be provided
+	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
+	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
+	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
+	// UpdateCertificateAuthority updates the certificate authority of the given id
+	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
+	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
+	// BatchApplyCertificateAuthorities applies the given certificate authorities spec
+	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
+	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
+	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
 }
 
 type KeyValueStore interface {

@@ -529,7 +529,6 @@ func newAutomationsSchedule(
 	logger kitlog.Logger,
 	intervalReload time.Duration,
 	failingPoliciesSet fleet.FailingPolicySet,
-	enablePrimo bool,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronAutomations)
@@ -568,7 +567,7 @@ func newAutomationsSchedule(
 		schedule.WithJob(
 			"failing_policies_automation",
 			func(ctx context.Context) error {
-				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet, enablePrimo)
+				return triggerFailingPoliciesAutomation(ctx, ds, kitlog.With(logger, "automation", "failing_policies"), failingPoliciesSet)
 			},
 		),
 	)
@@ -605,7 +604,6 @@ func triggerFailingPoliciesAutomation(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	failingPoliciesSet fleet.FailingPolicySet,
-	enablePrimo bool,
 ) error {
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
@@ -647,7 +645,7 @@ func triggerFailingPoliciesAutomation(
 			}
 		}
 		return nil
-	}, enablePrimo)
+	})
 	if err != nil {
 		return fmt.Errorf("triggering failing policies automation: %w", err)
 	}
@@ -836,6 +834,7 @@ func newCleanupsAndAggregationSchedule(
 	commander *apple_mdm.MDMAppleCommander,
 	softwareInstallStore fleet.SoftwareInstallerStore,
 	bootstrapPackageStore fleet.MDMBootstrapPackageStore,
+	softwareTitleIconStore fleet.SoftwareTitleIconStore,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -1016,6 +1015,9 @@ func newCleanupsAndAggregationSchedule(
 			// race where we delete those created after the mysql query to get those
 			// in use.
 			return ds.CleanupUnusedSoftwareInstallers(ctx, softwareInstallStore, time.Now().Add(-time.Minute))
+		}),
+		schedule.WithJob("cleanup_unused_software_title_icons", func(ctx context.Context) error {
+			return ds.CleanupUnusedSoftwareTitleIcons(ctx, softwareTitleIconStore, time.Now().Add(-time.Minute))
 		}),
 		schedule.WithJob("cleanup_unused_bootstrap_packages", func(ctx context.Context) error {
 			// remove only those unused created more than a minute ago to avoid a
