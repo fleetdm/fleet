@@ -9,14 +9,16 @@ import { SetupEmptyState } from "../../SetupExperience";
 interface ISetupExperienceMdmEnabledWrapperProps {
   router: InjectedRouter;
   children: React.ReactNode;
+  bypass?: boolean;
 }
 /** Gates children with empty states if Apple MDM or ABM not enabled */
 const SetupMdmEnabledWrapper = ({
   router,
   children,
+  bypass = false,
 }: ISetupExperienceMdmEnabledWrapperProps) => {
   const { config } = useContext(AppContext);
-  if (!config?.mdm.enabled_and_configured) {
+  if (!bypass && !config?.mdm.enabled_and_configured) {
     return (
       <TurnOnMdmMessage
         header="Manage setup experience for macOS"
@@ -26,7 +28,7 @@ const SetupMdmEnabledWrapper = ({
       />
     );
   }
-  if (!config?.mdm.apple_bm_enabled_and_configured) {
+  if (!bypass && !config?.mdm.apple_bm_enabled_and_configured) {
     return <SetupEmptyState router={router} />;
   }
   return <>{children}</>;

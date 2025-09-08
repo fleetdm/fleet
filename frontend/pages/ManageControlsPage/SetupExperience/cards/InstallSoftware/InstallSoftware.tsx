@@ -27,6 +27,7 @@ import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import SetupExperienceMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "install-software";
 
@@ -44,7 +45,8 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
 
 const InstallSoftware = ({
   currentTeamId,
-}: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
+  router,
+}: ISetupExperienceCardProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [
     selectedPlatform,
@@ -130,16 +132,21 @@ const InstallSoftware = ({
 
     if (softwareTitles || softwareTitles === null) {
       return (
-        <SetupExperienceContentContainer>
-          <AddInstallSoftware
-            currentTeamId={currentTeamId}
-            hasManualAgentInstall={hasManualAgentInstall}
-            softwareTitles={softwareTitles}
-            onAddSoftware={() => setShowSelectSoftwareModal(true)}
-            platform={platform}
-          />
-          <InstallSoftwarePreview />
-        </SetupExperienceContentContainer>
+        <SetupExperienceMdmEnabledWrapper
+          router={router}
+          bypass={platform !== "macos"}
+        >
+          <SetupExperienceContentContainer>
+            <AddInstallSoftware
+              currentTeamId={currentTeamId}
+              hasManualAgentInstall={hasManualAgentInstall}
+              softwareTitles={softwareTitles}
+              onAddSoftware={() => setShowSelectSoftwareModal(true)}
+              platform={platform}
+            />
+            <InstallSoftwarePreview />
+          </SetupExperienceContentContainer>
+        </SetupExperienceMdmEnabledWrapper>
       );
     }
 
