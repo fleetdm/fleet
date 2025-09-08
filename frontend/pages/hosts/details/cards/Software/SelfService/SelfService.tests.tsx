@@ -74,7 +74,6 @@ describe("SelfService", () => {
     expect(screen.getAllByText("test3")).toHaveLength(2);
   });
 
-<<<<<<< HEAD
   it("should render the contact link text for self-service section if contact url is provided", () => {
     mockServer.use(customDeviceSoftwareHandler());
 
@@ -86,8 +85,6 @@ describe("SelfService", () => {
     expect(link).toHaveAttribute("href", "http://example.com");
   });
 
-=======
->>>>>>> b553dd302b (FE: Refactor SelfServiceCard to it's own file)
   it("renders installed status and 'Reinstall' action button and 'More' dropdown with 'installed' status and installed_versions", async () => {
     mockServer.use(
       customDeviceSoftwareHandler({

@@ -18,7 +18,7 @@ import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
 import { installStatusSortType } from "../helpers";
 import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
-export type ISoftwareTableConfig = Column<IHostSoftwareWithUiStatus>;
+type ISelfServiceTableConfig = Column<IHostSoftwareWithUiStatus>;
 type ITableHeaderProps = IHeaderProps<IHostSoftwareWithUiStatus>;
 type ITableStringCellProps = IStringCellProps<IHostSoftwareWithUiStatus>;
 type IStatusCellProps = CellProps<
@@ -60,8 +60,8 @@ export const generateSoftwareTableHeaders = ({
   onClickInstallAction,
   onClickUninstallAction,
   onClickOpenInstructionsAction,
-}: ISelfServiceTableHeaders): ISoftwareTableConfig[] => {
-  const tableHeaders: ISoftwareTableConfig[] = [
+}: ISelfServiceTableHeaders): ISelfServiceTableConfig[] => {
+  const tableHeaders: ISelfServiceTableConfig[] = [
     {
       Header: (cellProps: ITableHeaderProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />

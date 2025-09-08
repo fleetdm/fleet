@@ -20,7 +20,6 @@ import DropdownWrapper, {
 } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
 import CustomLink from "components/CustomLink";
 
-import { ISoftwareTableConfig } from "../SelfServiceTableConfig";
 import CategoriesMenu from "./CategoriesMenu/CategoriesMenu";
 import { filterSoftwareByCategory, CATEGORIES_NAV_ITEMS } from "./../helpers";
 
