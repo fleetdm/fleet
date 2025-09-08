@@ -19,7 +19,7 @@ var DoRetryErr = errors.New("fleet datastore retry")
 
 type TxFn func(tx sqlx.ExtContext) error
 
-type ReadTxFn func(reader fleet.DBReadTx) error
+type ReadTxFn func(tx fleet.DBReadTx) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {

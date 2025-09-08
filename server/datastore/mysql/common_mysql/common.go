@@ -189,7 +189,8 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 
 func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
 	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
-		ReadOnly: true,
+		ReadOnly:  true,
+		Isolation: sql.LevelRepeatableRead,
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "create read-only transaction")

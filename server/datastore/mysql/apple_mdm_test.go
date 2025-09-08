@@ -1884,8 +1884,6 @@ func testMDMAppleProfileManagement(t *testing.T, ds *Datastore) {
 		{ProfileUUID: globalPfs[2].ProfileUUID, ProfileIdentifier: globalPfs[2].Identifier, ProfileName: globalPfs[2].Name, HostUUID: "test-uuid-3", HostPlatform: "darwin", Scope: fleet.PayloadScopeUser},
 	}, profilesToInstall)
 
-	require.NoError(t, err)
-
 	// profiles to be removed includes host1's old profiles
 	toRemove, err = ds.ListMDMAppleProfilesToRemove(ctx)
 	require.NoError(t, err)

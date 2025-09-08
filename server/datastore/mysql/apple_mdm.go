@@ -3441,7 +3441,7 @@ func (ds *Datastore) listMDMAppleProfilesToRemoveTransaction(ctx context.Context
 		hmae.scope
 	FROM %s`, generateEntitiesToRemoveQuery("profile"))
 	var profiles []*fleet.MDMAppleProfilePayload
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)
+	err := sqlx.SelectContext(ctx, tx, &profiles, query, fleet.MDMOperationTypeRemove)
 
 	return profiles, err
 }
