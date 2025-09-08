@@ -143,7 +143,10 @@ update_osquery_schema_and_flags () {
     git add ./tools/osquery-agent-options/main.go
     git add ./server/fleet/agent_options_generated.go
 
-    # 3. Commit and PR.
+    # 3. Check for manual changes.
+    prompt "Make sure to check for OS-specific osquery flags in $version. If there are any make sure to "git add" them. See ./tools/osquery-agent-options/README.md"
+
+    # 4. Commit and PR.
     git commit -m "Update osquery schemas and flags to $version"
     git push origin "$branch_name"
     prompt "A PR will be created to trigger a Github Action to build osqueryd."
@@ -378,8 +381,9 @@ elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
 elif [[ $ACTION == "update-osquery-schema" ]]; then
     NODE_VERSION=$(node --version)
-    if [[ $NODE_VERSION != "v20.18.1" ]]; then
-        echo "Seems your node version is $NODE_VERSION, version must be v20.18.1 to generate schemas..."
+    EXPECTED_NODE_VERSION=$(cat package.json | jq -r .engines.node)
+    if [[ $NODE_VERSION != "v${EXPECTED_NODE_VERSION}" ]]; then
+        echo "Seems your node version is $NODE_VERSION, version must be v${EXPECTED_NODE_VERSION} to generate schemas..."
         exit 1
     fi
     update_osquery_schema_and_flags "$VERSION"
