@@ -591,8 +591,6 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 
 ### Add certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Connect Fleet to the certificate authority. Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), [Hydrant](https://www.hidglobal.com/), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
 
 `POST /api/v1/fleet/certificate_authorities`
@@ -690,11 +688,9 @@ Object with the following structure:
 
 ### Edit certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 `PATCH /api/v1/fleet/certificate_authorities/:id`
 
-> **Note:** When editing a CA, specify one object and only its fields that you want to update.
+When editing a CA, specify one object and only its fields that you want to update.
 
 #### Parameters
 
@@ -727,8 +723,6 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 `Status: 200`
 
 ### List certificate authorities (CAs)
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 `GET /api/v1/fleet/certificate_authorities`
 
@@ -774,8 +768,6 @@ See [Add certificate authority](#add-certificate-authority-ca) above for the str
 
 ### Get certificate authority (CA)
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 Get details of the certificate authority.
 
 `GET /api/v1/fleet/certificate_authorities/:id`
@@ -811,8 +803,6 @@ Get details of the certificate authority.
 ```
 
 ### Delete certificate authority (CA)
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 When the CA is deleted, the issued certificates will remain on existing hosts.
 
