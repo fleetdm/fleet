@@ -2405,12 +2405,13 @@ FROM (
   GROUP BY ba.id
 ) AS u
 ORDER BY
-  u.not_before ASC, u.created_at DESC, u.id DESC
+  %s
 LIMIT %d OFFSET %d
 	`
 	limit := 10
 	offset := 0
 	args := []any{}
+	orderBy := []string{"u.created_at DESC", "u.id DESC"}
 	whereClauses := make([]string, 0, 2)
 	// If an execution ID is provided, use it to filter the results.
 	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
@@ -2421,6 +2422,13 @@ LIMIT %d OFFSET %d
 		if filter.Status != nil && *filter.Status != "" {
 			whereClauses = append(whereClauses, "ba.status = ?")
 			args = append(args, *filter.Status)
+			if *filter.Status == string(fleet.ScheduledBatchExecutionScheduled) {
+				orderBy = append([]string{"u.not_before ASC"}, orderBy...)
+			} else if *filter.Status == string(fleet.ScheduledBatchExecutionStarted) {
+				orderBy = append([]string{"u.started_at DESC"}, orderBy...)
+			} else if *filter.Status == string(fleet.ScheduledBatchExecutionFinished) {
+				orderBy = append([]string{"u.finished_at DESC"}, orderBy...)
+			}
 		}
 		if filter.TeamID != nil {
 			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
@@ -2439,8 +2447,7 @@ LIMIT %d OFFSET %d
 		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
 	}
 	where := strings.Join(whereClauses, " AND ")
-	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
-
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, strings.Join(orderBy, ", "), limit, offset)
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
