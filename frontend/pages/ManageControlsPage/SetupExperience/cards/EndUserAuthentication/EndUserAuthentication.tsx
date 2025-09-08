@@ -1,5 +1,4 @@
 import React from "react";
-import { InjectedRouter } from "react-router";
 import PATHS from "router/paths";
 import { useQuery } from "react-query";
 
@@ -76,7 +75,7 @@ const EndUserAuthentication = ({
   );
 
   const onClickConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
+    router.push(PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER);
   };
 
   return (
