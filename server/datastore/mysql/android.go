@@ -685,9 +685,10 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		fleet.MDMDeliveryVerifying,
 		fleet.MDMDeliveryVerified,
 	)
+	args := []interface{}{hostUUID}
 
 	var profiles []fleet.HostMDMAndroidProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, args...); err != nil {
 		return nil, err
 	}
 	return profiles, nil
