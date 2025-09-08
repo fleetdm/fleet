@@ -1,16 +1,18 @@
-# Foreign vitals: map IdP users to hosts
+# Foreign host vitals: Identity provider (IdP) username, groups, and department
 
 ![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png)
 
 _Available in Fleet Premium._
 
-To add IdP host vitals, like the end user's groups, department, and full name, follow steps for your IdP.
+Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for labels.
 
-Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process.  
+Fleet gathers IdP host vitals when an end user authenticates during these enrollment scenarios:
+- Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
+- Manual enrollment for personal (BYOD) iOS and iPadOS hosts (Android coming soon).
 
-By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles to, for example, [deploy a WiFi certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet).
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
 
-Fleet currently supports syncing data with [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), with support for more IdPs coming soon.
+The IdPs Fleet currently supports are [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace).
 
 ## Okta
 
