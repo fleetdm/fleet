@@ -218,7 +218,7 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 }
 
 // withReadTx provides a common way to commit/rollback a txFn
-func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.TxFn) (err error) {
+func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (err error) {
 	reader := ds.reader(ctx)
 	readerDB, ok := reader.(*sqlx.DB)
 	if !ok {

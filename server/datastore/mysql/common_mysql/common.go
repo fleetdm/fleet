@@ -187,7 +187,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 	return nil
 }
 
-func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn TxFn, logger log.Logger) error {
+func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
 	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
 		ReadOnly: true,
 	})

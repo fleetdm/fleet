@@ -21,3 +21,12 @@ type DBReader interface {
 	Close() error
 	Rebind(string) string
 }
+
+type DBReadTx interface {
+	sqlx.QueryerContext
+	sqlx.PreparerContext
+
+	Rebind(string) string
+	Commit() error
+	Rollback() error
+}
