@@ -463,6 +463,8 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 				return nil, fmt.Errorf("download %q: %w", repoPath, err)
 			}
 			if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+				// Remove cached hash files since we have a real tar.gz now
+				removeCachedHashes(localTarget.Path)
 				if err := os.RemoveAll(localTarget.DirPath); err != nil {
 					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
@@ -479,6 +481,10 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		log.Debug().Err(err).Msg("stat file")
 		if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
 			return nil, fmt.Errorf("download %q: %w", repoPath, err)
+		}
+		// Remove cached hash files if we just downloaded a tar.gz
+		if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+			removeCachedHashes(localTarget.Path)
 		}
 		if strings.HasSuffix(localTarget.Path, ".pkg") && runtime.GOOS == "darwin" {
 			if err := installPKG(localTarget.Path); err != nil {
@@ -739,6 +745,13 @@ func extractTarGz(path string) error {
 			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
 		}
 	}
+}
+
+// removeCachedHashes removes the .sha512 file that was created
+// during packaging to cache the hash when the tar.gz was removed.
+func removeCachedHashes(tarGzPath string) {
+	// Remove hash file, ignore errors (file may not exist)
+	_ = os.Remove(tarGzPath + ".sha512")
 }
 
 func installPKG(path string) error {
