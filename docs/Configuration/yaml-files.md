@@ -43,7 +43,7 @@ Labels can be specified in your `default.yml` file using inline configuration or
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
 - `hosts` is the list of host identifiers (`id`, `hardware_serial`, or `uuid`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
-- `critera` - is the critera, specified by `vital` and `value`. `vital` can be `end_user_idp_group` or `end_user_idp_department`. Hosts with `vital` data matching this value will be added to the label.
+- `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `critera` can be specified. If none are specified, a manual label with no hosts will be created.
 
