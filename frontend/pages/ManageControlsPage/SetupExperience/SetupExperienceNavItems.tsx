@@ -15,7 +15,6 @@ export interface ISetupExperienceCardProps {
   router: InjectedRouter;
 }
 
-// TODO: types
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
     title: "1. End user authentication",
