@@ -126,6 +126,7 @@ export enum ActivityType {
   EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
   CreatedCustomVariable = "created_custom_variable",
   DeletedCustomVariable = "deleted_custom_variable",
+  EditedSetupExperienceSoftware = "edited_setup_experience_software",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */

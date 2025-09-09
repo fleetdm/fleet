@@ -12,3 +12,4 @@ software:
   packages:
     - path: lib/software_ruby.yml
     - path: lib/software_other.yml
+      self_service: true

@@ -200,3 +200,9 @@ type OrbitHostDiskEncryptionKeyPayload struct {
 	EncryptionKey []byte `json:"encryption_key"`
 	ClientError   string `json:"client_error"`
 }
+
+// SetupExperienceInitResult is the payload returned when the orbit client manually initiates
+// setup experience for non-darwin platforms.
+type SetupExperienceInitResult struct {
+	Enabled bool `json:"enabled"`
+}

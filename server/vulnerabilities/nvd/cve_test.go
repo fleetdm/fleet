@@ -574,6 +574,14 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			excludedCVEs:      []string{"CVE-2025-6554"},
 			continuesToUpdate: true,
 		},
+		"cpe:2.3:a:docker:desktop:4.43.2:*:*:*:*:macos:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			continuesToUpdate: true,
+		},
+		"cpe:2.3:a:docker:desktop:4.39.0:*:*:*:*:windows:*:*": {
+			includedCVEs:      []cve{{ID: "CVE-2025-9074", resolvedInVersion: "4.44.3"}},
+			continuesToUpdate: true,
+		},
 	}
 
 	cveOSTests := []struct {

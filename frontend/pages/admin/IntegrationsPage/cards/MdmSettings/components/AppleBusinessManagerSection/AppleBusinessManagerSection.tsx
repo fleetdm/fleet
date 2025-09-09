@@ -34,7 +34,7 @@ const AppleBusinessManagerSection = ({
   };
 
   return (
-    <SettingsSection title="Apple Business Manger (ABM)" className={baseClass}>
+    <SettingsSection title="Apple Business Manager (ABM)" className={baseClass}>
       {!isPremiumTier ? (
         <PremiumFeatureMessage alignment="left" />
       ) : (
