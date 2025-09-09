@@ -64,13 +64,8 @@ func gitopsCommand() *cli.Command {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
-			// Make sure to capture the --dry-run flag in case it's passed as a positional argument
-			// which can happen when using glob patterns (e.g. -f my_dir/* --dry-run).
-			// We only want to do this for --dry-run due to its importance in preventing unwanted side effects.
-			for _, arg := range c.Args().Slice() {
-				if arg == "--dry-run" {
-					flDryRun = true
-				}
+			if len(c.Args().Slice()) != 0 {
+				return errors.New("no positional arguments are allowed")
 			}
 
 			totalFilenames := len(flFilenames.Value())
