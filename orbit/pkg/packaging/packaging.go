@@ -219,7 +219,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 	// (on macOS, osqueryd comes as osqueryd.app.tar.gz)
 	if strings.HasSuffix(osquerydLocalTarget.Path, ".tar.gz") {
 		if err := saveHashAndRemoveTarGz(osquerydLocalTarget.Path); err != nil {
-			log.Debug().Err(err).Str("path", osquerydLocalTarget.Path).Msg("failed to save hash and remove osqueryd tar.gz")
+			log.Error().Err(err).Str("path", osquerydLocalTarget.Path).Msg("failed to save hash and remove osqueryd tar.gz")
 		}
 	}
 
@@ -259,7 +259,7 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		// (fixes duplicate fleet-desktop in .deb and .pkg packages)
 		if strings.HasSuffix(desktopLocalTarget.Path, ".tar.gz") {
 			if err := saveHashAndRemoveTarGz(desktopLocalTarget.Path); err != nil {
-				log.Debug().Err(err).Str("path", desktopLocalTarget.Path).Msg("failed to save hash and remove desktop tar.gz")
+				log.Error().Err(err).Str("path", desktopLocalTarget.Path).Msg("failed to save hash and remove desktop tar.gz")
 			}
 		}
 	}

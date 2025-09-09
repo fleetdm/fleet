@@ -41,7 +41,7 @@ func fileHashes(meta *data.TargetFileMeta, localPath string) (metaHash []byte, l
 			if err == nil {
 				return metaHash, cachedHash, nil
 			}
-			log.Info().Msgf("failed to read cached hash file:%s", err.Error())
+			log.Error().Err(err).Msg("failed to read cached hash file")
 		}
 		return nil, nil, fmt.Errorf("open file for hash: %w", err)
 	}
@@ -80,9 +80,12 @@ func readCachedHash(tarGzPath string, meta *data.TargetFileMeta) ([]byte, error)
 	for hashName := range meta.Hashes {
 		if hashName == "sha512" {
 			hashPath := tarGzPath + ".sha512"
-			if hashHex, err := os.ReadFile(hashPath); err == nil {
-				return hex.DecodeString(strings.TrimSpace(string(hashHex)))
+			var hashHex []byte
+			var err error
+			if hashHex, err = os.ReadFile(hashPath); err != nil {
+				return nil, err
 			}
+			return hex.DecodeString(strings.TrimSpace(string(hashHex)))
 		}
 	}
 

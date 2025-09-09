@@ -529,8 +529,10 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		case errors.Is(err, os.ErrNotExist):
 			// Check if tar.gz exists before trying to extract
 			if _, tarErr := os.Stat(localTarget.Path); tarErr != nil {
-				// No tar.gz to extract from - this is expected when using cached hashes
-				// The executable should already be in the package
+				// No tar.gz to extract from.
+				// The executable should already be in the initial package, and this error should never happen under normal circumstances.
+				// Delete the .sha512 file so next run will download the tar.gz
+				removeCachedHashes(localTarget.Path)
 				return nil, fmt.Errorf("executable not found and no tar.gz to extract: %q", localTarget.ExecPath)
 			}
 			if err := extractTarGz(localTarget.Path); err != nil {
