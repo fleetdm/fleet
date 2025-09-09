@@ -77,6 +77,7 @@ Use Fleet's new built-in `$FLEET_VAR_HOST_UUID` variable in your Windows configu
   - NOTE: Package will need to be updated out-of-band once, because the pre-removal script from previously-generated packages is called upon an upgrade. The old pre-removal script stopped Orbit unconditionally. `fleet-osquery` can safely be updated through the Software page only _after_ a new package generated with this version of fleetctl has been installed through other means.
 - Added indication of whether software on a host was never opened, vs. being a software type where last opened time collection is not supported.
 - Added automatic install policies into host software responses.
+- Updated `fleetctl api` to now support sending data in the body of non-GET requests using the `-F` flag. (Thanks @fuhry!) 
 
 ### Other improvements and bug fixes
 - Added permissions to OS updates page so that only global admins and the team admin can see the page.
