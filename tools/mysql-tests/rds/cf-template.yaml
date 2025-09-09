@@ -1,0 +1,465 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Fleet RDS IAM Authentication Test Environment with Aurora Serverless v2, Aurora, and RDS MariaDB'
+
+Parameters:
+  KeyName:
+    Type: String
+    Description: EC2 Key Pair name
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+  DBMasterUsername:
+    Type: String
+    Default: admin
+    Description: Master username for database instances
+  DBMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 8
+    Description: Master password for database instances (min 8 chars)
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-vpc
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Subnets (multiple for RDS requirement)
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-subnet-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-subnet-2
+
+  # Route Table
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref RouteTable
+
+  # Security Groups
+  RDSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS instances
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        # Allow access from EC2 instance
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+        # Allow access from RDS Proxy
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref ProxySecurityGroup
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-rds-sg
+
+  ProxySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for RDS Proxy
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-proxy-sg
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-ec2-sg
+
+  # Secrets for RDS Proxy
+  RDSMasterSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Master credentials for RDS databases
+      SecretString: !Sub |
+        {
+          "engine": "mysql",
+          "username": "${DBMasterUsername}",
+          "password": "${DBMasterPassword}",
+          "host": "${AuroraCluster.Endpoint.Address}",
+          "port": "3306",
+          "dbname": "fleet"
+        }
+
+  # IAM Role for RDS Proxy
+  RDSProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: RDSProxySecretsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource: !Ref RDSMasterSecret
+              - Effect: Allow
+                Action: kms:Decrypt
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub 'secretsmanager.${AWS::Region}.amazonaws.com'
+
+  # IAM Role for EC2
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: RDSIAMAuth
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-db:connect
+                Resource: 
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/fleet_iam_user'
+                    - DbClusterResourceId: !GetAtt AuroraServerlessCluster.DBClusterResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/fleet_iam_user'
+                    - DbClusterResourceId: !GetAtt AuroraCluster.DBClusterResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbiResourceId}/fleet_iam_user'
+                    - DbiResourceId: !GetAtt RDSMariaDBInstance.DbiResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${ProxyResourceId}/admin'
+                    - ProxyResourceId: !Select [6, !Split [':', !GetAtt AuroraProxy.DBProxyArn]]
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/fleet-mysql-iam-test-assume-role'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # Test Role for Assume Role functionality - has access to a different database user
+  TestAssumeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: fleet-mysql-iam-test-assume-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-EC2Role-*'
+      Policies:
+        - PolicyName: RDSIAMAuthTestUser
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds-db:connect
+                Resource: 
+                  # Access for 'test_assume_user' database user
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/test_assume_user'
+                    - DbClusterResourceId: !GetAtt AuroraServerlessCluster.DBClusterResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbClusterResourceId}/test_assume_user'
+                    - DbClusterResourceId: !GetAtt AuroraCluster.DBClusterResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${DbiResourceId}/test_assume_user'
+                    - DbiResourceId: !GetAtt RDSMariaDBInstance.DbiResourceId
+                  - !Sub 
+                    - 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${ProxyResourceId}/test_assume_user'
+                    - ProxyResourceId: !Select [6, !Split [':', !GetAtt AuroraProxy.DBProxyArn]]
+
+  # DB Subnet Group
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS instances
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-db-subnet-group
+
+  # Aurora Serverless v2 Cluster
+  AuroraServerlessCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-mysql
+      EngineMode: provisioned
+      EngineVersion: '8.0.mysql_aurora.3.09.0'
+      DBClusterIdentifier: fleet-aurora-serverless-v2
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterPassword
+      DatabaseName: fleet
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref RDSSecurityGroup
+      EnableIAMDatabaseAuthentication: true
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: 0.5
+        MaxCapacity: 1
+      Tags:
+        - Key: Name
+          Value: fleet-aurora-serverless-v2
+
+  # Aurora Serverless v2 Instance
+  AuroraServerlessInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.serverless
+      DBClusterIdentifier: !Ref AuroraServerlessCluster
+      Engine: aurora-mysql
+      Tags:
+        - Key: Name
+          Value: fleet-aurora-serverless-v2-instance
+
+  # Standard Aurora Cluster
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-mysql
+      EngineVersion: '8.0.mysql_aurora.3.09.0'
+      DBClusterIdentifier: fleet-aurora-standard
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterPassword
+      DatabaseName: fleet
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref RDSSecurityGroup
+      EnableIAMDatabaseAuthentication: true
+      Tags:
+        - Key: Name
+          Value: fleet-aurora-standard
+
+  # Aurora Instance
+  AuroraInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.medium
+      DBClusterIdentifier: !Ref AuroraCluster
+      Engine: aurora-mysql
+      Tags:
+        - Key: Name
+          Value: fleet-aurora-standard-instance
+
+  # Vanilla RDS MariaDB Instance
+  RDSMariaDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: fleet-rds-mariadb
+      Engine: mariadb
+      EngineVersion: '10.11.13'
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: 20
+      StorageType: gp3
+      MasterUsername: !Ref DBMasterUsername
+      MasterUserPassword: !Ref DBMasterPassword
+      DBName: fleet
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups:
+        - !Ref RDSSecurityGroup
+      EnableIAMDatabaseAuthentication: true
+      BackupRetentionPeriod: 0
+      MultiAZ: false
+      Tags:
+        - Key: Name
+          Value: fleet-rds-mariadb
+
+  # RDS Proxy for Aurora Standard cluster
+  AuroraProxy:
+    Type: AWS::RDS::DBProxy
+    DependsOn: 
+      - AuroraCluster
+      - AuroraInstance
+    Properties:
+      DBProxyName: fleet-aurora-proxy
+      EngineFamily: MYSQL
+      Auth:
+        - AuthScheme: SECRETS
+          SecretArn: !Ref RDSMasterSecret
+          IAMAuth: REQUIRED
+      RoleArn: !GetAtt RDSProxyRole.Arn
+      VpcSecurityGroupIds:
+        - !Ref ProxySecurityGroup
+      VpcSubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      RequireTLS: true
+      DebugLogging: true
+      Tags:
+        - Key: Name
+          Value: fleet-aurora-proxy
+
+  # RDS Proxy Target Group
+  AuroraProxyTargetGroup:
+    Type: AWS::RDS::DBProxyTargetGroup
+    Properties:
+      DBProxyName: !Ref AuroraProxy
+      TargetGroupName: default
+      DBClusterIdentifiers:
+        - !Ref AuroraCluster
+
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install -y mariadb105
+      Tags:
+        - Key: Name
+          Value: fleet-mysql-iam-test-instance
+
+Outputs:
+  AuroraServerlessEndpoint:
+    Description: Aurora Serverless v2 cluster endpoint
+    Value: !GetAtt AuroraServerlessCluster.Endpoint.Address
+  AuroraServerlessPort:
+    Description: Aurora Serverless v2 cluster port
+    Value: !GetAtt AuroraServerlessCluster.Endpoint.Port
+  AuroraStandardEndpoint:
+    Description: Aurora standard cluster endpoint
+    Value: !GetAtt AuroraCluster.Endpoint.Address
+  AuroraStandardPort:
+    Description: Aurora standard cluster port
+    Value: !GetAtt AuroraCluster.Endpoint.Port
+  RDSMariaDBEndpoint:
+    Description: RDS MariaDB instance endpoint
+    Value: !GetAtt RDSMariaDBInstance.Endpoint.Address
+  RDSMariaDBPort:
+    Description: RDS MariaDB instance port
+    Value: !GetAtt RDSMariaDBInstance.Endpoint.Port
+  AuroraProxyEndpoint:
+    Description: Aurora RDS Proxy endpoint
+    Value: !GetAtt AuroraProxy.Endpoint
+  AuroraProxyArn:
+    Description: Aurora RDS Proxy ARN
+    Value: !GetAtt AuroraProxy.DBProxyArn
+  EC2InstancePublicIP:
+    Description: EC2 instance public IP
+    Value: !GetAtt EC2Instance.PublicIp
+  EC2InstanceId:
+    Description: EC2 instance ID
+    Value: !Ref EC2Instance
+  DBMasterUsername:
+    Description: Database master username
+    Value: !Ref DBMasterUsername
+  Region:
+    Description: AWS Region
+    Value: !Ref AWS::Region
+  TestAssumeRoleArn:
+    Description: Test assume role ARN for test_assume_user database user
+    Value: !GetAtt TestAssumeRole.Arn

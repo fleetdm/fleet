@@ -1,3 +1,5 @@
+import { SetupExperiencePlatform } from "interfaces/platform";
+
 const API_VERSION = "latest";
 
 export default {
@@ -180,7 +182,10 @@ export default {
 
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
-  MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
+  // maintained for backwards compatibility, use MDM_SETUP_EXPERIENCE_SOFTWARE endpoint
+  MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
+  MDM_SETUP_EXPERIENCE_SOFTWARE: (platform: SetupExperiencePlatform) =>
+    `/${API_VERSION}/fleet/setup_experience/${platform}/software`,
   MDM_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
@@ -276,9 +281,13 @@ export default {
   SCRIPT_RUN_BATCH: `/${API_VERSION}/fleet/scripts/run/batch`,
   SCRIPT_CANCEL_BATCH: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/batch/${executionId}/cancel`,
-  SCRIPT_RUN_BATCH_SUMMARY: (id: string) =>
+  SCRIPT_RUN_BATCH_SUMMARY_V1: (id: string) =>
     `/${API_VERSION}/fleet/scripts/batch/summary/${id}`,
+  SCRIPT_RUN_BATCH_SUMMARY_V2: (id: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${id}`,
   SCRIPT_RUN_BATCH_SUMMARIES: `/${API_VERSION}/fleet/scripts/batch`,
+  SCRIPT_BATCH_HOST_RESULTS: (id: string) =>
+    `/${API_VERSION}/fleet/scripts/batch/${id}/host-results`,
   COMMANDS_RESULTS: `/${API_VERSION}/fleet/commands/results`,
 
   // idp endpoints
@@ -291,6 +300,13 @@ export default {
     `/${API_VERSION}/fleet/configuration_profiles/${uuid}/status`,
   CONFIG_PROFILE_BATCH_RESEND: `/${API_VERSION}/fleet/configuration_profiles/resend/batch`,
 
+  // Certificate authority endpoints
+  CERTIFICATE_AUTHORITIES: `/${API_VERSION}/fleet/certificate_authorities`,
+  CERTIFICATE_AUTHORITY: (id: number) =>
+    `/${API_VERSION}/fleet/certificate_authorities/${id}`,
+  CERTIFICATE_AUTHORITY_REQUEST_CERT: (id: number) => {
+    return `/${API_VERSION}/fleet/certificate_authorities/${id}/request_certificate`;
+  },
   // custom variables (secrets) endpoints
   SECRETS: `/${API_VERSION}/fleet/custom_variables`,
 };

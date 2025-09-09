@@ -1050,6 +1050,30 @@ org_settings:
 Can only be configured for all teams (`org_settings`). To target rules to specific teams, target the
 queries referencing the rules to the desired teams.
 
+#### smtp_settings
+
+If you're self hosting Fleet, the `smtp_settings` section lets you configure an e-mail (SMTP) server. This enables Fleet to send user invite and password reset emails.
+
+If you're using Fleet's managed-cloud offering, an SMTP server is already setup for you.
+
+For possible options, see the parameters for the [smtp_settings object in the API](https://fleetdm.com/docs/rest-api/rest-api#smtp-settings).
+
+##### Example
+
+```yaml
+org_settings:
+  smtp_settings:
+    enable_smtp: true
+    sender_address: organization@example.com
+    server: localhost
+    port: 1025
+    authentication_type: none
+```
+
+Can only be configured for all teams (`org_settings`).
+
+Unlike other options, ommitting `smtp_settings` or leaving it blank won't reset the values back to the default.
+
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">
 <meta name="pageOrderInSection" value="1500">

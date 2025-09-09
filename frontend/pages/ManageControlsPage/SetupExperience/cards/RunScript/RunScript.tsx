@@ -95,7 +95,8 @@ const RunScript = ({ currentTeamId }: IRunScriptProps) => {
       <SetupExperienceContentContainer>
         <div className={`${baseClass}__description-container`}>
           <p className={`${baseClass}__description`}>
-            Upload a script to run on hosts that automatically enroll to Fleet.
+            Upload a script to run on macOS hosts that automatically enroll to
+            Fleet.
           </p>
           <CustomLink
             className={`${baseClass}__learn-how-link`}

@@ -1937,7 +1937,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", GivenName: ptr.String("A")})
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,

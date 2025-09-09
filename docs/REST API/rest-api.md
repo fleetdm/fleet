@@ -507,10 +507,6 @@ Returns a list of the activities that have been performed in Fleet. For a compre
 | per_page        | integer | query | Results per page.                                                                                                             |
 | order_key       | string  | query | What to order results by. Can be any column in the `activities` table.                                                         |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
-| query | string | query | Search query keywords. Searchable fields include `user_name` and `user_email`.
-| activity_type | string | query | Indicates the activity `type` to filter by. See available activity types on the [Audit logs page](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/audit-logs.md).
-| start_created_at | string | query | Filters to include only activities that happened after this date. If not specified, set to the earliest possible date.
-| end_created_at | string | query | Filters to include only activities that happened before this date. If not specified, set to now.
 
 #### Example
 
@@ -1685,9 +1681,11 @@ Modifies the Fleet's configuration with the supplied information.
 | authentication_method             | string  | The authentication method used to make authenticate requests to SMTP server. Options include `"authmethod_plain"`, `"authmethod_cram_md5"`, and `"authmethod_login"`. |
 | domain                            | string  | The domain for the SMTP server.                                                                                                                                       |
 | verify_ssl_certs                  | boolean | Whether or not SSL certificates are verified by the SMTP server. Turn this off (not recommended) if you use a self-signed certificate.                                |
-| enabled_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
+| enable_start_tls                 | boolean | Detects if STARTTLS is enabled in your SMTP server and starts to use it.                                                                                              |
 
 <br/>
+
+> The Fleet server relies on the host operating system's trust store to validate TLS certificates. If your email server uses a private or self-signed certificate, you’ll need to add the certificate to the OS trust store on the server running Fleet. Fleet doesn't currently support uploading custom CA certificates via the UI or API.
 
 ##### Example request body
 
@@ -1698,7 +1696,7 @@ Modifies the Fleet's configuration with the supplied information.
     "sender_address": "",
     "server": "localhost",
     "port": 1025,
-    "authentication_type": "authtype_username_none",
+    "authentication_type": "none",
     "user_name": "",
     "password": "",
     "enable_ssl_tls": true,
@@ -2470,7 +2468,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Resend host's configuration profile](#resend-hosts-configuration-profile)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -3508,7 +3505,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 | Name  | Type   | In   | Description                        |
 | ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
+| token | string | path | The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
 
 ##### Example
 
@@ -4299,7 +4296,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Google Chrome.app",
-              "team_identifier": "EQHXZ8M8AV"
+              "team_identifier": "EQHXZ8M8AV",
+              "hash_sha256": "a45d00ac9bf21e108fa8e452fabe4d9e05e6765b"
             }
           ]
         }
@@ -4350,7 +4348,8 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
           "signature_information": [
             {
               "installed_path": "/Applications/Logic Pro.app",
-              "team_identifier": ""
+              "team_identifier": "",
+              "hash_sha256": null
             }
           ]
         }
@@ -5502,8 +5501,8 @@ Deletes the label specified by ID.
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
-- [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
-- [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
+- [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
+- [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
 
 
 ### Add custom OS setting (configuration profile)
@@ -5785,7 +5784,7 @@ solely on the response status code returned by this endpoint.
 
 ### Resend custom OS setting (configuration profile)
 
-Resends a configuration profile for the specified host.
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
 
 `POST /api/v1/fleet/hosts/:id/configuration_profiles/:profile_uuid/resend`
 
@@ -5804,6 +5803,26 @@ Resends a configuration profile for the specified host.
 
 `Status: 202`
 
+### Resend custom OS setting (configuration profile) by device token
+
+Resends a configuration profile for the specified host. Currently, only macOS configuration profiles (.mobileconfig) are supported.
+
+`POST /api/v1/fleet/device/:token/configuration_profiles/:profile_uuid/resend`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| token   | string | path | **Required.** The host's [device authentication token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/device/abcdef012456789/configuration_profiles/fc14a20-84a2-42d8-9257-a425f62bb54d/resend`
+
+##### Default response
+
+`Status: 202`
 
 ### Batch-resend custom OS setting (configuration profile)
 
@@ -10165,7 +10184,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.  **Required if no `custom_script` specified.** |
+| custom_script   | file    | form | Custom script (.sh or .ps1) file for creating a no-op package. **Required if no `software` specified.** |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
 | uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
@@ -10176,7 +10196,8 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
 | automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
 
-Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
++ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
++ `install_script`, `uninstall_script`, and `post_install_script` are not used for custom script (no-op) packages, and will be ignored if provided.
 
 #### Example
 
@@ -10234,6 +10255,7 @@ Content-Type: application/octet-stream
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
     "self_service": true,
+    "custom_script": false,
     "url": "",
     "automatic_install_policies": null,
     "labels_include_any": null,
@@ -10264,6 +10286,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| custom_script   | file    | form | Custom script (.sh or .ps1) file for a no-op package. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -10332,6 +10355,7 @@ Content-Type: application/octet-stream
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
     "self_service": true,
+    "custom_script": false,
     "status": {
       "installed": 0,
       "pending": 0,
