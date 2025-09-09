@@ -113,6 +113,9 @@ func gitopsCommand() *cli.Command {
 			teamsVPPApps := make(map[string][]fleet.VPPAppResponse)
 			teamsScripts := make(map[string][]fleet.ScriptResponse)
 
+			// we keep track of uploaded icon hashes so we don't upload icons unnecessarily
+			uploadedIconHashes := make([]string, 0)
+
 			// We keep track of the secrets to check if duplicates exist during dry run
 			secrets := make(map[string]struct{})
 			// We keep track of the environment FLEET_SECRET_* variables
@@ -322,7 +325,7 @@ func gitopsCommand() *cli.Command {
 					return err
 				}
 				assumptions, postOps, err := fleetClient.DoGitOps(c.Context, config, flFilename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &uploadedIconHashes)
 				if err != nil {
 					return err
 				}
@@ -352,7 +355,7 @@ func gitopsCommand() *cli.Command {
 				_, _ = fmt.Fprintf(c.App.Writer, ReapplyingTeamForVPPAppsMsg, *teamWithApps.config.TeamName)
 				teamWithApps.config.Software.AppStoreApps = teamWithApps.vppApps
 				_, postOps, err := fleetClient.DoGitOps(c.Context, teamWithApps.config, teamWithApps.filename, logf, flDryRun, teamDryRunAssumptions, appConfig,
-					teamsSoftwareInstallers, teamsVPPApps, teamsScripts)
+					teamsSoftwareInstallers, teamsVPPApps, teamsScripts, &uploadedIconHashes)
 				if err != nil {
 					return err
 				}
@@ -388,13 +391,13 @@ func gitopsCommand() *cli.Command {
 			}
 
 			// we only want to reset the no-team config if the global config was loaded.
-			// NOTE: noTeamPresent is refering to the "No Team" team. It does not
+			// NOTE: noTeamPresent is referring to the "No Team" team. It does not
 			// mean that other teams are not present.
 			if globalConfigLoaded && !noTeamPresent {
 				defaultNoTeamConfig := new(spec.GitOps)
 				defaultNoTeamConfig.TeamName = ptr.String(fleet.TeamNameNoTeam)
 				_, postOps, err := fleetClient.DoGitOps(c.Context, defaultNoTeamConfig, "no-team.yml", logf, flDryRun, nil, appConfig,
-					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{})
+					map[string][]fleet.SoftwarePackageResponse{}, map[string][]fleet.VPPAppResponse{}, map[string][]fleet.ScriptResponse{}, &uploadedIconHashes)
 				if err != nil {
 					return err
 				}

@@ -1720,6 +1720,7 @@ func (c *Client) DoGitOps(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	uploadedIconHashes *[]string,
 ) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -2199,7 +2200,7 @@ func (c *Client) DoGitOps(
 
 	// apply icon changes from software installers and VPP apps
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
-		iconUpdates := fleet.IconChanges{}.WithSoftware(teamSoftwareInstallers, teamVPPApps)
+		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(*uploadedIconHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
 		if dryRun {
 			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
 		} else { // TODO don't repeat icon uploads when we know another team has them
@@ -2207,6 +2208,7 @@ func (c *Client) DoGitOps(
 				return nil, nil, err
 			}
 			logFn("[+] Set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			uploadedIconHashes = &iconUpdates.UploadedHashes
 		}
 	}
 
