@@ -104,6 +104,7 @@ controls:
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
+    - path: ../lib/libux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
@@ -119,8 +120,9 @@ policies:
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
+  - path: ../lib/linux/policies/disk-encryption-check.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
 software:
