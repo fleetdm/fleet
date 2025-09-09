@@ -108,6 +108,7 @@ type ServerConfig struct {
 	ForceH2C                         bool          `yaml:"force_h2c"`
 	PrivateKey                       string        `yaml:"private_key"`
 	PrivateKeySecretArn              string        `yaml:"private_key_secret_arn"`
+	PrivateKeySecretRegion           string        `yaml:"private_key_secret_region"`
 	PrivateKeySecretSTSAssumeRoleArn string        `yaml:"private_key_secret_sts_assume_role_arn"`
 	PrivateKeySecretSTSExternalID    string        `yaml:"private_key_secret_sts_external_id"`
 	VPPVerifyTimeout                 time.Duration `yaml:"vpp_verify_timeout"`
@@ -1124,6 +1125,7 @@ func (man Manager) addConfigs() {
 	man.addConfigBool("server.frequent_cleanups_enabled", false, "Enable frequent cleanups of expired data (15 minute interval)")
 	man.addConfigBool("server.force_h2c", false, "Force the fleet server to use HTTP2 cleartext aka h2c (ignored if using TLS)")
 	man.addConfigString("server.private_key", "", "Used for encrypting sensitive data, such as MDM certificates.")
+	man.addConfigString("server.private_key_secret_region", "", "AWS region of the Secrets Manager secret containing server private key")
 	man.addConfigString("server.private_key_secret_arn", "", "ARN of AWS Secrets Manager secret containing server private key")
 	man.addConfigString("server.private_key_secret_sts_assume_role_arn", "", "ARN of role to assume for accessing private key secret")
 	man.addConfigString("server.private_key_secret_sts_external_id", "", "External ID for STS role assumption when accessing private key secret")
@@ -1567,6 +1569,7 @@ func (man Manager) LoadConfig() FleetConfig {
 			ForceH2C:                         man.getConfigBool("server.force_h2c"),
 			PrivateKey:                       man.getConfigString("server.private_key"),
 			PrivateKeySecretArn:              man.getConfigString("server.private_key_secret_arn"),
+			PrivateKeySecretRegion:           man.getConfigString("server.private_key_secret_region"),
 			PrivateKeySecretSTSAssumeRoleArn: man.getConfigString("server.private_key_secret_sts_assume_role_arn"),
 			PrivateKeySecretSTSExternalID:    man.getConfigString("server.private_key_secret_sts_external_id"),
 			VPPVerifyTimeout:                 man.getConfigDuration("server.vpp_verify_timeout"),
