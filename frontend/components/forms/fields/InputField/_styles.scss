@@ -18,7 +18,7 @@
 
   &:hover:not(.input-field--read-only) {
     box-shadow: none;
-    border: 1px solid $core-vibrant-blue-over;
+    border: 1px solid $ui-fleet-black-75-over;
   }
 
   &:active:not(.input-field--read-only),
@@ -26,7 +26,7 @@
   &:focus-visible:not(.input-field--read-only) {
     box-shadow: none;
     outline: 0;
-    border: 1px solid $core-vibrant-blue-down;
+    border: 1px solid $ui-fleet-black-75-down;
   }
 
   &--disabled {

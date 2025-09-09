@@ -11,6 +11,7 @@ export type ButtonVariant =
   | "pill"
   | "text-link" // Underlines on hover
   | "text-link-dark" // underline on hover, dark text
+  | "primary-text-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
   | "inverse"
@@ -125,6 +126,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
     const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
+      variant === "primary-text-icon" ||
       variant === "text-icon" ||
       variant === "pill";
 

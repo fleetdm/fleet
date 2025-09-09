@@ -255,10 +255,10 @@ const TeamsDropdown = ({
     option: (baseStyles, state) => ({
       ...baseStyles,
       padding: "10px 8px",
-      fontSize: "14px",
+      fontSize: "13px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
-      fontWeight: state.isSelected ? "bold" : "normal",
+      fontWeight: state.isSelected ? "600" : "normal",
       color: COLORS["core-fleet-black"],
       "&:hover": {
         backgroundColor: state.isDisabled

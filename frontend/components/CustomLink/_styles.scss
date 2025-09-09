@@ -1,4 +1,6 @@
 .custom-link {
+  border-bottom: 1px solid $ui-fleet-black-10;
+
   // Changing display will break multiline links
   &:not(.custom-link--multiline) {
     display: inline-flex;

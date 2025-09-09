@@ -205,7 +205,7 @@ const PlatformWrapper = ({
                 onClick={onDownloadCertificate}
               >
                 Download
-                <Icon name="download" color="core-fleet-blue" size="small" />
+                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (

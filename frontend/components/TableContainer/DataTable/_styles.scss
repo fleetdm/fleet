@@ -47,7 +47,7 @@ $shadow-transition-width: 10px;
       position: relative;
       width: 100%;
       border-collapse: collapse;
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       font-size: $x-small;
     }
 
@@ -78,7 +78,7 @@ $shadow-transition-width: 10px;
 
     thead {
       background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       text-align: left;
       border-bottom: 1px solid $ui-fleet-black-10;
 
@@ -99,10 +99,11 @@ $shadow-transition-width: 10px;
       }
 
       th {
-        padding: $pad-medium $pad-large;
+        padding: 0 $pad-large;
         white-space: nowrap;
         border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
+        height: 40px; // Match body row height
 
         &:first-child {
           border-top-left-radius: 6px;
@@ -111,7 +112,7 @@ $shadow-transition-width: 10px;
 
         &.selection__header {
           width: 22px;
-          padding: $pad-medium;
+          padding: 0 $pad-medium;
         }
 
         &:last-child {

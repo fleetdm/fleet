@@ -5,6 +5,7 @@
   border-bottom: 1px solid #e2e4ea;
   border-left: 1px solid #e2e4ea;
   border-radius: $border-radius-medium;
+  gap: $pad-small;
 
   &__loading-spinner {
     margin: auto;

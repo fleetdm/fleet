@@ -975,12 +975,7 @@ const HostDetailsPage = ({
 
   const renderSoftwareCard = () => {
     return (
-      <Card
-        className={`${baseClass}__software-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={`${baseClass}__software-card`}>
         {isSoftwareLibrarySupported ? (
           <>
             <TabList>
@@ -1083,7 +1078,7 @@ const HostDetailsPage = ({
             )}
           </>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -1255,7 +1250,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}

@@ -25,6 +25,12 @@ export const COLORS = {
   "tooltip-bg": "#3E4771",
   "ui-light-grey": "#FAFAFA",
 
+  // new brand colors
+  "ui-fleet-black-75-over": "darken(#515774, 5%)",
+  "ui-fleet-black-75-down": "darken(#515774, 10%)",
+  "core-fleet-green-over": "darken(#009A7D, 5%)",
+  "core-fleet-green-down": "darken(#009A7D, 10%)",
+
   // Notifications & status
   "status-success": "#3DB67B",
   "status-warning": "#F8CD6B",
@@ -34,8 +40,4 @@ export const COLORS = {
   "core-vibrant-blue-down": "#4b4ab4",
   "ui-vibrant-blue-25": "#d9d9fe",
   "ui-vibrant-blue-10": "#f1f0ff",
-
-  // new brand colors
-  "ui-fleet-black-75-over": "darken(#515774, 5%)",
-  "ui-fleet-black-75-down": "darken(#515774, 10%)",
 };

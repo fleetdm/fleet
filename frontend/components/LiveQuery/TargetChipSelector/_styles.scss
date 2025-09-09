@@ -29,16 +29,20 @@
     font-weight: $bold;
   }
   &[data-selected="true"] {
-    background-color: $ui-vibrant-blue-10;
-    box-shadow: inset 0 0 0 1px $core-vibrant-blue;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $ui-fleet-black-75;
   }
 
   &:hover {
-    background-color: $ui-vibrant-blue-10;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $core-fleet-black;
+    color: $core-fleet-black;
   }
 
   &:active {
-    box-shadow: inset 0 0 0 1px $core-vibrant-blue-down;
+    background-color: $ui-off-white;
+    box-shadow: inset 0 0 0 1px $core-fleet-black;
+    color: $core-fleet-black;
   }
 
   // When tabbing
