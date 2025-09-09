@@ -1243,7 +1243,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	var profiles []fleet.HostMDMProfile
 	var mdmLastEnrollment *time.Time
 	var mdmLastCheckedIn *time.Time
-	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured {
+	if ac.MDM.EnabledAndConfigured || ac.MDM.WindowsEnabledAndConfigured || ac.MDM.AndroidEnabledAndConfigured {
 		host.MDM.OSSettings = &fleet.HostMDMOSSettings{}
 		switch host.Platform {
 		case "windows":
@@ -1280,6 +1280,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 			}
 			if profs == nil {
 				profs = []fleet.HostMDMWindowsProfile{}
+			}
+			for _, p := range profs {
+				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()
+				profiles = append(profiles, p.ToHostMDMProfile())
+			}
+
+		case "android":
+			if !ac.MDM.AndroidEnabledAndConfigured {
+				break
+			}
+
+			profs, err := svc.ds.GetHostMDMAndroidProfiles(ctx, host.UUID)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get host mdm android profiles")
+			}
+			if profs == nil {
+				profs = []fleet.HostMDMAndroidProfile{}
 			}
 			for _, p := range profs {
 				p.Detail = fleet.HostMDMProfileDetail(p.Detail).Message()

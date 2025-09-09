@@ -39,6 +39,7 @@ func TestAndroid(t *testing.T) {
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles2},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
+		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -728,6 +729,86 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 
 		cleanupTables(t)
 	})
+}
+
+func testGetHostMDMAndroidProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a host
+	host := createAndroidHost("host-mdm-profiles-test")
+	newHost, err := ds.NewAndroidHost(ctx, host)
+	require.NoError(t, err)
+	require.NotNil(t, newHost)
+
+	// No profiles initially
+	profiles, err := ds.GetHostMDMAndroidProfiles(ctx, newHost.UUID)
+	require.NoError(t, err)
+	require.Empty(t, profiles)
+
+	// Create some profiles
+	profile1 := androidProfileForTest("profile1")
+	profile1, err = ds.NewMDMAndroidConfigProfile(ctx, *profile1)
+	require.NoError(t, err)
+	require.NotNil(t, profile1)
+
+	profile2 := androidProfileForTest("profile2")
+	profile2, err = ds.NewMDMAndroidConfigProfile(ctx, *profile2)
+	require.NoError(t, err)
+	require.NotNil(t, profile2)
+
+	profile3 := androidProfileForTest("profile3")
+	profile3, err = ds.NewMDMAndroidConfigProfile(ctx, *profile3)
+	require.NoError(t, err)
+	require.NotNil(t, profile3)
+
+	// Assign profiles to host with different statuses
+	upsertAndroidHostProfileStatus(t, ds, newHost.UUID, profile1.ProfileUUID, &fleet.MDMDeliveryVerified)
+	upsertAndroidHostProfileStatus(t, ds, newHost.UUID, profile2.ProfileUUID, &fleet.MDMDeliveryPending)
+	upsertAndroidHostProfileStatus(t, ds, newHost.UUID, profile3.ProfileUUID, nil)
+
+	// Retrieve host profiles
+	profiles, err = ds.GetHostMDMAndroidProfiles(ctx, newHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, profiles, 3)
+	byProfileUUID := make(map[string]fleet.HostMDMAndroidProfile)
+	for _, p := range profiles {
+		require.NotNil(t, p.Status)
+		byProfileUUID[p.ProfileUUID] = p
+	}
+	require.Len(t, byProfileUUID, 3)
+	require.Equal(t, fleet.MDMDeliveryVerified, *byProfileUUID[profile1.ProfileUUID].Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *byProfileUUID[profile2.ProfileUUID].Status)
+	require.Equal(t, fleet.MDMDeliveryPending, *byProfileUUID[profile3.ProfileUUID].Status)
+
+	// Change status of two profiles
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		// delivery failed
+		_, err := q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET status = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			fleet.MDMDeliveryFailed, newHost.UUID, profile2.ProfileUUID)
+		require.NoError(t, err)
+		// removal verifying
+		_, err = q.ExecContext(ctx, `UPDATE host_mdm_android_profiles SET operation_type = ?, status = ? WHERE host_uuid = ? AND profile_uuid = ?`,
+			fleet.MDMOperationTypeRemove, fleet.MDMDeliveryVerifying, newHost.UUID, profile3.ProfileUUID)
+		return err
+	})
+
+	// Retrieve host profiles
+	profiles, err = ds.GetHostMDMAndroidProfiles(ctx, newHost.UUID)
+	require.NoError(t, err)
+	require.Len(t, profiles, 2) // verifying removal profile not returned
+	byProfileUUID = make(map[string]fleet.HostMDMAndroidProfile)
+	for _, p := range profiles {
+		require.NotNil(t, p.Status)
+		byProfileUUID[p.ProfileUUID] = p
+	}
+	require.Len(t, byProfileUUID, 2)
+	require.Equal(t, fleet.MDMDeliveryVerified, *byProfileUUID[profile1.ProfileUUID].Status)
+	require.Equal(t, fleet.MDMDeliveryFailed, *byProfileUUID[profile2.ProfileUUID].Status)
+
+	// Non-existent host returns empty slice
+	profiles, err = ds.GetHostMDMAndroidProfiles(ctx, "non-existent-uuid")
+	require.NoError(t, err)
+	require.Empty(t, profiles)
 }
 
 func androidProfileForTest(name string, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
