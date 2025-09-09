@@ -1463,7 +1463,9 @@ graph TD;
     A--D
 ```
 
-
+## Contributing to articles
+To propose an article for Fleet to publish, create an ["📝 Article" issue](https://github.com/fleetdm/fleet/issues/new?template=fleet-article.md) 
+ and follow the instructions in the template.
 
 ## Commonly used terms
 
