@@ -8,7 +8,7 @@ With Apple’s release of macOS 26 Tahoe, iOS 26, and iPadOS 26, Fleet continues
 
 ## Simplified MDM migration with Apple Business Manager
 
-MacOS, iOS, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
+MacOS 26, iOS 26, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
 
 From there, users receive clear notifications that enrollment into a new management service is required. If they don’t act before the deadline, the system guides them through enrollment automatically. This eliminates the need for device wipes, scripts, or manual workarounds that previously made migrations complex and time-consuming.
 
@@ -16,7 +16,7 @@ Fleet supports this migration workflow at release, making it much easier for org
 
 ## Declarative device management (DDM)
 
-Apple continues to expand Declarative Device Management (DDM) across macOS, iOS, and iPadOS 26. With Fleet, admins can already send declarative profiles to devices, meaning your team is ready to take advantage of Apple’s latest management features as they become available, without waiting for additional updates.
+Apple continues to expand Declarative Device Management (DDM) across macOS, iOS, and iPadOS. With Fleet, admins can already send declarative profiles to devices, meaning your team is ready to take advantage of Apple’s latest management features as they become available, without waiting for additional updates.
 
 ## Platform single sign-on
 
@@ -24,7 +24,7 @@ In macOS 26, Apple expanded Platform Single Sign-On (PSSO) with a new option to 
 
 Fleet doesn’t yet support this new flow, but it’s on our roadmap. We’re working toward adding PSSO support to Fleet enrollment so admins can take advantage of this capability in the near future.
 
-Fleet remains committed to same-day support for Apple’s major operating system releases. Upgrade your devices with confidence, knowing Fleet is ready to manage macOS 26 Tahoe, iOS 26, and iPadOS 26 from day one. For more details, see the Fleet [handbook](https://fleetdm.com/handbook).
+Fleet remains committed to same-day support for Apple’s major operating system releases. Upgrade your devices with confidence, knowing Fleet is ready to manage macOS 26 Tahoe, iOS 26, and iPadOS 26 from day one. For more details, see the Fleet [handbook](https://fleetdm.com/handbook/engineering#provide-same-day-support-for-major-version-macos-releases).
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Andrey Kizimenko">
