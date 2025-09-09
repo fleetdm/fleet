@@ -16,6 +16,7 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import { createMockMdmConfig } from "__mocks__/configMock";
 
 import BootstrapPackage from "./BootstrapPackage";
 
@@ -46,6 +47,33 @@ const setuDefaultBackendMocks = () => {
 describe("BootstrapPackage", () => {
   it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+  });
+  it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
+    mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({
+          enabled_and_configured: true,
+          apple_bm_enabled_and_configured: false,
+        }),
+      })
+    );
     const render = createCustomRenderer({
       withBackendMock: true,
     });

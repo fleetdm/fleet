@@ -9,14 +9,40 @@ import {
 } from "test/handlers/setup-experience-handlers";
 import { createGetConfigHandler } from "test/handlers/config-handlers";
 
+import { createMockMdmConfig } from "__mocks__/configMock";
+
 import RunScript from "./RunScript";
 
 describe("RunScript", () => {
   it("should render the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: { app: { config: { mdm: { enabled_and_configured: false } } } },
+    });
+
+    render(<RunScript router={createMockRouter()} currentTeamId={1} />);
+
+    expect(
+      await screen.getByText(/turn on automatic enrollment/)
+    ).toBeInTheDocument();
+  });
+  it("should render the 'turn on automatic enrollment' message when MDM is configured but not ABM", async () => {
+    mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({
+          enabled_and_configured: true,
+          apple_bm_enabled_and_configured: false,
+        }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
@@ -30,17 +56,6 @@ describe("RunScript", () => {
     mockServer.use(createGetConfigHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
@@ -53,17 +68,6 @@ describe("RunScript", () => {
     mockServer.use(createGetConfigHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     render(<RunScript router={createMockRouter()} currentTeamId={1} />);
