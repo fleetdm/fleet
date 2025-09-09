@@ -2,12 +2,31 @@ package menu
 
 import (
 	"fmt"
+	"os"
 	"runtime"
+	"strings"
 	"sync/atomic"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog/log"
 )
+
+// isOpenSUSE detects if the system is running OpenSUSE
+func isOpenSUSE() bool {
+	if runtime.GOOS != "linux" {
+		return false
+	}
+
+	// Check /etc/os-release for OpenSUSE identification
+	if data, err := os.ReadFile("/etc/os-release"); err == nil {
+		content := string(data)
+		return strings.Contains(content, "openSUSE") ||
+			strings.Contains(content, "opensuse-leap") ||
+			strings.Contains(content, "opensuse-tumbleweed")
+	}
+
+	return false
+}
 
 // Factory is the interface for creating menu items
 type Factory interface {
@@ -160,8 +179,8 @@ func (m *Manager) UpdateFailingPolicies(failingPolicies *uint) {
 	}
 
 	if count > 0 {
-		if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
-			// Windows and Linux don't reliably support color emoji in system tray
+		if runtime.GOOS == "windows" || isOpenSUSE() {
+			// Windows and OpenSUSE don't reliably support color emoji in system tray
 			if count == 1 {
 				m.Items.MyDevice.SetTitle("My device (1 issue)")
 			} else {
@@ -171,7 +190,7 @@ func (m *Manager) UpdateFailingPolicies(failingPolicies *uint) {
 			m.Items.MyDevice.SetTitle(fmt.Sprintf("🔴 My device (%d)", count))
 		}
 	} else {
-		if runtime.GOOS == "windows" || runtime.GOOS == "linux" {
+		if runtime.GOOS == "windows" || isOpenSUSE() {
 			m.Items.MyDevice.SetTitle("My device")
 		} else {
 			m.Items.MyDevice.SetTitle("🟢 My device")
