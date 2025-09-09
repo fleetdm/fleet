@@ -1,6 +1,6 @@
 .tab-nav {
   top: 0;
-  background-color: $core-white;
+  // No background color as TabNav is often over a background gradient
 
   &--sticky {
     position: sticky;

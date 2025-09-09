@@ -200,12 +200,12 @@ $max-width: 2560px;
   gap: $pad-xsmall;
 
   &:hover {
-    color: $core-vibrant-blue-over;
+    color: $ui-fleet-black-75-over;
     text-decoration: underline;
 
     svg {
       path {
-        stroke: $core-vibrant-blue-over;
+        stroke: $ui-fleet-black-75-over;
       }
     }
   }

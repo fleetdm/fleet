@@ -100,7 +100,7 @@ const ActivityItem = ({
   const { actor_email } = activity;
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
-    : { gravatar_url: DEFAULT_GRAVATAR_LINK };
+    : { gravatar_url: undefined };
 
   // wrapped just in case the date string does not parse correctly
   let activityCreatedAt: Date | null = null;
