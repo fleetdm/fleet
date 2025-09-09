@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"strings"
 	"time"
 
@@ -243,6 +244,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
+		svc.verifyDevicePolicy(ctx, device) // TODO(AP): Verify
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -430,4 +432,139 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 		return nil, nil
 	}
 	return ptr.String(nameParts[3]), nil
+}
+
+func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanagement.Device) {
+	// TODO: Take in HostUUID
+	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "device.id", device.HardwareInfo.EnterpriseSpecificId)
+
+	// Get the applied policy id field
+	appliedPolicyVersion := device.AppliedPolicyVersion
+
+	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version = device.AppliedPolicyVersion.
+	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
+
+	// Get all profiles that are pending install
+	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, device.HardwareInfo.EnterpriseSpecificId, appliedPolicyVersion)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
+		return
+	}
+
+	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
+	if len(device.NonComplianceDetails) == 0 {
+
+		var verifiedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		for _, profile := range pendingInstallProfiles {
+			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+				HostUUID:    profile.HostUUID,
+				Status:      &fleet.MDMDeliveryVerified,
+				ProfileUUID: profile.ProfileUUID,
+			})
+		}
+
+		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, verifiedProfiles)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error verifying pending install profiles", "err", err)
+		}
+
+	} else {
+		// Lookup payloads for each profile in profileToInstall, then call upon the merge method defined by Martin, to merge it all into the final policy.
+		// Iterate over either a map or top level metadata of fields overridden?
+
+		// Dedupe the policyRequestUUID across all pending install profiles
+		var policyRequestUUID string
+		for _, profile := range pendingInstallProfiles {
+			if int64(*profile.IncludedInPolicyVersion) == device.AppliedPolicyVersion && profile.PolicyRequestUUID != nil {
+				policyRequestUUID = *profile.PolicyRequestUUID
+			}
+		}
+
+		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
+		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
+		policyRequest, err := svc.ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID)
+			return
+		}
+
+		if policyRequest == nil {
+			level.Error(svc.logger).Log("msg", "policy request not found", "policy_request_uuid", policyRequestUUID)
+			return
+		}
+
+		var policyRequestPayload androidPolicyRequestPayload
+		err = json.Unmarshal(policyRequest.Payload, &policyRequestPayload)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID)
+			return
+		}
+
+		// Go over nonComplianceDetails, lookup the setting name, and get the corresponding profile based on the policyRequestPayload metadata settings origin.
+		// Update the status of the profiles to failed, and add the correct detail error message.
+		failedProfileUUIDsWithNonCompliances := make(map[string][]*androidmanagement.NonComplianceDetail)
+		for _, nonCompliance := range device.NonComplianceDetails {
+			profileUUIDToMarkAsFailed := policyRequestPayload.Metadata.SettingsOrigin[nonCompliance.SettingName]
+			if _, ok := failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed]; !ok {
+				failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed] = []*androidmanagement.NonComplianceDetail{}
+			}
+
+			failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed] = append(failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed], nonCompliance)
+		}
+
+		var failedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		for profileUUID, nonCompliances := range failedProfileUUIDsWithNonCompliances {
+			failedProfiles = append(failedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+				HostUUID:    device.HardwareInfo.EnterpriseSpecificId,
+				Status:      &fleet.MDMDeliveryFailed,
+				Detail:      buildNonComplianceErrorMessage(nonCompliances),
+				ProfileUUID: profileUUID,
+			})
+		}
+
+		// Upsert non compliant profiles as failed
+		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, failedProfiles)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error upserting failed android profiles", "err", err)
+		}
+
+		// Upsert rest of profiles as verified.
+		var verifiedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		for _, profile := range pendingInstallProfiles {
+			if _, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
+				// This profile has failed non-compliance, we can skip it.
+				continue
+			}
+			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+				HostUUID:    device.HardwareInfo.EnterpriseSpecificId,
+				Status:      &fleet.MDMDeliveryVerified,
+				ProfileUUID: profile.ProfileUUID,
+			})
+		}
+
+		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, verifiedProfiles)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error upserting verified android profiles", "err", err)
+		}
+	}
+
+	// Bulk delete any pending remove profiles.
+	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, device.HardwareInfo.EnterpriseSpecificId, appliedPolicyVersion)
+	if err != nil {
+		level.Error(svc.logger).Log("msg", "error deleting pending remove profiles", "err", err)
+	}
+}
+
+func buildNonComplianceErrorMessage(nonCompliance []*androidmanagement.NonComplianceDetail) string {
+	failedSettings := []string{}
+	failedReasons := []string{}
+
+	for _, detail := range nonCompliance {
+		failedSettings = append(failedSettings, fmt.Sprintf("%q", detail.SettingName))
+		failedReasons = append(failedReasons, detail.NonComplianceReason)
+	}
+	failedSettingsString := strings.Join(failedSettings[:len(failedSettings)-1], ", ") + ", and " + failedSettings[len(failedSettings)-1]
+	failedReasonsString := strings.Join(failedReasons[:len(failedReasons)-1], ", ") + ", and " + failedReasons[len(failedReasons)-1]
+
+	return fmt.Sprintf("%s settings couldn't apply to a host.\nReasons: %s. Other settings are applied.", failedSettingsString, failedReasonsString)
 }

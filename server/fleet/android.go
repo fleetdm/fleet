@@ -36,8 +36,8 @@ type MDMAndroidProfilePayload struct {
 	Status                  *MDMDeliveryStatus `db:"status" json:"status"`
 	OperationType           MDMOperationType   `db:"operation_type"`
 	Detail                  string             `db:"detail"`
-	PolicyRequestUUID       string             `db:"policy_request_uuid"`
-	DeviceRequestUUID       string             `db:"device_request_uuid"`
+	PolicyRequestUUID       *string            `db:"policy_request_uuid"`
+	DeviceRequestUUID       *string            `db:"device_request_uuid"`
 	RequestFailCount        int                `db:"request_fail_count"`
 	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -193,6 +194,168 @@ func TestPubSubEnrollment(t *testing.T) {
 	})
 }
 
+func TestStatusReportPolicyValidation(t *testing.T) {
+	svc, mockDS := createAndroidService(t)
+
+	androidDevice := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			UUID: uuid.NewString(),
+		},
+		Device: &android.Device{
+			DeviceID: createAndroidDeviceId("test"),
+		},
+	}
+	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
+		return androidDevice, nil
+	}
+	mockDS.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{
+			MDM: fleet.MDM{
+				AndroidEnabledAndConfigured: true,
+			},
+		}, nil
+	}
+	mockDS.UpdateAndroidHostFunc = func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
+		return nil
+	}
+
+	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
+		var policyVersion *int
+		policyVersion = new(int)
+		*policyVersion = 1
+
+		installPendingProfile := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "a",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+		}
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile,
+			}, nil
+		}
+		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+			require.Len(t, payload, 1)
+			require.Equal(t, installPendingProfile.ProfileUUID, payload[0].ProfileUUID)
+			require.Equal(t, fleet.MDMDeliveryVerified, *payload[0].Status)
+			return nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.False(t, mockDS.GetAndroidPolicyRequestByIDFuncInvoked)
+		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+	})
+
+	t.Run("compliance details has failure", func(t *testing.T) {
+		var policyVersion *int
+		policyVersion = new(int)
+		*policyVersion = 1
+
+		policyRequestUUID := uuid.NewString()
+		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "a",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
+		installPendingProfile2 := &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             uuid.NewString(),
+			ProfileName:             "b",
+			HostUUID:                androidDevice.UUID,
+			Status:                  &fleet.MDMDeliveryPending,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			IncludedInPolicyVersion: policyVersion,
+			PolicyRequestUUID:       &policyRequestUUID,
+		}
+
+		mockDS.GetAndroidPolicyRequestByIDFunc = func(ctx context.Context, id string) (*fleet.MDMAndroidPolicyRequest, error) {
+			if id == policyRequestUUID {
+				payload, err := json.Marshal(map[string]any{
+					"policy": map[string]any{
+						"DefaultPermissionPolicy": "invalid",
+						"cameraDisabled":          true,
+					},
+					"metadata": map[string]any{
+						"settings_origin": map[string]string{
+							"DefaultPermissionPolicy": installPendingProfile1.ProfileUUID,
+							"cameraDisabled":          installPendingProfile2.ProfileUUID,
+						},
+					},
+				})
+				require.NoError(t, err)
+				return &fleet.MDMAndroidPolicyRequest{
+					Payload: payload,
+				}, nil
+			}
+
+			return nil, errors.New("something went wrong")
+		}
+
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc = func(ctx context.Context, hostUUID string, version int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+			return []*fleet.MDMAndroidProfilePayload{
+				installPendingProfile1,
+				installPendingProfile2,
+			}, nil
+		}
+		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+			require.Len(t, payload, 1) // We can expect 1 here, as we call one time with one failed and one time with one verified.
+			switch payload[0].ProfileUUID {
+			case installPendingProfile1.ProfileUUID:
+				require.Equal(t, installPendingProfile1.ProfileUUID, payload[0].ProfileUUID)
+				require.Equal(t, fleet.MDMDeliveryFailed, *payload[0].Status)
+				return nil
+			case installPendingProfile2.ProfileUUID:
+				require.Equal(t, installPendingProfile2.ProfileUUID, payload[0].ProfileUUID)
+				require.Equal(t, fleet.MDMDeliveryVerified, *payload[0].Status)
+				return nil
+			}
+			require.Fail(t, "All profiles upserted should have an if statement verifying status.")
+			return nil
+		}
+		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
+			return nil
+		}
+
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
+			{
+				SettingName:         "DefaultPermissionPolicy",
+				NonComplianceReason: "INVALID_VALUE",
+			},
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
+		require.NoError(t, err)
+
+		require.True(t, mockDS.GetAndroidPolicyRequestByIDFuncInvoked)
+		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
+		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
+		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
+		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
+		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
+		mockDS.GetAndroidPolicyRequestByIDFuncInvoked = false
+	})
+}
+
 func TestAndroidStorageExtraction(t *testing.T) {
 	svc, mockDS := createAndroidService(t)
 
@@ -282,6 +445,43 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 	return &android.PubSubMessage{
 		Attributes: map[string]string{
 			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
+}
+
+func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	device := androidmanagement.Device{
+		Name:                 createAndroidDeviceId(name),
+		NonComplianceDetails: nonComplianceDetails,
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: deviceId,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+			SerialNumber:         "test-serial",
+			Hardware:             "test-hardware",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidBuildNumber: "test-build",
+			AndroidVersion:     "1",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+		},
+		AppliedPolicyName:    policyName,
+		AppliedPolicyVersion: int64(*policyVersion),
+		LastPolicySyncTime:   "2001-01-01T00:00:00Z",
+	}
+
+	data, err := json.Marshal(device)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubStatusReport),
 		},
 		Data: encodedData,
 	}

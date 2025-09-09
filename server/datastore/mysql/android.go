@@ -662,6 +662,44 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
+func (ds *Datastore) GetAndroidPolicyRequestByID(ctx context.Context, request_uuid string) (*fleet.MDMAndroidPolicyRequest, error) {
+	policyRequestUUID, err := uuid.Parse(request_uuid) // validate format
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "parsing android policy request uuid")
+	}
+
+	const stmt = `
+		SELECT
+			request_uuid,
+			request_name,
+			policy_id,
+			payload,
+			status_code,
+			error_details,
+			applied_policy_version,
+			policy_version
+		FROM
+			android_policy_requests
+		WHERE
+			request_uuid = ?
+	`
+
+	req := &fleet.MDMAndroidPolicyRequest{}
+	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, policyRequestUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
+	}
+
+	if rows.Next() == false {
+		return nil, nil // No rows
+	}
+
+	if err := rows.Scan(&req.RequestUUID, &req.RequestName, &req.PolicyID, &req.Payload, &req.StatusCode, &req.ErrorDetails, &req.AppliedPolicyVersion, &req.PolicyVersion); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "scanning android policy request")
+	}
+	return req, nil
+}
+
 const androidApplicableProfilesQuery = `
 	-- non label-based profiles
 	SELECT
@@ -1068,4 +1106,43 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		return nil, err
 	}
 	return profiles, nil
+}
+
+func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	const stmt = `
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+	`
+
+	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles")
+	}
+
+	var profiles []*fleet.MDMAndroidProfilePayload
+	for rows.Next() {
+		var p fleet.MDMAndroidProfilePayload
+		if err := rows.Scan(&p.ProfileUUID, &p.HostUUID, &p.Status, &p.OperationType, &p.Detail, &p.ProfileName, &p.PolicyRequestUUID, &p.DeviceRequestUUID, &p.RequestFailCount, &p.IncludedInPolicyVersion); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "scanning host MDM Android profile")
+		}
+		profiles = append(profiles, &p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterating host MDM Android profiles")
+	}
+	return profiles, nil
+}
+
+func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
+	stmt := `
+		DELETE FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status = ?
+	`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, policyVersionId, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host MDM Android profiles")
+	}
+	return nil
 }

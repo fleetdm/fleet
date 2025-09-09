@@ -40,6 +40,9 @@ func TestAndroid(t *testing.T) {
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles2},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
+		{"GetAndroidPolicyRequestByID", testGetAndroidPolicyRequestByID},
+		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
+		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1308,4 +1311,336 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
 		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
 	}, hostProfiles)
+}
+
+func testGetAndroidPolicyRequestByID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	policyRequestUUID := uuid.New().String()
+
+	t.Run("Returns not found", func(t *testing.T) {
+		policyRequest, err := ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		require.Nil(t, err)
+		require.Nil(t, policyRequest)
+	})
+
+	t.Run("Correctly retrieves the policy request", func(t *testing.T) {
+		// Create a test policy request
+		err := ds.NewAndroidPolicyRequest(ctx, &fleet.MDMAndroidPolicyRequest{
+			RequestUUID: policyRequestUUID,
+			Payload:     json.RawMessage(`{"key": "value"}`),
+		})
+		require.NoError(t, err)
+
+		// Retrieve the policy request by ID
+		policyRequest, err := ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		require.NoError(t, err)
+		require.NotNil(t, policyRequest)
+		require.Equal(t, policyRequestUUID, policyRequest.RequestUUID)
+	})
+}
+
+func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
+	for i := range profiles {
+		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		require.NoError(t, err)
+		profiles[i] = p
+	}
+	hostUUID := uuid.NewString()
+
+	clearOutHostMDMAndroidProfilesTable := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM host_mdm_android_profiles WHERE host_uuid = ?", hostUUID)
+			return err
+		})
+	}
+
+	t.Run("Does not list other install statuses", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[1].ProfileUUID,
+				ProfileName:             profiles[1].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryVerified,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[2].ProfileUUID,
+				ProfileName:             profiles[2].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryVerifying,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 0)
+	})
+
+	t.Run("Does not list higher versions than passed", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(2)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion-1))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 0)
+	})
+
+	t.Run("Does not list remove operation", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 0)
+	})
+
+	t.Run("Does list pending install profiles with version less than or equal to applied policy version", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		require.NoError(t, err)
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		hostProfiles, err := ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+		require.Len(t, hostProfiles, 1)
+		require.Equal(t, &fleet.MDMDeliveryPending, hostProfiles[0].Status)
+		require.Equal(t, fleet.MDMOperationTypeInstall, hostProfiles[0].OperationType)
+		require.EqualValues(t, policyVersion, hostProfiles[0].IncludedInPolicyVersion)
+	})
+}
+
+func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	profiles := make([]*fleet.MDMAndroidConfigProfile, 3)
+	for i := range profiles {
+		p := androidProfileForTest(fmt.Sprintf("profile-%d", i))
+		p, err := ds.NewMDMAndroidConfigProfile(ctx, *p)
+		require.NoError(t, err)
+		profiles[i] = p
+	}
+	hostUUID := uuid.NewString()
+
+	clearOutHostMDMAndroidProfilesTable := func() {
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, "DELETE FROM host_mdm_android_profiles WHERE host_uuid = ?", hostUUID)
+			return err
+		})
+	}
+
+	listAllHostMDMAndroidProfiles := func() []*fleet.MDMAndroidProfilePayload {
+		var hostProfiles []*fleet.MDMAndroidProfilePayload
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			rows, err := q.QueryContext(ctx, `SELECT profile_uuid, host_uuid, profile_name, operation_type, status, detail, included_in_policy_version, policy_request_uuid, device_request_uuid, request_fail_count
+			 FROM host_mdm_android_profiles`)
+			require.NoError(t, err)
+
+			for rows.Next() {
+				var profile fleet.MDMAndroidProfilePayload
+				require.NoError(t, rows.Scan(&profile.ProfileUUID, &profile.HostUUID, &profile.ProfileName, &profile.OperationType, &profile.Status, &profile.Detail, &profile.IncludedInPolicyVersion, &profile.PolicyRequestUUID, &profile.DeviceRequestUUID, &profile.RequestFailCount))
+				hostProfiles = append(hostProfiles, &profile)
+			}
+			require.NoError(t, rows.Err())
+
+			return err
+		})
+
+		return hostProfiles
+	}
+
+	t.Run("Does not delete profiles not associated with host", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		// Act
+		err = ds.BulkDeleteMDMAndroidHostProfiles(ctx, uuid.NewString(), int64(*policyVersion))
+		require.NoError(t, err)
+
+		// Assert
+		hostProfiles := listAllHostMDMAndroidProfiles()
+		require.Len(t, hostProfiles, 1)
+	})
+
+	t.Run("Does not delete install operation types", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeInstall,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		// Act
+		err = ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+
+		// Assert
+		hostProfiles := listAllHostMDMAndroidProfiles()
+		require.Len(t, hostProfiles, 1)
+	})
+
+	t.Run("Does not delete other statuses with remove operation", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(1)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[1].ProfileUUID,
+				ProfileName:             profiles[1].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryVerifying,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[2].ProfileUUID,
+				ProfileName:             profiles[2].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryVerified,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		// Act
+		err = ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+
+		// Assert
+		hostProfiles := listAllHostMDMAndroidProfiles()
+		require.Len(t, hostProfiles, 3)
+	})
+
+	t.Run("Does not delete profiles with higher policy version than passed", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(2)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+		})
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		// Act
+		err = ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, int64(*policyVersion-1))
+		require.NoError(t, err)
+
+		// Assert
+		hostProfiles := listAllHostMDMAndroidProfiles()
+		require.Len(t, hostProfiles, 1)
+	})
+
+	t.Run("Deletes pending remove profiles with policy version lower than or equal to passed", func(t *testing.T) {
+		// Arrange
+		policyVersion := ptr.Int(2)
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[0].ProfileUUID,
+				ProfileName:             profiles[0].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: policyVersion,
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[1].ProfileUUID,
+				ProfileName:             profiles[1].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryPending,
+				IncludedInPolicyVersion: ptr.Int(*policyVersion - 1),
+			},
+		})
+		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
+
+		// Act
+		err = ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, int64(*policyVersion))
+		require.NoError(t, err)
+
+		// Assert
+		hostProfiles := listAllHostMDMAndroidProfiles()
+		require.Len(t, hostProfiles, 0)
+	})
 }

@@ -1431,6 +1431,12 @@ type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured boo
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
 
+type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error
+
+type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
+
+type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
+
 type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
 
 type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
@@ -1443,11 +1449,11 @@ type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([
 
 type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
 
+type GetAndroidPolicyRequestByIDFunc func(ctx context.Context, request_uuid string) (*fleet.MDMAndroidPolicyRequest, error)
+
 type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
-
-type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -3640,6 +3646,15 @@ type DataStore struct {
 	UpdateAndroidHostFunc        UpdateAndroidHostFunc
 	UpdateAndroidHostFuncInvoked bool
 
+	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
+	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
+
+	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
+	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
+
+	ListHostMDMAndroidProfilesPendingInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingInstallWithVersionFunc
+	ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked bool
+
 	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
 	NewMDMAndroidConfigProfileFuncInvoked bool
 
@@ -3658,14 +3673,14 @@ type DataStore struct {
 	NewAndroidPolicyRequestFunc        NewAndroidPolicyRequestFunc
 	NewAndroidPolicyRequestFuncInvoked bool
 
+	GetAndroidPolicyRequestByIDFunc        GetAndroidPolicyRequestByIDFunc
+	GetAndroidPolicyRequestByIDFuncInvoked bool
+
 	ListMDMAndroidProfilesToSendFunc        ListMDMAndroidProfilesToSendFunc
 	ListMDMAndroidProfilesToSendFuncInvoked bool
 
 	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
 	GetMDMAndroidProfilesContentsFuncInvoked bool
-
-	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
-	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -8715,6 +8730,27 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
 }
 
+func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAndroidHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAndroidHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error {
+	s.mu.Lock()
+	s.BulkDeleteMDMAndroidHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkDeleteMDMAndroidHostProfilesFunc(ctx, hostUUID, policyVersionID)
+}
+
+func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
 func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAndroidConfigProfileFuncInvoked = true
@@ -8757,6 +8793,13 @@ func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMA
 	return s.NewAndroidPolicyRequestFunc(ctx, req)
 }
 
+func (s *DataStore) GetAndroidPolicyRequestByID(ctx context.Context, request_uuid string) (*fleet.MDMAndroidPolicyRequest, error) {
+	s.mu.Lock()
+	s.GetAndroidPolicyRequestByIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidPolicyRequestByIDFunc(ctx, request_uuid)
+}
+
 func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
 	s.mu.Lock()
 	s.ListMDMAndroidProfilesToSendFuncInvoked = true
@@ -8769,13 +8812,6 @@ func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []s
 	s.GetMDMAndroidProfilesContentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAndroidProfilesContentsFunc(ctx, uuids)
-}
-
-func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
-	s.mu.Lock()
-	s.BulkUpsertMDMAndroidHostProfilesFuncInvoked = true
-	s.mu.Unlock()
-	return s.BulkUpsertMDMAndroidHostProfilesFunc(ctx, payload)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

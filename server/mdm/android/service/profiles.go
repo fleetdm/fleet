@@ -398,12 +398,22 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 	return policyRequest, skip, nil
 }
 
+// TODO(AP): Should these types live here? I think it makes sense since they are constructed here, and is just to have structure when unmarshalling the payload from the DB.
+type androidPolicyRequestPayload struct {
+	Policy   *androidmanagement.Policy           `json:"policy"`
+	Metadata androidPolicyRequestPayloadMetadata `json:"metadata"`
+}
+
+type androidPolicyRequestPayloadMetadata struct {
+	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
+}
+
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
-	m := map[string]any{
-		"policy": policy,
-		"metadata": map[string]any{
-			"settings_origin": metadata,
+	m := androidPolicyRequestPayload{
+		Policy: policy,
+		Metadata: androidPolicyRequestPayloadMetadata{
+			SettingsOrigin: metadata,
 		},
 	}
 	b, err := json.Marshal(m)
