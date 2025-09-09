@@ -119,7 +119,7 @@
   startedOn: "2025-08-08"
   frequency: "Daily"
   description: "Every Day check the printful and confirm incoming swag orders all orders."
-  moreInfoUrl: "https://www.printful.com/dashboard/default/orders"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#fulfill-a-swag-request"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 
