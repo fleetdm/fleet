@@ -796,7 +796,7 @@ func main() {
 				storedUUID = strings.TrimSpace(string(fileContent))
 			}
 
-			if oi.HardwareUUID != storedUUID {
+			if !strings.EqualFold(oi.HardwareUUID, storedUUID) {
 				// Then we have moved to a new physical machine, so we should restart!
 				log.Info().Str("stored_uuid", storedUUID).Str("current_uuid", oi.HardwareUUID).Msg("detected hardware migration")
 
