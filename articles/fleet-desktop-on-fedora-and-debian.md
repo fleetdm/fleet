@@ -36,5 +36,5 @@ After the extension is installed your users will see the Fleet icon on their men
 <meta name="authorGitHubUsername" value="lucasmrod">
 <meta name="authorFullName" value="Lucas Rodriguez">
 <meta name="publishedOn" value="2025-04-01">
-<meta name="articleTitle" value="Enabling Fleet Desktop on Fedora and Debian">
+<meta name="articleTitle" value="Enabling Fleet Desktop on Fedora, Debian, and OpenSUSE">
 <meta name="category" value="guides">
