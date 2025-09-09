@@ -1,35 +1,14 @@
 import React, { useContext } from "react";
-import PATHS from "router/paths";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 
 import { AppContext } from "context/app";
 
 import SideNav from "pages/admin/components/SideNav";
-import Button from "components/buttons/Button/Button";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
-import EmptyTable from "components/EmptyTable";
 
 import SETUP_EXPERIENCE_NAV_ITEMS from "./SetupExperienceNavItems";
 
 const baseClass = "setup-experience";
-
-interface ISetupEmptyState {
-  router: InjectedRouter;
-}
-
-export const SetupEmptyState = ({ router }: ISetupEmptyState) => {
-  const onClickEmptyConnect = () => {
-    router.push(PATHS.ADMIN_INTEGRATIONS_MDM);
-  };
-
-  return (
-    <EmptyTable
-      header="Setup experience for macOS hosts"
-      info="Connect Fleet to the Apple Business Manager to get started."
-      primaryButton={<Button onClick={onClickEmptyConnect}>Connect</Button>}
-    />
-  );
-};
 
 interface ISetupExperienceProps {
   params: Params;

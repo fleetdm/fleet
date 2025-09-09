@@ -9,6 +9,7 @@ import { ITeamConfig } from "interfaces/team";
 
 import SectionHeader from "components/SectionHeader/SectionHeader";
 import Spinner from "components/Spinner";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import RequireEndUserAuth from "./components/RequireEndUserAuth/RequireEndUserAuth";
 import EndUserAuthForm from "./components/EndUserAuthForm/EndUserAuthForm";
@@ -78,24 +79,41 @@ const EndUserAuthentication = ({
     router.push(PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER);
   };
 
+  const renderContent = () => {
+    if (!globalConfig || isLoadingGlobalConfig || isLoadingTeamConfig) {
+      return <Spinner />;
+    }
+    const mdmConfig = globalConfig.mdm;
+    if (
+      !(
+        mdmConfig.enabled_and_configured ||
+        mdmConfig.android_enabled_and_configured
+      )
+    ) {
+      <TurnOnMdmMessage
+        header="Additional configuration required"
+        info="Supported on macOS, iOS, iPadOS, and Android. To customize, first turn on MDM."
+        buttonText="Turn on"
+        router={router}
+      />;
+    }
+    <SetupExperienceContentContainer>
+      {!isIdPConfigured(mdmConfig) ? (
+        <RequireEndUserAuth onClickConnect={onClickConnect} />
+      ) : (
+        <EndUserAuthForm
+          currentTeamId={currentTeamId}
+          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+        />
+      )}
+      <EndUserExperiencePreview />
+    </SetupExperienceContentContainer>;
+  };
+
   return (
     <section className={baseClass}>
       <SectionHeader title="End user authentication" />
-      {isLoadingGlobalConfig || isLoadingTeamConfig ? (
-        <Spinner />
-      ) : (
-        <SetupExperienceContentContainer>
-          {!globalConfig || !isIdPConfigured(globalConfig.mdm) ? (
-            <RequireEndUserAuth onClickConnect={onClickConnect} />
-          ) : (
-            <EndUserAuthForm
-              currentTeamId={currentTeamId}
-              defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
-            />
-          )}
-          <EndUserExperiencePreview />
-        </SetupExperienceContentContainer>
-      )}
+      {renderContent()}
     </section>
   );
 };

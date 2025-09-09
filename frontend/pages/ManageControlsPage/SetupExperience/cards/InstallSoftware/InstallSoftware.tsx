@@ -20,6 +20,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -27,7 +28,6 @@ import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import SetupExperienceMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "install-software";
 
@@ -131,22 +131,32 @@ const InstallSoftware = ({
     }
 
     if (softwareTitles || softwareTitles === null) {
+      const appleMdmAndAbmEnabled =
+        globalConfig?.mdm.enabled_and_configured &&
+        globalConfig?.mdm.apple_bm_enabled_and_configured;
+
+      // TODO - incorporate Windows MDM condition when implementing Windows software install on setup
+      if (platform === "macos" && !appleMdmAndAbmEnabled) {
+        return (
+          <TurnOnMdmMessage
+            header="Additional configuration required"
+            info="To customize, first turn on automatic enrollment."
+            buttonText="Turn on"
+            router={router}
+          />
+        );
+      }
       return (
-        <SetupExperienceMdmEnabledWrapper
-          router={router}
-          bypass={platform !== "macos"}
-        >
-          <SetupExperienceContentContainer>
-            <AddInstallSoftware
-              currentTeamId={currentTeamId}
-              hasManualAgentInstall={hasManualAgentInstall}
-              softwareTitles={softwareTitles}
-              onAddSoftware={() => setShowSelectSoftwareModal(true)}
-              platform={platform}
-            />
-            <InstallSoftwarePreview />
-          </SetupExperienceContentContainer>
-        </SetupExperienceMdmEnabledWrapper>
+        <SetupExperienceContentContainer>
+          <AddInstallSoftware
+            currentTeamId={currentTeamId}
+            hasManualAgentInstall={hasManualAgentInstall}
+            softwareTitles={softwareTitles}
+            onAddSoftware={() => setShowSelectSoftwareModal(true)}
+            platform={platform}
+          />
+          <InstallSoftwarePreview />
+        </SetupExperienceContentContainer>
       );
     }
 

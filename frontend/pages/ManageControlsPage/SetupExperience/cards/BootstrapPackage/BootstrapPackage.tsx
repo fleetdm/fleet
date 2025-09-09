@@ -18,6 +18,7 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -27,7 +28,6 @@ import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "bootstrap-package";
 
@@ -46,9 +46,10 @@ export const getManualAgentInstallSetting = (
   return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
 };
 
-const BootstrapPackageContent = ({
+const BootstrapPackage = ({
   currentTeamId,
-}: Pick<ISetupExperienceCardProps, "currentTeamId">) => {
+  router,
+}: ISetupExperienceCardProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [
     selectedManualAgentInstall,
@@ -87,6 +88,7 @@ const BootstrapPackageContent = ({
   );
 
   const {
+    data: globalConfig,
     isLoading: isLoadingGlobalConfig,
     refetch: refetchGlobalConfig,
   } = useQuery<IConfig, Error>(
@@ -211,30 +213,40 @@ const BootstrapPackageContent = ({
     isLoadingScript ||
     isLoadingSoftware;
 
+  const renderContent = () => {
+    if (isLoading) {
+      return <Spinner />;
+    }
+    if (
+      !(
+        globalConfig?.mdm.enabled_and_configured &&
+        globalConfig?.mdm.apple_bm_enabled_and_configured
+      )
+    ) {
+      return (
+        <TurnOnMdmMessage
+          header="Additional configuration required"
+          info="Supported on macOS. To customize, first turn on automatic enrollment."
+          buttonText="Turn on"
+          router={router}
+        />
+      );
+    }
+    return renderBootstrapView();
+  };
+
   return (
-    <>
-      {isLoading ? <Spinner /> : renderBootstrapView()}
+    <section className={baseClass}>
+      <SectionHeader title="Bootstrap package" />
+      {renderContent()}
       {showDeleteBootstrapPackageModal && (
         <DeleteBootstrapPackageModal
           onDelete={onDelete}
           onCancel={() => setShowDeleteBootstrapPackageModal(false)}
         />
       )}
-    </>
-  );
-};
-
-export const BootstrapPackage = ({
-  currentTeamId,
-  router,
-}: ISetupExperienceCardProps) => {
-  return (
-    <section className={baseClass}>
-      <SectionHeader title="Bootstrap package" />
-      <SetupMdmEnabledWrapper router={router}>
-        <BootstrapPackageContent currentTeamId={currentTeamId} />
-      </SetupMdmEnabledWrapper>
     </section>
   );
 };
+
 export default BootstrapPackage;
