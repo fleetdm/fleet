@@ -292,7 +292,7 @@ WITH registry_keys AS (
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
