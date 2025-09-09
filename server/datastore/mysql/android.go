@@ -854,7 +854,9 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 			ON hmap.host_uuid = ds.host_uuid AND hmap.profile_uuid = ds.profile_uuid
 	WHERE
 	  -- at least one profile was removed from the set of applicable profiles
-		ds.host_uuid IS NULL
+		ds.host_uuid IS NULL AND
+		-- and it is not in pending remove status (in which case it was processed)
+		( hmap.operation_type != ? OR COALESCE(hmap.status, '') <> ? )
 `, fmt.Sprintf(androidApplicableProfilesQuery, "TRUE", "TRUE", "TRUE", "TRUE"))
 
 		// NOTE: we explicitly don't "ignore" profiles to remove based on broken labels,
@@ -870,7 +872,8 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
 
 		var hostUUIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt, fleet.MDMDeliveryFailed); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
+			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 

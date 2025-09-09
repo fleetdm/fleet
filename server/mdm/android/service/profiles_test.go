@@ -72,7 +72,8 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithConflictProfile", testHostsWithConflictProfile},
 		{"HostsWithMultiOverrideProfile", testHostsWithMultiOverrideProfile},
 		{"HostsWithAPIFailures", testHostsWithAPIFailures},
-		// {"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
+		{"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
+		// {"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -363,6 +364,153 @@ func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Cli
 		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
+}
+
+func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		// use the received maximumTimeToLock value as the version to simplify testing
+		policy.Version = policy.MaximumTimeToLock
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// create a couple hosts and a non-android one to ensure no unwanted side-effects
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	createNonAndroidHost(t, ds, 3)
+
+	// add a first android profile
+	p1 := androidProfileWithPayloadForTest("p1", `{"maximumTimeToLock": "1"}`)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+
+	// profiles get delivered
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// mark as verified (it will clear the request uuids, but that's not critical
+	// for this test)
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1)},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1)},
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// TODO(ap): test update of the profile once gitops work is merged
+
+	// add a second android profile
+	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "2"}`)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	require.NoError(t, err)
+
+	// profiles get re-delivered
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// mark as verified (it will clear the request uuids, but that's not critical
+	// for this test)
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// delete profile p1
+	err = ds.DeleteMDMAndroidConfigProfile(ctx, p1.ProfileUUID)
+	require.NoError(t, err)
+
+	// update the patch policy mock to return a higher version
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		policy.Version = 5
+		return policy, nil
+	}
+
+	// profiles get re-delivered
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	// p1 marked as pending removal
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, IncludedInPolicyVersion: ptr.Int(5), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, IncludedInPolicyVersion: ptr.Int(5), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// mark as verified (it will clear the request uuids, but that's not critical
+	// for this test)
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5)},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(5)},
+	})
+
+	// manually delete the p1 removal entries, simulating the verification
+	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles WHERE profile_uuid = ?`, p1.ProfileUUID)
+		return err
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
 func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload) {
