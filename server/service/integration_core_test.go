@@ -10297,7 +10297,7 @@ func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string 
 	return orbitKey
 }
 
-func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore) *fleet.Host {
+func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Datastore) *fleet.Host {
 	name := t.Name() + suffix
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -10309,7 +10309,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
 		HardwareSerial:  uuid.New().String(),
-		Platform:        os,
+		Platform:        platform,
 	})
 	require.NoError(t, err)
 
@@ -10795,7 +10795,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(s.ds, nil, clock.C, nil)
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),

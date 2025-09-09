@@ -450,3 +450,18 @@ $max-width: 2560px;
     }
   }
 }
+
+@mixin tab-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid $ui-fleet-black-10;
+  border-radius: $pad-xsmall;
+  padding: $pad-xxlarge;
+  gap: $pad-small;
+  font-size: $small;
+  p {
+    margin: 0;
+    @include help-text;
+  }
+}

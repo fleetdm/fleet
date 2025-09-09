@@ -45,6 +45,7 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/macos/configuration-profiles/date-time.mobileconfig
+      - path: ../lib/macos/configuration-profiles/automatic-app-store-updates.mobileconfig
       - path: ../lib/macos/configuration-profiles/chrome-enrollment.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-bluetooth-file-sharing.mobileconfig
       - path: ../lib/macos/configuration-profiles/disable-content-caching.mobileconfig

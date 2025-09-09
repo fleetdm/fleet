@@ -21,6 +21,8 @@ export default {
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
   CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
   CONTROLS_SCRIPTS_BATCH_PROGRESS: `${URL_PREFIX}/controls/scripts/progress`,
+  CONTROLS_SCRIPTS_BATCH_DETAILS: (batchExecutionId: string) =>
+    `${URL_PREFIX}/controls/scripts/progress/${batchExecutionId}`,
   CONTROLS_VARIABLES: `${URL_PREFIX}/controls/variables`,
 
   // Dashboard pages

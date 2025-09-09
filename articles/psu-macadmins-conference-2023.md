@@ -1,6 +1,6 @@
 # Mac admins summer camp ⛺ at PSU MacAdmins Conference 2023 
 
-[![PSU MacAdmins Conference July 18-21](../website/assets/images/articles/psu-macadmins-conference-2023@2x.png)](https://mdoyvr.com/)
+[![PSU MacAdmins Conference July 18-21](../website/assets/images/articles/psu-macadmins-conference-2023-1600x900@2x.png)](https://mdoyvr.com/)
 
 Hello there, macOS admins! Let's talk about the upcoming PSU MacAdmins Conference 2023 (aka Summer Camp for Mac Admins). PSUMAC is July 18-21 at Penn State University. Hope to see you there. 
 
@@ -45,5 +45,5 @@ In a nutshell, the [PSU MacAdmins Conference 2023](https://macadmins.psu.edu/) i
 <meta name="authorFullName" value="JD Strong">
 <meta name="publishedOn" value="2023-07-13">
 <meta name="articleTitle" value="Mac admins summer camp ⛺ at PSU MacAdmins Conference 2023">
-<meta name="articleImageUrl" value="../website/assets/images/articles/psu-macadmins-conference-2023@2x.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/psu-macadmins-conference-2023-1600x900@2x.png">
 <meta name="description" value="A look ahead to PSU MacAdmin Conference July 18-21, 2023">

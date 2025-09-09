@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "139.0.7258.139",
+      "version": "140.0.7339.81",
       "queries": {
         "exists": "SELECT 1 FROM programs WHERE name = 'Google Chrome' AND publisher = 'Google LLC';"
       },
-      "installer_url": "https://dl.google.com/release2/chrome/jjrbaa52452fvn2fuehjkses74_139.0.7258.139/139.0.7258.139_chrome_installer_uncompressed.exe",
+      "installer_url": "https://dl.google.com/release2/chrome/b4jrr7maedey73iceo5bh4ysju_140.0.7339.81/140.0.7339.81_chrome_installer_uncompressed.exe",
       "install_script_ref": "a36a7752",
       "uninstall_script_ref": "5b7ad3bf",
-      "sha256": "14f29fa43b84992015bdee499d04411ef4ab70047d3c35ccc34c4ffedfecab70",
+      "sha256": "98a1b9b8e06ded2bb0679e0e874455474ed4e89b29c74c93df6537e9396038bb",
       "default_categories": [
         "Browsers"
       ]

@@ -10,6 +10,7 @@ In the next 3 months, Fleet will ship...
 
 - 🍏 Account-based user enrollment for personal Apple devices (BYOD)
 - 🤖 Manage BYOD Android: enforce OS settings and manage software in work profiles
+- 🔧 Self-service scripts
 - 📄 Deploy certificates for Wi-Fi and VPN on personal mobile devices (iOS/iPadOS, Android) and company-owned Windows, & Linux computers
 - 👨‍💻 More Windows Fleet-maintained apps: Microsoft Office (Word, Excel, Teams), Google Chrome, Slack, and more.
 - 📦 Different apps, OS settings, and queries for different employees based on department
