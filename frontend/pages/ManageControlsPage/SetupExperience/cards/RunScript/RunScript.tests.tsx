@@ -7,6 +7,7 @@ import {
   createSetupExperienceScriptHandler,
   errorNoSetupExperienceScriptHandler,
 } from "test/handlers/setup-experience-handlers";
+import { createGetConfigHandler } from "test/handlers/config-handlers";
 
 import RunScript from "./RunScript";
 
@@ -26,6 +27,7 @@ describe("RunScript", () => {
   });
   it("should render the script uploader when no script has been uploaded", async () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
+    mockServer.use(createGetConfigHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {
@@ -48,6 +50,7 @@ describe("RunScript", () => {
 
   it("should render the uploaded script uploader when a script has been uploaded", async () => {
     mockServer.use(createSetupExperienceScriptHandler());
+    mockServer.use(createGetConfigHandler());
     const render = createCustomRenderer({
       withBackendMock: true,
       context: {

@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
@@ -48,31 +48,21 @@ describe("BootstrapPackage", () => {
     mockServer.use(errorNoSetupExperienceScriptHandler);
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: { app: { config: { mdm: { enabled_and_configured: false } } } },
     });
 
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
 
-    expect(
-      await screen.getByText(/turn on automatic enrollment/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
   });
   it("renders the status table and bootstrap package if a package has been uploaded", async () => {
     setuDefaultBackendMocks();
 
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
@@ -93,17 +83,6 @@ describe("BootstrapPackage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
@@ -128,17 +107,6 @@ describe("BootstrapPackage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     const { user } = render(
@@ -170,17 +138,6 @@ describe("BootstrapPackage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     const { user } = render(
@@ -202,17 +159,6 @@ describe("BootstrapPackage", () => {
 
     const render = createCustomRenderer({
       withBackendMock: true,
-      context: {
-        app: {
-          config: {
-            mdm: {
-              enabled_and_configured: true,
-              apple_bm_enabled_and_configured: true,
-            },
-            gitops: { gitops_mode_enabled: false },
-          },
-        },
-      },
     });
 
     const { user } = render(
