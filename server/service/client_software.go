@@ -1,8 +1,13 @@
 package service
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"mime/multipart"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -117,6 +122,77 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	}
 
 	return response
+}
+
+func (c *Client) UploadIcon(teamID uint, titleID uint, filename string, iconReader io.Reader) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	fileWriter, err := writer.CreateFormFile("icon", filename)
+	if err != nil {
+		return err
+	}
+	if _, err = io.Copy(fileWriter, iconReader); err != nil {
+		return err
+	}
+
+	return c.putIcon(teamID, titleID, writer, buf)
+}
+
+func (c *Client) UpdateIcon(teamID uint, titleID uint, filename string, hash string) error {
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	if err := writer.WriteField("hash_sha256", hash); err != nil {
+		return err
+	}
+	if err := writer.WriteField("filename", filename); err != nil {
+		return err
+	}
+
+	return c.putIcon(teamID, titleID, writer, buf)
+}
+
+func (c *Client) putIcon(teamID uint, titleID uint, writer *multipart.Writer, buf bytes.Buffer) error {
+	response, err := c.doContextWithBodyAndHeaders(
+		context.Background(),
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
+		fmt.Sprintf("team_id=%d", teamID),
+		buf.Bytes(),
+		map[string]string{
+			"Content-Type":  writer.FormDataContentType(),
+			"Accept":        "application/json",
+			"Authorization": fmt.Sprintf("Bearer %s", c.token),
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("do multipart request: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("update icon: unexpected status code: %d", response.StatusCode)
+	}
+
+	return nil
+}
+
+func (c *Client) DeleteIcon(teamID uint, titleID uint) error {
+	response, err := c.AuthenticatedDo(
+		"DELETE",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID),
+		fmt.Sprintf("team_id=%d", teamID),
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("delete icon: %w", err)
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("delete icon: unexpected status code: %d", response.StatusCode)
+	}
+
+	return nil
 }
 
 // InstallSoftware triggers a software installation (VPP or software package)

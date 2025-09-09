@@ -2197,9 +2197,18 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
-	// TODO apply icon changes
-
-	// TODO don't repeat icon uploads when we know another team has them
+	// apply icon changes from software installers and VPP apps
+	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
+		iconUpdates := fleet.IconChanges{}.WithSoftware(teamSoftwareInstallers, teamVPPApps)
+		if dryRun {
+			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+		} else { // TODO don't repeat icon uploads when we know another team has them
+			if err = c.doGitOpsIcons(iconUpdates); err != nil {
+				return nil, nil, err
+			}
+			logFn("[+] Set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+		}
+	}
 
 	// We currently don't support queries for "No team" thus
 	// we just do GitOps for queries for global and team files.
@@ -2211,6 +2220,41 @@ func (c *Client) DoGitOps(
 	}
 
 	return teamAssumptions, postOps, nil
+}
+
+func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges) error {
+	// TODO parallelize
+	for _, toUpload := range iconUpdates.IconsToUpload {
+		if err := (func() error {
+			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755)
+			if err != nil {
+				return fmt.Errorf("failed to read software icon for upload %s: %w", toUpload.Path, err)
+			}
+
+			defer iconReader.Close()
+			if err = c.UploadIcon(iconUpdates.TeamID, toUpload.TitleID, filepath.Base(toUpload.Path), iconReader); err != nil {
+				return fmt.Errorf("failed to upload software icon %s: %w", toUpload.Path, err)
+			}
+
+			return nil
+		})(); err != nil {
+			return err
+		}
+	}
+
+	for _, toUpdate := range iconUpdates.IconsToUpdate {
+		if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+			return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
+		}
+	}
+
+	for _, titleToDelete := range iconUpdates.TitleIDsToRemoveIconsFrom {
+		if err := c.DeleteIcon(iconUpdates.TeamID, titleToDelete); err != nil {
+			return fmt.Errorf("failed to delete software icon: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) doGitOpsNoTeamSetupAndSoftware(
