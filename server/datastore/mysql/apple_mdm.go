@@ -3461,8 +3461,11 @@ func (ds *Datastore) ListMDMAppleProfilesToInstallAndRemove(ctx context.Context)
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple profiles to install and remove")
+	}
 
-	return profilesToInstall, profilesToRemove, err
+	return profilesToInstall, profilesToRemove, nil
 }
 
 func (ds *Datastore) GetMDMAppleProfilesContents(ctx context.Context, uuids []string) (map[string]mobileconfig.Mobileconfig, error) {

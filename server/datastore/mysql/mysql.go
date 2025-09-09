@@ -218,7 +218,9 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 }
 
 // withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
-// for executing multiple SELECT queries in an isolated fashion
+// for executing multiple SELECT queries in an isolated fashion. It should be preferred
+// over withTx for these usecases as mysql applies some optimizations to transactions
+// declared as read-only versus.
 func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (err error) {
 	reader := ds.reader(ctx)
 	readerDB, ok := reader.(*sqlx.DB)

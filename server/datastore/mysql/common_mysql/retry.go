@@ -19,6 +19,7 @@ var DoRetryErr = errors.New("fleet datastore retry")
 
 type TxFn func(tx sqlx.ExtContext) error
 
+// ReadTxFn is the read-only variant of TxFn, with tx only exposing the read methods
 type ReadTxFn func(tx fleet.DBReadTx) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff

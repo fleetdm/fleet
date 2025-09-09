@@ -187,6 +187,7 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 	return nil
 }
 
+// WithReadOnlyTxx executes fn within an isolated, read-only transaction
 func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
 	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
 		ReadOnly:  true,
