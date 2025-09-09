@@ -369,19 +369,9 @@ func (t *TeamConfig) Copy() *TeamConfig {
 	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
 	clone.MDM = *t.MDM.Copy()
 
-	// Deep copy Scripts slice
-	if t.Scripts.Set && len(t.Scripts.Value) > 0 {
-		clone.Scripts = optjson.Slice[string]{
-			Set:   true,
-			Value: make([]string, len(t.Scripts.Value)),
-		}
-		copy(clone.Scripts.Value, t.Scripts.Value)
-	}
-
-	// Deep copy Software if present
-	if t.Software != nil {
-		clone.Software = t.Software.Copy()
-	}
+	// Do not copy script and software since they will not be stored/cached in the database.
+	clone.Scripts = optjson.Slice[string]{}
+	clone.Software = nil
 
 	return &clone
 }

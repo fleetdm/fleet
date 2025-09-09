@@ -94,6 +94,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/firewall.mobileconfig
       - path: ../lib/macos/configuration-profiles/full-disk-access-for-fleetd.mobileconfig
       - path: ../lib/macos/configuration-profiles/google-chrome-managed-bookmarks.mobileconfig
+      - path: ../lib/macos/configuration-profiles/google-updater-background-task.mobileconfig
       - path: ../lib/macos/configuration-profiles/limit-ad-tracking.mobileconfig
       - path: ../lib/macos/configuration-profiles/misc.mobileconfig
       - path: ../lib/macos/configuration-profiles/prevent-autologon.mobileconfig
@@ -172,7 +173,7 @@ policies:
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
   - path: ../lib/linux/policies/disk-encryption-check.yml
-  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
   - path: ../lib/macos/queries/detect-apple-intelligence.yml
   - path: ../lib/macos/queries/collect-santa-denied-logs.yml

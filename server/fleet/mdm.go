@@ -476,6 +476,16 @@ type MDMConfigProfilePayload struct {
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
 }
 
+// BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
+// performing a batch modify operation.
+type BatchModifyMDMConfigProfilePayload struct {
+	Profile          []byte   `json:"profile,omitempty"`
+	DisplayName      string   `json:"display_name,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+}
+
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
 // a team or no-team.
 type MDMProfileBatchPayload struct {
