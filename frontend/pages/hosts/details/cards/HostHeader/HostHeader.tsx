@@ -72,7 +72,7 @@ const RefetchButton = ({
           onClick={onRefetchHost}
           variant="text-icon"
         >
-          <Icon name="refresh" color="core-fleet-blue" size="small" />
+          <Icon name="refresh" color="ui-fleet-black-75" size="small" />
           {buttonText}
         </Button>
         {tooltip && renderTooltip()}

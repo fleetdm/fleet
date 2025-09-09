@@ -34,4 +34,8 @@ export const COLORS = {
   "core-vibrant-blue-down": "#4b4ab4",
   "ui-vibrant-blue-25": "#d9d9fe",
   "ui-vibrant-blue-10": "#f1f0ff",
+
+  // new brand colors
+  "ui-fleet-black-75-over": "darken(#515774, 5%)",
+  "ui-fleet-black-75-down": "darken(#515774, 10%)",
 };

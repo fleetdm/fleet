@@ -231,7 +231,7 @@ const UserMenu = ({
     return (
       <AvatarTopNav
         className={`${baseClass}__avatar-image`}
-        user={{ gravatar_url_dark: currentUser.gravatar_url_dark }}
+        user={{ gravatar_url: currentUser.gravatar_url }}
         size="small"
       />
     );

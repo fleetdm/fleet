@@ -178,7 +178,7 @@ export const HostInstallerActionButton = ({
         onClick={onClick}
         disabled={disabled}
       >
-        <Icon name={icon} color="core-fleet-blue" size="small" />
+        <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
       </Button>
     </TooltipWrapper>
