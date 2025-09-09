@@ -41,7 +41,7 @@ func fileHashes(meta *data.TargetFileMeta, localPath string) (metaHash []byte, l
 			if err == nil {
 				return metaHash, cachedHash, nil
 			}
-			log.Error().Err(err).Msg("failed to read cached hash file")
+			log.Info().Err(err).Msg("failed to read cached hash file")
 		}
 		return nil, nil, fmt.Errorf("open file for hash: %w", err)
 	}
