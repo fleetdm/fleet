@@ -220,6 +220,12 @@ type IconMetaUpdate struct {
 	Path    string
 	Hash    string
 }
+
+type IconGitOpsSettings struct {
+	ConcurrentUploads int
+	ConcurrentUpdates int
+	UploadedHashes    []string
+}
 type IconChanges struct {
 	TeamID                    uint
 	UploadedHashes            []string

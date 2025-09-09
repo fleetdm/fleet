@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
 
@@ -1720,7 +1721,7 @@ func (c *Client) DoGitOps(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
-	uploadedIconHashes *[]string,
+	iconSettings *fleet.IconGitOpsSettings,
 ) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -2200,15 +2201,15 @@ func (c *Client) DoGitOps(
 
 	// apply icon changes from software installers and VPP apps
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
-		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(*uploadedIconHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
+		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
 		if dryRun {
 			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
-		} else { // TODO don't repeat icon uploads when we know another team has them
-			if err = c.doGitOpsIcons(iconUpdates); err != nil {
+		} else {
+			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
 				return nil, nil, err
 			}
 			logFn("[+] Set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
-			uploadedIconHashes = &iconUpdates.UploadedHashes
+			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
 		}
 	}
 
@@ -2224,10 +2225,12 @@ func (c *Client) DoGitOps(
 	return teamAssumptions, postOps, nil
 }
 
-func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges) error {
-	// TODO parallelize
+func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads int, concurrentUpdates int) error {
+	var uploads errgroup.Group
+	uploads.SetLimit(concurrentUploads)
+
 	for _, toUpload := range iconUpdates.IconsToUpload {
-		if err := (func() error {
+		uploads.Go(func() error {
 			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755)
 			if err != nil {
 				return fmt.Errorf("failed to read software icon for upload %s: %w", toUpload.Path, err)
@@ -2239,24 +2242,34 @@ func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges) error {
 			}
 
 			return nil
-		})(); err != nil {
-			return err
-		}
+		})
+	}
+	if uploadErr := uploads.Wait(); uploadErr != nil {
+		return uploadErr
 	}
 
+	var updates errgroup.Group
+	updates.SetLimit(concurrentUpdates)
 	for _, toUpdate := range iconUpdates.IconsToUpdate {
-		if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
-			return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
-		}
-	}
+		updates.Go(func() error {
+			if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+				return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
+			}
 
+			return nil
+		})
+	}
 	for _, titleToDelete := range iconUpdates.TitleIDsToRemoveIconsFrom {
-		if err := c.DeleteIcon(iconUpdates.TeamID, titleToDelete); err != nil {
-			return fmt.Errorf("failed to delete software icon: %w", err)
-		}
+		updates.Go(func() error {
+			if err := c.DeleteIcon(iconUpdates.TeamID, titleToDelete); err != nil {
+				return fmt.Errorf("failed to delete software icon: %w", err)
+			}
+
+			return nil
+		})
 	}
 
-	return nil
+	return updates.Wait()
 }
 
 func (c *Client) doGitOpsNoTeamSetupAndSoftware(
