@@ -11,19 +11,19 @@
     height: 38px;
     position: relative;
 
-    // fake padding for h1 while sticky
-    &::before {
-      content: "";
-      width: 100%;
-      height: $pad-xxlarge;
-      position: absolute;
-      top: -$pad-xxlarge;
-      background-color: $core-white;
-    }
+    // // fake padding for h1 while sticky
+    // &::before {
+    //   content: "";
+    //   width: 100%;
+    //   height: $pad-xxlarge;
+    //   position: absolute;
+    //   top: -$pad-xxlarge;
+    //   background-color: $core-white;
+    // }
   }
 
   .tab-nav {
-    top: $pad-xxlarge; // for sticky
+    // top: $pad-xxlarge; // for sticky
     z-index: 3;
     padding-bottom: $pad-xxlarge;
   }

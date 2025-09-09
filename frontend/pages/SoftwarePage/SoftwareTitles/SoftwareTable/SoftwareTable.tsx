@@ -318,7 +318,7 @@ const SoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

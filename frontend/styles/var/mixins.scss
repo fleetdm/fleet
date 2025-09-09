@@ -158,7 +158,6 @@ $max-width: 2560px;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
-  border-bottom: 1px solid $ui-fleet-black-10;
   &:hover {
     color: $ui-fleet-black-75-over;
     border-bottom: 1px solid transparent;
@@ -229,7 +228,6 @@ $max-width: 2560px;
 }
 
 @mixin color-contrasted-sections {
-  background-color: $ui-off-white;
   .section {
     display: flex;
     flex-direction: column;
@@ -434,13 +432,14 @@ $max-width: 2560px;
     align-items: center;
     height: 100%;
     padding: 0 16px;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     font-weight: $regular;
     text-decoration: none;
+    border-bottom: none;
     cursor: pointer;
 
     &:hover {
-      color: $core-vibrant-blue;
+      color: $ui-fleet-black-75-over;
     }
   }
 
@@ -448,7 +447,7 @@ $max-width: 2560px;
     background-color: $ui-fleet-black-5;
     a {
       font-weight: $bold;
-      color: $ui-fleet-black-75;
+      color: $core-fleet-black;
       * > .__react_component_tooltip {
         font-weight: initial;
       }

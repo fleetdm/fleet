@@ -2,11 +2,6 @@
   top: 0;
   // No background color as TabNav is often over a background gradient
 
-  &--sticky {
-    position: sticky;
-    z-index: 2;
-  }
-
   .react-tabs {
     &__tab-list {
       display: inline-flex;
@@ -15,21 +10,10 @@
       border-bottom: none;
       width: 100%;
       height: 43px;
-    }
-    .tab-text {
-      display: flex; /* Ensure text and count are aligned horizontally */
-      align-items: center; /* Vertically align items */
 
-      .tab-text__text {
-        display: relative;
-
-        // Reserve space for bold text using a hidden pseudo-element
-        &::before {
-          content: attr(data-text); /* Same text as the visible one */
-          font-weight: bold; /* Mimic bold styling */
-          visibility: hidden; /* Keep it invisible */
-          position: absolute; /* Prevent it from affecting layout */
-        }
+      &--secondary {
+        gap: $pad-xxlarge;
+        border-bottom: 1px solid $ui-fleet-black-10;
       }
     }
 
@@ -86,6 +70,59 @@
       &--disabled {
         cursor: not-allowed;
       }
+
+      &--secondary {
+        padding: 5px 0 $pad-medium;
+
+        &:hover {
+          background-color: transparent;
+        }
+
+        &--selected {
+          border-bottom: 2px solid $core-fleet-blue;
+          background-color: transparent;
+        }
+
+        &::after {
+          content: "";
+          width: 100%;
+          height: 0;
+          border-bottom: 2px solid $core-vibrant-blue;
+          position: absolute;
+          bottom: 0;
+          left: 0;
+        }
+
+        &:hover {
+          &::after {
+            content: "";
+            width: 100%;
+            height: 0;
+            border-bottom: 2px solid $core-vibrant-blue;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+          }
+        }
+
+        &--disabled {
+          &:hover {
+            &::after {
+              content: "";
+              width: 100%;
+              height: 0;
+              border-bottom: 0;
+              position: absolute;
+              bottom: 0;
+              left: 0;
+            }
+          }
+        }
+
+        &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
+          bottom: -2px;
+        }
+      }
     }
     &__tab-panel {
       .no-results-message {
@@ -98,6 +135,23 @@
           font-size: $x-small;
           font-weight: $regular;
           display: block;
+        }
+      }
+    }
+
+    .tab-text {
+      display: flex; /* Ensure text and count are aligned horizontally */
+      align-items: center; /* Vertically align items */
+
+      .tab-text__text {
+        display: relative;
+
+        // Reserve space for bold text using a hidden pseudo-element
+        &::before {
+          content: attr(data-text); /* Same text as the visible one */
+          font-weight: bold; /* Mimic bold styling */
+          visibility: hidden; /* Keep it invisible */
+          position: absolute; /* Prevent it from affecting layout */
         }
       }
     }

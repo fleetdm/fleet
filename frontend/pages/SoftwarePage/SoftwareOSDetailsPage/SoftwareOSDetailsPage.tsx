@@ -53,11 +53,7 @@ export const SummaryCard = ({
   countsUpdatedAt,
   teamIdForApi,
 }: ISummaryCardProps) => (
-  <Card
-    borderRadiusSize="xxlarge"
-    includeShadow
-    className={`${baseClass}__summary-section`}
-  >
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
     <SoftwareDetailsSummary
       title={osVersion.name}
       hosts={osVersion.hosts_count}
@@ -93,7 +89,6 @@ export const VulnerabilitiesCard = ({
   return (
     <Card
       borderRadiusSize="xxlarge"
-      includeShadow
       className={`${baseClass}__vulnerabilities-section`}
     >
       <CardHeader header="Vulnerabilities" />
@@ -129,11 +124,7 @@ export const KernelsCard = ({
   router,
   teamIdForApi,
 }: IKernelsCardProps) => (
-  <Card
-    borderRadiusSize="xxlarge"
-    includeShadow
-    className={`${baseClass}__summary-section`}
-  >
+  <Card borderRadiusSize="xxlarge" className={`${baseClass}__summary-section`}>
     <CardHeader header="Kernels" />
     <OSKernelsTable
       osName={osVersion.name_only}

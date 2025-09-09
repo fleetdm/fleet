@@ -70,7 +70,7 @@ export interface IDropdownWrapper {
 const getOptionBackgroundColor = (
   state: OptionProps<CustomOptionType, false>
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 const getOptionFontWeight = (
@@ -83,7 +83,7 @@ const getOptionFontWeight = (
   }
 
   // For other variants, selected options are bold
-  return state.isSelected ? "bold" : "normal";
+  return state.isSelected ? "600" : "normal";
 };
 
 const baseClass = "dropdown-wrapper";
@@ -164,8 +164,8 @@ const DropdownWrapper = ({
     const { isFocused, selectProps } = props;
     const color =
       isFocused || selectProps.menuIsOpen
-        ? "core-fleet-blue"
-        : "core-fleet-black";
+        ? "ui-fleet-black-75-over"
+        : "ui-fleet-black-75";
 
     return (
       <components.DropdownIndicator
@@ -232,35 +232,35 @@ const DropdownWrapper = ({
           boxShadow: "none",
           cursor: "pointer",
           ".dropdown-wrapper__indicator path": {
-            stroke: COLORS["core-fleet-blue"],
+            stroke: COLORS["ui-fleet-black-75"],
           },
           "&:hover": {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-over"],
+              color: COLORS["ui-fleet-black-75-over"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-over"],
+              stroke: COLORS["ui-fleet-black-75-over"],
             },
           },
           ".react-select__control--is-focused": {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             boxShadow: "none",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
+              color: COLORS["ui-fleet-black-75-down"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
+              stroke: COLORS["ui-fleet-black-75-down"],
             },
           },
           ...(state.isFocused && {
             backgroundColor: "rgba(25, 33, 71, 0.05)",
             ".dropdown-wrapper__placeholder": {
-              color: COLORS["core-vibrant-blue-down"],
+              color: COLORS["ui-fleet-black-75-down"],
             },
             ".dropdown-wrapper__indicator path": {
-              stroke: COLORS["core-vibrant-blue-down"],
+              stroke: COLORS["ui-fleet-black-75-down"],
             },
           }),
           // TODO: Figure out a way to apply separate &:focus-visible styling
@@ -355,10 +355,10 @@ const DropdownWrapper = ({
     placeholder: (provided, state) => {
       const buttonVariantPlaceholder = {
         color: state.isFocused
-          ? COLORS["core-vibrant-blue-over"]
-          : COLORS["core-fleet-blue"],
-        fontSize: "14px",
-        fontWeight: "bold",
+          ? COLORS["ui-fleet-black-75-over"]
+          : COLORS["ui-fleet-black-75"],
+        fontSize: "13px",
+        fontWeight: "600",
         lineHeight: "normal",
         paddingLeft: 0,
         opacity: isDisabled ? 0.5 : 1,
@@ -372,7 +372,7 @@ const DropdownWrapper = ({
     },
     singleValue: (provided) => ({
       ...provided,
-      fontSize: "14px",
+      fontSize: "13px",
       margin: 0,
       padding: 0,
     }),
@@ -418,7 +418,7 @@ const DropdownWrapper = ({
     option: (provided, state) => ({
       ...provided,
       padding: "10px 8px",
-      fontSize: "14px",
+      fontSize: "13px",
       borderRadius: "4px",
       backgroundColor: getOptionBackgroundColor(state),
       fontWeight: getOptionFontWeight(state, variant),
@@ -426,13 +426,13 @@ const DropdownWrapper = ({
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-fleet-black-5"],
         cursor: state.isDisabled ? "not-allowed" : "pointer",
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
@@ -462,7 +462,7 @@ const DropdownWrapper = ({
     noOptionsMessage: (provided) => ({
       ...provided,
       textAlign: "left",
-      fontSize: "14px",
+      fontSize: "13px",
       padding: "10px 8px",
     }),
   };

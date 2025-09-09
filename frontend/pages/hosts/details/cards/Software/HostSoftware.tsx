@@ -21,7 +21,6 @@ import { convertParamsToSnakeCase } from "utilities/url";
 
 import { AppContext } from "context/app";
 
-import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -331,12 +330,7 @@ const HostSoftware = ({
 
   if (isMyDevicePage) {
     return (
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={baseClass}>
         <CardHeader
           header="Software"
           subheader={getSoftwareSubheader({
@@ -346,7 +340,7 @@ const HostSoftware = ({
           })}
         />
         {renderHostSoftware()}
-      </Card>
+      </div>
     );
   }
 

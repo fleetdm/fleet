@@ -4,7 +4,7 @@ import classnames from "classnames";
 interface ITabNavProps {
   children: React.ReactChild | React.ReactChild[];
   className?: string;
-  sticky?: boolean;
+  secondary?: boolean;
 }
 
 /*
@@ -16,10 +16,10 @@ const baseClass = "tab-nav";
 const TabNav = ({
   children,
   className,
-  sticky = false,
+  secondary = false,
 }: ITabNavProps): JSX.Element => {
   const classNames = classnames(baseClass, className, {
-    [`${baseClass}--sticky`]: sticky,
+    [`${baseClass}--secondary`]: secondary,
   });
 
   return <div className={classNames}>{children}</div>;

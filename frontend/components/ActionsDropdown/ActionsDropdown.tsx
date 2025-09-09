@@ -30,7 +30,7 @@ interface IActionsDropdownProps {
 }
 
 const getOptionBackgroundColor = (state: any) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-5"] : "transparent";
 };
 
 const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
@@ -61,7 +61,7 @@ const CustomDropdownIndicator = (
 
   const color =
     isFocused || selectProps.menuIsOpen || variant === "button"
-      ? "core-fleet-blue"
+      ? "ui-fleet-black-75"
       : "core-fleet-black";
 
   return (
@@ -138,14 +138,14 @@ const ActionsDropdown = ({
       "&:hover": {
         boxShadow: "none",
         ".actions-dropdown-select__placeholder": {
-          color: COLORS["core-vibrant-blue-over"],
+          color: COLORS["ui-fleet-black-75-over"],
         },
         ".actions-dropdown-select__indicator path": {
-          stroke: COLORS["core-vibrant-blue-over"],
+          stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
       "&:active .actions-dropdown-select__indicator path": {
-        stroke: COLORS["core-vibrant-blue-down"],
+        stroke: COLORS["ui-fleet-black-75-down"],
       },
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
@@ -160,10 +160,10 @@ const ActionsDropdown = ({
       ...provided,
       color:
         state.isFocused || variant === "button"
-          ? COLORS["core-fleet-blue"]
+          ? COLORS["ui-fleet-black-75"]
           : COLORS["core-fleet-black"],
-      fontSize: "14px",
-      fontWeight: variant === "button" ? "bold" : undefined,
+      fontSize: "13px",
+      fontWeight: variant === "button" ? "600" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
@@ -211,18 +211,18 @@ const ActionsDropdown = ({
       ...provided,
       padding: "10px 8px",
       borderRadius: "4px",
-      fontSize: "14px",
+      fontSize: "13px",
       backgroundColor: getOptionBackgroundColor(state),
       whiteSpace: "nowrap",
       "&:hover": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-10"],
+          : COLORS["ui-fleet-black-5"],
       },
       "&:active": {
         backgroundColor: state.isDisabled
           ? "transparent"
-          : COLORS["ui-vibrant-blue-25"],
+          : COLORS["ui-fleet-black-5"],
       },
       ...(state.isDisabled && {
         color: COLORS["ui-fleet-black-50"],
@@ -254,7 +254,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
-        {...{ variant }} // Allows CustomDropdownIndicator to be blue for variant: "button"
+        {...{ variant }} // Allows CustomDropdownIndicator to be ui-fleet-black-75 for variant: "button"
       />
     </div>
   );

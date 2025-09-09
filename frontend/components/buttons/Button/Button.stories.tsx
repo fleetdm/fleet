@@ -77,6 +77,13 @@ export const TextIconVariant = Template(
     Button text <Icon name="plus" size="small" />
   </>
 );
+export const PrimaryTextIconVariant = Template(
+  "primary-text-icon",
+  <>
+    <Icon name="plus" size="small" />
+    Button text
+  </>
+);
 export const IconVariant = Template("text-icon", <Icon name="trash" />);
 
 export const UnstyledVariant = Template("unstyled");

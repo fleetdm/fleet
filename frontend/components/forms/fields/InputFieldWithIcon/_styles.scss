@@ -13,7 +13,7 @@
     color: $core-fleet-blue;
 
     &--active {
-      color: $core-vibrant-blue-down;
+      color: $ui-fleet-black-75-down;
     }
 
     &--error {
@@ -72,14 +72,14 @@
 
   &__input-wrapper:not(&__input-wrapper--disabled):hover {
     .input-icon-field__input {
-      border: 1px solid $core-vibrant-blue-over;
+      border: 1px solid $ui-fleet-black-75-over;
     }
 
     // Icon color matches border color on hover
     .input-icon-field__icon {
       svg {
         path {
-          fill: $core-vibrant-blue-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -87,13 +87,13 @@
 
   &__input-wrapper {
     .input-icon-field__input:focus {
-      border: 1px solid $core-vibrant-blue-down;
+      border: 1px solid $ui-fleet-black-75-down;
 
       // Icon color matches border color on focus
       + .input-icon-field__icon {
         svg {
           path {
-            fill: $core-vibrant-blue-down;
+            fill: $ui-fleet-black-75-down;
           }
         }
       }

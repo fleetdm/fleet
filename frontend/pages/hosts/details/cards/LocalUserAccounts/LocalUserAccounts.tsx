@@ -43,7 +43,6 @@ const LocalUserAccounts = ({
         className={baseClass}
         borderRadiusSize="xxlarge"
         paddingSize="xlarge"
-        includeShadow
       >
         <CardHeader header="Local user accounts" />
         <EmptyTable
@@ -70,7 +69,6 @@ const LocalUserAccounts = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <>
         <CardHeader header="Local user accounts" />

@@ -207,7 +207,7 @@ const HostSoftwareTable = ({
         disableTooltip={!hasVulnFilters}
       >
         <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="ui-fleet-black-75" />
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

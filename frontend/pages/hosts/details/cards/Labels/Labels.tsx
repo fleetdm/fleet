@@ -43,7 +43,6 @@ const Labels = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       <CardHeader header="Labels" />
