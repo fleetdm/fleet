@@ -2,8 +2,6 @@ import React, { useContext, useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError, AxiosResponse } from "axios";
 
-import { AppContext } from "context/app";
-
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
@@ -20,7 +18,6 @@ import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -29,7 +26,6 @@ import DeleteBootstrapPackageModal from "./components/DeleteBootstrapPackageModa
 import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
-import { SetupEmptyState } from "../../SetupExperience";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
 import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 

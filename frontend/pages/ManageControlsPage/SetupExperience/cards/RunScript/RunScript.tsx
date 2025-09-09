@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useState } from "react";
 import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 
@@ -6,8 +6,6 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
-
-import { AppContext } from "context/app";
 
 import mdmAPI, {
   IGetSetupExperienceScriptResponse,
@@ -21,7 +19,6 @@ import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
-import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import SetupExperiencePreview from "./components/SetupExperienceScriptPreview";
 import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUploader";
@@ -30,7 +27,6 @@ import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperience
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
-import { SetupEmptyState } from "../../SetupExperience";
 import SetupMdmEnabledWrapper from "../../components/SetupExperienceMdmEnabledWrapper";
 
 const baseClass = "run-script";
