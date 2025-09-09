@@ -38,23 +38,24 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 
 	client := newAMAPIClient(ctx, logger, licenseKey)
 	reconciler := &profileReconciler{
-		ds:         ds,
-		enterprise: enterprise,
-		client:     client,
+		DS:         ds,
+		Enterprise: enterprise,
+		Client:     client,
 	}
 	return reconciler.ReconcileProfiles(ctx)
 }
 
-// struct to facilitate testability
+// profileReconciler is a struct to facilitate testability, it should not be
+// used outside of tests.
 type profileReconciler struct {
-	ds         fleet.Datastore
-	enterprise *android.Enterprise
-	client     androidmgmt.Client
+	DS         fleet.Datastore
+	Enterprise *android.Enterprise
+	Client     androidmgmt.Client
 }
 
 func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 	// get the list of hosts that need to have their profiles applied
-	hostsApplicableProfiles, hostsProfsToRemove, err := r.ds.ListMDMAndroidProfilesToSend(ctx)
+	hostsApplicableProfiles, hostsProfsToRemove, err := r.DS.ListMDMAndroidProfilesToSend(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "identify android profiles to send")
 	}
@@ -69,7 +70,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 		profilesToLoad[hostProf.ProfileUUID] = struct{}{}
 	}
 
-	profilesContents, err := r.ds.GetMDMAndroidProfilesContents(ctx, slices.Collect(maps.Keys(profilesToLoad)))
+	profilesContents, err := r.DS.GetMDMAndroidProfilesContents(ctx, slices.Collect(maps.Keys(profilesToLoad)))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "load android profiles content")
 	}
@@ -100,7 +101,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 		bulkHostProfs = append(bulkHostProfs, bulkProfs...)
 	}
 
-	if err := r.ds.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
+	if err := r.DS.BulkUpsertMDMAndroidHostProfiles(ctx, bulkHostProfs); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
 	}
 	return nil
@@ -235,7 +236,7 @@ func (r *profileReconciler) sendHostProfiles(
 
 	// using the host uuid as policy id, so we don't need to track the id mapping
 	// to the host.
-	policyName := fmt.Sprintf("%s/policies/%s", r.enterprise.Name(), hostUUID)
+	policyName := fmt.Sprintf("%s/policies/%s", r.Enterprise.Name(), hostUUID)
 	policyReq, skip, err := r.patchPolicy(ctx, hostUUID, policyName, &policy, settingFromProfile)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "patch policy for host %s", hostUUID)
@@ -265,18 +266,18 @@ func (r *profileReconciler) sendHostProfiles(
 	if !skip {
 		// check if we need to patch the device too (if that policy name is not already
 		// associated with the device)
-		androidHost, err = r.ds.AndroidHostLiteByHostUUID(ctx, hostUUID)
+		androidHost, err = r.DS.AndroidHostLiteByHostUUID(ctx, hostUUID)
 		if err != nil {
 			return nil, ctxerr.Wrapf(ctx, err, "get android host by host UUID %s", hostUUID)
 		}
-		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID != hostUUID {
+		if androidHost.AppliedPolicyID != nil && *androidHost.AppliedPolicyID == hostUUID {
 			skip = true
 		}
 	}
 
 	if !skip {
 		// we need to associate the device with that policy
-		deviceName := fmt.Sprintf("%s/devices/%s", r.enterprise.Name(), androidHost.DeviceID)
+		deviceName := fmt.Sprintf("%s/devices/%s", r.Enterprise.Name(), androidHost.DeviceID)
 		device := &androidmanagement.Device{
 			PolicyName: policyName,
 			// State must be specified when updating a device, otherwise it fails with
@@ -363,7 +364,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
 	}
 
-	applied, apiErr := r.client.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	applied, apiErr := r.Client.EnterprisesPoliciesPatch(ctx, policyName, policy)
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
@@ -388,7 +389,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 		policyRequest.PolicyVersion.Valid = true
 	}
 
-	if err := r.ds.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
+	if err := r.DS.NewAndroidPolicyRequest(ctx, policyRequest); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "save android policy request")
 	}
 	return policyRequest, skip, nil
@@ -420,7 +421,7 @@ func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceNam
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
 	}
 
-	applied, apiErr := r.client.EnterprisesDevicesPatch(ctx, deviceName, device)
+	applied, apiErr := r.Client.EnterprisesDevicesPatch(ctx, deviceName, device)
 	if apiErr != nil {
 		var gerr *googleapi.Error
 		if errors.As(apiErr, &gerr) {
@@ -438,7 +439,7 @@ func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceNam
 		deviceRequest.AppliedPolicyVersion.Valid = true
 	}
 
-	if err := r.ds.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
+	if err := r.DS.NewAndroidPolicyRequest(ctx, deviceRequest); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "save android device request")
 	}
 	return deviceRequest, skip, nil

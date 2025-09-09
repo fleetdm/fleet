@@ -730,7 +730,6 @@ func testMDMAndroidProfilesSummary(t *testing.T, ds *Datastore) {
 	})
 }
 
-// TODO Is there a better way to create an android profile for test(i.e. better keys to set)?
 func androidProfileForTest(name string, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	payload := `{
 		"maximumTimeToLock": "1234"

@@ -101,14 +101,14 @@ type MDMAndroidPolicyRequest struct {
 }
 
 type MDMAndroidBulkUpsertHostProfilePayload struct {
-	HostUUID                string
-	Status                  *MDMDeliveryStatus
-	OperationType           MDMOperationType
-	Detail                  string
-	ProfileUUID             string
-	ProfileName             string
-	PolicyRequestUUID       *string
-	DeviceRequestUUID       *string
-	RequestFailCount        int
-	IncludedInPolicyVersion *int
+	HostUUID                string             `db:"host_uuid"`
+	Status                  *MDMDeliveryStatus `db:"status"`
+	OperationType           MDMOperationType   `db:"operation_type"`
+	Detail                  string             `db:"detail"`
+	ProfileUUID             string             `db:"profile_uuid"`
+	ProfileName             string             `db:"profile_name"`
+	PolicyRequestUUID       *string            `db:"policy_request_uuid"`
+	DeviceRequestUUID       *string            `db:"device_request_uuid"`
+	RequestFailCount        int                `db:"request_fail_count"`
+	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
 }
