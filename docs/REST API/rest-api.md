@@ -5499,7 +5499,7 @@ Deletes the label specified by ID.
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
-- [Batch-modify custom OS settings(configuration profiles)](#batch-modify-custom-os-settings-configuration-profiles)
+- [Batch-modify custom OS settings (configuration profiles)](#batch-modify-custom-os-settings-configuration-profiles)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
