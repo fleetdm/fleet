@@ -436,10 +436,9 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 
 // TODO(AP): Wrap in transaction?
 func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
-	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "device.id", device.HardwareInfo.EnterpriseSpecificId)
-
-	// Get the applied policy id field
 	appliedPolicyVersion := device.AppliedPolicyVersion
+
+	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "host_uuid", hostUUID, "applied_policy_version", appliedPolicyVersion)
 
 	// Get all host_mdm_android_profiles that is pending, and included_in_policy_version = device.AppliedPolicyVersion.
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
@@ -450,6 +449,10 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
 	}
+	pendingProfilesUUIDMap := make(map[string]*fleet.MDMAndroidProfilePayload, len(pendingInstallProfiles))
+	for _, profile := range pendingInstallProfiles {
+		pendingProfilesUUIDMap[profile.ProfileUUID] = profile
+	}
 
 	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
@@ -457,9 +460,16 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		var verifiedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
-				HostUUID:    profile.HostUUID,
-				Status:      &fleet.MDMDeliveryVerified,
-				ProfileUUID: profile.ProfileUUID,
+				HostUUID:                profile.HostUUID,
+				Status:                  &fleet.MDMDeliveryVerified,
+				OperationType:           profile.OperationType,
+				ProfileUUID:             profile.ProfileUUID,
+				Detail:                  profile.Detail,
+				ProfileName:             profile.ProfileName,
+				PolicyRequestUUID:       profile.PolicyRequestUUID,
+				DeviceRequestUUID:       profile.DeviceRequestUUID,
+				RequestFailCount:        profile.RequestFailCount,
+				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
 			})
 		}
 
@@ -514,11 +524,18 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 		var failedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
 		for profileUUID, nonCompliances := range failedProfileUUIDsWithNonCompliances {
+			profile := pendingProfilesUUIDMap[profileUUID]
 			failedProfiles = append(failedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
-				HostUUID:    device.HardwareInfo.EnterpriseSpecificId,
-				Status:      &fleet.MDMDeliveryFailed,
-				Detail:      buildNonComplianceErrorMessage(nonCompliances),
-				ProfileUUID: profileUUID,
+				HostUUID:                hostUUID,
+				Status:                  &fleet.MDMDeliveryFailed,
+				Detail:                  buildNonComplianceErrorMessage(nonCompliances),
+				ProfileUUID:             profileUUID,
+				OperationType:           profile.OperationType,
+				DeviceRequestUUID:       profile.DeviceRequestUUID,
+				RequestFailCount:        profile.RequestFailCount,
+				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
+				ProfileName:             profile.ProfileName,
+				PolicyRequestUUID:       profile.PolicyRequestUUID,
 			})
 		}
 
@@ -537,9 +554,16 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				continue
 			}
 			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
-				HostUUID:    device.HardwareInfo.EnterpriseSpecificId,
-				Status:      &fleet.MDMDeliveryVerified,
-				ProfileUUID: profile.ProfileUUID,
+				HostUUID:                device.HardwareInfo.EnterpriseSpecificId,
+				Status:                  &fleet.MDMDeliveryVerified,
+				ProfileUUID:             profile.ProfileUUID,
+				OperationType:           profile.OperationType,
+				DeviceRequestUUID:       profile.DeviceRequestUUID,
+				RequestFailCount:        profile.RequestFailCount,
+				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
+				ProfileName:             profile.ProfileName,
+				PolicyRequestUUID:       profile.PolicyRequestUUID,
+				Detail:                  profile.Detail,
 			})
 		}
 
