@@ -10,6 +10,7 @@
 
   .turn-on-mdm-message {
     @include tab-empty-state;
+    max-width: none;
     padding: 64px 170px;
     margin: 0;
   }

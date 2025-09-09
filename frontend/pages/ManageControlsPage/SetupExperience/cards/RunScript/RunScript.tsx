@@ -26,8 +26,8 @@ import SetupExperienceScriptUploader from "./components/SetupExperienceScriptUpl
 import SetupExperienceScriptCard from "./components/SetupExperienceScriptCard";
 import DeleteSetupExperienceScriptModal from "./components/DeleteSetupExperienceScriptModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "run-script";
 
@@ -52,7 +52,6 @@ const RunScript = ({ currentTeamId, router }: ISetupExperienceCardProps) => {
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId === API_NO_TEAM_ID,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<

@@ -17,8 +17,8 @@ import { NotificationContext } from "context/notification";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import SectionHeader from "components/SectionHeader";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import SectionHeader from "components/SectionHeader";
 
 import BootstrapPackagePreview from "./components/BootstrapPackagePreview";
 import PackageUploader from "./components/BootstrapPackageUploader";
@@ -28,23 +28,13 @@ import BootstrapAdvancedOptions from "./components/BootstrapAdvancedOptions";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
 import { getInstallSoftwareDuringSetupCount } from "../InstallSoftware/components/AddInstallSoftware/helpers";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "bootstrap-package";
 
 // This is so large because we want to get all the software titles that are
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
-
-export const getManualAgentInstallSetting = (
-  currentTeamId: number,
-  globalConfig?: IConfig,
-  teamConfig?: ITeamConfig
-) => {
-  if (currentTeamId === API_NO_TEAM_ID) {
-    return globalConfig?.mdm.macos_setup.manual_agent_install || false;
-  }
-  return teamConfig?.mdm?.macos_setup.manual_agent_install || false;
-};
 
 const BootstrapPackage = ({
   currentTeamId,
@@ -96,11 +86,12 @@ const BootstrapPackage = ({
     () => configAPI.loadAll(),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      enabled: currentTeamId === API_NO_TEAM_ID,
       onSuccess: (data) => {
-        setSelectedManualAgentInstall(
-          getManualAgentInstallSetting(currentTeamId, data)
-        );
+        if (currentTeamId === API_NO_TEAM_ID) {
+          setSelectedManualAgentInstall(
+            getManualAgentInstallSetting(currentTeamId, data)
+          );
+        }
       },
     }
   );

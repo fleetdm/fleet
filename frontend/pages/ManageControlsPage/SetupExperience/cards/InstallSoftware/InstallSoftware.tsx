@@ -26,8 +26,8 @@ import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
 import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "install-software";
 
@@ -82,7 +82,6 @@ const InstallSoftware = ({
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId === API_NO_TEAM_ID,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<

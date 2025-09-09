@@ -90,24 +90,28 @@ const EndUserAuthentication = ({
         mdmConfig.android_enabled_and_configured
       )
     ) {
-      <TurnOnMdmMessage
-        header="Additional configuration required"
-        info="Supported on macOS, iOS, iPadOS, and Android. To customize, first turn on MDM."
-        buttonText="Turn on"
-        router={router}
-      />;
-    }
-    <SetupExperienceContentContainer>
-      {!isIdPConfigured(mdmConfig) ? (
-        <RequireEndUserAuth onClickConnect={onClickConnect} />
-      ) : (
-        <EndUserAuthForm
-          currentTeamId={currentTeamId}
-          defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+      return (
+        <TurnOnMdmMessage
+          header="Additional configuration required"
+          info="Supported on macOS, iOS, iPadOS, and Android. To customize, first turn on MDM."
+          buttonText="Turn on"
+          router={router}
         />
-      )}
-      <EndUserExperiencePreview />
-    </SetupExperienceContentContainer>;
+      );
+    }
+    return (
+      <SetupExperienceContentContainer>
+        {!isIdPConfigured(mdmConfig) ? (
+          <RequireEndUserAuth onClickConnect={onClickConnect} />
+        ) : (
+          <EndUserAuthForm
+            currentTeamId={currentTeamId}
+            defaultIsEndUserAuthEnabled={defaultIsEndUserAuthEnabled}
+          />
+        )}
+        <EndUserExperiencePreview />
+      </SetupExperienceContentContainer>
+    );
   };
 
   return (
