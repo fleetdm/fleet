@@ -1,1 +1,1 @@
-* Made sure gitops also looks for dry-run flag when passed as a positional argument.
+* Added check to gitops command to throw error if positional arguments are detected.
