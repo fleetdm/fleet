@@ -772,8 +772,6 @@ Can only be configured for all teams (`org_settings`). Use API to configure Jira
 
 ### certificate_authorities
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This section lets you configure your certificate authorities (CA) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
@@ -812,8 +810,6 @@ Can only be configured for all teams (`org_settings`). Use API to configure Zend
 
 #### digicert
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
 - `api_token` is the token used to authenticate requests to DigiCert.
@@ -826,8 +822,6 @@ Can only be configured for all teams (`org_settings`).
 
 #### ndes_scep_proxy
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
 - `username` is the username of the NDES admin endpoint (default: `""`).
@@ -837,15 +831,11 @@ Can only be configured for all teams (`org_settings`).
 
 #### custom_scep_proxy
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
 
 #### hydrant
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
