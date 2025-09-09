@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -63,27 +64,40 @@ func TestReconcileProfiles(t *testing.T) {
 
 	cases := []struct {
 		name string
-		fn   func(t *testing.T, ds fleet.Datastore)
+		fn   func(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler)
 	}{
 		{"NoHost", testNoHost},
 		{"HostsWithoutProfile", testHostsWithoutProfile},
 		{"HostsWithProfile", testHostsWithProfile},
 		{"HostsWithConflictProfile", testHostsWithConflictProfile},
 		{"HostsWithMultiOverrideProfile", testHostsWithMultiOverrideProfile},
+		{"HostsWithAPIFailures", testHostsWithAPIFailures},
+		// {"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer mysql.TruncateTables(t, ds)
 			setupEnterprise(t, ds)
-			c.fn(t, ds)
+
+			client := &mock.Client{}
+			client.InitCommonMocks()
+			enterprise, err := ds.GetEnterprise(t.Context())
+			require.NoError(t, err)
+
+			reconciler := &profileReconciler{
+				DS:         ds,
+				Enterprise: enterprise,
+				Client:     client,
+			}
+
+			c.fn(t, ds, client, reconciler)
 		})
 	}
 }
 
-func testNoHost(t *testing.T, ds fleet.Datastore) {
+func testNoHost(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client := &mock.Client{}
 	client.InitCommonMocks()
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		return policy, nil
@@ -92,17 +106,8 @@ func testNoHost(t *testing.T, ds fleet.Datastore) {
 		return device, nil
 	}
 
-	enterprise, err := ds.GetEnterprise(ctx)
-	require.NoError(t, err)
-
-	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
-	}
-
 	// no host, so no calls to the Android API
-	err = reconciler.ReconcileProfiles(ctx)
+	err := reconciler.ReconcileProfiles(ctx)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -114,11 +119,9 @@ func testNoHost(t *testing.T, ds fleet.Datastore) {
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
-func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore) {
+func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client := &mock.Client{}
-	client.InitCommonMocks()
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		return policy, nil
 	}
@@ -126,21 +129,12 @@ func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore) {
 		return device, nil
 	}
 
-	enterprise, err := ds.GetEnterprise(ctx)
-	require.NoError(t, err)
-
-	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
-	}
-
 	// create a couple hosts
 	createAndroidHost(t, ds, 1)
 	createAndroidHost(t, ds, 2)
 
 	// nothing to process, no profiles missing nor extraneous
-	err = reconciler.ReconcileProfiles(ctx)
+	err := reconciler.ReconcileProfiles(ctx)
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
@@ -152,26 +146,15 @@ func testHostsWithoutProfile(t *testing.T, ds fleet.Datastore) {
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
-func testHostsWithProfile(t *testing.T, ds fleet.Datastore) {
+func testHostsWithProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client := &mock.Client{}
-	client.InitCommonMocks()
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 		return device, nil
-	}
-
-	enterprise, err := ds.GetEnterprise(ctx)
-	require.NoError(t, err)
-
-	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
 	}
 
 	// create a couple hosts and a non-android one to ensure no unwanted side-effects
@@ -181,7 +164,7 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore) {
 
 	// add an android profile
 	p1 := androidProfileForTest("p1")
-	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
 	require.NoError(t, err)
 
 	// profile gets delivered to both hosts
@@ -204,26 +187,15 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore) {
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
-func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore) {
+func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client := &mock.Client{}
-	client.InitCommonMocks()
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 		return device, nil
-	}
-
-	enterprise, err := ds.GetEnterprise(ctx)
-	require.NoError(t, err)
-
-	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
 	}
 
 	// create a couple hosts and a non-android one to ensure no unwanted side-effects
@@ -233,7 +205,7 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore) {
 
 	// add an android profile
 	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a"}`)
-	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
 	require.NoError(t, err)
 	// add another one that overrides the first one
 	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "c"}`)
@@ -262,26 +234,15 @@ func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore) {
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
-func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore) {
+func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
 	ctx := t.Context()
 
-	client := &mock.Client{}
-	client.InitCommonMocks()
 	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		policy.Version = 1
 		return policy, nil
 	}
 	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 		return device, nil
-	}
-
-	enterprise, err := ds.GetEnterprise(ctx)
-	require.NoError(t, err)
-
-	reconciler := &profileReconciler{
-		DS:         ds,
-		Enterprise: enterprise,
-		Client:     client,
 	}
 
 	// create h2 in a team, to validate that it isn't impacted by the non-team profiles
@@ -325,6 +286,83 @@ func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore) {
 	require.NoError(t, err)
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func testHostsWithAPIFailures(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		return nil, errors.New("nope")
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// create a couple hosts and a non-android one to ensure no unwanted side-effects
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	createNonAndroidHost(t, ds, 3)
+
+	// add an android profile
+	p1 := androidProfileForTest("p1")
+	p1, err := ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+
+	for i := range 3 {
+		err = reconciler.ReconcileProfiles(ctx)
+		require.NoError(t, err)
+		require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+		client.EnterprisesPoliciesPatchFuncInvoked = false
+		require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+		// status remains null, failure count is incremented
+		assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: nil, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: i + 1, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: nil},
+			{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: nil, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: i + 1, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: nil},
+		})
+	}
+
+	// next run marks as failed
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil, RequestFailCount: 0, PolicyRequestUUID: nil, DeviceRequestUUID: nil, Detail: `Couldn't apply profile. Google returned error. Please re-add profile to try again.`},
+	})
+
+	// next run has nothing to do
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+
+	// add a new profile that "resets" the set of profiles to send, so will retry
+	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b"}`)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	require.NoError(t, err)
+
+	// and this time make it succeed
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		policy.Version = 1
+		return policy, nil
+	}
+
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
 }
 
 func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload) {

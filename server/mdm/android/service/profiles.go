@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -245,7 +246,7 @@ func (r *profileReconciler) sendHostProfiles(
 	}
 
 	// set the policy request information on every profile that was part of it
-	patchPolicyReqFailed := !skip && policyReq.StatusCode >= 400
+	patchPolicyReqFailed := !skip && policyReq.StatusCode != http.StatusOK
 	for _, prof := range bulkProfilesByUUID {
 		prof.PolicyRequestUUID = &policyReq.RequestUUID
 		if patchPolicyReqFailed {
@@ -299,7 +300,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 
 		// set the device request information on every profile that was part of it
-		deviceReqFailed := !skip && deviceReq.StatusCode >= 400
+		deviceReqFailed := !skip && deviceReq.StatusCode != http.StatusOK
 		for _, prof := range bulkProfilesByUUID {
 			prof.DeviceRequestUUID = &deviceReq.RequestUUID
 			if deviceReqFailed {
@@ -386,7 +387,7 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 			apiErr = nil
 		}
 	} else {
-		policyRequest.StatusCode = 200
+		policyRequest.StatusCode = http.StatusOK
 		policyRequest.PolicyVersion.V = applied.Version
 		policyRequest.PolicyVersion.Valid = true
 	}
@@ -436,7 +437,7 @@ func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceNam
 			apiErr = nil
 		}
 	} else {
-		deviceRequest.StatusCode = 200
+		deviceRequest.StatusCode = http.StatusOK
 		deviceRequest.AppliedPolicyVersion.V = applied.AppliedPolicyVersion
 		deviceRequest.AppliedPolicyVersion.Valid = true
 	}

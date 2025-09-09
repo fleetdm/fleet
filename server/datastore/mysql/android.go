@@ -835,7 +835,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		hmap.host_uuid IS NULL OR
 		-- profile was never sent or was updated after sent
 		-- TODO(ap): need to make sure we set it to NULL when profile is updated
-		hmap.included_in_policy_version IS NULL OR
+		( hmap.included_in_policy_version IS NULL AND COALESCE(hmap.status, '') <> ? ) OR
 		hmap.status IS NULL OR
 		-- profile was sent in older policy version than currently applied
 		(hmap.included_in_policy_version IS NOT NULL AND ad.applied_policy_id = ds.host_uuid AND
@@ -870,7 +870,7 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
 
 		var hostUUIDs []string
-		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt, fleet.MDMDeliveryFailed); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
 
