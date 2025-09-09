@@ -35,21 +35,24 @@ const (
 
 // MysqlConfig defines configs related to MySQL
 type MysqlConfig struct {
-	Protocol        string `yaml:"protocol"`
-	Address         string `yaml:"address"`
-	Username        string `yaml:"username"`
-	Password        string `yaml:"password"`
-	PasswordPath    string `yaml:"password_path"`
-	Database        string `yaml:"database"`
-	TLSCert         string `yaml:"tls_cert"`
-	TLSKey          string `yaml:"tls_key"`
-	TLSCA           string `yaml:"tls_ca"`
-	TLSServerName   string `yaml:"tls_server_name"`
-	TLSConfig       string `yaml:"tls_config"` // tls=customValue in DSN
-	MaxOpenConns    int    `yaml:"max_open_conns"`
-	MaxIdleConns    int    `yaml:"max_idle_conns"`
-	ConnMaxLifetime int    `yaml:"conn_max_lifetime"`
-	SQLMode         string `yaml:"sql_mode"`
+	Protocol         string `yaml:"protocol"`
+	Address          string `yaml:"address"`
+	Username         string `yaml:"username"`
+	Password         string `yaml:"password"`
+	PasswordPath     string `yaml:"password_path"`
+	Database         string `yaml:"database"`
+	TLSCert          string `yaml:"tls_cert"`
+	TLSKey           string `yaml:"tls_key"`
+	TLSCA            string `yaml:"tls_ca"`
+	TLSServerName    string `yaml:"tls_server_name"`
+	TLSConfig        string `yaml:"tls_config"` // tls=customValue in DSN
+	MaxOpenConns     int    `yaml:"max_open_conns"`
+	MaxIdleConns     int    `yaml:"max_idle_conns"`
+	ConnMaxLifetime  int    `yaml:"conn_max_lifetime"`
+	SQLMode          string `yaml:"sql_mode"`
+	Region           string `yaml:"region"`
+	StsAssumeRoleArn string `yaml:"sts_assume_role_arn"`
+	StsExternalID    string `yaml:"sts_external_id"`
 }
 
 // RedisConfig defines configs related to Redis
@@ -58,7 +61,11 @@ type RedisConfig struct {
 	Username                  string
 	Password                  string
 	Database                  int
+	Region                    string        `yaml:"region"`
+	CacheName                 string        `yaml:"cache_name"`
 	UseTLS                    bool          `yaml:"use_tls"`
+	StsAssumeRoleArn          string        `yaml:"sts_assume_role_arn"`
+	StsExternalID             string        `yaml:"sts_external_id"`
 	DuplicateResults          bool          `yaml:"duplicate_results"`
 	ConnectTimeout            time.Duration `yaml:"connect_timeout"`
 	KeepAlive                 time.Duration `yaml:"keep_alive"`
@@ -630,6 +637,10 @@ type FleetConfig struct {
 	Packaging PackagingConfig
 }
 
+func (f FleetConfig) OTELEnabled() bool {
+	return f.Logging.TracingEnabled && f.Logging.TracingType == "opentelemetry"
+}
+
 type PartnershipsConfig struct {
 	EnableSecureframe bool `yaml:"enable_secureframe"`
 	EnablePrimo       bool `yaml:"enable_primo"`
@@ -1045,6 +1056,9 @@ func (man Manager) addConfigs() {
 		man.addConfigInt(prefix+".max_idle_conns", 50, "MySQL maximum idle connection handles"+usageSuffix)
 		man.addConfigInt(prefix+".conn_max_lifetime", 0, "MySQL maximum amount of time a connection may be reused"+usageSuffix)
 		man.addConfigString(prefix+".sql_mode", "", "MySQL sql_mode"+usageSuffix)
+		man.addConfigString(prefix+".region", "", "RDS region for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_assume_role_arn", "", "ARN of role to assume for AWS authentication"+usageSuffix)
+		man.addConfigString(prefix+".sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity"+usageSuffix)
 	}
 	// MySQL
 	addMysqlConfig("mysql", "localhost:3306", ".")
@@ -1057,6 +1071,10 @@ func (man Manager) addConfigs() {
 		"Redis server username")
 	man.addConfigString("redis.password", "",
 		"Redis server password (prefer env variable for security)")
+	man.addConfigString("redis.cache_name", "",
+		"Redis server Elasticache cache name")
+	man.addConfigString("redis.region", "",
+		"Redis server Elasticache region")
 	man.addConfigInt("redis.database", 0,
 		"Redis server database number")
 	man.addConfigBool("redis.use_tls", false, "Redis server enable TLS")
@@ -1078,6 +1096,8 @@ func (man Manager) addConfigs() {
 	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
+	man.addConfigString("redis.sts_assume_role_arn", "", "ARN of role to assume for AWS authentication")
+	man.addConfigString("redis.sts_external_id", "", "Optional unique identifier that can be used by the principal assuming the role to assert its identity")
 
 	// Server
 	man.addConfigString("server.address", "0.0.0.0:8080",
@@ -1474,21 +1494,24 @@ func (man Manager) LoadConfig() FleetConfig {
 
 	loadMysqlConfig := func(prefix string) MysqlConfig {
 		return MysqlConfig{
-			Protocol:        man.getConfigString(prefix + ".protocol"),
-			Address:         man.getConfigString(prefix + ".address"),
-			Username:        man.getConfigString(prefix + ".username"),
-			Password:        man.getConfigString(prefix + ".password"),
-			PasswordPath:    man.getConfigString(prefix + ".password_path"),
-			Database:        man.getConfigString(prefix + ".database"),
-			TLSCert:         man.getConfigString(prefix + ".tls_cert"),
-			TLSKey:          man.getConfigString(prefix + ".tls_key"),
-			TLSCA:           man.getConfigString(prefix + ".tls_ca"),
-			TLSServerName:   man.getConfigString(prefix + ".tls_server_name"),
-			TLSConfig:       man.getConfigString(prefix + ".tls_config"),
-			MaxOpenConns:    man.getConfigInt(prefix + ".max_open_conns"),
-			MaxIdleConns:    man.getConfigInt(prefix + ".max_idle_conns"),
-			ConnMaxLifetime: man.getConfigInt(prefix + ".conn_max_lifetime"),
-			SQLMode:         man.getConfigString(prefix + ".sql_mode"),
+			Protocol:         man.getConfigString(prefix + ".protocol"),
+			Address:          man.getConfigString(prefix + ".address"),
+			Username:         man.getConfigString(prefix + ".username"),
+			Password:         man.getConfigString(prefix + ".password"),
+			PasswordPath:     man.getConfigString(prefix + ".password_path"),
+			Database:         man.getConfigString(prefix + ".database"),
+			TLSCert:          man.getConfigString(prefix + ".tls_cert"),
+			TLSKey:           man.getConfigString(prefix + ".tls_key"),
+			TLSCA:            man.getConfigString(prefix + ".tls_ca"),
+			TLSServerName:    man.getConfigString(prefix + ".tls_server_name"),
+			TLSConfig:        man.getConfigString(prefix + ".tls_config"),
+			MaxOpenConns:     man.getConfigInt(prefix + ".max_open_conns"),
+			MaxIdleConns:     man.getConfigInt(prefix + ".max_idle_conns"),
+			ConnMaxLifetime:  man.getConfigInt(prefix + ".conn_max_lifetime"),
+			SQLMode:          man.getConfigString(prefix + ".sql_mode"),
+			Region:           man.getConfigString(prefix + ".region"),
+			StsAssumeRoleArn: man.getConfigString(prefix + ".sts_assume_role_arn"),
+			StsExternalID:    man.getConfigString(prefix + ".sts_external_id"),
 		}
 	}
 
@@ -1500,6 +1523,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			Username:                  man.getConfigString("redis.username"),
 			Password:                  man.getConfigString("redis.password"),
 			Database:                  man.getConfigInt("redis.database"),
+			Region:                    man.getConfigString("redis.region"),
+			CacheName:                 man.getConfigString("redis.cache_name"),
 			UseTLS:                    man.getConfigBool("redis.use_tls"),
 			DuplicateResults:          man.getConfigBool("redis.duplicate_results"),
 			ConnectTimeout:            man.getConfigDuration("redis.connect_timeout"),
@@ -1519,6 +1544,8 @@ func (man Manager) LoadConfig() FleetConfig {
 			ConnWaitTimeout:           man.getConfigDuration("redis.conn_wait_timeout"),
 			WriteTimeout:              man.getConfigDuration("redis.write_timeout"),
 			ReadTimeout:               man.getConfigDuration("redis.read_timeout"),
+			StsAssumeRoleArn:          man.getConfigString("redis.sts_assume_role_arn"),
+			StsExternalID:             man.getConfigString("redis.sts_external_id"),
 		},
 		Server: ServerConfig{
 			Address:                     man.getConfigString("server.address"),

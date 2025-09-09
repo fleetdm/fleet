@@ -2116,6 +2116,17 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	_, _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:           "fourth",
+		Source:          "apps",
+		InstallScript:   "echo fourth",
+		Filename:        "fourth.pkg",
+		UserID:          user.ID,
+		TeamID:          ptr.Uint(0),
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
 	// Sync and reconcile
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
@@ -2153,6 +2164,18 @@ func testSoftwareTitlesPackagesOnly(t *testing.T, ds *Datastore) {
 		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 		require.NoError(t, err)
 		require.Len(t, titles, 2)
+		for _, title := range titles {
+			require.NotNil(t, title.SoftwarePackage)
+		}
+	})
+
+	t.Run("packages_only=true with team_id=0", func(t *testing.T) {
+		titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
+			PackagesOnly: true,
+			TeamID:       ptr.Uint(0),
+		}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+		require.NoError(t, err)
+		require.Len(t, titles, 1)
 		for _, title := range titles {
 			require.NotNil(t, title.SoftwarePackage)
 		}

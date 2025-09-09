@@ -725,7 +725,7 @@ When _receiving_ feedback:
 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
-- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _There are many good reasons to make exceptions to this allowance, such as dinners with customers.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. There are many good reasons to make exceptions to this allowance, such as dinners with customers.
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
@@ -931,14 +931,14 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
 
 - Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
-  - "Yeah, we use Nudge"
-  - "Introducing our friend Skimbleshanks"
+  - "Yeah, we use Nudge."
+  - "Introducing our friend Skimbleshanks."
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
-  - "MDM commands in Fleet are available over a REST API that returns JSON"
+  - "MDM commands in Fleet are available over a REST API that returns JSON."
 - Stylizations _("macOS", "osquery", "MySQL", "APNs")
-  - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
-  - "Zach is the co-creator of osquery"
+  - "Although 'macOS' is a proper noun, macOS uses its own [style guide from Apple](https://developer.apple.com/design/human-interface-guidelines), to which we adhere."
+  - "Zach is the co-creator of osquery."
   - "Does it work with MySQL?"
   - "Does it use APNs (the Apple Push Notification service)?"
 

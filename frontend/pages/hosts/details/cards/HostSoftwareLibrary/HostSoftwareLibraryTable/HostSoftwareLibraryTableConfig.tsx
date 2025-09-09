@@ -90,6 +90,7 @@ export const generateHostSWLibraryTableHeaders = ({
           id,
           name,
           source,
+          icon_url,
           app_store_app,
           software_package,
         } = cellProps.row.original;
@@ -110,7 +111,7 @@ export const generateHostSWLibraryTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}

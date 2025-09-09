@@ -88,6 +88,9 @@ const (
 	// the ability of the client to show the corresponding UI to support that
 	// flow.
 	CapabilitySetupExperience Capability = "setup_experience"
+	// CapabilityWebSetupExperience denotes the ability of the server to support installing software
+	// as part of a non-blocking setup experience for Linux and Windows
+	CapabilityWebSetupExperience Capability = "web_setup_experience"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
@@ -98,6 +101,7 @@ func GetServerOrbitCapabilities() CapabilityMap {
 		CapabilityEscrowBuddy:               {},
 		CapabilityLinuxDiskEncryptionEscrow: {},
 		CapabilitySetupExperience:           {},
+		CapabilityWebSetupExperience:        {},
 	}
 }
 

@@ -89,14 +89,14 @@ func (svc *Service) AuthenticateHost(ctx context.Context, nodeKey string) (*flee
 
 func enrollAgentEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*contract.EnrollOsqueryAgentRequest)
-	nodeKey, err := svc.EnrollAgent(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
+	nodeKey, err := svc.EnrollOsquery(ctx, req.EnrollSecret, req.HostIdentifier, req.HostDetails)
 	if err != nil {
 		return contract.EnrollOsqueryAgentResponse{Err: err}, nil
 	}
 	return contract.EnrollOsqueryAgentResponse{NodeKey: nodeKey}, nil
 }
 
-func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
+func (svc *Service) EnrollOsquery(ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string)) (string, error) {
 	// skipauth: Authorization is currently for user endpoints only.
 	svc.authz.SkipAuthorization(ctx)
 
@@ -156,15 +156,15 @@ func (svc *Service) EnrollAgent(ctx context.Context, enrollSecret, hostIdentifie
 		return "", newOsqueryErrorWithInvalidNode("app config load failed: " + err.Error())
 	}
 
-	host, err := svc.ds.EnrollHost(ctx,
-		fleet.WithEnrollHostMDMEnabled(appConfig.MDM.EnabledAndConfigured),
-		fleet.WithEnrollHostOsqueryHostID(hostIdentifier),
-		fleet.WithEnrollHostHardwareUUID(hardwareUUID),
-		fleet.WithEnrollHostHardwareSerial(hardwareSerial),
-		fleet.WithEnrollHostNodeKey(nodeKey),
-		fleet.WithEnrollHostTeamID(secret.TeamID),
-		fleet.WithEnrollHostCooldown(svc.config.Osquery.EnrollCooldown),
-		fleet.WithEnrollHostIdentityCert(identityCert),
+	host, err := svc.ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryMDMEnabled(appConfig.MDM.EnabledAndConfigured),
+		fleet.WithEnrollOsqueryHostID(hostIdentifier),
+		fleet.WithEnrollOsqueryHardwareUUID(hardwareUUID),
+		fleet.WithEnrollOsqueryHardwareSerial(hardwareSerial),
+		fleet.WithEnrollOsqueryNodeKey(nodeKey),
+		fleet.WithEnrollOsqueryTeamID(secret.TeamID),
+		fleet.WithEnrollOsqueryCooldown(svc.config.Osquery.EnrollCooldown),
+		fleet.WithEnrollOsqueryIdentityCert(identityCert),
 	)
 	if err != nil {
 		return "", newOsqueryErrorWithInvalidNode("save enroll failed: " + err.Error())
@@ -836,15 +836,46 @@ func (svc *Service) labelQueriesForHost(ctx context.Context, host *fleet.Host) (
 	return labelQueries, nil
 }
 
-func (svc *Service) disablePoliciesDuringSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
-	if host.Platform != string(fleet.MacOSPlatform) {
+func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Host) (bool, error) {
+	switch {
+	case host.Platform == string(fleet.MacOSPlatform):
+		inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+		}
+		return inSetupExperience, nil
+	case fleet.IsLinux(host.Platform):
+		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
+		inSetupExperience, err := svc.hasSetupExperiencePendingOrRunningItems(ctx, hostUUID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return false, ctxerr.Wrap(ctx, err, "check setup experience pending or running items")
+		}
+		return inSetupExperience, nil
+	default:
 		return false, nil
 	}
-	inSetupExperience, err := svc.ds.GetHostAwaitingConfiguration(ctx, host.UUID)
-	if err != nil && !fleet.IsNotFound(err) {
-		return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
+}
+
+func (svc *Service) hasSetupExperiencePendingOrRunningItems(ctx context.Context, hostUUID string) (bool, error) {
+	statuses, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "retrieving setup experience results")
 	}
-	return inSetupExperience, nil
+
+	for _, status := range statuses {
+		if err := status.IsValid(); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "invalid row")
+		}
+
+		switch status.Status {
+		case fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning:
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // policyQueriesForHost returns policy queries if it's the time to re-run policies on the given host.
@@ -857,11 +888,11 @@ func (svc *Service) policyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	}
 	// This must come after the check above to avoid unnecessary queries to the database. Most
 	// requests from live connected hosts will not reach this point
-	disablePolicies, err := svc.disablePoliciesDuringSetupExperience(ctx, host)
+	hostRunningSetupExperience, err := svc.hostIsInSetupExperience(ctx, host)
 	if err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 	}
-	if disablePolicies {
+	if hostRunningSetupExperience {
 		level.Debug(svc.logger).Log("msg", "skipping policy queries for host in setup experience", "host_id", host.ID)
 		return nil, false, nil
 	}
@@ -1110,13 +1141,15 @@ func (svc *Service) SubmitDistributedQueryResults(
 			policyIDs = append(policyIDs, ac.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
+		teamID := uint(0)
 		if host.TeamID != nil {
-			team, err := svc.ds.Team(ctx, *host.TeamID)
-			if err != nil {
-				logging.WithErr(ctx, err)
-			} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
-				policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
-			}
+			teamID = *host.TeamID
+		}
+		team, err := svc.ds.TeamWithoutExtras(ctx, teamID)
+		if err != nil {
+			logging.WithErr(ctx, err)
+		} else if teamPolicyAutomationsEnabled(team.Config.WebhookSettings, team.Config.Integrations) {
+			policyIDs = append(policyIDs, team.Config.WebhookSettings.FailingPoliciesWebhook.PolicyIDs...)
 		}
 
 		filteredResults := filterPolicyResults(policyResults, policyIDs)

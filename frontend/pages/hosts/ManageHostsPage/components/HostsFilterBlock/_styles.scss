@@ -36,4 +36,9 @@
       width: 150px; // Fits all dropdown options without resizing
     }
   }
+
+  &__multi-filter {
+    display: flex;
+    gap: $pad-small;
+  }
 }
