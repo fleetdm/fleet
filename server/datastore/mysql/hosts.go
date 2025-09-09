@@ -2281,8 +2281,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostname,
 					computer_name,
 					hardware_model,
-					platform
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+					platform,
+					platform_like
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert,
 				zeroTime,
@@ -2299,6 +2300,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
 				hostInfo.Platform,
+				hostInfo.PlatformLike,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
@@ -2334,9 +2336,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	return &host, nil
 }
 
-// EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+// EnrollOsquery enrolls the osquery agent to Fleet.
+func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 	for _, opt := range opts {
 		opt(enrollConfig)
 	}

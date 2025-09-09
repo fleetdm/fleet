@@ -5,7 +5,9 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -22,8 +24,10 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var ErrUnsupportedType = errors.New("unsupported file type")
-var ErrInvalidTarball = errors.New("not a valid .tar.gz archive")
+var (
+	ErrUnsupportedType = errors.New("unsupported file type")
+	ErrInvalidTarball  = errors.New("not a valid .tar.gz archive")
+)
 
 type InstallerMetadata struct {
 	Name             string
@@ -286,4 +290,19 @@ func ExtractTarGz(path string, destDir string, maxFileSize int64, logger zerolog
 			logger.Warn().Msgf("skipping unknown tar header flag type %d: %q", header.Typeflag, header.Name)
 		}
 	}
+}
+
+func SHA256FromTempFileReader(tfr *fleet.TempFileReader) (string, error) {
+	h := sha256.New()
+	if _, err := io.Copy(h, tfr); err != nil {
+		return "", err
+	}
+
+	hashString := hex.EncodeToString(h.Sum(nil))
+
+	if err := tfr.Rewind(); err != nil {
+		return "", err
+	}
+
+	return hashString, nil
 }

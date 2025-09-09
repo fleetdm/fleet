@@ -77,14 +77,15 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
 		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-		mdmStorage            fleet.MDMAppleStore
-		mdmPusher             nanomdm_push.Pusher
-		ssoStore              sso.SessionStore
-		profMatcher           fleet.ProfileMatcher
-		softwareInstallStore  fleet.SoftwareInstallerStore
-		bootstrapPackageStore fleet.MDMBootstrapPackageStore
-		distributedLock       fleet.Lock
-		keyValueStore         fleet.KeyValueStore
+		mdmStorage             fleet.MDMAppleStore
+		mdmPusher              nanomdm_push.Pusher
+		ssoStore               sso.SessionStore
+		profMatcher            fleet.ProfileMatcher
+		softwareInstallStore   fleet.SoftwareInstallerStore
+		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
+		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		distributedLock        fleet.Lock
+		keyValueStore          fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -136,6 +137,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		}
 		if opts[0].BootstrapPackageStore != nil {
 			bootstrapPackageStore = opts[0].BootstrapPackageStore
+		}
+		if opts[0].SoftwareTitleIconStore != nil {
+			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
 		}
 
 		// allow to explicitly set MDM storage to nil
@@ -237,6 +241,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
+			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
 			scepConfigService,
@@ -368,6 +373,7 @@ type TestServerOpts struct {
 	NoCacheDatastore                bool
 	SoftwareInstallStore            fleet.SoftwareInstallerStore
 	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
+	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
 	KeyValueStore                   fleet.KeyValueStore
 	EnableSCEPProxy                 bool
 	WithDEPWebview                  bool

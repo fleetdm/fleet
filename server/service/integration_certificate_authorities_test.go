@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -611,22 +612,46 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			require.Contains(t, errMsg, "Seat ID cannot be empty")
 		})
 
-		t.Run("digicert happy path add then delete", func(t *testing.T) {
+		t.Run("digicert happy path with activities add then modify then delete", func(t *testing.T) {
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
-			req, err := newApplyRequest(goodDigiCertCA, true)
+			req1, err := newApplyRequest(goodDigiCertCA, true)
 			require.NoError(t, err)
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run should not change anything
-			req.DryRun = false
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // now it should be applied
+			req1.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities) // now it should be applied
+			wantAdded := fleet.ActivityAddedDigiCert{
+				Name: goodDigiCertCA.Name,
+			}
+			id := s.lastActivityMatches(wantAdded.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantAdded.Name), 0)
+
+			testCopy := goodDigiCertCA
+			testCopy.CertificateCommonName = "new-common-name"
+			req2, err := newApplyRequest(testCopy, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities) // dry run should not change anything
+			s.lastActivityMatches(wantAdded.ActivityName(), "", id) // no new activity yet
+			req2.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // now it should be applied
+			wantEdited := fleet.ActivityEditedDigiCert{
+				Name: goodDigiCertCA.Name,
+			}
+			s.lastActivityMatches(wantEdited.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantEdited.Name), 0)
+			s.lastActivityOfTypeMatches(wantAdded.ActivityName(), "", id) // last "added" activity is the prior one
 
 			// sending empty CAs deletes existing one
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
-			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // dry run should not change anything
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // now delete should be applied
+			wantDeleted := fleet.ActivityDeletedDigiCert{
+				Name: goodDigiCertCA.Name,
+			}
+			s.lastActivityMatches(wantDeleted.ActivityName(), fmt.Sprintf(`{"name":%q}`, wantDeleted.Name), 0)
 		})
 
 		t.Run("digicert happy path add one, delete one, modify one", func(t *testing.T) {
@@ -795,22 +820,46 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			require.Contains(t, errMsg, "Custom SCEP Proxy challenge cannot be empty")
 		})
 
-		t.Run("custom scep happy path add then delete", func(t *testing.T) {
+		t.Run("custom scep happy path with activities add then modify then delete", func(t *testing.T) {
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
 
-			req, err := newApplyRequest(goodDigiCertCA, true)
+			req1, err := newApplyRequest(goodCustomSCEPCA, true)
 			require.NoError(t, err)
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{}) // dry run
-			req.DryRun = false
-			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusOK)
-			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities)
+			req1.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req1, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities)
+			wantAdded := fleet.ActivityAddedCustomSCEPProxy{
+				Name: goodCustomSCEPCA.Name,
+			}
+			id := s.lastActivityMatches(wantAdded.ActivityName(), fmt.Sprintf(`{"name":"%s"}`, wantAdded.Name), 0)
+
+			testCopy := goodCustomSCEPCA
+			testCopy.Challenge = "some-new-challenge"
+			req2, err := newApplyRequest(testCopy, true)
+			require.NoError(t, err)
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req1.CertificateAuthorities) // dry run so no changes
+			s.lastActivityMatches(wantAdded.ActivityName(), "", id) // no new activity
+			req2.DryRun = false
+			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req2, http.StatusOK)
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // changes now applied
+			wantEdited := fleet.ActivityEditedCustomSCEPProxy{
+				Name: goodCustomSCEPCA.Name,
+			}
+			s.lastActivityMatches(wantEdited.ActivityName(), fmt.Sprintf(`{"name":"%s"}`, wantEdited.Name), 0) // last "edited" activity is the prior one
+			s.lastActivityOfTypeMatches(wantAdded.ActivityName(), "", id)                                      // last "added" activity is the prior one
 
 			// sending empty CAs deletes existing one
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: true}, http.StatusOK)
-			s.checkAppliedCAs(t, s.ds, req.CertificateAuthorities) // dry run should not change anything
+			s.checkAppliedCAs(t, s.ds, req2.CertificateAuthorities) // dry run should not change anything
 			_ = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesRequest{DryRun: false}, http.StatusOK)
 			s.checkAppliedCAs(t, s.ds, fleet.GroupedCertificateAuthorities{})
+			wantDeleted := fleet.ActivityDeletedCustomSCEPProxy{
+				Name: goodCustomSCEPCA.Name,
+			}
+			s.lastActivityMatches(wantDeleted.ActivityName(), fmt.Sprintf(`{"name":"%s"}`, wantDeleted.Name), 0)
 		})
 
 		t.Run("custom scep happy path add one, delete one, modify one", func(t *testing.T) {

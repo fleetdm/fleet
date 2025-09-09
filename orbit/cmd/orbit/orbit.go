@@ -753,6 +753,7 @@ func main() {
 			HardwareUUID:   osqueryHostInfo.HardwareUUID,
 			Hostname:       osqueryHostInfo.Hostname,
 			Platform:       osqueryHostInfo.Platform,
+			PlatformLike:   osqueryHostInfo.PlatformLike,
 			ComputerName:   osqueryHostInfo.ComputerName,
 			HardwareModel:  osqueryHostInfo.HardwareModel,
 		}
@@ -1441,10 +1442,11 @@ func main() {
 						ErrorTimestamp:     time.Now(),
 						ErrorMessage:       msg,
 						ErrorAdditionalInfo: map[string]interface{}{
-							"orbit_version":   build.Version,
-							"osquery_version": osqueryHostInfo.OsqueryVersion,
-							"os_platform":     osqueryHostInfo.Platform,
-							"os_version":      osqueryHostInfo.OSVersion,
+							"orbit_version":    build.Version,
+							"osquery_version":  osqueryHostInfo.OsqueryVersion,
+							"os_platform":      osqueryHostInfo.Platform,
+							"os_platform_like": osqueryHostInfo.PlatformLike,
+							"os_version":       osqueryHostInfo.OSVersion,
 						},
 					}
 					if err = deviceClient.ReportError(trw.GetCached(), fleetdErr); err != nil {
@@ -1549,11 +1551,18 @@ func main() {
 					return errors.New("no user logged in")
 				}
 
+				browserBin := "/usr/bin/xdg-open"
+				firefoxBin := "/usr/bin/firefox"
+				if _, err := os.Stat(firefoxBin); err == nil {
+					browserBin = firefoxBin
+				}
+
 				var opts []execuser.Option
 				opts = append(opts, execuser.WithUser(*loggedInUser))
 				opts = append(opts, execuser.WithArg(browserURL, ""))
-				if _, err := execuser.Run("/usr/bin/xdg-open", opts...); err != nil {
-					return fmt.Errorf("opening browser with xdg-open: %w", err)
+				log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
+				if _, err := execuser.Run(browserBin, opts...); err != nil {
+					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
@@ -1612,7 +1621,7 @@ func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath s
 	// Setup experience enabled for us and is now kicked off, open a browser
 	if resp.Enabled {
 		if err := openMyDevicePage(); err != nil {
-			return fmt.Errorf("opening my device page: %w", err)
+			log.Err(err).Msg("opening setup experience my device page using")
 		}
 	} else {
 		log.Debug().Msg("setup experience not enabled on team")
@@ -1644,7 +1653,7 @@ func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperi
 		return nil, fmt.Errorf("read setup experience file: %w", err)
 	}
 	var exp *SetupExperienceInfo
-	if err := json.NewDecoder(f).Decode(&exp); err != nil {
+	if err := json.NewDecoder(f).Decode(exp); err != nil {
 		return nil, fmt.Errorf("decoding setup experience file: %w", err)
 	}
 
@@ -2034,6 +2043,8 @@ type osqueryHostInfo struct {
 	HardwareModel string `json:"hardware_model"`
 	// Platform is the device's platform as defined by osquery (extracted from `os_version` osquery table).
 	Platform string `json:"platform"`
+	// PlatformLike is the device's platform_like as defined by osquery (extracted from `os_version` osquery table).
+	PlatformLike string `json:"platform_like"`
 	// InstanceID is the osquery's randomly generated instance ID
 	// (extracted from `osquery_info` osquery table).
 	InstanceID string `json:"instance_id"`
@@ -2057,6 +2068,7 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		si.computer_name,
 		si.hardware_model,
 		os.platform,
+		os.platform_like,
 		os.version as os_version,
 		oi.instance_id,
 		oi.version as osquery_version
