@@ -238,6 +238,10 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 
 	ds := new(mock.Store)
 
+	ds.SaveAppConfigFunc = func(ctx context.Context, info *fleet.AppConfig) error {
+		return nil
+	}
+
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
 		return &fleet.Team{}, nil
 	}
@@ -273,5 +277,31 @@ func TestUpdateTeamMDMAppleSetupManualAgent(t *testing.T) {
 				require.ErrorContains(t, err, tc.Error)
 			}
 		})
+		t.Run(tc.Name+" no team", func(t *testing.T) {
+			ds.GetSetupExperienceCountFunc = func(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
+				return &tc.Count, nil
+			}
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				appConfig := &fleet.AppConfig{}
+				appConfig.MDM.MacOSSetup = tc.MacOSSetup
+				return appConfig, nil
+			}
+
+			tm := &fleet.Team{}
+			tm.Config.MDM.MacOSSetup = tc.MacOSSetup
+
+			payload := fleet.MDMAppleSetupPayload{
+				ManualAgentInstall: ptr.Bool(true),
+			}
+
+			err := svc.updateAppConfigMDMAppleSetup(ctx, payload)
+			if tc.Error == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.Error)
+			}
+		})
+
 	}
 }
