@@ -108,7 +108,7 @@ Policies can be specified inline in your `default.yml`, `teams/team-name.yml`, o
 
 ### Options
 
-For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy).
+For possible options, see the parameters for the [Add policy API endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-policy)
 
 ### Example
 
@@ -306,6 +306,7 @@ The `controls` section allows you to configure scripts and device management (MD
 - `windows_enabled_and_configured` specifies whether or not to turn on Windows MDM features (default: `false`). Can only be configured for all teams (`default.yml`).
 - `windows_migration_enabled` specifies whether or not to automatically migrate Windows hosts connected to another MDM solution. If `false`, MDM is only turned on after hosts are unenrolled from your old MDM solution (default: `false`). Can only be configured for all teams (`default.yml`).
 - `enable_disk_encryption` specifies whether or not to enforce disk encryption on macOS, Windows, and Linux hosts (default: `false`).
+- `windows_require_bitlocker_pin` specifies whether or not to require end users on Windows hosts to set a BitLocker PIN. When set, this PIN is required to unlock Windows host during startup. `enable_disk_encryption` must be set to `true`. (default: `false`).
 
 #### Example
 
@@ -351,7 +352,7 @@ controls:
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
-  software:
+    software:
       - app_store_id: "1091189122"
       - package_path: ../lib/software/adobe-acrobat.software.yml
   macos_migration: # Available in Fleet Premium
@@ -465,6 +466,12 @@ software:
         - Communication
   fleet_maintained_apps:
     - slug: slack/darwin
+      install_script:
+        path: ../lib/software/slack-install-script.ps1
+      uninstall_script:
+        path: ../lib/software/slack-uninstall-script.ps1
+      post_install_script:
+        path: ../lib/software/slack-config-script.ps1
       self_service: true
       labels_include_any:
         - Design
@@ -501,12 +508,12 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `post_install_script.path` is the script Fleet will run on hosts after the software install. There is no default.
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
-  
+
 > Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
 
 #### Example
 
-##### With URL
+##### URL
 
 `lib/software-name.package.yml`:
 
@@ -523,7 +530,7 @@ categories:
 self_service: true
 ```
 
-##### With hash
+##### Hash
 
 You can view the hash for existing software in the software detail page in the Fleet UI. It is also returned after uploading a new software item via the API.
 
@@ -535,9 +542,7 @@ You can view the hash for existing software in the software detail page in the F
 ### app_store_apps
 
 - `app_store_id` is the ID of the Apple App Store app. You can find this at the end of the app's App Store URL. For example, "Bear - Markdown Notes" URL is "https://apps.apple.com/us/app/bear-markdown-notes/id1016366447" and the `app_store_id` is `1016366447`.
-
-> Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
-
+  + Make sure to include only the ID itself, and not the `id` prefix shown in the URL. The ID must be wrapped in quotes as shown in the example so that it is processed as a string.
 - `self_service` only applies to macOS, and is ignored for other platforms. For example, if the app is supported on macOS, iOS, and iPadOS, and `self_service` is set to `true`, it will be self-service on macOS workstations but not iPhones or iPads.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
 
@@ -550,6 +555,18 @@ Currently, one app for each of an App Store app's supported platforms are added.
 Currently, Fleet-maintained apps will be updated to the latest version published by Fleet when GitOps runs.
 
 Fleet-maintained apps have default categories. You can see the default categories in the [Fleet-maintained app metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs). If you do not specify `categories` when adding a self-service Fleet-maintained app, the default categories will be used.
+
+The below fields are all optional.
+
+- `self_service` specifies whether end users can install from **Fleet Desktop > Self-service**.
+- `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
+- `post_install_script.path` is the script that, if supplied, Fleet will run on hosts after the software installs.
+
+The below fields are optional, and if omitted will default to values specified in [the app's metadata on GitHub](https://github.com/fleetdm/fleet/tree/main/ee/maintained-apps/outputs).
+
+- `install_script.path` specifies the command Fleet will run on hosts to install software.
+- `uninstall_script.path` is the script Fleet will run on hosts to uninstall software.
+- `categories` is an array of categories, from [supported categories](#labels-and-categories).
 
 ## org_settings and team_settings
 
@@ -703,6 +720,7 @@ The `integrations` section lets you configure your Google Calendar, Conditional 
 
 In addition, you can configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi.
 
+
 #### Example
 
 `default.yml`
@@ -772,6 +790,44 @@ integrations:
 - `api_token` is the Zendesk API token (default: `""`).
 - `group_id`is found by selecting **Admin > People > Groups** in Zendesk. Find your group and select it. The group ID will appear in the search field.
 
+### certificate_authorities
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
+
+#### Example
+
+`default.yml`
+
+```yaml
+org_settings:
+  certificate_authorities:
+    digicert: # Available in Fleet Premium
+      - name: DIGICERT_WIFI
+        url: https://one.digicert.com
+        api_token: $DIGICERT_API_TOKEN
+        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
+        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_user_principal_names:
+          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
+    ndes_scep_proxy: # Available in Fleet Premium
+      url: https://example.com/certsrv/mscep/mscep.dll
+      admin_url: https://example.com/certsrv/mscep_admin/
+      username: Administrator@example.com
+      password: myPassword
+    custom_scep_proxy: # Available in Fleet Premium
+      - name: SCEP_VPN
+        url: https://example.com/scep
+        challenge: $SCEP_VPN_CHALLENGE
+    hydrant: # Available in Fleet Premium
+      - name: HYDRANT_WIFI
+        url: https://example.hydrantid.com/.well-known/est/abc123
+        client_id: $HYDRANT_CLIENT_ID
+        client_secret: $HYDRANT_CLIENT_SECRET
+```
+
 #### digicert
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -800,6 +856,15 @@ integrations:
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
+
+#### hydrant
+
+> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
+- `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
+- `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
+- `client_id` is the client ID provided by Hydrant.
+- `client_secret` is the client secret provided by Hydrant.
 
 ### webhook_settings
 
