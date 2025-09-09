@@ -17,7 +17,7 @@ func TestAllAndroidPackageDependencies(t *testing.T) {
 		// Ignoring tests, as they may import the mysql datastore package (we decided not to
 		// isolate the datastore layer):
 		// https://github.com/fleetdm/fleet/pull/29853#pullrequestreview-2936461467
-		//WithTests().
+		// WithTests().
 		IgnoreXTests("github.com/fleetdm/fleet/v4/server/fleet"). // ignore fleet_test package
 		IgnorePackages(
 			"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql...",
