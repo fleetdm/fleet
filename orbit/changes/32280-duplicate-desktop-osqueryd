@@ -1,0 +1,1 @@
+* Since new macOS/Linux packages built with `fleetctl 4.75.0` or higher do not have embedded osqueryd.app.tar.gz and desktop.tar.gz, orbit can now use osqueryd.app.tar.gz.sha512 and desktop.tar.gz.sha512/desktop.app.tar.gz.sha512 hash caches to check if an update is needed.
