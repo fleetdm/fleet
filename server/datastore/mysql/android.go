@@ -228,11 +228,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
-		TeamID *uint `db:"team_id"`
+		TeamID *uint  `db:"team_id"`
+		UUID   string `db:"uuid"`
 		*android.Device
 	}
 	stmt := `SELECT
 		h.team_id,
+		h.uuid,
 		ad.id,
 		ad.host_id,
 		ad.device_id,
@@ -255,6 +257,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		Host: &fleet.Host{
 			ID:     host.Device.HostID,
 			TeamID: host.TeamID,
+			UUID:   host.UUID,
 		},
 		Device: host.Device,
 	}
