@@ -236,7 +236,7 @@ func (c IconChanges) WithUploadedHashes(hashes []string) IconChanges {
 
 func (c IconChanges) WithSoftware(packages []SoftwarePackageResponse, vppApps []VPPAppResponse) IconChanges {
 	// build a slice of software to avoid copypasta
-	software := make([]CanHaveSoftwareIcon, len(packages)+len(vppApps))
+	software := make([]CanHaveSoftwareIcon, 0, len(packages)+len(vppApps))
 	for i := range packages {
 		software = append(software, packages[i])
 	}
