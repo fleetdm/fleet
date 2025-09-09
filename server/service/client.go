@@ -1924,9 +1924,9 @@ func (c *Client) DoGitOps(
 			}
 		}
 
-		mdmAppConfig["android_enabled_and_configured"] = config.Controls.AndroidEnabledAndConfigured
-		if config.Controls.AndroidEnabledAndConfigured != nil {
-			mdmAppConfig["android_enabled_and_configured"] = config.Controls.AndroidEnabledAndConfigured
+		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
+		if incoming.Controls.AndroidEnabledAndConfigured != nil {
+			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
 		} else {
 			mdmAppConfig["android_enabled_and_configured"] = false
 		}
@@ -2116,8 +2116,8 @@ func (c *Client) DoGitOps(
 			}
 		}
 		// Put in default values for android_settings
-		if config.Controls.AndroidSettings != nil {
-			mdmAppConfig["android_settings"] = config.Controls.AndroidSettings
+		if incoming.Controls.AndroidSettings != nil {
+			mdmAppConfig["android_settings"] = incoming.Controls.AndroidSettings
 		} else {
 			mdmAppConfig["android_settings"] = fleet.AndroidSettings{
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},

@@ -619,7 +619,7 @@ func TestGitOpsBasicTeam(t *testing.T) {
 		return nil, &notFoundError{}
 	}
 	// Track default team config for team 0
-	var defaultTeamConfig = &fleet.TeamConfig{}
+	defaultTeamConfig := &fleet.TeamConfig{}
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 0 {
@@ -1571,7 +1571,7 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 		return job, nil
 	}
 	// Track default team config for team 0
-	var defaultTeamConfig = &fleet.TeamConfig{}
+	defaultTeamConfig := &fleet.TeamConfig{}
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 0 {
@@ -1938,7 +1938,7 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return job, nil
 	}
 	// Track default team config for team 0
-	var defaultTeamConfig = &fleet.TeamConfig{}
+	defaultTeamConfig := &fleet.TeamConfig{}
 
 	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
 		if tid == 0 {
