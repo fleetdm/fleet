@@ -125,6 +125,11 @@ func packageCommand() *cli.Command {
 				Usage:       "Disable auto updates on the generated package",
 				Destination: &opt.DisableUpdates,
 			},
+			&cli.BoolFlag{
+				Name:        "disable-setup-experience",
+				Usage:       "Disable setup experience for Linux hosts",
+				Destination: &opt.DisableSetupExperience,
+			},
 			&cli.StringFlag{
 				Name:        "update-url",
 				Usage:       "URL for update server",

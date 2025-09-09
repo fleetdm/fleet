@@ -17,6 +17,7 @@
 - [Teams](#teams)
 - [Translator](#translator)
 - [Users](#users)
+- [Custom variables](#custom-variables)
 - [API errors](#api-responses)
 
 Use the Fleet APIs to automate Fleet.
@@ -842,6 +843,7 @@ None.
     "android_enabled_and_configured": true,
     "windows_enabled_and_configured": true,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1181,6 +1183,7 @@ Modifies the Fleet's configuration with the supplied information.
     "android_enabled_and_configured": false,
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -1649,13 +1652,6 @@ _Available in Fleet Premium._
 
 #### integrations
 
-<!--
-+ [`integrations.jira`](#integrations-jira)
-+ [`integrations.zendesk`](#integrations-zendesk)
-+ [`integrations.google_calendar`](#integrations-google-calendar)
-+ [`integrations.ndes_scep_proxy`](#integrations-ndes_scep_proxy)
--->
-
 | Name            | Type   | Description                                                          |
 |-----------------|--------|----------------------------------------------------------------------|
 | jira            | array  | See [`integrations.jira`](#integrations-jira).                       |
@@ -1815,7 +1811,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
         "url": "https://example.com/scep",
         "challenge": "********"
       }
-    ]
+    ]  
   }
 }
 ```
@@ -1826,6 +1822,7 @@ Setting `integrations.ndes_scep_proxy` to `null` will clear existing settings. N
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | windows_enabled_and_configured    | boolean | Enables Windows MDM support. |
 | enable_disk_encryption            | boolean | _Available in Fleet Premium._ Hosts that belong to no team will have disk encryption enabled if set to true. |
+| windows_require_bitlocker_pin           | boolean | _Available in Fleet Premium._ End users on Windows hosts that belong to no team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | macos_updates         | object  | See [`mdm.macos_updates`](#mdm-macos-updates). |
 | ios_updates         | object  | See [`mdm.ios_updates`](#mdm-ios-updates). |
 | ipados_updates         | object  | See [`mdm.ipados_updates`](#mdm-ipados-updates). |
@@ -1958,6 +1955,7 @@ _Available in Fleet Premium._
   "mdm": {
     "windows_enabled_and_configured": false,
     "enable_disk_encryption": true,
+    "windows_require_bitlocker_pin": false,
     "macos_updates": {
       "minimum_version": "12.3.1",
       "deadline": "2022-01-01"
@@ -2285,7 +2283,6 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Resend host's configuration profile](#resend-hosts-configuration-profile)
 - [Get host's software](#get-hosts-software)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -5319,8 +5316,8 @@ Deletes the label specified by ID.
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings summary](#get-os-settings-summary)
 - [Get OS setting (configuration profile) status](#get-os-setting-configuration-profile-status)
-- [Resend custom OS setting (configuration profile)](resend-custom-os-setting-configuration-profile)
-- [Batch-resend custom OS setting (configuration profile)](batch-resend-custom-os-setting-configuration-profile)
+- [Resend custom OS setting (configuration profile)](#resend-custom-os-setting-configuration-profile)
+- [Batch-resend custom OS setting (configuration profile)](#batch-resend-custom-os-setting-configuration-profile)
 
 
 ### Add custom OS setting (configuration profile)
@@ -5674,6 +5671,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_disk_encryption | boolean | body  | Whether disk encryption should be enforced on devices that belong to the team (or no team). |
+| windows_require_bitlocker_pin  | boolean | body | End users on Windows hosts will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 
 #### Example
 
@@ -8864,7 +8862,10 @@ This allows you to easily configure scheduled queries that will impact a whole t
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
 - [Batch-run script](#batch-run-script)
-- [Get batch script summary](#get-batch-script-summary)
+- [List batch scripts](#list-batch-scripts)
+- [Get batch script](#get-batch-script)
+- [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script)
+- [Cancel batch script](#cancel-batch-script)
 - [Add script](#add-script)
 - [Modify script](#modify-script)
 - [Delete script](#delete-script)
@@ -8965,6 +8966,7 @@ The script will be added to each host's list of upcoming activities.
 | script_id       | integer | body | **Required**. The ID of the existing saved script to run. |
 | host_ids        | array   | body |  List of host IDs.  Required if `filters` not specified. Only one of `host_ids` or `filters` may be included in the request.   |                                            |
 | filters | object  | body | See [filters](#filters3). Required if `host_ids` not specified. Only one of `host_ids` or `filters` may be included in the request.   |
+| not_before       | string  | body | UTC time when the script run is scheduled to begin. If omitted, the batch script will begin right away. |
 
 
 ##### Filters
@@ -8975,6 +8977,8 @@ The script will be added to each host's list of upcoming activities.
 | status                            | string  | Host status. Can either be `new`, `online`, `offline`, `mia` or `missing`. |
 | label_id                          | number  | ID of a label to filter by.  |
 | team_id                           | number  | ID of the team to filter by. |
+
+> Note that if a batch script is scheduled for the future using `not_before`, and hosts are targeted using `filters`, the script will run on any hosts matching the filters _at the time the batch script was added_. To see all targeted hosts, use the [List hosts targeted in batch script](#list-hosts-targeted-in-batch-script) endpoint.
 
 
 #### Example
@@ -8988,7 +8992,8 @@ Request (using `host_ids`):
 ```json
 {
   "script_id": 123,
-  "host_ids": [1, 2, 3]
+  "host_ids": [1, 2, 3],
+  "not_before": "2025-07-01T15:00:00Z"
 }
 ```
 
@@ -9014,22 +9019,89 @@ Request (using `filters`):
 }
 ```
 
-### Get batch script summary
+### List batch scripts
 
-Get statuses and host counts for a batch-run script.
+Returns a list of batch script executions.
 
-`GET /api/v1/fleet/scripts/batch/summary/:batch_execution_id`
+`GET /api/v1/fleet/scripts/batch`
 
 #### Parameters
 
 | Name            | Type    | In   | Description                                                                                    |
 | ----            | ------- | ---- | --------------------------------------------                                                   |
-| batch_execution_id | string | path | **Required**. The ID returned from a batch script run. |
+| team_id         | integer | query | _Available in Fleet Premium_. Filters to batch script runs for the specified team. |
+| status          | string  | query | Filters to batch script runs with this status. Either `"started"`, `"scheduled"`, or `"finished"`. |
+| page            | integer | query | Page number of the results to fetch. |
+| per_page        | integer | query | Results per page. |
 
 
 #### Example
 
-`GET /api/v1/fleet/scripts/batch/summary/abc-def`
+`GET /api/v1/fleet/scripts/batch`
+
+##### Request body
+
+```json
+{
+  "team_id": 123,
+  "status": "completed"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "batch_executions": [
+    {
+      "script_id": 555,
+      "script_name": "my-script.sh",
+      "batch_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "team_id": 123,
+      "not_before": "2025-07-01T15:00:00Z",
+      "finished_at": "2025-07-06T15:00:00Z",
+      "started_at": "2025-07-06T14:00:00Z",
+      "status": "finished",
+      "canceled": false,
+      "targeted_host_count": 12599,
+      "ran_host_count": 12345,
+      "pending_host_count": 234,
+      "errored_host_count": 18,
+      "incompatible_host_count": 3,
+      "canceled_host_count": 2,
+      "created_at": "2025-07-01T10:00:00Z"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+```
+
+### Get batch script
+
+Returns a summary of a batch-run script, including host counts and current status.
+
+> The [Get batch script summary](https://github.com/fleetdm/fleet/blob/fleet-v4.71.1/docs/REST%20API/rest-api.md#get-batch-script-summary) endpoint is deprecated as of Fleet 4.73. It is maintained for backwards compatibility. Please use this endpoint instead.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id`
+
+#### Parameters
+
+| Name               | Type    | In   | Description                                 |
+| ------------------ | ------- | ---- | --------------------------------------------|
+| batch_execution_id | string  | path | **Required**. The ID returned from a batch script run. |
+
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def`
+
+
 
 ##### Default response
 
@@ -9038,16 +9110,72 @@ Get statuses and host counts for a batch-run script.
 
 ```json
 {
-  "ran": 12345,
-  "pending": 234,
-  "errored": 18,
-  "canceled": 2,
-  "targeted": 12599,
   "script_id": 555,
   "script_name": "my-script.sh",
-  "team_id": 123
+  "team_id": 123,
+  "not_before": "2025-07-01T15:00:00Z",
+  "finished_at": "2025-07-06T15:00:00Z",
+  "started_at": "2025-07-06T14:00:00Z",
+  "status": "finished",
+  "canceled": false,
+  "targeted_host_count": 12599,
+  "ran_host_count": 12345,
+  "pending_host_count": 234,
+  "errored_host_count": 18,
+  "incompatible_host_count": 3,
+  "canceled_host_count": 2,
+  "created_at": "2025-07-01T10:00:00Z"
 }
 ```
+
+### List hosts targeted in batch script
+
+Returns a list hosts targeted in a batch script run, along with their script execution status.
+
+`GET /api/v1/fleet/scripts/batch/:batch_execution_id/host-results`
+
+#### Parameters
+
+| Name                | Type    | In    | Description                                                                                    |
+| --------------------| ------- | ----- | --------------------------------------------                                                   |
+| batch_execution_id  | string  | path  | **Required**. The ID returned from a batch script run. |
+| status              | string  | query | Filters to hosts with this script status. Either `"ran"`, `"pending"`, `"errored"`, `"incompatible"`, or "`canceled`". |
+| page                | integer | query | Page number of the results to fetch. |
+| per_page            | integer | query | Results per page. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/batch/abc-def/host-results?status=ran`
+
+
+##### Default response
+
+`Status: 200`
+
+
+```json
+{
+  "hosts": [
+    {
+      "id": 123,
+      "display_name": "Anna's MacBook Pro",
+      "script_status": "ran",
+      "script_execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+      "script_executed_at": "2024-09-11T20:30:24Z",
+      "script_output_preview": "hello world"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  },
+  "count": 1
+}
+```
+
+### Cancel batch script
+
+`POST /scripts/batch/abc-def/cancel`
 
 ### Add script
 
@@ -9680,19 +9808,7 @@ Returns a list of all operating systems.
 }
 ```
 
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
-
-```json
-{
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
-  "generated_cpes": [],
-  "vulnerabilities": []
-}
-```
+Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
 
@@ -9928,13 +10044,14 @@ Retrieves information about the specified operating system (OS) version.
 {
   "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_version": {
-    "id": 123,
+    "os_version_id": 123,
     "hosts_count": 21,
     "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
     "name_only": "Microsoft Windows 11 Pro 23H2",
     "version": "10.0.22621.1234",
     "platform": "windows",
     "generated_cpes": [],
+    "kernels": [], // empty for non-Linux
     "vulnerabilities": [
       {
         "cve": "CVE-2022-30190",
@@ -9952,20 +10069,68 @@ Retrieves information about the specified operating system (OS) version.
 }
 ```
 
-OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+Windows and macOS listed vulnerabilities are based on OS version-specific data.
+
+Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting, so host counts across kernels may sum to more than the count of hosts running a given OS version. Hosts running in a container or paravirtualized environment do not have a kernel of their own.
 
 ```json
 {
-  "id": 321,
-  "hosts_count": 1,
-  "name": "CentOS Linux 7.9.2009",
-  "name_only": "CentOS",
-  "version": "7.9.2009",
-  "platform": "rhel",
-  "generated_cpes": [],
-  "vulnerabilities": []
+  "counts_updated_at": "2023-12-06T22:17:30Z",
+  "os_version": {
+    "os_version_id": 321,
+    "hosts_count": 2,
+    "name": "Ubuntu 24.04.1 LTS",
+    "name_only": "Ubuntu",
+    "version": "24.04.1 LTS",
+    "platform": "ubuntu",
+    "generated_cpes": [],
+    "kernels": [
+      {
+        "id": 561703, // the software version ID of the kernel
+        "version": "6.11.0-26.26~24.04.1",
+        "vulnerabilities": [
+          "CVE-2023-53034",
+          "CVE-2024-53222",
+          "CVE-2024-58092",
+          "CVE-2024-58093",
+          "CVE-2025-21893",
+          "CVE-2025-21894",
+          "CVE-2025-21902",
+          "CVE-2025-21903",
+          "CVE-2025-21904",
+          "CVE-2025-21905",
+          "CVE-2025-21906",
+          "CVE-2025-21908",
+          "CVE-2025-21909",
+          "CVE-2025-21910",
+        ],
+        "hosts_count": 1
+      },
+      {
+        "id": 568096,
+        "version": "6.11.0-29.29~24.04.1",
+        "vulnerabilities": null,
+        "hosts_count": 2
+      }
+    ],
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2023-53034",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-53034",
+        "created_at": "2023-07-01T00:15:00Z",
+        "cvss_score": 7.8, // Available in Fleet Premium
+        "epss_probability": 0.9729, // Available in Fleet Premium
+        "cisa_known_exploit": false, // Available in Fleet Premium
+        "cve_published": "2023-06-01T00:15:00Z", // Available in Fleet Premium
+        "cve_description": "A description", // Available in Fleet Premium
+        "resolved_in_version": "" // Available in Fleet Premium
+      }
+    ]
+  }
 }
 ```
+
+Operating systems other than Windows, macOS, and Linux do not report vulnerabilities.
 
 ### Add package
 
@@ -11131,6 +11296,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -11507,6 +11673,7 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_disk_encryption          | boolean | Hosts that belong to this team will have disk encryption enabled if set to true.                                                                                        |
+| windows_require_bitlocker_pin           | boolean | End users on Windows hosts that belong to this team will be required to set a BitLocker PIN if set to true. `enable_disk_encryption` must be set to true. When the PIN is set, it's required to unlock Windows host during startup. |
 | custom_settings                 | array    | Only intended to be used by [Fleet's YAML](https://fleetdm.com/docs/configuration/yaml-files). To add macOS configuration profiles using Fleet's API, use the [Add configuration profile endpoint](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile) instead.                                                                                                                                      |
 
 <br/>
@@ -11677,6 +11844,7 @@ _Available in Fleet Premium_
     },
     "mdm": {
       "enable_disk_encryption": true,
+      "windows_require_bitlocker_pin": false,
       "macos_updates": {
         "minimum_version": "12.3.1",
         "deadline": "2022-01-01"
@@ -12900,6 +13068,106 @@ Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
 #### Parameters
 None.
+
+## Custom variables
+
+- [List custom variables](#list-custom-variables)
+- [Create custom variable](#create-custom-variable)
+- [Delete custom variable](#delete-custom-variable)
+
+### List custom variables
+
+Lists all custom variables that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+
+`GET /api/v1/fleet/custom_variables`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| page            | integer | query | Page number of the results to fetch.  |
+| per_page        | integer | query | Results per page. |
+
+
+#### Example
+
+`GET /api/v1/fleet/custom_variables`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "custom_variables": [
+    {
+      "id": 123,
+      "name": "SOME_API_TOKEN"
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false,
+  },
+  "count": 1
+}
+
+```
+
+### Create custom variable
+
+Creates a custom variable that can be used in scripts and profiles prefixed with `$FLEET_SECRET_`.
+
+
+`POST /api/v1/fleet/custom_variables`
+
+#### Parameters
+
+| Name            | Type    | In    | Description                                                 |
+|:--------------- |:------- |:----- |:------------------------------------------------------------|
+| name            | string  | body  | **Required.** The desired variable name, without the `FLEET_SECRET_` prefix. |
+| value           | string  | body  | **Required.** The value for the custom variable. |
+
+
+#### Example
+
+`POST /api/v1/fleet/custom_variables`
+
+##### Request body
+
+```json
+{
+  "name": "SOME_API_TOKEN",
+  "value": "971ef02b93c74ca9b22b694a9251f1d6"
+}
+
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "id": 123,
+  "name": "SOME_API_TOKEN"
+}
+```
+
+
+### Delete custom variable
+
+Removes a custom variable from Fleet.
+
+`DELETE /api/v1/fleet/custom_variables/:id`
+
+#### Example
+
+`DELETE /api/v1/fleet/custom_variables/123`
+
+##### Default response
+
+`Status: 200`
 
 ## API errors
 

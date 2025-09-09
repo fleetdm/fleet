@@ -58,7 +58,7 @@ const mdmUnenrollmentTotalWaitTime = 90 * time.Second
 const defaultUnenrollmentRetryInterval = 5 * time.Second
 
 var mdmMigrationTemplatePreSonoma = template.Must(template.New("mdmMigrationTemplate").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and look for this notification in your notification center:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-migration-screenshot-notification-2048x480.png)\n\n" +
@@ -66,7 +66,7 @@ Select **Start** and look for this notification in your notification center:` +
 ))
 
 var mdmManualMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and My device page will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-manual-migration-1024x500.png)\n\n" +
@@ -74,7 +74,7 @@ Select **Start** and My device page will appear soon:` +
 ))
 
 var mdmADEMigrationTemplate = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 Select **Start** and Remote Management window will appear soon:` +
 	"\n\n![Image showing MDM migration notification](https://fleetdm.com/images/permanent/mdm-ade-migration-1024x500.png)\n\n" +
@@ -87,10 +87,10 @@ var errorTemplate = template.Must(template.New("").Parse(`
 Please [contact your IT admin]({{ .ContactURL }}).
 `))
 
-var unenrollBody = "## Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
+var unenrollBody = "### Migrate to Fleet\nUnenrolling you from your old MDM. This could take 90 seconds...\n\n%s"
 
 var mdmMigrationTemplateOffline = template.Must(template.New("").Parse(`
-## Migrate to Fleet
+### Migrate to Fleet
 
 🛜🚫 No internet connection. Please connect to internet to continue.`,
 ))
