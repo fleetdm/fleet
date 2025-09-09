@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -220,9 +221,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	}
 
 	t.Run("single install pending profile with empty compliance details", func(t *testing.T) {
-		var policyVersion *int
-		policyVersion = new(int)
-		*policyVersion = 1
+		policyVersion := ptr.Int(1)
 
 		installPendingProfile := &fleet.MDMAndroidProfilePayload{
 			ProfileUUID:             uuid.NewString(),
@@ -262,9 +261,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 	})
 
 	t.Run("compliance details has failure", func(t *testing.T) {
-		var policyVersion *int
-		policyVersion = new(int)
-		*policyVersion = 1
+		policyVersion := ptr.Int(1)
 
 		policyRequestUUID := uuid.NewString()
 		installPendingProfile1 := &fleet.MDMAndroidProfilePayload{

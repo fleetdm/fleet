@@ -244,7 +244,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 			host.Device.AppliedPolicyVersion = &device.AppliedPolicyVersion
 		}
 		host.Device.LastPolicySyncTime = ptr.Time(policySyncTime)
-		svc.verifyDevicePolicy(ctx, device) // TODO(AP): Verify
+		svc.verifyDevicePolicy(ctx, host.UUID, device)
 	}
 
 	deviceID, err := svc.getDeviceID(ctx, device)
@@ -434,8 +434,8 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 	return ptr.String(nameParts[3]), nil
 }
 
-func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanagement.Device) {
-	// TODO: Take in HostUUID
+// TODO(AP): Wrap in transaction?
+func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
 	level.Debug(svc.logger).Log("msg", "Verifying Android device policy", "device.id", device.HardwareInfo.EnterpriseSpecificId)
 
 	// Get the applied policy id field
@@ -445,7 +445,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanag
 	// That way we can either fully verify the profile, or mark as failed if the field it tries to set is not compliant.
 
 	// Get all profiles that are pending install
-	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, device.HardwareInfo.EnterpriseSpecificId, appliedPolicyVersion)
+	pendingInstallProfiles, err := svc.ds.ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
 		level.Error(svc.logger).Log("msg", "error getting pending profiles", "err", err)
 		return
@@ -484,19 +484,19 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanag
 		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
 		policyRequest, err := svc.ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID)
+			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
 		if policyRequest == nil {
-			level.Error(svc.logger).Log("msg", "policy request not found", "policy_request_uuid", policyRequestUUID)
+			level.Error(svc.logger).Log("msg", "policy request not found", "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
 		var policyRequestPayload androidPolicyRequestPayload
 		err = json.Unmarshal(policyRequest.Payload, &policyRequestPayload)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID)
+			level.Error(svc.logger).Log("msg", "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
@@ -525,7 +525,8 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanag
 		// Upsert non compliant profiles as failed
 		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, failedProfiles)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error upserting failed android profiles", "err", err)
+			level.Error(svc.logger).Log("msg", "error upserting failed android profiles", "err", err, "host_uuid", hostUUID)
+			return
 		}
 
 		// Upsert rest of profiles as verified.
@@ -544,14 +545,14 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, device *androidmanag
 
 		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, verifiedProfiles)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error upserting verified android profiles", "err", err)
+			level.Error(svc.logger).Log("msg", "error upserting verified android profiles", "err", err, "host_uuid", hostUUID)
 		}
 	}
 
 	// Bulk delete any pending remove profiles.
-	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, device.HardwareInfo.EnterpriseSpecificId, appliedPolicyVersion)
+	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error deleting pending remove profiles", "err", err)
+		level.Error(svc.logger).Log("msg", "error deleting pending remove profiles", "err", err, "host_uuid", hostUUID)
 	}
 }
 

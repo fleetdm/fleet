@@ -689,8 +689,13 @@ func (ds *Datastore) GetAndroidPolicyRequestByID(ctx context.Context, request_uu
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
 	}
+	defer rows.Close()
 
-	if rows.Next() == false {
+	if err := rows.Err(); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "iterating over rows")
+	}
+
+	if !rows.Next() {
 		return nil, nil // No rows
 	}
 
@@ -1119,6 +1124,7 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx con
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles")
 	}
+	defer rows.Close()
 
 	var profiles []*fleet.MDMAndroidProfilePayload
 	for rows.Next() {

@@ -1486,6 +1486,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 			rows, err := q.QueryContext(ctx, `SELECT profile_uuid, host_uuid, profile_name, operation_type, status, detail, included_in_policy_version, policy_request_uuid, device_request_uuid, request_fail_count
 			 FROM host_mdm_android_profiles`)
 			require.NoError(t, err)
+			defer rows.Close()
 
 			for rows.Next() {
 				var profile fleet.MDMAndroidProfilePayload
@@ -1513,6 +1514,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				IncludedInPolicyVersion: policyVersion,
 			},
 		})
+		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
 		// Act
@@ -1537,6 +1539,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				IncludedInPolicyVersion: policyVersion,
 			},
 		})
+		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
 		// Act
@@ -1577,6 +1580,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				IncludedInPolicyVersion: policyVersion,
 			},
 		})
+		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
 		// Act
@@ -1601,6 +1605,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				IncludedInPolicyVersion: policyVersion,
 			},
 		})
+		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
 		// Act
@@ -1633,6 +1638,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				IncludedInPolicyVersion: ptr.Int(*policyVersion - 1),
 			},
 		})
+		require.NoError(t, err)
 		t.Cleanup(clearOutHostMDMAndroidProfilesTable)
 
 		// Act
