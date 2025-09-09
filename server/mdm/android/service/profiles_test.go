@@ -73,7 +73,7 @@ func TestReconcileProfiles(t *testing.T) {
 		{"HostsWithMultiOverrideProfile", testHostsWithMultiOverrideProfile},
 		{"HostsWithAPIFailures", testHostsWithAPIFailures},
 		{"HostsWithAddRemoveUpdateProfiles", testHostsWithAddRemoveUpdateProfiles},
-		// {"HostsWithLabelProfiles", testHostsWithLabelProfiles},
+		{"HostsWithLabelProfiles", testHostsWithLabelProfiles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -504,6 +504,148 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	mysql.ExecAdhocSQL(t, ds.(*mysql.Datastore), func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_android_profiles WHERE profile_uuid = ?`, p1.ProfileUUID)
 		return err
+	})
+
+	// run again, nothing to process
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func testHostsWithLabelProfiles(t *testing.T, ds fleet.Datastore, client *mock.Client, reconciler *profileReconciler) {
+	ctx := t.Context()
+
+	// create some labels
+	linclAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclany-1", Query: "select 1"})
+	require.NoError(t, err)
+	linclAll, err := ds.NewLabel(ctx, &fleet.Label{Name: "inclall-1", Query: "select 1"})
+	require.NoError(t, err)
+	lexclAny, err := ds.NewLabel(ctx, &fleet.Label{Name: "exclude-1", Query: "select 1"})
+	require.NoError(t, err)
+
+	// make this test in a team
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "t1"})
+	require.NoError(t, err)
+
+	// create a couple hosts and a non-android one to ensure no unwanted side-effects
+	h1 := createAndroidHostInTeam(t, ds, 1, &tm.ID)
+	h2 := createAndroidHostInTeam(t, ds, 2, &tm.ID)
+	createNonAndroidHost(t, ds, 3)
+
+	// create profiles based on each label, and one with no label
+	pNoLabel := androidProfileWithPayloadForTest("pNoLabel", `{"maximumTimeToLock": "1"}`)
+	pNoLabel.TeamID = &tm.ID
+	pNoLabel, err = ds.NewMDMAndroidConfigProfile(ctx, *pNoLabel)
+	require.NoError(t, err)
+	pInclAny := androidProfileWithPayloadForTest("pInclAny", `{"maximumTimeToLock": "2"}`, linclAny)
+	pInclAny.TeamID = &tm.ID
+	pInclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAny)
+	require.NoError(t, err)
+	pInclAll := androidProfileWithPayloadForTest("pInclAll", `{"maximumTimeToLock": "3"}`, linclAll)
+	pInclAll.TeamID = &tm.ID
+	pInclAll, err = ds.NewMDMAndroidConfigProfile(ctx, *pInclAll)
+	require.NoError(t, err)
+	pExclAny := androidProfileWithPayloadForTest("pExclAny", `{"maximumTimeToLock": "4"}`, lexclAny)
+	pExclAny.TeamID = &tm.ID
+	pExclAny, err = ds.NewMDMAndroidConfigProfile(ctx, *pExclAny)
+	require.NoError(t, err)
+
+	// mock and control the version number, and validate the expected MaximumTimeToLock value
+	expectedMaxTimeToLock := int64(1) // will always be this due to pNoLabel always winning the setting
+	version := int64(1)
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		policy.Version = version
+		require.Equal(t, expectedMaxTimeToLock, policy.MaximumTimeToLock)
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	// currently only the no-label profile is applied
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// update the last label membership time, so that exclude any can start applying
+	h1.LabelUpdatedAt, h1.PolicyUpdatedAt = time.Now().UTC(), time.Now().UTC()
+	h2.LabelUpdatedAt, h2.PolicyUpdatedAt = time.Now().UTC(), time.Now().UTC()
+	err = ds.UpdateHost(ctx, h1.Host)
+	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, h2.Host)
+	require.NoError(t, err)
+
+	// no-label and exclude any are applied
+	version++
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+	})
+
+	// make h1 member of inclany and h2 of inclall
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, linclAny.ID, []uint{h1.Host.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, linclAll.ID, []uint{h2.Host.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// no-label, exclude any and the respective include profiles are applied
+	version++
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+	})
+
+	// make h1 member of exclAny so it stops receiving this profile
+	_, _, err = ds.UpdateLabelMembershipByHostIDs(ctx, lexclAny.ID, []uint{h1.Host.ID}, fleet.TeamFilter{})
+	require.NoError(t, err)
+
+	// this only affects h1, h2 version is unchanged
+	h2Version := version
+	version++
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: pInclAny.ProfileUUID, ProfileName: pInclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove, IncludedInPolicyVersion: ptr.Int(int(version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+
+		{HostUUID: h2.UUID, ProfileUUID: pNoLabel.ProfileUUID, ProfileName: pNoLabel.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: pInclAll.ProfileUUID, ProfileName: pInclAll.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: pExclAny.ProfileUUID, ProfileName: pExclAny.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(int(h2Version)), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
 	})
 
 	// run again, nothing to process
