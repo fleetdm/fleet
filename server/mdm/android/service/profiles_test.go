@@ -68,6 +68,8 @@ func TestReconcileProfiles(t *testing.T) {
 		{"NoHost", testNoHost},
 		{"HostsWithoutProfile", testHostsWithoutProfile},
 		{"HostsWithProfile", testHostsWithProfile},
+		{"HostsWithConflictProfile", testHostsWithConflictProfile},
+		{"HostsWithMultiOverrideProfile", testHostsWithMultiOverrideProfile},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -202,6 +204,129 @@ func testHostsWithProfile(t *testing.T, ds fleet.Datastore) {
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 }
 
+func testHostsWithConflictProfile(t *testing.T, ds fleet.Datastore) {
+	ctx := t.Context()
+
+	client := &mock.Client{}
+	client.InitCommonMocks()
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	enterprise, err := ds.GetEnterprise(ctx)
+	require.NoError(t, err)
+
+	reconciler := &profileReconciler{
+		DS:         ds,
+		Enterprise: enterprise,
+		Client:     client,
+	}
+
+	// create a couple hosts and a non-android one to ensure no unwanted side-effects
+	h1 := createAndroidHost(t, ds, 1)
+	h2 := createAndroidHost(t, ds, 2)
+	createNonAndroidHost(t, ds, 3)
+
+	// add an android profile
+	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a"}`)
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+	// add another one that overrides the first one
+	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "c"}`)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	require.NoError(t, err)
+
+	// profiles get delivered to both hosts, but p1 is failed
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// run again, nothing to process as everything is pending/failed
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
+func testHostsWithMultiOverrideProfile(t *testing.T, ds fleet.Datastore) {
+	ctx := t.Context()
+
+	client := &mock.Client{}
+	client.InitCommonMocks()
+	client.EnterprisesPoliciesPatchFunc = func(ctx context.Context, enterpriseID string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		policy.Version = 1
+		return policy, nil
+	}
+	client.EnterprisesDevicesPatchFunc = func(ctx context.Context, name string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+		return device, nil
+	}
+
+	enterprise, err := ds.GetEnterprise(ctx)
+	require.NoError(t, err)
+
+	reconciler := &profileReconciler{
+		DS:         ds,
+		Enterprise: enterprise,
+		Client:     client,
+	}
+
+	// create h2 in a team, to validate that it isn't impacted by the non-team profiles
+	tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "t1"})
+	require.NoError(t, err)
+
+	// create a couple hosts and a non-android one to ensure no unwanted side-effects
+	h1 := createAndroidHost(t, ds, 1)
+	createAndroidHostInTeam(t, ds, 2, &tm.ID)
+	createNonAndroidHost(t, ds, 3)
+
+	// add android profiles with multiple keys and multiple profiles overridden,
+	// and insert in different order than the names to verify that name ordering
+	// is applied.
+	p3 := androidProfileWithPayloadForTest("p3", `{"key1": "c", "key2": "c", "key3": "c", "key4": "c"}`)
+	p3, err = ds.NewMDMAndroidConfigProfile(ctx, *p3)
+	require.NoError(t, err)
+	p1 := androidProfileWithPayloadForTest("p1", `{"key1": "a", "key2": "a"}`)
+	p1, err = ds.NewMDMAndroidConfigProfile(ctx, *p1)
+	require.NoError(t, err)
+	p2 := androidProfileWithPayloadForTest("p2", `{"key1": "b", "key2": "b", "key3": "b"}`)
+	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
+	require.NoError(t, err)
+
+	// profiles get delivered to h1 only
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", and "key2" aren't applied. They are overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"key1", "key2", and "key3" aren't applied. They are overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p3.ProfileUUID, ProfileName: p3.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(1), RequestFailCount: 0, PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
+
+	// run again, nothing to process as everything is pending/failed
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
+}
+
 func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload) {
 	ctx := t.Context()
 	mds := ds.(*mysql.Datastore)
@@ -233,6 +358,10 @@ func assertHostProfiles(t *testing.T, ds fleet.Datastore, hostProfiles []*fleet.
 }
 
 func createAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.AndroidHost {
+	return createAndroidHostInTeam(t, ds, suffixID, nil)
+}
+
+func createAndroidHostInTeam(t *testing.T, ds fleet.Datastore, suffixID int, teamID *uint) *fleet.AndroidHost {
 	hostUUID := uuid.NewString()
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -244,6 +373,7 @@ func createAndroidHost(t *testing.T, ds fleet.Datastore, suffixID int) *fleet.An
 			Memory:         1024,
 			HardwareSerial: uuid.NewString(),
 			UUID:           hostUUID,
+			TeamID:         teamID,
 		},
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
@@ -281,7 +411,10 @@ func androidProfileForTest(name string, labels ...*fleet.Label) *fleet.MDMAndroi
 	payload := `{
 		"maximumTimeToLock": "1234"
 	}`
+	return androidProfileWithPayloadForTest(name, payload, labels...)
+}
 
+func androidProfileWithPayloadForTest(name, payload string, labels ...*fleet.Label) *fleet.MDMAndroidConfigProfile {
 	profile := &fleet.MDMAndroidConfigProfile{
 		RawJSON: []byte(payload),
 		Name:    name,

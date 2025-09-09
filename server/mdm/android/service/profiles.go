@@ -189,21 +189,23 @@ func (r *profileReconciler) sendHostProfiles(
 			}
 		}
 
-		var detail string
 		status := fleet.MDMDeliveryPending
-		if overridden, ok := overriddenSettings[prof.ProfileUUID]; ok && len(overridden) > 0 {
-			status = fleet.MDMDeliveryFailed
-			detail = buildPolicyFieldsOverriddenErrorMessage(overridden)
-		}
-
 		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
 			HostUUID:         hostUUID,
 			Status:           &status,
 			OperationType:    fleet.MDMOperationTypeInstall,
 			ProfileUUID:      prof.ProfileUUID,
 			ProfileName:      prof.ProfileName,
-			Detail:           detail,
 			RequestFailCount: setFailCount,
+		}
+	}
+
+	// mark overridden profiles as failed
+	for profUUID, overridden := range overriddenSettings {
+		if len(overridden) > 0 {
+			bulk := bulkProfilesByUUID[profUUID]
+			bulk.Status = &fleet.MDMDeliveryFailed
+			bulk.Detail = buildPolicyFieldsOverriddenErrorMessage(overridden)
 		}
 	}
 
