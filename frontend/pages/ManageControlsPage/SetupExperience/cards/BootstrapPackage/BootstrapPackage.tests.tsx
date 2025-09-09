@@ -44,10 +44,37 @@ const setuDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
+  it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
+    mockServer.use(errorNoSetupExperienceScriptHandler);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: { app: { config: { mdm: { enabled_and_configured: false } } } },
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+
+    expect(
+      await screen.getByText(/turn on automatic enrollment/)
+    ).toBeInTheDocument();
+  });
   it("renders the status table and bootstrap package if a package has been uploaded", async () => {
     setuDefaultBackendMocks();
 
-    const render = createCustomRenderer({ withBackendMock: true });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              apple_bm_enabled_and_configured: true,
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/status/gi);
@@ -64,7 +91,21 @@ describe("BootstrapPackage", () => {
     setuDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
-    const render = createCustomRenderer({ withBackendMock: true });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              apple_bm_enabled_and_configured: true,
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
     render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/Upload a bootstrap package/gi);
@@ -85,7 +126,21 @@ describe("BootstrapPackage", () => {
     setuDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
-    const render = createCustomRenderer({ withBackendMock: true });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              apple_bm_enabled_and_configured: true,
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
     const { user } = render(
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
@@ -113,7 +168,21 @@ describe("BootstrapPackage", () => {
       })
     );
 
-    const render = createCustomRenderer({ withBackendMock: true });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              apple_bm_enabled_and_configured: true,
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
     const { user } = render(
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
@@ -131,7 +200,21 @@ describe("BootstrapPackage", () => {
     setuDefaultBackendMocks();
     mockServer.use(createSetupExperienceScriptHandler());
 
-    const render = createCustomRenderer({ withBackendMock: true });
+    const render = createCustomRenderer({
+      withBackendMock: true,
+      context: {
+        app: {
+          config: {
+            mdm: {
+              enabled_and_configured: true,
+              apple_bm_enabled_and_configured: true,
+            },
+            gitops: { gitops_mode_enabled: false },
+          },
+        },
+      },
+    });
+
     const { user } = render(
       <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
     );
