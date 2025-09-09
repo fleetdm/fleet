@@ -2156,6 +2156,10 @@ type Datastore interface {
 	// set of slugs.
 	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
 
+	// GetSetupExperienceCount returns the number of installers, vpp apps, and scritps available for
+	// a team and platform
+	GetSetupExperienceCount(ctx context.Context, platform string, teamID *uint) (*SetupExperienceCount, error)
+
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
