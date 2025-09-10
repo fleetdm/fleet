@@ -44,6 +44,7 @@ func TestAndroid(t *testing.T) {
 		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
+		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -318,6 +319,55 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 1, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
+}
+
+// Test that BatchSetMDMProfiles properly inserts Android profiles when the
+// incoming profiles have empty ProfileUUIDs and still applies label
+// associations (i.e. matching by team_id + name works).
+func testBatchSetMDMAndroidProfiles_Associations(t *testing.T, ds *Datastore) {
+	// Ensure builtin labels exist
+	test.AddBuiltinLabels(t, ds)
+
+	// Prepare an incoming Android profile without ProfileUUID and with a label
+	teamID := uint(0)
+	profName := "test-android-profile"
+	incoming := &fleet.MDMAndroidConfigProfile{
+		ProfileUUID: "", // intentionally empty to exercise DB-generated uuid flow
+		Name:        profName,
+		RawJSON:     json.RawMessage(`{"k":"v"}`),
+		TeamID:      nil,
+		LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{
+			LabelName: fleet.BuiltinLabelNameAndroid,
+		}},
+	}
+
+	// Look up the builtin Android label id and set it on the incoming profile
+	var lblID uint
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &lblID, `SELECT id FROM labels WHERE name = ?`, fleet.BuiltinLabelNameAndroid)
+	})
+	// assign the id so the label association insertion uses a valid FK
+	if len(incoming.LabelsIncludeAll) > 0 {
+		incoming.LabelsIncludeAll[0].LabelID = lblID
+	}
+
+	// Call BatchSetMDMProfiles with only android profiles populated
+	_, err := ds.BatchSetMDMProfiles(testCtx(), &teamID, nil, nil, nil, []*fleet.MDMAndroidConfigProfile{incoming}, nil)
+	require.NoError(t, err)
+
+	// Verify the profile exists in the DB
+	var dbCount int
+	err = sqlx.GetContext(testCtx(), ds.writer(testCtx()), &dbCount, `SELECT COUNT(1) FROM mdm_android_configuration_profiles WHERE name = ? AND team_id = ?`, profName, teamID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, dbCount)
+
+	// Verify that a label association was created for the profile by querying
+	// mdm_configuration_profile_labels joined to mdm_android_configuration_profiles
+	var assocCount int
+	query := `SELECT COUNT(1) FROM mdm_configuration_profile_labels l JOIN mdm_android_configuration_profiles p ON l.android_profile_uuid = p.profile_uuid WHERE p.name = ? AND p.team_id = ? AND l.label_name = ?`
+	err = sqlx.GetContext(testCtx(), ds.writer(testCtx()), &assocCount, query, profName, teamID, fleet.BuiltinLabelNameAndroid)
+	require.NoError(t, err)
+	assert.Equal(t, 1, assocCount, "expected a label association for the inserted android profile")
 }
 
 func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
@@ -845,6 +895,80 @@ func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 		_, err := q.ExecContext(context.Background(), stmt, hostUUID, profUUID, status, fleet.MDMOperationTypeInstall, status)
 		return err
 	})
+}
+
+func expectAndroidProfiles(
+	t *testing.T,
+	ds *Datastore,
+	tmID *uint,
+	want []*fleet.MDMAndroidConfigProfile,
+) {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+
+	ctx := t.Context()
+	var gotUUIDs []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &gotUUIDs,
+			`SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE team_id = ?`,
+			tmID)
+	})
+
+	// load each profile, this will also load its labels
+	var got []*fleet.MDMAndroidConfigProfile
+	for _, profileUUID := range gotUUIDs {
+		profile, err := ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
+		require.NoError(t, err)
+		got = append(got, profile)
+	}
+	// create map of expected uuids keyed by name
+	wantMap := make(map[string]*fleet.MDMAndroidConfigProfile, len(want))
+	for _, cp := range want {
+		wantMap[cp.Name] = cp
+	}
+
+	JSONRemarshal := func(bytes []byte) ([]byte, error) {
+		var ifce interface{}
+		err := json.Unmarshal(bytes, &ifce)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(ifce)
+	}
+
+	// compare only the fields we care about, and build the resulting map of
+	// profile identifier as key to profile UUID as value
+	for _, gotA := range got {
+
+		wantA := wantMap[gotA.Name]
+
+		if gotA.TeamID != nil && *gotA.TeamID == 0 {
+			gotA.TeamID = nil
+		}
+
+		// ProfileUUID is non-empty and starts with "g", but otherwise we don't
+		// care about it for test assertions.
+		require.NotEmpty(t, gotA.ProfileUUID)
+		require.True(t, strings.HasPrefix(gotA.ProfileUUID, fleet.MDMAndroidProfileUUIDPrefix))
+		gotA.ProfileUUID = ""
+
+		gotA.CreatedAt = time.Time{}
+		gotA.AutoIncrement = 0
+
+		gotBytes, err := JSONRemarshal(gotA.RawJSON)
+		require.NoError(t, err)
+		gotA.RawJSON = gotBytes
+
+		// if an expected uploaded_at timestamp is provided for this profile, keep
+		// its value, otherwise clear it as we don't care about asserting its
+		// value.
+		if wantA.UploadedAt.IsZero() {
+			gotA.UploadedAt = time.Time{}
+		}
+	}
+
+	require.ElementsMatch(t, want, got)
 }
 
 func testListMDMAndroidProfilesToSend(t *testing.T, ds *Datastore) {
