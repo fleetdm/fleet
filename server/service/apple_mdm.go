@@ -2897,6 +2897,9 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
+	// Dry run
+	decoded.DryRun = r.URL.Query().Get("dry_run") == "true"
+
 	return &decoded, nil
 }
 
