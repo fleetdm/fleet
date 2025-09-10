@@ -1718,6 +1718,12 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 		level.Debug(ds.logger).Log("msg", "ingesting devices from DEP received < 1 device, skipping", "len(devices)", len(devices))
 		return 0, nil
 	}
+	migrationDeadlinesBySerial := make(map[string]time.Time, len(devices))
+	for _, device := range devices {
+		if device.MDMMigrationDeadline != nil {
+			migrationDeadlinesBySerial[device.SerialNumber] = *device.MDMMigrationDeadline
+		}
+	}
 
 	var teamIDs []*uint
 	for _, team := range []*fleet.Team{macOSTeam, iosTeam, ipadTeam} {
@@ -1770,7 +1776,14 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 		}
 		createdCount = n
 
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
+		migrationDeadlinesByHostID := make(map[uint]time.Time, len(devices))
+		for _, host := range hosts {
+			if migrationDeadline, ok := migrationDeadlinesBySerial[host.HardwareSerial]; ok {
+				migrationDeadlinesByHostID[host.ID] = migrationDeadline
+			}
+		}
+
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID, migrationDeadlinesByHostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "ingest mdm apple host upsert DEP assignments")
 		}
 
@@ -1780,9 +1793,9 @@ func (ds *Datastore) IngestMDMAppleDevicesFromDEPSync(
 	return createdCount, err
 }
 
-func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint) error {
+func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts []fleet.Host, abmTokenID uint, mdmMigrationDeadlinesByHostID map[uint]time.Time) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID); err != nil {
+		if err := upsertHostDEPAssignmentsDB(ctx, tx, hosts, abmTokenID, mdmMigrationDeadlinesByHostID); err != nil {
 			return ctxerr.Wrap(ctx, err, "upsert host DEP assignments")
 		}
 
@@ -1790,24 +1803,29 @@ func (ds *Datastore) UpsertMDMAppleHostDEPAssignments(ctx context.Context, hosts
 	})
 }
 
-func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host, abmTokenID uint) error {
+func upsertHostDEPAssignmentsDB(ctx context.Context, tx sqlx.ExtContext, hosts []fleet.Host, abmTokenID uint, migrationDeadlinesByHostID map[uint]time.Time) error {
 	if len(hosts) == 0 {
 		return nil
 	}
 
 	stmt := `
-		INSERT INTO host_dep_assignments (host_id, abm_token_id)
+		INSERT INTO host_dep_assignments (host_id, abm_token_id, mdm_migration_deadline)
 		VALUES %s
 		ON DUPLICATE KEY UPDATE
 		  added_at = CURRENT_TIMESTAMP,
 		  deleted_at = NULL,
-		  abm_token_id = VALUES(abm_token_id)`
+		  abm_token_id = VALUES(abm_token_id),
+		  mdm_migration_deadline = VALUES(mdm_migration_deadline)`
 
 	args := []interface{}{}
 	values := []string{}
 	for _, host := range hosts {
-		args = append(args, host.ID, abmTokenID)
-		values = append(values, "(?, ?)")
+		var deadline *time.Time
+		if d, ok := migrationDeadlinesByHostID[host.ID]; ok {
+			deadline = &d
+		}
+		args = append(args, host.ID, abmTokenID, deadline)
+		values = append(values, "(?, ?, ?)")
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, strings.Join(values, ",")), args...)
@@ -2066,7 +2084,7 @@ func unionSelectDevices(devices []hostToCreateFromMDM) (stmt string, args []inte
 func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fleet.HostDEPAssignment, error) {
 	var res fleet.HostDEPAssignment
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, `
-		SELECT host_id, added_at, deleted_at, abm_token_id FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
+		SELECT host_id, added_at, deleted_at, abm_token_id, mdm_migration_deadline, mdm_migration_completed FROM host_dep_assignments hdep WHERE hdep.host_id = ?`, hostID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostDEPAssignment").WithID(hostID))
@@ -2148,7 +2166,9 @@ func (ds *Datastore) DeleteHostDEPAssignments(ctx context.Context, abmTokenID ui
 
 		stmt, args, err := sqlx.In(`
           UPDATE host_dep_assignments
-          SET deleted_at = NOW()
+          SET deleted_at = NOW(),
+		  mdm_migration_deadline = NULL,
+		  mdm_migration_completed = NULL
           WHERE host_id IN (?)`, hostIDs)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "building IN statement")

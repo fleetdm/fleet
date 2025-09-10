@@ -3500,10 +3500,18 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
-		// Enqueue setup experience items and mark the host as being in setup experience
-		hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
-		if err != nil {
-			return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
+		if !info.MigrationInProgress {
+			// Enqueue setup experience items and mark the host as being in setup experience
+			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
+			}
+		} else {
+			svc.logger.Log("info", "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
+			err = svc.ds.SetHostMDMMigrationCompleted(r.Context, info.HostID)
+			if err != nil {
+				return ctxerr.Wrap(r.Context, err, "setting mdm migration completed")
+			}
 		}
 	}
 
