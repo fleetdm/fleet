@@ -24,7 +24,7 @@ import BootstrapPackage from "./BootstrapPackage";
  * sets up some default backend mocks for the tests. Override what you need
  * with mockServer.use() in the test itself.
  */
-const setuDefaultBackendMocks = () => {
+const setupDefaultBackendMocks = () => {
   mockServer.use(createGetConfigHandler());
 
   // default is no run script or install software already added
@@ -45,49 +45,49 @@ const setuDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
-  // it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
-  //   mockServer.use(errorNoSetupExperienceScriptHandler);
-  //   mockServer.use(
-  //     createGetConfigHandler({
-  //       mdm: createMockMdmConfig({ enabled_and_configured: false }),
-  //     })
-  //   );
-  //   const render = createCustomRenderer({
-  //     withBackendMock: true,
-  //   });
+  it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
 
-  //   render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
 
-  //   await waitFor(() => {
-  //     expect(
-  //       screen.getByText(/turn on automatic enrollment/)
-  //     ).toBeInTheDocument();
-  //   });
-  // });
-  // it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
-  //   mockServer.use(errorNoSetupExperienceScriptHandler);
-  //   mockServer.use(
-  //     createGetConfigHandler({
-  //       mdm: createMockMdmConfig({
-  //         enabled_and_configured: true,
-  //         apple_bm_enabled_and_configured: false,
-  //       }),
-  //     })
-  //   );
-  //   const render = createCustomRenderer({
-  //     withBackendMock: true,
-  //   });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+  });
+  it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({
+          enabled_and_configured: true,
+          apple_bm_enabled_and_configured: false,
+        }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
 
-  //   render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
 
-  //   await waitFor(() => {
-  //     expect(
-  //       screen.getByText(/turn on automatic enrollment/)
-  //     ).toBeInTheDocument();
-  //   });
-  // });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+  });
   it("renders the status table and bootstrap package if a package has been uploaded", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -106,7 +106,7 @@ describe("BootstrapPackage", () => {
   });
 
   it("render the bootstrap package uploader if a package has not been uploaded", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
     const render = createCustomRenderer({
@@ -130,7 +130,7 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there is no bootstrap package uploaded", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
     const render = createCustomRenderer({
@@ -151,7 +151,7 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there are already added install software", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(
       createSetupExperienceSoftwareHandler({
         software_titles: [
@@ -182,7 +182,7 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there is alreaddy a run script added", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(createSetupExperienceScriptHandler());
 
     const render = createCustomRenderer({
