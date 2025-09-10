@@ -30,7 +30,8 @@ resource "aws_route53_record" "main" {
 }
 
 module "loadtest" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.1"
+  #source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.1"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=internal-lb-support"
   vpc_config = {
     name   = local.customer
     vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
@@ -74,6 +75,11 @@ module "loadtest" {
     mem                 = var.fleet_task_memory
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer
+    extra_load_balancers = var.run_migrations ? [{
+        target_group_arn = resource.aws_lb_target_group.internal.arn
+        container_name   = "fleet"
+        container_port   = 8080
+      }] : []
     autoscaling = {
       min_capacity = var.fleet_task_count
       max_capacity = var.fleet_task_count
@@ -100,7 +106,7 @@ module "loadtest" {
     # Add these for MDM or cloudfront
     extra_execution_iam_policies = concat(
       module.mdm.extra_execution_iam_policies,
-      module.cloudfront-software-installers.extra_execution_iam_policies,
+      # module.cloudfront-software-installers.extra_execution_iam_policies,
       [
         resource.aws_iam_policy.license.arn
       ],
@@ -114,7 +120,7 @@ module "loadtest" {
     )
     extra_secrets = merge(
       module.mdm.extra_secrets,
-      module.cloudfront-software-installers.extra_secrets,
+      # module.cloudfront-software-installers.extra_secrets,
       local.extra_secrets
     )
     private_key_secret_name = "${local.customer}-fleet-server-private-key"
@@ -152,7 +158,6 @@ module "loadtest" {
       enabled = true
     }
     idle_timeout = 905
-    internal     = true
   }
 }
 
