@@ -81,10 +81,10 @@ export default {
     return sendRequest("DELETE", path);
   },
   load: (teamId: number | undefined): Promise<ILoadTeamResponse> => {
-    if (!teamId || teamId <= API_NO_TEAM_ID) {
+    if (teamId === undefined || teamId < API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
-          `Invalid team id: ${teamId} must be greater than ${API_NO_TEAM_ID}`
+          `Invalid team id: ${teamId} must be greater than or equal to ${API_NO_TEAM_ID}`
         )
       );
     }

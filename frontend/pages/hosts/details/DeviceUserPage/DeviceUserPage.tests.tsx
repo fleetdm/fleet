@@ -9,6 +9,7 @@ import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultSetupSoftwareStatusesHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
@@ -30,6 +31,7 @@ describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -52,6 +54,7 @@ describe("Device User Page", () => {
   it("hides the certificates card if the device has no certificates", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -79,6 +82,7 @@ describe("Device User Page", () => {
 
     mockServer.use(customDeviceHandler({ host }));
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -102,6 +106,7 @@ describe("Device User Page", () => {
     const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
       mockServer.use(customDeviceHandler(overrides));
       mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(defaultSetupSoftwareStatusesHandler);
 
       const render = createCustomRenderer({
         withBackendMock: true,

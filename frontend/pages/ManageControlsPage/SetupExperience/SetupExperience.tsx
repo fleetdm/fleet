@@ -83,11 +83,7 @@ const SetupExperience = ({
 
   return (
     <div className={baseClass}>
-      <p>
-        Customize the setup experience for macOS, iOS, iPadOS and Android hosts
-        that enroll in this team. Each step runs sequentially and will be
-        required if enabled before the end user finishes setup.
-      </p>
+      <p>Customize the end user&apos;s setup experience.</p>
       <SideNav
         className={`${baseClass}__side-nav`}
         navItems={SETUP_EXPERIENCE_NAV_ITEMS.map((navItem) => ({

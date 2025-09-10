@@ -1,0 +1,1 @@
+* Improved performance for YARA rules: when modifying config (PATCH /api/latest/fleet/config) with a large number of yara rules and when large numbers of hosts fetch rules via /api/osquery/yara/{name} endpoint.

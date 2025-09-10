@@ -59,7 +59,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     setShowDeleteBootstrapPackageModal,
   ] = useState(false);
 
-  const { data: softwareTitles, isLoading: isLoadingSoftware } = useQuery<
+  const { data: macSoftwareTitles, isLoading: isLoadingSoftware } = useQuery<
     IGetSetupExperienceSoftwareResponse,
     AxiosError,
     ISoftwareTitle[] | null
@@ -67,6 +67,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     ["install-software", currentTeamId],
     () =>
       mdmAPI.getSetupExperienceSoftware({
+        platform: "macos",
         team_id: currentTeamId,
         per_page: PER_PAGE_SIZE,
       }),
@@ -165,7 +166,7 @@ const BootstrapPackage = ({ currentTeamId }: IBootstrapPackageProps) => {
     (errorBootstrapMetadata && errorBootstrapMetadata.status === 404) ||
     !bootstrapMetadata;
   const hasSetupExperienceInstallSoftware =
-    getInstallSoftwareDuringSetupCount(softwareTitles) !== 0;
+    getInstallSoftwareDuringSetupCount(macSoftwareTitles) !== 0;
   const hasSetupExperienceScript = !!script;
 
   const renderBootstrapView = () => {

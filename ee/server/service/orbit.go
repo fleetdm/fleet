@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
@@ -121,7 +122,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
 	}
 
-	err = svc.failCancelledSetupExperienceInstalls(ctx, host, res)
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, host.UUID, host.DisplayName(), res)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
 	}
@@ -166,7 +167,7 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		}
 	}
 
-	_, err = svc.SetupExperienceNextStep(ctx, host.UUID)
+	_, err = svc.SetupExperienceNextStep(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
 	}
@@ -174,13 +175,19 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 	return payload, nil
 }
 
-func (svc *Service) failCancelledSetupExperienceInstalls(ctx context.Context, host *fleet.Host, results []*fleet.SetupExperienceStatusResult) error {
+func (svc *Service) failCancelledSetupExperienceInstalls(
+	ctx context.Context,
+	hostID uint,
+	hostUUID string,
+	hostDisplayName string,
+	results []*fleet.SetupExperienceStatusResult,
+) error {
 	for _, r := range results {
 		if r.Status != fleet.SetupExperienceStatusCancelled {
 			continue
 		}
 		r.Status = fleet.SetupExperienceStatusFailure
-		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", host.UUID, "software_name", r.Name)
+		level.Info(svc.logger).Log("msg", "marking setup experience software as failed due to cancellation", "host_uuid", hostUUID, "software_name", r.Name)
 		err := svc.ds.UpdateSetupExperienceStatusResult(ctx, r)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failing cancelled setup experience software install")
@@ -195,8 +202,8 @@ func (svc *Service) failCancelledSetupExperienceInstalls(ctx context.Context, ho
 				softwarePackage = installerMeta.Name
 			}
 			activity := fleet.ActivityTypeInstalledSoftware{
-				HostID:              host.ID,
-				HostDisplayName:     host.DisplayName(),
+				HostID:              hostID,
+				HostDisplayName:     hostDisplayName,
 				SoftwareTitle:       r.Name,
 				SoftwarePackage:     softwarePackage,
 				InstallUUID:         *r.HostSoftwareInstallsExecutionID,
@@ -279,4 +286,34 @@ func isDeviceReadyForRelease(payload *fleet.SetupExperienceStatusPayload) bool {
 	}
 
 	return true
+}
+
+func (svc *Service) SetupExperienceInit(ctx context.Context) (*fleet.SetupExperienceInitResult, error) {
+	// This is an orbit endpoint, not a user-authenticated endpoint.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
+	}
+
+	// teamID for EnqueueSetupExperienceItems should be 0 for "No team" hosts.
+	var teamID uint
+	if host.TeamID != nil {
+		teamID = *host.TeamID
+	}
+
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
+
+	enabled, err := svc.ds.EnqueueSetupExperienceItems(ctx, host.PlatformLike, hostUUID, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check for software titles for setup experience")
+	}
+
+	return &fleet.SetupExperienceInitResult{
+		Enabled: enabled,
+	}, nil
 }
