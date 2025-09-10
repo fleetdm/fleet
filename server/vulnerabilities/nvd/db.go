@@ -42,7 +42,6 @@ SELECT
     title,
     version,
     target_sw,
-    sw_edition,
     deprecated
 FROM cpe_2;
 CREATE TABLE IF NOT EXISTS deprecated_by (
