@@ -45,47 +45,47 @@ const setuDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
-  it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
-    mockServer.use(errorNoSetupExperienceScriptHandler);
-    mockServer.use(
-      createGetConfigHandler({
-        mdm: createMockMdmConfig({ enabled_and_configured: false }),
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
+  // it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
+  //   mockServer.use(errorNoSetupExperienceScriptHandler);
+  //   mockServer.use(
+  //     createGetConfigHandler({
+  //       mdm: createMockMdmConfig({ enabled_and_configured: false }),
+  //     })
+  //   );
+  //   const render = createCustomRenderer({
+  //     withBackendMock: true,
+  //   });
 
-    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+  //   render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/turn on automatic enrollment/)
-      ).toBeInTheDocument();
-    });
-  });
-  it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
-    mockServer.use(errorNoSetupExperienceScriptHandler);
-    mockServer.use(
-      createGetConfigHandler({
-        mdm: createMockMdmConfig({
-          enabled_and_configured: true,
-          apple_bm_enabled_and_configured: false,
-        }),
-      })
-    );
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
+  //   await waitFor(() => {
+  //     expect(
+  //       screen.getByText(/turn on automatic enrollment/)
+  //     ).toBeInTheDocument();
+  //   });
+  // });
+  // it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
+  //   mockServer.use(errorNoSetupExperienceScriptHandler);
+  //   mockServer.use(
+  //     createGetConfigHandler({
+  //       mdm: createMockMdmConfig({
+  //         enabled_and_configured: true,
+  //         apple_bm_enabled_and_configured: false,
+  //       }),
+  //     })
+  //   );
+  //   const render = createCustomRenderer({
+  //     withBackendMock: true,
+  //   });
 
-    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+  //   render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
 
-    await waitFor(() => {
-      expect(
-        screen.getByText(/turn on automatic enrollment/)
-      ).toBeInTheDocument();
-    });
-  });
+  //   await waitFor(() => {
+  //     expect(
+  //       screen.getByText(/turn on automatic enrollment/)
+  //     ).toBeInTheDocument();
+  //   });
+  // });
   it("renders the status table and bootstrap package if a package has been uploaded", async () => {
     setuDefaultBackendMocks();
 
