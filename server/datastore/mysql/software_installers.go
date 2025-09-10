@@ -18,6 +18,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const setupExperienceSoftwareInstallsRetries uint = 3
+
 func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
 }
@@ -142,6 +144,17 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	result.InstallScript = expandedInstallScript
 	result.PostInstallScript = expandedPostInstallScript
 	result.UninstallScript = expandedUninstallScript
+
+	// Check if this install is part of setup experience and set retry count accordingly
+	var setupExperienceCount int
+	setupExpStmt := `SELECT COUNT(*) FROM setup_experience_status_results WHERE host_software_installs_execution_id = ? AND status IN (?, ?)`
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &setupExperienceCount, setupExpStmt, executionId, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "check if install is part of setup experience")
+	}
+
+	if setupExperienceCount > 0 {
+		result.MaxRetries = setupExperienceSoftwareInstallsRetries
+	}
 
 	return result, nil
 }

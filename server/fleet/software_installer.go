@@ -51,6 +51,8 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// MaxRetries indicates the maximum number of retry attempts for the installation.
+	MaxRetries uint `json:"max_retries,omitempty"`
 }
 
 type SoftwareInstallerURL struct {
