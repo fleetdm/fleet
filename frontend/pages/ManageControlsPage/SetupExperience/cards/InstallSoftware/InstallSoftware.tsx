@@ -19,7 +19,6 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import CustomLink from "components/CustomLink";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
@@ -54,7 +53,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
   const {
     data: softwareTitles,
-    isLoading,
+    isLoading: isLoadingSoftwareTitles,
     isError,
     refetch: refetchSoftwareTitles,
   } = useQuery<
@@ -70,7 +69,6 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
         per_page: PER_PAGE_SIZE,
       }),
     {
-      enabled: selectedPlatform !== "windows", // remove next iteration
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
     }
@@ -110,18 +108,11 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   );
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (platform === "windows") {
-      return (
-        <div className={`${baseClass}__windows`}>
-          <b>Windows setup experience is coming soon.</b>
-          <p>
-            Need to customize setup for Windows users?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </p>
-        </div>
-      );
-    }
-    if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
+    if (
+      isLoadingSoftwareTitles ||
+      isLoadingGlobalConfig ||
+      isLoadingTeamConfig
+    ) {
       return <Spinner />;
     }
 

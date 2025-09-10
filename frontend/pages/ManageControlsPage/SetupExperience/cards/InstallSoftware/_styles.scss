@@ -2,7 +2,4 @@
   .react-tabs__tab-list {
     margin-bottom: $pad-small;
   }
-  &__windows {
-    @include tab-empty-state;
-  }
 }
