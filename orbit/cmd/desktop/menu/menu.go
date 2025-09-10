@@ -20,7 +20,7 @@ func isOpenSUSE() bool {
 	// Check /etc/os-release for OpenSUSE identification
 	if data, err := os.ReadFile("/etc/os-release"); err == nil {
 		content := string(data)
-		return strings.Contains(strings.ToLower(content), "opensuse"))
+		return strings.Contains(strings.ToLower(content), "opensuse")
 	}
 
 	return false
