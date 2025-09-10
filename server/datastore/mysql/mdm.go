@@ -2227,7 +2227,11 @@ func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtCon
 		}
 	}
 
-	idsToDelete := []uint{}
+	maxCapacity := len(misses)
+	if len(hits) > 1 {
+		maxCapacity += len(hits) - 1
+	}
+	idsToDelete := make([]uint, 0, maxCapacity)
 	if len(misses) > 0 {
 		// log the emails we'll be deleting
 		msg := "reconcile host emails: deleting emails"
