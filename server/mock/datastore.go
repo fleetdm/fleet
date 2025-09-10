@@ -16,7 +16,6 @@ import (
 //go:generate go run ./mockimpl/impl.go -o digicert/digicert.go "s *Service" "fleet.DigiCertService"
 //go:generate go run ./mockimpl/impl.go -o mdm/bootstrap_package_store.go "s *MDMBootstrapPackageStore" "fleet.MDMBootstrapPackageStore"
 //go:generate go run ./mockimpl/impl.go -o software/software_installer_store.go "s *SoftwareInstallerStore" "fleet.SoftwareInstallerStore"
-//go:generate go run ./mockimpl/impl.go -o service/service_mock.go "s *Service" "fleet.Service"
 
 var _ fleet.Datastore = (*Store)(nil)
 
