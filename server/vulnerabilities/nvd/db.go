@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS cpe_2 (
     product TEXT,
     version TEXT,
     target_sw TEXT,
-	sw_edition TEST,
+    sw_edition TEST,
     deprecated BOOLEAN DEFAULT FALSE
 );
 CREATE VIEW IF NOT EXISTS cpe AS
@@ -42,7 +42,7 @@ SELECT
     title,
     version,
     target_sw,
-	sw_edition,
+    sw_edition,
     deprecated
 FROM cpe_2;
 CREATE TABLE IF NOT EXISTS deprecated_by (
