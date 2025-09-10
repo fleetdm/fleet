@@ -1402,7 +1402,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
 					// For customers using large profiles and/or large numbers of profiles, the
 					// server needs time to completely read the request body and also to process
 					// all the side effects of a potentially large number of profiles being changed
