@@ -4,7 +4,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import {
-  createSetupExperienceBootstrapPackageHandler,
+  createSetupExperienceBootstrapMetadataHandler,
   createSetupExperienceScriptHandler,
   createSetupExperienceSoftwareHandler,
   createSetuUpExperienceBootstrapSummaryHandler,
@@ -33,7 +33,7 @@ const setupDefaultBackendMocks = () => {
 
   // default will be a bootstrap package already uploaded
   mockServer.use(
-    createSetupExperienceBootstrapPackageHandler({ name: "foo-package.pkg" })
+    createSetupExperienceBootstrapMetadataHandler({ name: "foo-package.pkg" })
   );
   mockServer.use(
     createSetuUpExperienceBootstrapSummaryHandler({
@@ -56,7 +56,7 @@ describe("BootstrapPackage", () => {
       withBackendMock: true,
     });
 
-    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await waitFor(() => {
       expect(
@@ -78,7 +78,7 @@ describe("BootstrapPackage", () => {
       withBackendMock: true,
     });
 
-    render(<BootstrapPackage router={createMockRouter()} currentTeamId={1} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await waitFor(() => {
       expect(
