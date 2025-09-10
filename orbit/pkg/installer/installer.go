@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -248,6 +249,76 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 		return payload, nil
 	}
 
+	// Perform the installation with retry logic if MaxRetries > 0
+	if installer.MaxRetries > 0 {
+		logger.Info().Msgf("Installation configured with %d retries", installer.MaxRetries)
+		return r.installWithRetry(ctx, installer, payload, logger)
+	}
+
+	// No retries configured, perform single installation attempt
+	return r.attemptInstall(ctx, installer, payload, logger)
+}
+
+// installWithRetry attempts installation with retry logic for setup experience
+func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.SoftwareInstallDetails, payload *fleet.HostSoftwareInstallResultPayload, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
+	// MaxRetries is the number of retry attempts (0 means no retries, just one attempt)
+	// maxAttempts is the total number of attempts (initial + retries)
+	maxAttempts := installer.MaxRetries + 1
+
+	var lastErr error
+
+	for attempt := uint(1); attempt <= maxAttempts; attempt++ {
+		logger.Debug().Msgf("Installation attempt %d of %d", attempt, maxAttempts)
+
+		// Attempt installation
+		resultPayload, err := r.attemptInstall(ctx, installer, payload, logger)
+
+		if err == nil {
+			// Success
+			logger.Debug().Msgf("Installation succeeded on attempt %d", attempt)
+			return resultPayload, nil
+		}
+
+		lastErr = err
+
+		if attempt < maxAttempts {
+			// Calculate delay: 10s * 2^(attempt-1) for network/transient errors, immediate retry otherwise
+			var delay time.Duration
+			if isNetworkOrTransientError(err) {
+				// Exponential backoff: 10s, 20s, 40s, etc.
+				delay = time.Duration(10*(1<<(attempt-1))) * time.Second
+				logger.Info().Msgf(
+					"Network or transient error detected, waiting %v before retry (attempt %d failed)",
+					delay,
+					attempt,
+				)
+			} else {
+				// Non-transient error, retry immediately
+				logger.Info().Msgf(
+					"Retrying software install immediately (attempt %d failed)",
+					attempt,
+				)
+			}
+
+			if delay > 0 && attempt < maxAttempts {
+				// Wait before retry
+				select {
+				case <-ctx.Done():
+					return resultPayload, ctx.Err()
+				case <-time.After(delay):
+				}
+			}
+		}
+	}
+
+	// All retries exhausted
+	logger.Err(lastErr).Msgf("Installation failed after %d attempts", maxAttempts)
+	return payload, lastErr
+}
+
+// attemptInstall performs a single installation attempt (download + install)
+func (r *Runner) attemptInstall(ctx context.Context, installer *fleet.SoftwareInstallDetails, payload *fleet.HostSoftwareInstallResultPayload, logger zerolog.Logger) (*fleet.HostSoftwareInstallResultPayload, error) {
+
 	tmpDirFn := r.tempDirFn
 	if tmpDirFn == nil {
 		tmpDirFn = os.MkdirTemp
@@ -402,6 +473,124 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	}
 
 	return payload, nil
+}
+
+// isNetworkOrTransientError determines if an error is network-related or otherwise transient
+// and would benefit from waiting before retry
+func isNetworkOrTransientError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// Check if it's a net.Error with Timeout() method
+	// Note: Temporary() is deprecated and should not be used
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		if netErr.Timeout() {
+			return true
+		}
+	}
+
+	// Fall back to string matching for errors that don't implement net.Error
+	errStr := err.Error()
+
+	// Network errors - these patterns come from:
+
+	// "timeout" - net/http Client.Do() timeout errors, http.TimeoutHandler
+	// "TLS handshake" - crypto/tls handshake timeouts during HTTPS connections
+	if strings.Contains(errStr, "timeout") ||
+		(strings.Contains(errStr, "TLS") && strings.Contains(errStr, "handshake")) {
+		return true
+	}
+
+	// "connection refused" - syscall.ECONNREFUSED from net.Dial when server is not listening
+	if strings.Contains(errStr, "connection refused") {
+		return true
+	}
+
+	// "connection reset" - syscall.ECONNRESET from net.Conn.Read/Write when peer closes connection
+	if strings.Contains(errStr, "connection reset") {
+		return true
+	}
+
+	// "no such host" - net.LookupHost DNS resolution failures
+	if strings.Contains(errStr, "no such host") {
+		return true
+	}
+
+	// "network is unreachable" - syscall.ENETUNREACH from net.Dial when network is down
+	if strings.Contains(errStr, "network is unreachable") {
+		return true
+	}
+
+	// "unexpected EOF" - io.ErrUnexpectedEOF from http.Response.Body.Read() on incomplete responses
+	if strings.Contains(errStr, "unexpected EOF") {
+		return true
+	}
+
+	// "context deadline exceeded" - context.DeadlineExceeded from context timeouts
+	if strings.Contains(errStr, "context deadline exceeded") {
+		return true
+	}
+
+	// Rate limiting and service availability errors
+	// These come from statusCodeErr in base_client.go which formats as "status XXX <body>"
+
+	// "status 429" - HTTP 429 Too Many Requests
+	if strings.Contains(errStr, "status 429") || strings.Contains(errStr, "too many requests") {
+		return true
+	}
+
+	// "status 503" - HTTP 503 Service Unavailable
+	if strings.Contains(errStr, "status 503") || strings.Contains(errStr, "service unavailable") {
+		return true
+	}
+
+	// "status 502" - HTTP 502 Bad Gateway (proxy/gateway issues)
+	if strings.Contains(errStr, "status 502") || strings.Contains(errStr, "bad gateway") {
+		return true
+	}
+
+	// "status 504" - HTTP 504 Gateway Timeout
+	if strings.Contains(errStr, "status 504") || strings.Contains(errStr, "gateway timeout") {
+		return true
+	}
+
+	// "status 500" - HTTP 500 Internal Server Error (temporary server issues)
+	if strings.Contains(errStr, "status 500") || strings.Contains(errStr, "internal server error") {
+		return true
+	}
+
+	// Resource contention errors
+
+	// "resource busy" - file locks, device busy errors
+	if strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "device or resource busy") {
+		return true
+	}
+
+	// "database is locked" - SQLite and other DB lock errors
+	if strings.Contains(errStr, "database is locked") || strings.Contains(errStr, "database locked") {
+		return true
+	}
+
+	// "file is locked" - file system lock contention
+	if strings.Contains(errStr, "file is locked") || strings.Contains(errStr, "locked by another process") {
+		return true
+	}
+
+	// Temporary file system errors
+
+	// "no space left" - disk full, might resolve if something else cleans up
+	if strings.Contains(errStr, "no space left") {
+		return true
+	}
+
+	// "input/output error" - transient I/O errors
+	if strings.Contains(errStr, "input/output error") {
+		return true
+	}
+
+	return false
 }
 
 func (r *Runner) runInstallerScript(ctx context.Context, scriptContents string, installerPath string, fileName string) (string, int, error) {

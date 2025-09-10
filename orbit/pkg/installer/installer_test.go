@@ -53,6 +53,7 @@ func (qc *TestQueryClient) QueryContext(ctx context.Context, query string) (*Que
 }
 
 func TestRunInstallScript(t *testing.T) {
+	t.Parallel()
 	oc := &TestOrbitClient{}
 	r := Runner{OrbitClient: oc, scriptsEnabled: func() bool { return true }}
 
@@ -83,6 +84,7 @@ func TestRunInstallScript(t *testing.T) {
 }
 
 func TestPreconditionCheck(t *testing.T) {
+	t.Parallel()
 	qc := &TestQueryClient{}
 	r := &Runner{OsqueryClient: qc, scriptsEnabled: func() bool { return true }}
 
@@ -141,6 +143,7 @@ func TestPreconditionCheck(t *testing.T) {
 }
 
 func TestInstallerRun(t *testing.T) {
+	t.Parallel()
 	oc := &TestOrbitClient{}
 
 	var getInstallerDetailsFnCalled bool
@@ -588,6 +591,7 @@ func TestInstallerRun(t *testing.T) {
 }
 
 func TestInstallerRunWithInstallerFromURL(t *testing.T) {
+	t.Parallel()
 	oc := &TestOrbitClient{}
 
 	var getInstallerDetailsFnCalled bool
@@ -787,6 +791,7 @@ func TestInstallerRunWithInstallerFromURL(t *testing.T) {
 }
 
 func TestScriptsDisabled(t *testing.T) {
+	t.Parallel()
 	oc := &TestOrbitClient{}
 	qc := &TestQueryClient{}
 	r := &Runner{
@@ -832,4 +837,252 @@ func TestScriptsDisabled(t *testing.T) {
 	}, out)
 	require.True(t, getInstallerDetailsFnCalled)
 	require.Equal(t, "1", installIdRequested)
+}
+
+func TestIsNetworkOrTransientError(t *testing.T) {
+	t.Parallel()
+	t.Run("nil error", func(t *testing.T) {
+		require.False(t, isNetworkOrTransientError(nil))
+	})
+
+	t.Run("sample network errors", func(t *testing.T) {
+		networkErrors := []error{
+			errors.New("connection timeout"),
+			errors.New("connection refused"),
+			errors.New("TLS handshake error"),
+		}
+
+		for _, err := range networkErrors {
+			t.Run(err.Error(), func(t *testing.T) {
+				require.True(t, isNetworkOrTransientError(err), "Error should be detected as network/transient error: %v", err)
+			})
+		}
+	})
+
+	t.Run("sample transient errors", func(t *testing.T) {
+		transientErrors := []error{
+			// Rate limiting and server errors (as returned by our HTTP client)
+			errors.New("POST /api/fleet/orbit/software_install/package received status 429 too many requests"),
+			errors.New("resource busy"),
+			errors.New("no space left on device"),
+			errors.New("input/output error"),
+		}
+
+		for _, err := range transientErrors {
+			t.Run(err.Error(), func(t *testing.T) {
+				require.True(t, isNetworkOrTransientError(err), "Error should be detected as transient: %v", err)
+			})
+		}
+	})
+
+	t.Run("non-transient errors", func(t *testing.T) {
+		nonTransientErrors := []error{
+			errors.New("404 not found"),
+			errors.New("403 forbidden"),
+			errors.New("invalid installer format"),
+		}
+
+		for _, err := range nonTransientErrors {
+			t.Run(err.Error(), func(t *testing.T) {
+				require.False(t, isNetworkOrTransientError(err), "Error should not be detected as transient: %v", err)
+			})
+		}
+	})
+}
+
+func TestInstallWithRetry(t *testing.T) {
+	t.Parallel()
+	t.Run("successful on first attempt", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(3), nil
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.execCmdFn = successfulExecFn()
+		r.tempDirFn = tempDirFn(t)
+
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 1, downloadAttempts, "Should only download once on success")
+	})
+
+	// TODO: Use synctest.Test here once we upgrade to Go 1.25
+	t.Run("retry on transient error with delay", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+		r.installerExecutionTimeout = 1 * time.Second
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			if downloadAttempts == 1 {
+				// First attempt fails with network error
+				return "", errors.New("connection timeout")
+			}
+			// Second attempt succeeds
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(3), nil
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.execCmdFn = successfulExecFn()
+		r.tempDirFn = tempDirFn(t)
+
+		// Note: In production this will wait 10 seconds for first retry due to transient error
+		// For testing, we accept the delay as part of integration testing
+		startTime := time.Now()
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+		duration := time.Since(startTime)
+
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 2, downloadAttempts, "Should retry once after transient error")
+		// Verify we waited at least 10 seconds (first retry delay for transient error)
+		require.True(t, duration >= 10*time.Second, "Should wait at least 10s before retry for transient error")
+	})
+
+	t.Run("retry on non-transient error without delay", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			if downloadAttempts < 3 {
+				// First two attempts fail with non-transient error
+				return "", errors.New("403 forbidden")
+			}
+			// Third attempt succeeds
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(3), nil
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.execCmdFn = successfulExecFn()
+		r.tempDirFn = tempDirFn(t)
+
+		// Non-transient errors should retry immediately
+		startTime := time.Now()
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+		duration := time.Since(startTime)
+
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 3, downloadAttempts, "Should retry until success")
+		// Verify no significant delay (should be less than 1 second for immediate retries)
+		require.True(t, duration < 1*time.Second, "Should retry immediately for non-transient errors")
+	})
+
+	t.Run("no retry when MaxRetries is 0", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			return "", errors.New("connection timeout")
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(0), nil // No retries configured
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.tempDirFn = tempDirFn(t)
+
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+		require.Error(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 1, downloadAttempts, "Should not retry when MaxRetries is 0")
+	})
+
+	// TODO: Use synctest.Test here once we upgrade to Go 1.25
+	t.Run("exhausts all retries with transient errors", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+		r.installerExecutionTimeout = 1 * time.Second
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			// Always fail with transient error
+			return "", errors.New("connection timeout")
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts (1 initial + 2 retries)
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.tempDirFn = tempDirFn(t)
+
+		// Transient errors will cause delays: 10s for first retry, 20s for second retry
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		startTime := time.Now()
+		payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
+		duration := time.Since(startTime)
+
+		require.Error(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 3, downloadAttempts, "Should attempt 1 initial + 2 retries = 3 total")
+		require.Contains(t, err.Error(), "connection timeout")
+		// Should wait at least 30s total (10s + 20s for the two retries)
+		require.True(t, duration >= 30*time.Second, "Should wait for transient error retries")
+	})
+}
+
+// Test helper functions
+
+// testRunnerSetup creates a standard test Runner with OrbitClient for testing
+func testRunnerSetup() (*TestOrbitClient, *Runner) {
+	oc := &TestOrbitClient{}
+	r := &Runner{
+		OrbitClient:    oc,
+		scriptsEnabled: func() bool { return true },
+	}
+	return oc, r
+}
+
+// defaultTestInstallDetails returns a basic SoftwareInstallDetails for testing
+func defaultTestInstallDetails(maxRetries uint) *fleet.SoftwareInstallDetails {
+	return &fleet.SoftwareInstallDetails{
+		ExecutionID:   "exec1",
+		InstallerID:   1337,
+		InstallScript: "echo 'install'",
+		MaxRetries:    maxRetries,
+	}
+}
+
+// successfulExecFn returns a mock exec function that always succeeds
+func successfulExecFn() func(context.Context, string, []string) ([]byte, int, error) {
+	return func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+		return []byte("success"), 0, nil
+	}
+}
+
+// noopSaveResultFn returns a mock save function that does nothing
+func noopSaveResultFn() func(*fleet.HostSoftwareInstallResultPayload) error {
+	return func(payload *fleet.HostSoftwareInstallResultPayload) error {
+		return nil
+	}
+}
+
+// tempDirFn returns a function that creates a temp directory for testing
+func tempDirFn(t *testing.T) func(string, string) (string, error) {
+	return func(dir, pattern string) (string, error) {
+		return t.TempDir(), nil
+	}
 }
