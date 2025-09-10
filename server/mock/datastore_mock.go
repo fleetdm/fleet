@@ -1447,7 +1447,7 @@ type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAnd
 
 type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
-type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error
+type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -8771,7 +8771,7 @@ func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []s
 	return s.GetMDMAndroidProfilesContentsFunc(ctx, uuids)
 }
 
-func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
 	s.mu.Lock()
 	s.BulkUpsertMDMAndroidHostProfilesFuncInvoked = true
 	s.mu.Unlock()

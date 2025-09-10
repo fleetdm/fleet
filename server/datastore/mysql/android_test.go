@@ -1341,7 +1341,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	}, hostProfiles)
 
 	// mark all installed for hosts 0, profile 1 failed for host 1
-	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 		{
 			HostUUID:                hosts[0].UUID,
 			ProfileUUID:             profiles[0].ProfileUUID,
@@ -1380,7 +1380,7 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	}, hostProfiles)
 
 	// mark host 0 profile 1 as NULL, host 1 profile 0 as installed (so both are now installed), and host 2 profile 2 as installed
-	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 		{
 			HostUUID:                hosts[0].UUID,
 			ProfileUUID:             profiles[1].ProfileUUID,

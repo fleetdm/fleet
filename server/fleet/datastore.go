@@ -2260,7 +2260,7 @@ type Datastore interface {
 
 	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
 	// status of a profile in a host.
-	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidBulkUpsertHostProfilePayload) error
+	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
