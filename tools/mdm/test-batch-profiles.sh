@@ -6,6 +6,21 @@
 # to generate different test cases.
 #--------------------------------------------------------------
 
+if [[ -z "$FLEET_PATH" ]]; then
+  echo "Error: FLEET_PATH environment variable is not set. This is the path to the Fleet project." >&2
+  exit 1
+fi
+
+if [[ -z "$FLEET_SERVER_URL" ]]; then
+  echo "Error: FLEET_SERVER_URL environment variable is not set. This is the URL of the Fleet server." >&2
+  exit 1
+fi
+
+if [[ -z "$FLEET_AUTH_TOKEN" ]]; then
+  echo "Error: FLEET_AUTH_TOKEN environment variable is not set. This is the authentication token used for Fleet API requests." >&2
+  exit 1
+fi
+
 # generate request payload
 payload="$(
 $FLEET_PATH/tools/mdm/make_cfg_profiles.sh \
