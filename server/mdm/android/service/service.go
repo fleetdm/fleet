@@ -86,6 +86,46 @@ func NewServiceWithClient(
 	}, nil
 }
 
+func jordanEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	err := svc.JordanEndpoint(ctx)
+	return android.DefaultResponse{Err: err}
+}
+
+var calls int
+
+func (svc *Service) JordanEndpoint(ctx context.Context) error {
+	// skipauth: Testing porpoises only
+	svc.authz.SkipAuthorization(ctx)
+	hostUUID := "DKNI-WPQD-5D6K-LP26T-JQOX-WDRD-G"
+	enterprise, err := svc.GetEnterprise(ctx)
+	if err != nil {
+		return err
+	}
+	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), hostUUID)
+	packages := []string{"com.android.google.youtube", "com.android.chrome", "com.roblox.client", "com.walmart.android", "com.whatsapp", "com.zhiliaoapp.musically", "com.instagram.android"}
+	packageName := ""
+	if calls < len(packages) {
+		packageName = packages[calls]
+	}
+	if packageName == "" {
+		fmt.Printf("Out of apps\n")
+		packageName = "com.example.app"
+	}
+	fmt.Printf("Call %d: Patching policy %s to add app %s\n", calls+1, policyName, packageName)
+	policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, &androidmanagement.ApplicationPolicy{
+		PackageName: packageName,
+	})
+	calls++
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Call %d: Successfully patched policy %s to add app %s got policy version %d\n", calls, policyName, packageName, policy.Version)
+	fmt.Printf("Policy has %d apps\n", len(policy.Applications))
+	jsonBytes, _ := json.Marshal(policy.Applications)
+	fmt.Printf("Apps of returned policy: %s\n", string(jsonBytes))
+	return nil
+}
+
 func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {

@@ -15,6 +15,9 @@ type Service interface {
 	// CreateEnrollmentToken creates an enrollment token for a new Android device.
 	CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*EnrollmentToken, error)
 	ProcessPubSubPush(ctx context.Context, token string, message *PubSubMessage) error
+
+	// Test please ignore
+	JordanEndpoint(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

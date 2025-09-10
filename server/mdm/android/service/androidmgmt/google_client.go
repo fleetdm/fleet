@@ -174,6 +174,25 @@ func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName 
 	return ret, nil
 }
 
+func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: policy,
+			},
+		},
+	}
+	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s: %w", policyName, err)
+	}
+	return ret.Policy, nil
+}
+
 func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 	ret, err := g.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx).Do()
 	switch {
