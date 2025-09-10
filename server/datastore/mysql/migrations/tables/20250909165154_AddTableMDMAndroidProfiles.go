@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250825165154, Down_20250825165154)
+	MigrationClient.AddMigration(Up_20250909165154, Down_20250909165154)
 }
 
-func Up_20250825165154(tx *sql.Tx) error {
+func Up_20250909165154(tx *sql.Tx) error {
 	// The AUTO_INCREMENT columns are used to determine if a row was updated by
 	// an INSERT ... ON DUPLICATE KEY UPDATE statement. This is needed because we
 	// are currently using CLIENT_FOUND_ROWS option to determine if a row was
@@ -46,11 +46,6 @@ CREATE TABLE mdm_android_configuration_profiles (
 	if _, err := tx.Exec(createProfilesTable); err != nil {
 		return fmt.Errorf("create mdm_android_configuration_profiles table: %w", err)
 	}
-
-	// TODO(ap): not sure how to handle the 3 retries before marking a profile as
-	// failed, does that mean that after 3 failures we stop merging any proflies
-	// that were part of those failures, and send only other (newer) profiles? Or
-	// do we stop sending any policy for that host from that point on?
 
 	// The table android_policy_requests tracks the API requests made to create
 	// or update the policy to apply to a given host.
@@ -108,6 +103,10 @@ CREATE TABLE host_mdm_android_profiles (
   -- we won't have the request uuid until the request is ready to be sent
   policy_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
   device_request_uuid   VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL,
+  -- counts the number of consecutive failures for AMAPI requests
+  request_fail_count    TINYINT UNSIGNED NOT NULL DEFAULT '0',
+  -- the latest policy version that includes this profile
+  included_in_policy_version INT DEFAULT NULL,
 
   created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -181,6 +180,6 @@ UPDATE hosts
 	return nil
 }
 
-func Down_20250825165154(tx *sql.Tx) error {
+func Down_20250909165154(tx *sql.Tx) error {
 	return nil
 }
