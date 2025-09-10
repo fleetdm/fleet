@@ -31,6 +31,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import DynamicLabel from "pages/labels/NewLabelPage/DynamicLabel";
 import ManualLabel from "pages/labels/NewLabelPage/ManualLabel";
@@ -227,7 +228,9 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new/dynamic" />
+            <IndexRedirect to="manage" />
+            {/* auth/push logic within ManageLabelsPage */}
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               <IndexRedirect to="dynamic" />
               <Route path="dynamic" component={DynamicLabel} />
