@@ -1484,18 +1484,8 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	listAllHostMDMAndroidProfiles := func() []*fleet.MDMAndroidProfilePayload {
 		var hostProfiles []*fleet.MDMAndroidProfilePayload
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			rows, err := q.QueryContext(ctx, `SELECT profile_uuid, host_uuid, profile_name, operation_type, status, detail, included_in_policy_version, policy_request_uuid, device_request_uuid, request_fail_count
-			 FROM host_mdm_android_profiles`)
+			err := sqlx.SelectContext(ctx, q, &hostProfiles, "SELECT profile_uuid, host_uuid, profile_name, operation_type, status, detail, included_in_policy_version, policy_request_uuid, device_request_uuid, request_fail_count FROM host_mdm_android_profiles")
 			require.NoError(t, err)
-			defer rows.Close()
-
-			for rows.Next() {
-				var profile fleet.MDMAndroidProfilePayload
-				require.NoError(t, rows.Scan(&profile.ProfileUUID, &profile.HostUUID, &profile.ProfileName, &profile.OperationType, &profile.Status, &profile.Detail, &profile.IncludedInPolicyVersion, &profile.PolicyRequestUUID, &profile.DeviceRequestUUID, &profile.RequestFailCount))
-				hostProfiles = append(hostProfiles, &profile)
-			}
-			require.NoError(t, rows.Err())
-
 			return err
 		})
 

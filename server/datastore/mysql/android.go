@@ -1109,24 +1109,12 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx con
 		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
 	`
 
-	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles")
-	}
-	defer rows.Close()
-
 	var profiles []*fleet.MDMAndroidProfilePayload
-	for rows.Next() {
-		var p fleet.MDMAndroidProfilePayload
-		if err := rows.Scan(&p.ProfileUUID, &p.HostUUID, &p.Status, &p.OperationType, &p.Detail, &p.ProfileName, &p.PolicyRequestUUID, &p.DeviceRequestUUID, &p.RequestFailCount, &p.IncludedInPolicyVersion); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "scanning host MDM Android profile")
-		}
-		profiles = append(profiles, &p)
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "iterating host MDM Android profiles")
-	}
 	return profiles, nil
 }
 

@@ -478,9 +478,6 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		}
 
 	} else {
-		// Lookup payloads for each profile in profileToInstall, then call upon the merge method defined by Martin, to merge it all into the final policy.
-		// Iterate over either a map or top level metadata of fields overridden?
-
 		// Dedupe the policyRequestUUID across all pending install profiles
 		var policyRequestUUID string
 		for _, profile := range pendingInstallProfiles {
@@ -492,12 +489,12 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
 		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
 		policyRequest, err := svc.ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
-		if err != nil {
+		if err != nil && !fleet.IsNotFound(err) {
 			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
 
-		if policyRequest == nil {
+		if fleet.IsNotFound(err) {
 			level.Error(svc.logger).Log("msg", "policy request not found", "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
 		}
