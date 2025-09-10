@@ -65,6 +65,27 @@ func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTit
 	return responseBody.SoftwareTitle, nil
 }
 
+func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software_titles/%d/icon", titleID)
+	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("team_id=%d", teamID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
+	}
+	defer response.Body.Close()
+	err = c.parseResponse(verb, path, response, nil)
+	if err != nil {
+		return nil, fmt.Errorf("parsing icon response: %w", err)
+	}
+	if response.StatusCode != http.StatusNoContent {
+		b, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading response body: %w", err)
+		}
+		return b, nil
+	}
+	return nil, nil
+}
+
 func (c *Client) ApplyNoTeamSoftwareInstallers(softwareInstallers []fleet.SoftwareInstallerPayload, opts fleet.ApplySpecOptions) ([]fleet.SoftwarePackageResponse, error) {
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {

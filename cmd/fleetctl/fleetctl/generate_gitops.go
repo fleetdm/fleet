@@ -72,6 +72,7 @@ type generateGitopsClient interface {
 	GetTeam(teamID uint) (*fleet.Team, error)
 	ListSoftwareTitles(query string) ([]fleet.SoftwareTitleListResult, error)
 	GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTitle, error)
+	GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error)
 	GetPolicies(teamID *uint) ([]*fleet.Policy, error)
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
@@ -395,7 +396,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 
 		// Generate software.
 		if team != nil {
-			software, err := cmd.generateSoftware(fileName, team.ID, teamFileName)
+			software, err := cmd.generateSoftware(
+				fileName,
+				team.ID,
+				teamFileName,
+				!cmd.CLI.Bool("print") && (cmd.CLI.String("key") == "" || cmd.CLI.String("key") == "software"),
+			)
 			if err != nil {
 				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating software for %s: %s\n", teamFileName, err)
 				return ErrGeneric
@@ -1293,7 +1299,7 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string) (map[string]interface{}, error) {
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string, downloadIcons bool) (map[string]interface{}, error) {
 	if !cmd.AppConfig.License.IsPremium() {
 		return nil, nil // software is premium-only
 	}
@@ -1425,6 +1431,23 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if softwareTitle.SoftwarePackage.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
 			}
+
+			// each package is listed once in software, so we can pull icon directly here
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]interface{}{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
 		}
 
 		if softwareTitle.AppStoreApp != nil {
@@ -1435,6 +1458,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 			if softwareTitle.AppStoreApp.Categories != nil {
 				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
 			}
+
+			// TODO handle icons
 		}
 
 		var labels []fleet.SoftwareScopeLabel

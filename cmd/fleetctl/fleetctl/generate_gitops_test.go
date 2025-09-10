@@ -378,6 +378,10 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 	}
 }
 
+func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
+	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
+}
+
 func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
 	return []*fleet.LabelSpec{{
 		Name:                "Label A",
