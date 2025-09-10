@@ -88,12 +88,6 @@ func GetRawProfilePlatform(profile []byte) string {
 // DetermineJSONConfigType checks the JSON data to determine if it is an Apple or Android profile.
 // Returns isApple, isAndroid, error.
 func DetermineJSONConfigType(data []byte) (bool, bool, error) {
-	/*
-		Not in this code but endpoint code maybe:
-		Verify that users get an error if they try to upload a profile with a name that already exists (across all platforms). Add Restrictions.json Android profile, then try to add macOS profile (.mobileconfig) that has PayloadDisplayName = Restrictions.
-		Verify that users get an error if they try to upload an Android profile with specific settings that
-		are restricted (specified in Figma).
-	*/
 	type jsonObj map[string]interface{}
 	var profileKeyMap jsonObj
 	err := json.Unmarshal(data, &profileKeyMap)
