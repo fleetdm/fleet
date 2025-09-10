@@ -1385,7 +1385,7 @@ func (svc *Service) editTeamFromSpec(
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+				`Couldn’t edit windows_settings.custom_settings. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
@@ -1400,7 +1400,7 @@ func (svc *Service) editTeamFromSpec(
 			len(spec.MDM.AndroidSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.AndroidSettings.CustomSettings.Value, spec.MDM.AndroidSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("android_settings.custom_settings",
-				`Couldn’t edit android_settings.custom_settings. Android MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+				`Couldn’t edit android_settings.custom_settings. `+fleet.ErrAndroidMDMNotConfigured.Error()))
 		}
 
 		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
