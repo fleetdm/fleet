@@ -347,6 +347,14 @@ List versions changes for any component updates below:
 4. Packs results information is logged
 </td><td>pass/fail</td></tr>
 
+<tr><td>Fleet Free</td><td>Verify that Fleet Desktop works on Fleet Free.</td><td>
+After repointing a Fleet Desktop install at a server running Fleet Free:
+
+1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.<br>
+2. The "My device" page is populated correctly and as expected. <br>
+3. Styling and padding appears correct. 
+</td><td>pass/fail</td></tr>
+
 </table>
   
 # Notes

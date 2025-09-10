@@ -2,6 +2,10 @@
 
 This is meant to be a helpful checklist of 'events' or 'transactions' to help catch edge cases sooner rather than later while designing or testing new features or bugs.  Please feel free to add more if any are missing.
 
+## fleetd and Fleet Desktop
+- Fleet Free and Fleet Premium
+- Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
+
 ## User
 
 - Create user
@@ -153,7 +157,6 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Premium vs. Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
 - Team level user (Admin, Maintainer, Observer, Observer+, API only)
-
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">
