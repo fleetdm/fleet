@@ -56,6 +56,7 @@ const generateTableHeaders = (
           <SoftwareNameCell
             name={name}
             source={source}
+            // iconUrl does not exist on ISoftwareVersion
             path={softwareVersionDetailsPath}
             router={router}
           />

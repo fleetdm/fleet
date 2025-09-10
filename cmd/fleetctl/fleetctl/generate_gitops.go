@@ -4,10 +4,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	pathUtils "path"
 	"reflect"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -284,8 +287,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if cmd.CLI.String("team") != "" {
 			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
 			for _, team := range teams {
-				transformedTeamName := generateFilename(team.Name)
-				if transformedSelectedName == transformedTeamName {
+				if transformedSelectedName == generateFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
 						ID:   &team.ID,
 						Team: &team,
@@ -488,6 +490,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			// Replace any empty values with a blank.
 			b = emptyVal.ReplaceAll(b, []byte(":"))
+			// Unescape any unicode chars added by the YAML marshaler.
+			b = unescapeUnicodeU8(b)
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
@@ -559,6 +563,8 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+var footguns = []rune{'/', '\\', ':', '*', '?', '"', '<', '>', '|'}
+
 // Given a name, generate a filename by replacing spaces with dashes and
 // removing any non-alphanumeric characters.
 func generateFilename(name string) string {
@@ -568,8 +574,14 @@ func generateFilename(name string) string {
 			return unicode.ToLower(r)
 		case unicode.IsSpace(r):
 			return '-'
+		// replace common footguns with unique letters.
+		case slices.Contains(footguns, r):
+			return rune('a' + slices.Index(footguns, r))
+		// bail on control characters
+		case r < 0x20:
+			panic("Cannot process filename " + name + " because it has control characters in it.")
 		default:
-			return -1
+			return r
 		}
 	}, name)
 	// Strip any leading/trailing dashes using regex.
@@ -818,6 +830,15 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.custom_scep_proxy.challenge",
+				})
+			}
+		}
+		if hydrant, ok := result["hydrant"]; ok && hydrant != nil {
+			for _, intg := range hydrant.([]interface{}) {
+				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "integrations.hydrant.client_secret",
 				})
 			}
 		}
@@ -1500,6 +1521,19 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		result = append(result, labelSpec)
 	}
 	return result, nil
+}
+
+var uniEscape = regexp.MustCompile(`\\U([0-9A-Fa-f]{8})`)
+
+// Utility function to unescape Unicode U+XXXX sequences added by the YAML marshaler.
+func unescapeUnicodeU8(b []byte) []byte {
+	return uniEscape.ReplaceAllFunc(b, func(m []byte) []byte {
+		v, err := strconv.ParseUint(string(m[2:]), 16, 32)
+		if err != nil || v > math.MaxInt32 {
+			return m
+		}
+		return []byte(string(rune(v)))
+	})
 }
 
 var _ generateGitopsClient = (*service.Client)(nil)

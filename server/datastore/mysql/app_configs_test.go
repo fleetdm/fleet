@@ -627,6 +627,100 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, &expectedRules[1], rule)
 
+	// Apply the same rules again - this should be a no-op due to optimization
+	// (rules haven't changed, so no DELETE/INSERT should occur)
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	// Test edge case: Apply same rules but in different order
+	reorderedRules := []fleet.YaraRule{expectedRules[1], expectedRules[0]}
+	err = ds.ApplyYaraRules(ctx, reorderedRules)
+	require.NoError(t, err)
+	// Verify both rules still exist
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[0].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[0], rule)
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[1], rule)
+
+	// Test: Modify only the content of one rule (same name, different content)
+	modifiedContentRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		},
+		{
+			Name: "jump-modified.yar",
+			Contents: `rule JumpExample
+{
+    strings:
+        $hex_string = true
+
+    condition:
+        $hex_string
+}`,
+		},
+	}
+	err = ds.ApplyYaraRules(ctx, modifiedContentRules)
+	require.NoError(t, err)
+	// Verify the content was actually updated
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+	assert.Contains(t, rule.Contents, "E2 34 ?? C8 A? FB FF")
+
+	// Test: Mixed operations - add new, keep one unchanged, delete one
+	mixedRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		}, // unchanged from previous
+		// jump-modified.yar is deleted
+		{
+			Name:     "new-rule.yar",
+			Contents: `rule NewRule { condition: true }`,
+		}, // new rule
+	}
+	err = ds.ApplyYaraRules(ctx, mixedRules)
+	require.NoError(t, err)
+
+	// Verify mixed operation results
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	// Check wildcard.yar is unchanged
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+
+	// Check jump-modified.yar is deleted
+	_, err = ds.YaraRuleByName(ctx, "jump-modified.yar")
+	require.Error(t, err)
+
+	// Check new-rule.yar is added
+	rule, err = ds.YaraRuleByName(ctx, "new-rule.yar")
+	require.NoError(t, err)
+	assert.Equal(t, `rule NewRule { condition: true }`, rule.Contents)
+
 	// Clear rules
 	expectedRules = []fleet.YaraRule{}
 	err = ds.ApplyYaraRules(ctx, expectedRules)

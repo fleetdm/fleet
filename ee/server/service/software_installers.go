@@ -363,6 +363,7 @@ func (svc *Service) UpdateSoftwareInstaller(ctx context.Context, payload *fleet.
 		SelfService:     existingInstaller.SelfService,
 		SoftwarePackage: &existingInstaller.Name,
 		SoftwareTitleID: payload.TitleID,
+		SoftwareIconURL: existingInstaller.IconUrl,
 	}
 
 	if payload.SelfService != nil && *payload.SelfService != existingInstaller.SelfService {
@@ -744,6 +745,7 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		Platform:         meta.Platform,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconURL,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
@@ -779,6 +781,7 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		SelfService:      meta.SelfService,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
 	}
@@ -2002,7 +2005,7 @@ func (svc *Service) softwareBatchUpload(
 					if installer.InstallerFile == nil {
 						return fmt.Errorf("maintained app %s requires hash to be generated but no installer file found", p.MaintainedApp.UniqueIdentifier)
 					}
-					p.MaintainedApp.SHA256, err = maintained_apps.SHA256FromInstallerFile(installer.InstallerFile)
+					p.MaintainedApp.SHA256, err = file.SHA256FromTempFileReader(installer.InstallerFile)
 					if err != nil {
 						return fmt.Errorf("maintained app %s error generating hash: %w", p.MaintainedApp.UniqueIdentifier, err)
 					}

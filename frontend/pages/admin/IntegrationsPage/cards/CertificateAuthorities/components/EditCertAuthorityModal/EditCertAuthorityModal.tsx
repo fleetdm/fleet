@@ -36,6 +36,7 @@ const EditCertAuthorityModal = ({
 }: IEditCertAuthorityModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
   const [formData, setFormData] = useState<ICertFormData | undefined>();
 
   const { data: fullCertAuthority, isLoading, isError } = useQuery(
@@ -55,6 +56,8 @@ const EditCertAuthorityModal = ({
       if (!prevFormData) return prevFormData;
       return updateFormData(fullCertAuthority, prevFormData, update);
     });
+
+    setIsDirty(true);
   };
 
   const onEditCertAuthority = async () => {
@@ -111,6 +114,7 @@ const EditCertAuthorityModal = ({
         submitBtnText="Save"
         isSubmitting={isUpdating}
         isEditing
+        isDirty={isDirty}
         onChange={onChangeForm}
         onSubmit={onEditCertAuthority}
         onCancel={onExit}

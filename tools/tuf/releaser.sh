@@ -115,6 +115,45 @@ promote_component_edge_to_stable () {
     popd
 }
 
+update_osquery_schema_and_flags () {
+    version=$1
+
+    GO_TOOLS_DIRECTORY=$(mktemp -d)
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace"
+
+    pushd "$GIT_REPOSITORY_DIRECTORY"
+    branch_name=update-osquery-schema-v$version
+    git checkout -b "$branch_name"
+
+    # 1. Update the version used to generate the osquery schema in Fleet.
+    pushd website
+    "$GO_TOOLS_DIRECTORY/replace" ./config/custom.js "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: .+\n" "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '$version',\n"
+    npm install
+    ./node_modules/sails/bin/sails.js run generate-merged-schema
+    popd
+    git add ./website/config/custom.js
+    git add ./schema/osquery_fleet_schema.json
+
+    # 2. Update cli/flags.
+    "$GO_TOOLS_DIRECTORY/replace" ./tools/osquery-agent-options/main.go "osqueryVersion = .+\n" "osqueryVersion = \"$version\"\n"
+    pushd server/fleet/
+    go generate
+    popd
+    git add ./tools/osquery-agent-options/main.go
+    git add ./server/fleet/agent_options_generated.go
+
+    # 3. Check for manual changes.
+    prompt "Make sure to check for OS-specific osquery flags in $version. If there are any make sure to 'git add' them. See ./tools/osquery-agent-options/README.md"
+
+    # 4. Commit and PR.
+    git commit -m "Update osquery schemas and flags to $version"
+    git push origin "$branch_name"
+    prompt "A PR will be created to trigger a Github Action to build osqueryd."
+    gh pr create -f -B main -t "Update osquery schema and flags to $version"
+    popd
+}
+
 promote_edge_to_stable () {
     cd "$REPOSITORY_DIRECTORY"
     if [[ $COMPONENT == "fleetd" ]]; then
@@ -299,6 +338,8 @@ print_reminder () {
         prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
     elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
         :
+    elif [[ $ACTION == "update-osquery-schema" ]]; then
+        :
     else
         echo "Unsupported action: $ACTION"
         exit 1
@@ -338,6 +379,14 @@ elif [[ $ACTION == "release-to-production" ]]; then
     release_to_production
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
+elif [[ $ACTION == "update-osquery-schema" ]]; then
+    NODE_VERSION=$(node --version)
+    EXPECTED_NODE_VERSION=$(cat package.json | jq -r .engines.node)
+    if [[ $NODE_VERSION != "v${EXPECTED_NODE_VERSION}" ]]; then
+        echo "Seems your node version is $NODE_VERSION, version must be v${EXPECTED_NODE_VERSION} to generate schemas..."
+        exit 1
+    fi
+    update_osquery_schema_and_flags "$VERSION"
 else
     echo "Unsupported action: $ACTION"
     exit 1

@@ -109,6 +109,7 @@ interface IHostsFilterBlockProps {
   onChangeScriptBatchStatusFilter: (newStatus: ScriptBatchHostCountV1) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -162,8 +163,13 @@ const HostsFilterBlock = ({
   onChangeScriptBatchStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isLoading = false,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
+  if (isLoading) {
+    return <></>;
+  }
 
   const renderLabelFilterPill = () => {
     if (selectedLabel) {

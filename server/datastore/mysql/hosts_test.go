@@ -162,6 +162,7 @@ func TestHosts(t *testing.T) {
 		{"GetUnverifiedDiskEncryptionKeys", testHostsGetUnverifiedDiskEncryptionKeys},
 		{"LUKS", testLUKSDatastoreFunctions},
 		{"EnrollOrbit", testHostsEnrollOrbit},
+		{"HostsEnrollOrbitWithPlatformLike", testHostsEnrollOrbitWithPlatformLike},
 		{"EnrollUpdatesMissingInfo", testHostsEnrollUpdatesMissingInfo},
 		{"EncryptionKeyRawDecryption", testHostsEncryptionKeyRawDecryption},
 		{"ListHostsLiteByUUIDs", testHostsListHostsLiteByUUIDs},
@@ -1679,10 +1680,10 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 	}
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(),
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey),
-			fleet.WithEnrollHostTeamID(&team.ID),
+		h, err := ds.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
+			fleet.WithEnrollOsqueryTeamID(&team.ID),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
@@ -1691,18 +1692,18 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.nodeKey, *h.NodeKey)
 
 		// This host should be allowed to re-enroll immediately if cooldown is disabled
-		_, err = ds.EnrollHost(context.Background(),
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey+"new"),
+		_, err = ds.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
 		)
 		require.NoError(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
 
 		// This host should not be allowed to re-enroll immediately if cooldown is enabled
-		_, err = ds.EnrollHost(context.Background(),
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey+"new"),
-			fleet.WithEnrollHostCooldown(10*time.Second),
+		_, err = ds.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey+"new"),
+			fleet.WithEnrollOsqueryCooldown(10*time.Second),
 		)
 		require.Error(t, err)
 		assert.NotZero(t, h.LastEnrolledAt)
@@ -1719,9 +1720,9 @@ func testHostsEnroll(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(),
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey),
+		h, err := ds.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
 		require.NoError(t, err)
 
@@ -1740,9 +1741,9 @@ func testHostsLoadHostByNodeKey(t *testing.T, ds *Datastore) {
 func testHostsLoadHostByNodeKeyCaseSensitive(t *testing.T, ds *Datastore) {
 	test.AddAllHostsLabel(t, ds)
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(context.Background(),
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey),
+		h, err := ds.EnrollOsquery(context.Background(),
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
 		require.NoError(t, err)
 
@@ -3887,6 +3888,23 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
 	require.Equal(t, hostWindows.Hostname, batchHosts[1].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[1].Status)
+
+	// Schedule script that we will subsequently cancel.
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID}, time.Now().Add(10*time.Hour).UTC())
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	err = ds.CancelBatchScript(ctx, execID)
+	require.NoError(t, err)
+
+	// Get the batch summary.
+	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{BatchScriptExecutionIDFilter: &execID, BatchScriptExecutionStatusFilter: fleet.BatchScriptExecutionCanceled}, 5)
+	expectedHostIds = []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID}
+	require.Contains(t, expectedHostIds, hosts[0].ID)
+	require.Contains(t, expectedHostIds, hosts[1].ID)
+	require.Contains(t, expectedHostIds, hosts[2].ID)
+	require.Contains(t, expectedHostIds, hosts[3].ID)
+	require.Contains(t, expectedHostIds, hosts[4].ID)
 }
 
 func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore) {
@@ -5929,9 +5947,9 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Zero(t, count[0])
 
 	// Enroll existing host.
-	_, err = ds.EnrollHost(context.Background(),
-		fleet.WithEnrollHostOsqueryHostID("1"),
-		fleet.WithEnrollHostNodeKey("1"),
+	_, err = ds.EnrollOsquery(context.Background(),
+		fleet.WithEnrollOsqueryHostID("1"),
+		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
 	require.NoError(t, err)
 
@@ -5944,9 +5962,9 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	time.Sleep(1 * time.Second)
 
 	// Enroll again to trigger an update of host_seen_times.
-	_, err = ds.EnrollHost(context.Background(),
-		fleet.WithEnrollHostOsqueryHostID("1"),
-		fleet.WithEnrollHostNodeKey("1"),
+	_, err = ds.EnrollOsquery(context.Background(),
+		fleet.WithEnrollOsqueryHostID("1"),
+		fleet.WithEnrollOsqueryNodeKey("1"),
 	)
 	require.NoError(t, err)
 
@@ -8746,10 +8764,10 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, abmToken.ID)
 
 	for _, tt := range enrollTests {
-		h, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(tt.uuid),
-			fleet.WithEnrollHostHardwareUUID(tt.uuid),
-			fleet.WithEnrollHostNodeKey(tt.nodeKey),
+		h, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(tt.uuid),
+			fleet.WithEnrollOsqueryHardwareUUID(tt.uuid),
+			fleet.WithEnrollOsqueryNodeKey(tt.nodeKey),
 		)
 		require.NoError(t, err)
 
@@ -9440,11 +9458,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH1),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h1Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
@@ -9459,11 +9477,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h2Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH2),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h2Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
@@ -9489,11 +9507,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		randomIdentifierH1 := uuid.New().String()
 
 		// First osquery of the first host enrolls.
-		h1Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH1),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h1Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		randomIdentifierH2 := uuid.New().String()
@@ -9521,11 +9539,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 		// Lastly osquery of the second host enrolls.
-		h2Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH2),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h2Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
@@ -9568,23 +9586,23 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
-		h1Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostMDMEnabled(true),
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH1),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h1Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH1),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h1Orbit.ID, h1Osquery.ID)
 
 		// Second host enrolls osquery first, then orbit.
-		h2Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostMDMEnabled(true),
-			fleet.WithEnrollHostOsqueryHostID(randomIdentifierH2),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h2Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryMDMEnabled(true),
+			fleet.WithEnrollOsqueryHostID(randomIdentifierH2),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		h2Orbit, err := ds.EnrollOrbit(ctx,
@@ -9637,11 +9655,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(dupUUID),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h1Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
@@ -9664,11 +9682,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(dupUUID),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h2Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
@@ -9713,11 +9731,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		h1OrbitFetched, err := ds.Host(ctx, h1Orbit.ID)
 		require.NoError(t, err)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h1Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(dupUUID),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h1Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		h1OsqueryFetched, err := ds.Host(ctx, h1Osquery.ID)
@@ -9751,11 +9769,11 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 		// is to be set by osquery only).
 		require.Equal(t, h1OsqueryFetched.LastEnrolledAt, h2OrbitFetched.LastEnrolledAt)
 		time.Sleep(1 * time.Second) // to test the update of last_enrolled_at
-		h2Osquery, err := ds.EnrollHost(ctx,
-			fleet.WithEnrollHostOsqueryHostID(dupUUID),
-			fleet.WithEnrollHostHardwareUUID(dupUUID),
-			fleet.WithEnrollHostHardwareSerial(dupHWSerial),
-			fleet.WithEnrollHostNodeKey(uuid.New().String()),
+		h2Osquery, err := ds.EnrollOsquery(ctx,
+			fleet.WithEnrollOsqueryHostID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareUUID(dupUUID),
+			fleet.WithEnrollOsqueryHardwareSerial(dupHWSerial),
+			fleet.WithEnrollOsqueryNodeKey(uuid.New().String()),
 		)
 		require.NoError(t, err)
 		require.Equal(t, h2Orbit.ID, h2Osquery.ID)
@@ -9788,6 +9806,59 @@ func testHostsEnrollOrbit(t *testing.T, ds *Datastore) {
 			})
 		}
 	}
+}
+
+func testHostsEnrollOrbitWithPlatformLike(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Enroll orbit first.
+	h, err := ds.EnrollOrbit(ctx,
+		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
+			HardwareUUID:   "some-unique-uuid",
+			HardwareSerial: "some-unique-serial",
+			Platform:       "ubuntu",
+			PlatformLike:   "debian",
+		}),
+		fleet.WithEnrollOrbitNodeKey(uuid.New().String()),
+	)
+	require.NoError(t, err)
+
+	orbitHost, err := ds.Host(ctx, h.ID)
+	require.NoError(t, err)
+
+	// Check platform and platform_like are set.
+	h, err = ds.LoadHostByOrbitNodeKey(ctx, *orbitHost.OrbitNodeKey)
+	require.NoError(t, err)
+	require.Equal(t, "ubuntu", h.Platform)
+	require.Equal(t, "debian", h.PlatformLike)
+
+	// Enroll osquery after orbit.
+	// Should not clear platform and platform_like.
+	osqueryHost, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("some-unique-uuid"),
+		fleet.WithEnrollOsqueryHardwareUUID("some-unique-uuid"),
+		fleet.WithEnrollOsqueryHardwareSerial("some-unique-uuid"),
+		fleet.WithEnrollOsqueryNodeKey("osquery"),
+	)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, osqueryHost.ID, orbitHost.ID)
+	require.Equal(t, "ubuntu", osqueryHost.Platform)
+	require.Equal(t, "debian", osqueryHost.PlatformLike)
+
+	h, err = ds.LoadHostByOrbitNodeKey(ctx, *orbitHost.OrbitNodeKey)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, orbitHost.ID, h.ID)
+	require.Equal(t, "ubuntu", h.Platform)
+	require.Equal(t, "debian", h.PlatformLike)
+
+	oh, err := ds.LoadHostByNodeKey(ctx, *osqueryHost.NodeKey)
+	require.NoError(t, err)
+	// Should be same host.
+	require.Equal(t, orbitHost.ID, oh.ID)
+	require.Equal(t, "ubuntu", oh.Platform)
+	require.Equal(t, "debian", oh.PlatformLike)
 }
 
 func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
@@ -9835,13 +9906,13 @@ func testHostsEnrollUpdatesMissingInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, "darwin", got.Platform)
 
 	// enroll with osquery using uuid identifier, team
-	_, err = ds.EnrollHost(ctx,
-		fleet.WithEnrollHostMDMEnabled(true),
-		fleet.WithEnrollHostOsqueryHostID("uuid"),
-		fleet.WithEnrollHostHardwareUUID("uuid"),
-		fleet.WithEnrollHostHardwareSerial("different-serial"),
-		fleet.WithEnrollHostNodeKey("osquery"),
-		fleet.WithEnrollHostTeamID(&tm.ID),
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryMDMEnabled(true),
+		fleet.WithEnrollOsqueryHostID("uuid"),
+		fleet.WithEnrollOsqueryHardwareUUID("uuid"),
+		fleet.WithEnrollOsqueryHardwareSerial("different-serial"),
+		fleet.WithEnrollOsqueryNodeKey("osquery"),
+		fleet.WithEnrollOsqueryTeamID(&tm.ID),
 	)
 	require.NoError(t, err)
 	got, err = ds.LoadHostByOrbitNodeKey(ctx, "orbit")

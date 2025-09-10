@@ -68,18 +68,14 @@ const InstallerInfo = ({ software }: IInstallerInfoProps) => {
   const {
     name,
     source,
+    icon_url: iconUrl,
     software_package: installerPackage,
     app_store_app: vppApp,
   } = software;
   return (
     <div className={`${baseClass}__item-topline`}>
       <div className={`${baseClass}__item-icon`}>
-        <SoftwareIcon
-          url={vppApp?.icon_url}
-          name={name}
-          source={source}
-          size="large"
-        />
+        <SoftwareIcon url={iconUrl} name={name} source={source} size="large" />
       </div>
       <div className={`${baseClass}__item-name-version`}>
         <div className={`${baseClass}__item-name`}>

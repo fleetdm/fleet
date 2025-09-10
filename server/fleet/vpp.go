@@ -83,7 +83,7 @@ type VPPAppStoreApp struct {
 	VPPAppID
 	Name          string               `db:"name" json:"name"`
 	LatestVersion string               `db:"latest_version" json:"latest_version"`
-	IconURL       *string              `db:"icon_url" json:"icon_url"`
+	IconURL       *string              `db:"icon_url" json:"-"`
 	Status        *VPPAppStatusSummary `db:"-" json:"status"`
 	SelfService   bool                 `db:"self_service" json:"self_service"`
 	// only filled by GetVPPAppMetadataByTeamAndTitleID

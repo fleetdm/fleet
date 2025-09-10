@@ -2897,6 +2897,9 @@ func (uploadBootstrapPackageRequest) DecodeRequest(ctx context.Context, r *http.
 		decoded.TeamID = uint(teamID) //nolint:gosec // dismiss G115
 	}
 
+	// Dry run
+	decoded.DryRun = r.URL.Query().Get("dry_run") == "true"
+
 	return &decoded, nil
 }
 
@@ -4448,18 +4451,13 @@ func ReconcileAppleProfiles(
 	}
 
 	// retrieve the profiles to install/remove.
-	toInstall, err := ds.ListMDMAppleProfilesToInstall(ctx, "")
+	toInstall, toRemove, err := ds.ListMDMAppleProfilesToInstallAndRemove(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to install")
+		return ctxerr.Wrap(ctx, err, "getting profiles to install and remove")
 	}
 
 	// Exclude macOS only profiles from iPhones/iPads.
 	toInstall = fleet.FilterMacOSOnlyProfilesFromIOSIPadOS(toInstall)
-
-	toRemove, err := ds.ListMDMAppleProfilesToRemove(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
-	}
 
 	getHostUserEnrollmentID := func(hostUUID string) (string, error) {
 		userEnrollmentID, ok := userEnrollmentMap[hostUUID]

@@ -41,6 +41,9 @@ export default {
     `/${API_VERSION}/fleet/device/${token}/software`,
   DEVICE_SOFTWARE_INSTALL: (token: string, softwareTitleId: number) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${softwareTitleId}`,
+  DEVICE_SOFTWARE_ICON: (token: string, softwareTitleId: number): string => {
+    return `/${API_VERSION}/fleet/device/${token}/software/titles/${softwareTitleId}/icon`;
+  },
   DEVICE_SOFTWARE_INSTALL_RESULTS: (token: string, uuid: string) =>
     `/${API_VERSION}/fleet/device/${token}/software/install/${uuid}/results`,
   DEVICE_SOFTWARE_UNINSTALL: (token: string, softwareTitleId: number) =>
@@ -60,6 +63,9 @@ export default {
   },
   DEVICE_CERTIFICATES: (token: string): string => {
     return `/${API_VERSION}/fleet/device/${token}/certificates`;
+  },
+  DEVICE_SETUP_SOFTWARE_STATUSES: (token: string): string => {
+    return `/${API_VERSION}/fleet/device/${token}/setup_experience/status`;
   },
 
   // Host endpoints
@@ -182,10 +188,7 @@ export default {
 
   // Setup experiece endpoints
   MDM_SETUP_EXPERIENCE: `/${API_VERSION}/fleet/setup_experience`,
-  // maintained for backwards compatibility, use MDM_SETUP_EXPERIENCE_SOFTWARE endpoint
-  MDM_MACOS_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
-  MDM_SETUP_EXPERIENCE_SOFTWARE: (platform: SetupExperiencePlatform) =>
-    `/${API_VERSION}/fleet/setup_experience/${platform}/software`,
+  MDM_SETUP_EXPERIENCE_SOFTWARE: `/${API_VERSION}/fleet/setup_experience/software`,
   MDM_SETUP_EXPERIENCE_SCRIPT: `/${API_VERSION}/fleet/setup_experience/script`,
 
   // OS Version endpoints
@@ -213,6 +216,8 @@ export default {
     `/${API_VERSION}/fleet/software/titles/${id}/package`,
   EDIT_SOFTWARE_VPP: (id: number) =>
     `/${API_VERSION}/fleet/software/titles/${id}/app_store_app`,
+  SOFTWARE_ICON: (id: number) =>
+    `/${API_VERSION}/fleet/software/titles/${id}/icon`,
   SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
   SOFTWARE_VERSION: (id: number) =>
     `/${API_VERSION}/fleet/software/versions/${id}`,

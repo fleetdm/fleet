@@ -8,6 +8,7 @@ import {
   isIpadOrIphoneSoftwareSource,
   SoftwareSource,
 } from "interfaces/software";
+import { HostPlatform, isLinuxLike } from "interfaces/platform";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import PATHS from "router/paths";
@@ -18,6 +19,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import InstalledPathCell from "pages/SoftwarePage/components/tables/InstalledPathCell";
 import HashCell from "pages/SoftwarePage/components/tables/HashCell/HashCell";
+import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
@@ -40,6 +42,7 @@ interface ISoftwareTableHeadersProps {
   router: InjectedRouter;
   teamId: number;
   onShowInventoryVersions: (software: IHostSoftware) => void;
+  platform: HostPlatform;
 }
 
 // NOTE: cellProps come from react-table
@@ -48,6 +51,7 @@ export const generateSoftwareTableHeaders = ({
   router,
   teamId,
   onShowInventoryVersions,
+  platform,
 }: ISoftwareTableHeadersProps): ISoftwareTableConfig[] => {
   const tableHeaders: ISoftwareTableConfig[] = [
     {
@@ -63,6 +67,7 @@ export const generateSoftwareTableHeaders = ({
           source,
           app_store_app,
           software_package,
+          icon_url,
         } = cellProps.row.original;
 
         const softwareTitleDetailsPath = getPathWithQueryParams(
@@ -81,7 +86,7 @@ export const generateSoftwareTableHeaders = ({
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             path={softwareTitleDetailsPath}
             router={router}
             hasInstaller={hasInstaller}
@@ -121,7 +126,21 @@ export const generateSoftwareTableHeaders = ({
     },
     {
       Header: (): JSX.Element => {
-        return <HeaderCell value="Last opened" disableSortBy />;
+        const lastOpenedHeader = isLinuxLike(platform) ? (
+          <TooltipWrapper
+            tipContent={
+              <>
+                The last time the package was opened by the end user <br />
+                or accessed by any process on the host.
+              </>
+            }
+          >
+            Last opened
+          </TooltipWrapper>
+        ) : (
+          "Last opened"
+        );
+        return <HeaderCell value={lastOpenedHeader} disableSortBy />;
       },
       id: "Last opened",
       disableSortBy: true,

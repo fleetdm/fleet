@@ -98,8 +98,11 @@ type OrbitHostInfo struct {
 	HardwareSerial string
 	// Hostname is the device hostname.
 	Hostname string
-	// Platform is the device's platform as defined by osquery.
+	// Platform is the device's platform as defined by osquery's os_version table.
 	Platform string
+	// PlatformLike is the device's platform_like as defined by osquery's os_version table.
+	// E.g. "debian" for Ubuntu hosts, "rhel" for Fedora hosts.
+	PlatformLike string
 	// OsqueryIdentifier holds the identifier that osqueryd will use in its enrollment.
 	// This is mainly used for scenarios where hosts have duplicate hardware UUID (e.g. VMs)
 	// and a different identifier is used for each host (e.g. osquery's "instance" flag).

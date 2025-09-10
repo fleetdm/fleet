@@ -36,6 +36,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -189,6 +190,25 @@ the way that the Fleet server works.
 						"setting server URL prefix",
 					)
 				}
+			}
+
+			// Handle server private key configuration - either direct or via AWS Secrets Manager
+			if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
+				initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+			}
+
+			// Retrieve private key from AWS Secrets Manager if specified
+			if config.Server.PrivateKeySecretArn != "" {
+				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
+					context.Background(),
+					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretSTSAssumeRoleArn,
+					config.Server.PrivateKeySecretSTSExternalID,
+				)
+				if err != nil {
+					initFatal(err, "retrieve private key from secrets manager")
+				}
+				config.Server.PrivateKey = privateKey
 			}
 
 			if len(config.Server.PrivateKey) > 0 {
@@ -760,6 +780,7 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
 				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
@@ -800,6 +821,11 @@ the way that the Fleet server works.
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
+					softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software title icon store")
+					}
+					level.Info(logger).Log("msg", "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -808,12 +834,27 @@ the way that the Fleet server works.
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
-						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+						softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
 					} else {
 						softwareInstallStore = store
 						level.Info(logger).Log("msg",
 							"using local filesystem software installer store, this is not suitable for production use", "directory",
 							installerDir)
+					}
+
+					iconDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+						iconDir = dir
+					}
+					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
+						softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
+					} else {
+						softwareTitleIconStore = iconStore
+						level.Warn(logger).Log("msg",
+							"using local filesystem software title icon store, this is not suitable for production use", "directory",
+							iconDir)
 					}
 				}
 
@@ -831,6 +872,7 @@ the way that the Fleet server works.
 					profileMatcher,
 					softwareInstallStore,
 					bootstrapPackageStore,
+					softwareTitleIconStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
 					scepConfigMgr,
@@ -907,7 +949,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
 					)
 				},
 			); err != nil {
@@ -1360,7 +1402,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
 					// For customers using large profiles and/or large numbers of profiles, the
 					// server needs time to completely read the request body and also to process
 					// all the side effects of a potentially large number of profiles being changed

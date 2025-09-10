@@ -29,14 +29,15 @@ const DeleteCertificateAuthorityModal = ({
         "success",
         "Successfully deleted your certificate authority."
       );
+      setIsUpdating(false);
+      onExit();
     } catch (e) {
+      setIsUpdating(false);
       renderFlash(
         "error",
         "Couldn't delete certificate authority. Please try again."
       );
     }
-    setIsUpdating(false);
-    onExit();
   };
 
   return (

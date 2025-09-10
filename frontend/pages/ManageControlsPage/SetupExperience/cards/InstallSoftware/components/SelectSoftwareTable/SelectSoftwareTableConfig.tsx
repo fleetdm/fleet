@@ -90,11 +90,11 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, app_store_app } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
 
-        const url = app_store_app?.icon_url;
-
-        return <SoftwareNameCell name={name} source={source} iconUrl={url} />;
+        return (
+          <SoftwareNameCell name={name} source={source} iconUrl={icon_url} />
+        );
       },
       sortType: "caseInsensitive",
     },

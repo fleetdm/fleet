@@ -626,6 +626,8 @@ func (svc *Service) processDigiCertCAs(ctx context.Context, batchOps *fleet.Cert
 				CertificateSeatID:             &existing.CertificateSeatID,
 			})
 		}
+		// Note: datastore is responsible for ensuring no existing list has no duplicates
+		existingByName[existing.Name] = &existing
 	}
 
 	for name, incoming := range incomingByName {
@@ -866,6 +868,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 	var caActivityName string
 
 	if p.DigiCertCAUpdatePayload != nil {
+		if p.DigiCertCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sDigiCert CA update payload is empty", errPrefix)}
+		}
+
 		if err := p.DigiCertCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
@@ -890,6 +896,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		activity = fleet.ActivityEditedDigiCert{Name: caActivityName}
 	}
 	if p.HydrantCAUpdatePayload != nil {
+		if p.HydrantCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sHydrant CA update payload is empty", errPrefix)}
+		}
+
 		if err := p.HydrantCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
@@ -910,6 +920,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		activity = fleet.ActivityEditedHydrant{Name: caActivityName}
 	}
 	if p.NDESSCEPProxyCAUpdatePayload != nil {
+		if p.NDESSCEPProxyCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sNDES SCEP Proxy CA update payload is empty", errPrefix)}
+		}
+
 		if err := p.NDESSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
@@ -930,6 +944,10 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		activity = fleet.ActivityEditedNDESSCEPProxy{}
 	}
 	if p.CustomSCEPProxyCAUpdatePayload != nil {
+		if p.CustomSCEPProxyCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sCustom SCEP Proxy CA update payload is empty", errPrefix)}
+		}
+
 		if err := p.CustomSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
 			return err
 		}
