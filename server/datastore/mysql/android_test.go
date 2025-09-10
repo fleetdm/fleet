@@ -1486,7 +1486,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 	t.Run("Does not list other install statuses", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1523,7 +1523,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 	t.Run("Does not list higher versions than passed", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(2)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1544,7 +1544,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 	t.Run("Does not list remove operation", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1565,7 +1565,7 @@ func testListHostMDMAndroidProfilesPendingInstallWithVersion(t *testing.T, ds *D
 	t.Run("Does list pending install profiles with version less than or equal to applied policy version", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1619,7 +1619,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	t.Run("Does not delete profiles not associated with host", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1644,7 +1644,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	t.Run("Does not delete install operation types", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1669,7 +1669,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	t.Run("Does not delete other statuses with remove operation", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(1)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[1].ProfileUUID,
@@ -1702,7 +1702,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	t.Run("Does not delete profiles with higher policy version than passed", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(2)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
@@ -1727,7 +1727,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 	t.Run("Deletes pending or failed remove profiles with policy version lower than or equal to passed", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(2)
-		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
 			{
 				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[0].ProfileUUID,
