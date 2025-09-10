@@ -8,6 +8,7 @@ import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { isObserverPlus } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
+import { InjectedRouter } from "react-router";
 
 interface IHeaderProps {
   column: {
@@ -52,8 +53,7 @@ interface ILabelTableData extends ILabel {
 
 // Generate table headers with action handler
 const generateTableHeaders = (
-  actionSelectHandler: (value: string, label: ILabel) => void,
-  currentUser: IUser
+  onClickAction: (action: string, label: ILabel) => void
 ): IDataColumn[] => {
   return [
     {
@@ -93,7 +93,7 @@ const generateTableHeaders = (
               <ActionsDropdown
                 options={cellProps.cell.value}
                 onChange={(value: string) =>
-                  actionSelectHandler(value, cellProps.row.original)
+                  onClickAction(value, cellProps.row.original)
                 }
                 placeholder="Actions"
                 disabled={disableChildren}
@@ -140,8 +140,8 @@ const generateActionDropdownOptions = (
   return options;
 };
 
-// Enhance label data with actions
-const enhanceLabelData = (
+// TODO - is this necessary?
+const generateDataSet = (
   labels: ILabel[],
   currentUser: IUser
 ): ILabelTableData[] => {
@@ -151,14 +151,6 @@ const enhanceLabelData = (
       actions: generateActionDropdownOptions(label, currentUser),
     };
   });
-};
-
-// Generate the dataset for the table
-const generateDataSet = (
-  labels: ILabel[],
-  currentUser: IUser
-): ILabelTableData[] => {
-  return [...enhanceLabelData(labels, currentUser)];
 };
 
 export { generateTableHeaders, generateDataSet };

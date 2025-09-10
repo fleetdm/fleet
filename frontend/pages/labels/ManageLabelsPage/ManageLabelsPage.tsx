@@ -1,194 +1,114 @@
 import React, { useContext, useCallback, useState } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import { useErrorHandler } from "react-error-boundary";
+
+import PATHS from "router/paths";
+
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
+
+import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
+
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
-import TableContainer from "components/TableContainer";
-import TableDataError from "components/DataError";
-import TableCount from "components/TableContainer/TableCount";
-import PATHS from "router/paths";
-import {
-  isGlobalAdmin,
-  isGlobalMaintainer,
-  isOnGlobalTeam,
-} from "utilities/permissions/permissions";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { ILabel } from "interfaces/label";
 
-import { generateTableHeaders, generateDataSet } from "./LabelsTableConfig";
-import "./ManageLabelsPage.scss";
+import LabelsTable from "./LabelsTable";
 
 const baseClass = "manage-labels-page";
 
 interface IManageLabelsPageProps {
   router: InjectedRouter;
-  location: {
-    pathname: string;
-    query: {
-      page?: string;
-      query?: string;
-      order_key?: string;
-      order_direction?: "asc" | "desc";
-    };
-    search: string;
-  };
+  // location: {
+  //   pathname: string;
+  //   query: {
+  //     page?: string;
+  //     query?: string;
+  //     order_key?: string;
+  //     order_direction?: "asc" | "desc";
+  //   };
+  //   search: string;
+  // };
 }
 
 const ManageLabelsPage = ({
   router,
-  location,
-}: IManageLabelsPageProps): JSX.Element => {
-  const { currentUser } = useContext(AppContext);
+}: // location,
+IManageLabelsPageProps): JSX.Element => {
+  const { currentUser, isGlobalAdmin, isGlobalMaintainer } = useContext(
+    AppContext
+  );
   const { renderFlash } = useContext(NotificationContext);
-  const handlePageError = useErrorHandler();
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [labelToDelete, setLabelToDelete] = useState<ILabel | undefined>();
+  const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const { data: labels, isLoading, error, refetch } = useQuery<
+    ILabelsResponse,
+    Error,
+    ILabel[]
+  >(["labels"], () => labelsAPI.loadAll(), {
+    select: (data: ILabelsResponse) => data.labels,
+  });
 
   const onCreateLabelClick = useCallback(() => {
     router.push(PATHS.NEW_LABEL);
   }, [router]);
 
-  const {
-    data: labels,
-    isFetching: isFetchingLabels,
-    error: loadingLabelsError,
-    refetch: refetchLabels,
-  } = useQuery<ILabelsResponse, Error, ILabel[]>(
-    ["labels"],
-    () => labelsAPI.loadAll(),
-    {
-      select: (data: ILabelsResponse) => data.labels,
-      onError: (error) => handlePageError(error),
-    }
-  );
-
-  const onActionSelection = useCallback(
-    (action: string, label: ILabel): void => {
-      switch (action) {
-        case "view_hosts":
-          // Navigate to hosts page filtered by this label
-          router.push(`${PATHS.MANAGE_HOSTS}?label_id=${label.id}`);
-          break;
-        case "edit":
-          // Navigate to edit label page
-          router.push(`${PATHS.EDIT_LABEL(label.id)}`);
-          break;
-        case "delete":
-          // Open delete confirmation modal
-          setLabelToDelete(label);
-          setShowDeleteModal(true);
-          break;
-        default:
-      }
-    },
-    [router]
-  );
-
-  const toggleDeleteModal = useCallback(() => {
-    setShowDeleteModal(!showDeleteModal);
-    if (showDeleteModal) {
-      setLabelToDelete(undefined);
-    }
-  }, [showDeleteModal]);
-
-  const onDeleteSubmit = useCallback(() => {
+  const onConfirmDelete = useCallback(async () => {
     if (labelToDelete) {
-      labelsAPI
-        .destroy(labelToDelete)
-        .then(() => {
-          renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
-          refetchLabels();
-        })
-        .catch(() => {
-          renderFlash(
-            "error",
-            `Could not delete ${labelToDelete.name}. Please try again.`
-          );
-        })
-        .finally(() => {
-          toggleDeleteModal();
-        });
+      // there will always be one at this point
+      try {
+        setIsUpdating(true);
+        await labelsAPI.destroy(labelToDelete);
+        renderFlash("success", `Successfully deleted ${labelToDelete.name}.`);
+        refetch();
+      } catch {
+        renderFlash(
+          "error",
+          `Could not delete ${labelToDelete.name}. Please try again.`
+        );
+      } finally {
+        setLabelToDelete(null);
+        setIsUpdating(false);
+      }
     }
-  }, [labelToDelete, refetchLabels, renderFlash, toggleDeleteModal]);
+  }, [labelToDelete, refetch, renderFlash]);
 
-  if (!currentUser) {
-    return <></>;
-  }
-  if (!isOnGlobalTeam(currentUser)) {
-    // handling like this here since there is existing redirect logic at router level that needs to
-    // be reconciled
-    router.push("/404");
-    return <></>;
-  }
-
-  const canWriteLabels =
-    isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser);
-
-  const tableHeaders = generateTableHeaders(onActionSelection, currentUser);
-  const tableData = labels ? generateDataSet(labels, currentUser) : [];
-
-  const renderLabelCount = () => {
-    if (!labels || labels.length === 0) {
-      return <></>;
+  const onClickAction = (action: string, label: ILabel): void => {
+    switch (action) {
+      case "view_hosts":
+        router.push(`${PATHS.MANAGE_HOSTS}?label_id=${label.id}`);
+        break;
+      case "edit":
+        router.push(`${PATHS.EDIT_LABEL(label.id)}`);
+        break;
+      case "delete":
+        setLabelToDelete(label);
+        break;
+      default:
     }
-
-    return <TableCount name="labels" count={labels.length} />;
   };
 
-  // Placeholder for delete modal - in a real implementation, you would create a proper DeleteLabelModal component
-  const renderDeleteModal = () => {
-    if (!showDeleteModal || !labelToDelete) {
-      return null;
-    }
+  // if (!isOnGlobalTeam(currentUser)) {
+  //   // handling like this here since there is existing redirect logic at router level that needs to
+  //   // be reconciled
+  //   router.push("/404");
+  //   return <></>;
+  // }
 
-    return (
-      <div className="modal">
-        <div className="modal-content">
-          <h2>Delete Label</h2>
-          <p>
-            Are you sure you want to delete the label &quot;{labelToDelete.name}
-            &quot;?
-          </p>
-          <div className="modal-actions">
-            <Button onClick={toggleDeleteModal} variant="inverse">
-              Cancel
-            </Button>
-            <Button onClick={onDeleteSubmit} variant="alert">
-              Delete
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const canWriteLabels = isGlobalAdmin || isGlobalMaintainer;
 
   const renderTable = () => {
-    if (loadingLabelsError) {
-      return <TableDataError />;
+    if (isLoading || !currentUser || !labels) {
+      return <Spinner />;
     }
-
-    return (
-      <TableContainer
-        columnConfigs={tableHeaders}
-        data={tableData}
-        isLoading={isFetchingLabels}
-        defaultSortHeader="name"
-        defaultSortDirection="asc"
-        resultsTitle="labels"
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        isClientSidePagination
-        renderCount={renderLabelCount}
-        emptyComponent={() => (
-          <div className={`${baseClass}__empty-state`}>
-            <p>No labels found.</p>
-          </div>
-        )}
-      />
-    );
+    if (error) {
+      return <DataError />;
+    }
+    return <LabelsTable labels={labels} onClickAction={onClickAction} />;
   };
 
   return (
@@ -217,7 +137,15 @@ const ManageLabelsPage = ({
           <p>Group hosts for targeting and filtering</p>
         </div>
         {renderTable()}
-        {renderDeleteModal()}
+        {labelToDelete && (
+          <DeleteLabelModal
+            onSubmit={onConfirmDelete}
+            onCancel={() => {
+              setLabelToDelete(null);
+            }}
+            isUpdatingLabel={isUpdating}
+          />
+        )}
       </div>
     </MainContent>
   );
