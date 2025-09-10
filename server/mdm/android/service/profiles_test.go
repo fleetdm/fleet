@@ -421,10 +421,36 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
-	// TODO(ap): test update of the profile once gitops work is merged
+	// Update p1, will now have version 3
+	p1.RawJSON = []byte(`{"maximumTimeToLock": "3"}`)
+	_, err = ds.BatchSetMDMProfiles(ctx, nil, nil, nil, nil, []*fleet.MDMAndroidConfigProfile{
+		{ProfileUUID: p1.ProfileUUID, Name: p1.Name, RawJSON: p1.RawJSON},
+	}, nil)
+	require.NoError(t, err)
+
+	// that batch-set operation, at the service level, also nulls the status and included version
+	// of the affected hosts.
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: nil, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: nil, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: nil},
+	})
+	require.NoError(t, err)
+
+	// profile gets re-delivered
+	err = reconciler.ReconcileProfiles(ctx)
+	require.NoError(t, err)
+	require.True(t, client.EnterprisesPoliciesPatchFuncInvoked)
+	client.EnterprisesPoliciesPatchFuncInvoked = false
+	require.True(t, client.EnterprisesDevicesPatchFuncInvoked)
+	client.EnterprisesDevicesPatchFuncInvoked = false
+
+	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(3), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(3), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+	})
 
 	// add a second android profile
-	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "2"}`)
+	p2 := androidProfileWithPayloadForTest("p2", `{"maximumTimeToLock": "4"}`)
 	p2, err = ds.NewMDMAndroidConfigProfile(ctx, *p2)
 	require.NoError(t, err)
 
@@ -437,10 +463,10 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	client.EnterprisesDevicesPatchFuncInvoked = false
 
 	assertHostProfiles(t, ds, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
-		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
-		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h1.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
+		{HostUUID: h2.UUID, ProfileUUID: p1.ProfileUUID, ProfileName: p1.Name, Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String(""), Detail: `"maximumTimeToLock" isn't applied. It's overridden by other configuration profile.`},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4), PolicyRequestUUID: ptr.String(""), DeviceRequestUUID: ptr.String("")},
 	})
 
 	// run again, nothing to process
@@ -449,11 +475,11 @@ func testHostsWithAddRemoveUpdateProfiles(t *testing.T, ds fleet.Datastore, clie
 	require.False(t, client.EnterprisesPoliciesPatchFuncInvoked)
 	require.False(t, client.EnterprisesDevicesPatchFuncInvoked)
 
-	// mark as verified (it will clear the request uuids, but that's not critical
-	// for this test)
+	// mark as verified the ones not failed (it will clear the request uuids, but
+	// that's not critical for this test)
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
-		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
-		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(2)},
+		{HostUUID: h1.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4)},
+		{HostUUID: h2.UUID, ProfileUUID: p2.ProfileUUID, ProfileName: p2.Name, Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall, IncludedInPolicyVersion: ptr.Int(4)},
 	})
 	require.NoError(t, err)
 
