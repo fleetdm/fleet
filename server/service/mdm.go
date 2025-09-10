@@ -1516,7 +1516,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	isAppleDeclarationJSON, isAndroidJSON := false, false
 	if isJSON {
-		isAppleDeclarationJSON, isAndroidJSON, err = fleet.DetermineJSONConfigType(data)
+		isAppleDeclarationJSON, isAndroidJSON, err = mdm.DetermineJSONConfigType(data)
 		if err != nil {
 			if strings.Contains(string(data), fleet.ServerSecretPrefix) {
 				// Apple DDM configs allow replacing the entire file's contents via a secret. These
@@ -2018,7 +2018,12 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
 
-	if err := svc.validateCrossPlatformProfileNames(ctx, appleProfiles, windowsProfiles, appleDecls); err != nil {
+	androidProfiles, err := getAndroidProfiles(ctx, tmID, appCfg, profilesWithSecrets, labelMap)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating Android profiles")
+	}
+
+	if err := svc.validateCrossPlatformProfileNames(ctx, appleProfiles, windowsProfiles, appleDecls, androidProfiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating cross-platform profile names")
 	}
 
@@ -2065,10 +2070,15 @@ func (svc *Service) BatchSetMDMProfiles(
 		p.SyncML = profiles[i].Contents
 		windowsProfilesSlice = append(windowsProfilesSlice, p)
 	}
+	androidProfilesSlice := make([]*fleet.MDMAndroidConfigProfile, 0, len(androidProfiles))
+	for i, p := range androidProfiles {
+		p.RawJSON = profiles[i].Contents
+		androidProfilesSlice = append(androidProfilesSlice, p)
+	}
 
 	var profUpdates fleet.MDMProfilesUpdates
 	if profUpdates, err = svc.ds.BatchSetMDMProfiles(ctx, tmID,
-		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, profilesVariablesByIdentifier); err != nil {
+		appleProfilesSlice, windowsProfilesSlice, appleDeclsSlice, androidProfilesSlice, profilesVariablesByIdentifier); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -2091,10 +2101,21 @@ func (svc *Service) BatchSetMDMProfiles(
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk set pending apple host profiles")
 	}
+
+	androidProfUUIDs := []string{}
+	for _, p := range androidProfiles {
+		androidProfUUIDs = append(androidProfUUIDs, p.ProfileUUID)
+	}
+	androidUpdates, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, nil, nil, androidProfUUIDs, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
+	}
+
 	updates := fleet.MDMProfilesUpdates{
-		AppleConfigProfile:   profUpdates.AppleConfigProfile || winUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
-		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile || appleUpdates.WindowsConfigProfile,
-		AppleDeclaration:     profUpdates.AppleDeclaration || winUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AppleConfigProfile:   profUpdates.AppleConfigProfile || appleUpdates.AppleConfigProfile,
+		WindowsConfigProfile: profUpdates.WindowsConfigProfile || winUpdates.WindowsConfigProfile,
+		AppleDeclaration:     profUpdates.AppleDeclaration || appleUpdates.AppleDeclaration,
+		AndroidConfigProfile: profUpdates.AndroidConfigProfile || androidUpdates.AndroidConfigProfile,
 	}
 
 	if updates.AppleConfigProfile {
@@ -2122,6 +2143,15 @@ func (svc *Service) BatchSetMDMProfiles(
 				TeamName: tmName,
 			}); err != nil {
 			return ctxerr.Wrap(ctx, err, "logging activity for edited macos declarations")
+		}
+	}
+	if updates.AndroidConfigProfile {
+		if err := svc.NewActivity(
+			ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedAndroidProfile{
+				TeamID:   tmID,
+				TeamName: tmName,
+			}); err != nil {
+			return ctxerr.Wrap(ctx, err, "logging activity for edited android profile")
 		}
 	}
 
@@ -2177,11 +2207,11 @@ func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *
 }
 
 func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
-	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
+	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration, androidProfiles map[int]*fleet.MDMAndroidConfigProfile,
 ) error {
 	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
 	// ".mobileconfig" or ".json" or ".xml"
-	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
+	extByName := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls)+len(androidProfiles))
 	for i, p := range appleProfiles {
 		if _, ok := extByName[p.Name]; ok {
 			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
@@ -2199,6 +2229,13 @@ func (svc *Service) validateCrossPlatformProfileNames(ctx context.Context, apple
 	for i, p := range appleDecls {
 		if _, ok := extByName[p.Name]; ok {
 			err := fleet.NewInvalidArgumentError(fmt.Sprintf("appleDecls[%d]", i), fmtDuplicateNameErrMsg(p.Name))
+			return ctxerr.Wrap(ctx, err, "duplicate json by name")
+		}
+		extByName[p.Name] = ".json"
+	}
+	for i, p := range androidProfiles {
+		if _, ok := extByName[p.Name]; ok {
+			err := fleet.NewInvalidArgumentError(fmt.Sprintf("androidProfiles[%d]", i), fmtDuplicateNameErrMsg(p.Name))
 			return ctxerr.Wrap(ctx, err, "duplicate json by name")
 		}
 		extByName[p.Name] = ".json"
@@ -2503,6 +2540,77 @@ func getWindowsProfiles(
 	return profs, nil
 }
 
+func getAndroidProfiles(ctx context.Context,
+	tmID *uint,
+	appCfg *fleet.AppConfig,
+	profiles map[int]fleet.MDMProfileBatchPayload,
+	labelMap map[string]fleet.ConfigurationProfileLabel,
+) (map[int]*fleet.MDMAndroidConfigProfile, error) {
+	profs := make(map[int]*fleet.MDMAndroidConfigProfile, len(profiles))
+	for i, profile := range profiles {
+		if mdm.GetRawProfilePlatform(profile.Contents) != "android" {
+			continue
+		}
+		mdmProf := &fleet.MDMAndroidConfigProfile{
+			TeamID:  tmID,
+			Name:    profile.Name,
+			RawJSON: profile.Contents,
+		}
+		for _, labelName := range profile.LabelsIncludeAll {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName:  lbl.LabelName,
+					LabelID:    lbl.LabelID,
+					RequireAll: true,
+				}
+				mdmProf.LabelsIncludeAll = append(mdmProf.LabelsIncludeAll, mdmLabel)
+			}
+		}
+		for _, labelName := range profile.LabelsIncludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+				}
+				mdmProf.LabelsIncludeAny = append(mdmProf.LabelsIncludeAny, mdmLabel)
+			}
+		}
+		for _, labelName := range profile.LabelsExcludeAny {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmLabel := fleet.ConfigurationProfileLabel{
+					LabelName: lbl.LabelName,
+					LabelID:   lbl.LabelID,
+					Exclude:   true,
+				}
+				mdmProf.LabelsExcludeAny = append(mdmProf.LabelsExcludeAny, mdmLabel)
+			}
+		}
+
+		if err := mdmProf.ValidateUserProvided(); err != nil {
+			msg := err.Error()
+			return nil, ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), msg))
+		}
+
+		profs[i] = mdmProf
+	}
+
+	if !appCfg.MDM.AndroidEnabledAndConfigured {
+		// NOTE: in order to prevent an error when Fleet MDM is not enabled but no
+		// profile is provided, which can happen if a user runs `fleetctl get
+		// config` and tries to apply that YAML, as it will contain an empty/null
+		// custom_settings key, we just return a success response in this
+		// situation.
+		if len(profs) == 0 {
+			return nil, nil
+		}
+
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Android MDM is not configured"))
+	}
+
+	return profs, nil
+}
+
 func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		// validate that only one of labels, labels_include_all and labels_exclude_any is provided.
@@ -2526,18 +2634,19 @@ func validateProfiles(profiles map[int]fleet.MDMProfileBatchPayload) error {
 		}
 
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
-		if platform != "darwin" && platform != "windows" {
+		if platform != "darwin" && platform != "windows" && platform != "android" {
 			// We can only display a generic error message here because at this point
 			// we don't know the file extension or whether the profile is intended
-			// for macos_settings or windows_settings. We should expecte never see this
+			// for macos_settings, windows_settings or android_settings. We should expect to never see this
 			// in practice because the client should be validating the profiles
 			// before sending them to the server so the client can surface  more helpful
 			// error messages to the user. However, we're validating again here just
 			// in case the client is not working as expected.
 			return fleet.NewInvalidArgumentError("mdm", fmt.Sprintf(
-				"%s is not a valid macOS or Windows configuration profile. ", profile.Name)+
+				"%s is not a valid macOS, Windows, or Android configuration profile. ", profile.Name)+
 				"macOS profiles must be valid .mobileconfig or .json files. "+
-				"Windows configuration profiles can only have <Replace> or <Add> top level elements.")
+				"Windows configuration profiles can only have <Replace> or <Add> top level elements. "+
+				"Android profiles must be valid .json files.")
 		}
 	}
 
