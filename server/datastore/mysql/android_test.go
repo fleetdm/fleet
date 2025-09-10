@@ -1672,14 +1672,6 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
 			{
 				HostUUID:                hostUUID,
-				ProfileUUID:             profiles[0].ProfileUUID,
-				ProfileName:             profiles[0].Name,
-				OperationType:           fleet.MDMOperationTypeRemove,
-				Status:                  &fleet.MDMDeliveryFailed,
-				IncludedInPolicyVersion: policyVersion,
-			},
-			{
-				HostUUID:                hostUUID,
 				ProfileUUID:             profiles[1].ProfileUUID,
 				ProfileName:             profiles[1].Name,
 				OperationType:           fleet.MDMOperationTypeRemove,
@@ -1704,7 +1696,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 
 		// Assert
 		hostProfiles := listAllHostMDMAndroidProfiles()
-		require.Len(t, hostProfiles, 3)
+		require.Len(t, hostProfiles, 2)
 	})
 
 	t.Run("Does not delete profiles with higher policy version than passed", func(t *testing.T) {
@@ -1732,7 +1724,7 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 		require.Len(t, hostProfiles, 1)
 	})
 
-	t.Run("Deletes pending remove profiles with policy version lower than or equal to passed", func(t *testing.T) {
+	t.Run("Deletes pending or failed remove profiles with policy version lower than or equal to passed", func(t *testing.T) {
 		// Arrange
 		policyVersion := ptr.Int(2)
 		err := ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidBulkUpsertHostProfilePayload{
@@ -1751,6 +1743,14 @@ func testBulkDeleteMDMAndroidHostProfiles(t *testing.T, ds *Datastore) {
 				OperationType:           fleet.MDMOperationTypeRemove,
 				Status:                  &fleet.MDMDeliveryPending,
 				IncludedInPolicyVersion: ptr.Int(*policyVersion - 1),
+			},
+			{
+				HostUUID:                hostUUID,
+				ProfileUUID:             profiles[2].ProfileUUID,
+				ProfileName:             profiles[2].Name,
+				OperationType:           fleet.MDMOperationTypeRemove,
+				Status:                  &fleet.MDMDeliveryFailed,
+				IncludedInPolicyVersion: policyVersion,
 			},
 		})
 		require.NoError(t, err)

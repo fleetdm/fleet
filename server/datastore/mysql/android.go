@@ -1121,9 +1121,15 @@ func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx con
 func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
 	stmt := `
 		DELETE FROM host_mdm_android_profiles
-		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status = ?
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, policyVersionId, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending)
+
+	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersionId, fleet.MDMOperationTypeRemove, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to delete host MDM Android profiles")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting host MDM Android profiles")
 	}

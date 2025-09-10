@@ -548,10 +548,10 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		}
 	}
 
-	// Bulk delete any pending remove profiles.
+	// Bulk delete any pending or failed remove profiles.
 	err = svc.ds.BulkDeleteMDMAndroidHostProfiles(ctx, hostUUID, appliedPolicyVersion)
 	if err != nil {
-		level.Error(svc.logger).Log("msg", "error deleting pending remove profiles", "err", err, "host_uuid", hostUUID)
+		level.Error(svc.logger).Log("msg", "error deleting pending or failed remove profiles", "err", err, "host_uuid", hostUUID)
 	}
 }
 
