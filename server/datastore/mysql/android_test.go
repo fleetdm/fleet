@@ -40,7 +40,7 @@ func TestAndroid(t *testing.T) {
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles2},
 		{"BulkUpsertMDMAndroidHostProfiles", testBulkUpsertMDMAndroidHostProfiles3},
 		{"GetHostMDMAndroidProfiles", testGetHostMDMAndroidProfiles},
-		{"GetAndroidPolicyRequestByID", testGetAndroidPolicyRequestByID},
+		{"GetAndroidPolicyRequestByUUID", testGetAndroidPolicyRequestByUUID},
 		{"ListHostMDMAndroidProfilesPendingInstallWithVersion", testListHostMDMAndroidProfilesPendingInstallWithVersion},
 		{"BulkDeleteMDMAndroidHostProfiles", testBulkDeleteMDMAndroidHostProfiles},
 	}
@@ -1313,12 +1313,12 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 	}, hostProfiles)
 }
 
-func testGetAndroidPolicyRequestByID(t *testing.T, ds *Datastore) {
+func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	policyRequestUUID := uuid.New().String()
 
 	t.Run("Returns not found", func(t *testing.T) {
-		policyRequest, err := ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		policyRequest, err := ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
 		require.Nil(t, err)
 		require.Nil(t, policyRequest)
 	})
@@ -1331,8 +1331,8 @@ func testGetAndroidPolicyRequestByID(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 
-		// Retrieve the policy request by ID
-		policyRequest, err := ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		// Retrieve the policy request by UUID
+		policyRequest, err := ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
 		require.NoError(t, err)
 		require.NotNil(t, policyRequest)
 		require.Equal(t, policyRequestUUID, policyRequest.RequestUUID)

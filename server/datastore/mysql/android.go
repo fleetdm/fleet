@@ -665,12 +665,7 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
-func (ds *Datastore) GetAndroidPolicyRequestByID(ctx context.Context, request_uuid string) (*fleet.MDMAndroidPolicyRequest, error) {
-	policyRequestUUID, err := uuid.Parse(request_uuid) // validate format
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "parsing android policy request uuid")
-	}
-
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
 	const stmt = `
 		SELECT
 			request_uuid,
@@ -688,7 +683,7 @@ func (ds *Datastore) GetAndroidPolicyRequestByID(ctx context.Context, request_uu
 	`
 
 	req := &fleet.MDMAndroidPolicyRequest{}
-	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, policyRequestUUID)
+	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, requestUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
 	}
