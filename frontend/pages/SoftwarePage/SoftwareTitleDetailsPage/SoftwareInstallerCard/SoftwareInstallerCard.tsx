@@ -11,7 +11,6 @@ import {
   isSoftwarePackage,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
-import PATHS from "router/paths";
 
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
@@ -22,13 +21,11 @@ import Icon from "components/Icon";
 import Tag from "components/Tag";
 import Button from "components/buttons/Button";
 
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -50,50 +47,6 @@ interface IStatusDisplayOption {
   tooltip: React.ReactNode;
 }
 
-// "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
-type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
-
-const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallDisplayStatus,
-  IStatusDisplayOption
-> = {
-  installed: {
-    displayName: "Installed",
-    iconName: "success",
-    tooltip: (
-      <>
-        Software was installed on these hosts (install script finished
-        <br />
-        with exit code 0). Currently, if the software is uninstalled, the
-        <br />
-        &quot;Installed&quot; status won&apos;t be updated.
-      </>
-    ),
-  },
-  pending: {
-    displayName: "Pending",
-    iconName: "pending-outline",
-    tooltip: (
-      <>
-        Fleet is installing/uninstalling or will
-        <br />
-        do so when the host comes online.
-      </>
-    ),
-  },
-  failed: {
-    displayName: "Failed",
-    iconName: "error",
-    tooltip: (
-      <>
-        These hosts failed to install/uninstall software.
-        <br />
-        Click on a host to view error(s).
-      </>
-    ),
-  },
-};
-
 interface IActionsDropdownProps {
   installerType: "package" | "vpp";
   onDownloadClick: () => void;
@@ -101,15 +54,17 @@ interface IActionsDropdownProps {
   onEditSoftwareClick: () => void;
   gitOpsModeEnabled?: boolean;
   repoURL?: string;
+  isFMA?: boolean;
 }
 
-const SoftwareActionButtons = ({
+export const SoftwareActionButtons = ({
   installerType,
   onDownloadClick,
   onDeleteClick,
   onEditSoftwareClick,
   gitOpsModeEnabled,
   repoURL,
+  isFMA,
 }: IActionsDropdownProps) => {
   let options =
     installerType === "package"
@@ -136,10 +91,10 @@ const SoftwareActionButtons = ({
     );
     options = options.map((option) => {
       // edit is disabled in gitOpsMode for VPP only
-      // delete is disabled in gitOpsMode for all installers (FMA, VPP, & custom packages)
+      // delete is disabled in gitOpsMode for software types that can't be added in GitOps mode (FMA, VPP)
       if (
         (option.value === "edit" && installerType === "vpp") ||
-        option.value === "delete"
+        (option.value === "delete" && (installerType === "vpp" || isFMA))
       ) {
         return {
           ...option,
@@ -204,6 +159,7 @@ interface ISoftwareInstallerCardProps {
   };
   isSelfService: boolean;
   softwareId: number;
+  iconUrl?: string | null;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -226,6 +182,7 @@ const SoftwareInstallerCard = ({
   isSelfService,
   softwareInstaller,
   softwareId,
+  iconUrl,
   teamId,
   teamIdForApi,
   onDelete,
@@ -263,6 +220,9 @@ const SoftwareInstallerCard = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
+  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened on page load
+  // as it automatically opens from adding flow of custom software in gitOps mode
+  const [showViewYamlModal, setShowViewYamlModal] = useState(gitOpsYamlParam);
   const [showEditSoftwareModal, setShowEditSoftwareModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -274,20 +234,8 @@ const SoftwareInstallerCard = ({
     setShowDeleteModal(true);
   };
 
-  // gitOpsYamlParam URL Param controls whether the View Yaml modal is opened
-  // as it automatically opens from adding/editing flow of custom software in gitOps mode
   const onToggleViewYaml = () => {
-    const newQueryParams: QueryParams = {
-      team_id: teamId,
-      gitops_yaml: !gitOpsYamlParam ? "true" : undefined,
-    };
-
-    router.push(
-      getPathWithQueryParams(
-        PATHS.SOFTWARE_TITLE_DETAILS(softwareId.toString()),
-        newQueryParams
-      )
-    );
+    setShowViewYamlModal(!showViewYamlModal);
   };
 
   const onDeleteSuccess = useCallback(() => {
@@ -399,6 +347,7 @@ const SoftwareInstallerCard = ({
                 onEditSoftwareClick={onEditSoftwareClick}
                 gitOpsModeEnabled={gitOpsModeEnabled}
                 repoURL={repoURL}
+                isFMA={isFleetMaintainedApp}
               />
             )}
           </div>
@@ -438,10 +387,12 @@ const SoftwareInstallerCard = ({
           onExit={() => setShowEditSoftwareModal(false)}
           refetchSoftwareTitle={refetchSoftwareTitle}
           installerType={installerType}
+          openViewYamlModal={onToggleViewYaml}
         />
       )}
       {showDeleteModal && (
         <DeleteSoftwareModal
+          gitOpsModeEnabled={gitOpsModeEnabled}
           softwareId={softwareId}
           softwareInstallerName={softwareInstaller?.name}
           teamId={teamId}
@@ -449,9 +400,12 @@ const SoftwareInstallerCard = ({
           onSuccess={onDeleteSuccess}
         />
       )}
-      {gitOpsYamlParam && isCustomPackage && (
+      {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
+          softwareTitleId={softwareId}
+          teamId={teamId}
+          iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
         />

@@ -12,7 +12,7 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import mdmAndroidAPI from "services/entities/mdm_android";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import MainContent from "components/MainContent";
 import BackLink from "components/BackLink";
@@ -89,8 +89,27 @@ const TurnOnAndroidMdm = ({ router }: ITurnOnAndroidMdmProps) => {
         `width=${POPUP_WIDTH},height=${POPUP_HEIGHT},top=${top},left=${left}`
       );
       setSetupSse(true);
-    } catch (e) {
-      renderFlash("error", "Couldn't connect. Please try again");
+    } catch (e: any) {
+      if (
+        e.data?.errors &&
+        e.data.errors[0].reason?.includes("android enterprise already exists")
+      ) {
+        renderFlash(
+          "error",
+          <>
+            Couldn&apos;t connect. Android enterprise already exists for this
+            Fleet server. For help, please contact{" "}
+            <CustomLink
+              text="Fleet support"
+              url={SUPPORT_LINK}
+              newTab
+              variant="flash-message-link"
+            />
+          </>
+        );
+      } else {
+        renderFlash("error", "Couldn't connect. Please try again");
+      }
     }
     setFetchingSignupUrl(false);
   };

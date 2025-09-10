@@ -27,11 +27,23 @@ SELECT
 		ca, common_name, subject, issuer,
 		key_algorithm, key_strength, key_usage, signing_algorithm,
 		not_valid_after, not_valid_before,
-		serial, sha1
+		serial, sha1, "system" as source,
+		path
 	FROM
 		certificates
 	WHERE
-		path = '/Library/Keychains/System.keychain';
+		path = '/Library/Keychains/System.keychain'
+	UNION
+	SELECT
+		ca, common_name, subject, issuer,
+		key_algorithm, key_strength, key_usage, signing_algorithm,
+		not_valid_after, not_valid_before,
+		serial, sha1, "user" as source,
+		path
+	FROM
+		certificates
+	WHERE
+		path LIKE '/Users/%/Library/Keychains/login.keychain-db';
 ```
 
 ## chromeos_profile_user_info
@@ -41,6 +53,20 @@ SELECT
 - Query:
 ```sql
 SELECT email FROM users
+```
+
+## conditional_access_microsoft_device_id
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'app_sso_platform'
+```
+
+- Query:
+```sql
+SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
 ```
 
 ## disk_encryption_darwin
@@ -149,12 +175,49 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 
 - Discovery query:
 ```sql
-SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles'
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles');
 ```
 
 - Query:
 ```sql
-SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
+SELECT display_name, identifier, install_date FROM macos_profiles WHERE type = "Configuration";
+```
+
+## mdm_config_profiles_darwin_with_user
+
+- Platforms: darwin
+
+- Discovery query:
+```sql
+SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles') AND EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_user_profiles')
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## mdm_config_profiles_windows
+
+- Platforms: windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm_bridge'
+```
+
+- Query:
+```
+<dynamically generated>
+```
+
+## mdm_device_id_windows
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT name, data FROM registry WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Provisioning\OMADM\MDMDeviceID\DeviceClientId';
 ```
 
 ## mdm_disk_encryption_key_file_darwin
@@ -229,7 +292,7 @@ WITH registry_keys AS (
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
@@ -508,6 +571,26 @@ SELECT
 FROM chrome_extensions
 ```
 
+## software_deb_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Linux DEB software entries. The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'deb_package_files'
+```
+
+- Query:
+```sql
+SELECT package, MAX(atime) AS last_opened_at
+		FROM deb_package_files 
+		CROSS JOIN file USING (path) 
+		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
+		GROUP BY package
+```
+
 ## software_linux
 
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
@@ -515,7 +598,7 @@ FROM chrome_extensions
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -599,7 +682,7 @@ FROM cached_users CROSS JOIN firefox_addons USING (uid);
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -784,7 +867,7 @@ SELECT 1 FROM (
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 		SELECT
@@ -796,6 +879,26 @@ WITH cached_users AS (WITH cached_groups AS (select * from groups)
 		  '' AS vendor,
 		  path AS installed_path
 		FROM cached_users CROSS JOIN python_packages USING (uid)
+```
+
+## software_rpm_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Linux RPM software entries.  The accuracy of this information is limited by the accuracy of the atime column in the file table, which can be affected by the system clock and mount settings like noatime and relatime.
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'rpm_package_files'
+```
+
+- Query:
+```sql
+SELECT package, MAX(atime) AS last_opened_at
+		FROM (SELECT package, path FROM rpm_package_files WHERE regex_match(mode, '[1357]', 0))
+		CROSS JOIN file USING (path)
+		WHERE type = 'regular'
+		GROUP BY package
 ```
 
 ## software_vscode_extensions
@@ -810,7 +913,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -833,7 +936,7 @@ FROM cached_users CROSS JOIN vscode_extensions USING (uid)
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -887,6 +990,21 @@ SELECT
 FROM chocolatey_packages
 ```
 
+## software_windows_last_opened_at
+
+- Description: A software override query[^1] to append last_opened_at information to Windows software entries.
+
+- Platforms: windows
+
+- Query:
+```sql
+SELECT
+		  MAX(last_run_time) AS last_opened_at,
+		  REGEX_MATCH(accessed_files, "VOLUME[^\\]+([^,]+" || REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(filename, '\', '\\'), '.', '\.'), '*', '\*'), '+', '\+'), '?', '\?'), '[', '\['), ']', '\]'), '{', '\{'), '}', '\}'), '(', '\('), ')', '\)'), '|', '\|') || ")", 1) AS executable_path
+		FROM prefetch
+		GROUP BY executable_path
+```
+
 ## system_info
 
 - Platforms: all
@@ -912,7 +1030,7 @@ select * from uptime limit 1
 - Query:
 ```sql
 WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
 ```

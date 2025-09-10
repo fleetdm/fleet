@@ -193,14 +193,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     IConfig
   >(["config"], () => configAPI.loadAll(), { ...DEFAULT_USE_QUERY_OPTIONS });
 
-  // TODO(android): remove this when the feature flag is removed
-  const platformOptions = useMemo(() => {
-    if (!config?.android_enabled) {
-      return PLATFORM_DROPDOWN_OPTIONS.filter((o) => o.value !== "android");
-    }
-    return [...PLATFORM_DROPDOWN_OPTIONS];
-  }, [config?.android_enabled]);
-
   const { data: teams, isLoading: isLoadingTeams } = useQuery<
     ILoadTeamsResponse,
     Error,
@@ -405,6 +397,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         mobile_device_management_enrollment_status: {
           enrolled_automated_hosts_count,
           enrolled_manual_hosts_count,
+          enrolled_personal_hosts_count,
           unenrolled_hosts_count,
           pending_hosts_count,
           hosts_count,
@@ -429,6 +422,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
           {
             status: "On (automatic)",
             hosts: enrolled_automated_hosts_count,
+          },
+          {
+            status: "On (personal)",
+            hosts: enrolled_personal_hosts_count,
           },
           { status: "Off", hosts: unenrolled_hosts_count },
         ];
@@ -566,7 +563,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   ) : (
     <>
       <PlatformHostCounts
-        androidDevEnabled={!!config?.android_enabled}
         currentTeamId={teamIdForApi}
         macCount={macCount}
         windowsCount={windowsCount}
@@ -647,7 +643,6 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     },
     actionUrl: softwareActionUrl,
     titleDetail: softwareTitleDetail,
-    showTitle: !isSoftwareFetching,
     children: (
       <Software
         errorSoftware={errorSoftware}
@@ -747,7 +742,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
               {LearnFleetCard}
             </>
           )}
-        {showSoftwareCard && SoftwareCard}
+        {(isSoftwareFetching || showSoftwareCard) && SoftwareCard}
         {!isAnyTeamSelected && isOnGlobalTeam && <>{ActivityFeedCard}</>}
         {showMdmCard && <>{MDMCard}</>}
       </div>
@@ -896,7 +891,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             name="platform-filter"
             value={selectedPlatform || ""}
             className={`${baseClass}__platform-filter`}
-            options={platformOptions}
+            options={[...PLATFORM_DROPDOWN_OPTIONS]}
             onChange={(option: SingleValue<CustomOptionType>) => {
               const selectedPlatformOption = PLATFORM_DROPDOWN_OPTIONS.find(
                 (platform) => platform.value === option?.value

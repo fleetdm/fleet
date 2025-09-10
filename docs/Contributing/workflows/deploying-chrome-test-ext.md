@@ -58,7 +58,7 @@ lt --port 8000 --subdomain test-new-tables
 
 ### Deploy the extension using Google Admin
 
-> Follow the instructions [here](https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-chromebooks) for installing the fleetd Chrome extension, with the following modifications:
+> Follow the [Chromebook enrollment instructions](https://fleetdm.com/docs/using-fleet/enroll-hosts#enroll-chromebooks) for installing the fleetd Chrome extension, with the following modifications:
 > + Select the "ChromeOSTesting" group.
 > + For "Extension ID", use the ID previously copied.
 > + For "Installation URL", use `http://test-new-tables.loca.lt/updates.xml`.

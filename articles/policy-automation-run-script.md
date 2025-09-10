@@ -4,7 +4,7 @@
 
 Fleet [v4.58.0](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.58.0) introduces the ability to execute scripts on hosts automatically based on predefined policy failures. This guide will walk you through configuring Fleet to automatically execute scripts on hosts using uploaded scripts based on programmed policies.
 
-Fleet allows users to upload scripts executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails. Learn more about scripts [here](https://fleetdm.com/guides/scripts).
+Fleet allows users to upload [scripts](https://fleetdm.com/guides/scripts) executed on macOS, Windows, and Linux hosts to remediate issues with those hosts. These scripts can now be automated to run when a policy fails.
 
 ## Prerequisites
 

@@ -3,6 +3,7 @@ import { IConfig, ILicense, IMdmConfig } from "interfaces/config";
 const DEFAULT_CONFIG_MDM_MOCK: IMdmConfig = {
   apple_server_url: "",
   enable_disk_encryption: false,
+  windows_require_bitlocker_pin: false,
   windows_enabled_and_configured: true,
   apple_bm_default_team: "Apples",
   apple_bm_enabled_and_configured: true,
@@ -68,7 +69,6 @@ export const DEFAULT_LICENSE_MOCK: ILicense = {
 };
 
 const DEFAULT_CONFIG_MOCK: IConfig = {
-  android_enabled: false, // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: "fleet",
     org_logo_url: "",
@@ -152,7 +152,6 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
     jira: [],
     zendesk: [],
     google_calendar: [],
-    ndes_scep_proxy: null,
   },
   logging: {
     debug: false,
@@ -210,7 +209,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   },
 };
 
-const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
+export const createMockConfig = (overrides?: Partial<IConfig>): IConfig => {
   return { ...DEFAULT_CONFIG_MOCK, ...overrides };
 };
 

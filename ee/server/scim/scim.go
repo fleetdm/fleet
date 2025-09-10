@@ -159,7 +159,23 @@ func RegisterSCIM(
 			Endpoint:    "/Users",
 			Description: optional.NewString("User Account"),
 			Schema:      userSchema,
-			Handler:     NewUserHandler(ds, scimLogger),
+			SchemaExtensions: []scim.SchemaExtension{
+				{
+					Schema: schema.Schema{
+						Attributes: []schema.CoreAttribute{
+							schema.SimpleCoreAttribute(schema.SimpleStringParams(schema.StringParams{
+								Name:     "department",
+								Required: false,
+							})),
+						},
+						Description: optional.NewString("Enterprise User"),
+						ID:          "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User",
+						Name:        optional.NewString("Enterprise User"),
+					},
+					Required: false,
+				},
+			},
+			Handler: NewUserHandler(ds, scimLogger),
 		},
 		{
 			ID:          optional.NewString("Group"),

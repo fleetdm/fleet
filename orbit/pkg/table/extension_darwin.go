@@ -5,6 +5,7 @@ package table
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/app_sso_platform"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/codesign"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
@@ -18,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/macos_user_profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
@@ -61,6 +63,7 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		table.NewPlugin("corestorage_logical_volume_families", corestorage.LogicalVolumeFamiliesColumns(), corestorage.LogicalVolumeFamiliesGenerate),
 		table.NewPlugin("filevault_prk", filevault_prk.Columns(), filevault_prk.Generate),
 		table.NewPlugin("find_cmd", find_cmd.Columns(), find_cmd.Generate),
+		table.NewPlugin("macos_user_profiles", macos_user_profiles.Columns(), macos_user_profiles.Generate),
 
 		// Macadmins extension tables
 		table.NewPlugin("filevault_users", filevaultusers.FileVaultUsersColumns(), filevaultusers.FileVaultUsersGenerate),
@@ -95,6 +98,8 @@ func PlatformTables(opts PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		dataflattentable.TablePlugin(log.Logger, dataflattentable.PlistType), // table name is "parse_plist"
 
 		table.NewPlugin("codesign", codesign.Columns(), codesign.Generate),
+
+		table.NewPlugin("app_sso_platform", app_sso_platform.Columns(), app_sso_platform.Generate),
 	}
 
 	// append platform specific tables

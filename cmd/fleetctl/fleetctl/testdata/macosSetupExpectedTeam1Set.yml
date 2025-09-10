@@ -10,8 +10,10 @@ spec:
       host_expiry_window: 0
     integrations:
       google_calendar: null
+      conditional_access_enabled: null
     mdm:
       enable_disk_encryption: false
+      windows_require_bitlocker_pin: null
       macos_settings:
         custom_settings: null
       windows_settings:

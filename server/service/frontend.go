@@ -6,9 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 
 	assetfs "github.com/elazarl/go-bindata-assetfs"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/bindata"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
@@ -74,6 +74,8 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	})
 }
 
+// ServeEndUserEnrollOTA implements the entrypoint handler for the /enroll
+// path, used to add hosts in "BYOD" mode (currently, iPhone/iPad/Android).
 func ServeEndUserEnrollOTA(
 	svc fleet.Service,
 	urlPrefix string,
@@ -84,7 +86,6 @@ func ServeEndUserEnrollOTA(
 		logger.Log("err", err)
 		http.Error(w, err, http.StatusInternalServerError)
 	}
-	androidFeatureEnabled := os.Getenv("FLEET_DEV_ANDROID_ENABLED") == "1"
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		endpoint_utils.WriteBrowserSecurityHeaders(w)
@@ -104,44 +105,61 @@ func ServeEndUserEnrollOTA(
 			return
 		}
 
-		fs := newBinaryFileSystem("/frontend")
-		file, err := fs.Open("templates/enroll-ota.html")
-		if err != nil {
-			herr(w, "load enroll ota template: "+err.Error())
+		errorMsg := r.URL.Query().Get("error")
+		if errorMsg != "" {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", errorMsg); err != nil {
+				herr(w, err.Error())
+			}
 			return
 		}
 
-		data, err := io.ReadAll(file)
-		if err != nil {
-			herr(w, "read bindata file: "+err.Error())
+		enrollSecret := r.URL.Query().Get("enroll_secret")
+		if enrollSecret == "" {
+			if err := renderEnrollPage(w, appCfg, urlPrefix, "", "This URL is invalid. : Enroll secret is invalid. Please contact your IT admin."); err != nil {
+				herr(w, err.Error())
+			}
 			return
 		}
 
-		t, err := template.New("enroll-ota").Parse(string(data))
+		authRequired, err := shared_mdm.RequiresEnrollOTAAuthentication(r.Context(), ds,
+			enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
 		if err != nil {
-			herr(w, "create react template: "+err.Error())
+			herr(w, "check if authentication is required err: "+err.Error())
 			return
 		}
 
-		enrollURL, err := generateEnrollOTAURL(urlPrefix, r.URL.Query().Get("enroll_secret"))
-		if err != nil {
-			herr(w, "generate enroll ota url: "+err.Error())
-			return
+		if authRequired {
+			// check if authentication cookie is present, in which case we go ahead with
+			// offering the enrollment profile to download.
+			var cookieIdPRef string
+			if byodCookie, _ := r.Cookie(shared_mdm.BYODIdpCookieName); byodCookie != nil {
+				cookieIdPRef = byodCookie.Value
+
+				// if the cookie is present, we should also receive a (matching) enroll reference
+				if cookieIdPRef != "" {
+					enrollRef := r.URL.Query().Get("enrollment_reference")
+					if cookieIdPRef != enrollRef {
+						cookieIdPRef = "" // cookie does not match the enroll reference, so we ignore it and require authentication
+					}
+				}
+			}
+
+			if cookieIdPRef == "" {
+				// IdP authentication has not been completed yet, initiate it by
+				// redirecting to the configured IdP provider.
+				if err := initiateOTAEnrollSSO(svc, w, r, enrollSecret); err != nil {
+					herr(w, "initiate IdP SSO authentication err: "+err.Error())
+					return
+				}
+				return
+			}
 		}
-		if err := t.Execute(w, struct {
-			EnrollURL             string
-			URLPrefix             string
-			AndroidMDMEnabled     bool
-			MacMDMEnabled         bool
-			AndroidFeatureEnabled bool
-		}{
-			URLPrefix:             urlPrefix,
-			EnrollURL:             enrollURL,
-			AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
-			MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
-			AndroidFeatureEnabled: androidFeatureEnabled,
-		}); err != nil {
-			herr(w, "execute react template: "+err.Error())
+
+		// if we get here, IdP SSO authentication is either not required, or has
+		// been successfully completed (we have a cookie with the IdP account
+		// reference).
+		if err := renderEnrollPage(w, appCfg, urlPrefix, enrollSecret, ""); err != nil {
+			herr(w, err.Error())
 			return
 		}
 	})
@@ -162,6 +180,57 @@ func generateEnrollOTAURL(fleetURL string, enrollSecret string) (string, error) 
 	q.Set("enroll_secret", enrollSecret)
 	enrollURL.RawQuery = q.Encode()
 	return enrollURL.String(), nil
+}
+
+func renderEnrollPage(w io.Writer, appCfg *fleet.AppConfig, urlPrefix, enrollSecret, errorMessage string) error {
+	fs := newBinaryFileSystem("/frontend")
+	file, err := fs.Open("templates/enroll-ota.html")
+	if err != nil {
+		return fmt.Errorf("load enroll ota template: %w", err)
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("read bindata file: %w", err)
+	}
+
+	t, err := template.New("enroll-ota").Parse(string(data))
+	if err != nil {
+		return fmt.Errorf("create react template: %w", err)
+	}
+
+	enrollURL, err := generateEnrollOTAURL(urlPrefix, enrollSecret)
+	if err != nil {
+		return fmt.Errorf("generate enroll ota url: %w", err)
+	}
+	if err := t.Execute(w, struct {
+		EnrollURL             string
+		URLPrefix             string
+		ErrorMessage          string
+		AndroidMDMEnabled     bool
+		MacMDMEnabled         bool
+		AndroidFeatureEnabled bool
+	}{
+		URLPrefix:             urlPrefix,
+		EnrollURL:             enrollURL,
+		ErrorMessage:          errorMessage,
+		AndroidMDMEnabled:     appCfg.MDM.AndroidEnabledAndConfigured,
+		MacMDMEnabled:         appCfg.MDM.EnabledAndConfigured,
+		AndroidFeatureEnabled: true,
+	}); err != nil {
+		return fmt.Errorf("execute react template: %w", err)
+	}
+	return nil
+}
+
+func initiateOTAEnrollSSO(svc fleet.Service, w http.ResponseWriter, r *http.Request, enrollSecret string) error {
+	ssnID, ssnDurationSecs, idpURL, err := svc.InitiateMDMSSO(r.Context(), "ota_enroll", "/enroll?enroll_secret="+url.QueryEscape(enrollSecret))
+	if err != nil {
+		return err
+	}
+	setSSOCookie(w, ssnID, ssnDurationSecs)
+	http.Redirect(w, r, idpURL, http.StatusSeeOther)
+	return nil
 }
 
 func ServeStaticAssets(path string) http.Handler {

@@ -63,6 +63,7 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 			FamilyName: nil,
 			Active:     nil,
 			Emails:     []fleet.ScimUserEmail{},
+			Department: nil,
 		},
 		{
 			UserName:   "user2",
@@ -77,6 +78,7 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 					Type:    ptr.String("work"),
 				},
 			},
+			Department: ptr.String(""),
 		},
 		{
 			UserName:   "user3",
@@ -96,6 +98,7 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 					Type:    ptr.String("work"),
 				},
 			},
+			Department: ptr.String("Development"),
 		},
 	}
 
@@ -114,6 +117,7 @@ func testScimUserCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, userCopy.GivenName, verify.GivenName)
 		assert.Equal(t, userCopy.FamilyName, verify.FamilyName)
 		assert.Equal(t, userCopy.Active, verify.Active)
+		assert.Equal(t, userCopy.Department, verify.Department)
 		assert.False(t, verify.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 		// Verify emails
@@ -142,6 +146,7 @@ func testScimUserByID(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.GivenName, returned.GivenName)
 		assert.Equal(t, tt.FamilyName, returned.FamilyName)
 		assert.Equal(t, tt.Active, returned.Active)
+		assert.Equal(t, tt.Department, returned.Department)
 
 		// Verify emails
 		assert.Equal(t, len(tt.Emails), len(returned.Emails))
@@ -207,6 +212,7 @@ func testScimUserByUserName(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.GivenName, returned.GivenName)
 		assert.Equal(t, tt.FamilyName, returned.FamilyName)
 		assert.Equal(t, tt.Active, returned.Active)
+		assert.Equal(t, tt.Department, returned.Department)
 		assert.False(t, returned.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 		// Verify emails
@@ -273,6 +279,7 @@ func createTestScimUsers(t *testing.T, ds *Datastore) []*fleet.ScimUser {
 					Type:    ptr.String("work"),
 				},
 			},
+			Department: nil,
 		},
 		{
 			UserName:   "test-user2",
@@ -292,6 +299,7 @@ func createTestScimUsers(t *testing.T, ds *Datastore) []*fleet.ScimUser {
 					Type:    ptr.String("work"),
 				},
 			},
+			Department: ptr.String("QA"),
 		},
 	}
 
@@ -1400,6 +1408,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 				Type:    ptr.String("work"),
 			},
 		},
+		Department: ptr.String("Engineering"),
 	}
 
 	var err error
@@ -1415,7 +1424,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	group.ID, err = ds.CreateScimGroup(t.Context(), &group)
 	require.NoError(t, err)
 
-	// Create a second test SCIM user without emails and without groups
+	// Create a second test SCIM user without emails, without groups nor department
 	user2 := fleet.ScimUser{
 		UserName:   "host-test-user2",
 		ExternalID: ptr.String("ext-host-456"),
@@ -1423,6 +1432,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 		FamilyName: ptr.String("Emails"),
 		Active:     ptr.Bool(true),
 		Emails:     []fleet.ScimUserEmail{},
+		Department: nil,
 	}
 	user2.ID, err = ds.CreateScimUser(t.Context(), &user2)
 	require.Nil(t, err)
@@ -1450,6 +1460,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user1.GivenName, result1.GivenName)
 	assert.Equal(t, user1.FamilyName, result1.FamilyName)
 	assert.Equal(t, user1.Active, result1.Active)
+	assert.Equal(t, user1.Department, result1.Department)
 	assert.False(t, result1.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Verify emails
@@ -1473,6 +1484,7 @@ func testScimUserByHostID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, user2.GivenName, result2.GivenName)
 	assert.Equal(t, user2.FamilyName, result2.FamilyName)
 	assert.Equal(t, user2.Active, result2.Active)
+	assert.Equal(t, user2.Department, result2.Department)
 	assert.False(t, result2.UpdatedAt.IsZero(), "UpdatedAt should not be zero")
 
 	// Verify no emails
@@ -1616,6 +1628,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String("Original"),
 		FamilyName: ptr.String("User"),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support"),
 	}
 
 	var err error
@@ -1633,6 +1646,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String("Valid"),
 		FamilyName: ptr.String("Name"),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support"),
 	}
 	err = ds.ReplaceScimUser(t.Context(), &userWithLongExternalID)
 	assert.Error(t, err)
@@ -1646,6 +1660,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String("Valid"),
 		FamilyName: ptr.String("Name"),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support"),
 	}
 	err = ds.ReplaceScimUser(t.Context(), &userWithLongUserName)
 	assert.Error(t, err)
@@ -1659,6 +1674,7 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String(longString),
 		FamilyName: ptr.String("Name"),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support"),
 	}
 	err = ds.ReplaceScimUser(t.Context(), &userWithLongGivenName)
 	assert.Error(t, err)
@@ -1672,10 +1688,25 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String("Valid"),
 		FamilyName: ptr.String(longString),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support"),
 	}
 	err = ds.ReplaceScimUser(t.Context(), &userWithLongFamilyName)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "family_name exceeds maximum length")
+
+	// Test Department validation
+	userWithLongDepartment := fleet.ScimUser{
+		ID:         user.ID,
+		UserName:   "valid-username",
+		ExternalID: ptr.String("valid-external-id"),
+		GivenName:  ptr.String("Valid"),
+		FamilyName: ptr.String("Valid"),
+		Active:     ptr.Bool(true),
+		Department: ptr.String(longString),
+	}
+	err = ds.ReplaceScimUser(t.Context(), &userWithLongDepartment)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "department exceeds maximum length")
 
 	// Test with valid values
 	validUser := fleet.ScimUser{
@@ -1685,9 +1716,22 @@ func testScimUserReplaceValidation(t *testing.T, ds *Datastore) {
 		GivenName:  ptr.String("Updated"),
 		FamilyName: ptr.String("Name"),
 		Active:     ptr.Bool(true),
+		Department: ptr.String("Customer support updated"),
 	}
 	err = ds.ReplaceScimUser(t.Context(), &validUser)
 	assert.NoError(t, err)
+
+	updated, err := ds.ScimUserByID(t.Context(), user.ID)
+	assert.Nil(t, err)
+	assert.NotNil(t, updated)
+	assert.Equal(t, updated.ID, user.ID)
+	assert.Equal(t, updated.UserName, validUser.UserName)
+	assert.Equal(t, updated.ExternalID, validUser.ExternalID)
+	assert.Equal(t, updated.GivenName, validUser.GivenName)
+	assert.Equal(t, updated.FamilyName, validUser.FamilyName)
+	assert.Equal(t, updated.Active, validUser.Active)
+	assert.Equal(t, updated.Department, validUser.Department)
+	assert.Greater(t, updated.UpdatedAt, user.UpdatedAt)
 }
 
 func testScimLastRequest(t *testing.T, ds *Datastore) {
@@ -1792,9 +1836,9 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart},
-		profGroup.ProfileUUID:    {fleet.FleetVarHostEndUserIDPGroups},
-		profAll.ProfileUUID:      {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups},
+		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
@@ -1893,7 +1937,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", GivenName: ptr.String("A")})
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2097,11 +2141,11 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	// create a team and make host2 part of that team
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host2.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team.ID, []uint{host2.ID}))
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []string{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
 	require.NoError(t, err)
@@ -2332,6 +2376,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID st
 	}
 
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		token := uuid.New() // Generate binary UUID
 		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
 				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
 			VALUES
@@ -2340,7 +2385,7 @@ func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID st
 				status = VALUES(status),
 				operation_type = VALUES(operation_type)
 			`,
-			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
+			profile.Identifier, hostUUID, actualStatus, operation, token[:], profile.Name, profile.DeclarationUUID)
 		return err
 	})
 }

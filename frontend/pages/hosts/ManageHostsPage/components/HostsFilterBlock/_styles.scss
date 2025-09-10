@@ -26,7 +26,8 @@
 
   &__os_settings-dropdown,
   &__macsettings-dropdown,
-  &__sw-install-status-dropdown {
+  &__sw-install-status-dropdown,
+  &__script-batch-status-dropdown {
     .dropdown__select {
       border: 1px solid #e2e4ea;
     }
@@ -34,5 +35,10 @@
     .Select-multi-value-wrapper {
       width: 150px; // Fits all dropdown options without resizing
     }
+  }
+
+  &__multi-filter {
+    display: flex;
+    gap: $pad-small;
   }
 }

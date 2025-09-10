@@ -1,5 +1,6 @@
 import React, { useContext } from "react";
-import { invert } from "lodash";
+
+import { dateAgo } from "utilities/date_format";
 
 import { AppContext } from "context/app";
 import { ILabel } from "interfaces/label";
@@ -11,9 +12,10 @@ import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
-  MDM_ENROLLMENT_STATUS,
+  MDM_ENROLLMENT_STATUS_UI_MAP,
   MdmProfileStatus,
   IMdmProfile,
+  MdmEnrollmentFilterValue,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { IPolicy } from "interfaces/policy";
@@ -23,6 +25,7 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
+import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -64,7 +67,7 @@ interface IHostsFilterBlockProps {
     softwareTitleId?: number;
     softwareVersionId?: number;
     mdmId?: number;
-    mdmEnrollmentStatus?: any;
+    mdmEnrollmentStatus?: MdmEnrollmentFilterValue;
     lowDiskSpaceHosts?: number;
     osVersionId?: string;
     osName?: string;
@@ -81,6 +84,10 @@ interface IHostsFilterBlockProps {
     configProfileStatus?: string;
     configProfileUUID?: string;
     configProfile?: IMdmProfile;
+    scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
+    scriptBatchExecutionId?: string;
+    scriptBatchRanAt: string | null;
+    scriptBatchScriptName: string | null;
   };
   selectedLabel?: ILabel;
   isOnlyObserver?: boolean;
@@ -99,8 +106,10 @@ interface IHostsFilterBlockProps {
     newStatus: SoftwareAggregateStatus
   ) => void;
   onChangeConfigProfileStatusFilter: (newStatus: string) => void;
+  onChangeScriptBatchStatusFilter: (newStatus: ScriptBatchHostCountV1) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -135,6 +144,10 @@ const HostsFilterBlock = ({
     configProfileStatus,
     configProfileUUID,
     configProfile,
+    scriptBatchExecutionStatus,
+    scriptBatchExecutionId,
+    scriptBatchRanAt,
+    scriptBatchScriptName,
   },
   selectedLabel,
   isOnlyObserver,
@@ -147,14 +160,25 @@ const HostsFilterBlock = ({
   onChangeMacSettingsFilter,
   onChangeSoftwareInstallStatusFilter,
   onChangeConfigProfileStatusFilter,
+  onChangeScriptBatchStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isLoading = false,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
 
+  if (isLoading) {
+    return <></>;
+  }
+
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
-      const { description, display_text, label_type } = selectedLabel;
+      const {
+        description,
+        display_text,
+        label_type,
+        label_membership_type,
+      } = selectedLabel;
       const pillLabel =
         (isPlatformLabelNameFromAPI(display_text) &&
           PLATFORM_LABEL_DISPLAY_NAMES[display_text]) ||
@@ -181,13 +205,18 @@ const HostsFilterBlock = ({
             !isOnlyObserver &&
             (isOnGlobalTeam || currentUser?.id === selectedLabel.author_id) && (
               <>
-                <Button
-                  className={`${baseClass}__action-btn`}
-                  onClick={onClickEditLabel}
-                  variant="icon"
-                >
-                  <Icon name="pencil" size="small" />
-                </Button>
+                {
+                  // TODO - remove condition if/when can edit host_vitals labels
+                  label_membership_type !== "host_vitals" && (
+                    <Button
+                      className={`${baseClass}__action-btn`}
+                      onClick={onClickEditLabel}
+                      variant="icon"
+                    >
+                      <Icon name="pencil" size="small" />
+                    </Button>
+                  )
+                }
                 <Button
                   className={`${baseClass}__action-btn`}
                   onClick={onClickDeleteLabel}
@@ -352,7 +381,9 @@ const HostsFilterBlock = ({
     if (!mdmEnrollmentStatus) return null;
 
     const label = `MDM status: ${
-      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
+      Object.values(MDM_ENROLLMENT_STATUS_UI_MAP).find(
+        (status) => status.filterValue === mdmEnrollmentStatus
+      )?.displayName
     }`;
 
     // More narrow tooltip than other MDM tooltip
@@ -536,6 +567,42 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderScriptBatchExecutionBlock = () => {
+    const OPTIONS = [
+      { value: "ran", label: "Ran" },
+      { value: "errored", label: "Error" },
+      { value: "pending", label: "Pending" },
+      { value: "incompatible", label: "Incompatible" },
+      { value: "canceled", label: "Canceled" },
+    ];
+    return (
+      <>
+        <Dropdown
+          value={scriptBatchExecutionStatus}
+          className={`${baseClass}__script-batch-status-dropdown`}
+          options={OPTIONS}
+          searchable={false}
+          onChange={onChangeScriptBatchStatusFilter}
+          iconName="filter-alt"
+        />
+        {scriptBatchScriptName && (
+          <FilterPill
+            label={scriptBatchScriptName}
+            onClear={() =>
+              handleClearFilter([
+                HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
+                HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
+              ])
+            }
+            tooltipDescription={
+              scriptBatchRanAt ? dateAgo(scriptBatchRanAt) : null
+            }
+          />
+        )}
+      </>
+    );
+  };
+
   const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
 
   if (
@@ -556,7 +623,8 @@ const HostsFilterBlock = ({
     diskEncryptionStatus ||
     bootstrapPackageStatus ||
     vulnerability ||
-    (configProfileStatus && configProfileUUID && configProfile)
+    (configProfileStatus && configProfileUUID && configProfile) ||
+    (scriptBatchExecutionStatus && scriptBatchExecutionId)
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -590,6 +658,17 @@ const HostsFilterBlock = ({
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+          // Software version can be combined with os name and os version
+          // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+          // Note: This is our only double filter available in the UI, are there others?
+          if (!!osVersionId || (!!osName && !!osVersion)) {
+            return (
+              <div className={`${baseClass}__multi-filter`}>
+                {renderSoftwareFilterBlock()}
+                {renderOSFilterBlock()}
+              </div>
+            );
+          }
           return renderSoftwareFilterBlock();
         case !!mdmId:
           return renderMDMSolutionFilterBlock();
@@ -611,6 +690,8 @@ const HostsFilterBlock = ({
           return renderBootstrapPackageStatusBlock();
         case !!configProfileStatus && !!configProfileUUID && !!configProfile:
           return renderConfigProfileStatusBlock();
+        case !!scriptBatchExecutionStatus && !!scriptBatchExecutionId:
+          return renderScriptBatchExecutionBlock();
         default:
           return null;
       }

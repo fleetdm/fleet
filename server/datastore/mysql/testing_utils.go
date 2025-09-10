@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -64,16 +65,10 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 		dslogger = log.NewNopLogger()
 	}
 
-	// set SQL mode to ANSI, as it's a special mode equivalent to:
-	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
-	// ONLY_FULL_GROUP_BY
-	//
-	// Per the docs:
-	// > This mode changes syntax and behavior to conform more closely to
-	// standard SQL.
-	//
-	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
-	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode("ANSI"), WithFleetConfig(&tc))
+	// Use TestSQLMode which combines ANSI mode components with MySQL 8 strict modes
+	// This ensures we catch data truncation errors and other strict behaviors during testing
+	// Reference: https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html
+	ds, err := New(*cfg, clock.NewMockClock(), Logger(dslogger), LimitAttempts(1), replicaOpt, SQLMode(common_mysql.TestSQLMode), WithFleetConfig(&tc))
 	require.Nil(t, err)
 
 	if opts.DummyReplica {
@@ -84,7 +79,7 @@ func connectMySQL(t testing.TB, testName string, opts *testing_utils.DatastoreTe
 			MinLastOpenedAtDiff: defaultMinLastOpenedAtDiff,
 			MaxAttempts:         1,
 			Logger:              log.NewNopLogger(),
-			SqlMode:             "ANSI",
+			SqlMode:             common_mysql.TestSQLMode,
 		}
 		setupRealReplica(t, testName, ds, replicaOpts)
 	}
@@ -618,11 +613,12 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 	certPEM := assets[fleet.MDMAssetABMCert].Value
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -650,7 +646,11 @@ func CreateAndSetABMToken(t testing.TB, ds *Datastore, orgName string) *fleet.AB
 			"Content-Description: S/MIME Encrypted Message\r\n"+
 			"\r\n%s", base64.StdEncoding.EncodeToString(encryptedToken))
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: []byte(tokenBytes), OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   []byte(tokenBytes),
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 	return tok
 }
@@ -673,7 +673,11 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	err = ds.InsertMDMConfigAssets(context.Background(), assets, nil)
 	require.NoError(t, err)
 
-	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{EncryptedToken: tokenBytes, OrganizationName: orgName})
+	tok, err := ds.InsertABMToken(context.Background(), &fleet.ABMToken{
+		EncryptedToken:   tokenBytes,
+		OrganizationName: orgName,
+		RenewAt:          time.Now().Add(30 * 24 * time.Hour), // 30 days from now
+	})
 	require.NoError(t, err)
 
 	appCfg, err := ds.AppConfig(context.Background())
@@ -691,11 +695,12 @@ func GenerateTestABMAssets(t testing.TB) ([]byte, []byte, []byte, error) {
 	require.NoError(t, err)
 
 	testBMToken := &nanodep_client.OAuth1Tokens{
-		ConsumerKey:       "test_consumer",
-		ConsumerSecret:    "test_secret",
-		AccessToken:       "test_access_token",
-		AccessSecret:      "test_access_secret",
-		AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
+		ConsumerKey:    "test_consumer",
+		ConsumerSecret: "test_secret",
+		AccessToken:    "test_access_token",
+		AccessSecret:   "test_access_secret",
+		// Use 2037 to avoid Y2K38 issues with 32-bit timestamps and potential MySQL date validation issues
+		AccessTokenExpiry: time.Date(2037, 1, 1, 0, 0, 0, 0, time.UTC),
 	}
 
 	rawToken, err := json.Marshal(testBMToken)
@@ -841,6 +846,47 @@ func (ds *Datastore) ReplicaStatus(ctx context.Context) (map[string]interface{},
 		return result, ctxerr.Wrap(ctx, err, "rows error")
 	}
 	return result, nil
+}
+
+// NormalizeSQL normalizes the SQL statement by removing extra spaces and new lines, etc.
+func NormalizeSQL(query string) string {
+	query = strings.ToUpper(query)
+	query = strings.TrimSpace(query)
+
+	transformations := []struct {
+		pattern     *regexp.Regexp
+		replacement string
+	}{
+		{
+			// Remove comments
+			regexp.MustCompile(`(?m)--.*$|/\*(?s).*?\*/`),
+			"",
+		},
+		{
+			// Normalize whitespace
+			regexp.MustCompile(`\s+`),
+			" ",
+		},
+		{
+			// Replace spaces around ','
+			regexp.MustCompile(`\s*,\s*`),
+			",",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\(\s*`),
+			" (",
+		},
+		{
+			// Replace extra spaces before (
+			regexp.MustCompile(`\s*\)\s*`),
+			") ",
+		},
+	}
+	for _, tx := range transformations {
+		query = tx.pattern.ReplaceAllString(query, tx.replacement)
+	}
+	return query
 }
 
 func checkUpcomingActivities(t *testing.T, ds *Datastore, host *fleet.Host, execIDs ...string) {

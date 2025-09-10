@@ -11,7 +11,7 @@ import {
 import getDefaultInstallScript from "utilities/software_install_scripts";
 import getDefaultUninstallScript from "utilities/software_uninstall_scripts";
 import { ILabelSummary } from "interfaces/label";
-import { PackageType } from "interfaces/package_type";
+
 import { SoftwareCategory } from "interfaces/software";
 
 import Button from "components/buttons/Button";

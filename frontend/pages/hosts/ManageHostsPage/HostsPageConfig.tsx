@@ -1,6 +1,3 @@
-import React from "react";
-
-import Icon from "components/Icon";
 import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
@@ -23,6 +20,8 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "bootstrap_package",
+  HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
+  HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
 
 /*
@@ -40,6 +39,8 @@ export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
   "macos_settings",
   HOSTS_QUERY_PARAMS.OS_SETTINGS,
   HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
+  HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS,
+  HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID,
 ] as const;
 
 // TODO: refactor to use this type as the location.query prop of the page

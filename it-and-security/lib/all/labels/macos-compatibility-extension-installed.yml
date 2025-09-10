@@ -1,0 +1,5 @@
+- name: macOS compatibility extension installed
+  description: macOS hosts that have the macOS compatibility extension installed
+  query: SELECT 1 WHERE EXISTS (SELECT * FROM file_lines WHERE path = "/var/osquery/extensions.load" AND line = "/var/fleet/extensions/macos_compatibility_universal.ext");
+  label_membership_type: dynamic
+  platform: darwin

@@ -30,7 +30,9 @@ func installScriptForApp(app inputApp, cask *brewCask) (string, error) {
 			}
 			includeQuitFunc = true
 			for _, appPath := range artifact.App {
-				sb.Writef(`sudo [ -d "$APPDIR/%[1]s" ] && sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"`, appPath)
+				sb.Writef(`if [ -d "$APPDIR/%[1]s" ]; then
+	sudo mv "$APPDIR/%[1]s" "$TMPDIR/%[1]s.bkp"
+fi`, appPath)
 				sb.Copy(appPath, "$APPDIR")
 			}
 
@@ -197,17 +199,27 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 	}
 
 	if u.Script.IsOther {
+		// for supported FMAs, this is a map with "executable" as the script path and "sudo" with sudo set to true
 		addUserVar()
-		for _, path := range u.Script.Other {
-			sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, path)
+		if u.Script.Other["args"] != nil {
+			panic("Args found in Homebrew uninstall script; not yet implemented in ingester")
 		}
+		if u.Script.Other["sudo"] != true {
+			panic("sudo not found or something other than true")
+		}
+
+		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo '%s')`, u.Script.Other["executable"])
 	} else if len(u.Script.String) > 0 {
 		addUserVar()
 		sb.Writef(`(cd /Users/$LOGGED_IN_USER && sudo -u "$LOGGED_IN_USER" '%s')`, u.Script.String)
 	}
 
 	process(u.PkgUtil, func(pkgID string) {
-		sb.Writef("sudo pkgutil --forget '%s'", pkgID)
+		sb.AddFunction("expand_pkgid_and_map", expandWildcardPkgs)
+		sb.AddFunction("remove_pkg_files", removePkgFiles)
+		sb.AddFunction("forget_pkg", forgetPkgFunc)
+		sb.Writef("remove_pkg_files '%s'", pkgID)
+		sb.Writef("forget_pkg '%s'", pkgID)
 	})
 
 	process(u.Delete, func(path string) {
@@ -226,16 +238,18 @@ func processUninstallArtifact(u *brewUninstall, sb *scriptBuilder) {
 }
 
 type scriptBuilder struct {
-	statements []string
-	variables  map[string]string
-	functions  map[string]string
+	statements   []string
+	variables    map[string]string
+	functions    map[string]string
+	pathsCreated map[string]struct{}
 }
 
 func newScriptBuilder() *scriptBuilder {
 	return &scriptBuilder{
-		statements: []string{},
-		variables:  map[string]string{},
-		functions:  map[string]string{},
+		statements:   []string{},
+		variables:    map[string]string{},
+		functions:    map[string]string{},
+		pathsCreated: map[string]struct{}{},
 	}
 }
 
@@ -326,7 +340,11 @@ sudo installer -pkg "$TMPDIR"/%s -target / -applyChoiceChangesXML "$CHOICE_XML"
 // Symlink writes a command to create a symbolic link from 'source' to 'target'.
 func (s *scriptBuilder) Symlink(source, target string) {
 	pathname := filepath.Dir(target)
-	s.Writef(`[ -d "%s" ] && /bin/ln -h -f -s -- "%s" "%s"`, pathname, source, target)
+	if _, ok := s.pathsCreated[pathname]; !ok {
+		s.Writef("mkdir -p %s", pathname)
+		s.pathsCreated[pathname] = struct{}{}
+	}
+	s.Writef(`/bin/ln -h -f -s -- "%s" "%s"`, source, target)
 }
 
 // String generates the final script as a string.
@@ -525,4 +543,71 @@ const sendSignalFunc = `send_signal() {
   done
 
   sleep 3
+}`
+
+const expandWildcardPkgs = `expand_pkgid_and_map() {
+  local PKGID="$1"
+  local FUNC="$2"
+  if [[ "$PKGID" == *"*" ]]; then
+    local prefix="${PKGID%\*}"
+    echo "Expanding wildcard for PKGID: $PKGID"
+    for receipt in $(pkgutil --pkgs | grep "^${prefix}"); do
+      echo "Processing $receipt"
+      "$FUNC" "$receipt"
+    done
+  else
+    "$FUNC" "$PKGID"
+  fi
+}`
+
+const removePkgFiles = `remove_pkg_files() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" remove_receipt_files
+}
+
+remove_receipt_files() {
+  local PKGID="$1"
+  local PKGINFO VOLUME INSTALL_LOCATION FULL_INSTALL_LOCATION
+
+  echo "pkgutil --pkg-info-plist \"$PKGID\""
+  PKGINFO=$(pkgutil --pkg-info-plist "$PKGID")
+  VOLUME=$(echo "$PKGINFO" | awk '/<key>volume<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+  INSTALL_LOCATION=$(echo "$PKGINFO" | awk '/<key>install-location<\/key>/ {getline; gsub(/.*<string>|<\/string>.*/, ""); print}')
+
+  if [ -z "$INSTALL_LOCATION" ] || [ "$INSTALL_LOCATION" = "/" ]; then
+    FULL_INSTALL_LOCATION="$VOLUME"
+  else
+    FULL_INSTALL_LOCATION="$VOLUME/$INSTALL_LOCATION"
+    FULL_INSTALL_LOCATION=$(echo "$FULL_INSTALL_LOCATION" | sed 's|//|/|g')
+  fi
+
+  echo "sudo pkgutil --only-files --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | tr '\\\\n' '\\\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --only-files --files "$PKGID" | sed "s|^|/${INSTALL_LOCATION}/|" | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  echo "sudo pkgutil --only-dirs --files \"$PKGID\" | sed \"s|^|${FULL_INSTALL_LOCATION}/|\" | grep '\\.app$' | tr '\\\\n' '\\\\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf"
+  sudo pkgutil --only-dirs --files "$PKGID" | sed "s|^|${FULL_INSTALL_LOCATION}/|" | grep '\.app$' | tr '\n' '\0' | /usr/bin/sudo -u root -E -- /usr/bin/xargs -0 -- /bin/rm -rf
+
+  root_app_dir=$(
+    sudo pkgutil --only-dirs --files "$PKGID" \
+      | sed "s|^|${FULL_INSTALL_LOCATION}/|" \
+      | grep 'Applications' \
+      | awk '{ print length, $0 }' \
+      | sort -n \
+      | head -n1 \
+      | cut -d' ' -f2-
+  )
+  if [ -n "$root_app_dir" ]; then
+    echo "sudo rmdir -p \"$root_app_dir\" 2>/dev/null || :"
+    sudo rmdir -p "$root_app_dir" 2>/dev/null || :
+  fi
+}`
+
+const forgetPkgFunc = `forget_pkg() {
+  local PKGID="$1"
+  expand_pkgid_and_map "$PKGID" forget_receipt
+}
+
+forget_receipt() {
+  local PKGID="$1"
+  sudo pkgutil --forget "$PKGID"
 }`

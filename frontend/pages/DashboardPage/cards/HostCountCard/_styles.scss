@@ -55,6 +55,11 @@
     &-text {
       font-size: $medium;
     }
+
+    // Do not show hover outline for non clickable card
+    &:hover {
+      border-color: $ui-fleet-black-10;
+    }
   }
 
   &__description {

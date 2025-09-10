@@ -168,9 +168,17 @@ const HostSummary = ({
   );
 
   const renderDiskSpaceSummary = () => {
+    const title = isAndroidHost ? (
+      <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
+        Disk space
+      </TooltipWrapper>
+    ) : (
+      "Disk space"
+    );
+
     return (
       <DataSet
-        title="Disk space"
+        title={title}
         value={
           <DiskSpaceIndicator
             baseClass="info-flex"

@@ -28,8 +28,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group                            | Goal _(value for customers and/or community)_                                                                          | Capacity |
 |:-----------------------------------------|:-----------------------------------------------------------------------------------------------------------------------|:---------|
-| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 117      |
-| [Orchestration](#orchestration-group)    | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 117      |
+| [MDM](#mdm-group)                        | Increase and exceed maturity in the [device management](https://fleetdm.com/device-management) product category.       | 104      |
+| [Orchestration](#orchestration-group)    | Increase and exceed maturity in the [orchestration](https://fleetdm.com/orchestration) product category.               | 143      |
 | [Software](#software-group)              | Increase and exceed maturity in the [software management](https://fleetdm.com/software-management) product category.   | 104      |
 
 \* The number of [estimated story points](https://fleetdm.com/handbook/company/communications#estimation-points) this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
@@ -43,9 +43,9 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_
-| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_
+| Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
+| Quality Assurance                 | [Gabe Lopez](https://www.linkedin.com/in/gabelopez/) _([@PezHub](https://github.com/PezHub))_, [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
+| Developer                         | [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Jordan Montgomery](https://www.linkedin.com/in/jordan-montgomery-54553651/) _([@JordanMontgomery](https://github.com/JordanMontgomery))_, [Magnus Jensen](https://linkedin.com/in/magnus-holm-jensen) ([@MagnusHJensen](https://github.com/magnushjensen)), [Carlo DiCelico](https://www.linkedin.com/in/carlodicelico/) _([@cdcme](https://github.com/cdcme))_
 
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://github.com/orgs/fleetdm/projects/58), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
@@ -59,9 +59,9 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 |:----------------------------------|:--------------------------|
 | Product Designer                  | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Engineering Manager               | [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_
 | Quality Assurance                 | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_
-| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_
+| Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Scott Gress](https://www.linkedin.com/in/scottgress/) _([@sgress454](https://github.com/sgress454))_, [Lucas Rodriguez](https://www.linkedin.com/in/lukmr/) _([@lucasmrod](https://github.com/lucasmrod))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_, [Victor Lyuboslavsky](https://www.linkedin.com/in/lyuboslavsky/) _([@getvictor](https://github.com/getvictor))_, [Juan Fernandez](https://www.linkedin.com/in/juan-fdz-hawa/) _([@juan-fdz-hawa](https://github.com/juan-fdz-hawa))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
@@ -72,13 +72,72 @@ The goal of the software group is to increase and exceed [Fleet's product maturi
 
 | Responsibility                    | Human(s)                  |
 |:----------------------------------|:--------------------------|
-| Product Designer                  | [Eugene Kuo](https://www.linkedin.com/in/eugkuo/) _([@eugkuo](https://github.com/eugkuo))_
+| Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
-| Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
+| Product Manager                   | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Quality Assurance                 | [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
 | Developer                         | [Ian Littman](https://www.linkedin.com/in/ian-littman/) _([@iansltx](https://github.com/iansltx))_, [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Konstantin Sykulev](https://www.linkedin.com/in/konstantins/) _([@ksykulev](https://github.com/ksykulev))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software](https://github.com/fleetdm/fleet/labels/%23g-software)) for this product group is `#g-software`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C086V2QK76X), [kanban release board](https://github.com/orgs/fleetdm/projects/70), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-software) for this product group is `#g-software`.
+
+
+### Website group
+
+The goal of the website group is to increase and exceed [Fleet's product maturity goals for fleetdm.com.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Engineering Manager               | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+| Product Manager                   | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Quality Assurance                 | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| Developer                         | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+
+> The [Slack channel](https://fleetdm.slack.com/archives/C097P4TAPRR), [kanban board](https://github.com/orgs/fleetdm/projects/92), and [GitHub label](https://github.com/fleetdm/fleet/labels?q=%23g-website) for this product group is `#g-website`.
+
+
+## Working groups
+
+Like a product group at Fleet, a working group is an arrangement of people from different functions. What makes a working group unique is that it is tasked with achieving a high-impact business goal fast. A working group disbands when the goal is achieved so Fleet stays fast and avoids unnecessary process.
+
+Working groups are for important work that needs to be done quickly, when asynchronous work would be too slow.
+
+Working groups have their own section in the handbook that includes the name, goal, resources, and contributors. See the commented out section in the handbook for an example.
+
+Items to cover in the section:
+- Name of the working group
+- Desired business outcomes (goals)
+- Link to the working group Slack channel and GitHub project
+- Who is involved. This should include who the DRI is.
+- Timeline. When will the working group start? When do we think we'll be done by?
+
+
+### UX group
+
+The goal of the UX group is to catch the Fleet product up with the [latest brand colors/styles](https://github.com/fleetdm/confidential/issues/11765) from the website (fleetdm.com), address [UX debt (spiffier)](https://github.com/fleetdm/confidential/issues/11868), and ship the Fleet product's first [2 graphs](https://github.com/fleetdm/confidential/issues/11864).
+
+This group will kick off on 2025-08-27 and plans to wrap up on 2025-09-29.
+
+| Responsibility                    | Human(s)                  |
+|:----------------------------------|:--------------------------|
+| Product Designer                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Product Manager (DRI)             | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_
+| Quality Assurance                 |  [Janis Watts](https://www.linkedin.com/in/janis-watts-b080ab94/) _([@jmwatts](https://github.com/jmwatts))_
+| Developer                         | [Rachel Perkins](https://www.linkedin.com/in/rachelelysia/) _([@rachelelysia](https://github.com/rachelelysia))_, [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
+
+<!--
+Example working group section
+### Name
+
+Goal
+
+| Responsibility | Human(s)   |
+|:---------------|:-----------|
+|                |
+|                |
+|                |
+-->
+
 
 ## Making changes
 
@@ -97,7 +156,9 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-> Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+
+Also, sometimes a contributor will propose a change in the form of a pull request (PR). When this happens, the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
 ### Planned and unplanned changes
 
@@ -105,7 +166,7 @@ Most changes to Fleet are planned changes. They are [prioritized](https://fleetd
 
 Occasionally, changes are unplanned.  Like a patch for an unexpected bug, or a hotfix for a security issue.  Or if an open source contributor suggests an unplanned change in the form of a pull request.  These unplanned changes are sometimes OK to merge as-is.  But if they change the user interface, the CLI usage, or the REST API, then they need to go through drafting and reconsideration before merging.
 
-> But wait, [isn't this "waterfall"?](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) Waterfall is something else.  Between 2015-2023, GitLab and The Sails Company independently developed and coevolved similar delivery processes.  (What we call "drafting" and "implementation" at Fleet, is called "the validation phase" and "the build phase" at GitLab.)
+> But wait, [isn't this "waterfall"?](https://about.gitlab.com/handbook/product-development-flow/#but-wait-isnt-this-waterfall) Waterfall is something else.  Between 2015-2023, GitLab and The Sails Company independently developed and co-evolved similar delivery processes.  (What we call "drafting" and "implementation" at Fleet, is called "the validation phase" and "the build phase" at GitLab.)
 
 
 ### Experimental features
@@ -204,7 +265,7 @@ Every user story has a product and engineering checklist that is completed befor
 
 When the Product Designer has completed the product checklist, it is moved to the "User story review" column of the drafting board and reviewed during the [weekly user story review](https://fleetdm.com/handbook/company/product-groups#user-story-reviews) rituals.
 
-When a user story completes the review process, it is moved to the "Ready for spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
+When a user story completes the review process, it is moved to the "Ready to spec" column on the drafting board and assigned to the product group's EM. The EM is responsible for completing the engineering checklist and finalizing the test plan with the QA Engineer before moving to the "Ready to estimate" column.
 
 
 #### Providing context
@@ -245,6 +306,21 @@ Anyone in the product group can initiate an air guitar session.
   - Keep it open for future consideration.
   - Discard if it is invalidated through the process.
 
+#### T-shirt sizing (capacity planning)
+
+T-shirt sizes represent a rough estimate on the effort required to complete a task for a given team. Sometimes, T-shirt sizes are used to understand the level-of-effort before the task has gone through drafting.
+
+[Estimation points](https://fleetdm.com/handbook/company/communications#estimation-points) are used if a task has already gone through drafting.
+
+| T-shirt size | Time | Story points |
+|:---|:-----------------------------|:-|
+| XXS | ≤1 day for 1 contributor | 1-3 |
+| XS | ≤1 week for 1 contributor | 3-8 |
+| S  | ≤1 sprint for 1 contributor | 8-25 |
+| M  | 1 sprint for 2 contributors | 25-50 |
+| L  | 1 sprint for 3 contributors | 50-75 |
+| XL | >1 sprint for 3 contributors | >75 |
+
 
 ### Implementing
 
@@ -253,7 +329,7 @@ Anyone in the product group can initiate an air guitar session.
 
 Please read carefully and [pay special attention](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) to UI wireframes.
 
-While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see breakpoints in the user story template [here](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review. 
+While Product Designers are responsible for wireframing significant UI changes at Fleet's breakpoints (see [breakpoints in the user story template](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/story.md)), Fleet relies on Engineers to fill in the gaps and fluidly include all screen widths. If you discovered a gap, please bring the proposed changes as a live prototype to your product group's next design review.
 
 Designs have usually gone through multiple rounds of revisions, but they could easily still be overlooking complexities or edge cases! When you think you've discovered a blocker, here's how to proceed:
 
@@ -327,7 +403,7 @@ When a release is in testing, QA should use the Slack channel #help-qa to keep e
 
 When a critical bug is found, the Fleetie who labels the bug as critical is responsible for following the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug) below.
 
-All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#bug-process).
+All unreleased bugs are addressed before publishing a release. Released bugs that are not critical may be addressed during the next release per the standard [bug process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#bug-process).
 
  - **Release blockers:** Product may add the `~release blocker` label to user stories to indicate that the story must be completed to publish the next version of Fleet. Bugs are never labeled as release blockers.
 
@@ -350,7 +426,7 @@ Once the critical bug is confirmed, a [priority label](https://fleetdm.com/handb
 
 The relevant release page on GitHub is updated to indicate that the release contains a critical bug, as shown on the [fleet-v4.45.0 release page](https://github.com/fleetdm/fleet/releases/tag/fleet-v4.45.0).
 
-When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/guides/releasing-fleet.md#patch-releases).
+When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/workflows/releasing-fleet.md#prepare-a-patch-release).
 
 > After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#perform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
@@ -369,6 +445,8 @@ To make a feature request or advocate for a feature request from a customer or c
 
 New requests are reviewed daily by the Head of Product Design and a former IT admin during the ["Unpacking the why"](https://fleetdm.com/handbook/product-design#unpacking-the-why) call. If the request meets the [criteria for prioritization](#criteria-for-prioritization), the request will be added to the upcoming feature fest (`~feature fest` label). If it doesn't, the request will be put to the side and the requester will be notified.
 
+> **Fast for Fleeties:** Fleeties do not have to wait for "Unpacking the why" to add a request to feature fest. If you think Fleet is missing something and have described in detail what you already tried, it can be moved directly to the [🎁 Feature fest board](https://github.com/orgs/fleetdm/projects/72). Just add the `~feature fest` label.
+
 
 ### Criteria for prioritization
 
@@ -376,9 +454,11 @@ To prioritize a new feature, it must meet one of these criteria:
 
 1. Bug
 2. Small UX improvement that isn't quite a bug but it's so small that it's worthwhile
-3. Contributes to Fleet's [quarterly key results (KRs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041&range=A1)
-4. High priority customer request (customer request, workflow blocking, etc.)
-5. Prospect request in an order form
+3. Contributes to Fleet's Product roadmap (see [🎯 Key results (OKRs) spreadsheet](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=1846478041#gid=1846478041))
+4. Core: a feature that accentuates and directly assists in the core purpose of the company: to guide people out of the thicket through the gift of openness. It's what differentiates us. [How Fleet defined "core"](https://docs.google.com/document/d/1Vr0F218Acr69eAgaD38zsyUUQ3Ik9HDEAlitT911BzU/edit?tab=t.0#heading=h.axp63q5pht7).
+5. Context: a feature that customers consider mission critical for their particular buying situation. Can either be an existing customer request or a prospect request in an order form.
+
+Features that are core to Fleet are prioritized over context (mission critical) features. Mission critical features can be prioritized over core features only if they're a customer promise or a customer request is blocking a migration to Fleet.
 
 If an issue has the `~feature fest` label, then it's a new feature request that will be weighed at the next 🎁🗣 Feature Fest meeting.
 
@@ -402,11 +482,13 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the #g-mdm, #g-software, or #g-orchestration channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
+
 
 ### After the feature is accepted
 
 After the 🎁🗣 Feature fest meeting, the feature prioritization DRI will clear the 🎁 Feature fest board as follows:
-- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add a link from the original request to the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
+- Prioritized features: Remove the `~feature fest` label, add the `~customer request` label, create a new user story with the `:product` label, add the original request as parent issue in the user story, add the relevant `customer-` labels, and move the user story to the "Ready" column in the drafting board. The user story will then be assigned to a [Product Designer](https://fleetdm.com/handbook/company/product-groups#current-product-groups) during the "Design sprint kick-off" ritual.
 - Put to the side features: Remove `~feature fest` label and notify the requestor.
 
 > The product team's commitment to the requester is that the prioritized user story will be delivered or the requester will be notified within 1 business day of the decision to de-prioritize the story.
@@ -452,11 +534,11 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 #### Inbox
 
-Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.
+Quickly reproducing bug reports is a [priority for Fleet](https://fleetdm.com/handbook/company/why-this-way#why-make-it-obvious-when-stuff-breaks). When a new bug is created using the [bug report form](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), it is in the "inbox" state.  Website bugs (label: `#g-website`) are triaged by the [website group](https://fleetdm.com/handbook/company/product-groups#website-group).
 
 At this state, the bug review DRI (QA) is responsible for going through the inbox and documenting reproduction steps, asking for more reproduction details from the reporter, or asking the product team for more guidance.  QA has **1 business day** to move the bug to the next step (reproduced) or request more information.
 
-For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At two weeks since last communication QA will ping the reporter for more information on the status of the issue. After four weeks of stale communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
+For community-reported bugs, this may require QA to gather more information from the reporter. QA should reach out to the reporter if more information is needed to reproduce the issue. Reporters are encouraged to provide timely follow-up information for each report. At one week since last communication QA will close the issue. Reporters are welcome to re-open the closed issue if more investigation is warranted.
 
 Once reproduced, QA documents the reproduction steps in the description and moves it to the reproduced state.
 
@@ -474,14 +556,22 @@ Remove the “:reproduce” label, add the following labels:
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
 
-> **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
+> **Fast for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you've reproduced it outside of the customer's environment, have provided well documented reproduction steps, and it's a bug, it can be moved directly to the reproduced state.
 
 
 #### In product drafting
 
-After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated.
+After reproduction, all released bugs go through drafting to validate that it is not expected behavior, it requires a code change to fix, and the bug report is fully populated. During drafting, product design will take one of the following actions:
 
-It will stay in this state until product design closes the bug, updates it to a feature request by removing all bug labels and leaving the issue in the "New requests" column, assigns it to a non-engineering team, or moves it to the "Ready to estimate" column of the drafting board for engineering review and estimation.
++ Prepare for engineering review and estimation
+  - Specify a fix or a timebox
+  - Update the issue title, if it no longer matches our understanding of the issue
+  - Move it to the "Ready to estimate" column of the drafting board
++ Convert to a feature request
+  - Remove all bug labels
+  - Leave the issue in the "New requests" column
++ Assign to a non-engineering team
++ Close, if determined to be expected behavior
 
 If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing), the `~critical bug` label is added, and product design follows the [critical bug notification process](https://fleetdm.com/handbook/company/product-groups#notify-the-community-about-a-critical-bug).
 
@@ -536,11 +626,11 @@ This has a dual purpose of providing more context for how our customers use Flee
 - **Documentation for contributors**
 Fleet's documentation for contributors can be found in the [Fleet GitHub repo](https://github.com/fleetdm/fleet/tree/main/docs/Contributing).
 
-The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week. 
+The on-call developer is asked to read, understand, test, correct, and improve at least one doc page per week.
 
-Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users. 
+Our goal is to ensure accuracy and verify that our deployment guides and tutorials are up to date and work as expected, as well as improve the readability, consistency, and simplicity of our documentation – with empathy towards first-time users.
 
-See [Writing documentation](https://fleetdm.com/handbook/marketing#writing-documentation) for writing guidelines, and don't hesitate to reach out to [#g-digital-experience](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. A backlog of documentation improvement needs is kept [here](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22).
+See [Writing](https://fleetdm.com/handbook/company/communications#writing) for writing guidelines, and don't hesitate to reach out to 🌐 [IT & Enablement](https://fleetdm.slack.com/archives/C01GQUZ91TN) on Slack for writing support. [Outstanding documentation issues](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%22%3Aimprove+documentation%22) use the `:improve documentation` tag.
 
 - **Engineering alerts**
 The on-call developer is responsible for triaging new alerts in the #help-engineering Slack channel, such as failing unit tests. If the on-call developer has the ability to make the fix, they should do so. Otherwise, they should request help from the appropriate team. Filing a bug is also an option if the issue is not urgent.
@@ -583,33 +673,33 @@ In the Slack reminder thread, the on-call developer includes their retrospective
 
 We have certain design conventions that we include in Fleet. We will document more of these over time.
 
-**Design system**
+### Design system
 
 The 🧩 ["Design System"](https://www.figma.com/file/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-System-(current)?type=design&mode=design&t=BytcobQwypszkxf5-1) component library in Figma is the source of truth for components. Components in the product (documented in [Storybook](https://fleetdm.com/storybook/)) should match the style of components defined in the Figma library. If the frontend component is inconsistent with one in the Figma library, treat that as a [bug](https://fleetdm.com/handbook/engineering#finding-bugs). As new components are being created, or existing components are being updated, ensure updates are applied to both the Figma Library and Storybook and guidelines are documented in Figma.
 
-**Table empty states**
+### Table empty states
 
 Use `---`, with color `$ui-fleet-black-50` as the default UI for empty columns.
 
-**Images**
+### Images
 
 Simple icons (aka any images used in the icon [design system component](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system-(current)?node-id=12-2&t=iO2vXbQ9Sc1kFVEJ-1)) are exported as SVGs. All other images are exported as PNGs, following the [Fleet website image](https://github.com/fleetdm/fleet/tree/main/website/assets/images) naming conventions.
 
-**Form behavior**
+### Form behavior
 
 Pressing the return or enter key with an open form will cause the form to be submitted.
 
-**Internal links**
+### Internal links
 
 For text links that navigate the user to a different page within the Fleet UI, use the `$core-blue` color and `xs-bold` styling. You'll also want to make sure to use the underline style for when the user hovers over these links.
 
-**External links**
+### External links
 
 For a link that navigates the user to an external site (e.g., fleetdm.com/docs), use the `$core-blue` color and `xs-bold` styling for the link's text. Also, place the link-out icon to the right of the link's text.
 
 When including an external link, specify a [redirect on fleetdm.com](https://github.com/fleetdm/fleet/blob/7b751fa50a9a7f81112c5e65334ab05fa2e9e216/website/config/routes.js#L491-L518) rather than the original link. That way, if the URL changes, we can fix it immediately via a PR to the website and users will not need to upgrade to benefit from the fix. Once the design is settled, make a PR for the redirect as part of preparing the story for development.
 
-**Tooltips**
+### Tooltips
 
 All tooltips change the cursor to a question mark on hover. All tooltips have a solid background color.
 
@@ -619,29 +709,29 @@ There are two types of tooltips. The two types of tooltips have some unique styl
 
 2. Tooltips for buttons, bubbles, table row elements, and other non-text elements appear when hovering over the element. These tooltips use center-aligned text. These tooltips include a centered arrow.
 
-**Bold text**
+### Bold text
 
-For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the docs [here](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
+For copy in the Fleet UI and Fleet documentation, use bold text when referencing UI elements such as buttons, links, column names, form field names, page names, and section names. For an example, check out the bold text in the [guide on enforcing disk encryption](https://fleetdm.com/docs/using-fleet/mdm-disk-encryption#step-1-enforce-disk-encryption).
 
 This way, if a user is scanning instructions, the bold text tells them what UI element they should look for.
 
-In the docs, if a UI element is part of a section title (already bold) use double quotes. For an example, see this section title [here](https://fleetdm.com/docs/get-started/faq#what-happened-to-the-schedule-page).
+In the docs, if a UI element is part of a section title (already bold) use double quotes, as shown in the [explanation of MDM on/off in "Why this way"](https://fleetdm.com/handbook/company/why-this-way#why-does-fleet-use-mdm-on-off-instead-of-mdm-enrolled-unenrolled).
 
-**Copy in parentheses (additional information)**
+### Copy in parentheses (additional information)
 
 When writing copy, consider whether additional information is necessary before adding it as a new sentence or in parentheses. If the information is needed, use parentheses with an incomplete sentence to keep the copy shorter.
 
-**Writing the time**
+### Writing the time
 
 When writing the time in the UI using "am" and "pm" abbreviations, write them **without space** between time and abbreviation, with **no punctuation**, and use **lowercase** letters (e.g. Working hours are 8am to 5pm).
 
-**Writing error messages**
+### Writing error messages
 
 When writing error messages in the UI or CLI, follow these rules:
 - If the solution to the error isn't obvious, write a message with the **error** followed by the **solution**. For example, "No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
 - If the solution is obvious when additional info is provided, write a message with the **error** followed by **additional info**. For example, "You don’t have permission to run the script. Only users with the maintainer role and above can run scripts."
 
-**Fleetctl commands with `--hosts` or `--host` flag**
+### Fleetctl commands with `--hosts` or `--host` flag
 
 When designing CLI experience for commands that target hosts (e.g. `fleetctl query` or `fleetctl mdm run-command` when including the `--hosts` or `--host` flag), if a non-existing host is specified, use a single error message such as: `Error: No hosts targeted. Make sure you provide a valid hostname, UUID, osquery host ID, or node key.`
 
@@ -704,7 +794,7 @@ Here are some tips for making this meeting effective:
 
 ### User story reviews
 
-User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "In review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
+User story reviews [happen weekly](https://fleetdm.com/handbook/product-design#rituals) between each product group's Product Designer (PD), Engineering Manager (EM), and Quality Assurance (QA) Engineer. During the call, contributors (PD and EM) present all user stories that are in the "User story review" column. The PD is the DRI for completing all product checklist items before bringing to review. For [engineer-initiated stories](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story), the EM is the DRI for completing all engineering checklist items before bringing to review.
 
 The purpose of the review is to familiarize the EM and QA Engineer with the user story, and provide an opportunity to ask questions, clarify requirements, and highlight potential implementation issues. The first draft of the test plan produced by the Product Designer is reviewed and revised as needed during the call. The QA Engineer is the DRI for finalizing the test plan.
 
@@ -745,7 +835,9 @@ The Account Executive (AE) schedules this meeting before Fleet commits to one or
 
 If the buyer (aka the "Santa") hasn't reviewed the price in the first order form or we don't have a date attached to the promise(s), then we're not ready for this call.
 
-**Participants:** AE, SC, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
+On the order form, customer promises are reprented as [customer request](https://fleetdm.com/handbook/product-design#unpacking-the-why) issues and not [user stories](https://fleetdm.com/handbook/company/product-groups#scrum-items).
+
+**Participants:** AE, SC, CEO, CTO, VP of Customer Success, and Head of Product Design.  (+ temporarily: CRO)
 
 **Agenda:**
 - Discuss new promises from an order form with promises
@@ -816,7 +908,7 @@ Sprints are numbered according to the release version. For example, for the spri
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
-2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
+2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)
 5. **Sprint retrospective**: Also held on the last day of the sprint, this meeting encourages discussions among the team and stakeholders around three key areas: what went well, what could have been better, and what the team learned during the sprint.

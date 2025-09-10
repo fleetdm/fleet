@@ -19,17 +19,25 @@ parasails.registerPage('homepage', {
     cloudError: '',
     cloudSuccess: false,
 
+    comparisonTableMode: 'it',
     // For MDM comparison table
-    comparisonMode: 'sccm',
+    comparisonModeForIt: 'omnissa',
+    comparisonModeForSecurity: 'rapid',
     comparisonModeFriendlyNames: {
       jamf: 'Jamf Pro',
       sccm: 'SCCM',
-      omnissa: 'Omnissa (WS1)',
+      omnissa: 'Workspace ONE',
       intune: 'Intune',
       tanium: 'Tanium',
       ansible: 'Ansible',
       puppet: 'Puppet',
-      chef: 'Chef'
+      chef: 'Chef',
+      rapid: 'Rapid 7',
+      crowdstrike: 'Crowdstrike',
+      qualys: 'Qualys',
+      tenable: 'Tenable',
+      defender: 'Defender',
+      patchmypc: 'PatchMyPC',
     }
   },
 
@@ -108,7 +116,28 @@ parasails.registerPage('homepage', {
     clickOpenVideoModal: function(modalName) {
       this.modal = modalName;
     },
-
+    clickSwitchComparisonMode: async function(mode) {
+      this.comparisonTableMode = mode;
+      await setTimeout(()=>{
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#homepage',
+          trigger: 'hover',
+        });
+      }, 250);
+    },
+    clickSwitchComparisonTableColumn: async function(option){
+      if(this.comparisonTableMode === 'it'){
+        this.comparisonModeForIt = option;
+      } else {
+        this.comparisonModeForSecurity = option;
+      }
+      await setTimeout(()=>{
+        $('[data-toggle="tooltip"]').tooltip({
+          container: '#homepage',
+          trigger: 'hover',
+        });
+      }, 250);
+    },
     closeModal: function() {
       this.modal = undefined;
     },

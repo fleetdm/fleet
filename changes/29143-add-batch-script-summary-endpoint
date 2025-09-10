@@ -1,1 +1,0 @@
-- Added a new API GET /scripts/batch/summary/:batch_execution_id endpoint for retrieving a summary of the current state of a batch script execution.

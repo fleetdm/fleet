@@ -24,6 +24,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 
 	appConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return fmt.Errorf("load app config: %w", err)
 	}
 
@@ -44,6 +45,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// If this was a legitimate update, then it will be caught by the next cron job run (or a future callback).
 	recent, err := svc.distributedLock.Get(ctx, calendar.RecentUpdateKeyPrefix+eventUUID)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	if recent != nil && *recent == calendar.RecentCalendarUpdateValue {
@@ -55,6 +57,7 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 	// Otherwise, we do additional validation to see if we need to process the event.
 	lockValue, reserved, err := svc.getCalendarLock(ctx, eventUUID, false)
 	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
 		return err
 	}
 	unlocked := false
@@ -75,8 +78,17 @@ func (svc *Service) CalendarWebhook(ctx context.Context, eventUUID string, chann
 		}
 		return err
 	}
+
+	// Check if the event belongs to a deleted host ... in which case we do a noop (the event will eventually be
+	// removed by the cleanup CRON job)
+	if eventDetails.HostID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
+
 	if eventDetails.TeamID == nil {
 		// Should not happen
+		svc.authz.SkipAuthorization(ctx)
 		return fmt.Errorf("calendar event %s has no team ID", eventUUID)
 	}
 
@@ -196,8 +208,13 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 		}
 
 		var hosts []fleet.HostPolicyMembershipData
-		hosts, err = svc.ds.GetTeamHostsPolicyMemberships(ctx, googleCalendarIntegrationConfig.Domain, team.ID, policyIDs,
-			&eventDetails.HostID)
+		hosts, err = svc.ds.GetTeamHostsPolicyMemberships(
+			ctx,
+			googleCalendarIntegrationConfig.Domain,
+			team.ID,
+			policyIDs,
+			eventDetails.HostID,
+		)
 		if err != nil {
 			return "", false, err
 		}
@@ -242,7 +259,7 @@ func (svc *Service) processCalendarEvent(ctx context.Context, eventDetails *flee
 			return ctxerr.Wrap(ctx, err, "save calendar event body tag")
 		}
 		_, err = svc.ds.CreateOrUpdateCalendarEvent(ctx, event.UUID, event.Email, event.StartTime, event.EndTime, event.Data,
-			event.TimeZone, eventDetails.HostID, fleet.CalendarWebhookStatusNone)
+			event.TimeZone, *eventDetails.HostID, fleet.CalendarWebhookStatusNone)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create or update calendar event")
 		}

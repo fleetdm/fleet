@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,34 +27,6 @@ type SoftwareInstallerStore interface {
 	Exists(ctx context.Context, installerID string) (bool, error)
 	Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error)
 	Sign(ctx context.Context, fileID string) (string, error)
-}
-
-// FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
-// that fails all operations. It is used when S3 is not configured and the
-// local filesystem store could not be setup.
-type FailingSoftwareInstallerStore struct{}
-
-func (FailingSoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
-	return nil, 0, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	return errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
-	return false, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
-	// do not fail for the failing store's cleanup, as unlike the other store
-	// methods, this will be called even if software installers are otherwise not
-	// used (by the cron job).
-	return 0, nil
-}
-
-func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
-	return "", errors.New("software installer store not properly configured")
 }
 
 // SoftwareInstallDetails contains all of the information
@@ -99,6 +70,8 @@ type SoftwareInstaller struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Extension is the file extension of the software package, inferred from package contents.
 	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
@@ -107,6 +80,8 @@ type SoftwareInstaller struct {
 	Platform string `json:"platform" db:"platform"`
 	// PackageIDList is a comma-separated list of packages extracted from the installer
 	PackageIDList string `json:"-" db:"package_ids"`
+	// UpgradeCode is the (optional) upgrade code included in an MSI
+	UpgradeCode string `json:"-" db:"upgrade_code"`
 	// UploadedAt is the time the software package was uploaded.
 	UploadedAt time.Time `json:"uploaded_at" db:"uploaded_at"`
 	// InstallerID is the unique identifier for the software package metadata in Fleet.
@@ -378,6 +353,7 @@ type UploadSoftwareInstallerPayload struct {
 	URL                  string
 	FleetMaintainedAppID *uint
 	PackageIDs           []string
+	UpgradeCode          string
 	UninstallScript      string
 	Extension            string
 	InstallDuringSetup   *bool    // keep saved value if nil, otherwise set as indicated
@@ -432,6 +408,7 @@ type UpdateSoftwareInstallerPayload struct {
 	Filename          string
 	Version           string
 	PackageIDs        []string
+	UpgradeCode       string
 	LabelsIncludeAny  []string // names of "include any" labels
 	LabelsExcludeAny  []string // names of "exclude any" labels
 	// ValidatedLabels is a struct that contains the validated labels for the software installer. It
@@ -489,6 +466,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
@@ -508,6 +486,18 @@ func (h *HostSoftwareWithInstaller) IsPackage() bool {
 
 func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
 	return h.AppStoreApp != nil
+}
+
+func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if h.IconUrl != nil && *h.IconUrl != "" {
+		matched := SoftwareTitleIconURLRegex.MatchString(*h.IconUrl)
+		if matched {
+			icon := SoftwareTitleIcon{SoftwareTitleID: h.ID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			h.IconUrl = ptr.String(deviceIconURL)
+		}
+	}
 }
 
 type AutomaticInstallPolicy struct {
@@ -530,7 +520,6 @@ type SoftwarePackageOrApp struct {
 	Version       string                 `json:"version"`
 	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
-	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
@@ -542,18 +531,18 @@ type SoftwarePackageOrApp struct {
 }
 
 type SoftwarePackageSpec struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	URL                string                `json:"url"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 
 	// FMA
-	Slug             *string `json:"slug"`
-	AutomaticInstall *bool   `json:"automatic_install"`
+	Slug *string `json:"slug"`
 
 	// ReferencedYamlPath is the resolved path of the file used to fill the
 	// software package. Only present after parsing a GitOps file on the fleetctl
@@ -568,19 +557,68 @@ type SoftwarePackageSpec struct {
 	Categories         []string `json:"categories"`
 }
 
-type FleetMaintainedAppsSpec struct {
-	Slug             string   `json:"slug"`
-	AutomaticInstall *bool    `json:"automatic_install"`
-	SelfService      bool     `json:"self_service"`
-	LabelsIncludeAny []string `json:"labels_include_any"`
-	LabelsExcludeAny []string `json:"labels_exclude_any"`
-	Categories       []string `json:"categories"`
+func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) SoftwarePackageSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+
+	return spec
+}
+
+func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
+		spec.SelfService || spec.InstallDuringSetup.Valid
+}
+
+func resolveApplyRelativePath(baseDir string, path string) string {
+	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
+		return filepath.Join(baseDir, path)
+	}
+
+	return path
+}
+
+type MaintainedAppSpec struct {
+	Slug               string                `json:"slug"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	Categories         []string              `json:"categories"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
+}
+
+func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
+	return SoftwarePackageSpec{
+		Slug:               &spec.Slug,
+		PreInstallQuery:    spec.PreInstallQuery,
+		InstallScript:      spec.InstallScript,
+		PostInstallScript:  spec.PostInstallScript,
+		UninstallScript:    spec.UninstallScript,
+		SelfService:        spec.SelfService,
+		LabelsIncludeAny:   spec.LabelsIncludeAny,
+		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		InstallDuringSetup: spec.InstallDuringSetup,
+	}
+}
+
+func (spec MaintainedAppSpec) ResolveSoftwarePackagePaths(baseDir string) MaintainedAppSpec {
+	spec.PreInstallQuery.Path = resolveApplyRelativePath(baseDir, spec.PreInstallQuery.Path)
+	spec.InstallScript.Path = resolveApplyRelativePath(baseDir, spec.InstallScript.Path)
+	spec.PostInstallScript.Path = resolveApplyRelativePath(baseDir, spec.PostInstallScript.Path)
+	spec.UninstallScript.Path = resolveApplyRelativePath(baseDir, spec.UninstallScript.Path)
+
+	return spec
 }
 
 type SoftwareSpec struct {
-	Packages            optjson.Slice[SoftwarePackageSpec]     `json:"packages,omitempty"`
-	FleetMaintainedApps optjson.Slice[FleetMaintainedAppsSpec] `json:"fleet_maintained_apps,omitempty"`
-	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp]     `json:"app_store_apps,omitempty"`
+	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
+	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
+	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
 // HostSoftwareInstall represents installation of software on a host from a

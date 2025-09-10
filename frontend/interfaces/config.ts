@@ -47,6 +47,7 @@ export interface IMdmConfig {
   /** Update this URL if you're self-hosting Fleet and you want your hosts to talk to a different URL for MDM features. (If not configured, hosts will use the base URL of the Fleet instance.) */
   apple_server_url: string;
   enable_disk_encryption: boolean;
+  windows_require_bitlocker_pin: boolean;
   /** `enabled_and_configured` only tells us if Apples MDM has been enabled and
   configured correctly. The naming is slightly confusing but at one point we
   only supported apple mdm, so thats why it's name the way it is. */
@@ -112,7 +113,6 @@ export interface IConfigServerSettings {
 }
 
 export interface IConfig {
-  android_enabled: boolean; // TODO: feature flag, remove when feature releases.
   org_info: {
     org_name: string;
     org_logo_url: string;
@@ -136,7 +136,7 @@ export interface IConfig {
     verify_ssl_certs: boolean;
     enable_start_tls: boolean;
   };
-  sso_settings: {
+  sso_settings?: {
     entity_id: string;
     issuer_uri: string;
     idp_image_url: string;
@@ -147,6 +147,7 @@ export interface IConfig {
     enable_sso_idp_login: boolean;
     enable_jit_provisioning: boolean;
     enable_jit_role_sync: boolean;
+    sso_server_url?: string;
   };
   // configuration details for conditional access. For enabled/disabled status per team, see
   // subfields under `integrations`
@@ -226,7 +227,7 @@ export interface ILoggingConfig {
   json: boolean;
   result: {
     plugin: LogDestination;
-    config: {
+    config?: {
       status_log_file: string;
       result_log_file: string;
       enable_log_rotation: boolean;
@@ -235,7 +236,7 @@ export interface ILoggingConfig {
       result_url?: string;
     };
   };
-  status: {
+  status?: {
     plugin: string;
     config: {
       status_log_file: string;

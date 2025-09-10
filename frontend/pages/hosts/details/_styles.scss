@@ -77,7 +77,8 @@
     }
   }
 
-  &__tab-nav {
+  &__tab-nav,
+  &__software-tab-nav {
     background-color: $ui-off-white;
     width: 100%;
 

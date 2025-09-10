@@ -19,11 +19,11 @@ Then click **Turn on** under the Apple (macOS, iOS, iPadOS) MDM section.
 > - If your certificate expires, you will have to turn MDM off and back on for all macOS hosts.
 > - Be sure to use the same Apple ID from year-to-year. If you don't, you will have to turn MDM off and back on for all macOS hosts.
 
-## Automatic enrollment
+## Apple Business Manager (ABM)
 
 > Available in Fleet Premium
 
-Add your ABM to automatically enroll newly purchased Apple hosts when they're first unboxed and set up by your end users.
+Connect Fleet to your ABM to allow automatic enrollment for company-owned and [Account-driven User Enrollment](https://fleetdm.com/guides/enroll-personal-byod-ios-ipad-hosts-with-managed-apple-account) for personal (BYOD) macOS, iOS, and iPadOS hosts.
 
 To connect Fleet to ABM, you have to add an ABM token to Fleet. To add an ABM token: 
 
@@ -45,7 +45,7 @@ After connecting Fleet to ABM, set Fleet to be the MDM for all Macs:
 4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
 5. Switch **Mac**, **iPhone**, and **iPad** to Fleet.
 
-macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending".
+macOS, iOS, and iPadOS hosts listed in ABM and associated to a Fleet instance with MDM enabled will sync to Fleet and appear in the Hosts view with the **MDM status** label set to "Pending". 
 
 Hosts that automatically enroll will be assigned to a default team. You can configure the default team for macOS, iOS, and iPadOS hosts by:
 
@@ -62,7 +62,7 @@ Hosts that automatically enroll will be assigned to a default team. You can conf
 
 > Available in Fleet Premium
 
-To connect Fleet to Apple's VPP, head to the guide [here](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
+To connect Fleet to Apple's VPP, follow the instructions in our [VPP guide](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet#prerequisites).
 
 ## Best practice
 
@@ -103,7 +103,12 @@ The acquisitions's VPP token will be assigned to the above teams.
 
 ## Simple Certificate Enrollment Protocol (SCEP)
 
-Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet renews each host's SCEP certificates automatically every 180 days.
+Fleet uses SCEP certificates (1 year expiry) to authenticate the requests hosts make to Fleet. Fleet
+renews each host's SCEP certificates automatically every 180 days.
+
+## Troubleshooting failed enrollments
+
+If a host is turned off due to user action or a low battery during the Setup Assistant, it may fail to enroll. This can also happen if your Fleet instance is down for maintenance when a host tries to enroll automatically during the Setup Assistant. In these cases, hosts usually restart after the user attempts to get past the “Welcome to Mac" screen. The best practice in this situation is to wipe the host with Fleet if it has network connectivity or to [reinstall macOS from Recovery](https://support.apple.com/en-us/102655).
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="zhumo">

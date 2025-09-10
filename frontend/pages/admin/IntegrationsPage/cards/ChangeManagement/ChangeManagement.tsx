@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
 // @ts-ignore
@@ -43,8 +43,9 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL })) {
-      errs.repository_url = "Git repository URL must be a valid URL";
+    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
+      errs.repository_url =
+        "Git repository URL must include protocol (e.g. https://)";
     }
   }
   return errs;
@@ -122,7 +123,7 @@ const ChangeManagement = () => {
     }
   };
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);

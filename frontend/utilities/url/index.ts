@@ -48,6 +48,8 @@ interface IMutuallyExclusiveHostParams {
   bootstrapPackageStatus?: BootstrapPackageStatus;
   configProfileStatus?: string;
   configProfileUUID?: string;
+  scriptBatchExecutionStatus?: string;
+  scriptBatchExecutionId?: string;
 }
 
 export const parseQueryValueToNumberOrUndefined = (
@@ -220,6 +222,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
   bootstrapPackageStatus,
   configProfileStatus,
   configProfileUUID,
+  scriptBatchExecutionStatus,
+  scriptBatchExecutionId,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -248,18 +252,24 @@ export const reconcileMutuallyExclusiveHostParams = ({
     case !!softwareStatus ||
       !!softwareTitleId ||
       !!softwareVersionId ||
-      !!softwareId:
-      return reconcileSoftwareParams({
+      !!softwareId: {
+      const params: Record<string, unknown> = reconcileSoftwareParams({
         teamId,
         softwareId,
         softwareVersionId,
         softwareTitleId,
         softwareStatus,
       });
-    case !!softwareVersionId:
-      return { software_version_id: softwareVersionId };
-    case !!softwareId:
-      return { software_id: softwareId };
+      // Software version can be combined with os name and os version
+      // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+      if (osVersionId) {
+        params.os_version_id = osVersionId;
+      } else if (osName && osVersion) {
+        params.os_name = osName;
+        params.os_version = osVersion;
+      }
+      return params;
+    }
     case !!osVersionId:
       return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
@@ -278,6 +288,11 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return {
         profile_status: configProfileStatus,
         profile_uuid: configProfileUUID,
+      };
+    case !!scriptBatchExecutionId:
+      return {
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: scriptBatchExecutionStatus,
+        [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: scriptBatchExecutionId,
       };
     default:
       return {};

@@ -15,11 +15,11 @@ You can now put Fleet in "GitOps mode" which puts the Fleet UI in a read-only mo
 
 ### Automatically install software
 
-Fleet now allows IT admins to install App Store apps on all your hosts without writing custom policies. This saves time when deploying apps across many hosts, making large-scale app deployment easier and more reliable. Learn more about installing software [here](https://fleetdm.com/guides/automatic-software-install-in-fleet).
+Fleet now allows IT admins to [install App Store apps automatically](https://fleetdm.com/guides/automatic-software-install-in-fleet) on all your hosts without writing custom policies. This saves time when deploying apps across many hosts, making large-scale app deployment easier and more reliable.
 
 ### Certificates in host vitals
 
-The **Host details** page now displays a list of certificates for macOS, iOS, and iPadOS hosts. This helps IT teams quickly diagnose Wi-Fi or VPN connection issues by identifying missing or expired certificates that may be preventing network access. See more host vitals [here](https://fleetdm.com/vitals/battery).
+The **Host details** page now includes [certificates](https://fleetdm.com/vitals/host-certificates-mac-os#apple) for macOS, iOS, and iPadOS hosts as part of [host vitals](https://fleetdm.com/vitals). This helps IT teams quickly diagnose Wi-Fi or VPN connection issues by identifying missing or expired certificates that may be preventing network access.
 
 ## Changes
 

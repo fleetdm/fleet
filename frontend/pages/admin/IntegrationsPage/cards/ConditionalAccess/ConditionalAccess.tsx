@@ -21,7 +21,7 @@ import {
   LEARN_MORE_ABOUT_BASE_LINK,
 } from "utilities/constants";
 import Button from "components/buttons/Button";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { AppContext } from "context/app";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -253,10 +253,7 @@ const ConditionalAccess = () => {
     setIsUpdating(true);
     try {
       await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
-      renderFlash(
-        "success",
-        "Successfully disconnected from Miscrosoft Entra."
-      );
+      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
       toggleDeleteConditionalAccessModal();
       refetchConfig();
     } catch {
@@ -268,7 +265,7 @@ const ConditionalAccess = () => {
     }
   };
 
-  const onInputChange = ({ name, value }: IFormField<string>) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);

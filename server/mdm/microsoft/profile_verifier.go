@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/admx"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/wlanxml"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -42,7 +43,12 @@ func LoopOverExpectedHostProfiles(
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "expanding embedded secrets for profile %s", expectedProf.Name)
 		}
-		expectedProf.RawProfile = []byte(expanded)
+
+		// Process Fleet variables if present (similar to how it's done during profile deployment)
+		// This ensures we compare what was actually sent to the device
+		processedContent := PreprocessWindowsProfileContents(host.UUID, expanded)
+		expectedProf.RawProfile = []byte(processedContent)
+
 		var prof fleet.SyncMLCmd
 		wrappedBytes := fmt.Sprintf("<Atomic>%s</Atomic>", expectedProf.RawProfile)
 		if err := xml.Unmarshal([]byte(wrappedBytes), &prof); err != nil {
@@ -50,13 +56,13 @@ func LoopOverExpectedHostProfiles(
 		}
 		for _, rc := range prof.ReplaceCommands {
 			locURI := rc.GetTargetURI()
-			data := rc.GetTargetData()
+			data := rc.GetNormalizedTargetDataForVerification()
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
 		for _, ac := range prof.AddCommands {
 			locURI := ac.GetTargetURI()
-			data := ac.GetTargetData()
+			data := ac.GetNormalizedTargetDataForVerification()
 			ref := HashLocURI(expectedProf.Name, locURI)
 			fn(expectedProf, ref, locURI, data)
 		}
@@ -87,7 +93,12 @@ func VerifyHostMDMProfiles(ctx context.Context, logger log.Logger, ds fleet.Prof
 		return ctxerr.Wrap(ctx, err, "transforming policy results")
 	}
 
-	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults)
+	existingProfiles, err := ds.GetHostMDMWindowsProfiles(ctx, host.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting existing windows host profiles")
+	}
+
+	verified, missing, err := compareResultsToExpectedProfiles(ctx, logger, ds, host, profileResults, existingProfiles)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "comparing results to expected profiles")
 	}
@@ -140,10 +151,17 @@ func splitMissingProfilesIntoFailAndRetryBuckets(ctx context.Context, ds fleet.P
 }
 
 func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds fleet.ProfileVerificationStore, host *fleet.Host,
-	profileResults profileResultsTransform,
+	profileResults profileResultsTransform, existingProfiles []fleet.HostMDMWindowsProfile,
 ) (verified map[string]struct{}, missing map[string]struct{}, err error) {
 	missing = map[string]struct{}{}
 	verified = map[string]struct{}{}
+
+	// Map existing profiles for this host by UUID for easier lookup for certain edge cases
+	windowsProfilesByID := make(map[string]fleet.HostMDMWindowsProfile, len(existingProfiles))
+	for _, existingProfile := range existingProfiles {
+		windowsProfilesByID[existingProfile.ProfileUUID] = existingProfile
+	}
+
 	err = LoopOverExpectedHostProfiles(ctx, ds, host, func(profile *fleet.ExpectedMDMProfile, ref, locURI, wantData string) {
 		// if we didn't get a status for a LocURI, mark the profile as missing.
 		gotStatus, ok := profileResults.cmdRefToStatus[ref]
@@ -154,13 +172,21 @@ func compareResultsToExpectedProfiles(ctx context.Context, logger log.Logger, ds
 		// it's okay if we didn't get a result
 		gotResults := profileResults.cmdRefToResult[ref]
 		// non-200 status don't have results. Consider it failed
-		// TODO: should we be more granular instead? eg: special case
-		// `4xx` responses? I'm sure there are edge cases we're not
-		// accounting for here, but it's unclear at this moment.
+		// unless it falls into a special case we know about.
+		// TODO: There are likely more to be added
 		var equal bool
 		switch {
 		case !strings.HasPrefix(gotStatus, "2"):
 			equal = false
+			// For unknown reasons these always return a 404 so mark as equal in that case if
+			// the profile is verifying(meaning MDM protocol returned a good status) or verified
+			if gotStatus == "404" && (IsADMXInstallConfigOperationCSP(locURI) || IsWin32OrDesktopBridgeADMXCSP(locURI)) {
+				if existingProfile, ok := windowsProfilesByID[profile.ProfileUUID]; ok && existingProfile.Status != nil &&
+					(*existingProfile.Status == fleet.MDMDeliveryVerified || *existingProfile.Status == fleet.MDMDeliveryVerifying) {
+					level.Debug(logger).Log("msg", "ADMX policy install operation or Win32/Desktop Bridge ADMX policy returned 404, marking as verified", "profile_uuid", profile.ProfileUUID, "host_id", host.ID, "locuri", locURI)
+					equal = true
+				}
+			}
 		case wantData == gotResults:
 			equal = true
 		case wlanxml.IsWLANXML(wantData):
@@ -232,4 +258,67 @@ func transformProfileResults(rawProfileResultsSyncML []byte) (profileResultsTran
 		}
 	}
 	return transform, nil
+}
+
+// These two methods are for detection of ADMX ingestion and Win32/Desktop Bridge ADMX policies.
+// Documentation here: https://learn.microsoft.com/en-us/windows/client-management/win32-and-centennial-app-policy-configuration
+// For reasons not entirely clear, attempting to use the Get verb to fetch the results of either the
+// ADMXInstall operatiion or the config then installed against it will return a 404 so for now the best
+// we can do is detect them and mark them as verified.
+func IsADMXInstallConfigOperationCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	return strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/configoperations/admxinstall/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/configoperations/admxinstall")
+}
+
+func IsWin32OrDesktopBridgeADMXCSP(locURI string) bool {
+	normalizedLocURI := strings.ToLower(locURI)
+	if strings.HasPrefix(normalizedLocURI, "./vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./user/vendor/msft/policy/config/") || strings.HasPrefix(normalizedLocURI, "./device/vendor/msft/policy/config/") {
+		return strings.Contains(normalizedLocURI, "~")
+	}
+	return false
+}
+
+// PreprocessWindowsProfileContents processes Windows configuration profiles to replace Fleet variables
+// with their actual values for each host. This function is used both during profile deployment
+// and during profile verification to ensure consistency.
+//
+// The function handles XML escaping to prevent injection attacks.
+//
+// Currently supported variables:
+//   - $FLEET_VAR_HOST_UUID or ${FLEET_VAR_HOST_UUID}: Replaced with the host's UUID
+//
+// Why we don't use Go templates here:
+//  1. Error handling: Go templates don't provide fine-grained error handling for individual variable
+//     replacements. We need to handle failures per-host and per-variable gracefully.
+//  2. Variable dependencies: Some variables may be related or have dependencies on each other. With
+//     manual processing, we can control the order of variable replacement precisely.
+//  3. Performance: Templates must be compiled every time they're used, adding overhead when processing
+//     thousands of host profiles. Direct string replacement is more efficient for our use case.
+//  4. XML escaping: We need XML-specific escaping for values, which is simpler to control with direct
+//     string replacement rather than template functions.
+func PreprocessWindowsProfileContents(hostUUID string, profileContents string) string {
+	// Check if Fleet variables are present
+	fleetVars := variables.Find(profileContents)
+	if len(fleetVars) == 0 {
+		// No variables to replace, return original content
+		return profileContents
+	}
+
+	// Process each Fleet variable
+	result := profileContents
+	for fleetVar := range fleetVars {
+		if fleetVar == string(fleet.FleetVarHostUUID) {
+			// Replace HOST_UUID with the actual host UUID
+			// Use XML escaping for the replacement value to be safe and prevent XML injection
+			b := make([]byte, 0, len(hostUUID))
+			buf := bytes.NewBuffer(b)
+			_ = xml.EscapeText(buf, []byte(hostUUID))
+			escapedUUID := buf.String()
+
+			result = variables.Replace(result, fleetVar, escapedUUID)
+		}
+		// Add other Fleet variables here as they are implemented
+	}
+
+	return result
 }

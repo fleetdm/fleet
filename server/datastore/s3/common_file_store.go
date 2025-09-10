@@ -6,12 +6,15 @@ import (
 	"io"
 	"net/url"
 	"path"
+	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/feature/cloudfront/sign"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"golang.org/x/sync/errgroup"
@@ -34,6 +37,12 @@ type commonFileStore struct {
 	*s3store
 	pathPrefix string
 	fileLabel  string // how to call the file in error messages
+
+	gcs bool
+}
+
+func isGCS(endpointURL string) bool {
+	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
 
 // Get retrieves the requested file from S3.
@@ -41,13 +50,18 @@ type commonFileStore struct {
 func (s *commonFileStore) Get(ctx context.Context, fileID string) (io.ReadCloser, int64, error) {
 	key := s.keyForFile(fileID)
 
-	req, err := s.s3client.GetObject(&s3.GetObjectInput{Bucket: &s.bucket, Key: &key})
+	req, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
-				return nil, int64(0), installerNotFoundError{}
-			}
+		var (
+			noSuchBucket *types.NoSuchBucket
+			noSuchKey    *types.NoSuchKey
+			notFound     *types.NotFound
+		)
+		if errors.As(err, &noSuchBucket) || errors.As(err, &noSuchKey) || errors.As(err, &notFound) {
+			return nil, int64(0), installerNotFoundError{}
 		}
 		return nil, int64(0), ctxerr.Wrapf(ctx, err, "retrieving %s from S3 store", s.fileLabel)
 	}
@@ -61,11 +75,27 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 	}
 
 	key := s.keyForFile(fileID)
-	_, err := s.s3client.PutObject(&s3.PutObjectInput{
+
+	// Init the uploader with the default upload part size (5MB) and concurrency
+	// equal to the host's logical processors.
+	uploader := manager.NewUploader(s.s3Client, func(u *manager.Uploader) {
+		u.PartSize = manager.DefaultUploadPartSize
+		u.Concurrency = runtime.NumCPU()
+	})
+
+	var checksumAlgorithm types.ChecksumAlgorithm
+	if s.gcs {
+		checksumAlgorithm = types.ChecksumAlgorithmCrc32c // Required for GCS
+	}
+
+	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Body:   content,
 		Key:    &key,
+
+		ChecksumAlgorithm: checksumAlgorithm,
 	})
+
 	return err
 }
 
@@ -73,13 +103,18 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 func (s *commonFileStore) Exists(ctx context.Context, fileID string) (bool, error) {
 	key := s.keyForFile(fileID)
 
-	_, err := s.s3client.HeadObject(&s3.HeadObjectInput{Bucket: &s.bucket, Key: &key})
+	_, err := s.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	})
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case s3.ErrCodeNoSuchKey, s3.ErrCodeNoSuchBucket, "NotFound":
-				return false, nil
-			}
+		var (
+			noSuchBucket *types.NoSuchBucket
+			noSuchKey    *types.NoSuchKey
+			notFound     *types.NotFound
+		)
+		if errors.As(err, &noSuchBucket) || errors.As(err, &noSuchKey) || errors.As(err, &notFound) {
+			return false, nil
 		}
 		return false, ctxerr.Wrapf(ctx, err, "checking existence of %s in S3 store", s.fileLabel)
 	}
@@ -103,7 +138,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	// again. This approach makes it only two API requests between the read of
 	// used files and the deletions.
 	prefix := path.Join(s.prefix, s.pathPrefix)
-	page, err := s.s3client.ListObjectsV2(&s3.ListObjectsV2Input{
+	page, err := s.s3Client.ListObjectsV2(ctx, &s3.ListObjectsV2Input{
 		Bucket: &s.bucket,
 		Prefix: &prefix,
 	})
@@ -114,7 +149,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	// NOTE: there is an inherent risk that we could delete files that were added
 	// between the query to list used IDs and now. We minimize that risk by
 	// checking that the S3 file was created before removeCreatedBefore.
-	var toDeleteKeys []*s3.ObjectIdentifier
+	var toDeleteKeys []*types.ObjectIdentifier
 	for _, item := range page.Contents {
 		if item.Key == nil {
 			continue
@@ -124,7 +159,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 		}
 		if item.LastModified == nil || !item.LastModified.UTC().After(removeCreatedBefore) {
 			// default to doing the cleanup if we don't have the timestamp information
-			toDeleteKeys = append(toDeleteKeys, &s3.ObjectIdentifier{Key: item.Key})
+			toDeleteKeys = append(toDeleteKeys, &types.ObjectIdentifier{Key: item.Key})
 		}
 	}
 
@@ -139,7 +174,7 @@ func (s *commonFileStore) Cleanup(ctx context.Context, usedFileIDs []string, rem
 	for _, obj := range toDeleteKeys {
 		obj := obj
 		g.Go(func() error {
-			_, err := s.s3client.DeleteObject(&s3.DeleteObjectInput{
+			_, err := s.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 				Bucket: &s.bucket,
 				Key:    obj.Key,
 			})

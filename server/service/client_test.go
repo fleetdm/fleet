@@ -720,6 +720,165 @@ func TestGetProfilesContents(t *testing.T) {
 			expectError: true,
 			wantErr:     "Couldn't edit macos_settings.custom_settings (bar.cfg): macOS configuration profiles must be .mobileconfig or .json files",
 		},
+		{
+			name:    "with FLEET_SECRET in data tag",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"cert.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.root</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.example.cert</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadDisplayName</key>
+			<string>Test Certificate</string>
+			<key>PayloadContent</key>
+			<data>$FLEET_SECRET_CERT_DATA</data>
+		</dict>
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Certificate Profile</string>
+</dict>
+</plist>`},
+			},
+			environment: map[string]string{
+				"FLEET_SECRET_CERT_DATA": "VGVzdENlcnREYXRhQmFzZTY0", // "TestCertDataBase64" in base64
+			},
+			expandEnv:   true,
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "Certificate Profile",
+					Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadType</key>
+			<string>com.apple.security.root</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>PayloadIdentifier</key>
+			<string>com.example.cert</string>
+			<key>PayloadUUID</key>
+			<string>11111111-2222-3333-4444-555555555555</string>
+			<key>PayloadDisplayName</key>
+			<string>Test Certificate</string>
+			<key>PayloadContent</key>
+			<data>$FLEET_SECRET_CERT_DATA</data>
+		</dict>
+	</array>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Certificate Profile</string>
+</dict>
+</plist>`),
+				},
+			},
+		},
+		{
+			name:    "with FLEET_SECRET in PayloadDisplayName - should reject",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"secret_name.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile $FLEET_SECRET_NAME</string>
+</dict>
+</plist>`},
+			},
+			environment: map[string]string{
+				"FLEET_SECRET_NAME": "SecretProfileName",
+			},
+			expandEnv:   true,
+			expectError: true,
+			wantErr:     "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name:    "with FLEET_VAR in profile - should not expand",
+			baseDir: tempDir,
+			macSetupFiles: [][2]string{
+				{"fleet_var.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile with FLEET_VAR</string>
+	<key>SomeValue</key>
+	<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+</dict>
+</plist>`},
+			},
+			expandEnv:   true,
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name: "Profile with FLEET_VAR",
+					Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+	<key>PayloadIdentifier</key>
+	<string>com.example.profile</string>
+	<key>PayloadUUID</key>
+	<string>aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee</string>
+	<key>PayloadDisplayName</key>
+	<string>Profile with FLEET_VAR</string>
+	<key>SomeValue</key>
+	<string>$FLEET_VAR_HOST_END_USER_IDP_USERNAME</string>
+</dict>
+</plist>`),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -784,10 +943,16 @@ func TestGitOpsErrors(t *testing.T) {
 			wantErr: "org_settings.integrations",
 		},
 		{
-			name:    "invalid ndes_scep_proxy value",
+			name:    "invalid integrations.ndes_scep_proxy key",
 			rawJSON: `{ "integrations": { "ndes_scep_proxy": [] } }`,
-			wantErr: "org_settings.integrations.ndes_scep_proxy",
+			wantErr: "org_settings.integrations.ndes_scep_proxy is not supported",
 		},
+		{
+			name:    "invalid certificate_authorities.ndes_scep_proxy value",
+			rawJSON: `{ "integrations": null, "certificate_authorities": { "ndes_scep_proxy": [] } }`,
+			wantErr: "org_settings.certificate_authorities.ndes_scep_proxy config is not a map",
+		},
+		// TODO(hca): add more tests for other certificate authority types
 	}
 
 	for _, tt := range tests {

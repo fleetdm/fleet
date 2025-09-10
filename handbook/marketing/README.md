@@ -7,22 +7,29 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing         | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| Data & Video Specialist            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 
 
 ## Contact us
 
-- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
+- To **make a request** of the Marketing department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-marketing&projects=&template=1-custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, at-mention a [team member](#team) in the [:help-marketing](https://fleetdm.slack.com/archives/C01ALP02RB5) Slack channel).
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/65) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/94) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/digital-experience#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **brand**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-it-and-enablement&projects=&template=1-custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [CEO](https://fleetdm.com/handbook/ceo#team) in the [#help-leadership](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 
 ## Responsibilities
 
 The Marketing department is directly responsible for achieving revenue pipeline targets, increasing awareness and interest in the open-source project, and nurturing the Fleet community through participation in video, sponsored events, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 For responsibilities and rituals directly responsible by an Account Development Representative (ADR), follow [this outline](https://docs.google.com/document/d/1gdjvqE8KGUC1fSWMWgNz8kn_R2i_MBg9ZxNrpnI4zGY/edit?tab=t.0).
+
+
+### Prepare "Let's get you set up!" meeting notes
+
+Before each group call, copy the attendees from the "Lets get you set up! (group office hours)" calendar event and paste them into the correct section of the ["Let's get you set up!" meeting notes](https://docs.google.com/document/d/1rlvueDlTqiz0cyH426nVL6LXpv9MWDUtXW6YiMT3oK8/edit?tab=t.0#heading=h.l967l3n9mjnd), be sure to use the format listed in the doc.
 
 
 ### Refresh event calendar
@@ -34,7 +41,7 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 
 ### Begin or modify an advertising campaign
 
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://github.com/orgs/fleetdm/projects/65).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
 
 To propose an ad, or a change to an ad:
 1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
@@ -85,7 +92,7 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
   - which talk proposal Fleet will submit
   - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
   - estimated budget, including sponsorship or airfare, and lodging for attendees
-2. Set up and attend a 30m meeting with the Head of Marketing and CEO:
+2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
   - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
@@ -124,7 +131,7 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
 
   - Login to [StickerMule](https://www.stickermule.com/) (saved in 1Password).
   - Find the [brand kit](https://www.stickermule.com/studio/brand-kits) after logging in.
-  - Click on the "Fleet Device Management" brand kit and order preapproved stickers from the templates.
+  - Click on the "Fleet Device Management" brand kit and order pre-approved stickers from the templates.
   - Total sticker quantity should be ~10% of total event attendees.
   - Complete the checkout process. Ensure the address matches the expected receiving address.
 
@@ -133,47 +140,14 @@ Check the "📃 Planned articles" column in [:help-marketing board](https://gith
   - Pens and sticky note pads are ordered through TODO.
 
 
-### Upload contacts to Salesforce after an event
+### Monitor the help-create-contact channel
 
-1. [Create a new lead source](https://fleetdm.lightning.force.com/lightning/setup/ObjectManager/Contact/FieldsAndRelationships/LeadSource/view) with naming convention "[Retired]Events - {Event name}". 
-2. Add the new lead source name to the .csv of leads before uploading to Salesforce.
-    a. Add a new column header labeled "Lead source" and add the new lead source name to each row in the CSV.
-
-
-3. Navigate to the [contact import wizard](https://fleetdm.lightning.force.com/one/one.app#eyJjb21wb25lbnREZWYiOiJvbmU6YWxvaGFQYWdlIiwiYXR0cmlidXRlcyI6eyJhZGRyZXNzIjoiL2RhdGFJbXBvcnRlci9kYXRhSW1wb3J0ZXIuYXBwP29iamVjdFNlbGVjdGlvbj1BY2NvdW50In0sInN0YXRlIjp7fX0%3D):
-    a. Select the standard object "Accounts and Contacts".
-    b. Select "Add new and update existing records" (Do not change the matching rules). 
-    c. Upload the CSV.
-    d. Verify the data is mapped to the correct Salesforce fields and start the Import.
-
-
-### Optimize ads through experimentation
-
-Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
-
-Here's how:
-1. Remove all but the top 5 performing ads in [each LinkedIn campaign in the "Evergreen awareness" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678329963%5D).
-2. Replace the ad in [each Linkedin campaign in the "ABM maneuvers" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B633848103%5D) so that it matches the top performer.
-
-<!-- TODO: either delete this or expand
-[**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one intro text change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test headline change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
-
-[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one headline change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test one description change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
--->
+When Fleeties need a contact created in Fleet's CRM but are unable to do so in the moment, they'll send a message to the ["#help-create-contact" channel](https://fleetdm.slack.com/archives/C091MLXQKQV) in Slack. Use the following steps to add the profile to Fleet's CRM:
+1. Add the `:eyes` emoji (👀) to the Slack thread. 
+2. Log in to Salesforce and navigate to the contact tab, click "New".
+3. Create the contact from research and the context left in the channel. If the account doesn't exist, then it will also need to be created and researched.
+4. Add any additional context to the "Description" field. 
+5. Once the contact and account exist in Salesforce, reply to the thread with the contact URL from Salesforce and add the `white-check-mark` emoji (✅) to indicate you're done.
 
 
 ### Process pending swag requests from the website
@@ -210,15 +184,6 @@ Swag requests are received in the form of issues and will be fulfilled based on 
 - Ask if we could send the contributor any swag
 - If yes, follow the steps to fulfill a swag request.
 
-
-### Run a new ad or change an existing ad
-
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
-1. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
-2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-3. [Digital Marketing Manager](https://fleetdm.com/handbook/marketing#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
-
-> **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
 ### Engage with the community
 

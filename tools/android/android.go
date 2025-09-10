@@ -14,13 +14,13 @@ import (
 
 // Required env vars:
 var (
-	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS")
+	androidServiceCredentials = os.Getenv("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS")
 	androidProjectID          string
 )
 
 func main() {
 	if androidServiceCredentials == "" {
-		log.Fatal("FLEET_DEV_ANDROID_SERVICE_CREDENTIALS must be set")
+		log.Fatal("FLEET_DEV_ANDROID_GOOGLE_SERVICE_CREDENTIALS must be set")
 	}
 
 	type credentials struct {

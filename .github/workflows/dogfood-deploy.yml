@@ -6,6 +6,10 @@ on:
       DOCKER_IMAGE:
         description: "The full name of the docker image to be deployed. (e.g. fleetdm/fleet:v4.30.0). Note: do not use fleetdm/fleet:main directly.  Use the short hash instead.  If pull-rate limited, try using the quay.io/fleetdm/fleet mirror."
         required: true
+      dry_run:
+        description: Dry run only? No "terraform apply"
+        type: boolean
+        default: false
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -26,6 +30,7 @@ env:
   TF_WORKSPACE: fleet
   TF_VAR_fleet_image: ${{ github.event.inputs.DOCKER_IMAGE || 'fleetdm/fleet:main' }}
   TF_VAR_fleet_license: ${{ secrets.DOGFOOD_LICENSE_KEY }}
+  TF_VAR_webhook_url: ${{secrets.DOGFOOD_WEBHOOK_URL }}
   TF_VAR_slack_p1_webhook: ${{ secrets.SLACK_G_HELP_P1_WEBHOOK_URL }}
   TF_VAR_slack_p2_webhook: ${{ secrets.SLACK_G_HELP_P2_WEBHOOK_URL }}
   TF_VAR_fleet_sentry_dsn: ${{ secrets.DOGFOOD_SENTRY_DSN }}
@@ -36,6 +41,7 @@ env:
   TF_VAR_android_service_credentials: ${{ secrets.FLEET_DEV_ANDROID_SERVICE_CREDENTIALS }}
   TF_VAR_cloudfront_public_key: ${{ secrets.CLOUDFRONT_SIGNING_PUBLIC_KEY }}
   TF_VAR_cloudfront_private_key: ${{ secrets.CLOUDFRONT_SIGNING_PRIVATE_KEY }}
+  TF_VAR_entra_api_key: ${{ secrets.DOGFOOD_FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY }}
 
 permissions:
   id-token: write
@@ -85,7 +91,7 @@ jobs:
         run: terraform plan -no-color
         continue-on-error: true
       - name: Slack Notification
-        if: success()
+        if: success() && inputs.dry_run == false
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |
@@ -106,8 +112,10 @@ jobs:
           SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
         # Note: This will cause the geolite2 image to be built twice, but that cannot be avoided without refactoring the terraform to not tag it based upon timestamp.
       - name: Terraform Apply Free
+        if: inputs.dry_run == false
         id: apply-free
         run: terraform apply -target=module.free -target=module.migrations_free -target=module.geolite2 -auto-approve
       - name: Terraform Apply
+        if: inputs.dry_run == false
         id: apply
         run: terraform apply -auto-approve

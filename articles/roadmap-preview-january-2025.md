@@ -11,16 +11,18 @@ In the next 3 months, Fleet will ship...
 - 🦾 Read-only GitOps mode
 - 💝 Fleet-maintained apps for Windows
 - ☑️ Integration with DigiCert
-- 🎡 One queue for MDM commands, software, and scripts
+- 🎡 One queue for ~~MDM commands~~, software, and scripts *
 - 📱 Android MDM for personal devices (BYOD)
 - 🔍 More data for detection & response and threat hunting
-- 🔄 Auto-patch software without writing custom policies
+- ~~🔄 Auto-patch software without writing custom policies~~ *
 - 🧑‍💼 Identify provider host vitals
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 - 🍏 Account-based user enrollment for personal devices (BYOD)
-- 🗓️ Native patching for apps and OS during maintenance windows
-- 🤖 AI-generated osquery queries
+- ~~🗓️ Native patching for apps and OS during maintenance windows~~ *
+- ~~🤖 AI-generated osquery queries~~ *
+
+* To see the up-to-date roadmap, find the latest roadmap article in [Fleet's announcements](https://fleetdm.com/announcements).
 
 Any feedback or a questions?  Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 

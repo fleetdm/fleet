@@ -38,6 +38,7 @@ func (ds *Datastore) NewActivity(
 	var userName *string
 	var userEmail *string
 	var fleetInitiated bool
+	var hostOnly bool
 	if user != nil {
 		// To support creating activities with users that were deleted. This can happen
 		// for automatically installed software which uses the author of the upload as the author of
@@ -53,7 +54,11 @@ func (ds *Datastore) NewActivity(
 		fleetInitiated = true
 	}
 
-	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at"}
+	if hostOnlyActivity, ok := activity.(fleet.ActivityHostOnly); ok && hostOnlyActivity.HostOnly() {
+		hostOnly = true
+	}
+
+	cols := []string{"fleet_initiated", "user_id", "user_name", "activity_type", "details", "created_at", "host_only"}
 	args := []any{
 		fleetInitiated,
 		userID,
@@ -61,6 +66,7 @@ func (ds *Datastore) NewActivity(
 		activity.ActivityName(),
 		details,
 		createdAt,
+		hostOnly,
 	}
 	if userEmail != nil {
 		args = append(args, userEmail)
@@ -76,25 +82,33 @@ func (ds *Datastore) NewActivity(
 			cmdUUID = vppPtrAct.CommandUUID
 			hostID = vppPtrAct.HostID
 		}
-		// NOTE: ideally this would be called in the same transaction as storing
-		// the nanomdm command results, but the current design doesn't allow for
-		// that with the nano store being a distinct entity to our datastore (we
-		// should get rid of that distinction eventually, we've broken it already
-		// in some places and it doesn't bring much benefit anymore).
-		//
-		// Instead, this gets called from CommandAndReportResults, which is
-		// executed after the results have been saved in nano, but we already
-		// accept this non-transactional fact for many other states we manage in
-		// Fleet (wipe, lock results, setup experience results, etc. - see all
-		// critical data that gets updated in CommandAndReportResults) so there's
-		// no reason to treat the unified queue differently.
-		//
-		// This place here is a bit hacky but perfect for VPP apps as the activity
-		// gets created only when the MDM command status is in a final state
-		// (success or failure), which is exactly when we want to activate the next
-		// activity.
-		if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+
+		activateNext := vppAct.Status != string(fleet.SoftwareInstalled)
+		if vppPtrAct != nil {
+			activateNext = vppPtrAct.Status != string(fleet.SoftwareInstalled)
+		}
+
+		if activateNext {
+			// NOTE: ideally this would be called in the same transaction as storing
+			// the nanomdm command results, but the current design doesn't allow for
+			// that with the nano store being a distinct entity to our datastore (we
+			// should get rid of that distinction eventually, we've broken it already
+			// in some places and it doesn't bring much benefit anymore).
+			//
+			// Instead, this gets called from CommandAndReportResults, which is
+			// executed after the results have been saved in nano, but we already
+			// accept this non-transactional fact for many other states we manage in
+			// Fleet (wipe, lock results, setup experience results, etc. - see all
+			// critical data that gets updated in CommandAndReportResults) so there's
+			// no reason to treat the unified queue differently.
+			//
+			// This place here is a bit hacky but perfect for VPP apps as the activity
+			// gets created only when the MDM command status is in a final state
+			// (success or failure), which is exactly when we want to activate the next
+			// activity.
+			if _, err := ds.activateNextUpcomingActivity(ctx, ds.writer(ctx), hostID, cmdUUID); err != nil {
+				return ctxerr.Wrap(ctx, err, "activate next activity from VPP app install")
+			}
 		}
 	}
 
@@ -145,7 +159,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.user_email,
 			a.fleet_initiated
 		FROM activities a
-		WHERE true`
+		WHERE a.host_only = false`
 
 	var args []interface{}
 	if opt.Streamed != nil {
@@ -206,7 +220,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 
 	if len(lookup) != 0 {
 		usersQ := `
-			SELECT u.id, u.name, u.gravatar_url, u.email
+			SELECT u.id, u.name, u.gravatar_url, u.email, u.api_only
 			FROM users u
 			WHERE id IN (?)
 		`
@@ -225,6 +239,7 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			Name        string `db:"name"`
 			GravatarUrl string `db:"gravatar_url"`
 			Email       string `db:"email"`
+			APIOnly     bool   `db:"api_only"`
 		}
 
 		err = sqlx.SelectContext(ctx, ds.reader(ctx), &usersR, usersQ, usersArgs...)
@@ -241,11 +256,13 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			email := r.Email
 			gravatar := r.GravatarUrl
 			name := r.Name
+			apiOnly := r.APIOnly
 
 			for _, idx := range entries {
 				activities[idx].ActorEmail = &email
 				activities[idx].ActorGravatar = &gravatar
 				activities[idx].ActorFullName = &name
+				activities[idx].ActorAPIOnly = &apiOnly
 			}
 		}
 	}
@@ -306,6 +323,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) as name,
 			u.id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:ran_script_type as activity_type,
@@ -315,6 +333,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 				'host_display_name', COALESCE(hdn.display_name, ''),
 				'script_name', COALESCE(ses.name, scr.name, ''),
 				'script_execution_id', ua.execution_id,
+				'batch_execution_id', bahr.batch_execution_id,
 				'async', NOT ua.payload->'$.sync_request',
 				'policy_id', sua.policy_id,
 				'policy_name', p.name
@@ -336,6 +355,8 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			scripts scr ON scr.id = sua.script_id
 		LEFT OUTER JOIN
 			setup_experience_scripts ses ON ses.id = sua.setup_experience_script_id
+		LEFT OUTER JOIN
+			batch_activity_host_results bahr ON ua.execution_id = bahr.host_execution_id
 		WHERE
 			ua.host_id = :host_id AND
 			ua.activity_type = 'script'
@@ -345,6 +366,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_software_type as activity_type,
@@ -386,6 +408,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id as uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			ua.user_id as user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:uninstalled_software_type as activity_type,
@@ -425,6 +448,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			ua.execution_id AS uuid,
 			IF(ua.fleet_initiated, 'Fleet', COALESCE(u.name, ua.payload->>'$.user.name')) AS name,
 			u.id AS user_id,
+			u.api_only as api_only,
 			COALESCE(u.gravatar_url, ua.payload->>'$.user.gravatar_url') as gravatar_url,
 			COALESCE(u.email, ua.payload->>'$.user.email') as user_email,
 			:installed_app_store_app_type AS activity_type,
@@ -466,6 +490,7 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 			user_id,
 			gravatar_url,
 			user_email,
+			api_only,
 			activity_type,
 			created_at,
 			details,
@@ -514,6 +539,7 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		u.gravatar_url as gravatar_url,
 		a.created_at as created_at,
 		u.id as user_id,
+		u.api_only as api_only,
 		a.fleet_initiated as fleet_initiated
 	FROM
 		host_activities ha
@@ -816,11 +842,18 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, err
 	}
 
-	// must get the host uuid for the setup experience and nano table updates
-	const getHostUUIDStmt = `SELECT uuid FROM hosts WHERE id = ?`
-	var hostUUID string
-	if err := sqlx.GetContext(ctx, tx, &hostUUID, getHostUUIDStmt, hostID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host uuid")
+	// Must get the host uuid, osquery_host_id, and platform for the setup experience and nano table updates.
+	const getHostUUIDStmt = `SELECT uuid, osquery_host_id, platform FROM hosts WHERE id = ?`
+	var host fleet.Host
+	if err := sqlx.GetContext(ctx, tx, &host, getHostUUIDStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "load host UUID fields")
+	}
+	hostUUID := host.UUID
+	if host.Platform == "darwin" || fleet.IsLinux(host.Platform) {
+		hostUUID, err = fleet.HostUUIDForSetupExperience(&host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+		}
 	}
 
 	switch act.ActivityType {
@@ -920,6 +953,11 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 			const updNanoStmt = `UPDATE nano_enrollment_queue SET active = 0 WHERE id = ? AND command_uuid = ?`
 			if _, err := tx.ExecContext(ctx, updNanoStmt, hostUUID, executionID); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "update nano_enrollment_queue as canceled")
+			}
+
+			const delHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+			if _, err := tx.ExecContext(ctx, delHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "delete vpp verify from host_mdm_commands")
 			}
 		}
 
@@ -1464,8 +1502,14 @@ WHERE
 <dict>
     <key>Command</key>
     <dict>
+		<key>InstallAsManaged</key>
+		<true/>
         <key>ManagementFlags</key>
         <integer>0</integer>
+        <key>ChangeManagementState</key>
+        <string>Managed</string>
+        <key>InstallAsManaged</key>
+        <true />
         <key>Options</key>
         <dict>
             <key>PurchaseMethod</key>

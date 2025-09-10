@@ -515,6 +515,14 @@ func isAlreadyDeleted(err error) bool {
 	return ok && ae.Code == http.StatusGone
 }
 
+// Checks whether the credentials are incorrect. `invalid_grant` is a standard OAuth 2.0 error used by Google.
+func isInvalidGrant(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), `"error": "invalid_grant"`)
+}
+
 func isRateLimited(err error) bool {
 	if err == nil {
 		return false
@@ -766,6 +774,9 @@ func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	err = c.config.API.DeleteEvent(details.ID)
 	switch {
 	case isAlreadyDeleted(err):
+		return nil
+	case isInvalidGrant(err):
+		level.Warn(c.config.Logger).Log("msg", "could not delete calendar event due to invalid_grant", "user", c.adjustedUserEmail, "err", err)
 		return nil
 	case err != nil:
 		return ctxerr.Wrap(c.config.Context, err, "deleting Google calendar event")

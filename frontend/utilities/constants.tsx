@@ -4,6 +4,7 @@ import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { ICampaign } from "interfaces/campaign";
+import { MdmEnrollmentStatus } from "interfaces/mdm";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -84,6 +85,9 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.19.0 +", value: "5.19.0" },
+  { label: "5.18.1 +", value: "5.18.1" },
+  { label: "5.18.0 +", value: "5.18.0" },
   { label: "5.17.0 +", value: "5.17.0" },
   { label: "5.16.0 +", value: "5.16.0" },
   { label: "5.15.0 +", value: "5.15.0" },
@@ -334,7 +338,10 @@ export const VULNERABILITIES_SEARCH_BOX_TOOLTIP =
   'To search for an exact CVE, surround the string in double quotes (e.g. "CVE-2024-1234")';
 
 // Keys from API
-export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
+export const MDM_STATUS_TOOLTIP: Record<
+  MdmEnrollmentStatus,
+  React.ReactNode
+> = {
   "On (automatic)": (
     <span>
       MDM was turned on automatically using Apple Automated Device Enrollment
@@ -344,8 +351,15 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   ),
   "On (manual)": (
     <span>
-      MDM was turned on manually (macOS), or hosts were automatically migrated
-      with fleetd (Windows). End users can turn MDM off.
+      MDM was turned on manually, by installing fleetd on macOS and Windows, or
+      by installing enrollment profile on macOS. End user can turn MDM off.
+    </span>
+  ),
+  "On (personal)": (
+    <span>
+      End user turned on MDM on personal (BYOD) host, by signing in with Managed
+      Apple Account on iPhone/iPad, or by enrolling Android via enrollment link
+      or by signing in with Google account. End user can turn MDM off.
     </span>
   ),
   Off: undefined, // no tooltip specified
@@ -424,6 +438,7 @@ export const HOST_ABOUT_DATA = [
   "detail_updated_at",
   "last_restarted_at",
   "platform",
+  "uuid",
 ];
 
 export const HOST_OSQUERY_DATA = [

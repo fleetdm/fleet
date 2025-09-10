@@ -2,14 +2,16 @@ import React from "react";
 import classNames from "classnames";
 
 import LinkWithContext from "components/LinkWithContext";
-import { parseHostSoftwareQueryParams } from "../../HostSoftware";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
+
+import { parseSelfServiceQueryParams } from "../SelfService";
 import { ICategory } from "../helpers";
 
 const baseClass = "categories-menu";
 
 export interface ICategoriesMenu {
   categories: ICategory[];
-  queryParams: ReturnType<typeof parseHostSoftwareQueryParams>;
+  queryParams: ReturnType<typeof parseSelfServiceQueryParams>;
   className?: string;
 }
 
@@ -21,35 +23,37 @@ const CategoriesMenu = ({
   const wrapperClasses = classNames(baseClass, className);
 
   return (
-    <div className={wrapperClasses}>
+    <ul className={wrapperClasses}>
       {categories.map((cat: ICategory) => {
         const isActive =
           cat.id === queryParams.category_id ||
           (cat.id === 0 && !queryParams.category_id);
 
         return (
-          <LinkWithContext
-            key={cat.value ?? "all"}
-            withParams={{
-              type: "query",
-              names: ["query", "page", "category_id"],
-            }}
-            currentQueryParams={{
-              ...queryParams,
-              page: 0,
-              category_id: cat.id !== 0 ? cat.id : undefined,
-            }}
-            to={location.pathname}
-            className={classNames({
-              [`${baseClass}__category-link`]: true,
+          <li
+            className={classNames(`${baseClass}__category-link`, {
               [`${baseClass}__category-link--active`]: isActive,
             })}
+            key={cat.value ?? "all"}
           >
-            <span data-text="">{cat.label}</span>
-          </LinkWithContext>
+            <LinkWithContext
+              withParams={{
+                type: "query",
+                names: ["query", "page", "category_id"],
+              }}
+              currentQueryParams={{
+                ...queryParams,
+                page: 0,
+                category_id: cat.id !== 0 ? cat.id : undefined,
+              }}
+              to={location.pathname}
+            >
+              <TooltipTruncatedText value={cat.label} tooltipPosition="right" />
+            </LinkWithContext>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 };
 export default CategoriesMenu;

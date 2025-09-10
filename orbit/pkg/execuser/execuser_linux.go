@@ -14,35 +14,69 @@ import (
 	"strconv"
 	"strings"
 
+	userpkg "github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/rs/zerolog/log"
 )
 
-// run uses sudo to run the given path as login user.
-func run(path string, opts eopts) (lastLogs string, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+// base command to setup an exec.Cmd using `runuser`
+func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
+	args, env, err := getConfigForCommand(path)
 	if err != nil {
-		return "", fmt.Errorf("get args: %w", err)
+		return nil, fmt.Errorf("get args: %w", err)
 	}
 
-	args = append(args,
+	env = append(env,
 		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		//
 		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
 		// keep this to support older versions of Fleet Desktop.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-		path,
 	)
 
+	for _, nv := range opts.env {
+		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
+	}
+
+	// Hold any command line arguments to pass to the command.
+	cmdArgs := make([]string, 0, len(opts.args)*2)
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
+			cmdArgs = append(cmdArgs, arg[0])
+			if arg[1] != "" {
+				cmdArgs = append(cmdArgs, arg[1])
+			}
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	// Run `env` to setup the environment.
+	args = append(args, "env")
+	args = append(args, env...)
+	// Pass the command and its arguments.
+	args = append(args, path)
+	args = append(args, cmdArgs...)
+
+	// Use sudo to run the command as the login user.
+	args = append([]string{"sudo"}, args...)
+
+	// If a timeout is set, prefix the command with "timeout".
+	if opts.timeout > 0 {
+		args = append([]string{"timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds()))}, args...)
+	}
+
+	cmd = exec.Command(args[0], args[1:]...) // #nosec G204
+	return
+}
+
+// run a command, passing its output to stdout and stderr.
+func run(path string, opts eopts) (lastLogs string, err error) {
+	cmd, err := baserun(path, opts)
+	if err != nil {
+		return "", err
+	}
+
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	log.Printf("cmd=%s", cmd.String())
+	log.Info().Str("cmd", cmd.String()).Msg("running command")
 
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
@@ -50,32 +84,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
-// run uses sudo to run the given path as login user and waits for the process to finish.
+// run a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, -1, fmt.Errorf("get args: %w", err)
+		return nil, -1, err
 	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	// Prefix with "timeout" and "sudo" if applicable
-	var cmdArgs []string
-	if opts.timeout > 0 {
-		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
-	}
-	cmdArgs = append(cmdArgs, "sudo")
-	cmdArgs = append(cmdArgs, args...)
-
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
-
-	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
 	if err != nil {
@@ -89,22 +103,12 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return output, exitCode, nil
 }
 
+// run a command that requires stdin input, returning a pipe to write to stdin.
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, fmt.Errorf("get args: %w", err)
+		return nil, err
 	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	cmd := exec.Command("sudo", args...)
-	log.Printf("cmd=%s", cmd.String())
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -118,27 +122,30 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
-	user, err := getLoginUID()
+func getConfigForCommand(path string) (args []string, env []string, err error) {
+	user, err := userpkg.GetLoginUser()
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
-	log.Info().Str("user", user.name).Int64("id", user.id).Msg("attempting to get user session type and display")
+	log.Info().Str("user", user.Name).Int64("id", user.ID).Msg("attempting to get user session type and display")
 
 	// Get user's display session type (x11 vs. wayland).
-	uid := strconv.FormatInt(user.id, 10)
-	userDisplaySessionType, err := getUserDisplaySessionType(uid)
+	uid := strconv.FormatInt(user.ID, 10)
+	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
+	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
+		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
+	}
 	if err != nil {
 		// Wayland is the default for most distributions, thus we assume
 		// wayland if we couldn't determine the session type.
 		log.Error().Err(err).Msg("assuming wayland session")
-		userDisplaySessionType = guiSessionTypeWayland
+		userDisplaySessionType = userpkg.GuiSessionTypeWayland
 	}
 
 	var display string
-	if userDisplaySessionType == guiSessionTypeX11 {
-		x11Display, err := getUserX11Display(user.name)
+	if userDisplaySessionType == userpkg.GuiSessionTypeX11 {
+		x11Display, err := getUserX11Display(user.Name)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get X11 display, using default :0")
 			// TODO(lucas): Revisit when working on multi-user/multi-session support.
@@ -165,154 +172,38 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 
 	log.Info().
 		Str("path", path).
-		Str("user", user.name).
-		Int64("id", user.id).
+		Str("user", user.Name).
+		Int64("id", user.ID).
 		Str("display", display).
 		Str("session_type", userDisplaySessionType.String()).
 		Msg("running sudo")
 
-	args := argsForSudo(user, opts)
+	args = []string{"-n", "-i", "-u", user.Name, "-H"}
+	env = make([]string, 0)
 
-	if userDisplaySessionType == guiSessionTypeWayland {
-		args = append(args, "WAYLAND_DISPLAY="+display)
+	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
+		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
-		args = append(args, "DISPLAY="+x11Display)
+		env = append(env, "DISPLAY="+x11Display)
 	} else {
-		args = append(args, "DISPLAY="+display)
+		env = append(env, "DISPLAY="+display)
 	}
 
-	args = append(args,
+	env = append(env,
 		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
 		// Required by the libayatana-appindicator3 library to display a tray icon
 		// on the desktop session.
 		//
 		// This is required for Ubuntu 18, and not required for Ubuntu 21/22
 		// (because it's already part of the user).
-		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.id),
+		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.ID),
 	)
 
-	return args, nil
-}
-
-type user struct {
-	name string
-	id   int64
-}
-
-func argsForSudo(u *user, opts eopts) []string {
-	// -H: "[...] to set HOME environment to what's specified in the target's user password database entry."
-	// -i: needed to run the command with the user's context, from `man sudo`:
-	// "The command is run with an environment similar to the one a user would receive at log in"
-	// -u: "[..]Run the command as a user other than the default target user (usually root)."
-	args := []string{"-i", "-u", u.name, "-H"}
-	for _, nv := range opts.env {
-		args = append(args, fmt.Sprintf("%s=%s", nv[0], nv[1]))
-	}
-	return args
-}
-
-// getLoginUID returns the name and uid of the first login user
-// as reported by the `users' command.
-//
-// NOTE(lucas): It is always picking first login user as returned
-// by `users', revisit when working on multi-user/multi-session support.
-func getLoginUID() (*user, error) {
-	out, err := exec.Command("users").CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("users exec failed: %w", err)
-	}
-	usernames := parseUsersOutput(string(out))
-	username := usernames[0]
-	if username == "" {
-		return nil, errors.New("no user session found")
-	}
-	out, err = exec.Command("id", "-u", username).CombinedOutput()
-	if err != nil {
-		return nil, fmt.Errorf("id exec failed: %w", err)
-	}
-	uid, err := parseIDOutput(string(out))
-	if err != nil {
-		return nil, err
-	}
-	return &user{
-		name: username,
-		id:   uid,
-	}, nil
-}
-
-// parseUsersOutput parses the output of the `users' command.
-//
-//	`users' command prints on a single line a blank-separated list of user names of
-//	users currently logged in to the current host. Each user name
-//	corresponds to a login session, so if a user has more than one login
-//	session, that user's name will appear the same number of times in the
-//	output.
-//
-// Returns the list of usernames.
-func parseUsersOutput(s string) []string {
-	var users []string
-	users = append(users, strings.Split(strings.TrimSpace(s), " ")...)
-	return users
-}
-
-// parseIDOutput parses the output of the `id' command.
-//
-// Returns the parsed uid.
-func parseIDOutput(s string) (int64, error) {
-	uid, err := strconv.ParseInt(strings.TrimSpace(s), 10, 0)
-	if err != nil {
-		return 0, fmt.Errorf("failed to parse uid: %w", err)
-	}
-	return uid, nil
+	return args, env, nil
 }
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)
-
-type guiSessionType int
-
-const (
-	guiSessionTypeX11 guiSessionType = iota + 1
-	guiSessionTypeWayland
-)
-
-func (s guiSessionType) String() string {
-	if s == guiSessionTypeX11 {
-		return "x11"
-	}
-	return "wayland"
-}
-
-// getUserDisplaySessionType returns the display session type (X11 or Wayland) of the given user.
-func getUserDisplaySessionType(uid string) (guiSessionType, error) {
-	cmd := exec.Command("loginctl", "show-user", uid, "-p", "Display", "--value")
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session: %w", err)
-	}
-	guiSessionID := strings.TrimSpace(stdout.String())
-	if guiSessionID == "" {
-		return 0, errors.New("empty GUI session")
-	}
-	cmd = exec.Command("loginctl", "show-session", guiSessionID, "-p", "Type", "--value")
-	stdout.Reset()
-	cmd.Stdout = &stdout
-	if err := cmd.Run(); err != nil {
-		return 0, fmt.Errorf("run 'loginctl' to get user GUI session type: %w", err)
-	}
-	guiSessionType := strings.TrimSpace(stdout.String())
-	switch guiSessionType {
-	case "":
-		return 0, errors.New("empty GUI session type")
-	case "x11":
-		return guiSessionTypeX11, nil
-	case "wayland":
-		return guiSessionTypeWayland, nil
-	default:
-		return 0, fmt.Errorf("unknown GUI session type: %q", guiSessionType)
-	}
-}
 
 // getUserWaylandDisplay returns the value to set on WAYLAND_DISPLAY for the given user.
 func getUserWaylandDisplay(uid string) (string, error) {

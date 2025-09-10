@@ -52,6 +52,10 @@ type PolicyPayload struct {
 	LabelsIncludeAny []string
 	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
 	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool
 }
 
 // NewTeamPolicyPayload holds data for team policy creation.
@@ -88,6 +92,8 @@ type NewTeamPolicyPayload struct {
 	LabelsIncludeAny []string
 	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
 	LabelsExcludeAny []string
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	ConditionalAccessEnabled bool
 }
 
 var (
@@ -190,6 +196,10 @@ type ModifyPolicyPayload struct {
 	LabelsIncludeAny []string `json:"labels_include_any"`
 	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled *bool `json:"conditional_access_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -247,10 +257,18 @@ type PolicyData struct {
 	// LabelsExcludeAny is a list of labels excluded from being targeted by this policy
 	LabelsExcludeAny []LabelIdent `json:"labels_exclude_any,omitempty"`
 
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy.
+	//
+	// Only applies to team policies.
 	CalendarEventsEnabled bool  `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 	SoftwareInstallerID   *uint `json:"-" db:"software_installer_id"`
 	VPPAppsTeamsID        *uint `json:"-" db:"vpp_apps_teams_id"`
 	ScriptID              *uint `json:"-" db:"script_id"`
+
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled" db:"conditional_access_enabled"`
 
 	UpdateCreateTimestamps
 }
@@ -364,6 +382,10 @@ type PolicySpec struct {
 	ScriptID         *uint    `json:"script_id"`
 	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
 	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
+	// ConditionalAccessEnabled indicates whether this is a policy used for Microsoft conditional access.
+	//
+	// Only applies to team policies.
+	ConditionalAccessEnabled bool `json:"conditional_access_enabled"`
 }
 
 // PolicySoftwareTitle contains software title data for policies.

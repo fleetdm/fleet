@@ -31,7 +31,7 @@ brew install vexctl
 #### A. "Affected" status
 
 We will use [CVE-2025-27509](https://nvd.nist.gov/vuln/detail/CVE-2025-27509) as an example.
-This CVE affected all versions of Fleet at the time (more information [here](https://github.com/fleetdm/fleet/security/advisories/GHSA-52jx-g6m5-h735)).
+This CVE affected all versions of Fleet at the time (see the associated [GitHub security advisory](https://github.com/fleetdm/fleet/security/advisories/GHSA-52jx-g6m5-h735)).
 
 ##### 1. Creating "affected" status
 

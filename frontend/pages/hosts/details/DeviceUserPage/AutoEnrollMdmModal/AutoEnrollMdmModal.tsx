@@ -50,7 +50,6 @@ const AutoEnrollMdmModal = ({
             <InputField
               enableCopy
               readOnly
-              inputWrapperClass
               name="profiles-renew-command"
               value="sudo profiles renew -type enrollment"
             />
@@ -90,7 +89,6 @@ const AutoEnrollMdmModal = ({
             <InputField
               enableCopy
               readOnly
-              inputWrapperClass
               name="profiles-renew-command"
               value="sudo profiles renew -type enrollment"
             />

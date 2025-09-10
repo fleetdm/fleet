@@ -366,6 +366,35 @@ var (
 				s.Version = timestamp.Format("2006-01-02T15-04-05Z")
 			},
 		},
+		{
+			// Powershell preview versions 7.5* all have CVE-2025-21171
+			// Non-preview 7.5* do not
+			matches: func(s *fleet.Software) bool {
+				return strings.Contains(strings.ToLower(s.Name), "powershell")
+			},
+			mutate: func(s *fleet.Software, logger log.Logger) {
+				parts := strings.Split(s.Version, ".")
+				if len(parts) < 3 {
+					return
+				}
+
+				isSpecificVer := parts[0] == "7" && parts[1] == "5"
+				var newVersion string
+
+				switch {
+				case isSpecificVer && (strings.Contains(parts[2], "-") ||
+					strings.Contains(strings.ToLower(s.Name), "preview")):
+					newVersion = fmt.Sprintf("%s.%s", parts[0], parts[1])
+				case isSpecificVer:
+					newVersion = fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
+				default:
+					return
+				}
+
+				s.Name = "powershell"
+				s.Version = newVersion
+			},
+		},
 	}
 )
 

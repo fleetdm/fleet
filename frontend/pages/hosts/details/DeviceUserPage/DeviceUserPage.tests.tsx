@@ -4,25 +4,16 @@ import { screen } from "@testing-library/react";
 import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  defaultSetupSoftwareStatusesHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
-const mockRouter = {
-  push: jest.fn(),
-  replace: jest.fn(),
-  goBack: jest.fn(),
-  goForward: jest.fn(),
-  go: jest.fn(),
-  setRouteLeaveHook: jest.fn(),
-  isActive: jest.fn(),
-  createHref: jest.fn(),
-  createPath: jest.fn(),
-};
+const mockRouter = createMockRouter();
 
 const mockLocation = {
   pathname: "",
@@ -40,6 +31,7 @@ describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -62,6 +54,7 @@ describe("Device User Page", () => {
   it("hides the certificates card if the device has no certificates", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -89,6 +82,7 @@ describe("Device User Page", () => {
 
     mockServer.use(customDeviceHandler({ host }));
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(defaultSetupSoftwareStatusesHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -112,6 +106,7 @@ describe("Device User Page", () => {
     const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
       mockServer.use(customDeviceHandler(overrides));
       mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(defaultSetupSoftwareStatusesHandler);
 
       const render = createCustomRenderer({
         withBackendMock: true,

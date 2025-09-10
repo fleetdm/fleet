@@ -54,7 +54,7 @@ const SoftwareVersionDetailsPage = ({
   router,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
-  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const { isPremiumTier, isOnGlobalTeam, config } = useContext(AppContext);
   const handlePageError = useErrorHandler();
 
   const versionId = parseInt(routeParams.id, 10);
@@ -144,7 +144,7 @@ const SoftwareVersionDetailsPage = ({
 
     return (
       <>
-        {isPremiumTier && (
+        {isPremiumTier && !config?.partnerships?.enable_primo && (
           <TeamsHeader
             isOnGlobalTeam={isOnGlobalTeam}
             currentTeamId={currentTeamId}

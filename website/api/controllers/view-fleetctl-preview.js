@@ -18,38 +18,49 @@ module.exports = {
 
     success: {
       viewTemplatePath: 'pages/fleetctl-preview'
-    },
-
-    redirect: {
-      description: 'The requesting user is not logged in.',
-      responseType: 'redirect'
-    },
+    }
 
   },
 
 
   fn: async function ({start}) {
 
-    if(!this.req.me) {
-      throw {redirect: '/register#tryfleet'};
-    }
+    let userHasTrialLicense = false;
     let trialLicenseKey;
-    // Check to see if this user has a Fleet premium trial license key.
-    let userHasTrialLicense = this.req.me.fleetPremiumTrialLicenseKey;
     let userHasExpiredTrialLicense = false;
-    if(userHasTrialLicense) {
-      if(this.req.me.fleetPremiumTrialLicenseKeyExpiresAt < Date.now()) {
-        userHasExpiredTrialLicense = true;
+
+    if(this.req.me) {
+      userHasTrialLicense = this.req.me.fleetPremiumTrialLicenseKey;
+      // Check to see if this user has a Fleet premium trial license key.
+      if(userHasTrialLicense) {
+        if(this.req.me.fleetPremiumTrialLicenseKeyExpiresAt < Date.now()) {
+          userHasExpiredTrialLicense = true;
+        }
+        trialLicenseKey = this.req.me.fleetPremiumTrialLicenseKey;
+      } else {
+        // If this user is logged in and does not have a trial license key, generate a new one for them.
+        let thirtyDaysFromNowAt = Date.now() + (1000 * 60 * 60 * 24 * 30);
+        let trialLicenseKeyForThisUser = await sails.helpers.createLicenseKey.with({
+          numberOfHosts: 10,
+          organization: this.req.me.organization,
+          expiresAt: thirtyDaysFromNowAt,
+        });
+        // Save the trial license key to the DB record for this user.
+        await User.updateOne({id: this.req.me.id})
+        .set({
+          fleetPremiumTrialLicenseKey: trialLicenseKeyForThisUser,
+          fleetPremiumTrialLicenseKeyExpiresAt: thirtyDaysFromNowAt,
+        });
+        trialLicenseKey = trialLicenseKeyForThisUser;
+        userHasTrialLicense = true;
       }
-      trialLicenseKey = this.req.me.fleetPremiumTrialLicenseKey;
-    } else {
-      trialLicenseKey = '';
     }
 
     // Respond with view.
     return {
       hideNextStepsButtons: start,
       trialLicenseKey,
+      userHasTrialLicense,
       userHasExpiredTrialLicense,
     };
 

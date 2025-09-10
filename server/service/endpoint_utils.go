@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -95,7 +96,8 @@ type endpointer struct {
 }
 
 func (e *endpointer) CallHandlerFunc(f eu.HandlerFunc, ctx context.Context, request interface{},
-	svc interface{}) (fleet.Errorer, error) {
+	svc interface{},
+) (fleet.Errorer, error) {
 	return f(ctx, request, svc.(fleet.Service))
 }
 
@@ -104,7 +106,8 @@ func (e *endpointer) Service() interface{} {
 }
 
 func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.HandlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
@@ -120,7 +123,8 @@ func newUserAuthenticatedEndpointer(svc fleet.Service, opts []kithttp.ServerOpti
 }
 
 func newNoAuthEndpointer(svc fleet.Service, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.HandlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	return &eu.CommonEndpointer[eu.HandlerFunc]{
 		EP: &endpointer{
 			svc: svc,
@@ -139,8 +143,15 @@ func badRequest(msg string) error {
 	return &fleet.BadRequestError{Message: msg}
 }
 
+func badRequestf(format string, a ...any) error {
+	return &fleet.BadRequestError{
+		Message: fmt.Sprintf(format, a...),
+	}
+}
+
 func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.HandlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedDevice(svc, logger, next)
 	}
@@ -162,11 +173,11 @@ func newDeviceAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts
 		Router:        r,
 		Versions:      versions,
 	}
-
 }
 
 func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.HandlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedHost(svc, logger, next)
 	}
@@ -185,7 +196,8 @@ func newHostAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts [
 }
 
 func newOrbitAuthenticatedEndpointer(svc fleet.Service, logger log.Logger, opts []kithttp.ServerOption, r *mux.Router,
-	versions ...string) *eu.CommonEndpointer[eu.HandlerFunc] {
+	versions ...string,
+) *eu.CommonEndpointer[eu.HandlerFunc] {
 	authFunc := func(svc fleet.Service, next endpoint.Endpoint) endpoint.Endpoint {
 		return authenticatedOrbitHost(svc, logger, next)
 	}

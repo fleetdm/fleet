@@ -2,6 +2,10 @@
 
 This is meant to be a helpful checklist of 'events' or 'transactions' to help catch edge cases sooner rather than later while designing or testing new features or bugs.  Please feel free to add more if any are missing.
 
+## fleetd and Fleet Desktop
+- Fleet Free and Fleet Premium
+- Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
+
 ## User
 
 - Create user
@@ -57,6 +61,10 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Vulnerability scans
 - Automatic software install
 - Label-scoped software install
+- Host software
+  - Actions: Install, uninstall, update software
+  - Statuses
+  - Activities (host upcoming, host past, global)
 
 ## Policy
 
@@ -81,7 +89,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - Remove Manual label
 - Add host to an existing label
 - Remove a host from a label
-- Label selecion (policy / profile / software)
+- Label selection (policy / profile / software)
   - Include all
   - Include any
   - Exclude all
@@ -114,6 +122,41 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - DB primary / replica
 - Async ingestion of policies
 
+## Tables
+
+- Pagination (client side vs. server side)
+- Filters: sort column, direction, search, dropdowns, advanced
+- URL query parameters (source of truth) vs. self-contained parameters
+- Empty states
+  - Cell empty states
+  - Whole table empty states (e.g. true empty, search empty, etc)
+- Loading/Error states
+
+## GitOps mode
+
+- Disable certain actions with Gitops mode tooltip
+- Copy changes
+
+## Forms
+
+- Error states (conditions, clientside vs. server side, location of error message, trigger onBlur/onChange/onSubmit)
+- Disabled states (conditions, on button, on form fields)
+- Dynamic views (show/hide buttons, dynamic help text, edge case views)
+
+## Responsiveness and low-width browsers
+- Long database names rendered in the UI e.g. team names, scripts, software titles...
+- Wide tables with many columns or wide columns (horizontal scroll vs. old, bad pattern of hiding columns)
+- Page load expectations (how long should it take for a page to load with x number of items in the API response)
+- Cron run time expectations (what is an acceptable change in amount of time it takes for a scheduled cron to complete)
+
+## Actionable components (e.g. buttons, links, form fields, navigation)
+- Keyboard accessibility
+- States: Default, Hover (with mouse), Active (when clicked), Focus (keyboard highlight)
+
+## User permissions
+- Premium vs. Free
+- Global user (Admin, Maintainer, Observer, Observer+, API only)
+- Team level user (Admin, Maintainer, Observer, Observer+, API only)
 
 <meta name="pageOrderInSection" value="3300">
 <meta name="description" value="A helpful checklist of 'events' or 'transactions' to think about while designing or testing new features or bugs.">

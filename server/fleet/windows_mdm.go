@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -210,4 +211,43 @@ type MDMWindowsBulkUpsertHostProfilePayload struct {
 type MDMWindowsProfileContents struct {
 	SyncML   []byte `db:"syncml"`
 	Checksum []byte `db:"checksum"`
+}
+
+// MDMWindowsWipeType specifies what type of remote wipe we want
+// to perform.
+type MDMWindowsWipeType int
+
+const (
+	MDMWindowsWipeTypeDoWipe MDMWindowsWipeType = iota
+	MDMWindowsWipeTypeDoWipeProtected
+)
+
+var wipeTypeVariants = map[MDMWindowsWipeType]string{
+	MDMWindowsWipeTypeDoWipe:          "doWipe",
+	MDMWindowsWipeTypeDoWipeProtected: "doWipeProtected",
+}
+
+func (wt *MDMWindowsWipeType) String() string {
+	if wt == nil {
+		return "<nil>"
+	}
+	return wipeTypeVariants[*wt]
+}
+
+func (wt *MDMWindowsWipeType) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	for k, v := range wipeTypeVariants {
+		if v == s {
+			*wt = k
+			return nil
+		}
+	}
+	return fmt.Errorf("invalid WipeType: %s", s)
+}
+
+type MDMWindowsWipeMetadata struct {
+	WipeType MDMWindowsWipeType `json:"wipe_type"`
 }

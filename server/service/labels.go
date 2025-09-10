@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -71,12 +72,29 @@ func (svc *Service) NewLabel(ctx context.Context, p fleet.LabelPayload) (*fleet.
 	}
 	label.Name = p.Name
 
-	if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
-		return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of either "query" or "hosts/host_ids" can be included in the request.`)
-	}
-	label.Query = p.Query
-	if p.Query == "" {
-		label.LabelMembershipType = fleet.LabelMembershipTypeManual
+	if p.Criteria != nil {
+		if p.Query != "" || (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+		}
+		label.LabelMembershipType = fleet.LabelMembershipTypeHostVitals
+		labelCriteriaJson, err := json.Marshal(p.Criteria)
+		if err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+		}
+		label.HostVitalsCriteria = ptr.RawMessage(json.RawMessage(labelCriteriaJson))
+		// Attempt to calculate a query from the criteria.
+		_, _, err = label.CalculateHostVitalsQuery()
+		if err != nil {
+			return nil, nil, fleet.NewInvalidArgumentError("criteria", fmt.Sprintf("invalid criteria: %s", err.Error()))
+		}
+	} else {
+		if p.Query != "" && (len(p.Hosts) > 0 || len(p.HostIDs) > 0) {
+			return nil, nil, fleet.NewInvalidArgumentError("query", `Only one of "criteria", "query" or "hosts/host_ids" can be included in the request.`)
+		}
+		label.Query = p.Query
+		if p.Query == "" {
+			label.LabelMembershipType = fleet.LabelMembershipTypeManual
+		}
 	}
 
 	label.Platform = p.Platform
@@ -530,6 +548,12 @@ func (svc *Service) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSpe
 			// Hosts list doesn't need to contain anything, but it should at least not be nil.
 			return fleet.NewUserMessageError(
 				ctxerr.Errorf(ctx, "label %s is declared as manual but contains no `hosts key`", spec.Name), http.StatusUnprocessableEntity,
+			)
+		}
+		if spec.LabelMembershipType == fleet.LabelMembershipTypeHostVitals && spec.HostVitalsCriteria == nil {
+			// Criteria is required for host vitals labels.
+			return fleet.NewUserMessageError(
+				ctxerr.Errorf(ctx, "label %s is declared as host vitals but contains no `criteria` key", spec.Name), http.StatusUnprocessableEntity,
 			)
 		}
 		if spec.LabelType == fleet.LabelTypeBuiltIn {

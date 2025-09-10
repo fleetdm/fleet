@@ -357,7 +357,7 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 
 	enrollmentStatus := r.URL.Query().Get("mdm_enrollment_status")
 	switch fleet.MDMEnrollStatus(enrollmentStatus) {
-	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic,
+	case fleet.MDMEnrollStatusManual, fleet.MDMEnrollStatusAutomatic, fleet.MDMEnrollStatusPersonal,
 		fleet.MDMEnrollStatusPending, fleet.MDMEnrollStatusUnenrolled, fleet.MDMEnrollStatusEnrolled:
 		hopt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(enrollmentStatus)
 	case "":
@@ -492,6 +492,21 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		}
 		hopt.LowDiskSpaceFilter = &v
 	}
+
+	batchScriptExecutionID := r.URL.Query().Get("script_batch_execution_id")
+	if batchScriptExecutionID != "" {
+		hopt.BatchScriptExecutionIDFilter = &batchScriptExecutionID
+		batchScriptExecutionStatus := r.URL.Query().Get("script_batch_execution_status")
+		if batchScriptExecutionStatus != "" {
+			if fleet.BatchScriptExecutionStatus(batchScriptExecutionStatus).IsValid() {
+				bsef := fleet.BatchScriptExecutionStatus(batchScriptExecutionStatus)
+				hopt.BatchScriptExecutionStatusFilter = bsef
+			} else {
+				return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid script_batch_execution_status: %s", batchScriptExecutionStatus)))
+			}
+		}
+	}
+
 	populateSoftware := r.URL.Query().Get("populate_software")
 	if populateSoftware == "without_vulnerability_details" {
 		hopt.PopulateSoftware = true

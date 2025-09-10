@@ -69,10 +69,10 @@ Investing in people and providing generous, prioritized training, especially up 
 
 Here are a few examples of how Fleet prioritizes training:
 - the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
-- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Digital Experience will join this short daily meeting with them instead.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Interim Head of People will join this short daily meeting with them instead.
 - In their first few days, every new fleetie joins:
-  - hands-on contributor experience training session with the Head of Digital Experience where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
-  - a short sightseeing tour with the Head of Digital Experience and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+  - hands-on contributor experience training session with the Interim Head of People where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with the Interim Head of People to show them around and welcome them to the company.
 
 
 ## Why direct responsibility?
@@ -149,7 +149,7 @@ All new infrastructure at Fleet is first approved by the E-group. Currently appr
 
 Additional infrastructure:
 
-1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, [Digital Experience](https://fleetdm.com/handbook/digital-experience) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
+1. **HTTP server at [fleetdm.com](https://fleetdm.com/)**. When a public HTTP server is required to broker information, the [Website group](https://fleetdm.com/handbook/company/product-groups#website-group) adds the functionality to the existing fleetdm.com HTTP server. The fleetdm.com web server is hosted at [Heroku](https://heroku.com/).
 
 2. **Managed Cloud**. All Managed Cloud [customer environments](https://docs.google.com/spreadsheets/d/1nGgy7Gx1Y3sYHinL8kFWnhejghV1QDtv9uQgKu91F9E/edit?usp=sharing) and Fleet's dogfooding environments are hosted at [AWS](https://aws.amazon.com).
 
@@ -202,11 +202,11 @@ Every department organizes their work into [team-based kanban boards](https://gi
 
 ## Why agile?
 
-Releasing software [🟢iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
+Releasing software [🟢 iteratively](https://fleetdm.com/handbook/company#results) gets changes and improvements into the hands of users faster and generally results in [🔵 software that works](https://fleetdm.com/handbook/company#objectivity). This makes contributors fitter, happier, and more productive.
 
 We apply the [twelve principles of agile](https://agilemanifesto.org) to Fleet's [development process](https://fleetdm.com/handbook/company/product-groups#making-changes):
 
-1. Our highest priority is to [🔴satisfy the customer](https://fleetdm.com/handbook/company#empathy) through early and continuous delivery of valuable software.
+1. Our highest priority is to [🔴 satisfy the customer](https://fleetdm.com/handbook/company#empathy) through early and continuous delivery of valuable software.
 2. Welcome changing requirements, even late in development. Agile processes harness change for the customer's competitive advantage.
 3. Deliver working software frequently, from a couple of weeks to a couple of months, with a preference to the shorter timescale.
 4. Business people and developers must [work together daily](https://fleetdm.com/handbook/company/product-groups) throughout the project.
@@ -308,14 +308,14 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 ## Why don't we sell like everyone else?
 
-Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
+Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠 longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://docs.google.com/document/d/1IbucpsZZ0qbJQRPRtm9e2kMcSBDTXjixAMVOWyTu_pA/edit?tab=t.0).
-- **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
+- **Be a helper.**  We focus on [🔴 being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
-- **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
+- **Fewer words.  Fewer pings.**  People are busy.  We don't waste their time.  Avoid dumping work on prospect's plates at all costs.  Light touches, no asks.  Every notification from Fleet is a ping they have to deal with.  We don't overload people with words and links.  We [🟢 keep things simple](https://fleetdm.com/handbook/company#results) and [write briefly](http://www.paulgraham.com/writing44.html).
 - **Community-first.**  We go to conferences.  We write docs.  We are participants, not sponsors.  We don't write spammy articles and landing pages. We want people who choose Fleet to be successful, whether they are paying customers or not.  We are not pushy.  We are only as commercial as we have to be to help people out.
-- **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵fair to competitors](https://fleetdm.com/handbook/company#objectivity).
-- **Step up.** We look at the [🟠big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
+- **Be genuine.**  No puffery. No impressive-sounding words.  We are [🟣 open and outsider friendly](https://fleetdm.com/handbook/company#openness).  We expand acronyms, and insist on using simple language that lets everyone understand and contribute.  We help the people we work with grow in their careers and learn from each other.  We are sincere, curious, and [🔵 fair to competitors](https://fleetdm.com/handbook/company#objectivity).
+- **Step up.** We look at the [🟠 big picture](https://fleetdm.com/handbook/company#ownership).  The goal is for the organization using Fleet to be successful, as well as the individuals who decide to use or buy the product.  There are multiple versions of Fleet, and so many ways to "do" open-source security and IT.  It is in the company's best interest to help engineers pick the right one; even if that's Fleet Free, or another solution altogether.  We think about our customer's needs like they are our own.
 
 
 ## Why does Fleet support query packs?
@@ -406,7 +406,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
 
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
   
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from [Sam Pfluger](https://fleetdm.com/handbook/digital-experience#team).
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Mike's [Executive Assistant](https://fleetdm.com/handbook/ceo#team).
 Thank you so much!" 🙇
 </blockquote> 
 

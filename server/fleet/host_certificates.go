@@ -8,6 +8,24 @@ import (
 	"time"
 )
 
+type HostCertificateSource string
+
+const (
+	SystemHostCertificate HostCertificateSource = "system"
+	UserHostCertificate   HostCertificateSource = "user"
+)
+
+// IsValid returns true if the current host certificate source value is
+// accepted, otherwise false.
+func (s HostCertificateSource) IsValid() bool {
+	switch s {
+	case SystemHostCertificate, UserHostCertificate:
+		return true
+	default:
+		return false
+	}
+}
+
 // HostCertificateRecord is the database model for a host certificate.
 type HostCertificateRecord struct {
 	ID     uint `json:"-" db:"id"`
@@ -42,6 +60,9 @@ type HostCertificateRecord struct {
 	IssuerOrganization        string `json:"-" db:"issuer_org"`
 	IssuerOrganizationalUnit  string `json:"-" db:"issuer_org_unit"`
 	IssuerCommonName          string `json:"-" db:"issuer_common_name"`
+
+	Source   HostCertificateSource `json:"-" db:"source"`
+	Username string                `json:"-" db:"username"` // username that owns the certificate, only if source == 'user'
 }
 
 func NewHostCertificateRecord(
@@ -79,6 +100,8 @@ func NewHostCertificateRecord(
 		IssuerCountry:             firstOrEmpty(cert.Issuer.Country),            // TODO: confirm methodology
 		IssuerOrganization:        firstOrEmpty(cert.Issuer.Organization),       // TODO: confirm methodology
 		IssuerOrganizationalUnit:  firstOrEmpty(cert.Issuer.OrganizationalUnit), // TODO: confirm methodology
+		Source:                    SystemHostCertificate,                        // default to system host certificate, always 'system' for certs from MDM command for now
+		Username:                  "",                                           // always empty since this is a system certificate
 	}
 }
 
@@ -108,6 +131,8 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 		KeyUsage:             r.KeyUsage,
 		Serial:               r.Serial,
 		SigningAlgorithm:     r.SigningAlgorithm,
+		Source:               r.Source,
+		Username:             r.Username,
 		Subject:              subject,
 		Issuer:               issuer,
 	}
@@ -115,16 +140,18 @@ func (r *HostCertificateRecord) ToPayload() *HostCertificatePayload {
 
 // HostCertificatePayload is the JSON model for API endpoints that return host certificates.
 type HostCertificatePayload struct {
-	ID                   uint      `json:"id"`
-	NotValidAfter        time.Time `json:"not_valid_after"`
-	NotValidBefore       time.Time `json:"not_valid_before"`
-	CertificateAuthority bool      `json:"certificate_authority"`
-	CommonName           string    `json:"common_name"`
-	KeyAlgorithm         string    `json:"key_algorithm"`
-	KeyStrength          int       `json:"key_strength"`
-	KeyUsage             string    `json:"key_usage"`
-	Serial               string    `json:"serial"`
-	SigningAlgorithm     string    `json:"signing_algorithm"`
+	ID                   uint                  `json:"id"`
+	NotValidAfter        time.Time             `json:"not_valid_after"`
+	NotValidBefore       time.Time             `json:"not_valid_before"`
+	CertificateAuthority bool                  `json:"certificate_authority"`
+	CommonName           string                `json:"common_name"`
+	KeyAlgorithm         string                `json:"key_algorithm"`
+	KeyStrength          int                   `json:"key_strength"`
+	KeyUsage             string                `json:"key_usage"`
+	Serial               string                `json:"serial"`
+	SigningAlgorithm     string                `json:"signing_algorithm"`
+	Source               HostCertificateSource `json:"source"`
+	Username             string                `json:"username"`
 
 	Subject *HostCertificateNameDetails `json:"subject,omitempty"`
 	Issuer  *HostCertificateNameDetails `json:"issuer,omitempty"`
@@ -189,6 +216,8 @@ type MDMAppleErrorChainItem struct {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
+
+	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
 	parts := strings.Split(str, "/")
 
 	var details HostCertificateNameDetails
@@ -198,15 +227,17 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
 		}
 
+		value := strings.ReplaceAll(strings.Trim(kv[1], " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
+
 		switch strings.ToUpper(kv[0]) {
 		case "C":
-			details.Country = strings.Trim(kv[1], " ")
+			details.Country = strings.Trim(value, " ")
 		case "O":
-			details.Organization = strings.Trim(kv[1], " ")
+			details.Organization = strings.Trim(value, " ")
 		case "OU":
-			details.OrganizationalUnit = strings.Trim(kv[1], " ")
+			details.OrganizationalUnit = strings.Trim(value, " ")
 		case "CN":
-			details.CommonName = strings.Trim(kv[1], " ")
+			details.CommonName = strings.Trim(value, " ")
 		}
 	}
 

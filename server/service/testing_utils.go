@@ -18,6 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/scim"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -64,22 +67,25 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	logger := kitlog.NewNopLogger()
 
 	var (
-		failingPolicySet  fleet.FailingPolicySet        = NewMemFailingPolicySet()
-		enrollHostLimiter fleet.EnrollHostLimiter       = nopEnrollHostLimiter{}
-		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
-		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-		c                 clock.Clock                   = clock.C
-		scepConfigService                               = eeservice.NewSCEPConfigService(logger, nil)
-		digiCertService                                 = digicert.NewService(digicert.WithLogger(logger))
+		failingPolicySet                fleet.FailingPolicySet        = NewMemFailingPolicySet()
+		enrollHostLimiter               fleet.EnrollHostLimiter       = nopEnrollHostLimiter{}
+		depStorage                      nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
+		mailer                          fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		c                               clock.Clock                   = clock.C
+		scepConfigService                                             = eeservice.NewSCEPConfigService(logger, nil)
+		digiCertService                                               = digicert.NewService(digicert.WithLogger(logger))
+		hydrantService                                                = hydrant.NewService(hydrant.WithLogger(logger))
+		conditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
 
-		mdmStorage            fleet.MDMAppleStore
-		mdmPusher             nanomdm_push.Pusher
-		ssoStore              sso.SessionStore
-		profMatcher           fleet.ProfileMatcher
-		softwareInstallStore  fleet.SoftwareInstallerStore
-		bootstrapPackageStore fleet.MDMBootstrapPackageStore
-		distributedLock       fleet.Lock
-		keyValueStore         fleet.KeyValueStore
+		mdmStorage             fleet.MDMAppleStore
+		mdmPusher              nanomdm_push.Pusher
+		ssoStore               sso.SessionStore
+		profMatcher            fleet.ProfileMatcher
+		softwareInstallStore   fleet.SoftwareInstallerStore
+		bootstrapPackageStore  fleet.MDMBootstrapPackageStore
+		softwareTitleIconStore fleet.SoftwareTitleIconStore
+		distributedLock        fleet.Lock
+		keyValueStore          fleet.KeyValueStore
 	)
 	if len(opts) > 0 {
 		if opts[0].Clock != nil {
@@ -91,7 +97,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		keyValueStore = opts[0].KeyValueStore
 	}
 
-	task := async.NewTask(ds, nil, c, config.OsqueryConfig{})
+	task := async.NewTask(ds, nil, c, nil)
 	if len(opts) > 0 {
 		if opts[0].Task != nil {
 			task = opts[0].Task
@@ -132,6 +138,9 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		if opts[0].BootstrapPackageStore != nil {
 			bootstrapPackageStore = opts[0].BootstrapPackageStore
 		}
+		if opts[0].SoftwareTitleIconStore != nil {
+			softwareTitleIconStore = opts[0].SoftwareTitleIconStore
+		}
 
 		// allow to explicitly set MDM storage to nil
 		mdmStorage = opts[0].MDMStorage
@@ -164,6 +173,10 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	}
 	if len(opts) > 0 && opts[0].DigiCertService != nil {
 		digiCertService = opts[0].DigiCertService
+	}
+	if len(opts) > 0 && opts[0].ConditionalAccessMicrosoftProxy != nil {
+		conditionalAccessMicrosoftProxy = opts[0].ConditionalAccessMicrosoftProxy
+		fleetConfig.MicrosoftCompliancePartner.ProxyAPIKey = "insecure" // setting this so the feature is "enabled".
 	}
 
 	var wstepManager microsoft_mdm.CertManager
@@ -200,6 +213,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		wstepManager,
 		scepConfigService,
 		digiCertService,
+		conditionalAccessMicrosoftProxy,
 	)
 	if err != nil {
 		panic(err)
@@ -227,8 +241,12 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 			profMatcher,
 			softwareInstallStore,
 			bootstrapPackageStore,
+			softwareTitleIconStore,
 			distributedLock,
 			keyValueStore,
+			scepConfigService,
+			digiCertService,
+			hydrantService,
 		)
 		if err != nil {
 			panic(err)
@@ -312,7 +330,7 @@ type mockMailService struct {
 	Invoked     bool
 }
 
-func (svc *mockMailService) SendEmail(e fleet.Email) error {
+func (svc *mockMailService) SendEmail(ctx context.Context, e fleet.Email) error {
 	svc.Invoked = true
 	return svc.SendEmailFn(e)
 }
@@ -323,39 +341,48 @@ func (svc *mockMailService) CanSendEmail(smtpSettings fleet.SMTPSettings) bool {
 
 type TestNewScheduleFunc func(ctx context.Context, ds fleet.Datastore) fleet.NewCronScheduleFunc
 
+// HostIdentity combines host identity-related test options
+type HostIdentity struct {
+	SCEPStorage                 scep_depot.Depot
+	RequireHTTPMessageSignature bool
+}
+
 type TestServerOpts struct {
-	Logger                kitlog.Logger
-	License               *fleet.LicenseInfo
-	SkipCreateTestUsers   bool
-	Rs                    fleet.QueryResultStore
-	Lq                    fleet.LiveQueryStore
-	Pool                  fleet.RedisPool
-	FailingPolicySet      fleet.FailingPolicySet
-	Clock                 clock.Clock
-	Task                  *async.Task
-	EnrollHostLimiter     fleet.EnrollHostLimiter
-	Is                    fleet.InstallerStore
-	FleetConfig           *config.FleetConfig
-	MDMStorage            fleet.MDMAppleStore
-	DEPStorage            nanodep_storage.AllDEPStorage
-	SCEPStorage           scep_depot.Depot
-	MDMPusher             nanomdm_push.Pusher
-	HTTPServerConfig      *http.Server
-	StartCronSchedules    []TestNewScheduleFunc
-	UseMailService        bool
-	APNSTopic             string
-	ProfileMatcher        fleet.ProfileMatcher
-	EnableCachedDS        bool
-	NoCacheDatastore      bool
-	SoftwareInstallStore  fleet.SoftwareInstallerStore
-	BootstrapPackageStore fleet.MDMBootstrapPackageStore
-	KeyValueStore         fleet.KeyValueStore
-	EnableSCEPProxy       bool
-	WithDEPWebview        bool
-	FeatureRoutes         []endpoint_utils.HandlerRoutesFunc
-	SCEPConfigService     fleet.SCEPConfigService
-	DigiCertService       fleet.DigiCertService
-	EnableSCIM            bool
+	Logger                          kitlog.Logger
+	License                         *fleet.LicenseInfo
+	SkipCreateTestUsers             bool
+	Rs                              fleet.QueryResultStore
+	Lq                              fleet.LiveQueryStore
+	Pool                            fleet.RedisPool
+	FailingPolicySet                fleet.FailingPolicySet
+	Clock                           clock.Clock
+	Task                            *async.Task
+	EnrollHostLimiter               fleet.EnrollHostLimiter
+	Is                              fleet.InstallerStore
+	FleetConfig                     *config.FleetConfig
+	MDMStorage                      fleet.MDMAppleStore
+	DEPStorage                      nanodep_storage.AllDEPStorage
+	SCEPStorage                     scep_depot.Depot
+	MDMPusher                       nanomdm_push.Pusher
+	HTTPServerConfig                *http.Server
+	StartCronSchedules              []TestNewScheduleFunc
+	UseMailService                  bool
+	APNSTopic                       string
+	ProfileMatcher                  fleet.ProfileMatcher
+	EnableCachedDS                  bool
+	NoCacheDatastore                bool
+	SoftwareInstallStore            fleet.SoftwareInstallerStore
+	BootstrapPackageStore           fleet.MDMBootstrapPackageStore
+	SoftwareTitleIconStore          fleet.SoftwareTitleIconStore
+	KeyValueStore                   fleet.KeyValueStore
+	EnableSCEPProxy                 bool
+	WithDEPWebview                  bool
+	FeatureRoutes                   []endpoint_utils.HandlerRoutesFunc
+	SCEPConfigService               fleet.SCEPConfigService
+	DigiCertService                 fleet.DigiCertService
+	EnableSCIM                      bool
+	ConditionalAccessMicrosoftProxy ConditionalAccessMicrosoftProxy
+	HostIdentity                    *HostIdentity
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -399,18 +426,21 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		scepStorage := opts[0].SCEPStorage
 		commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPusher)
 		if mdmStorage != nil && scepStorage != nil {
+			checkInAndCommand := NewMDMAppleCheckinAndCommandService(ds, commander, logger)
+			checkInAndCommand.RegisterResultsHandler("InstalledApplicationList", NewInstalledApplicationListResultsHandler(ds, commander, logger, cfg.Server.VPPVerifyTimeout, cfg.Server.VPPVerifyRequestDelay))
 			err := RegisterAppleMDMProtocolServices(
 				rootMux,
 				cfg.MDM,
 				mdmStorage,
 				scepStorage,
 				logger,
-				NewMDMAppleCheckinAndCommandService(ds, commander, logger),
+				checkInAndCommand,
 				&MDMAppleDDMService{
 					ds:     ds,
 					logger: logger,
 				},
 				commander,
+				"https://test-url.com",
 			)
 			require.NoError(t, err)
 		}
@@ -445,7 +475,17 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && len(opts[0].FeatureRoutes) > 0 {
 		featureRoutes = opts[0].FeatureRoutes
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, WithLoginRateLimit(throttled.PerMin(1000)))
+	var extra []ExtraHandlerOption
+	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
+
+	if len(opts) > 0 && opts[0].HostIdentity != nil {
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger))
+		var httpSigVerifier func(http.Handler) http.Handler
+		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
+		require.NoError(t, err)
+		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
+	}
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -454,6 +494,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	}
 	debugHandler := MakeDebugHandler(svc, cfg, logger, errHandler, ds)
 	rootMux.Handle("/debug/", debugHandler)
+	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
 		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))

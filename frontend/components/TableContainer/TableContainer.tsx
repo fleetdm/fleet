@@ -44,6 +44,8 @@ interface ITableContainerProps<T = any> {
   defaultSortHeader?: string;
   defaultSortDirection?: string;
   defaultSearchQuery?: string;
+  /**  Used for client-side filtering with a search query controlled outside TableContainer */
+  searchQuery?: string;
   /**  When page index is externally managed like from the URL, this prop must be set to control currentPageIndex */
   pageIndex?: number;
   defaultSelectedRows?: Record<string, boolean>;
@@ -80,6 +82,8 @@ interface ITableContainerProps<T = any> {
   // TODO - consolidate this functionality within `filters`
   selectedDropdownFilter?: string;
   isClientSidePagination?: boolean;
+  /** Only used on self-service page client side pagination because clicking on a action re-orders the data and we don't want that to trigger reset to page 0 */
+  disableAutoResetPage?: boolean;
   /** Used to set URL to correct path and include page query param */
   onClientSidePaginationChange?: (pageIndex: number) => void;
   /** Sets the table to filter the data on the client */
@@ -133,6 +137,7 @@ const TableContainer = <T,>({
   isLoading,
   manualSortBy = false,
   defaultSearchQuery = "",
+  searchQuery: controlledSearchQuery,
   pageIndex = DEFAULT_PAGE_INDEX,
   defaultSortHeader = "name",
   defaultSortDirection = "asc",
@@ -157,6 +162,7 @@ const TableContainer = <T,>({
   secondarySelectActions,
   searchToolTipText,
   isClientSidePagination,
+  disableAutoResetPage = false,
   onClientSidePaginationChange,
   isClientSideFilter,
   isMultiColumnFilter,
@@ -179,6 +185,7 @@ const TableContainer = <T,>({
   persistSelectedRows,
   onClearSelection = noop,
 }: ITableContainerProps<T>) => {
+  const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -187,12 +194,24 @@ const TableContainer = <T,>({
   const [currentPageIndex, setCurrentPageIndex] = useState<number>(pageIndex);
   const [clientFilterCount, setClientFilterCount] = useState<number>();
 
+  // If using a clientside search query outside of TableContainer,
+  // we need to set the searchQuery state to the controlledSearchQuery prop anytime it changes
+  useEffect(() => {
+    if (isControlledSearchQuery) {
+      setSearchQuery(controlledSearchQuery);
+    }
+  }, [controlledSearchQuery, isControlledSearchQuery]);
+
   // Client side pagination is being overridden to previous page without this
   useEffect(() => {
-    if (isClientSidePagination && currentPageIndex !== DEFAULT_PAGE_INDEX) {
+    if (
+      isClientSidePagination &&
+      currentPageIndex !== DEFAULT_PAGE_INDEX &&
+      !disableAutoResetPage
+    ) {
       setCurrentPageIndex(DEFAULT_PAGE_INDEX);
     }
-  }, [currentPageIndex, isClientSidePagination]);
+  }, [currentPageIndex, isClientSidePagination, disableAutoResetPage]);
 
   // pageIndex must update currentPageIndex anytime it's changed or else it causes bugs
   // e.g. bug of filter dd not reverting table to page 0
@@ -411,7 +430,7 @@ const TableContainer = <T,>({
             >
               {renderCount && !disableCount && (
                 <div
-                  className={`${baseClass}__results-count ${
+                  className={`${baseClass}__results-count  ${
                     stackControls ? "stack-table-controls" : ""
                   }`}
                   style={opacity}
@@ -533,6 +552,7 @@ const TableContainer = <T,>({
                 defaultPageSize={pageSize}
                 defaultPageIndex={pageIndex}
                 defaultSelectedRows={defaultSelectedRows}
+                autoResetPage={!disableAutoResetPage}
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}

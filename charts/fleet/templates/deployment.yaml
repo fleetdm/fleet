@@ -15,6 +15,7 @@ spec:
     matchLabels:
       app: fleet
       chart: fleet
+      component: fleet-server
       heritage: {{ .Release.Service }}
       release: {{ .Release.Name }}
   template:
@@ -26,6 +27,7 @@ spec:
       labels:
         app: fleet
         chart: fleet
+        component: fleet-server
         heritage: {{ .Release.Service }}
         release: {{ .Release.Name }}
     spec:
@@ -68,6 +70,18 @@ spec:
             value: "{{ .Values.fleet.logging.json }}"
           - name: FLEET_LOGGING_DISABLE_BANNER
             value: "{{ .Values.fleet.logging.disableBanner }}"
+          {{- if ne .Values.fleet.mdm.windows.wstepIdentityCertKey "" }}
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityCertKey }}"
+          - name: FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.mdm.windows.wstepIdentityKeyKey }}"
+          {{- end }}
           - name: FLEET_SERVER_TLS
             value: "{{ .Values.fleet.tls.enabled }}"
           {{- if .Values.fleet.tls.enabled }}
@@ -78,11 +92,16 @@ spec:
           - name: FLEET_SERVER_KEY
             value: "/secrets/tls/{{ .Values.fleet.tls.keySecretKey }}"
           {{- end }}
+          ### Carving S3 Configuration
           {{- if ne .Values.fleet.carving.s3.bucketName "" }}
           - name: FLEET_S3_BUCKET
             value: "{{ .Values.fleet.carving.s3.bucketName }}"
           - name: FLEET_S3_PREFIX
             value: "{{ .Values.fleet.carving.s3.prefix }}"
+          - name: FLEET_S3_ENDPOINT_URL
+            value: "{{ .Values.fleet.carving.s3.endpointURL }}"
+          - name: FLEET_S3_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.carving.s3.forceS3PathStyle }}"
           {{- if ne .Values.fleet.carving.s3.accessKeyID "" }}
           - name: FLEET_S3_ACCESS_KEY_ID
             value: "{{ .Values.fleet.carving.s3.accessKeyID }}"
@@ -94,6 +113,29 @@ spec:
           {{ else }}
           - name: FLEET_S3_STS_ASSUME_ROLE_ARN
             value: "{{ .Values.fleet.carving.s3.stsAssumeRoleARN }}"
+          {{- end }}
+          {{- end }}
+          ### Software Installers S3 Configuration
+          {{- if ne .Values.fleet.softwareInstallers.s3.bucketName "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_BUCKET
+            value: "{{ .Values.fleet.softwareInstallers.s3.bucketName }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_PREFIX
+            value: "{{ .Values.fleet.softwareInstallers.s3.prefix }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ENDPOINT_URL
+            value: "{{ .Values.fleet.softwareInstallers.s3.endpointURL }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_FORCE_S3_PATH_STYLE
+            value: "{{ .Values.fleet.softwareInstallers.s3.forceS3PathStyle }}"
+          {{- if ne .Values.fleet.softwareInstallers.s3.accessKeyID "" }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_ACCESS_KEY_ID
+            value: "{{ .Values.fleet.softwareInstallers.s3.accessKeyID }}"
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: "{{ .Values.fleet.secretName }}"
+                key: "{{ .Values.fleet.softwareInstallers.s3.secretKey }}"
+          {{- else }}
+          - name: FLEET_S3_SOFTWARE_INSTALLERS_STS_ASSUME_ROLE_ARN
+            value: "{{ .Values.fleet.softwareInstallers.s3.stsAssumeRoleARN }}"
           {{- end }}
           {{- end }}
           {{- if .Values.fleet.license.secretName }}
@@ -141,6 +183,67 @@ spec:
             value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
+          ## BEGIN MYSQL READ REPLICA SECTION
+          {{- if .Values.database_read_replica }}
+          {{- if .Values.database_read_replica.address }}
+          - name: FLEET_MYSQL_READ_REPLICA_ADDRESS
+            value: "{{ .Values.database_read_replica.address }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.database }}
+          - name: FLEET_MYSQL_READ_REPLICA_DATABASE
+            value: "{{ .Values.database_read_replica.database }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.username }}
+          - name: FLEET_MYSQL_READ_REPLICA_USERNAME
+            value: "{{ .Values.database_read_replica.username }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.passwordPath }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD_PATH
+            value: "{{ .Values.database_read_replica.passwordPath }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.secretName }}
+          - name: FLEET_MYSQL_READ_REPLICA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ .Values.database_read_replica.secretName }}
+                key: {{ .Values.database_read_replica.passwordKey }}
+          {{- end }}
+          {{- if .Values.database_read_replica.maxOpenConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_OPEN_CONNS
+            value: "{{ .Values.database_read_replica.maxOpenConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.maxIdleConns }}
+          - name: FLEET_MYSQL_READ_REPLICA_MAX_IDLE_CONNS
+            value: "{{ .Values.database_read_replica.maxIdleConns }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.connMaxLifetime }}
+          - name: FLEET_MYSQL_READ_REPLICA_CONN_MAX_LIFETIME
+            value: "{{ .Values.database_read_replica.connMaxLifetime }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.enabled }}
+          {{- if .Values.database_read_replica.tls.caCertKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CA
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.caCertKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.certKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CERT
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.certKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.keyKey }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_KEY
+            value: "/secrets/mysql/{{ .Values.database_read_replica.tls.keyKey }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.config }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_CONFIG
+            value: "{{ .Values.database_read_replica.tls.config }}"
+          {{- end }}
+          {{- if .Values.database_read_replica.tls.serverName }}
+          - name: FLEET_MYSQL_READ_REPLICA_TLS_SERVER_NAME
+            value: "{{ .Values.database_read_replica.tls.serverName }}"
+          {{- end }}
+          {{- end }}
+          {{- end }}
+          ## END MYSQL READ REPLICA SECTION
           ## BEGIN REDIS SECTION
           - name: FLEET_REDIS_ADDRESS
             value: "{{ .Values.cache.address }}"
@@ -310,7 +413,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
         livenessProbe:
           httpGet:
             path: /healthz
@@ -373,7 +478,9 @@ spec:
           {{- if .Values.fleet.securityContext.runAsUser }}
           runAsUser: {{ int64 .Values.fleet.securityContext.runAsUser }}
           {{- end }}
-          runAsNonRoot: true
+          {{- if .Values.fleet.securityContext.runAsNonRoot }}
+          runAsNonRoot: {{ .Values.fleet.securityContext.runAsNonRoot }}
+          {{- end }}
       {{- end }}
       hostPID: false
       hostNetwork: false

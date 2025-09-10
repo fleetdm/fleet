@@ -3,7 +3,7 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
-import { HostPlatform } from "interfaces/platform";
+import { HostPlatform, isAppleDevice } from "interfaces/platform";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -50,11 +50,15 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = platform === "darwin";
+  const showUsername = isAppleDevice(platform);
   const showFullName = showUsername && userNameDisplayValues.length > 0;
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
   const showOtherEmails = otherEmailsDisplayValues.length > 0;
+  const userDepartment = [];
+  if (endUser?.idp_department) {
+    userDepartment.push(endUser.idp_department);
+  }
 
   return (
     <Card
@@ -116,6 +120,16 @@ const User = ({
               )
             }
             value={<UserValue values={generateGroupsValues(endUsers)} />}
+          />
+        )}
+        {showUsername && (
+          <DataSet
+            title={
+              <TooltipWrapper tipContent='This is the "department" collected from your IdP.'>
+                Department (IdP)
+              </TooltipWrapper>
+            }
+            value={<UserValue values={userDepartment} />}
           />
         )}
         {showChromeProfiles && (

@@ -110,7 +110,7 @@ and `bundle.css` files. The HTML page also includes the HTML element in which th
 ### [test](./test)
 
 The test directory includes test helpers, API request mocks, and stubbed data entities for use in test files.
-More on test helpers, stubs, and request mocks [here](./test/README.md).
+See [the UI testing documentation](./test/README.md) for more on test helpers, stubs, and request mocks.
 
 ### [utilities](./utilities)
 
@@ -121,7 +121,7 @@ etc.
 
 ## Patterns
 
-The list of patterns used in the Fleet UI codebase can be found [here](./docs/patterns.md).
+The list of patterns used in the Fleet UI codebase can be found [in `patterns.md`](./docs/patterns.md).
 
 ## Storybook
 

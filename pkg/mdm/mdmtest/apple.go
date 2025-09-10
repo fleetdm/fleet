@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -50,6 +51,18 @@ type TestAppleMDMClient struct {
 	// EnrollInfo holds the information necessary to enroll to an MDM server.
 	EnrollInfo AppleEnrollInfo
 
+	// UserUUID is a random fake unique ID of a simulated user. Only filled in if a user enrollment
+	// is done
+	UserUUID string
+	// Username is the username of a simulated user. Only filled in if a user enrollment is done
+	Username string
+
+	// SecretUUID is a random fake unique ID of a simulated device used for providing consistent
+	// identifiers for enrollments like Apple's Account Driven User Enrollment in which the device
+	// never actually provides a UDID to the server, instead generating a random one for each
+	// enrollment
+	secretUUID string
+
 	// fleetServerURL is the URL of the Fleet server, used to fetch the enrollment profile.
 	fleetServerURL string
 
@@ -76,6 +89,20 @@ type TestAppleMDMClient struct {
 	fetchEnrollmentProfileFromOTA bool
 	// otaEnrollSecret is the team enroll secret to be used during the OTA flow.
 	otaEnrollSecret string
+	// otaIdpUUID is the optional uuid of the idp account that should be associated with the host enrolling
+	otaIdpUUID string
+
+	// fetchEnrollmentProfileFromMDMBYOD indicates whether this simulated device will fetch
+	// the enrollment profile from Fleet as if it were a device running the Account Driven User
+	// Enrollment flow sometimes called MDM-BYOD in Apple docs.
+	fetchEnrollmentProfileFromMDMBYOD bool
+
+	// The bearer token, if set and fetchEnrollmentProfileFromMDMBYOD is set, will be passed in the
+	// Authorization header on all MDM requests as discussed in Ongoing authorization [1] in the
+	// Apple account driven enrollment docs.
+	//
+	// [1] https://developer.apple.com/documentation/devicemanagement/onboarding-users-with-account-sign-in#overview
+	authorizationBearerToken string
 
 	// desktopURLToken is the token used to fetch the enrollment profile
 	// from Fleet as if it were a device running the DEP flow.
@@ -106,6 +133,13 @@ func WithEnrollmentProfileFromDEPUsingPost() TestMDMAppleClientOption {
 	}
 }
 
+// Will set a cookie for OTA requests which mimics SSO being enabled before OTA enrollment.
+func WithOTAIdpUUID(idpUUID string) TestMDMAppleClientOption {
+	return func(c *TestAppleMDMClient) {
+		c.otaIdpUUID = idpUUID
+	}
+}
+
 // AppleEnrollInfo contains the necessary information to enroll to an MDM server.
 type AppleEnrollInfo struct {
 	// SCEPChallenge is the SCEP challenge to present to the SCEP server when enrolling.
@@ -114,6 +148,9 @@ type AppleEnrollInfo struct {
 	SCEPURL string
 	// MDMURL is the URL of the MDM server.
 	MDMURL string
+	// AssignedManagedAppleID is the Assigned Managed Apple account for the device. Only used for
+	// account driven enrollment flows, so it will not always be available.
+	AssignedManagedAppleID string
 }
 
 // NewTestMDMClientAppleDesktopManual will create a simulated device that will fetch
@@ -188,6 +225,33 @@ func NewTestMDMClientAppleOTA(serverURL, enrollSecret, model string, opts ...Tes
 	return &c
 }
 
+func NewTestMDMClientAppleAccountDrivenUserEnrollment(serverURL, model, authorizationBearerToken string, opts ...TestMDMAppleClientOption) *TestAppleMDMClient {
+	// NB An Account Driven User Enrollment has no actual UDID or serial but does have a randomly
+	// generated enrollment ID
+	c := TestAppleMDMClient{
+		Model:                             model,
+		fetchEnrollmentProfileFromMDMBYOD: true,
+		authorizationBearerToken:          authorizationBearerToken,
+		fleetServerURL:                    serverURL,
+	}
+	c.secretUUID = strings.ToUpper(uuid.New().String())
+	for _, fn := range opts {
+		fn(&c)
+	}
+	return &c
+}
+
+func (c *TestAppleMDMClient) Identifier() string {
+	if c.UUID != "" {
+		return c.UUID
+	}
+	return c.secretUUID
+}
+
+func (c *TestAppleMDMClient) EnrollmentID() string {
+	return "testenrollmentid-" + c.Identifier()
+}
+
 func (c *TestAppleMDMClient) SetDesktopToken(tok string) {
 	c.desktopURLToken = tok
 }
@@ -217,6 +281,10 @@ func (c *TestAppleMDMClient) Enroll() error {
 		if err := c.fetchEnrollmentProfileFromOTAURL(); err != nil {
 			return fmt.Errorf("get enrollment profile from OTA URL: %w", err)
 		}
+	case c.fetchEnrollmentProfileFromMDMBYOD:
+		if err := c.fetchEnrollmentProfileFromMDMBYODURL(); err != nil {
+			return fmt.Errorf("get enrollment profile from MDM BYOD URL: %w", err)
+		}
 	default:
 		if c.EnrollInfo.SCEPURL == "" || c.EnrollInfo.MDMURL == "" || c.EnrollInfo.SCEPChallenge == "" {
 			return fmt.Errorf("missing info needed to perform enrollment: %+v", c.EnrollInfo)
@@ -232,6 +300,12 @@ func (c *TestAppleMDMClient) Enroll() error {
 		return fmt.Errorf("token update: %w", err)
 	}
 	return nil
+}
+
+func (c *TestAppleMDMClient) UserEnroll() error {
+	c.UserUUID = strings.ToUpper(uuid.New().String())
+	c.Username = "fleetie" + randStr(5)
+	return c.UserTokenUpdate()
 }
 
 func (c *TestAppleMDMClient) fetchEnrollmentProfileFromDesktopURL() error {
@@ -272,6 +346,20 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfileFromOTAURL() error {
 	)
 }
 
+func (c *TestAppleMDMClient) fetchEnrollmentProfileFromMDMBYODURL() error {
+	buf, err := AccountDrivenUserEnrollDeviceInfoAsPKCS7(fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo{
+		Product:  c.Model,
+		Version:  "22A3351", // iOS 18.0, but it doesn't really matter
+		Language: "en-US",
+	})
+	if err != nil {
+		return fmt.Errorf("test client: encoding device info: %w", err)
+	}
+	return c.fetchEnrollmentProfile(
+		apple_mdm.AccountDrivenEnrollPath, buf,
+	)
+}
+
 func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	request, err := http.NewRequest("GET", c.fleetServerURL+url, nil)
 	if err != nil {
@@ -281,6 +369,14 @@ func (c *TestAppleMDMClient) fetchOTAProfile(url string) error {
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
 	}))
+
+	if c.otaIdpUUID != "" {
+		request.AddCookie(&http.Cookie{
+			Name:  shared_mdm.BYODIdpCookieName,
+			Value: c.otaIdpUUID,
+		})
+	}
+
 	response, err := cc.Do(request)
 	if err != nil {
 		return fmt.Errorf("send request: %w", err)
@@ -441,6 +537,9 @@ func (c *TestAppleMDMClient) fetchEnrollmentProfile(path string, body []byte) (e
 			return fmt.Errorf("create request: %w", err)
 		}
 	}
+	if c.fetchEnrollmentProfileFromMDMBYOD && c.authorizationBearerToken != "" {
+		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
+	}
 	// #nosec (this client is used for testing only)
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
@@ -516,7 +615,7 @@ func (c *TestAppleMDMClient) doSCEP(url, challenge string) (*x509.Certificate, *
 	}
 
 	// (3). Generate CSR.
-	cn := fmt.Sprintf("fleet-testdevice-%s", c.UUID)
+	cn := fmt.Sprintf("fleet-testdevice-%s", c.Identifier())
 	csrTemplate := x509util.CertificateRequest{
 		CertificateRequest: x509.CertificateRequest{
 			Subject: pkix.Name{
@@ -631,12 +730,14 @@ func (c *TestAppleMDMClient) SCEPEnroll() error {
 func (c *TestAppleMDMClient) Authenticate() error {
 	payload := map[string]any{
 		"MessageType":  "Authenticate",
-		"UDID":         c.UUID,
 		"Model":        c.Model,
-		"DeviceName":   "testdevice" + c.SerialNumber,
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
-		"SerialNumber": c.SerialNumber,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+	}
+	if !c.fetchEnrollmentProfileFromMDMBYOD {
+		payload["UDID"] = c.UUID
+		payload["SerialNumber"] = c.SerialNumber
+		payload["DeviceName"] = "testdevice" + c.SerialNumber
 	}
 	if strings.HasPrefix(c.Model, "iPhone") || strings.HasPrefix(c.Model, "iPad") {
 		payload["ProductName"] = c.Model
@@ -647,18 +748,57 @@ func (c *TestAppleMDMClient) Authenticate() error {
 
 // TokenUpdate sends the TokenUpdate message to the MDM server (Check In protocol).
 func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
+	pushMagic := "pushmagic" + c.SerialNumber
+	token := []byte("token" + c.SerialNumber)
+	if c.SerialNumber == "" {
+		pushMagic = "pushmagic" + c.Identifier()
+		token = []byte("token" + c.Identifier())
+	}
 	payload := map[string]any{
 		"MessageType":  "TokenUpdate",
-		"UDID":         c.UUID,
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"NotOnConsole": "false",
-		"PushMagic":    "pushmagic" + c.SerialNumber,
-		"Token":        []byte("token" + c.SerialNumber),
+		"PushMagic":    pushMagic,
+		"Token":        token,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	if awaitingConfiguration {
 		payload["AwaitingConfiguration"] = true
 	}
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
+// TokenUpdate sends the TokenUpdate message with a username to the MDM server (Check In protocol).
+// This creates a user channel pushtoken and an Enrollment with Type=User in nanomdm.
+func (c *TestAppleMDMClient) UserTokenUpdate() error {
+	if c.UserUUID == "" || c.Username == "" {
+		return errors.New("user UUID and username must be set for user enrollment")
+	}
+	pushMagic := "pushmagic.user." + c.SerialNumber
+	token := []byte("token.user." + c.SerialNumber)
+	if c.SerialNumber == "" {
+		pushMagic = "pushmagic.user." + c.Identifier()
+		token = []byte("token.user." + c.Identifier())
+	}
+	payload := map[string]any{
+		"MessageType":   "TokenUpdate",
+		"Topic":         "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID":  "testenrollmentid-" + c.Identifier(),
+		"NotOnConsole":  "false",
+		"PushMagic":     pushMagic,
+		"Token":         token,
+		"UserID":        c.UserUUID,
+		"UserLongName":  c.Username,
+		"UserShortName": c.Username,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
+	}
+
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
 }
@@ -671,10 +811,12 @@ func (c *TestAppleMDMClient) TokenUpdate(awaitingConfiguration bool) error {
 func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
-		"UDID":         c.UUID,
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"Endpoint":     endpoint,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	if len(data) != 0 {
 		rawData, err := json.Marshal(data[0])
@@ -691,9 +833,11 @@ func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...flee
 func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{
 		"MessageType":  "CheckOut",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return err
@@ -708,9 +852,11 @@ func (c *TestAppleMDMClient) Checkout() error {
 func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -724,10 +870,12 @@ func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -741,10 +889,12 @@ func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 func (c *TestAppleMDMClient) NotNow(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "NotNow",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -773,6 +923,7 @@ func (c *TestAppleMDMClient) AcknowledgeInstalledApplicationList(udid, cmdUUID s
 			"Name":         s.Name,
 			"ShortVersion": s.Version,
 			"Identifier":   s.BundleIdentifier,
+			"Installing":   !s.Installed,
 		})
 	}
 
@@ -811,9 +962,11 @@ func (c *TestAppleMDMClient) AcknowledgeCertificateList(udid, cmdUUID string, ce
 func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 	payload := map[string]any{
 		"MessageType":  "GetBootstrapToken",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	res, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	if err != nil {
@@ -853,11 +1006,13 @@ func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Error",
-		"Topic":        "com.apple.mgmt.External." + c.UUID,
-		"UDID":         c.UUID,
-		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.Identifier(),
+		"EnrollmentID": "testenrollmentid-" + c.Identifier(),
 		"CommandUUID":  cmdUUID,
 		"ErrorChain":   errChain,
+	}
+	if c.UUID != "" {
+		payload["UDID"] = c.UUID
 	}
 	return c.sendAndDecodeCommandResponse(payload)
 }
@@ -924,6 +1079,10 @@ func (c *TestAppleMDMClient) request(contentType string, payload map[string]any)
 	}
 	request.Header.Set("Content-Type", contentType)
 	request.Header.Set("Mdm-Signature", base64.StdEncoding.EncodeToString(sig))
+
+	if c.fetchEnrollmentProfileFromMDMBYOD && c.authorizationBearerToken != "" {
+		request.Header.Set("Authorization", "Bearer "+c.authorizationBearerToken)
+	}
 	// #nosec (this client is used for testing only)
 	cc := fleethttp.NewClient(fleethttp.WithTLSClientConfig(&tls.Config{
 		InsecureSkipVerify: true,
@@ -964,10 +1123,20 @@ func ParseEnrollmentProfile(mobileConfig []byte) (*AppleEnrollInfo, error) {
 	if apnsTopic, ok := enrollmentProfile.PayloadContent[1]["Topic"].(string); !ok || apnsTopic == "" {
 		return nil, errors.New("MDM Topic field not found")
 	}
+
+	// assignedManagedAppleID is optional and only present in account driven enrollment flows so
+	// only use it if it exists.
+	var assignedManagedAppleID string
+	assignedManagedAppleIDVal, ok := enrollmentProfile.PayloadContent[1]["AssignedManagedAppleID"]
+	if ok {
+		assignedManagedAppleID = assignedManagedAppleIDVal.(string)
+	}
+
 	return &AppleEnrollInfo{
-		SCEPChallenge: scepChallenge,
-		SCEPURL:       scepURL,
-		MDMURL:        mdmURL,
+		SCEPChallenge:          scepChallenge,
+		SCEPURL:                scepURL,
+		MDMURL:                 mdmURL,
+		AssignedManagedAppleID: assignedManagedAppleID,
 	}, nil
 }
 
@@ -1056,9 +1225,17 @@ func EncodeDeviceInfo(machineInfo fleet.MDMAppleMachineInfo) (string, error) {
 	return base64.URLEncoding.EncodeToString(sig), nil
 }
 
+func AccountDrivenUserEnrollDeviceInfoAsPKCS7(deviceInfo fleet.MDMAppleAccountDrivenUserEnrollDeviceInfo) ([]byte, error) {
+	return appleInfoStructAsPKCS7(deviceInfo)
+}
+
 // MachineInfoAsPKCS7 marshals and signs Apple's machine info.
 func MachineInfoAsPKCS7(machineInfo fleet.MDMAppleMachineInfo) ([]byte, error) {
-	body, err := plist.Marshal(machineInfo)
+	return appleInfoStructAsPKCS7(machineInfo)
+}
+
+func appleInfoStructAsPKCS7(v interface{}) ([]byte, error) {
+	body, err := plist.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("marshal device info: %w", err)
 	}

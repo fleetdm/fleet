@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/variables"
 
 	// we are using this package as we were having issues with pasrsing signed apple
 	// mobileconfig profiles with the pcks7 package we were using before.
@@ -82,6 +83,7 @@ type Parsed struct {
 	PayloadIdentifier  string
 	PayloadDisplayName string
 	PayloadType        string
+	PayloadScope       string
 }
 
 func (mc Mobileconfig) isSignedProfile() bool {
@@ -111,14 +113,14 @@ func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
 func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
-	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
-		if mdm.ProfileVariableRegex.Match(mcBytes) {
+		if variables.ContainsBytes(mcBytes) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}
@@ -134,6 +136,17 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	}
 	if p.PayloadDisplayName == "" {
 		return nil, errors.New("empty PayloadDisplayName in profile")
+	}
+	// PayloadScope is optional and according to
+	// Apple(https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf
+	// p6) defaults to "User". We've always sent them to the Device channel but now we're saying
+	// "User" means use the user channel. For backwards compatibility we are maintaining existing
+	// behavior of defaulting to device channel below but we should consider whether this is correct.
+	if p.PayloadScope == "" {
+		p.PayloadScope = "System"
+	}
+	if p.PayloadScope != "System" && p.PayloadScope != "User" {
+		return nil, fmt.Errorf("invalid PayloadScope: %s", p.PayloadScope)
 	}
 
 	return &p, nil
@@ -152,14 +165,14 @@ type payloadSummary struct {
 func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
-	mcBytes = mdm.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
+	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
 	if mc.isSignedProfile() {
 		profileData, err := getSignedProfileData(mc)
 		if err != nil {
 			return nil, err
 		}
 		mcBytes = profileData
-		if mdm.ProfileVariableRegex.Match(mcBytes) {
+		if variables.ContainsBytes(mcBytes) {
 			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
 		}
 	}

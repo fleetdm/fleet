@@ -78,11 +78,21 @@ jobs:
           FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-app-tar-gz
 
+      - name: Extract archive for attestation
+        run: |
+          mkdir -p extracted
+          tar -xzf desktop.app.tar.gz -C extracted
+
       - name: Attest binary
         continue-on-error: true
         uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
         with:
-          subject-path: "desktop.app.tar.gz"
+          subject-path: "extracted/Fleet\ Desktop.app/Contents/MacOS/*"
+
+      - name: Repackage archive
+        run: |
+          cd extracted
+          tar -czf ../desktop.app.tar.gz ./*
 
       - name: Upload desktop.app.tar.gz
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
@@ -112,12 +122,6 @@ jobs:
           FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-windows
 
-      - name: Attest binary
-        continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
-        with:
-          subject-path: "fleet-desktop.exe"
-
       - name: Upload fleet-desktop.exe
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -127,7 +131,12 @@ jobs:
   code-sign-windows:
     needs: desktop-windows
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for code-sign-windows
+      attestations: write # required for code-sign-windows
     with:
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop.exe
     secrets:
@@ -159,12 +168,6 @@ jobs:
           FLEET_DESKTOP_VERSION=${{ needs.set-version.outputs.FLEET_DESKTOP_VERSION }} \
           make desktop-windows-arm64
 
-      - name: Attest binary
-        continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
-        with:
-          subject-path: "fleet-desktop.exe"
-
       - name: Upload fleet-desktop.exe
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -174,7 +177,12 @@ jobs:
   code-sign-windows-arm64:
     needs: desktop-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for code-sign-windows
+      attestations: write # required for code-sign-windows
     with:
+      attest: true
       filename: fleet-desktop.exe
       upload_name: fleet-desktop-arm64.exe
       download_name: unsigned-windows-arm64

@@ -24,7 +24,6 @@ func createHttpClient(m dsl.Matcher) {
 
 func txCheck(m dsl.Matcher) {
 	m.Import("github.com/fleetdm/fleet/v4/server/datastore/mysql")
-	m.Import("github.com/fleetdm/fleet/v4/server/mdm/android/mysql")
 	m.Import("github.com/jmoiron/sqlx")
 
 	isDatastoreType := func(v dsl.Var) bool {

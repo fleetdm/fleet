@@ -35,7 +35,7 @@ export interface CustomOptionType {
   label: React.ReactNode;
   value: string;
   tooltipContent?: TooltipContent;
-  helpText?: string;
+  helpText?: React.ReactNode;
   isDisabled?: boolean;
   iconName?: IconNames;
 }
@@ -372,7 +372,7 @@ const DropdownWrapper = ({
     },
     singleValue: (provided) => ({
       ...provided,
-      fontSize: "16px",
+      fontSize: "14px",
       margin: 0,
       padding: 0,
     }),

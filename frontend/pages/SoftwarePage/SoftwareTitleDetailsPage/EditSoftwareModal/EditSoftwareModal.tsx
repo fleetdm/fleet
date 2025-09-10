@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import paths from "router/paths";
 import classnames from "classnames";
 
 import { ILabelSummary } from "interfaces/label";
@@ -22,7 +21,6 @@ import labelsAPI, { getCustomLabels } from "services/entities/labels";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import deepDifference from "utilities/deep_difference";
 import { getFileDetails } from "utilities/file/fileUtils";
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
 import Modal from "components/Modal";
 import FileProgressModal from "components/FileProgressModal";
@@ -56,6 +54,7 @@ interface IEditSoftwareModalProps {
   installerType: "package" | "vpp";
   router: InjectedRouter;
   gitOpsModeEnabled?: boolean;
+  openViewYamlModal: () => void;
 }
 
 const EditSoftwareModal = ({
@@ -67,6 +66,7 @@ const EditSoftwareModal = ({
   installerType,
   router,
   gitOpsModeEnabled = false,
+  openViewYamlModal,
 }: IEditSoftwareModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -197,16 +197,7 @@ const EditSoftwareModal = ({
         gitOpsModeEnabled
       ) {
         // No longer flash message, we open YAML modal if editing with gitOpsModeEnabled
-        const newQueryParams: QueryParams = {
-          team_id: teamId,
-          gitops_yaml: "true",
-        };
-        router.push(
-          getPathWithQueryParams(
-            paths.SOFTWARE_TITLE_DETAILS(software.title_id.toString()),
-            newQueryParams
-          )
-        );
+        openViewYamlModal();
       } else {
         renderFlash(
           "success",

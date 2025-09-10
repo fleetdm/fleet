@@ -13,6 +13,11 @@ import { find, isEmpty, isEqual, omit } from "lodash";
 import { format } from "date-fns";
 import FileSaver from "file-saver";
 
+import scriptsAPI, {
+  IScriptBatchSummaryQueryKey,
+  IScriptBatchSummaryV1,
+  ScriptBatchHostCountV1,
+} from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
 import usersAPI from "services/entities/users";
 import labelsAPI, { ILabelsResponse } from "services/entities/labels";
@@ -68,6 +73,7 @@ import {
 
 import sortUtils from "utilities/sort";
 import {
+  DEFAULT_USE_QUERY_OPTIONS,
   HOSTS_SEARCH_BOX_PLACEHOLDER,
   HOSTS_SEARCH_BOX_TOOLTIP,
   MAX_SCRIPT_BATCH_TARGETS,
@@ -161,9 +167,15 @@ const ManageHostsPage = ({
     setFilteredQueriesPath,
     setFilteredSoftwarePath,
   } = useContext(AppContext);
+  const isPrimoMode = config?.partnerships?.enable_primo;
   const { renderFlash } = useContext(NotificationContext);
 
   const { setResetSelectedRows } = useContext(TableContext);
+
+  const shouldStripScriptBatchExecParamOnTeamChange = (
+    newTeamId?: number,
+    curTeamId?: number
+  ) => newTeamId !== curTeamId;
 
   const {
     currentTeamId,
@@ -186,6 +198,9 @@ const ManageHostsPage = ({
       // remove the software status filter when selecting All teams
       [HOSTS_QUERY_PARAMS.SOFTWARE_STATUS]: (newTeamId?: number) =>
         newTeamId === API_ALL_TEAMS_ID,
+      // remove batch script summary results filters on team change
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID]: shouldStripScriptBatchExecParamOnTeamChange,
+      [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: shouldStripScriptBatchExecParamOnTeamChange,
     },
   });
 
@@ -289,6 +304,13 @@ const ManageHostsPage = ({
     queryParams?.bootstrap_package;
   const configProfileStatus = queryParams?.profile_status;
   const configProfileUUID = queryParams?.profile_uuid;
+  const scriptBatchExecutionId =
+    queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
+  /** This actually represents HOST statuses, not the status of a batch script execution overall.
+   * Consider renaming this to `scriptBatchHostStatus` */
+  const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
+    queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
+    (scriptBatchExecutionId ? "ran" : undefined);
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -324,7 +346,11 @@ const ManageHostsPage = ({
   //   missingHosts ||
   //   osSettingsStatus ||
   //   diskEncryptionStatus ||
-  //   vulnerability
+  //   vulnerability ||
+  // scriptBatchExecutionId ||
+  // scriptBatchExecutionStatus
+  // configProfileStatus ||
+  // configProfileUUID
 
   const runScriptBatchFilterNotSupported = !!(
     // all above, except acceptable filters
@@ -358,7 +384,11 @@ const ManageHostsPage = ({
       missingHosts ||
       osSettingsStatus ||
       diskEncryptionStatus ||
-      vulnerability
+      vulnerability ||
+      scriptBatchExecutionId ||
+      scriptBatchExecutionStatus ||
+      configProfileStatus ||
+      configProfileUUID
     )
   );
 
@@ -440,6 +470,30 @@ const ManageHostsPage = ({
   );
 
   const {
+    data: scriptBatchSummary,
+    isLoading: isLoadingScriptBatchSummary,
+    isError: isErrorScriptBatchSummary,
+  } = useQuery<
+    IScriptBatchSummaryV1,
+    Error,
+    IScriptBatchSummaryV1,
+    IScriptBatchSummaryQueryKey[]
+  >(
+    [
+      {
+        scope: "script_batch_summary",
+        batch_execution_id: scriptBatchExecutionId,
+      },
+    ],
+    ({ queryKey: [{ batch_execution_id }] }) =>
+      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
+    {
+      enabled: !!scriptBatchExecutionId && isRouteOk,
+      ...DEFAULT_USE_QUERY_OPTIONS,
+    }
+  );
+
+  const {
     data: configProfile,
     isLoading: isLoadingConfigProfile,
     error: errorConfigProfile,
@@ -448,11 +502,10 @@ const ManageHostsPage = ({
     () => configProfileAPI.getConfigProfile(configProfileUUID),
     {
       enabled: isRouteOk && !!configProfileUUID,
-      // select: (data) => data.policy,
     }
   );
 
-  const { data: osVersions } = useQuery<
+  const { data: osVersions, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     Error,
     IOperatingSystemVersion[],
@@ -508,6 +561,8 @@ const ManageHostsPage = ({
         macSettingsStatus,
         configProfileStatus,
         configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -551,6 +606,8 @@ const ManageHostsPage = ({
         macSettingsStatus,
         configProfileStatus,
         configProfileUUID,
+        scriptBatchExecutionStatus,
+        scriptBatchExecutionId,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -591,7 +648,11 @@ const ManageHostsPage = ({
   };
 
   const hasErrors =
-    !!errorHosts || !!errorHostsCount || !!errorPolicy || !!errorConfigProfile;
+    !!errorHosts ||
+    !!errorHostsCount ||
+    !!errorPolicy ||
+    !!errorConfigProfile ||
+    isErrorScriptBatchSummary;
 
   const toggleDeleteSecretModal = () => {
     // open and closes delete modal
@@ -862,6 +923,23 @@ const ManageHostsPage = ({
     );
   };
 
+  const handleChangeScriptBatchStatusFilter = (
+    newStatus: ScriptBatchHostCountV1
+  ) => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.MANAGE_HOSTS,
+        routeTemplate,
+        routeParams,
+        queryParams: {
+          ...queryParams,
+          [HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS]: newStatus,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const handleRowSelect = (row: IRowProps) => {
     if (row.original.id) {
       const path = PATHS.HOST_DETAILS(row.original.id);
@@ -968,6 +1046,13 @@ const ManageHostsPage = ({
         newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
         newQueryParams.software_version_id = softwareVersionId;
+        // Software version can be combined with os name and os version
+        // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+        if (osVersionId || (osName && osVersion)) {
+          newQueryParams.os_version_id = osVersionId;
+          newQueryParams.os_name = osName;
+          newQueryParams.os_version = osVersion;
+        }
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
         if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
@@ -1002,6 +1087,13 @@ const ManageHostsPage = ({
       } else if (configProfileStatus && configProfileUUID) {
         newQueryParams.profile_status = configProfileStatus;
         newQueryParams.profile_uuid = configProfileUUID;
+      } else if (scriptBatchExecutionStatus && scriptBatchExecutionId) {
+        newQueryParams[
+          HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS
+        ] = scriptBatchExecutionStatus;
+        newQueryParams[
+          HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID
+        ] = scriptBatchExecutionId;
       }
 
       router.replace(
@@ -1041,6 +1133,8 @@ const ManageHostsPage = ({
       bootstrapPackageStatus,
       configProfileStatus,
       configProfileUUID,
+      scriptBatchExecutionStatus,
+      scriptBatchExecutionId,
       router,
       routeTemplate,
       routeParams,
@@ -1347,8 +1441,6 @@ const ManageHostsPage = ({
   const renderDeleteSecretModal = () => (
     <DeleteSecretModal
       onDeleteSecret={onDeleteSecret}
-      selectedTeam={teamIdForApi || 0}
-      teams={teams || []}
       toggleDeleteSecretModal={toggleDeleteSecretModal}
       isUpdatingSecret={isUpdating}
     />
@@ -1356,7 +1448,8 @@ const ManageHostsPage = ({
 
   const renderEnrollSecretModal = () => (
     <EnrollSecretModal
-      selectedTeam={teamIdForApi || 0}
+      selectedTeamId={teamIdForApi || 0}
+      primoMode={isPrimoMode || false}
       teams={teams || []}
       onReturnToApp={() => setShowEnrollSecretModal(false)}
       toggleSecretEditorModal={toggleSecretEditorModal}
@@ -1419,7 +1512,7 @@ const ManageHostsPage = ({
   );
 
   const renderHeaderContent = () => {
-    if (isPremiumTier && !config?.partnerships?.enable_primo && userTeams) {
+    if (isPremiumTier && !isPrimoMode && userTeams) {
       if (userTeams.length > 1 || isOnGlobalTeam) {
         return (
           <TeamsDropdown
@@ -1498,6 +1591,8 @@ const ManageHostsPage = ({
       visibleColumns,
       configProfileUUID,
       configProfileStatus,
+      scriptBatchExecutionStatus,
+      scriptBatchExecutionId,
     };
 
     options = {
@@ -1590,6 +1685,15 @@ const ManageHostsPage = ({
       filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
   );
 
+  // Ensures rendering table/pills simultaneously when all API calls are done
+  const isLoading =
+    isLoadingHosts ||
+    isLoadingHostsCount ||
+    isLoadingPolicy ||
+    isLoadingOsVersions ||
+    isLoadingConfigProfile ||
+    isLoadingScriptBatchSummary;
+
   const renderTable = () => {
     if (!config || !currentUser || !isRouteOk) {
       return <Spinner />;
@@ -1604,13 +1708,13 @@ const ManageHostsPage = ({
           graphicName: "empty-hosts",
           header: "Hosts will show up here once they’re added to Fleet",
           info:
-            "Expecting to see hosts? Try again in a few seconds as the system catches up.",
+            "Expecting to see hosts? Try again soon as the system catches up.",
         };
         if (includesFilterQueryParam) {
           delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
-            "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
+            "Expecting to see new hosts? Try again soon as the system catches up.";
         } else if (canEnrollHosts) {
           emptyHosts.header = "Add your hosts to Fleet";
           emptyHosts.info =
@@ -1678,7 +1782,10 @@ const ManageHostsPage = ({
         buttonText: "Transfer",
         variant: "text-icon",
         iconSvg: "transfer",
-        hideButton: !isPremiumTier || (!isGlobalAdmin && !isGlobalMaintainer),
+        hideButton:
+          !isPremiumTier ||
+          (!isGlobalAdmin && !isGlobalMaintainer) ||
+          isPrimoMode,
       },
     ];
 
@@ -1693,12 +1800,12 @@ const ManageHostsPage = ({
       const emptyHosts: IEmptyTableProps = {
         header: "No hosts match the current criteria",
         info:
-          "Expecting to see new hosts? Try again in a few seconds as the system catches up.",
+          "Expecting to see new hosts? Try again soon as the system catches up.",
       };
       if (isLastPage) {
         emptyHosts.header = "No more hosts to display";
         emptyHosts.info =
-          "Expecting to see more hosts? Try again in a few seconds as the system catches up.";
+          "Expecting to see more hosts? Try again soon as the system catches up.";
       }
 
       return emptyHosts;
@@ -1730,12 +1837,7 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={
-          isLoadingHosts ||
-          isLoadingHostsCount ||
-          isLoadingPolicy ||
-          isLoadingConfigProfile
-        }
+        isLoading={isLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1874,6 +1976,10 @@ const ManageHostsPage = ({
               configProfileStatus,
               configProfileUUID,
               configProfile,
+              scriptBatchExecutionStatus,
+              scriptBatchExecutionId,
+              scriptBatchRanAt: scriptBatchSummary?.created_at || null,
+              scriptBatchScriptName: scriptBatchSummary?.script_name || null,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}
@@ -1892,8 +1998,12 @@ const ManageHostsPage = ({
               handleSoftwareInstallStatusChange
             }
             onChangeConfigProfileStatusFilter={handleConfigProfileStatusChange}
+            onChangeScriptBatchStatusFilter={
+              handleChangeScriptBatchStatusFilter
+            }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
+            isLoading={isLoading}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}
@@ -1912,18 +2022,19 @@ const ManageHostsPage = ({
         totalFilteredHostsCount !== undefined && (
           <RunScriptBatchModal
             runByFilters={isAllMatchingHostsSelected}
-            // run script batch supports only these filters, plust team id
+            // run script batch supports only these filters, plus team id
             filters={{
               query: searchQuery || undefined,
               label_id: isNaN(Number(labelID)) ? undefined : Number(labelID),
               status: status || undefined,
             }}
-            // when running by filter, modal needs this count to report number of targeted hosts
+            // when running by filter, modal needs this count to report the number of targeted hosts
             totalFilteredHostsCount={totalFilteredHostsCount}
-            // when running by selected hosts, modal can use length of this array to report number of targeted
+            // when running by selected hosts, modal can use the length of this array to report the number of targeted
             // hosts
             selectedHostIds={selectedHostIds}
             teamId={currentTeamId}
+            isFreeTier={isFreeTier}
             onCancel={toggleRunScriptBatchModal}
           />
         )}

@@ -1,0 +1,10 @@
+- name: macOS - Santa extension installed
+  query: SELECT 1 WHERE EXISTS (SELECT * FROM file_lines WHERE path = "/var/osquery/extensions.load" AND line = "/var/fleet/extensions/santa.ext");
+  critical: false
+  description: This policy ensures the custom extension for santa is installed.
+  resolution: "If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-dogfooding."
+  run_script:
+    path: ../scripts/install-santa-extension.sh
+  platform: darwin
+  labels_include_any:
+    - "Santa test devices"

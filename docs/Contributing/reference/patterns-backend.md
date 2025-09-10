@@ -27,9 +27,9 @@ Inputs corresponding to sortable or indexed DB fields should be preprocessed (tr
 
 Invalid inputs should NOT log a server error. Server errors should be reserved for unexpected/serious issues. [`InvalidArgumentError` implements `IsClientError`](https://github.com/fleetdm/fleet/blob/529f4ed725117d99d668318aad23c9e1575fa7ee/server/fleet/errors.go#L134) method to indicate that it is a client error. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=6515110653090875786&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A340%2C%22to%22%3A1578%7D%5D).
 
-### JSON unmarshaling
+### JSON unmarshalling
 
-`PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshaling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
+`PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshalling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
 
 ## Go
 
@@ -42,9 +42,51 @@ Exceptions:
 - Extra range of unsigned needed for a specific use case
 - Specific performance/memory requirements
 
-### Unit testing
+### Automated testing
 
-Use multiple hosts in unit tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
+#### Multiple hosts
+
+Use multiple hosts in automated tests and manual QA. For example, use a Windows VM and a Windows bare metal host when testing Windows profiles. Since our customers run Fleet on many hosts, we must be vigilant regarding multi-host use cases. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=8290454302335084423).
+
+See [the migration test in PR #28601](https://github.com/fleetdm/fleet/pull/28601/files#diff-53ce88f00ff80a0f7c0a1a2e23b14f6cb7ed5d7a7d91146236f499a756935869)
+and [the test added in PR #30578](https://github.com/fleetdm/fleet/pull/30578/files#diff-124b43a1afae8960d4eb3765b2a5d5525c5ffba57c9b59ff78eb6cd222532e1c)
+for examples of multi-host automated testing added to validate P0 bugfixes.
+
+#### Multiple teams
+
+Use multiple teams in your automated tests and manual QA. Make sure your code works as expected for the `No team` team, as well as for "All teams" (when relevant).
+For example, aggregate counts/stats should factor in teams when being calculated.
+
+#### Assert vs require
+
+Use the `require` package (from `testify/require`) for most test assertions. The `require` package stops test execution immediately on failure, which is usually what you want.
+
+Use the `assert` package (from `testify/assert`) when you want to test multiple properties of a response so that you can fix all issues at once. This is particularly useful when validating multiple fields of a struct or API response.
+
+Example of when to use `assert`:
+```go
+// Testing multiple response fields - use assert to see all failures at once
+assert.Equal(t, http.StatusOK, resp.StatusCode)
+assert.NotNil(t, resp.Body)
+assert.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+assert.Greater(t, len(resp.Hosts), 0)
+```
+
+Example of when to use `require`:
+```go
+// Critical setup or early assertions - use require to fail fast
+require.NoError(t, err) // Stop if there's an error
+require.NotNil(t, user) // Stop if user is nil to avoid panic
+
+// Now safe to access user fields
+assert.Equal(t, "expected@example.com", user.Email)
+```
+
+General guidelines:
+- Use `require` for preconditions and critical assertions that would cause panics or make subsequent tests meaningless
+- Use `require` when testing a single thing or when the test should stop on the first failure
+- Use `assert` when validating multiple independent properties where seeing all failures helps debugging
+- In table-driven tests, prefer `require` within each test case to avoid confusion between different cases
 
 ## MySQL
 
@@ -87,7 +129,7 @@ We need to keep this data in dedicated table(s). When a `user` row is deleted, a
 ### Re-usable transactionable functions
 
 Sometimes we want to encapsulate a piece of functionality in such a way that it can be use both
-independently and as part of a transaction. To do so, create a private function in the following way: 
+independently and as part of a transaction. To do so, create a private function in the following way:
 
 ```go
 func myTransactionableFunction(ctx context.Context, tx sqlx.ExtContext, yourArgsHere any) error {

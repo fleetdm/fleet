@@ -1,2 +1,0 @@
-- To prevent misleading UI when a saved script's contents have changed, only show a run script
-  activity's script contents if the script run was ad-hoc

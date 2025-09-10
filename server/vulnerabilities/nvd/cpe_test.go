@@ -492,18 +492,18 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	testCases := []struct {
 		software fleet.Software
 		cpe      string
-	}{ /*
-			{ // See #29570
-					software: fleet.Software{
-						Name:             "Adobe Acrobat Reader DC.app",
-						Source:           "apps",
-						Version:          "22.002.20191",
-						Vendor:           "",
-						BundleIdentifier: "com.adobe.Reader",
-					},
-					cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
-				},
-		*/{
+	}{
+		{
+			software: fleet.Software{
+				Name:             "Adobe Acrobat Reader DC.app",
+				Source:           "apps",
+				Version:          "22.002.20191",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Reader",
+			},
+			cpe: "cpe:2.3:a:adobe:acrobat_reader_dc:22.002.20191:*:*:*:*:macos:*:*",
+		},
+		{
 			software: fleet.Software{
 				Name:             "Adobe Lightroom.app",
 				Source:           "apps",
@@ -1257,16 +1257,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:python:setuptools:63.2.0:*:*:*:*:python:*:*",
 		},
-		// FIXME: https://github.com/fleetdm/fleet/issues/28490
-		// {
-		// 	software: fleet.Software{
-		// 		Name:             "urllib3",
-		// 		Source:           "python_packages",
-		// 		Version:          "1.26.5",
-		// 		Vendor:           "",
-		// 		BundleIdentifier: "",
-		// 	}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
-		// },
+		{
+			software: fleet.Software{
+				Name:             "urllib3",
+				Source:           "python_packages",
+				Version:          "1.26.5",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:python:urllib3:1.26.5:*:*:*:*:python:*:*",
+		},
 		{
 			software: fleet.Software{
 				Name:             "UTM.app",
@@ -1314,7 +1313,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.7.1",
 				BundleIdentifier: "com.docker.docker",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.7.1:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1322,7 +1321,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.16.2",
 				BundleIdentifier: "com.electron.dockerdesktop",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.16.2:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1330,7 +1329,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "3.5.0",
 				BundleIdentifier: "com.electron.docker-frontend",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:3.5.0:*:*:*:*:macos:*:*",
 		},
 		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
 		{
@@ -1742,6 +1741,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Vendor:           "",
 				BundleIdentifier: "",
 			}, cpe: "cpe:2.3:a:github:cli:2.61.0:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "vault",
+				Source:           "homebrew_packages",
+				Version:          "1.4.0",
+				Vendor:           "",
+				BundleIdentifier: "",
+			}, cpe: "cpe:2.3:a:hashicorp:vault:1.4.0:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{

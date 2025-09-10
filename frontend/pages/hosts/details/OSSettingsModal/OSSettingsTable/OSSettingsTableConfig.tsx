@@ -13,19 +13,14 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 
-import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
+import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
+import OSSettingsErrorCell from "./OSSettingsErrorCell";
+
 import {
   generateLinuxDiskEncryptionSetting,
   generateWinDiskEncryptionSetting,
 } from "../../helpers";
-import OSSettingsErrorCell from "./OSSettingsErrorCell";
-
-export const isMdmProfileStatus = (
-  status: string
-): status is MdmProfileStatus => {
-  return status !== "action_required";
-};
 
 export interface IHostMdmProfileWithAddedStatus
   extends Omit<IHostMdmProfile, "status"> {
@@ -56,9 +51,10 @@ const generateTableConfig = (
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
         return (
-          <TooltipTruncatedTextCell
-            value={cellProps.cell.value}
-            className="os-settings-name-cell"
+          <OSSettingsNameCell
+            profileName={cellProps.cell.value}
+            scope={cellProps.row.original.scope}
+            managedAccount={cellProps.row.original.managed_local_account}
           />
         );
       },

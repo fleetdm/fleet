@@ -1,0 +1,11 @@
+- name: "Team: g-mdm"
+  description: Workstations used by team g-mdm
+  label_membership_type: manual
+  hosts:
+    - "xerithas-mac-16.local"
+    - "GabrielsWorkMBP"
+    - "gabelopezs-macbook-pro.local"
+    - "Jordans-MacBook-Pro.local"
+    - "markombp.local"
+    - "magnuss-macbook-pro.local"
+    - "Sarahs-MacBook-Pro.local"

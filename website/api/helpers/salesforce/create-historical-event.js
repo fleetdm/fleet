@@ -73,7 +73,6 @@ module.exports = {
   exits: {
 
     success: {
-      extendedDescription: 'Note that this deliberately has no return value.',
       outputType: {
         salesforceHistoricalEventId: 'string',
       },
@@ -141,10 +140,7 @@ module.exports = {
 
 
 
-
-    return {
-      salesforceHistoricalEventId: newHistoricalRecord.id
-    };
+    return newHistoricalRecord.id;
 
   }
 

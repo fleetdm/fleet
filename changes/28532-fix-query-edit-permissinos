@@ -1,1 +1,0 @@
-- Fix a bug where global observers could access the "delete query" UX on the queries table

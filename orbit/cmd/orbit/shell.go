@@ -8,6 +8,9 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
+
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
@@ -36,6 +39,11 @@ var shellCommand = &cli.Command{
 			Usage:   "Enable debug logging",
 			EnvVars: []string{"ORBIT_DEBUG"},
 		},
+		&cli.StringFlag{
+			Name:    "fleet-certificate",
+			Usage:   "Path to the Fleet server certificate chain",
+			EnvVars: []string{"ORBIT_FLEET_CERTIFICATE"},
+		},
 	},
 	Action: func(c *cli.Context) error {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -63,18 +71,28 @@ var shellCommand = &cli.Command{
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 
-		updater, err := update.NewUpdater(opt)
+		disableUpdates := c.Bool("disable-updates")
+		updater, err := getUpdater(disableUpdates, opt)
 		if err != nil {
 			return err
 		}
-		if err := updater.UpdateMetadata(); err != nil {
-			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+
+		var osquerydPath string
+		if !disableUpdates {
+			if err := updater.UpdateMetadata(); err != nil {
+				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+			}
+			osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
+			if err != nil {
+				return err
+			}
+			osquerydPath = osquerydLocalTarget.ExecPath
+		} else {
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+			if err != nil {
+				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+			}
 		}
-		osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
-		if err != nil {
-			return err
-		}
-		osquerydPath := osquerydLocalTarget.ExecPath
 
 		var g run.Group
 
@@ -97,6 +115,15 @@ var shellCommand = &cli.Command{
 			osquery.WithDataPath(dataPath, extensionPathPostfix),
 			osquery.WithFlags([]string{"--database_path", osqueryDB}),
 		}
+
+		certPath, err := getCertPath(
+			c.String("root-dir"),
+			c.String("fleet-certificate"),
+		)
+		if err != nil {
+			return err
+		}
+		opts = append(opts, osquery.WithFlags([]string{"--tls_server_certs", certPath}))
 
 		// Detect if the additional arguments have a positional argument.
 		//
@@ -139,4 +166,33 @@ var shellCommand = &cli.Command{
 
 		return nil
 	},
+}
+
+func getCertPath(rootDir, fleetCertPath string) (string, error) {
+	certPath := filepath.Join(rootDir, "certs.pem")
+	if fleetCertPath != "" {
+		certPath = fleetCertPath
+	}
+
+	exists, err := file.Exists(certPath)
+	switch {
+	case err != nil:
+		return "", fmt.Errorf("failed to check if cert exists %s: %w", certPath, err)
+	case !exists:
+		return "", fmt.Errorf("cert not found at %s", certPath)
+	default:
+		if _, err := certificate.LoadPEM(certPath); err != nil {
+			return "", fmt.Errorf("invalid PEM format %s: %w", certPath, err)
+		}
+	}
+
+	return certPath, nil
+}
+
+func getUpdater(disableUpdates bool, opt update.Options) (*update.Updater, error) {
+	if disableUpdates {
+		log.Info().Msg("running with auto updates disabled")
+		return update.NewDisabled(opt), nil
+	}
+	return update.NewUpdater(opt)
 }

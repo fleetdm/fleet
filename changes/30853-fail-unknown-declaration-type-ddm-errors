@@ -1,0 +1,1 @@
+* Mark DDM profiles as failed if response comes back with Unknown Declaration Type error, and improve upload validation for declaration type.

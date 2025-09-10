@@ -54,7 +54,11 @@ export const isScheduledQueryablePlatform = (
   );
 
 // TODO - add "iOS" and "iPadOS" once we support them
-export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = [
+  "darwin",
+  "windows",
+  "linux", // Added 4.73
+];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
@@ -203,3 +207,11 @@ export const isOsSettingsDisplayPlatform = (
   }
   return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
 };
+
+export const SETUP_EXPERIENCE_PLATFORMS = [
+  "macos",
+  "windows",
+  "linux",
+] as const;
+
+export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];

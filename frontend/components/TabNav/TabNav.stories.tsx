@@ -43,7 +43,7 @@ export const Default: Story = {
       { name: <TabText count={3}>Tab with count</TabText>, type: "type4" },
       {
         name: (
-          <TabText count={20} isErrorCount>
+          <TabText count={20} countVariant="alert">
             Tab with error count
           </TabText>
         ),
