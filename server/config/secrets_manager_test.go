@@ -160,15 +160,14 @@ func TestRetrieveSecretWithRetry_ContextCancellation(t *testing.T) {
 }
 
 func TestRetrieveSecretsManagerSecret_LocalStackDefaultRegion(t *testing.T) {
-	localStackURL := os.Getenv("LOCALSTACK_URL")
-	if localStackURL == "" {
-		t.Skip("LOCALSTACK_URL not set, skipping LocalStack integration test")
+	awsEndpointURL := os.Getenv("AWS_ENDPOINT_URL")
+	if awsEndpointURL == "" {
+		t.Skip("AWS_ENDPOINT_URL not set, skipping LocalStack integration test")
 	}
 
 	ctx := context.Background()
 
 	localStackOpts := []func(*aws_config.LoadOptions) error{
-		aws_config.WithBaseEndpoint(localStackURL),
 		aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
 	}
 
@@ -213,15 +212,14 @@ func TestRetrieveSecretsManagerSecret_LocalStackDefaultRegion(t *testing.T) {
 }
 
 func TestRetrieveSecretsManagerSecret_LocalStackDifferentRegion(t *testing.T) {
-	localStackURL := os.Getenv("LOCALSTACK_URL")
-	if localStackURL == "" {
-		t.Skip("LOCALSTACK_URL not set, skipping LocalStack integration test")
+	awsEndpointURL := os.Getenv("AWS_ENDPOINT_URL")
+	if awsEndpointURL == "" {
+		t.Skip("AWS_ENDPOINT_URL not set, skipping LocalStack integration test")
 	}
 
 	ctx := context.Background()
 
 	localStackOpts := []func(*aws_config.LoadOptions) error{
-		aws_config.WithBaseEndpoint(localStackURL),
 		aws_config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
 	}
 
