@@ -142,6 +142,7 @@ controls:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
+    - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1

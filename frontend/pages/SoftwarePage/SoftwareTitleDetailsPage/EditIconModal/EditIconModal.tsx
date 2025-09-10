@@ -5,6 +5,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
@@ -529,7 +530,8 @@ const EditIconModal = ({
       setIconUploadedAt(new Date().toISOString());
       onExitEditIconModal();
     } catch (e) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+      renderFlash("error", errorMessage);
     } finally {
       setIsUpdatingIcon(false);
     }

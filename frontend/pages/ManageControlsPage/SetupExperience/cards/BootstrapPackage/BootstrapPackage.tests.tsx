@@ -1,10 +1,10 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
-import { createCustomRenderer } from "test/test-utils";
+import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import mockServer from "test/mock-server";
 import {
-  createSetupExperienceBootstrapPackageHandler,
+  createSetupExperienceBootstrapMetadataHandler,
   createSetupExperienceScriptHandler,
   createSetupExperienceSoftwareHandler,
   createSetuUpExperienceBootstrapSummaryHandler,
@@ -16,6 +16,7 @@ import {
   createMockSoftwarePackage,
   createMockSoftwareTitle,
 } from "__mocks__/softwareMock";
+import { createMockMdmConfig } from "__mocks__/configMock";
 
 import BootstrapPackage from "./BootstrapPackage";
 
@@ -23,7 +24,7 @@ import BootstrapPackage from "./BootstrapPackage";
  * sets up some default backend mocks for the tests. Override what you need
  * with mockServer.use() in the test itself.
  */
-const setuDefaultBackendMocks = () => {
+const setupDefaultBackendMocks = () => {
   mockServer.use(createGetConfigHandler());
 
   // default is no run script or install software already added
@@ -32,7 +33,7 @@ const setuDefaultBackendMocks = () => {
 
   // default will be a bootstrap package already uploaded
   mockServer.use(
-    createSetupExperienceBootstrapPackageHandler({ name: "foo-package.pkg" })
+    createSetupExperienceBootstrapMetadataHandler({ name: "foo-package.pkg" })
   );
   mockServer.use(
     createSetuUpExperienceBootstrapSummaryHandler({
@@ -44,11 +45,55 @@ const setuDefaultBackendMocks = () => {
 };
 
 describe("BootstrapPackage", () => {
-  it("renders the status table and bootstrap package if a package has been uploaded", async () => {
-    setuDefaultBackendMocks();
+  it("renders the 'turn on automatic enrollment' message when MDM isn't configured", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({ enabled_and_configured: false }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
 
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(<BootstrapPackage currentTeamId={0} />);
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+  });
+  it("renders the 'turn on automatic enrollment' message when MDM is configured, but ABM is not", async () => {
+    setupDefaultBackendMocks();
+    mockServer.use(
+      createGetConfigHandler({
+        mdm: createMockMdmConfig({
+          enabled_and_configured: true,
+          apple_bm_enabled_and_configured: false,
+        }),
+      })
+    );
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/turn on automatic enrollment/)
+      ).toBeInTheDocument();
+    });
+  });
+  it("renders the status table and bootstrap package if a package has been uploaded", async () => {
+    setupDefaultBackendMocks();
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/status/gi);
 
@@ -61,11 +106,14 @@ describe("BootstrapPackage", () => {
   });
 
   it("render the bootstrap package uploader if a package has not been uploaded", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
-    const render = createCustomRenderer({ withBackendMock: true });
-    render(<BootstrapPackage currentTeamId={0} />);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(<BootstrapPackage router={createMockRouter()} currentTeamId={0} />);
 
     await screen.findByText(/Upload a bootstrap package/gi);
 
@@ -82,11 +130,16 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there is no bootstrap package uploaded", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(errorNoBootstrapPackageMetadataHandler);
 
-    const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
@@ -98,7 +151,7 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there are already added install software", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(
       createSetupExperienceSoftwareHandler({
         software_titles: [
@@ -111,8 +164,13 @@ describe("BootstrapPackage", () => {
       })
     );
 
-    const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
@@ -124,11 +182,16 @@ describe("BootstrapPackage", () => {
   });
 
   it("renders the advanced options as disabled if there is alreaddy a run script added", async () => {
-    setuDefaultBackendMocks();
+    setupDefaultBackendMocks();
     mockServer.use(createSetupExperienceScriptHandler());
 
-    const render = createCustomRenderer({ withBackendMock: true });
-    const { user } = render(<BootstrapPackage currentTeamId={0} />);
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    const { user } = render(
+      <BootstrapPackage router={createMockRouter()} currentTeamId={0} />
+    );
 
     await screen.findByText("Show advanced options");
     await user.click(screen.getByText("Show advanced options"));
