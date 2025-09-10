@@ -5381,6 +5381,26 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
 	assert.Nil(t, sw[0].Status)
+
+	// insert an icon
+	icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID:    tm.ID,
+		TitleID:   va1.TitleID,
+		StorageID: "storage-id-1",
+		Filename:  "test-icon.png",
+	})
+	require.NoError(t, err)
+	opts = fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+		IsMDMEnrolled:              true,
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.Equal(t, icon.IconUrl(), *sw[0].IconUrl)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
