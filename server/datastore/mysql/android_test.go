@@ -27,6 +27,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -96,6 +97,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			CPUType:        "cpu_type",
 			HardwareModel:  "hardware_model",
 			HardwareVendor: "hardware_vendor",
+			UUID:           uuid.New().String(),
 		},
 		Device: &android.Device{
 			DeviceID:             "device_id",
@@ -356,4 +358,100 @@ func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
 	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
 	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	// create IdP account... InsertMDMIdPAccount generates its own UUID
+	idpAccount := &fleet.MDMIdPAccount{
+		Username: "john.doe",
+		Fullname: "John Doe",
+		Email:    "john.doe@example.com",
+	}
+	err := ds.InsertMDMIdPAccount(context.Background(), idpAccount)
+	require.NoError(t, err)
+
+	// get the actual UUID that was generated
+	insertedAccount, err := ds.GetMDMIdPAccountByEmail(context.Background(), "john.doe@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, insertedAccount)
+	idpAccount.UUID = insertedAccount.UUID
+
+	// create Android host
+	const enterpriseSpecificID = "enterprise_with_idp"
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       "hostname",
+			ComputerName:   "computer_name",
+			Platform:       "android",
+			OSVersion:      "Android 14",
+			Build:          "build",
+			Memory:         1024,
+			TeamID:         nil,
+			HardwareSerial: "hardware_serial",
+			CPUType:        "cpu_type",
+			HardwareModel:  "hardware_model",
+			HardwareVendor: "hardware_vendor",
+			UUID:           "test-host-uuid",
+		},
+		Device: &android.Device{
+			DeviceID:             "device_id",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			AndroidPolicyID:      ptr.Uint(1),
+			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
+		},
+	}
+	host.SetNodeKey(enterpriseSpecificID)
+
+	result, err := ds.NewAndroidHost(context.Background(), host)
+	require.NoError(t, err)
+	require.NotZero(t, result.Host.ID)
+
+	// associate host with IdP account, triggering reconciliation
+	err = ds.AssociateHostMDMIdPAccount(context.Background(), "test-host-uuid", idpAccount.UUID)
+	require.NoError(t, err)
+
+	// host_emails table has IdP email
+	var emails []string
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &emails,
+		`SELECT email FROM host_emails WHERE host_id = ? AND source = ?`,
+		result.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Len(t, emails, 1)
+	assert.Equal(t, "john.doe@example.com", emails[0])
+
+	// is reconciliation idempotent?
+	err = ds.AssociateHostMDMIdPAccount(context.Background(), "test-host-uuid", idpAccount.UUID)
+	require.NoError(t, err)
+
+	// still only one email (no duplicates)
+	emails = nil
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &emails,
+		`SELECT email FROM host_emails WHERE host_id = ? AND source = ?`,
+		result.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Len(t, emails, 1, "Should still have exactly one email after reassociation")
+	assert.Equal(t, "john.doe@example.com", emails[0])
+
+	// remove IdP account association and trigger reconciliation
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(),
+		`DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`,
+		"test-host-uuid")
+	require.NoError(t, err)
+
+	// test cleanup (in production this would happen on re-enrollment)
+	err = ds.withRetryTxx(context.Background(), func(tx sqlx.ExtContext) error {
+		_, err := reconcileHostEmailsFromMdmIdpAccountsDB(context.Background(), tx, ds.logger, result.Host.ID)
+		return err
+	})
+	require.NoError(t, err)
+
+	// host_emails table no longer has IdP email
+	emails = nil
+	err = ds.writer(context.Background()).SelectContext(context.Background(), &emails,
+		`SELECT email FROM host_emails WHERE host_id = ? AND source = ?`,
+		result.Host.ID, fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Empty(t, emails, "IdP email should be removed when association is deleted")
 }
