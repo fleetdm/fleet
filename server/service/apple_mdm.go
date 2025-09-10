@@ -3508,10 +3508,16 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 			}
 		} else {
 			svc.logger.Log("info", "skipping setup experience enqueueing because DEP migration is in progress", "host_uuid", r.ID)
-			err = svc.ds.SetHostMDMMigrationCompleted(r.Context, info.HostID)
-			if err != nil {
-				return ctxerr.Wrap(r.Context, err, "setting mdm migration completed")
-			}
+		}
+	}
+
+	if info.MigrationInProgress {
+		// If the checkin info says a migration is in progress, mark the migration is completed even if
+		// the device doesn't report awaiting configuration(basically a device already enrolled and checking in
+		// with fleet has logically always completed any migration that might be in progress)
+		err = svc.ds.SetHostMDMMigrationCompleted(r.Context, info.HostID)
+		if err != nil {
+			return ctxerr.Wrap(r.Context, err, "setting mdm migration completed")
 		}
 	}
 

@@ -1509,6 +1509,23 @@ func TestMDMTokenUpdate(t *testing.T) {
 	// Should NOT call the setup experience enqueue function but it should mark the migration complete
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
+
+	err = svc.TokenUpdate(
+		&mdm.Request{
+			Context:  ctx,
+			EnrollID: &mdm.EnrollID{ID: uuid},
+			Params:   map[string]string{"enroll_reference": "abcd"},
+		},
+		&mdm.TokenUpdate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+		},
+	)
+	require.NoError(t, err)
+	// Should NOT call the setup experience enqueue function but it should mark the migration complete
+	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
+	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
 }
 
 func TestMDMCheckout(t *testing.T) {
