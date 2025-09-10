@@ -613,5 +613,13 @@
       "product": ["iterm2"],
       "vendor": ["iterm2"]
     }
+  },
+  {
+    "software": {
+      "name": ["Firefox ESR.app"]
+    },
+    "filter": {
+      "sw_edition": ["esr"]
+    }
   }
 ]
