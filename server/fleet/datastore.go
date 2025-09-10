@@ -2261,10 +2261,6 @@ type Datastore interface {
 	// profiles with the specified UUIDs.
 	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
-	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
-	// status of a profile in a host.
-	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
-
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 
@@ -2401,6 +2397,9 @@ type AndroidDatastore interface {
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 	Team(ctx context.Context, tid uint) (*Team, error)
+	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
 	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
 	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
 	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
