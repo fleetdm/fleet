@@ -8,13 +8,12 @@ resource "aws_lb" "internal" {
   subnets                    = data.terraform_remote_state.shared.outputs.vpc.private_subnets
   idle_timeout               = 905
   drop_invalid_header_fields = true
-  #checkov:skip=CKV_AWS_150:don't like it
 }
 
 resource "aws_lb_listener" "internal" {
   load_balancer_arn = resource.aws_lb.internal.arn
   port              = 80
-  protocol          = "HTTP" #tfsec:ignore:aws-elb-http-not-used
+  protocol          = "HTTP"
 
   default_action {
     type             = "forward"
@@ -41,6 +40,3 @@ resource "aws_lb_target_group" "internal" {
     unhealthy_threshold = 5
   }
 }
-
-
-# what if migrations had an output that said migration_executed = true???, If true, then we enable the target group?
