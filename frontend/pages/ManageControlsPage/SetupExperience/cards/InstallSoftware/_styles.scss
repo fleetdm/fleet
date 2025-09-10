@@ -4,5 +4,7 @@
   }
   &__windows {
     @include tab-empty-state;
+    max-width: none;
+    padding: 64px 170px;
   }
 }
