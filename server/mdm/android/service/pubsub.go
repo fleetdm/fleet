@@ -518,10 +518,10 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed] = append(failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed], nonCompliance)
 		}
 
-		var failedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		var profiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
 		for profileUUID, nonCompliances := range failedProfileUUIDsWithNonCompliances {
 			profile := pendingProfilesUUIDMap[profileUUID]
-			failedProfiles = append(failedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			profiles = append(profiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
 				HostUUID:                profile.HostUUID,
 				Status:                  &fleet.MDMDeliveryFailed,
 				Detail:                  buildNonComplianceErrorMessage(nonCompliances),
@@ -535,21 +535,13 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			})
 		}
 
-		// Upsert non compliant profiles as failed
-		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, failedProfiles)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "error upserting failed android profiles", "err", err, "host_uuid", hostUUID)
-			return
-		}
-
 		// Upsert rest of profiles as verified.
-		var verifiedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			if _, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
 				// This profile has failed non-compliance, we can skip it.
 				continue
 			}
-			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			profiles = append(profiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
 				HostUUID:                profile.HostUUID,
 				Status:                  &fleet.MDMDeliveryVerified,
 				ProfileUUID:             profile.ProfileUUID,
@@ -563,9 +555,10 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			})
 		}
 
-		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, verifiedProfiles)
+		err = svc.ds.BulkUpsertMDMAndroidHostProfiles(ctx, profiles)
 		if err != nil {
-			level.Error(svc.logger).Log("msg", "error upserting verified android profiles", "err", err, "host_uuid", hostUUID)
+			level.Error(svc.logger).Log("msg", "error upserting android profiles", "err", err, "host_uuid", hostUUID)
+			return
 		}
 	}
 
