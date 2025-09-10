@@ -889,15 +889,18 @@ const EditQueryForm = ({
                 </div>
               </>
             )}
-            <div
-              data-tip
-              data-for="live-query-button"
-              // Tooltip shows when live queries are globally disabled
-              data-tip-disable={!disabledLiveQuery}
+            <TooltipWrapper
+              className="live-query-button-tooltip"
+              tipContent="Live queries are disabled in organization settings"
+              disableTooltip={!disabledLiveQuery}
+              position="top"
+              showArrow
+              tipOffset={8}
+              underline={false}
             >
               <Button
                 className={`${baseClass}__run`}
-                variant="success"
+                variant="inverse"
                 onClick={() => {
                   // calling `setEditingExistingQuery` here prevents
                   // inclusion of `query_id` in the subsequent `run` API call, which prevents counting
@@ -921,17 +924,7 @@ const EditQueryForm = ({
               >
                 Live query
               </Button>
-            </div>
-            <ReactTooltip
-              className={`live-query-button-tooltip`}
-              place="top"
-              effect="solid"
-              backgroundColor={COLORS["tooltip-bg"]}
-              id="live-query-button"
-              data-html
-            >
-              Live queries are disabled in organization settings
-            </ReactTooltip>
+            </TooltipWrapper>
           </div>
         </form>
         {showSaveNewQueryModal && (

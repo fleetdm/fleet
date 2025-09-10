@@ -40,14 +40,14 @@ $max-width: 2560px;
   // this is the current spacing needed to keep the description looking correct under the sub nav when scrolling.
   top: 104px;
   z-index: 2;
-  background-color: $core-white;
+  background-color: $core-fleet-white;
   margin: 0;
   padding: $pad-xxlarge 0 54px 0;
 }
 
 @mixin grey-badge {
   background-color: $ui-fleet-black-25;
-  color: $core-white;
+  color: $core-fleet-white;
   font-size: $xx-small;
   font-weight: $bold;
   padding: 0 $pad-xsmall;
@@ -160,7 +160,7 @@ $max-width: 2560px;
   text-decoration: none;
   &:hover {
     color: $ui-fleet-black-75-over;
-    border-bottom: 1px solid transparent;
+    // border-bottom: 1px solid transparent;
   }
   &:focus-visible {
     outline-color: #d9d9fe;
@@ -231,7 +231,7 @@ $max-width: 2560px;
   .section {
     display: flex;
     flex-direction: column;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     border-radius: 16px;
     border: 1px solid $ui-fleet-black-10;
     padding: $pad-xxlarge;
@@ -243,7 +243,7 @@ $max-width: 2560px;
   width: max-content;
   max-width: 360px;
   padding: 6px;
-  color: $core-white;
+  color: $core-fleet-white;
   background-color: $tooltip-bg;
   font-weight: $regular;
   font-size: $xx-small;
@@ -467,5 +467,55 @@ $max-width: 2560px;
   p {
     margin: 0;
     @include help-text;
+  }
+}
+
+@mixin bottom-border {
+  // Light underline always visible
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 1px;
+    width: 100%;
+    background: $ui-fleet-black-25;
+    pointer-events: none;
+    transform: scaleX(1);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+    pointer-events: none;
+  }
+
+  // Dark underline, animates in
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 1px;
+    width: 100%;
+    background: $core-fleet-black;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s ease;
+    pointer-events: none;
+  }
+}
+
+@mixin animated-bottom-border {
+  position: relative;
+
+  &:hover {
+    margin-bottom: -3px; // Account for underline height, removed for link-cell truncated
+  }
+
+  @include bottom-border;
+
+  &:hover::after,
+  &:focus::after {
+    transform: scaleX(1);
   }
 }

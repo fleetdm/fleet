@@ -316,7 +316,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     id: "os_version",
     Cell: (cellProps: IHostTableStringCellProps) => (
       // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {

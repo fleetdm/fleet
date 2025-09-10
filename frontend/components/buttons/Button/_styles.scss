@@ -56,7 +56,7 @@ $base-class: "button";
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
-  color: $core-white;
+  color: $core-fleet-white;
   text-decoration: none;
   flex-direction: row;
   justify-content: center;
@@ -387,7 +387,7 @@ $base-class: "button";
 
   &--inverse {
     @include button-variant(
-      $core-white,
+      $core-fleet-white,
       $core-fleet-green-over,
       $core-fleet-green-down,
       $inverse: true
@@ -403,7 +403,7 @@ $base-class: "button";
 
   &--inverse-alert {
     @include button-variant(
-      $core-white,
+      $core-fleet-white,
       $core-vibrant-red-over,
       $core-vibrant-red-down,
       $inverse: true

@@ -1,6 +1,6 @@
 .input-field {
   line-height: 1.5;
-  background-color: $ui-light-grey;
+  background-color: $core-fleet-white;
   border: solid 1px $ui-fleet-black-10;
   border-radius: $border-radius;
   font-size: $x-small;
@@ -46,7 +46,7 @@
 
     &:focus {
       border-color: $ui-error;
-      background-color: $core-white;
+      background-color: $core-fleet-white;
       color: $core-fleet-black;
     }
   }
@@ -97,7 +97,7 @@
     top: 0;
     right: 0;
     margin: $pad-xsmall;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
   }
 
   &__input-container.copy-enabled {

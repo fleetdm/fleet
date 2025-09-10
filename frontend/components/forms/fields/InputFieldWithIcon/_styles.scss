@@ -33,7 +33,7 @@
 
   &__input {
     border: 1px solid $ui-fleet-black-10;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border-radius: $border-radius;
     padding: 9.5px 12px 9.5px $pad-medium;
     font-size: $x-small;
@@ -70,9 +70,13 @@
     }
   }
 
-  &__input-wrapper:not(&__input-wrapper--disabled):hover {
-    .input-icon-field__input {
-      border: 1px solid $ui-fleet-black-75-over;
+  &__input-wrapper:not(&__input-wrapper--disabled) {
+    .input-icon-field__input:hover {
+      border: 1px solid $ui-fleet-black-50;
+
+      &:focus {
+        border: 1px solid $core-fleet-black;
+      }
     }
 
     // Icon color matches border color on hover
@@ -87,13 +91,13 @@
 
   &__input-wrapper {
     .input-icon-field__input:focus {
-      border: 1px solid $ui-fleet-black-75-down;
+      border: 1px solid $core-fleet-black;
 
       // Icon color matches border color on focus
       + .input-icon-field__icon {
         svg {
           path {
-            fill: $ui-fleet-black-75-down;
+            fill: $core-fleet-black;
           }
         }
       }

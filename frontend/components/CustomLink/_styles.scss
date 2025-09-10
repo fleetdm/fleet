@@ -1,5 +1,6 @@
 .custom-link {
-  border-bottom: 1px solid $ui-fleet-black-10;
+  @include link;
+  @include animated-bottom-border;
 
   // Changing display will break multiline links
   &:not(.custom-link--multiline) {
