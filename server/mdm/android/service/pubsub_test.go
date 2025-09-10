@@ -314,18 +314,20 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			}, nil
 		}
 		mockDS.BulkUpsertMDMAndroidHostProfilesFunc = func(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
-			require.Len(t, payload, 1) // We can expect 1 here, as we call one time with one failed and one time with one verified.
-			switch payload[0].ProfileUUID {
-			case installPendingProfile1.ProfileUUID:
-				require.Equal(t, installPendingProfile1.ProfileUUID, payload[0].ProfileUUID)
-				require.Equal(t, fleet.MDMDeliveryFailed, *payload[0].Status)
-				return nil
-			case installPendingProfile2.ProfileUUID:
-				require.Equal(t, installPendingProfile2.ProfileUUID, payload[0].ProfileUUID)
-				require.Equal(t, fleet.MDMDeliveryVerified, *payload[0].Status)
-				return nil
+			require.Len(t, payload, 2)
+			for _, profile := range payload {
+				switch profile.ProfileUUID {
+				case installPendingProfile1.ProfileUUID:
+					require.Equal(t, installPendingProfile1.ProfileUUID, profile.ProfileUUID)
+					require.Equal(t, fleet.MDMDeliveryFailed, *profile.Status)
+				case installPendingProfile2.ProfileUUID:
+					require.Equal(t, installPendingProfile2.ProfileUUID, profile.ProfileUUID)
+					require.Equal(t, fleet.MDMDeliveryVerified, *profile.Status)
+				default:
+					require.Fail(t, "All profiles upserted should have an if statement verifying status.")
+				}
 			}
-			require.Fail(t, "All profiles upserted should have an if statement verifying status.")
+
 			return nil
 		}
 		mockDS.BulkDeleteMDMAndroidHostProfilesFunc = func(ctx context.Context, hostUUID string, policyVersionID int64) error {
