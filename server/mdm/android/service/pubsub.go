@@ -455,9 +455,9 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 	// First case, if nonComplianceDetails is empty, verify all profiles that is pending install, and remove the pending remove ones.
 	if len(device.NonComplianceDetails) == 0 {
-		var verifiedProfiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		var verifiedProfiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
-			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			verifiedProfiles = append(verifiedProfiles, &fleet.MDMAndroidProfilePayload{
 				HostUUID:                profile.HostUUID,
 				Status:                  &fleet.MDMDeliveryVerified,
 				OperationType:           profile.OperationType,
@@ -517,7 +517,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed] = append(failedProfileUUIDsWithNonCompliances[profileUUIDToMarkAsFailed], nonCompliance)
 		}
 
-		var profiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+		var profiles []*fleet.MDMAndroidProfilePayload
 		for _, profile := range pendingInstallProfiles {
 			status := &fleet.MDMDeliveryVerified
 			detail := profile.Detail
@@ -527,7 +527,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				detail = buildNonComplianceErrorMessage(nonCompliance)
 			}
 
-			profiles = append(profiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			profiles = append(profiles, &fleet.MDMAndroidProfilePayload{
 				HostUUID:                profile.HostUUID,
 				Status:                  status,
 				ProfileUUID:             profile.ProfileUUID,

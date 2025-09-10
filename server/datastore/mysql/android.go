@@ -999,7 +999,7 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 	return results, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -1045,7 +1045,7 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 		return err
 	}
 
-	generateValueArgs := func(p *fleet.MDMAndroidBulkUpsertHostProfilePayload) (string, []any) {
+	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
