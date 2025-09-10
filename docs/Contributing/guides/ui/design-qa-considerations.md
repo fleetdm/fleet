@@ -4,7 +4,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 
 ## fleetd and Fleet Desktop
 - Fleet Free and Fleet Premium
-- Windows/Mac/Linux including multiple Linux distros
+- Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
 
 ## User
 
