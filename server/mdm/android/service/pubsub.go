@@ -518,31 +518,18 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 		}
 
 		var profiles []*fleet.MDMAndroidBulkUpsertHostProfilePayload
-		for profileUUID, nonCompliances := range failedProfileUUIDsWithNonCompliances {
-			profile := pendingProfilesUUIDMap[profileUUID]
-			profiles = append(profiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
-				HostUUID:                profile.HostUUID,
-				Status:                  &fleet.MDMDeliveryFailed,
-				Detail:                  buildNonComplianceErrorMessage(nonCompliances),
-				ProfileUUID:             profileUUID,
-				OperationType:           profile.OperationType,
-				DeviceRequestUUID:       profile.DeviceRequestUUID,
-				RequestFailCount:        profile.RequestFailCount,
-				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
-				ProfileName:             profile.ProfileName,
-				PolicyRequestUUID:       profile.PolicyRequestUUID,
-			})
-		}
-
-		// Upsert rest of profiles as verified.
 		for _, profile := range pendingInstallProfiles {
-			if _, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
-				// This profile has failed non-compliance, we can skip it.
-				continue
+			status := &fleet.MDMDeliveryVerified
+			detail := profile.Detail
+
+			if nonCompliance, ok := failedProfileUUIDsWithNonCompliances[profile.ProfileUUID]; ok {
+				status = &fleet.MDMDeliveryFailed
+				detail = buildNonComplianceErrorMessage(nonCompliance)
 			}
+
 			profiles = append(profiles, &fleet.MDMAndroidBulkUpsertHostProfilePayload{
 				HostUUID:                profile.HostUUID,
-				Status:                  &fleet.MDMDeliveryVerified,
+				Status:                  status,
 				ProfileUUID:             profile.ProfileUUID,
 				OperationType:           profile.OperationType,
 				DeviceRequestUUID:       profile.DeviceRequestUUID,
@@ -550,7 +537,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 				IncludedInPolicyVersion: profile.IncludedInPolicyVersion,
 				ProfileName:             profile.ProfileName,
 				PolicyRequestUUID:       profile.PolicyRequestUUID,
-				Detail:                  profile.Detail,
+				Detail:                  detail,
 			})
 		}
 
