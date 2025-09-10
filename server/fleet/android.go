@@ -29,6 +29,19 @@ type MDMAndroidConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // Difference in DB field name vs JSON is conscious decision to match other platforms
 }
 
+type MDMAndroidProfilePayload struct {
+	ProfileUUID             string             `db:"profile_uuid"`
+	ProfileName             string             `db:"profile_name"`
+	HostUUID                string             `db:"host_uuid"`
+	Status                  *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType           MDMOperationType   `db:"operation_type"`
+	Detail                  string             `db:"detail"`
+	PolicyRequestUUID       string             `db:"policy_request_uuid"`
+	DeviceRequestUUID       string             `db:"device_request_uuid"`
+	RequestFailCount        int                `db:"request_fail_count"`
+	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
+}
+
 // AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles
 var AndroidForbiddenJSONKeys = map[string]struct{}{
 	"statusReportingSettings":    {},
@@ -85,6 +98,19 @@ type MDMAndroidPolicyRequest struct {
 	ErrorDetails         sql.Null[string] `db:"error_details"`
 	AppliedPolicyVersion sql.Null[int64]  `db:"applied_policy_version"`
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
+}
+
+type MDMAndroidBulkUpsertHostProfilePayload struct {
+	HostUUID                string             `db:"host_uuid"`
+	Status                  *MDMDeliveryStatus `db:"status"`
+	OperationType           MDMOperationType   `db:"operation_type"`
+	Detail                  string             `db:"detail"`
+	ProfileUUID             string             `db:"profile_uuid"`
+	ProfileName             string             `db:"profile_name"`
+	PolicyRequestUUID       *string            `db:"policy_request_uuid"`
+	DeviceRequestUUID       *string            `db:"device_request_uuid"`
+	RequestFailCount        int                `db:"request_fail_count"`
+	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
 }
 
 // HostMDMAndroidProfile represents the status of an MDM profile for a Android host.

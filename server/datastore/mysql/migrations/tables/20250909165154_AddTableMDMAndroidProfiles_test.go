@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20250825165154(t *testing.T) {
+func TestUp_20250909165154(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create a Windows profile
