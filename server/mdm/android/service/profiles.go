@@ -361,7 +361,8 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 }
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
-	policy *androidmanagement.Policy, metadata map[string]string) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
@@ -400,10 +401,10 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
-	m := map[string]any{
-		"policy": policy,
-		"metadata": map[string]any{
-			"settings_origin": metadata,
+	m := fleet.AndroidPolicyRequestPayload{
+		Policy: policy,
+		Metadata: fleet.AndroidPolicyRequestPayloadMetadata{
+			SettingsOrigin: metadata,
 		},
 	}
 	b, err := json.Marshal(m)
@@ -418,7 +419,8 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 }
 
 func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
-	device *androidmanagement.Device) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+	device *androidmanagement.Device,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)
