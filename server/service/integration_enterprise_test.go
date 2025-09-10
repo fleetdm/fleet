@@ -19427,3 +19427,22 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
 }
+
+func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAuthBeforeMDM() {
+	t := s.T()
+
+	// macOS host should fail with MDM not enabled and configured.
+	h1 := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
+	)
+
+	// Linux host should not fail with MDM not enabled and configured.
+	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.Empty(t, orbitRes.Results)
+}
