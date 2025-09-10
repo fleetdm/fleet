@@ -888,3 +888,77 @@ func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 		return err
 	})
 }
+
+func expectAndroidProfiles(
+	t *testing.T,
+	ds *Datastore,
+	tmID *uint,
+	want []*fleet.MDMAndroidConfigProfile,
+) {
+	if tmID == nil {
+		tmID = ptr.Uint(0)
+	}
+
+	ctx := t.Context()
+	var gotUUIDs []string
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.SelectContext(ctx, q, &gotUUIDs,
+			`SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE team_id = ?`,
+			tmID)
+	})
+
+	// load each profile, this will also load its labels
+	var got []*fleet.MDMAndroidConfigProfile
+	for _, profileUUID := range gotUUIDs {
+		profile, err := ds.GetMDMAndroidConfigProfile(ctx, profileUUID)
+		require.NoError(t, err)
+		got = append(got, profile)
+	}
+	// create map of expected uuids keyed by name
+	wantMap := make(map[string]*fleet.MDMAndroidConfigProfile, len(want))
+	for _, cp := range want {
+		wantMap[cp.Name] = cp
+	}
+
+	JSONRemarshal := func(bytes []byte) ([]byte, error) {
+		var ifce interface{}
+		err := json.Unmarshal(bytes, &ifce)
+		if err != nil {
+			return nil, err
+		}
+		return json.Marshal(ifce)
+	}
+
+	// compare only the fields we care about, and build the resulting map of
+	// profile identifier as key to profile UUID as value
+	for _, gotA := range got {
+
+		wantA := wantMap[gotA.Name]
+
+		if gotA.TeamID != nil && *gotA.TeamID == 0 {
+			gotA.TeamID = nil
+		}
+
+		// ProfileUUID is non-empty and starts with "g", but otherwise we don't
+		// care about it for test assertions.
+		require.NotEmpty(t, gotA.ProfileUUID)
+		require.True(t, strings.HasPrefix(gotA.ProfileUUID, fleet.MDMAndroidProfileUUIDPrefix))
+		gotA.ProfileUUID = ""
+
+		gotA.CreatedAt = time.Time{}
+		gotA.AutoIncrement = 0
+
+		gotBytes, err := JSONRemarshal(gotA.RawJSON)
+		require.NoError(t, err)
+		gotA.RawJSON = gotBytes
+
+		// if an expected uploaded_at timestamp is provided for this profile, keep
+		// its value, otherwise clear it as we don't care about asserting its
+		// value.
+		if wantA.UploadedAt.IsZero() {
+			gotA.UploadedAt = time.Time{}
+		}
+	}
+
+	require.ElementsMatch(t, want, got)
+}
