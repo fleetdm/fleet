@@ -682,25 +682,16 @@ func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestU
 			request_uuid = ?
 	`
 
-	req := &fleet.MDMAndroidPolicyRequest{}
-	rows, err := ds.reader(ctx).QueryContext(ctx, stmt, requestUUID)
+	req := fleet.MDMAndroidPolicyRequest{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common_mysql.NotFound("AndroidPolicyRequest").WithName(requestUUID)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
 	}
-	defer rows.Close()
 
-	if err := rows.Err(); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "iterating over rows")
-	}
-
-	if !rows.Next() {
-		return nil, nil // No rows
-	}
-
-	if err := rows.Scan(&req.RequestUUID, &req.RequestName, &req.PolicyID, &req.Payload, &req.StatusCode, &req.ErrorDetails, &req.AppliedPolicyVersion, &req.PolicyVersion); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "scanning android policy request")
-	}
-	return req, nil
+	return &req, nil
 }
 
 const androidApplicableProfilesQuery = `

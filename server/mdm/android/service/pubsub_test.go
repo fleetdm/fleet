@@ -252,7 +252,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
-		require.False(t, mockDS.GetAndroidPolicyRequestByIDFuncInvoked)
+		require.False(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
@@ -284,7 +284,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			PolicyRequestUUID:       &policyRequestUUID,
 		}
 
-		mockDS.GetAndroidPolicyRequestByIDFunc = func(ctx context.Context, id string) (*fleet.MDMAndroidPolicyRequest, error) {
+		mockDS.GetAndroidPolicyRequestByUUIDFunc = func(ctx context.Context, id string) (*fleet.MDMAndroidPolicyRequest, error) {
 			if id == policyRequestUUID {
 				payload, err := json.Marshal(map[string]any{
 					"policy": map[string]any{
@@ -342,14 +342,14 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
 
-		require.True(t, mockDS.GetAndroidPolicyRequestByIDFuncInvoked)
+		require.True(t, mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked)
 		require.True(t, mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked)
 		require.True(t, mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked)
 		require.True(t, mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked)
 		mockDS.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = false
 		mockDS.BulkDeleteMDMAndroidHostProfilesFuncInvoked = false
 		mockDS.BulkUpsertMDMAndroidHostProfilesFuncInvoked = false
-		mockDS.GetAndroidPolicyRequestByIDFuncInvoked = false
+		mockDS.GetAndroidPolicyRequestByUUIDFuncInvoked = false
 	})
 }
 

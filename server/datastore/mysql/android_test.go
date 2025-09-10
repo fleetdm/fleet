@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -1319,7 +1320,7 @@ func testGetAndroidPolicyRequestByUUID(t *testing.T, ds *Datastore) {
 
 	t.Run("Returns not found", func(t *testing.T) {
 		policyRequest, err := ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
-		require.Nil(t, err)
+		require.Contains(t, err.Error(), common_mysql.NotFound("AndroidPolicyRequest").WithName(policyRequestUUID).Error())
 		require.Nil(t, policyRequest)
 	})
 

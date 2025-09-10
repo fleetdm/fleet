@@ -491,7 +491,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 
 		// Iterate over all policy request uuids, fetch them and unmarshal the payload into the type.
 		// Then re-use the map above, so we can iterate over it again, but now the payload is already unmarshalled.
-		policyRequest, err := svc.ds.GetAndroidPolicyRequestByID(ctx, policyRequestUUID)
+		policyRequest, err := svc.ds.GetAndroidPolicyRequestByUUID(ctx, policyRequestUUID)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "error getting policy request", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)
 			return
