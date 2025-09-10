@@ -14,7 +14,7 @@
     min-width: 156px;
     font-size: $small;
     font-weight: $regular;
-    color: $core-white;
+    color: $core-fleet-white;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -65,7 +65,7 @@
     }
 
     &:focus {
-      outline: 1px dashed $core-white;
+      outline: 1px dashed $core-fleet-white;
       border-radius: $border-radius;
     }
 
@@ -75,7 +75,7 @@
 
     &--1 {
       &::after {
-        border: 2px solid $core-white;
+        border: 2px solid $core-fleet-white;
         margin-top: 11px;
       }
 
@@ -83,20 +83,20 @@
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
+            $core-fleet-white 50%,
             $core-vibrant-blue 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          border: 2px solid $core-fleet-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $core-white;
+          background: $core-fleet-white;
           background-size: auto;
           z-index: 2;
         }
@@ -104,7 +104,7 @@
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
+          color: $core-fleet-white;
           border: 0;
         }
       }
@@ -120,27 +120,27 @@
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
+            $core-fleet-white 50%,
             $core-vibrant-blue 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          border: 2px solid $core-fleet-white;
         }
       }
 
       &.registration-breadcrumbs__page--complete {
         &::before {
-          background: $core-white;
+          background: $core-fleet-white;
           z-index: 2;
         }
 
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
+          color: $core-fleet-white;
           border: 0;
         }
       }
@@ -160,14 +160,14 @@
         &::before {
           background: linear-gradient(
             to right,
-            $core-white 50%,
+            $core-fleet-white 50%,
             $core-vibrant-blue 50%
           );
         }
 
         &::after {
           background-color: transparent;
-          border: 2px solid $core-white;
+          border: 2px solid $core-fleet-white;
         }
       }
 
@@ -175,7 +175,7 @@
         &::after {
           @include size(28px);
           content: "\f035";
-          color: $core-white;
+          color: $core-fleet-white;
           border: 0;
         }
       }

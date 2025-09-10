@@ -279,14 +279,14 @@ const DropdownWrapper = ({
         display: "flex",
         flexDirection: "row",
         width: "100%",
-        backgroundColor: COLORS["ui-off-white"],
+        backgroundColor: COLORS["core-fleet-white"],
         paddingLeft: "8px", // TODO: Update to match styleguide of (16px) when updating rest of UI (8px)
         paddingRight: "8px",
         cursor: "pointer",
         boxShadow: "none",
         borderRadius: "4px",
         borderColor: state.isFocused
-          ? COLORS["ui-fleet-black-5"]
+          ? COLORS["core-fleet-black"]
           : COLORS["ui-fleet-black-10"],
         "&:hover": {
           boxShadow: "none",
@@ -305,8 +305,8 @@ const DropdownWrapper = ({
         // Relies on --is-focused for styling as &:focus-visible cannot be applied
         "&.react-select__control--is-focused": {
           borderColor: state.isFocused
-            ? COLORS["ui-fleet-black-5"]
-            : COLORS["ui-fleet-black-10"],
+            ? COLORS["core-fleet-black"]
+            : COLORS["ui-fleet-black-25"],
           ".dropdown-wrapper__indicator path": {
             stroke: COLORS["ui-fleet-black-75"],
           },

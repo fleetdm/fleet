@@ -1,7 +1,7 @@
 .dashboard-info-card {
   padding: 32px;
   width: 100%;
-  background-color: $core-white;
+  background-color: $core-fleet-white;
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   box-sizing: border-box;
@@ -22,7 +22,7 @@
       display: flex;
       align-items: center;
       background-color: $ui-fleet-black-75;
-      color: $core-white;
+      color: $core-fleet-white;
       font-size: $xx-small;
       font-weight: $bold;
       padding: 2px 4px;

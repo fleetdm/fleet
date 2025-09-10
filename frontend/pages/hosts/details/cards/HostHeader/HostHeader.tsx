@@ -212,9 +212,9 @@ const HostHeader = ({
             {"Last fetched"} {lastFetched}
             &nbsp;
           </div>
-          {renderRefetch()}
         </div>
       </div>
+      {renderRefetch()}
       {renderActionDropdown()}
     </div>
   );

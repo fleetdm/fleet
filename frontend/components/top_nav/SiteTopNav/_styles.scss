@@ -29,14 +29,14 @@
       display: flex;
       align-items: center;
       gap: $pad-small;
-      color: $core-white;
+      color: $core-fleet-white;
       font-weight: $regular;
       font-size: $xxx-small;
       cursor: default;
     }
     &__tip-text {
       text-align: center;
-      color: $core-white;
+      color: $core-fleet-white;
       font-size: $xx-small;
       cursor: default;
     }
@@ -127,7 +127,6 @@
   }
 
   &--active {
-
     &::after {
       content: "";
       position: absolute;

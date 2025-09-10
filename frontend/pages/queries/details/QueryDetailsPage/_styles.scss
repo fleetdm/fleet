@@ -62,12 +62,12 @@
     }
 
     ul {
-      color: $core-white;
+      color: $core-fleet-white;
 
       li {
         &::before {
           content: "•";
-          color: $core-white;
+          color: $core-fleet-white;
         }
       }
     }

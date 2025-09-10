@@ -22,20 +22,21 @@
 
   .label-filter-select__control {
     border: 1px solid $ui-fleet-black-10;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border-radius: $border-radius;
     height: 40px;
 
-    :hover {
+    &:hover {
       cursor: pointer;
+      border: 1px solid $ui-fleet-black-50;
     }
 
     &--is-focused,
-    &--menu-is-open,
-    &:hover {
+    &--menu-is-open {
       box-shadow: none;
-      border: 1px solid $ui-fleet-black-50;
+      border: 1px solid $core-fleet-black;
     }
+
     &--menu-is-open {
       .custom-dropdown-indicator {
         svg {

@@ -64,7 +64,7 @@ b {
 
 .__react_component_tooltip {
   a {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 
@@ -156,7 +156,7 @@ form,
     }
     code {
       color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
+      background-color: $core-fleet-white;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
@@ -199,7 +199,7 @@ input {
 pre {
   padding: $pad-large;
   background-color: $core-fleet-black;
-  color: $core-white;
+  color: $core-fleet-white;
   border-radius: 4px;
   white-space: pre-wrap;
 
@@ -216,7 +216,7 @@ pre {
     color: magenta;
   }
   .key {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 
