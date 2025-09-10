@@ -220,7 +220,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 
 	if payload.ManualAgentInstall != nil {
 		if ac.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
-			if *payload.ManualAgentInstall && !ac.MDM.MacOSSetup.BootstrapPackage.Set {
+			if *payload.ManualAgentInstall && (!ac.MDM.MacOSSetup.BootstrapPackage.Set || ac.MDM.MacOSSetup.BootstrapPackage.Value == "") {
 				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
 			}
 			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), nil)
