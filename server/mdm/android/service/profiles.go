@@ -361,7 +361,8 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 }
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
-	policy *androidmanagement.Policy, metadata map[string]string) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
@@ -398,21 +399,11 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 	return policyRequest, skip, nil
 }
 
-// TODO(AP): Should these types live here? I think it makes sense since they are constructed here, and is just to have structure when unmarshalling the payload from the DB.
-type androidPolicyRequestPayload struct {
-	Policy   *androidmanagement.Policy           `json:"policy"`
-	Metadata androidPolicyRequestPayloadMetadata `json:"metadata"`
-}
-
-type androidPolicyRequestPayloadMetadata struct {
-	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
-}
-
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
-	m := androidPolicyRequestPayload{
+	m := fleet.AndroidPolicyRequestPayload{
 		Policy: policy,
-		Metadata: androidPolicyRequestPayloadMetadata{
+		Metadata: fleet.AndroidPolicyRequestPayloadMetadata{
 			SettingsOrigin: metadata,
 		},
 	}
@@ -428,7 +419,8 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 }
 
 func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
-	device *androidmanagement.Device) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+	device *androidmanagement.Device,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)

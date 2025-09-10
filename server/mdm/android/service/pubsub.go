@@ -434,7 +434,6 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 	return ptr.String(nameParts[3]), nil
 }
 
-// TODO(AP): Wrap in transaction?
 func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, device *androidmanagement.Device) {
 	appliedPolicyVersion := device.AppliedPolicyVersion
 
@@ -499,7 +498,7 @@ func (svc *Service) verifyDevicePolicy(ctx context.Context, hostUUID string, dev
 			return
 		}
 
-		var policyRequestPayload androidPolicyRequestPayload
+		var policyRequestPayload fleet.AndroidPolicyRequestPayload
 		err = json.Unmarshal(policyRequest.Payload, &policyRequestPayload)
 		if err != nil {
 			level.Error(svc.logger).Log("msg", "error unmarshalling policy request payload", "err", err, "policy_request_uuid", policyRequestUUID, "host_uuid", hostUUID)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // MDMAndroidConfigProfile represents an Android MDM profile in Fleet. This does not map
@@ -135,4 +136,13 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		Detail:        p.Detail,
 		Platform:      "android",
 	}
+}
+
+type AndroidPolicyRequestPayload struct {
+	Policy   *androidmanagement.Policy           `json:"policy"`
+	Metadata AndroidPolicyRequestPayloadMetadata `json:"metadata"`
+}
+
+type AndroidPolicyRequestPayloadMetadata struct {
+	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
 }
