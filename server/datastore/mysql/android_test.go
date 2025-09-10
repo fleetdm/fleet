@@ -893,7 +893,6 @@ func upsertAndroidHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string
 	})
 }
 
-
 func expectAndroidProfiles(
 	t *testing.T,
 	ds *Datastore,
@@ -1433,5 +1432,4 @@ func testBulkUpsertMDMAndroidHostProfilesN(t *testing.T, ds *Datastore, batchSiz
 		{ProfileUUID: profiles[0].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[0].Name},
 		{ProfileUUID: profiles[1].ProfileUUID, HostUUID: hosts[0].UUID, ProfileName: profiles[1].Name},
 	}, hostProfiles)
-
 }
