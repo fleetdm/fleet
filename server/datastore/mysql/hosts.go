@@ -4383,18 +4383,6 @@ func (ds *Datastore) GetHostMDM(ctx context.Context, hostID uint) (*fleet.HostMD
 	return &hmdm, nil
 }
 
-func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
-	_, err := ds.writer(ctx).ExecContext(ctx, `
-		UPDATE host_dep_assignments
-		SET mdm_migration_completed = mdm_migration_deadline
-		WHERE host_id = ?`, hostID,
-	)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "set mdm migration completed for host_id %d", hostID)
-	}
-	return nil
-}
-
 func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 	var hmdm fleet.HostMDMCheckinInfo
 

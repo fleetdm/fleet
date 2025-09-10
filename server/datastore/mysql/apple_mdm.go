@@ -2094,6 +2094,18 @@ func (ds *Datastore) GetHostDEPAssignment(ctx context.Context, hostID uint) (*fl
 	return &res, nil
 }
 
+func (ds *Datastore) SetHostMDMMigrationCompleted(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		UPDATE host_dep_assignments
+		SET mdm_migration_completed = mdm_migration_deadline
+		WHERE host_id = ?`, hostID,
+	)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "set mdm migration completed for host_id %d", hostID)
+	}
+	return nil
+}
+
 func (ds *Datastore) DeleteHostDEPAssignmentsFromAnotherABM(ctx context.Context, abmTokenID uint, serials []string) error {
 	if len(serials) == 0 {
 		return nil
