@@ -228,11 +228,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
-		TeamID *uint `db:"team_id"`
+		TeamID *uint  `db:"team_id"`
+		UUID   string `db:"uuid"`
 		*android.Device
 	}
 	stmt := `SELECT
 		h.team_id,
+		h.uuid,
 		ad.id,
 		ad.host_id,
 		ad.device_id,
@@ -255,6 +257,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		Host: &fleet.Host{
 			ID:     host.Device.HostID,
 			TeamID: host.TeamID,
+			UUID:   host.UUID,
 		},
 		Device: host.Device,
 	}
@@ -660,6 +663,35 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 		req.PolicyVersion,
 	)
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
+}
+
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+	const stmt = `
+		SELECT
+			request_uuid,
+			request_name,
+			policy_id,
+			payload,
+			status_code,
+			error_details,
+			applied_policy_version,
+			policy_version
+		FROM
+			android_policy_requests
+		WHERE
+			request_uuid = ?
+	`
+
+	req := fleet.MDMAndroidPolicyRequest{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common_mysql.NotFound("AndroidPolicyRequest").WithName(requestUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
+	}
+
+	return &req, nil
 }
 
 const androidApplicableProfilesQuery = `
@@ -1068,6 +1100,40 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		return nil, err
 	}
 	return profiles, nil
+}
+
+func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	const stmt = `
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+	`
+
+	var profiles []*fleet.MDMAndroidProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
+	}
+
+	return profiles, nil
+}
+
+func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
+	stmt := `
+		DELETE FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
+	`
+
+	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersionId, fleet.MDMOperationTypeRemove, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to delete host MDM Android profiles")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host MDM Android profiles")
+	}
+	return nil
 }
 
 func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtContext, tmID *uint) (int, error) {
