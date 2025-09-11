@@ -67,7 +67,7 @@ func gitopsCommand() *cli.Command {
 			},
 			&cli.IntFlag{
 				Name:        "icons-concurrent-updates",
-				EnvVars:     []string{"ICONS_CONCURRENT_UPLOADS"},
+				EnvVars:     []string{"ICONS_CONCURRENT_UPDATES"},
 				Destination: &flConcurrentIconUpdates,
 				Usage:       "Number of simultaneous requests to make for updating custom software icons when the icon files themselves have already been uploaded",
 				Value:       10,
