@@ -339,6 +339,8 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 func (m *model) applyFilter() {
 	if m.filterInput == "" {
 		// No filter, show all issues
+		// Ensure base list is sorted
+		ghapi.SortIssuesForDisplay(m.choices)
 		m.filteredChoices = m.choices
 		m.originalIndices = make([]int, len(m.choices))
 		for i := range m.originalIndices {
@@ -351,6 +353,8 @@ func (m *model) applyFilter() {
 	m.filteredChoices = nil
 	m.originalIndices = nil
 
+	// Ensure base list is sorted before applying filter
+	ghapi.SortIssuesForDisplay(m.choices)
 	for i, issue := range m.choices {
 		if m.matchesFilter(issue, filter) {
 			m.filteredChoices = append(m.filteredChoices, issue)
@@ -363,6 +367,11 @@ func (m *model) applyFilter() {
 		m.cursor = 0
 	}
 }
+
+// --- Sorting helpers for Normal view ordering ---
+
+// labelNamesLower returns a set of lowercase label names for fast lookup.
+// Sorting moved to ghapi.SortIssuesForDisplay
 
 func (m *model) matchesFilter(issue ghapi.Issue, filter string) bool {
 	// Check issue number
@@ -447,13 +456,13 @@ func fetchProjectItems(projectID, limit int) tea.Cmd {
 
 func fetchEstimatedItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		items, err := ghapi.GetEstimatedTicketsForProject(projectID, limit)
+		items, total, err := ghapi.GetEstimatedTicketsForProjectWithTotal(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		// Estimated issues are filtered from drafting project so available equals fetched length
-		return issuesLoadedMsg{issues: issues, totalAvailable: len(items), rawFetched: len(items)}
+		// totalAvailable reflects total items in drafting project; rawFetched is the fetch limit
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
 	}
 }
 
@@ -1094,8 +1103,38 @@ func (m model) View() string {
 		// Show overall progress
 		s += fmt.Sprintf("Overall Progress: %s\n\n", m.overallProgress.View())
 
-		// Show individual task progress
-		for i, task := range m.tasks {
+		// Determine window of tasks to display (show most recent 10, auto-scroll)
+		totalTasks := len(m.tasks)
+		lastFinished := -1
+		for i := range m.tasks {
+			if m.tasks[i].Status == TaskSuccess || m.tasks[i].Status == TaskError {
+				lastFinished = i
+			}
+		}
+		// Prefer to keep the currently running task in view
+		lastIdx := lastFinished
+		if m.currentTask > lastIdx {
+			lastIdx = m.currentTask
+		}
+		if lastIdx < 0 {
+			lastIdx = 0
+		}
+		windowSize := 10
+		start := lastIdx - windowSize + 1
+		if start < 0 {
+			start = 0
+		}
+		end := start + windowSize
+		if end > totalTasks {
+			end = totalTasks
+		}
+
+		// Show individual task progress (windowed)
+		if start > 0 {
+			s += fmt.Sprintf("... %d earlier task(s) above ...\n", start)
+		}
+		for i := start; i < end; i++ {
+			task := m.tasks[i]
 			var statusIcon string
 			var statusText string
 
@@ -1126,10 +1165,12 @@ func (m model) View() string {
 			}
 			s += "\n"
 		}
+		if end < totalTasks {
+			s += fmt.Sprintf("... %d more task(s) below ...\n", totalTasks-end)
+		}
 
 		// Add progress counter at the bottom
 		completedTasks := 0
-		totalTasks := len(m.tasks)
 		for _, task := range m.tasks {
 			if task.Status == TaskSuccess {
 				completedTasks++
@@ -1196,12 +1237,20 @@ func (m model) View() string {
 		currentPos := m.cursor + 1
 		totalFiltered := len(currentChoices)
 
+		// Compute sum of estimates for currently selected issues
+		sumSelectedEstimates := 0
+		for idx := range m.selected {
+			if idx >= 0 && idx < len(m.choices) {
+				sumSelectedEstimates += m.choices[idx].Estimate
+			}
+		}
+
 		// Header with filter info
 		headerText := ""
 		if m.filterInput != "" {
-			headerText = fmt.Sprintf("GitHub Issues (%d/%d) - Filtered by: '%s':\n\n", currentPos, totalFiltered, m.filterInput)
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d, Σest sel=%d) - Filtered by: '%s':\n\n", currentPos, totalFiltered, sumSelectedEstimates, m.filterInput)
 		} else {
-			headerText = fmt.Sprintf("GitHub Issues (%d/%d):\n\n", currentPos, m.totalCount)
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d, Σest sel=%d):\n\n", currentPos, m.totalCount, sumSelectedEstimates)
 		}
 
 		warningBanner := ""
