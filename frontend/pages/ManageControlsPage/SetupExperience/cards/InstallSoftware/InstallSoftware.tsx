@@ -19,7 +19,6 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import CustomLink from "components/CustomLink";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
@@ -125,9 +124,15 @@ const InstallSoftware = ({
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
         globalConfig?.mdm.apple_bm_enabled_and_configured;
+      const turnOnAppleMdm = platform === "macos" && !appleMdmAndAbmEnabled;
 
-      // TODO - incorporate Windows MDM condition when implementing Windows software install on setup
-      if (platform === "macos" && !appleMdmAndAbmEnabled) {
+      const turnOnWindowsMdm =
+        platform === "windows" &&
+        !globalConfig?.mdm.windows_enabled_and_configured;
+
+      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm;
+
+      if (turnOnMdm) {
         return (
           <TurnOnMdmMessage
             header="Additional configuration required"
