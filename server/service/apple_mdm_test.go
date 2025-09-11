@@ -1417,8 +1417,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.True(t, ds.NewJobFuncInvoked)
 
 	// With AwaitingConfiguration - should check for and enqueue SetupExperience items
-	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostPlatformLike string, hostUUID string, teamID uint) (bool, error) {
-		require.Equal(t, "darwin", hostPlatformLike)
+	ds.EnqueueSetupExperienceItemsFunc = func(ctx context.Context, hostUUID string, teamID uint) (bool, error) {
 		require.Equal(t, uuid, hostUUID)
 		require.Equal(t, wantTeamID, teamID)
 		return true, nil

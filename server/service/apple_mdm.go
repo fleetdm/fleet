@@ -3487,7 +3487,7 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 	if m.AwaitingConfiguration {
 		if !info.MigrationInProgress {
 			// Enqueue setup experience items and mark the host as being in setup experience
-			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
+			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, r.ID, info.TeamID)
 			if err != nil {
 				return ctxerr.Wrap(r.Context, err, "queueing setup experience tasks")
 			}
