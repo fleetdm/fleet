@@ -421,13 +421,6 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		isIphone = true
 	}
 
-	ac, err := s.ds.AppConfig(ctx)
-	require.NoError(t, err)
-
-	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-	err = s.ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-
 	// set the enable release device manually option
 	payload := map[string]any{
 		"enable_release_device_manually": opts.EnableReleaseManually,
@@ -435,7 +428,21 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	}
 	if opts.TeamID != nil {
 		payload["team_id"] = *opts.TeamID
+		team, err := s.ds.Team(ctx, *opts.TeamID)
+		require.NoError(t, err)
+
+		team.Config.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+		_, err = s.ds.SaveTeam(ctx, team)
+		require.NoError(t, err)
+	} else {
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
+
+		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+		err = s.ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
 	}
+
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
 	t.Cleanup(func() {
 		// Get back to the default state.
@@ -516,7 +523,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		mdmDevice.Model = "iPhone 14,6"
 	}
 	mdmDevice.SerialNumber = device.SerialNumber
-	err = mdmDevice.Enroll()
+	err := mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// check if it has setup experience items or not
