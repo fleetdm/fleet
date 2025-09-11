@@ -1,0 +1,173 @@
+#scripts {
+  min-height: 800px;
+  p, strong {
+    color: #515774;
+  }
+
+  ul {
+    padding-inline-start: 16px;
+  }
+  [purpose='page-container'] {
+    padding: 48px;
+  }
+
+  [purpose='page-content'] {
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 1104px;
+    color: #515774;
+  }
+  [purpose='page-headline'] {
+    margin-bottom: 32px;
+    max-width: 630px;
+    h1 {
+      margin-bottom: 16px;
+    }
+    p {
+      color: #515774;
+      margin-bottom: 0px;
+    }
+  }
+  [purpose='platform-filters'] {
+    &.detected-windows {
+      flex-direction: row-reverse;
+    }
+    flex-direction: row;
+    border-bottom: 1px solid #E2E4EA;
+    margin-bottom: 48px;
+    [purpose='platform-filter'] {
+      width: 33.33%;
+      display: flex;
+      padding: 16px 40px;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      img {
+        height: 20px;
+        margin-right: 10px;
+      }
+      h1 {
+        color: #192147;
+        text-align: center;
+        margin-bottom: 0px;
+        font-family: Inter;
+        font-size: 16px;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 24px; /* 150% */
+        white-space: nowrap;
+      }
+      &.selected {
+        border-bottom: 2px solid var(--text-text-brand, #192147);
+        h1 {
+          font-weight: 700;
+        }
+      }
+    }
+  }
+
+  [purpose='sidebar-and-content'] {
+    display: flex;
+    flex-direction: row;
+  }
+
+  [purpose='sidebar'] {
+    margin-right: 64px;
+    display: flex;
+    flex-direction: column;
+    width: 220px;
+    [purpose='sidebar-link'] {
+      display: flex;
+      padding: 4px 8px;
+      align-items: center;
+      margin-bottom: 8px;
+      align-self: stretch;
+      text-decoration: none;
+      &.active {
+        border-radius: 4px;
+        background: #F6F7F8;
+        color: #192147;
+      }
+      &:hover {
+        border-radius: 4px;
+        background: #F6F7F8;
+        color: #192147;
+      }
+    }
+  }
+
+  [purpose='script'] {
+    padding: 32px 0px;
+    border-bottom: 1px solid #E2E4EA;
+  }
+  [purpose='read-more-link'] {
+    // margin-bottom: 16px;
+    span {
+      font-size: 14px;
+      color: ;
+      font-weight: 600;
+    }
+  }
+  [purpose='script-link'] {
+    color: unset;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+  [purpose='script-name-and-description'] {
+    max-width: 663px;
+  }
+  [purpose='script-name'] {
+    a {
+      text-decoration: none;
+      color: #192147;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 24px;
+      margin-bottom: 8px;
+    }
+  }
+  [purpose='script-description'] {
+    margin-top: 16px;
+    p {
+      color: #515774;
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+    }
+    // max-width: 663px;
+  }
+
+  @media(max-width: 991px) {
+    min-height: unset;
+    [purpose='page-container'] {
+      padding: 32px;
+    }
+    [purpose='script-name-and-description'] {
+      max-width: unset;
+    }
+    [purpose='read-more-link'] {
+      margin-bottom: 16px;
+    }
+  }
+  @media(max-width: 767px) {
+    [purpose='page-container'] {
+      padding: 32px 24px;
+    }
+
+  }
+
+  @media(max-width: 576px) {
+    [purpose='page-container'] {
+      padding: 32px 16px;
+    }
+
+  }
+
+}

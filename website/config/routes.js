@@ -495,7 +495,8 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
     }
   },
-
+  'GET /scripts': { action: 'view-scripts' },
+  'GET /mdm-commands': { action: 'view-mdm-commands' },
 
   'GET /configuration-builder': {
     action: 'view-configuration-builder',
