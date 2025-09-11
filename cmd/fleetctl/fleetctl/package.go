@@ -374,6 +374,10 @@ func packageCommand() *cli.Command {
 					if !strings.HasSuffix(opt.CustomOutfile, ".rpm") {
 						return errors.New("output file must end with .rpm for RPM packages")
 					}
+				case "arch":
+					if !strings.HasSuffix(opt.CustomOutfile, ".tar.zst") {
+						return errors.New("output file must end with .tar.zst for Arch packages")
+					}
 				case "msi":
 					if !strings.HasSuffix(opt.CustomOutfile, ".msi") {
 						return errors.New("output file must end with .msi for MSI packages")
@@ -421,6 +425,13 @@ func packageCommand() *cli.Command {
 					opt.NativePlatform = "linux-arm64"
 				}
 				buildFunc = packaging.BuildRPM
+			case "arch":
+				if opt.Architecture == packaging.ArchAmd64 {
+					opt.NativePlatform = "linux"
+				} else {
+					opt.NativePlatform = "linux-arm64"
+				}
+				buildFunc = packaging.BuildArch
 			case "msi":
 				if opt.Architecture == packaging.ArchAmd64 {
 					opt.NativePlatform = "windows"
@@ -429,7 +440,7 @@ func packageCommand() *cli.Command {
 				}
 				buildFunc = packaging.BuildMSI
 			default:
-				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi')")
+				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'arch', 'msi')")
 			}
 
 			// disable detailed logging unless verbose is set
