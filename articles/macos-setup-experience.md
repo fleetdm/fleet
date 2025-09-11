@@ -168,6 +168,8 @@ To configure software to be installed during setup experience:
 2. Click **Add software**, then select or search for the software you want installed during the setup experience.
 3. Press **Save** to save your selection.
 
+> Software installations during setup experience are automatically attempted up to 3 times (1 initial attempt + 2 retries) to handle intermittent network issues or temporary failures. This ensures a more reliable setup process for end users.
+
 ### Run script
 
 To configure a script to run during setup experience:
