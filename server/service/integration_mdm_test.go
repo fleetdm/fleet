@@ -12398,13 +12398,27 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"self_service", "true")
 	require.Len(t, listSw.SoftwareTitles, 0)
 
+	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID:   macOSTitleID,
+		Filename:  "icon.png",
+		TeamID:    team.ID,
+		StorageID: "icon_storage_id",
+	})
+	require.NoError(t, err)
+
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "platform": "%s"}`, team.Name,
-			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`, team.Name,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, addedApp.Platform), 0)
+
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, team.ID, macOSTitleID)
+	})
+	require.Equal(t, 0, count)
 
 	// deleting it again fails, not found
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNotFound,
