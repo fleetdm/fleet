@@ -572,14 +572,48 @@ func testDeleteMDMAndroidConfigProfile(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, profile2)
 
+	// set a host profile to mimic reconcilation has yet to run
+
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, []*fleet.MDMAndroidProfilePayload{
+		{
+			HostUUID:      "test-host-1",
+			ProfileUUID:   profile1.ProfileUUID,
+			Status:        nil,
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+		{
+			HostUUID:      "test-host-2",
+			ProfileUUID:   profile2.ProfileUUID,
+			Status:        &fleet.MDMDeliveryPending,
+			OperationType: fleet.MDMOperationTypeInstall,
+		},
+	})
+	require.NoError(t, err)
+
 	// Delete the first profile
 	err = ds.DeleteMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
 	require.NoError(t, err)
 
-	// Verify the first profile is deleted
+	// Verify the first profile is deleted and respective host profile is cancelled
 	profile1, err = ds.GetMDMAndroidConfigProfile(ctx, profile1.ProfileUUID)
 	require.ErrorAs(t, err, &nfe)
 	require.Nil(t, profile1)
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT host_uuid, profile_uuid FROM host_mdm_android_profiles`
+		var hosts []struct {
+			HostUUID    string `db:"host_uuid"`
+			ProfileUUID string `db:"profile_uuid"`
+		}
+		err := sqlx.SelectContext(ctx, q, &hosts, stmt)
+		if err != nil {
+			return err
+		}
+
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		require.Equal(t, "test-host-2", hosts[0].HostUUID)
+		return nil
+	})
 
 	// Verify the second profile is untouched
 	profile2, err = ds.GetMDMAndroidConfigProfile(ctx, profile2.ProfileUUID)

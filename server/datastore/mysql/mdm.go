@@ -597,10 +597,11 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	profileUUIDs, hostUUIDs []string,
 ) (updates fleet.MDMProfilesUpdates, err error) {
 	var (
-		countArgs     int
-		macProfUUIDs  []string
-		winProfUUIDs  []string
-		hasAppleDecls bool
+		countArgs        int
+		macProfUUIDs     []string
+		winProfUUIDs     []string
+		androidProfUUIDs []string
+		hasAppleDecls    bool
 	)
 
 	if len(hostIDs) > 0 {
@@ -612,12 +613,15 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	if len(profileUUIDs) > 0 {
 		countArgs++
 
-		// split into mac and win profiles
+		// split into mac, win and android profiles
 		for _, puid := range profileUUIDs {
 			if strings.HasPrefix(puid, fleet.MDMAppleProfileUUIDPrefix) { //nolint:gocritic // ignore ifElseChain
 				macProfUUIDs = append(macProfUUIDs, puid)
 			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
 				hasAppleDecls = true
+			} else if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
+				fmt.Println("Got android profile", puid)
+				androidProfUUIDs = append(androidProfUUIDs, puid)
 			} else {
 				// Note: defaulting to windows profiles without checking the prefix as
 				// many tests fail otherwise and it's a whole rabbit hole that I can't
@@ -643,11 +647,14 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 	if len(winProfUUIDs) > 0 {
 		countProfUUIDs++
 	}
+	if len(androidProfUUIDs) > 0 {
+		countProfUUIDs++
+	}
 	if hasAppleDecls {
 		countProfUUIDs++
 	}
 	if countProfUUIDs > 1 {
-		return updates, errors.New("profile uuids must be all Apple profiles, all Apple declarations, or all Windows profiles")
+		return updates, errors.New("profile uuids must be all Apple profiles, all Apple declarations, all Windows profiles, or all Android profiles")
 	}
 
 	var (
@@ -718,6 +725,21 @@ OR
 	hmwp.profile_uuid IN (?) AND h.platform = 'windows'`
 		args = append(args, winProfUUIDs, winProfUUIDs)
 
+	case len(androidProfUUIDs) > 0:
+		// TODO: if a very large number (~65K/2) of profile IDs was provided, could
+		// result in too many placeholders (not an immediate concern).
+		uuidStmt = `
+SELECT DISTINCT h.uuid, h.platform
+FROM hosts h
+JOIN mdm_android_configuration_profiles maap
+	ON h.team_id = maap.team_id OR (h.team_id IS NULL AND maap.team_id = 0)
+LEFT JOIN host_mdm_android_profiles hmap
+	ON h.uuid = hmap.host_uuid
+WHERE
+	maap.profile_uuid IN (?) AND h.platform = 'android'
+OR
+	hmap.profile_uuid IN (?) AND h.platform = 'android'`
+		args = append(args, androidProfUUIDs, androidProfUUIDs)
 	}
 
 	// TODO: this could be optimized to avoid querying for platform when
@@ -734,12 +756,16 @@ OR
 
 	var appleHosts []string
 	var winHosts []string
+	var androidHosts []string
 	for _, h := range hosts {
 		switch h.Platform {
 		case "darwin", "ios", "ipados":
 			appleHosts = append(appleHosts, h.UUID)
 		case "windows":
 			winHosts = append(winHosts, h.UUID)
+		case "android":
+			fmt.Println("Got android host", h.UUID)
+			androidHosts = append(androidHosts, h.UUID)
 		default:
 			level.Debug(ds.logger).Log(
 				"msg", "tried to set profile status for a host with unsupported platform",
@@ -757,6 +783,11 @@ OR
 	updates.WindowsConfigProfile, err = ds.bulkSetPendingMDMWindowsHostProfilesDB(ctx, tx, winHosts, profileUUIDs)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
+	}
+
+	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, tx, androidHosts)
+	if err != nil {
+		return updates, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
 	}
 
 	const defaultBatchSize = 1000

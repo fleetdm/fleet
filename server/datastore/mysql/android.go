@@ -1359,3 +1359,64 @@ func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx
 
 	return nil
 }
+
+// For android we set the status to NIL
+func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+) (updatedDB bool, err error) {
+	fmt.Println("bulkSetPendingMDMAndroidHostProfilesDB called", hostUUIDs)
+	if len(hostUUIDs) == 0 {
+		return false, nil
+	}
+
+	profilesToInstall, profilesToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	fmt.Println("profiles to install", profilesToInstall, profilesToRemove)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "list android profiles to send")
+	}
+
+	if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
+		return false, nil
+	}
+
+	// TODO(AP): Combine?
+	var profilesToUpsert []*fleet.MDMAndroidProfilePayload
+	for _, p := range profilesToInstall {
+		profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             p.ProfileUUID,
+			ProfileName:             p.ProfileName,
+			HostUUID:                p.HostUUID,
+			OperationType:           fleet.MDMOperationTypeInstall,
+			Status:                  nil,
+			Detail:                  "",
+			PolicyRequestUUID:       nil,
+			DeviceRequestUUID:       nil,
+			RequestFailCount:        0,
+			IncludedInPolicyVersion: nil,
+		})
+	}
+
+	for _, p := range profilesToRemove {
+		profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
+			ProfileUUID:             p.ProfileUUID,
+			ProfileName:             p.ProfileName,
+			HostUUID:                p.HostUUID,
+			OperationType:           fleet.MDMOperationTypeRemove,
+			Status:                  nil,
+			Detail:                  "",
+			PolicyRequestUUID:       nil,
+			DeviceRequestUUID:       nil,
+			RequestFailCount:        0,
+			IncludedInPolicyVersion: nil,
+		})
+	}
+
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	}
+
+	return true, nil
+}
