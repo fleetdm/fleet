@@ -32,6 +32,7 @@ const baseClass = "edit-icon-modal";
 const ACCEPTED_EXTENSIONS = ".png";
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
+const MAX_FILE_SIZE = 100 * 1024; // 100kb in bytes
 const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION}x${MIN_DIMENSION} px to ${MAX_DIMENSION}x${MAX_DIMENSION} px.`;
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
 
@@ -230,6 +231,12 @@ const EditIconModal = ({
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      // Enforce filesize limit
+      if (file.size > MAX_FILE_SIZE) {
+        renderFlash("error", "Couldn't edit. File size must be 100kb or less.");
+        return;
+      }
 
       // Enforce PNG MIME type, even though FileUploader also enforces by extension
       if (file.type !== "image/png") {
