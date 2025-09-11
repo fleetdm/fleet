@@ -690,19 +690,39 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	// Get server URL from app config
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
 	// Use LIST API as primary verification method
-	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx)
+	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx, appConfig.ServerSettings.ServerURL)
 	if err != nil {
 		var gerr *googleapi.Error
-		if errors.As(err, &gerr) && gerr.Code == http.StatusNotFound {
-			// Special case: 404 from proxy with deletion confirmation
-			if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
-				level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
-				svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
-				return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Special case: 404 from proxy with deletion confirmation
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+			case http.StatusBadRequest:
+				// Bad request might indicate missing headers or invalid request format
+				// Don't delete the enterprise in this case
+				level.Error(svc.logger).Log("msg", "bad request when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: %s (check request headers and format)", err.Error())
+			case http.StatusUnauthorized, http.StatusForbidden:
+				// Authentication/authorization issues - don't delete the enterprise
+				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: authentication error")
 			}
 		}
-		// LIST failed - this is likely a credential/permission issue, not deletion
+		// LIST failed - this is likely a technical issue, not deletion
+		// Log the error but don't delete the enterprise
+		level.Error(svc.logger).Log("msg", "failed to list enterprises", "error", err)
 		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 	}
 
