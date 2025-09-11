@@ -133,6 +133,7 @@ func (ds *Datastore) GetAllCertificateAuthorities(ctx context.Context, includeSe
 		admin_url,
 		username,
 		password_encrypted,
+		challenge_url,
 		challenge_encrypted,
 		client_id,
 		client_secret_encrypted,
@@ -208,7 +209,7 @@ func (ds *Datastore) NewCertificateAuthority(ctx context.Context, ca *fleet.Cert
 	return ca, nil
 }
 
-const argsCountInsertCertificateAuthority = 14
+const argsCountInsertCertificateAuthority = 15
 
 const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	type,
@@ -220,6 +221,7 @@ const sqlInsertCertificateAuthority = `INSERT INTO certificate_authorities (
 	certificate_user_principal_names,
 	certificate_seat_id,
 	admin_url,
+	challenge_url,
 	username,
 	password_encrypted,
 	challenge_encrypted,
@@ -237,6 +239,7 @@ const sqlUpsertCertificateAuthority = sqlInsertCertificateAuthority + ` ON DUPLI
 	certificate_user_principal_names = VALUES(certificate_user_principal_names),
 	certificate_seat_id = VALUES(certificate_seat_id),
 	admin_url = VALUES(admin_url),
+	challenge_url = VALUES(challenge_url),
 	username = VALUES(username),
 	password_encrypted = VALUES(password_encrypted),
 	challenge_encrypted = VALUES(challenge_encrypted),
@@ -292,13 +295,14 @@ func sqlGenerateArgsForInsertCertificateAuthority(ctx context.Context, serverPri
 		upns,
 		ca.CertificateSeatID,
 		ca.AdminURL,
+		ca.ChallengeURL,
 		ca.Username,
 		encryptedPassword,
 		encryptedChallenge,
 		ca.ClientID,
 		encryptedClientSecret,
 	}
-	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+	placeholders := "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
 
 	return args, placeholders, nil
 }
