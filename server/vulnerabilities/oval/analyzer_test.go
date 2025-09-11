@@ -325,9 +325,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		for _, s := range systems {
 			withTestFixture(s.version, s.ovalFixtureDir, s.softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
 				_, err := Analyze(ctx, ds, s.version, vulnPath, true)
-				require.NoError(t, err)
-				p := NewPlatform(s.version.Platform, s.version.Name)
-				assertVulns(t, ds, vulnPath, h, p, fleet.RHELOVALSource)
+				require.ErrorContains(t, err, "unsupported platform")
 			}, t)
 		}
 	})

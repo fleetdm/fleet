@@ -25,6 +25,11 @@ var SupportedGovalPlatforms = []string{
 	"amzn_02",
 	"amzn_2022",
 	"amzn_2023",
+	"rhel_05",
+	"rhel_06",
+	"rhel_07",
+	"rhel_08",
+	"rhel_09",
 }
 
 // getMajorMinorVer returns the major and minor version of an 'os_version'.
@@ -106,11 +111,6 @@ func (op Platform) IsSupported() bool {
 		"ubuntu_2404",
 		"ubuntu_2410",
 		"ubuntu_2504",
-		"rhel_05",
-		"rhel_06",
-		"rhel_07",
-		"rhel_08",
-		"rhel_09",
 	}
 	for _, p := range supported {
 		if strings.HasPrefix(string(op), p) {
