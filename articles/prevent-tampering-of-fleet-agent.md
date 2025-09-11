@@ -31,7 +31,7 @@ A Fleet policy confirms that the hardened registry key exists. If the key is mis
 ---
 
 ## Blocking unenrollment
-Deploy a configuration profile to prevent devices from unenrolling from MDM.
+A configuration profile can prevent devices from unenrolling from MDM.
 
 [Block MDM unenrollment configuration profile](https://github.com/fleetdm/fleet/blob/main/assets/configuration-profiles/BlockMDMUnenrollment.xml)
 
