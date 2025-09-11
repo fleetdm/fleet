@@ -63,7 +63,7 @@ Fleet’s open model makes enforcement visible and verifiable—without relying 
 Want to learn more about how Fleet approaches transparent, cross-platform device management?  
 Visit [fleetdm.com](https://fleetdm.com) or check out the other guides for macOS, Windows, and Linux.
 
-<meta name="articleTitle" value="Prevent tampering of Fleet agent and installer settings on Windows.">
+<meta name="articleTitle" value="Learn how to combine a script, a policy, and a Windows profile to keep Fleet Orbit protected—without relying on hidden or fragile methods.">
 <meta name="authorFullName" value="Adam Baali">
 <meta name="authorGitHubUsername" value="AdamBaali">
 <meta name="category" value="articles">
