@@ -8384,7 +8384,7 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.True(t, info.OsqueryEnrolled)
 	require.Equal(t, "darwin", info.Platform)
 
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmToken.ID)
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host}, abmToken.ID, make(map[uint]time.Time))
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
@@ -8526,7 +8526,7 @@ func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {
 	require.True(t, *loadFleet.DiskEncryptionEnabled)
 
 	// simulate the device being assigned to Fleet in ABM
-	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet}, abmToken.ID)
+	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleet}, abmToken.ID, make(map[uint]time.Time))
 	require.NoError(t, err)
 	_, err = ds.LoadHostByOrbitNodeKey(ctx, *hFleet.OrbitNodeKey)
 	require.NoError(t, err)
@@ -10898,7 +10898,7 @@ func testGetMatchingHostSerialsMarkedDeleted(t *testing.T, ds *Datastore) {
 		}
 	}
 
-	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTok.ID))
+	require.NoError(t, ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts, abmTok.ID, make(map[uint]time.Time)))
 	require.NoError(t, ds.DeleteHostDEPAssignments(ctx, abmTok.ID, serials))
 
 	cases := []struct {
