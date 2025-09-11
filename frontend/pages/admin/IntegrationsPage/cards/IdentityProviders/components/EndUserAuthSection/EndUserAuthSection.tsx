@@ -108,7 +108,7 @@ const EndUserAuthSection = () => {
       <form>
         <p>
           Connect Fleet to your identity provider to require end users to
-          authenticate when they first setup their macOS, iOS, iPadOS, and
+          authenticate when they first set up their macOS, iOS, iPadOS, and
           Android hosts.{" "}
           <CustomLink
             url="https://fleetdm.com/learn-more-about/end-user-authentication"

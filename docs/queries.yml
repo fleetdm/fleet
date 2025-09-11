@@ -323,7 +323,7 @@ spec:
           -- in order to account for hosts that might not have this
           -- key, and servers
               WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-          -- old enrollments that aren't completely cleaned up may still be aronud
+          -- old enrollments that aren't completely cleaned up may still be around
           -- in the registry so we want to make sure we return the one with an actual
           -- discovery URL set if there is one. LENGTH is used here to prefer those
           -- with actual URLs over empty string/null if there are multiple
@@ -382,7 +382,7 @@ kind: built-in
 spec:
   name: Munki info
   platform: darwin
-  description: Retrives information about the last Munki run on a macOS device.
+  description: Retrieves information about the last Munki run on a macOS device.
   query: |
     SELECT 
       version, errors, warnings 
@@ -397,7 +397,7 @@ kind: built-in
 spec:
   name: Network interfaces (Chrome)
   platform: chrome
-  description: Retrives information about a ChromeOS device's current network.
+  description: Retrieves information about a ChromeOS device's current network.
   query: |
     SELECT 
     ipv4 AS address, mac 
@@ -546,7 +546,7 @@ kind: built-in
 spec:
   name: Orbit information
   platform: darwin, linux, windows
-  description: Retreives configuration information the osquery version and configuration manager running on a device.
+  description: Retrieves configuration information the osquery version and configuration manager running on a device.
   query: SELECT * FROM orbit_info
   purpose: Informational
   tags: built-in

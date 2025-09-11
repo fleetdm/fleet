@@ -95,7 +95,7 @@ func TestAppleMDM(t *testing.T) {
 			return err
 		})
 		if depAssignedToFleet {
-			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID)
+			err := ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*h}, abmTokenID, make(map[uint]time.Time))
 			require.NoError(t, err)
 		}
 		err = ds.SetOrUpdateMDMData(ctx, h.ID, false, true, "http://example.com", depAssignedToFleet, fleet.WellKnownMDMFleet, "", false)

@@ -53,7 +53,7 @@ export const createSetupExperienceSoftwareHandler = (
     );
   });
 
-export const createSetupExperienceBootstrapPackageHandler = (
+export const createSetupExperienceBootstrapMetadataHandler = (
   overrides?: Partial<IGetBootstrapPackageMetadataResponse>
 ) =>
   http.get(setupExperienceBootstrapMetadataUrl, () => {

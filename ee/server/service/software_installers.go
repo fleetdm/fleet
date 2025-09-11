@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -1084,6 +1085,16 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 				}
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
+		}
+	} else {
+		// Get the enrollment type of the mobile apple device.
+		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
+		}
+
+		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
+			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
 		}
 	}
 

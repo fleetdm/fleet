@@ -509,8 +509,6 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `self_service` specifies whether or not end users can install from **Fleet Desktop > Self-service**.
 - `categories` is an array of categories. See [supported categories](#labels-and-categories).
 
-> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
-
 #### Example
 
 ##### URL
@@ -1093,7 +1091,7 @@ org_settings:
 
 Can only be configured for all teams (`org_settings`).
 
-Unlike other options, ommitting `smtp_settings` or leaving it blank won't reset the values back to the default.
+Unlike other options, omitting `smtp_settings` or leaving it blank won't reset the values back to the default.
 
 <meta name="title" value="GitOps">
 <meta name="description" value="Reference documentation for Fleet's GitOps workflow. See examples and configuration options.">

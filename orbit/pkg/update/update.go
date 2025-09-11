@@ -463,6 +463,8 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 				return nil, fmt.Errorf("download %q: %w", repoPath, err)
 			}
 			if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+				// Remove cached hash files since we have a real tar.gz now
+				removeCachedHashes(localTarget.Path)
 				if err := os.RemoveAll(localTarget.DirPath); err != nil {
 					return nil, fmt.Errorf("failed to remove old extracted dir: %q: %w", localTarget.DirPath, err)
 				}
@@ -476,9 +478,39 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 			log.Debug().Str("path", localTarget.Path).Str("target", target).Msg("found expected target locally")
 		}
 	case errors.Is(err, os.ErrNotExist):
-		log.Debug().Err(err).Msg("stat file")
-		if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
-			return nil, fmt.Errorf("download %q: %w", repoPath, err)
+		// Check if we have a cached hash file for tar.gz files
+		if strings.HasSuffix(localTarget.Path, ".tar.gz") {
+			hashPath := localTarget.Path + ".sha512"
+			if _, hashErr := os.Stat(hashPath); hashErr == nil {
+				// We have a hash file, so check if it matches TUF metadata
+				meta, err := u.Lookup(target)
+				if err != nil {
+					return nil, err
+				}
+				if err := checkFileHash(meta, localTarget.Path); err != nil {
+					// Hash doesn't match or can't be verified, download the tar.gz
+					log.Debug().Str("info", err.Error()).Msg("hash mismatch or verification failed, downloading")
+					if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
+						return nil, fmt.Errorf("download %q: %w", repoPath, err)
+					}
+					removeCachedHashes(localTarget.Path)
+				} else {
+					// Hash matches! We can proceed without the tar.gz
+					log.Debug().Str("path", localTarget.Path).Msg("using cached hash, tar.gz not needed")
+				}
+			} else {
+				// No hash file either, need to download
+				log.Debug().Err(err).Msg("no tar.gz or hash file, downloading")
+				if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
+					return nil, fmt.Errorf("download %q: %w", repoPath, err)
+				}
+			}
+		} else {
+			// Not a tar.gz, just download it
+			log.Debug().Err(err).Msg("stat file")
+			if err := u.download(target, repoPath, localTarget.Path, localTarget.Info.CustomCheckExec); err != nil {
+				return nil, fmt.Errorf("download %q: %w", repoPath, err)
+			}
 		}
 		if strings.HasSuffix(localTarget.Path, ".pkg") && runtime.GOOS == "darwin" {
 			if err := installPKG(localTarget.Path); err != nil {
@@ -493,8 +525,16 @@ func (u *Updater) get(target string) (*LocalTarget, error) {
 		s, err := os.Stat(localTarget.ExecPath)
 		switch {
 		case err == nil:
-			// OK
+			// OK - executable exists
 		case errors.Is(err, os.ErrNotExist):
+			// Check if tar.gz exists before trying to extract
+			if _, tarErr := os.Stat(localTarget.Path); tarErr != nil {
+				// No tar.gz to extract from.
+				// The executable should already be in the initial package, and this error should never happen under normal circumstances.
+				// Delete the .sha512 file so next run will download the tar.gz
+				removeCachedHashes(localTarget.Path)
+				return nil, fmt.Errorf("executable not found and no tar.gz to extract: %q", localTarget.ExecPath)
+			}
 			if err := extractTarGz(localTarget.Path); err != nil {
 				return nil, fmt.Errorf("extract %q: %w", localTarget.Path, err)
 			}
@@ -739,6 +779,13 @@ func extractTarGz(path string) error {
 			return fmt.Errorf("unknown flag type %q: %d", header.Name, header.Typeflag)
 		}
 	}
+}
+
+// removeCachedHashes removes the .sha512 file that was created
+// during packaging to cache the hash when the tar.gz was removed.
+func removeCachedHashes(tarGzPath string) {
+	// Remove hash file, ignore errors (file may not exist)
+	_ = os.Remove(tarGzPath + ".sha512")
 }
 
 func installPKG(path string) error {

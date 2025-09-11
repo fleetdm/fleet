@@ -1,6 +1,7 @@
 package mysql
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"database/sql"
@@ -2070,7 +2071,6 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", lastYear}, tup{"baz", future}, tup{"qux", future})
-
 	// more changes: all software receives a date further in the future, so all should be updated
 	farFuture := now.Add(4 * 24 * time.Hour)
 	sw = []fleet.Software{
@@ -2081,6 +2081,35 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
 	validateSoftware(tup{"bar", farFuture}, tup{"baz", farFuture}, tup{"qux", farFuture})
+
+	// Test logging criteria for LastOpenedAt == nil
+	oldLogger := ds.logger
+	buf := &bytes.Buffer{}
+	newLogger := kitlog.NewLogfmtLogger(buf)
+	ds.logger = newLogger
+
+	sw = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test"},
+		{Name: "bar_app", Version: "0.0.2", Source: "apps", LastOpenedAt: &now},
+		{Name: "baz_program", Version: "0.0.3", Source: "programs", LastOpenedAt: &now},
+		{Name: "qux_package", Version: "0.0.3", Source: "deb_packages", LastOpenedAt: &now},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	sw = []fleet.Software{
+		{Name: "bar_app", Version: "0.0.2", Source: "apps"},
+		{Name: "baz_program", Version: "0.0.3", Source: "programs"},
+		{Name: "qux_package", Version: "0.0.3", Source: "deb_packages"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
+
+	require.Contains(t, buf.String(), "baz_program")
+	require.Contains(t, buf.String(), "qux_package")
+	require.NotContains(t, buf.String(), "bar_app")
+
+	ds.logger = oldLogger
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
@@ -5352,6 +5381,26 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
 	assert.Nil(t, sw[0].Status)
+
+	// insert an icon
+	icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID:    tm.ID,
+		TitleID:   va1.TitleID,
+		StorageID: "storage-id-1",
+		Filename:  "test-icon.png",
+	})
+	require.NoError(t, err)
+	opts = fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+		IsMDMEnrolled:              true,
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.Equal(t, icon.IconUrl(), *sw[0].IconUrl)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {

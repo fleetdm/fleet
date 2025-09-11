@@ -9,19 +9,20 @@ import (
 // Device corresponds to the Apple DEP API "Device" structure.
 // See https://developer.apple.com/documentation/devicemanagement/device
 type Device struct {
-	SerialNumber       string    `json:"serial_number"`
-	Model              string    `json:"model"`
-	Description        string    `json:"description"`
-	Color              string    `json:"color"`
-	AssetTag           string    `json:"asset_tag,omitempty"`
-	ProfileStatus      string    `json:"profile_status"`
-	ProfileUUID        string    `json:"profile_uuid,omitempty"`
-	ProfileAssignTime  time.Time `json:"profile_assign_time,omitempty"`
-	ProfilePushTime    time.Time `json:"profile_push_time,omitempty"`
-	DeviceAssignedDate time.Time `json:"device_assigned_date,omitempty"`
-	DeviceAssignedBy   string    `json:"device_assigned_by,omitempty"`
-	OS                 string    `json:"os,omitempty"`
-	DeviceFamily       string    `json:"device_family,omitempty"`
+	SerialNumber         string     `json:"serial_number"`
+	Model                string     `json:"model"`
+	Description          string     `json:"description"`
+	Color                string     `json:"color"`
+	AssetTag             string     `json:"asset_tag,omitempty"`
+	ProfileStatus        string     `json:"profile_status"`
+	ProfileUUID          string     `json:"profile_uuid,omitempty"`
+	ProfileAssignTime    time.Time  `json:"profile_assign_time,omitempty"`
+	ProfilePushTime      time.Time  `json:"profile_push_time,omitempty"`
+	DeviceAssignedDate   time.Time  `json:"device_assigned_date,omitempty"`
+	DeviceAssignedBy     string     `json:"device_assigned_by,omitempty"`
+	OS                   string     `json:"os,omitempty"`
+	DeviceFamily         string     `json:"device_family,omitempty"`
+	MDMMigrationDeadline *time.Time `json:"mdm_migration_deadline,omitempty"`
 	// fetch/sync-only fields
 	OpType string    `json:"op_type,omitempty"`
 	OpDate time.Time `json:"op_date,omitempty"`

@@ -46,7 +46,7 @@ func TestLimit(t *testing.T) {
 		l := New(2)
 
 		// Wrap the testing context with a cancellation and a timeout.
-		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		ctx, cancel := context.WithTimeout(t.Context(), 10*time.Millisecond)
 		l.Go(testBlocker(ctx))
 		l.Go(testBlocker(ctx))
 

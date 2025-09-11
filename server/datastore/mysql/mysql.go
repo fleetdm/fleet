@@ -217,6 +217,19 @@ func (ds *Datastore) withTx(ctx context.Context, fn common_mysql.TxFn) (err erro
 	return common_mysql.WithTxx(ctx, ds.writer(ctx), fn, ds.logger)
 }
 
+// withReadTx runs fn in a read-only transaction with a consistent snapshot of the DB
+// for executing multiple SELECT queries in an isolated fashion. It should be preferred
+// over withTx for these usecases as mysql applies some optimizations to transactions
+// declared as read-only versus.
+func (ds *Datastore) withReadTx(ctx context.Context, fn common_mysql.ReadTxFn) (err error) {
+	reader := ds.reader(ctx)
+	readerDB, ok := reader.(*sqlx.DB)
+	if !ok {
+		return ctxerr.New(ctx, "failed to cast reader to *sqlx.DB")
+	}
+	return common_mysql.WithReadOnlyTxx(ctx, readerDB, fn, ds.logger)
+}
+
 // New creates an MySQL datastore.
 func New(config config.MysqlConfig, c clock.Clock, opts ...DBOption) (*Datastore, error) {
 	options := &common_mysql.DBOptions{

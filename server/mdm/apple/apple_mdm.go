@@ -617,6 +617,10 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	for _, device := range resp.Devices {
+		deadline := "nil"
+		if device.MDMMigrationDeadline != nil {
+			deadline = device.MDMMigrationDeadline.String()
+		}
 		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
 			"msg", "device",
 			"serial_number", device.SerialNumber,
@@ -627,6 +631,7 @@ func (d *DEPService) processDeviceResponse(
 			"profile_assign_time", device.ProfileAssignTime,
 			"push_push_time", device.ProfilePushTime,
 			"profile_uuid", device.ProfileUUID,
+			"mdm_migration_deadline", deadline,
 		)
 
 		switch strings.ToLower(device.OpType) {
@@ -775,6 +780,7 @@ func (d *DEPService) processDeviceResponse(
 	// for all other hosts we received, find out the right DEP profile to
 	// assign, based on the team.
 	existingHosts := []fleet.Host{}
+	existingHostMigrationDeadlines := make(map[uint]time.Time)
 	for _, existingHost := range existingSerials {
 		dd, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
@@ -783,6 +789,9 @@ func (d *DEPService) processDeviceResponse(
 				existingHost.HardwareSerial)
 			continue
 		}
+		if dd.MDMMigrationDeadline != nil {
+			existingHostMigrationDeadlines[existingHost.ID] = *dd.MDMMigrationDeadline
+		}
 		existingHosts = append(existingHosts, *existingHost)
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
 	}
@@ -790,7 +799,7 @@ func (d *DEPService) processDeviceResponse(
 	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
 	// token if this is the first device DEP host for this token assigned to the team.
 	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID, existingHostMigrationDeadlines); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
 		}
 	}

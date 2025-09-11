@@ -1,3 +1,7 @@
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
 ## Orbit 1.47.2 (Sep 04, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.

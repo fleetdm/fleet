@@ -2943,6 +2943,7 @@ Returns the information of the specified host.
         "idp_id": "f26f8649-1e25-42c5-be71-1b1e6de56d3d",
         "idp_username": "anna@acme.com",
         "idp_full_name": "Anna Chao",
+        "idp_department": "Product",
         "idp_groups": [
           "Product",
           "Designers"
@@ -9530,7 +9531,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Uninstall software](#uninstall-software)
 - [Get software install result](#get-software-install-result)
 - [Download software](#download-package)
-- [Delete software](#delete-package-or-app-store-app)
+- [Delete software](#delete-software)
 
 ### List software
 
@@ -9553,7 +9554,7 @@ Get a list of all software.
 | vulnerable              | boolean | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
 | available_for_install   | boolean | query | If `true` or `1`, only list software that is available for install (added by the user). Default is `false`.                                                                |
 | self_service            | boolean | query | If `true` or `1`, only lists self-service software. Default is `false`.  |
-| packages_only           | boolean | query | If `true` or `1`, only lists packages available for install (without App Store apps).  |
+| packages_only           | boolean | query | _Available in Fleet Premium_. If `true` or `1`, only lists packages available for install (without App Store apps).  |
 | min_cvss_score | integer | query | _Available in Fleet Premium_. Filters to include only software with vulnerabilities that have a CVSS version 3.x base score higher than the specified value.   |
 | max_cvss_score | integer | query | _Available in Fleet Premium_. Filters to only include software with vulnerabilities that have a CVSS version 3.x base score lower than what's specified.   |
 | exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include software with vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Default is `false`.  |

@@ -9,6 +9,7 @@ import (
 	"github.com/VividCortex/mysqlerr"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
@@ -17,6 +18,9 @@ import (
 var DoRetryErr = errors.New("fleet datastore retry")
 
 type TxFn func(tx sqlx.ExtContext) error
+
+// ReadTxFn is the read-only variant of TxFn, with tx only exposing the read methods
+type ReadTxFn func(tx fleet.DBReadTx) error
 
 // WithRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func WithRetryTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error {

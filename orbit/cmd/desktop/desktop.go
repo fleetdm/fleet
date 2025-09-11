@@ -268,7 +268,11 @@ func main() {
 					if err == nil || errors.Is(err, service.ErrMissingLicense) {
 						log.Debug().Msg("enabling tray items")
 						isFreeTier := errors.Is(err, service.ErrMissingLicense)
-						menuManager.SetConnected(&summary.DesktopSummary, isFreeTier)
+						var desktopSummary *fleet.DesktopSummary
+						if summary != nil {
+							desktopSummary = &summary.DesktopSummary
+						}
+						menuManager.SetConnected(desktopSummary, isFreeTier)
 
 						return
 					}
