@@ -22,7 +22,7 @@ One way to harden the installer is to apply registry values through a PowerShell
 ---
 
 ## Policies in Fleet
-A Fleet policy confirms that the hardened registry key exists. If it’s missing, the policy fails, triggering automation to run the script again. Once applied, the policy becomes compliant. If tampering occurs later, the cycle repeats.
+A Fleet policy confirms that the hardened registry key exists. If the key is missing, the policy fails, triggering automation to rerun the script. Once applied, the policy becomes compliant. If tampering occurs later, the cycle repeats.
 
 [Fleet policy for Windows hardening](https://github.com/fleetdm/fleet/blob/main/assets/policies/windows-fleet-hardening.policies.yml)
 
