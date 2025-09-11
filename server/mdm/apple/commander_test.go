@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -159,6 +160,124 @@ func TestMDMAppleCommander(t *testing.T) {
 	mdmStorage.EnqueueDeviceWipeCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
+}
+
+func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	host := &fleet.Host{ID: 1, UUID: "TEST-HOST", Platform: "darwin"}
+
+	// Variables to track calls (with mutex for thread safety)
+	var mu sync.Mutex
+	var pendingCommand *mdm.Command
+	var pendingPIN string
+	enqueueCalls := 0
+	getPendingCalls := 0
+
+	// Mock GetPendingLockCommand
+	// Need to track state across concurrent calls
+	var commandCreated bool
+	mdmStorage.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		getPendingCalls++
+		require.Equal(t, host.UUID, hostUUID)
+		// After the first command is enqueued, return it as pending
+		if commandCreated && pendingCommand != nil {
+			return pendingCommand, pendingPIN, nil
+		}
+		return nil, "", nil
+	}
+
+	// Mock EnqueueDeviceLockCommand
+	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		enqueueCalls++
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
+		require.Len(t, pin, 6)
+		// Store the first command as pending
+		if !commandCreated {
+			pendingCommand = cmd
+			pendingPIN = pin
+			commandCreated = true
+		}
+		return nil
+	}
+
+	// Mock RetrievePushInfo
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push)
+		for _, token := range tokens {
+			res[token] = &mdm.Push{
+				PushMagic: "magic",
+				Token:     []byte("token"),
+				Topic:     "topic",
+			}
+		}
+		return res, nil
+	}
+
+	// Mock RetrievePushCert
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		// Return a mock certificate
+		return &tls.Certificate{}, "staleToken", nil
+	}
+
+	// Simulate concurrent lock requests
+	numGoroutines := 10
+	results := make(chan string, numGoroutines)
+	errors := make(chan error, numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(idx int) {
+			cmdUUID := fmt.Sprintf("cmd-uuid-%d", idx)
+			pin, err := cmdr.DeviceLock(ctx, host, cmdUUID)
+			if err != nil {
+				errors <- err
+			} else {
+				results <- pin
+			}
+		}(i)
+	}
+
+	// Collect results
+	var pins []string
+	for i := 0; i < numGoroutines; i++ {
+		select {
+		case pin := <-results:
+			pins = append(pins, pin)
+		case err := <-errors:
+			require.NoError(t, err)
+		}
+	}
+
+	// Verify results
+	require.Len(t, pins, numGoroutines, "All requests should succeed")
+
+	// All PINs should be the same
+	firstPIN := pins[0]
+	for _, pin := range pins {
+		require.Equal(t, firstPIN, pin, "All requests should return the same PIN")
+	}
+
+	// Only one command should have been enqueued
+	require.Equal(t, 1, enqueueCalls, "Only one lock command should be enqueued")
+
+	// GetPendingLockCommand should have been called multiple times
+	require.Greater(t, getPendingCalls, 1, "GetPendingLockCommand should be called multiple times")
 }
 
 func newMockAPNSPushProviderFactory() (*svcmock.APNSPushProviderFactory, *svcmock.APNSPushProvider) {

@@ -101,6 +101,21 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 }
 
 func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) (unlockPIN string, err error) {
+	// Check for existing pending lock command first
+	existingCmd, existingPIN, err := svc.storage.GetPendingLockCommand(ctx, host.UUID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "checking for pending lock command")
+	}
+
+	// If a pending lock command exists, just send a push notification and return the existing PIN
+	if existingCmd != nil {
+		if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "sending notifications for existing DeviceLock")
+		}
+		return existingPIN, nil
+	}
+
+	// No pending lock, create a new one
 	unlockPIN = GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

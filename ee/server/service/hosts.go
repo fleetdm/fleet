@@ -120,11 +120,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
+
 	switch {
-	case lockWipe.IsPendingLock():
-		return "", ctxerr.Wrap(
-			ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. The host will lock when it comes online."),
-		)
+	// Note: IsPendingLock case removed - duplicate lock requests now handled properly by returning existing PIN
 	case lockWipe.IsPendingUnlock():
 		return "", ctxerr.Wrap(
 			ctx, fleet.NewInvalidArgumentError(

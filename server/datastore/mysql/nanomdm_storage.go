@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -112,6 +113,47 @@ func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken 
 // StorePushCert partially implements nanomdm_storage.PushCertStore.
 func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
 	return errors.New("please use fleet.Datastore to manage MDM assets")
+}
+
+// GetPendingLockCommand returns the most recent unacknowledged DeviceLock command
+// for the given host, along with its unlock PIN.
+// Returns nil, "", nil if no pending lock command exists.
+func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+	query := `
+		SELECT nc.command_uuid, nc.request_type, nc.command, hma.unlock_pin
+		FROM nano_commands nc
+		INNER JOIN host_mdm_actions hma ON hma.lock_ref = nc.command_uuid
+		LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
+		INNER JOIN nano_enrollment_queue neq ON neq.command_uuid = nc.command_uuid
+		WHERE neq.id = ?
+		AND nc.request_type = 'DeviceLock'
+		AND ncr.command_uuid IS NULL
+		ORDER BY nc.created_at DESC
+		LIMIT 1`
+
+	var cmdUUID, requestType string
+	var cmdRaw []byte
+	var pin string
+
+	err := s.db.QueryRowContext(ctx, query, hostUUID).Scan(&cmdUUID, &requestType, &cmdRaw, &pin)
+	if err == sql.ErrNoRows {
+		return nil, "", nil
+	}
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting pending lock command")
+	}
+
+	cmd := &mdm.Command{
+		CommandUUID: cmdUUID,
+		Command: struct {
+			RequestType string
+		}{
+			RequestType: requestType,
+		},
+		Raw: cmdRaw,
+	}
+
+	return cmd, pin, nil
 }
 
 // EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
