@@ -65,7 +65,7 @@ func gitopsCommand() *cli.Command {
 			}
 
 			if len(c.Args().Slice()) != 0 {
-				return errors.New("no positional arguments are allowed")
+				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
 			}
 
 			totalFilenames := len(flFilenames.Value())
