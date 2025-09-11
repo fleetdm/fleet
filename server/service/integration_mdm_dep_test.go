@@ -439,15 +439,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 			_, err = s.ds.SaveTeam(ctx, team)
 			require.NoError(t, err)
 		}
-	} else {
-		if opts.BootstrapPackage {
-			ac, err := s.ds.AppConfig(ctx)
-			require.NoError(t, err)
+	} else if opts.BootstrapPackage {
+		ac, err := s.ds.AppConfig(ctx)
+		require.NoError(t, err)
 
-			ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
-			err = s.ds.SaveAppConfig(ctx, ac)
-			require.NoError(t, err)
-		}
+		ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+		err = s.ds.SaveAppConfig(ctx, ac)
+		require.NoError(t, err)
 	}
 
 	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
