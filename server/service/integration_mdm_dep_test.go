@@ -19,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -420,6 +421,13 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		isIphone = true
 	}
 
+	ac, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+
+	ac.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap.pkg")
+	err = s.ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+
 	// set the enable release device manually option
 	payload := map[string]any{
 		"enable_release_device_manually": opts.EnableReleaseManually,
@@ -508,7 +516,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 		mdmDevice.Model = "iPhone 14,6"
 	}
 	mdmDevice.SerialNumber = device.SerialNumber
-	err := mdmDevice.Enroll()
+	err = mdmDevice.Enroll()
 	require.NoError(t, err)
 
 	// check if it has setup experience items or not
