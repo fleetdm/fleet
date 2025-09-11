@@ -502,6 +502,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 > You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
 
+- `display_name` is the package name that will be displayed in the UI. If not set, `name` will be used instead.
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
 - `uninstall_script.path` is the script Fleet will run on hosts to uninstall software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -517,6 +518,7 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 
 ```yaml
 url: https://dl.tailscale.com/stable/tailscale-setup-1.72.0.exe
+display_name: Tailscale
 install_script:
   path: ../lib/software/tailscale-install-script.ps1
 uninstall_script:
