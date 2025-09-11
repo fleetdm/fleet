@@ -14,6 +14,7 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 
 import EndUserOSRequirementPreview from "./components/EndUserOSRequirementPreview";
@@ -140,6 +141,10 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
           />
         </div>
         <div className={`${baseClass}__target-container`}>
+          <SectionHeader
+            title="Target"
+            wrapperCustomClass={`${baseClass}__header`}
+          />
           <TargetSection
             key={teamIdForApi} // if the team changes, remount the target section
             appConfig={config}
@@ -152,11 +157,6 @@ const OSUpdates = ({ router, teamIdForApi, queryParams }: IOSUpdates) => {
             refetchTeamConfig={refetchTeamConfig}
           />
         </div>
-        {!isAndroid(selectedPlatform) && (
-          <div className={`${baseClass}__nudge-preview`}>
-            <EndUserOSRequirementPreview platform={selectedPlatform} />
-          </div>
-        )}
       </div>
     </div>
   );

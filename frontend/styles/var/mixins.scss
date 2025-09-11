@@ -163,10 +163,10 @@ $max-width: 2560px;
     // border-bottom: 1px solid transparent;
   }
   &:focus-visible {
-    outline-color: #d9d9fe;
+    outline-color: $core-focused-outline;
     outline-offset: 3px;
     outline-style: solid;
-    outline-width: 2px;
+    outline-width: 1px;
     border-radius: 2px;
   }
 }

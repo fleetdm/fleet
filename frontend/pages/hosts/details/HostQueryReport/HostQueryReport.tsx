@@ -132,7 +132,7 @@ const HostQueryReport = ({
           >
             <>
               <span>View full query report</span>
-              <Icon name="chevron-right" color="core-fleet-blue" />
+              <Icon name="chevron-right" color="ui-fleet-black-75" />
             </>
           </Link>
         </div>

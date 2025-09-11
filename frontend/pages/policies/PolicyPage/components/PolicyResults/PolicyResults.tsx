@@ -130,7 +130,7 @@ const PolicyResults = ({
         >
           <>
             Export {tableType}
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-75" />
           </>
         </Button>
       </div>

@@ -42,6 +42,16 @@ export interface IButtonProps {
   customOnKeyDown?: (e: React.KeyboardEvent) => void;
   /** Required for buttons that contain SVG icons using`stroke` instead of`fill` for proper hover styling */
   iconStroke?: boolean;
+  ariaHasPopup?:
+    | boolean
+    | "false"
+    | "true"
+    | "menu"
+    | "listbox"
+    | "tree"
+    | "grid"
+    | "dialog";
+  ariaExpanded?: boolean;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -113,6 +123,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       isLoading,
       customOnKeyDown,
       iconStroke,
+      ariaHasPopup,
+      ariaExpanded,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -140,6 +152,8 @@ class Button extends React.Component<IButtonProps, IButtonState> {
         type={type}
         title={title}
         ref={setRef}
+        aria-haspopup={ariaHasPopup}
+        aria-expanded={ariaExpanded}
       >
         <div className={isLoading ? "transparent-text" : "children-wrapper"}>
           {children}

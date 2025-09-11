@@ -24,7 +24,9 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
       Header: (cellProps) => (
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
-      Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+      Cell: (cellProps) => (
+        <TooltipTruncatedTextCell value={cellProps.cell.value} />
+      ),
     },
     {
       accessor: (data) => data.issuer.common_name,

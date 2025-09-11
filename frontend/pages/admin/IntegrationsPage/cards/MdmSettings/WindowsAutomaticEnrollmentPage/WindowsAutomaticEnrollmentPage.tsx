@@ -89,7 +89,7 @@ const WindowsAutomaticEnrollmentPage = () => {
                 icon="warning"
               >
                 <div className={`${baseClass}__banner-content`}>
-                  <Icon name="error-outline" color="core-fleet-blue" />
+                  <Icon name="error-outline" color="ui-fleet-black-75" />
                   <p>
                     If you&apos;re a managed-cloud customer, please reach out to
                     Fleet to create a TXT/MX record for you.

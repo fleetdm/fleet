@@ -62,7 +62,7 @@ const FilterPill = ({
               variant="icon"
               title={label}
             >
-              <Icon name="close" color="core-fleet-blue" size="small" />
+              <Icon name="close" color="core-fleet-black" size="small" />
             </Button>
           </div>
         </span>
