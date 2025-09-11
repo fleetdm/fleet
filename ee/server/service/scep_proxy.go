@@ -189,11 +189,11 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 		}
 		scepURL = groupedCAs.NDESSCEP.URL
 
-	case fleet.CAConfigSmallstepSCEP:
-		if len(groupedCAs.SmallstepSCEP) < 1 {
+	case fleet.CAConfigSmallstep:
+		if len(groupedCAs.Smallstep) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
-		for _, ca := range groupedCAs.SmallstepSCEP {
+		for _, ca := range groupedCAs.Smallstep {
 			if ca.Name == profile.CAName {
 				scepURL = ca.URL
 				break

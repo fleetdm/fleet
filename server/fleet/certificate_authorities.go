@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/pkg/optjson"
 )
 
 // TODO HCA these types can/should be removed once appconfig CA support is removed
@@ -18,7 +16,7 @@ const (
 	CAConfigNDES            CAConfigAssetType = "ndes"
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
-	CAConfigSmallstepSCEP   CAConfigAssetType = "smallstep_scep_proxy"
+	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 )
 
 type CAConfigAsset struct {
@@ -34,7 +32,7 @@ const (
 	CATypeDigiCert        CAType = "digicert"
 	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
 	CATypeHydrant         CAType = "hydrant"
-	CATypeSmallstepSCEP   CAType = "smallstep_scep_proxy"
+	CATypeSmallstep       CAType = "smallstep"
 )
 
 type CertificateAuthoritySummary struct {
@@ -395,7 +393,7 @@ type GroupedCertificateAuthorities struct {
 	DigiCert        []DigiCertCA           `json:"digicert"`
 	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
 	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
-	SmallstepSCEP   []SmallstepSCEPProxyCA `json:"smallstep_scep_proxy"`
+	Smallstep       []SmallstepSCEPProxyCA `json:"smallstep"`
 }
 
 func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
@@ -404,7 +402,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		Hydrant:         []HydrantCA{},
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
-		SmallstepSCEP:   []SmallstepSCEPProxyCA{},
+		Smallstep:       []SmallstepSCEPProxyCA{},
 	}
 
 	for _, ca := range cas {
@@ -448,8 +446,8 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
 			})
-		case string(CATypeSmallstepSCEP):
-			grouped.SmallstepSCEP = append(grouped.SmallstepSCEP, SmallstepSCEPProxyCA{
+		case string(CATypeSmallstep):
+			grouped.Smallstep = append(grouped.Smallstep, SmallstepSCEPProxyCA{
 				ID:           ca.ID,
 				Name:         *ca.Name,
 				URL:          *ca.URL,
@@ -463,13 +461,14 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 	return grouped, nil
 }
 
-// TODO: Do we need optjson here? We aren't supporting patch behavior for batch updates
-type CertificateAuthoritiesSpec struct {
-	DigiCert        optjson.Slice[DigiCertCA]        `json:"digicert"`
-	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
-	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
-	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
-}
+// // TODO: Do we need optjson here? We aren't supporting patch behavior for batch updates
+// type CertificateAuthoritiesSpec struct {
+// 	DigiCert        optjson.Slice[DigiCertCA]        `json:"digicert"`
+// 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
+// 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
+// 	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
+// 	Smallstep       optjson.Slice[SmallstepSCEPProxyCA] `json:"smallstep"`
+// }
 
 func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
 	var groupedCAs GroupedCertificateAuthorities
@@ -556,20 +555,20 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 	}
 
 	// TODO(sca): confirm this
-	if smallstepSCEPCA, ok := spec.(map[string]interface{})["smallstep_scep_proxy"]; !ok || smallstepSCEPCA == nil {
-		groupedCAs.SmallstepSCEP = []SmallstepSCEPProxyCA{}
+	if smallstepSCEPCA, ok := spec.(map[string]interface{})["smallstep"]; !ok || smallstepSCEPCA == nil {
+		groupedCAs.Smallstep = []SmallstepSCEPProxyCA{}
 	} else {
 		// We unmarshal Smallstep SCEP integration into its dedicated type for additional validation
 		smallstepJSON, err := json.Marshal(smallstepSCEPCA)
 		if err != nil {
-			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep_scep_proxy cannot be marshalled into JSON: %w", err)
+			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep cannot be marshalled into JSON: %w", err)
 		}
 		var smallstepData []SmallstepSCEPProxyCA
 		err = json.Unmarshal(smallstepJSON, &smallstepData)
 		if err != nil {
-			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep_scep_proxy cannot be parsed: %w", err)
+			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep cannot be parsed: %w", err)
 		}
-		groupedCAs.SmallstepSCEP = smallstepData
+		groupedCAs.Smallstep = smallstepData
 	}
 
 	return &groupedCAs, nil

@@ -558,7 +558,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 				}
 			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
-				for _, ca := range groupedCAs.SmallstepSCEP {
+				for _, ca := range groupedCAs.Smallstep {
 					if ca.Name == caName {
 						found = true
 						// smallstepVars, ok = smallstepVars.SetURL(caName)
@@ -567,7 +567,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 				}
 			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
 				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
-				for _, ca := range groupedCAs.SmallstepSCEP {
+				for _, ca := range groupedCAs.Smallstep {
 					if ca.Name == caName {
 						found = true
 						// smallstepVars, ok = smallstepVars.SetChallenge(caName)
@@ -763,10 +763,10 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	return nil
 }
 
-func additionalSmallstepSCEPValidation(contents string, smallstepVars *smallstepVarsFound) error {
-	// TODO(sca): Implement smallstep SCEP validation
-	return nil
-}
+// func additionalSmallstepSCEPValidation(contents string, smallstepVars *smallstepVarsFound) error {
+// 	// TODO(sca): Implement smallstep SCEP validation
+// 	return nil
+// }
 
 func checkThatOnlyOneSCEPPayloadIsPresent(scepProf SCEPProfileContent) (SCEPPayloadContent, error) {
 	scepPayloadsFound := 0
@@ -5226,7 +5226,7 @@ func preprocessProfileContents(
 						HostUUID:             hostUUID,
 						ProfileUUID:          profUUID,
 						ChallengeRetrievedAt: ptr.Time(time.Now()),
-						Type:                 fleet.CAConfigSmallstepSCEP,
+						Type:                 fleet.CAConfigSmallstep,
 						CAName:               caName,
 					}
 					managedCertificatePayloads = append(managedCertificatePayloads, payload)
@@ -5932,12 +5932,12 @@ func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertif
 	return true, nil
 }
 
-// TODO(sca): Implement methods on smallstepVarsFound if needed in the future.
-type smallstepVarsFound struct {
-	urlCA          map[string]struct{}
-	challengeCA    map[string]struct{}
-	renewalIdFound bool
-}
+// // TODO(sca): Implement methods on smallstepVarsFound if needed in the future.
+// type smallstepVarsFound struct {
+// 	urlCA          map[string]struct{}
+// 	challengeCA    map[string]struct{}
+// 	renewalIdFound bool
+// }
 
 func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
@@ -5952,8 +5952,8 @@ func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCer
 	}
 	configured := false
 	var scepCA *fleet.SmallstepSCEPProxyCA
-	if len(groupedCAs.SmallstepSCEP) > 0 {
-		for _, ca := range groupedCAs.SmallstepSCEP {
+	if len(groupedCAs.Smallstep) > 0 {
+		for _, ca := range groupedCAs.Smallstep {
 			if ca.Name == caName {
 				scepCA = &ca
 				configured = true
