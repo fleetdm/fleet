@@ -178,7 +178,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_12___
+    hash_sha256: ___GITOPS_COMMENT_13___
   labels_include_any:
   - Label A
   - Label B
