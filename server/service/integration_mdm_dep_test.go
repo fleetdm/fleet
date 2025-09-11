@@ -148,7 +148,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	migratingDevice := globalDevice
 	migratingDevice.MDMMigrationDeadline = ptr.Time(time.Now().Add(24 * time.Hour))
 	for _, enableReleaseManually := range []bool{false, true} {
-		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow_with_DEP_migration", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, migratingDevice, DEPEnrollTestOpts{
 				EnableReleaseManually:             enableReleaseManually,
 				TeamID:                            nil,
