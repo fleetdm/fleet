@@ -143,7 +143,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		// 	return nil, err
 		// }
 
-		caToCreate.Type = string(fleet.CATypeSmallstepSCEP)
+		caToCreate.Type = string(fleet.CATypeSmallstep)
 		caToCreate.Name = &p.Smallstep.Name
 		caToCreate.URL = &p.Smallstep.URL
 		caToCreate.ChallengeURL = &p.Smallstep.ChallengeURL
@@ -411,7 +411,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 		activity = fleet.ActivityDeletedHydrant{
 			Name: ca.Name,
 		}
-	case string(fleet.CATypeSmallstepSCEP):
+	case string(fleet.CATypeSmallstep):
 		// TODO(sca): add activity for smallstep
 		activity = fleet.ActivityDeletedCustomSCEPProxy{
 			Name: ca.Name,
@@ -485,8 +485,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	for _, ca := range existing.Hydrant {
 		existingNames[ca.Name] = "hydrant"
 	}
-	for _, ca := range existing.SmallstepSCEP {
-		existingNames[ca.Name] = "smallstep_scep_proxy"
+	for _, ca := range existing.Smallstep {
+		existingNames[ca.Name] = "smallstep"
 	}
 
 	// collect all CA names for duplicate name checking across both incoming and existing
@@ -552,9 +552,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 	}
 	// preprocess smallstep
-	for _, ca := range incoming.SmallstepSCEP {
+	for _, ca := range incoming.Smallstep {
 		if ca.Name == "" {
-			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep_scep_proxy: CA name cannot be empty.")
+			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
 		}
 		ca.Name = fleet.Preprocess(ca.Name)
 		ca.URL = fleet.Preprocess(ca.URL)
@@ -562,11 +562,11 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		ca.Username = fleet.Preprocess(ca.Username)
 		// check against existing names, excluding self if updating
 		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "smallstep_scep_proxy" {
-				return nil, fmtDuplicateCANameError(ca.Name, "smallstep_scep_proxy")
+			if existing != "smallstep" {
+				return nil, fmtDuplicateCANameError(ca.Name, "smallstep")
 			}
 		}
-		if err := checkAllNames(ca.Name, "smallstep_scep_proxy"); err != nil {
+		if err := checkAllNames(ca.Name, "smallstep"); err != nil {
 			return nil, err
 		}
 	}
@@ -589,7 +589,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	if err := svc.processHydrantCAs(ctx, batchOps, incoming.Hydrant, existing.Hydrant); err != nil {
 		return nil, err
 	}
-	if err := svc.processSmallstepCAs(ctx, batchOps, incoming.SmallstepSCEP, existing.SmallstepSCEP); err != nil {
+	if err := svc.processSmallstepCAs(ctx, batchOps, incoming.Smallstep, existing.Smallstep); err != nil {
 		return nil, err
 	}
 
@@ -845,7 +845,7 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 		// if existing CA isn't in the incoming list, we should delete it
 		if _, ok := incomingByName[existing.Name]; !ok {
 			batchOps.Delete = append(batchOps.Delete, &fleet.CertificateAuthority{
-				Type:         string(fleet.CATypeSmallstepSCEP),
+				Type:         string(fleet.CATypeSmallstep),
 				Name:         &existing.Name,
 				URL:          &existing.URL,
 				ChallengeURL: &existing.ChallengeURL,
@@ -860,26 +860,26 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	for name, incoming := range incomingByName {
 		// TODO(sca): extract validation and confirm what specific validations are needed
 		if incoming.Password == "" || incoming.Password == fleet.MaskedPassword {
-			return fleet.NewInvalidArgumentError("password", "certificate_authorities.smallstep_scep_proxy.password: Smallstep SCEP Proxy password cannot be empty.")
+			return fleet.NewInvalidArgumentError("password", "certificate_authorities.smallstep.password: Smallstep SCEP Proxy password cannot be empty.")
 		}
-		if err := validateCAName(incoming.Name, "certificate_authorities.smallstep_scep_proxy: "); err != nil {
+		if err := validateCAName(incoming.Name, "certificate_authorities.smallstep: "); err != nil {
 			return err
 		}
-		if err := validateURL(incoming.URL, "Smallstep SCEP Proxy", "certificate_authorities.smallstep_scep_proxy: "); err != nil {
+		if err := validateURL(incoming.URL, "Smallstep URL", "certificate_authorities.smallstep: "); err != nil {
 			return err
 		}
-		if err := validateURL(incoming.ChallengeURL, "Smallstep SCEP Proxy challenge", "certificate_authorities.smallstep_scep_proxy: "); err != nil {
+		if err := validateURL(incoming.ChallengeURL, "Smallstep challenge", "certificate_authorities.smallstep: "); err != nil {
 			return err
 		}
 		if incoming.Username == "" {
-			return fleet.NewInvalidArgumentError("username", "certificate_authorities.smallstep_scep_proxy.username: Smallstep SCEP Proxy username cannot be empty.")
+			return fleet.NewInvalidArgumentError("username", "certificate_authorities.smallstep.username: Smallstep username cannot be empty.")
 		}
 
 		// create the payload to be added or updated
 		if _, ok := existingByName[name]; ok {
 			// update existing
 			batchOps.Update = append(batchOps.Update, &fleet.CertificateAuthority{
-				Type:         string(fleet.CATypeSmallstepSCEP),
+				Type:         string(fleet.CATypeSmallstep),
 				Name:         &incoming.Name,
 				URL:          &incoming.URL,
 				ChallengeURL: &incoming.ChallengeURL,
@@ -889,7 +889,7 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 		} else {
 			// add new
 			batchOps.Add = append(batchOps.Add, &fleet.CertificateAuthority{
-				Type:         string(fleet.CATypeSmallstepSCEP),
+				Type:         string(fleet.CATypeSmallstep),
 				Name:         &incoming.Name,
 				URL:          &incoming.URL,
 				ChallengeURL: &incoming.ChallengeURL,
@@ -927,7 +927,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added hydrant")
 			}
-		case string(fleet.CATypeSmallstepSCEP):
+		case string(fleet.CATypeSmallstep):
 			// TODO(sca): add activity for smallstep
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
@@ -952,7 +952,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited hydrant")
 			}
-		case string(fleet.CATypeSmallstepSCEP):
+		case string(fleet.CATypeSmallstep):
 			// TODO(sca): add activity for smallstep
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
@@ -977,7 +977,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedHydrant{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted hydrant")
 			}
-		case string(fleet.CATypeSmallstepSCEP):
+		case string(fleet.CATypeSmallstep):
 			// TODO(sca): add activity for smallstep
 			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted smallstep SCEP proxy")
