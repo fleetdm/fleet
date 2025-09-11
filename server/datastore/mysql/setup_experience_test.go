@@ -470,27 +470,27 @@ func testGetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 
 	sec, err := ds.GetSetupExperienceCount(ctx, "darwin", &team1.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, sec.Installers)
-	require.Equal(t, 1, sec.VPP)
-	require.Equal(t, 1, sec.Scripts)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(1), sec.Scripts)
 
 	sec, err = ds.GetSetupExperienceCount(ctx, "linux", &team1.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, sec.Installers)
-	require.Equal(t, 0, sec.VPP)
-	require.Equal(t, 0, sec.Scripts)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 
 	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", &team2.ID)
 	require.NoError(t, err)
-	require.Equal(t, 1, sec.Installers)
-	require.Equal(t, 1, sec.VPP)
-	require.Equal(t, 0, sec.Scripts)
+	require.Equal(t, uint(1), sec.Installers)
+	require.Equal(t, uint(1), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 
 	sec, err = ds.GetSetupExperienceCount(ctx, "darwin", nil)
 	require.NoError(t, err)
-	require.Equal(t, 0, sec.Installers)
-	require.Equal(t, 0, sec.VPP)
-	require.Equal(t, 0, sec.Scripts)
+	require.Equal(t, uint(0), sec.Installers)
+	require.Equal(t, uint(0), sec.VPP)
+	require.Equal(t, uint(0), sec.Scripts)
 }
 
 func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
