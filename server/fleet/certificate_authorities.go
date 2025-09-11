@@ -34,6 +34,7 @@ const (
 	CATypeDigiCert        CAType = "digicert"
 	CATypeCustomSCEPProxy CAType = "custom_scep_proxy"
 	CATypeHydrant         CAType = "hydrant"
+	CATypeSmallstepSCEP   CAType = "smallstep_scep_proxy"
 )
 
 type CertificateAuthoritySummary struct {
@@ -59,7 +60,13 @@ type CertificateAuthority struct {
 
 	// NDES SCEP Proxy
 	AdminURL *string `json:"admin_url,omitempty" db:"admin_url"`
+
+	// Smallstep
+	ChallengeURL *string `json:"challenge_url,omitempty" db:"challenge_url"`
+
+	// Username is stored by both Smallstep and NDES CA types
 	Username *string `json:"username,omitempty" db:"username"`
+	// Password is stored by both Smallstep and NDES CA types
 	Password *string `json:"password,omitempty" db:"-"`
 
 	// Custom SCEP Proxy
@@ -74,10 +81,11 @@ type CertificateAuthority struct {
 }
 
 type CertificateAuthorityPayload struct {
-	DigiCert        *DigiCertCA        `json:"digicert,omitempty"`
-	NDESSCEPProxy   *NDESSCEPProxyCA   `json:"ndes_scep_proxy,omitempty"`
-	CustomSCEPProxy *CustomSCEPProxyCA `json:"custom_scep_proxy,omitempty"`
-	Hydrant         *HydrantCA         `json:"hydrant,omitempty"`
+	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
+	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
+	CustomSCEPProxy *CustomSCEPProxyCA    `json:"custom_scep_proxy,omitempty"`
+	Hydrant         *HydrantCA            `json:"hydrant,omitempty"`
+	Smallstep       *SmallstepSCEPProxyCA `json:"smallstep,omitempty"`
 }
 
 // If you update this struct, make sure to adjust the Equals and NeedToVerify methods below
@@ -165,10 +173,11 @@ func (c *CertificateAuthority) AuthzType() string {
 }
 
 type CertificateAuthorityUpdatePayload struct {
-	*DigiCertCAUpdatePayload        `json:"digicert,omitempty"`
-	*NDESSCEPProxyCAUpdatePayload   `json:"ndes_scep_proxy,omitempty"`
-	*CustomSCEPProxyCAUpdatePayload `json:"custom_scep_proxy,omitempty"`
-	*HydrantCAUpdatePayload         `json:"hydrant,omitempty"`
+	*DigiCertCAUpdatePayload           `json:"digicert,omitempty"`
+	*NDESSCEPProxyCAUpdatePayload      `json:"ndes_scep_proxy,omitempty"`
+	*CustomSCEPProxyCAUpdatePayload    `json:"custom_scep_proxy,omitempty"`
+	*HydrantCAUpdatePayload            `json:"hydrant,omitempty"`
+	*SmallstepSCEPProxyCAUpdatePayload `json:"smallstep,omitempty"`
 }
 
 // ValidatePayload checks that only one CA type is specified in the update payload and that the private key is provided.
@@ -332,6 +341,43 @@ func (hp *HydrantCAUpdatePayload) Preprocess() {
 	}
 }
 
+// TODO(sca): confirm validations/preprocess for smallstep update payload
+type SmallstepSCEPProxyCAUpdatePayload struct {
+	Name         *string `json:"name"`
+	URL          *string `json:"url"`
+	ChallengeURL *string `json:"challenge_url"`
+	Username     *string `json:"username"`
+	Password     *string `json:"password"`
+}
+
+// IsEmpty checks if the struct only has all empty values
+func (sscepp SmallstepSCEPProxyCAUpdatePayload) IsEmpty() bool {
+	return sscepp.Name == nil && sscepp.URL == nil && sscepp.ChallengeURL == nil && sscepp.Username == nil && sscepp.Password == nil
+}
+
+// ValidateRelatedFields verifies that fields that are related to each other are set correctly.
+// For example if the Name is provided then the Challenge URL, Username and Password must also be provided
+func (sscepp *SmallstepSCEPProxyCAUpdatePayload) ValidateRelatedFields(errPrefix string, certName string) error {
+	// if (ndesp.URL != nil || ndesp.AdminURL != nil || ndesp.Username != nil) && ndesp.Password == nil {
+
+	if sscepp.URL != nil && (sscepp.ChallengeURL == nil || sscepp.Username == nil || sscepp.Password == nil) {
+		return &BadRequestError{Message: fmt.Sprintf(`%s"challenge_url", "username" and "password" must be set when modifying "url" of an existing certificate authority: %s.`, errPrefix, certName)}
+	}
+	return nil
+}
+
+func (sscepp *SmallstepSCEPProxyCAUpdatePayload) Preprocess() {
+	if sscepp.Name != nil {
+		*sscepp.Name = Preprocess(*sscepp.Name)
+	}
+	if sscepp.URL != nil {
+		*sscepp.URL = Preprocess(*sscepp.URL)
+	}
+	if sscepp.ChallengeURL != nil {
+		*sscepp.ChallengeURL = Preprocess(*sscepp.ChallengeURL)
+	}
+}
+
 type RequestCertificatePayload struct {
 	ID          uint    `url:"id"`             // ID Of the CA the cert is to be requested from.
 	CSR         string  `json:"csr"`           // PEM-encoded CSR
@@ -358,6 +404,7 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 		Hydrant:         []HydrantCA{},
 		CustomScepProxy: []CustomSCEPProxyCA{},
 		NDESSCEP:        nil,
+		SmallstepSCEP:   []SmallstepSCEPProxyCA{},
 	}
 
 	for _, ca := range cas {
@@ -400,6 +447,15 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 				Name:      *ca.Name,
 				URL:       *ca.URL,
 				Challenge: *ca.Challenge,
+			})
+		case string(CATypeSmallstepSCEP):
+			grouped.SmallstepSCEP = append(grouped.SmallstepSCEP, SmallstepSCEPProxyCA{
+				ID:           ca.ID,
+				Name:         *ca.Name,
+				URL:          *ca.URL,
+				ChallengeURL: *ca.ChallengeURL,
+				Username:     *ca.Username,
+				Password:     *ca.Password,
 			})
 		}
 	}
@@ -497,6 +553,23 @@ func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertifica
 			return nil, fmt.Errorf("org_settings.certificate_authorities.hydrant cannot be parsed: %w", err)
 		}
 		groupedCAs.Hydrant = hydrantData
+	}
+
+	// TODO(sca): confirm this
+	if smallstepSCEPCA, ok := spec.(map[string]interface{})["smallstep_scep_proxy"]; !ok || smallstepSCEPCA == nil {
+		groupedCAs.SmallstepSCEP = []SmallstepSCEPProxyCA{}
+	} else {
+		// We unmarshal Smallstep SCEP integration into its dedicated type for additional validation
+		smallstepJSON, err := json.Marshal(smallstepSCEPCA)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep_scep_proxy cannot be marshalled into JSON: %w", err)
+		}
+		var smallstepData []SmallstepSCEPProxyCA
+		err = json.Unmarshal(smallstepJSON, &smallstepData)
+		if err != nil {
+			return nil, fmt.Errorf("org_settings.certificate_authorities.smallstep_scep_proxy cannot be parsed: %w", err)
+		}
+		groupedCAs.SmallstepSCEP = smallstepData
 	}
 
 	return &groupedCAs, nil
