@@ -312,11 +312,11 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Othe
 ### Step 2: Connect Fleet to Hydrant
 
 1. In Fleet, head to **Settings > Integrations > Certificates**.
-1. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
-1. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
-1. Add your Hydrant EST **URL**.
-1. Add the Hydrant ID and Key as the **Client ID** and **Client secret** in Fleet respectfully.
-1. Click **Add CA**. Your Hydrant certificate authority (CA) should appear in the list in Fleet.
+2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
+4. Add your Hydrant EST **URL**.
+5. Add the Hydrant ID and Key as the **Client ID** and **Client secret** in Fleet respectfully.
+6. Click **Add CA**. Your Hydrant certificate authority (CA) should appear in the list in Fleet.
 
 ### Step 3: Create a custom script
 
