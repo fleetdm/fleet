@@ -18,6 +18,7 @@ const (
 	CAConfigNDES            CAConfigAssetType = "ndes"
 	CAConfigDigiCert        CAConfigAssetType = "digicert"
 	CAConfigCustomSCEPProxy CAConfigAssetType = "custom_scep_proxy"
+	CAConfigSmallstepSCEP   CAConfigAssetType = "smallstep_scep_proxy"
 )
 
 type CAConfigAsset struct {
@@ -143,6 +144,7 @@ type SCEPConfigService interface {
 	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyCA) error
 	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyCA) (string, error)
 	ValidateSCEPURL(ctx context.Context, url string) error
+	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
 }
 
 type CustomSCEPProxyCA struct {
@@ -343,10 +345,11 @@ func (c *RequestCertificatePayload) AuthzType() string {
 }
 
 type GroupedCertificateAuthorities struct {
-	Hydrant         []HydrantCA         `json:"hydrant"`
-	DigiCert        []DigiCertCA        `json:"digicert"`
-	NDESSCEP        *NDESSCEPProxyCA    `json:"ndes_scep_proxy"`
-	CustomScepProxy []CustomSCEPProxyCA `json:"custom_scep_proxy"`
+	Hydrant         []HydrantCA            `json:"hydrant"`
+	DigiCert        []DigiCertCA           `json:"digicert"`
+	NDESSCEP        *NDESSCEPProxyCA       `json:"ndes_scep_proxy"`
+	CustomScepProxy []CustomSCEPProxyCA    `json:"custom_scep_proxy"`
+	SmallstepSCEP   []SmallstepSCEPProxyCA `json:"smallstep_scep_proxy"`
 }
 
 func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCertificateAuthorities, error) {
@@ -504,4 +507,46 @@ type CertificateAuthoritiesBatchOperations struct {
 	Delete []*CertificateAuthority
 	Add    []*CertificateAuthority
 	Update []*CertificateAuthority
+}
+
+type SmallstepSCEPProxyCA struct {
+	ID           uint   `json:"-"`
+	Name         string `json:"name"`
+	URL          string `json:"url"`
+	ChallengeURL string `json:"challenge_url,omitempty"`
+	Username     string `json:"username"`
+	Password     string `json:"password"` // not stored here -- encrypted in DB
+}
+
+// SmallstepSCEPChallengeRequestBody represents the request body for obtaining a challenge from a
+// Smallstep SCEP server.
+// Example:
+//
+//	{
+//	  "webhook": {
+//	    "webhookEvent": "SCEPChallenge",
+//	    "id": 1,
+//	    "eventTimestamp": 1757435578,
+//	    "name": ""
+//	  },
+//	  "event": {
+//	    "scepServerUrl": "https://agents.fleetdm-nfr.ca.smallstep.com/scep/integration-jamf-5c7e35d8",
+//	    "payloadIdentifier": "CDB0BC64-F3EB-4B1A-AA5E-9A5D994CA593",
+//	    "payloadTypes": [
+//	      "com.apple.security.scep"
+//	    ]
+//	  }
+//	}
+type SmallstepSCEPChallengeRequestBody struct {
+	Webhook struct {
+		WebhookEvent   string `json:"webhookEvent"`
+		ID             int    `json:"id"`
+		EventTimestamp int64  `json:"eventTimestamp"`
+		Name           string `json:"name"`
+	} `json:"webhook"`
+	Event struct {
+		SCEPServerURL     string   `json:"scepServerUrl"`
+		PayloadIdentifier string   `json:"payloadIdentifier"`
+		PayloadTypes      []string `json:"payloadTypes"`
+	} `json:"event"`
 }
