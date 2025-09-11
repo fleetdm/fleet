@@ -282,10 +282,19 @@ func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.Software
 		lastErr = err
 
 		if attempt < maxAttempts {
+			// Report intermediate failure to server with retry flag
+			resultPayload.WillRetry = true
+			if saveErr := r.OrbitClient.SaveInstallerResult(resultPayload); saveErr != nil {
+				// Log error but continue with retries
+				logger.Err(saveErr).Msg("Failed to report intermediate installation failure to server, continuing with retry")
+			} else {
+				logger.Debug().Msg("Reported intermediate failure to server with retry flag")
+			}
+
 			// Calculate delay: 10s * 2^(attempt-1) for network/transient errors, immediate retry otherwise
 			var delay time.Duration
 			if isNetworkOrTransientError(err) {
-				// Exponential backoff: 10s, 20s, 40s, etc.
+				// Exponential backoff: 10s, 20s, etc.
 				delay = time.Duration(10*(1<<(attempt-1))) * time.Second
 				logger.Info().Msgf(
 					"Network or transient error detected, waiting %v before retry (attempt %d failed)",

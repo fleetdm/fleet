@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	osquery_gen "github.com/osquery/osquery-go/gen/osquery"
@@ -515,79 +514,6 @@ func TestInstallerRun(t *testing.T) {
 		assert.Equal(t, 2, numPostInstallMatches)
 	})
 
-	t.Run("failed installer download", func(t *testing.T) {
-		resetAll()
-
-		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
-			return "", errors.New("failed to download installer")
-		}
-
-		err := r.run(context.Background(), &config)
-		require.Error(t, err)
-
-		require.True(t, removeAllFnCalled)
-		require.True(t, tmpDirFnCalled)
-		require.Equal(t, tmpDir, removedDir)
-
-		require.NotNil(t, savedInstallerResult)
-		require.NotNil(t, savedInstallerResult.InstallScriptExitCode)
-		require.Equal(t, *savedInstallerResult.InstallScriptExitCode, fleet.ExitCodeInstallerDownloadFailed)
-		require.NotNil(t, savedInstallerResult.InstallScriptOutput)
-		require.Equal(t, *savedInstallerResult.InstallScriptOutput, "Installer download failed")
-		require.Nil(t, savedInstallerResult.PostInstallScriptExitCode)
-		require.Nil(t, savedInstallerResult.PostInstallScriptOutput)
-		require.Equal(t, installDetails.ExecutionID, savedInstallerResult.InstallUUID)
-	})
-
-	t.Run("failed results upload", func(t *testing.T) {
-		var retries int
-		// set a shorter interval to speed up tests
-		r.retryOpts = []retry.Option{retry.WithInterval(250 * time.Millisecond), retry.WithMaxAttempts(5)}
-
-		testCases := []struct {
-			desc                    string
-			expectedRetries         int
-			expectedErr             string
-			saveInstallerResultFunc func(payload *fleet.HostSoftwareInstallResultPayload) error
-		}{
-			{
-				desc:            "multiple retries, eventual success",
-				expectedRetries: 4,
-				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
-					retries++
-					if retries != 4 {
-						return errors.New("save results error")
-					}
-
-					return nil
-				},
-			},
-
-			{
-				desc:            "multiple retries, eventual failure",
-				expectedRetries: 5,
-				saveInstallerResultFunc: func(payload *fleet.HostSoftwareInstallResultPayload) error {
-					retries++
-					return errors.New("save results error")
-				},
-				expectedErr: "save results error",
-			},
-		}
-		for _, tc := range testCases {
-			t.Run(tc.desc, func(t *testing.T) {
-				resetAll()
-				t.Cleanup(func() { retries = 0 })
-				oc.saveInstallerResultFn = tc.saveInstallerResultFunc
-				err := r.run(context.Background(), &config)
-				if tc.expectedErr != "" {
-					require.ErrorContains(t, err, tc.expectedErr)
-				} else {
-					require.NoError(t, err)
-				}
-				require.Equal(t, tc.expectedRetries, retries)
-			})
-		}
-	})
 }
 
 func TestInstallerRunWithInstallerFromURL(t *testing.T) {
@@ -892,6 +818,7 @@ func TestIsNetworkOrTransientError(t *testing.T) {
 
 func TestInstallWithRetry(t *testing.T) {
 	t.Parallel()
+
 	t.Run("successful on first attempt", func(t *testing.T) {
 		oc, r := testRunnerSetup()
 
@@ -913,6 +840,33 @@ func TestInstallWithRetry(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, payload)
 		require.Equal(t, 1, downloadAttempts, "Should only download once on success")
+	})
+
+	t.Run("failed installer download", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(0), nil // No retries
+		}
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			return "", errors.New("failed to download installer")
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.tempDirFn = tempDirFn(t)
+		r.removeAllFn = func(s string) error { return nil }
+
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+		require.Error(t, err)
+		require.NotNil(t, payload)
+		require.NotNil(t, payload.InstallScriptExitCode)
+		require.Equal(t, *payload.InstallScriptExitCode, fleet.ExitCodeInstallerDownloadFailed)
+		require.NotNil(t, payload.InstallScriptOutput)
+		require.Equal(t, *payload.InstallScriptOutput, "Installer download failed")
+		require.Nil(t, payload.PostInstallScriptExitCode)
+		require.Nil(t, payload.PostInstallScriptOutput)
+		require.Equal(t, "test-install", payload.InstallUUID)
 	})
 
 	// TODO: Use synctest.Test here once we upgrade to Go 1.25
@@ -1041,6 +995,98 @@ func TestInstallWithRetry(t *testing.T) {
 		require.Contains(t, err.Error(), "connection timeout")
 		// Should wait at least 30s total (10s + 20s for the two retries)
 		require.True(t, duration >= 30*time.Second, "Should wait for transient error retries")
+	})
+
+	// TODO: Use synctest.Test here once we upgrade to Go 1.25
+	t.Run("intermediate failure reporting with retry flag", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+		r.installerExecutionTimeout = 1 * time.Second
+
+		downloadAttempts := 0
+		saveResultCalls := 0
+		var savedPayloads []*fleet.HostSoftwareInstallResultPayload
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			if downloadAttempts <= 2 {
+				// First two attempts fail
+				return "", errors.New("connection timeout")
+			}
+			// Third attempt succeeds
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts
+		}
+
+		oc.saveInstallerResultFn = func(payload *fleet.HostSoftwareInstallResultPayload) error {
+			saveResultCalls++
+			// Make a copy to capture the state at call time
+			payloadCopy := *payload
+			savedPayloads = append(savedPayloads, &payloadCopy)
+			return nil
+		}
+
+		r.execCmdFn = successfulExecFn()
+		r.tempDirFn = tempDirFn(t)
+
+		// Use shorter timeout for test (account for delays)
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cancel()
+
+		payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
+
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 3, downloadAttempts, "Should make 3 attempts total")
+
+		// Should report intermediate failures (2) but not the final success
+		require.Equal(t, 2, saveResultCalls, "Should report 2 intermediate failures")
+
+		// Check that intermediate reports had WillRetry flag set
+		for i, p := range savedPayloads {
+			require.True(t, p.WillRetry, "Intermediate failure %d should have WillRetry=true", i+1)
+			require.NotNil(t, p.InstallScriptExitCode, "Should have exit code for failure %d", i+1)
+		}
+	})
+
+	t.Run("intermediate failure reporting error is ignored", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		downloadAttempts := 0
+		saveResultCalls := 0
+
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			if downloadAttempts == 1 {
+				// First attempt fails
+				return "", errors.New("403 forbidden")
+			}
+			// Second attempt succeeds
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(2), nil
+		}
+
+		oc.saveInstallerResultFn = func(payload *fleet.HostSoftwareInstallResultPayload) error {
+			saveResultCalls++
+			// Simulate server error
+			return errors.New("server error")
+		}
+
+		r.execCmdFn = successfulExecFn()
+		r.tempDirFn = tempDirFn(t)
+
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+
+		// Should succeed despite SaveInstallerResult error
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 2, downloadAttempts, "Should retry after first failure")
+		require.Equal(t, 1, saveResultCalls, "Should attempt to report intermediate failure")
 	})
 }
 

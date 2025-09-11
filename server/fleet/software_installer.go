@@ -674,6 +674,11 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+
+	// WillRetry indicates that the agent will retry the installation after this failure.
+	// When true, the server should treat this as an intermediate failure and assume
+	// another attempt is in progress.
+	WillRetry bool `json:"will_retry,omitempty"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic
