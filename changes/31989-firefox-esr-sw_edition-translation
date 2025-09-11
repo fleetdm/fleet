@@ -1,0 +1,2 @@
+* Added support for CPE translations to override sw_edition field
+* Fixed Firefox ESR false positives with new override
