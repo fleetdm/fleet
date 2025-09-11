@@ -213,7 +213,7 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
-// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits a few edge cases.
+// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits is placed to hit some edge cases.
 func TestInstallSoftwareTitle(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -237,7 +237,6 @@ func TestInstallSoftwareTitle(t *testing.T) {
 		}, nil
 	}
 
-	// Host scripts disabled
 	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
 }
 
