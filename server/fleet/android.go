@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"google.golang.org/api/androidmanagement/v1"
 )
 
 // MDMAndroidConfigProfile represents an Android MDM profile in Fleet. This does not map
@@ -27,19 +28,6 @@ type MDMAndroidConfigProfile struct {
 	LabelsExcludeAny []ConfigurationProfileLabel `db:"-" json:"labels_exclude_any,omitempty"`
 	CreatedAt        time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // Difference in DB field name vs JSON is conscious decision to match other platforms
-}
-
-type MDMAndroidProfilePayload struct {
-	ProfileUUID             string             `db:"profile_uuid"`
-	ProfileName             string             `db:"profile_name"`
-	HostUUID                string             `db:"host_uuid"`
-	Status                  *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType           MDMOperationType   `db:"operation_type"`
-	Detail                  string             `db:"detail"`
-	PolicyRequestUUID       string             `db:"policy_request_uuid"`
-	DeviceRequestUUID       string             `db:"device_request_uuid"`
-	RequestFailCount        int                `db:"request_fail_count"`
-	IncludedInPolicyVersion *int               `db:"included_in_policy_version"`
 }
 
 // AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles
@@ -100,7 +88,7 @@ type MDMAndroidPolicyRequest struct {
 	PolicyVersion        sql.Null[int64]  `db:"policy_version"`
 }
 
-type MDMAndroidBulkUpsertHostProfilePayload struct {
+type MDMAndroidProfilePayload struct {
 	HostUUID                string             `db:"host_uuid"`
 	Status                  *MDMDeliveryStatus `db:"status"`
 	OperationType           MDMOperationType   `db:"operation_type"`
@@ -116,7 +104,6 @@ type MDMAndroidBulkUpsertHostProfilePayload struct {
 // HostMDMAndroidProfile represents the status of an MDM profile for a Android host.
 type HostMDMAndroidProfile struct {
 	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
-	RequestUUID   string             `db:"request_uuid" json:"request_uuid"`
 	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
 	Name          string             `db:"name" json:"name"`
 	Status        *MDMDeliveryStatus `db:"status" json:"status"`
@@ -135,4 +122,13 @@ func (p HostMDMAndroidProfile) ToHostMDMProfile() HostMDMProfile {
 		Detail:        p.Detail,
 		Platform:      "android",
 	}
+}
+
+type AndroidPolicyRequestPayload struct {
+	Policy   *androidmanagement.Policy           `json:"policy"`
+	Metadata AndroidPolicyRequestPayloadMetadata `json:"metadata"`
+}
+
+type AndroidPolicyRequestPayloadMetadata struct {
+	SettingsOrigin map[string]string `json:"settings_origin"` // Map of policy setting name, to profile uuid.
 }

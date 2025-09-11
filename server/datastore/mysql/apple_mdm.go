@@ -263,7 +263,7 @@ INSERT INTO
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profWithoutLabels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
+		if _, err := batchSetProfileVariableAssociationsDB(ctx, tx, []fleet.MDMProfileUUIDFleetVariables{
 			{ProfileUUID: profUUID, FleetVariables: usesFleetVars},
 		}, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile variable associations")
@@ -2371,7 +2371,7 @@ INSERT INTO
   )
 VALUES
   -- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
+  ( CONCAT('` + fleet.MDMAppleProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP(6), ?)
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
   secrets_updated_at = VALUES(secrets_updated_at),
@@ -2407,16 +2407,10 @@ ON DUPLICATE KEY UPDATE
 	if len(incomingIdents) > 0 {
 		// load existing profiles that match the incoming profiles by identifiers
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
 			return false, ctxerr.Wrap(ctx, err, "load existing profiles")
 		}
 	}
@@ -2452,16 +2446,10 @@ ON DUPLICATE KEY UPDATE
 	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
 	var result sql.Result
 	stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
-	if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "indelete") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
+	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 	}
-	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
+	if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 	}
 	if result != nil {
@@ -2479,121 +2467,32 @@ ON DUPLICATE KEY UPDATE
 	// that did insert or update, as we will need to update their variables (if
 	// the profile did not change, its variables cannot have changed since the
 	// contents is the same as it was already).
-	var profileIdentsInsertedOrUpdated []string
 	for _, p := range incomingProfs {
 		if result, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Scope,
-			p.Mobileconfig, p.SecretsUpdatedAt); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+			p.Mobileconfig, p.SecretsUpdatedAt); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 		}
 		didInsertOrUpdate := insertOnDuplicateDidInsertOrUpdate(result)
+
 		updatedDB = updatedDB || didInsertOrUpdate
-
-		if didInsertOrUpdate {
-			profileIdentsInsertedOrUpdated = append(profileIdentsInsertedOrUpdated, p.Identifier)
-		}
 	}
 
-	if len(profileIdentsInsertedOrUpdated) > 0 {
-		var insertedUpdatedProfs []*fleet.MDMAppleConfigProfile
-		// load the profiles that match the inserted/updated profiles by identifier
-		// to grab their uuids
-		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, profileIdentsInsertedOrUpdated)
-		if err != nil {
-			return false, ctxerr.Wrap(ctx, err, "build query to load inserted/updated profiles")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &insertedUpdatedProfs, stmt, args...); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "load inserted/updated profiles")
-		}
-
-		lookupVariablesByIdentifier := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
-		for _, p := range profilesVariablesByIdentifier {
-			lookupVariablesByIdentifier[p.Identifier] = p.FleetVariables
-		}
-
-		// collect the profiles+variables that need to be upserted, keyed by
-		// profile UUID as needed by the batch-set profile variables function.
-		profilesVarsToUpsert := make([]fleet.MDMProfileUUIDFleetVariables, 0, len(insertedUpdatedProfs))
-		for _, p := range insertedUpdatedProfs {
-			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
-				ProfileUUID:    p.ProfileUUID,
-				FleetVariables: lookupVariablesByIdentifier[p.Identifier],
-			})
-		}
-
-		if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "darwin"); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "inserting apple profile variable associations")
-		}
+	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
+	for _, p := range profiles {
+		mappedIncomingProfiles = append(mappedIncomingProfiles, &BatchSetAssociationIncomingProfile{
+			Name:             p.Identifier,
+			ProfileUUID:      p.ProfileUUID,
+			LabelsIncludeAll: p.LabelsIncludeAll,
+			LabelsIncludeAny: p.LabelsIncludeAny,
+			LabelsExcludeAny: p.LabelsExcludeAny,
+		})
 	}
 
-	// build a list of labels so the associations can be batch-set all at once
-	// TODO: with minor changes this chunk of code could be shared
-	// between macOS and Windows, but at the time of this
-	// implementation we're under tight time constraints.
-	incomingLabels := []fleet.ConfigurationProfileLabel{}
-	var profsWithoutLabels []string
-	if len(incomingIdents) > 0 {
-		var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
-		// load current profiles (again) that match the incoming profiles by name to grab their uuids
-		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inreselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
-		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "reselect") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
-		}
-
-		for _, newlyInsertedProf := range newlyInsertedProfs {
-			incomingProf, ok := incomingProfs[newlyInsertedProf.Identifier]
-			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
-			}
-
-			var profHasLabel bool
-			for _, label := range incomingProf.LabelsIncludeAll {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
-				label.Exclude = false
-				label.RequireAll = true
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			for _, label := range incomingProf.LabelsIncludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
-				label.Exclude = false
-				label.RequireAll = false
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			for _, label := range incomingProf.LabelsExcludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
-				label.Exclude = true
-				label.RequireAll = false
-				incomingLabels = append(incomingLabels, label)
-				profHasLabel = true
-			}
-			if !profHasLabel {
-				profsWithoutLabels = append(profsWithoutLabels, newlyInsertedProf.ProfileUUID)
-			}
-		}
+	updatedLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "darwin", tmID, mappedIncomingProfiles, profilesVariablesByIdentifier)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
 	}
 
-	// insert label associations
-	var updatedLabels bool
-	if updatedLabels, err = batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, profsWithoutLabels,
-		"darwin"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
-		return false, ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
-	}
 	return updatedDB || updatedLabels, nil
 }
 
@@ -5144,10 +5043,7 @@ func (ds *Datastore) updateDeclarationsLabelAssociations(ctx context.Context, tx
 	}
 
 	if updatedDB, err = batchSetDeclarationLabelAssociationsDB(ctx, tx,
-		incomingLabels, declWithoutLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
+		incomingLabels, declWithoutLabels); err != nil {
 		return false, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
 	}
 	return updatedDB, err
@@ -5186,10 +5082,7 @@ ON DUPLICATE KEY UPDATE
 			d.Name,
 			d.RawJSON,
 			d.SecretsUpdatedAt,
-			teamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+			teamID); err != nil {
 			return false, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
 		updatedDB = updatedDB || insertOnDuplicateDidInsertOrUpdate(result)
@@ -5231,11 +5124,7 @@ WHERE
 	}
 
 	var result sql.Result
-	if result, err = tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
-		"delete") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
+	if result, err = tx.ExecContext(ctx, delStmt, delArgs...); err != nil {
 		return nil, false, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 	if result != nil {
@@ -5263,18 +5152,11 @@ WHERE
 	if len(incomingNames) > 0 {
 		// load existing declarations that match the incoming declarations by names
 		loadExistingDeclsStmt, args, err := sqlx.In(loadExistingDecls, teamID, incomingNames)
-		if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr,
-			"inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+		if err != nil { // TODO(JVE): do we need to create similar errors for testing decls?
 			return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &existingDecls, loadExistingDeclsStmt,
-			args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "select") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
+			args...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "load existing declarations")
 		}
 	}

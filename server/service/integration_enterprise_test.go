@@ -259,6 +259,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -361,6 +364,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
@@ -392,6 +398,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
@@ -427,6 +436,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
@@ -2645,6 +2657,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)

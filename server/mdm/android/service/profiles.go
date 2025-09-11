@@ -82,7 +82,7 @@ func (r *profileReconciler) ReconcileProfiles(ctx context.Context) error {
 		toRemoveByHostUUID[prof.HostUUID] = append(toRemoveByHostUUID[prof.HostUUID], prof)
 	}
 
-	var bulkHostProfs []*fleet.MDMAndroidBulkUpsertHostProfilePayload
+	var bulkHostProfs []*fleet.MDMAndroidProfilePayload
 	for hostUUID, toInstallProfs := range profilesByHostUUID {
 		toRemove := toRemoveByHostUUID[hostUUID]
 		bulkProfs, err := r.sendHostProfiles(ctx, hostUUID, toInstallProfs, toRemove, profilesContents)
@@ -114,7 +114,7 @@ func (r *profileReconciler) sendHostProfiles(
 	profilesToMerge []*fleet.MDMAndroidProfilePayload,
 	profilesToRemove []*fleet.MDMAndroidProfilePayload,
 	profilesContents map[string]json.RawMessage,
-) ([]*fleet.MDMAndroidBulkUpsertHostProfilePayload, error) {
+) ([]*fleet.MDMAndroidProfilePayload, error) {
 	const maxRequestFailures = 3
 
 	// We need a deterministic order to merge the profiles, and I opted to go by
@@ -128,14 +128,14 @@ func (r *profileReconciler) sendHostProfiles(
 	})
 
 	// map of the bulk struct keyed by profile UUID
-	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidBulkUpsertHostProfilePayload, len(profilesToMerge)+len(profilesToRemove))
+	bulkProfilesByUUID := make(map[string]*fleet.MDMAndroidProfilePayload, len(profilesToMerge)+len(profilesToRemove))
 
 	// if every profile to install has > max failures, mark all as failed and done.
 	setFailCount := initRequestFailCountForSetOfProfiles(profilesToMerge, profilesToRemove)
 	if setFailCount >= maxRequestFailures {
 		detail := `Couldn't apply profile. Google returned error. Please re-add profile to try again.`
 		for _, prof := range profilesToMerge {
-			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeInstall,
@@ -145,7 +145,7 @@ func (r *profileReconciler) sendHostProfiles(
 			}
 		}
 		for _, prof := range profilesToRemove {
-			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+			bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 				HostUUID:      hostUUID,
 				Status:        &fleet.MDMDeliveryFailed,
 				OperationType: fleet.MDMOperationTypeRemove,
@@ -191,7 +191,7 @@ func (r *profileReconciler) sendHostProfiles(
 		}
 
 		status := fleet.MDMDeliveryPending
-		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 			HostUUID:         hostUUID,
 			Status:           &status,
 			OperationType:    fleet.MDMOperationTypeInstall,
@@ -212,7 +212,7 @@ func (r *profileReconciler) sendHostProfiles(
 
 	for _, prof := range profilesToRemove {
 		status := fleet.MDMDeliveryPending
-		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidBulkUpsertHostProfilePayload{
+		bulkProfilesByUUID[prof.ProfileUUID] = &fleet.MDMAndroidProfilePayload{
 			HostUUID:         hostUUID,
 			Status:           &status,
 			OperationType:    fleet.MDMOperationTypeRemove,
@@ -361,7 +361,8 @@ func buildPolicyFieldsOverriddenErrorMessage(overriddenFields []string) string {
 }
 
 func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyName string,
-	policy *androidmanagement.Policy, metadata map[string]string) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
+	policy *androidmanagement.Policy, metadata map[string]string,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, err error) {
 	policyRequest, err := newAndroidPolicyRequest(policyID, policyName, policy, metadata)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare policy request %s", policyName)
@@ -400,10 +401,10 @@ func (r *profileReconciler) patchPolicy(ctx context.Context, policyID, policyNam
 
 func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagement.Policy, metadata map[string]string) (*fleet.MDMAndroidPolicyRequest, error) {
 	// save the payload with metadata about what setting comes from what profile
-	m := map[string]any{
-		"policy": policy,
-		"metadata": map[string]any{
-			"settings_origin": metadata,
+	m := fleet.AndroidPolicyRequestPayload{
+		Policy: policy,
+		Metadata: fleet.AndroidPolicyRequestPayloadMetadata{
+			SettingsOrigin: metadata,
 		},
 	}
 	b, err := json.Marshal(m)
@@ -418,7 +419,8 @@ func newAndroidPolicyRequest(policyID, policyName string, policy *androidmanagem
 }
 
 func (r *profileReconciler) patchDevice(ctx context.Context, policyID, deviceName string,
-	device *androidmanagement.Device) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
+	device *androidmanagement.Device,
+) (req *fleet.MDMAndroidPolicyRequest, skip bool, apiErr error) {
 	deviceRequest, err := newAndroidDeviceRequest(policyID, deviceName, device)
 	if err != nil {
 		return nil, false, ctxerr.Wrapf(ctx, err, "prepare device request %s", deviceName)

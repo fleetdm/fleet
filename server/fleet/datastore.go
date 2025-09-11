@@ -1764,7 +1764,7 @@ type Datastore interface {
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
-		macDeclarations []*MDMAppleDeclaration, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
+		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
@@ -2249,6 +2249,9 @@ type Datastore interface {
 	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
 	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
 
+	// GetAndroidPolicyRequestByUUID retrieves an Android policy request by ID.
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+
 	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
 	// their configuration profiles (Android policy) sent. It returns two lists,
 	// the list of profiles to apply and the list of profiles to remove.
@@ -2257,10 +2260,6 @@ type Datastore interface {
 	// GetMDMAndroidProfilesContents retrieves the contents of the Android
 	// profiles with the specified UUIDs.
 	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
-
-	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
-	// status of a profile in a host.
-	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidBulkUpsertHostProfilePayload) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2398,6 +2397,14 @@ type AndroidDatastore interface {
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 	Team(ctx context.Context, tid uint) (*Team, error)
+	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
+	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
+	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
+	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

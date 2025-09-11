@@ -228,11 +228,13 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 
 func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
 	type liteHost struct {
-		TeamID *uint `db:"team_id"`
+		TeamID *uint  `db:"team_id"`
+		UUID   string `db:"uuid"`
 		*android.Device
 	}
 	stmt := `SELECT
 		h.team_id,
+		h.uuid,
 		ad.id,
 		ad.host_id,
 		ad.device_id,
@@ -255,6 +257,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		Host: &fleet.Host{
 			ID:     host.Device.HostID,
 			TeamID: host.TeamID,
+			UUID:   host.UUID,
 		},
 		Device: host.Device,
 	}
@@ -662,6 +665,35 @@ func (ds *Datastore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDM
 	return ctxerr.Wrap(ctx, err, "inserting android policy request")
 }
 
+func (ds *Datastore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+	const stmt = `
+		SELECT
+			request_uuid,
+			request_name,
+			policy_id,
+			payload,
+			status_code,
+			error_details,
+			applied_policy_version,
+			policy_version
+		FROM
+			android_policy_requests
+		WHERE
+			request_uuid = ?
+	`
+
+	req := fleet.MDMAndroidPolicyRequest{}
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &req, stmt, requestUUID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, common_mysql.NotFound("AndroidPolicyRequest").WithName(requestUUID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting android policy request")
+	}
+
+	return &req, nil
+}
+
 const androidApplicableProfilesQuery = `
 	-- non label-based profiles
 	SELECT
@@ -967,7 +999,7 @@ func (ds *Datastore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []
 	return results, nil
 }
 
-func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidBulkUpsertHostProfilePayload) error {
+func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
 	if len(payload) == 0 {
 		return nil
 	}
@@ -1013,7 +1045,7 @@ func (ds *Datastore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, paylo
 		return err
 	}
 
-	generateValueArgs := func(p *fleet.MDMAndroidBulkUpsertHostProfilePayload) (string, []any) {
+	generateValueArgs := func(p *fleet.MDMAndroidProfilePayload) (string, []any) {
 		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?),"
 		args := []any{
 			p.HostUUID, p.Status, p.OperationType,
@@ -1068,4 +1100,175 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 		return nil, err
 	}
 	return profiles, nil
+}
+
+func (ds *Datastore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	const stmt = `
+		SELECT profile_uuid, host_uuid, status, operation_type, detail, profile_name, policy_request_uuid, device_request_uuid, request_fail_count, included_in_policy_version
+		FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND status = ? AND operation_type = ?
+	`
+
+	var profiles []*fleet.MDMAndroidProfilePayload
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, policyVersion, fleet.MDMDeliveryPending, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing host MDM Android profiles pending install")
+	}
+
+	return profiles, nil
+}
+
+func (ds *Datastore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionId int64) error {
+	stmt := `
+		DELETE FROM host_mdm_android_profiles
+		WHERE host_uuid = ? AND included_in_policy_version <= ? AND operation_type = ? AND status IN (?)
+	`
+
+	stmt, args, err := sqlx.In(stmt, hostUUID, policyVersionId, fleet.MDMOperationTypeRemove, []fleet.MDMDeliveryStatus{fleet.MDMDeliveryPending, fleet.MDMDeliveryFailed})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "building query to delete host MDM Android profiles")
+	}
+
+	_, err = ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting host MDM Android profiles")
+	}
+	return nil
+}
+
+func (ds *Datastore) deleteAllAndroidProfiles(ctx context.Context, tx sqlx.ExtContext, tmID *uint) (int, error) {
+	var teamID uint
+	if tmID != nil {
+		teamID = *tmID
+	}
+	res, err := tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id = ?`, teamID)
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "deleting all android profiles for team")
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "getting rows affected when deleting all android profiles for team")
+	}
+	return int(rows), nil
+}
+
+func (ds *Datastore) batchSetMDMAndroidProfiles(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	tmID *uint,
+	profiles []*fleet.MDMAndroidConfigProfile,
+) (updatedDB bool, err error) {
+	if len(profiles) == 0 {
+		rowsAffected, err := ds.deleteAllAndroidProfiles(ctx, tx, tmID)
+		if err != nil {
+			return false, err
+		}
+
+		return rowsAffected > 0, nil
+	}
+
+	// Select and delete profiles that are not incoming so we can cancel the install.
+	const loadToBeDeletedProfilesNotInList = `
+SELECT
+  profile_uuid
+FROM
+  mdm_android_configuration_profiles
+WHERE
+  team_id = ? AND
+  name NOT IN (?)
+`
+
+	// use a profile team id of 0 if no-team
+	var profileTeamID uint
+	if tmID != nil {
+		profileTeamID = *tmID
+	}
+
+	// Create list of names from profiles
+	incomingNames := make([]string, len(profiles))
+	for i, p := range profiles {
+		incomingNames[i] = p.Name
+	}
+
+	var (
+		stmt                string
+		args                []interface{}
+		deletedProfileUUIDs []string
+	)
+	stmt, args, err = sqlx.In(loadToBeDeletedProfilesNotInList, profileTeamID, incomingNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build query to load profiles to be deleted")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &deletedProfileUUIDs, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "load profiles to be deleted")
+	}
+
+	// Delete profiles that are not incoming
+	const deleteProfilesNotInList = `
+DELETE FROM
+  mdm_android_configuration_profiles
+WHERE
+  profile_uuid IN (?)
+`
+	if len(deletedProfileUUIDs) > 0 {
+		var result sql.Result
+		stmt, args, err = sqlx.In(deleteProfilesNotInList, deletedProfileUUIDs)
+		if err != nil {
+			return false, ctxerr.Wrap(ctx, err, "build query to delete profiles")
+		}
+		if result, err = tx.ExecContext(ctx, stmt, args...); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "delete profiles")
+		}
+
+		if result != nil {
+			rows, _ := result.RowsAffected()
+			updatedDB = rows > 0
+		}
+
+		// TODO(AP): Cancel android profile installs for deleted profiles
+	}
+
+	// Insert or update incoming profiles
+	const insertNewOrEditedProfile = `
+	INSERT INTO mdm_android_configuration_profiles (
+		profile_uuid,
+		team_id,
+		name,
+		raw_json,
+		uploaded_at
+	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
+	ON DUPLICATE KEY UPDATE
+		name = VALUES(name),
+		raw_json = VALUES(raw_json),
+		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
+`
+
+	for _, p := range profiles {
+		var res sql.Result
+		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "insert or update profile")
+		}
+
+		if insertOnDuplicateDidInsertOrUpdate(res) {
+			updatedDB = true
+		}
+	}
+
+	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
+	for _, p := range profiles {
+		mappedIncomingProfiles = append(mappedIncomingProfiles, &BatchSetAssociationIncomingProfile{
+			Name:             p.Name,
+			ProfileUUID:      p.ProfileUUID,
+			LabelsIncludeAll: p.LabelsIncludeAll,
+			LabelsIncludeAny: p.LabelsIncludeAny,
+			LabelsExcludeAny: p.LabelsExcludeAny,
+		})
+	}
+
+	didUpdateLabels, err := ds.batchSetLabelAndVariableAssociations(ctx, tx, "android", tmID, mappedIncomingProfiles, nil)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "setting labels and variable associations")
+	}
+
+	return updatedDB || didUpdateLabels, nil
 }
