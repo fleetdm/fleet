@@ -63,6 +63,7 @@ This leans into the fact that most (not all) of the data and config pointing to 
 
 * [Original presentation on removing No Team](https://docs.google.com/presentation/d/1Q8u5KtgeBmm3g7emt3VJ7nochEV3dKJIm4zUJiiyXd0/edit?slide=id.g351848d7157_0_84#slide=id.g351848d7157_0_84)
 * [WIP technical design document](https://docs.google.com/document/d/1tTO0ip1lGJXiL0O5vDet6DFlOzv_ufazuiZ6wqB60vY/edit?usp=sharing)
-* [Example ticket that opened in the hour I was writing this ADR](https://github.com/fleetdm/fleet/issues/32876)
+* [Eng-initiated ticket for this work](https://github.com/fleetdm/fleet/issues/32435)
+* [Example No-Team-related bug ticket that opened in the hour I was writing this ADR](https://github.com/fleetdm/fleet/issues/32876)
 
 [^1]: A quick search for "no team" in Go files in the main Fleet repo has 790 hits in 123 files. Most of those are comments above multiple lines or functions dedicated to No Team logic. 
