@@ -338,6 +338,65 @@ openssl genpkey -algorithm RSA -out private.key -pkeyopt rsa_keygen_bits:2048 -a
 openssl req -new -sha256 -key private.key -out request.csr -subj /CN=NetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:$PASSWORD
 ```
 
+#### Example policy and script for deploying certificates to Linux hosts
+
+To automatically deploy certificates to Linux hosts you can create a policy automation to check for the existence of a certificate. If it does not exist, a script similar to the one above can be run with a Fleet API Token provided as a fleet secret which will request a certificate and write it to a location which satisfies the policy.
+
+The below script assumes that your company installs a custom Company Portal app or similar at `/opt/company` gathers the user's IDP session information, username and a password to protect the private key from `/opt/company/userinfo` and also assumes that the final certificate and key should live in `/opt/company`. You will want to modify it to match your company's requirements.
+
+You will also want to gather your Hydrant CA's ID from Fleet. This will be an nonzero positive integer and can be retrieved by making a GET request to the `/api/latest/fleet/certificate_authorities` endpoint and noting the `id` attribute of your Hydrant CA.
+
+1. **Create a Fleet secret containing a Fleet API Token**
+In Fleet, select the team you wish to create the certificate policy on, then navigate to  **Controls > Variables**. Create a new variable named FLEET_API_TOKEN and add your API token as the value
+2. **Create a certificate-requesting script**
+Navigate to **Controls > Scripts**
+Create a script like the one below, plugging in your own filesystem locations, Fleet Server URL and IDP information. This script requires openssl, sed, curl and jq installed on the host running it.
+```shell
+#!/bin/bash
+set -e
+
+# Load the user information, IDP token and IDP client ID. See below for an example of this file
+. /opt/company/userinfo
+
+URL="YOUR IDP INTROSPECTION URL HERE"
+# generate the password-protected private key
+openssl genpkey -algorithm RSA -out /opt/company/CustomerUserNetworkAccess.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:${PASSWORD}
+
+# generate CSR signed with that private key
+openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out CustomerUserNetworkAccess.csr -subj /CN=CustomerUserNetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:${PASSWORD}
+
+#escape CSR for request
+CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+
+curl 'https://[your fleet server URL]/api/latest/fleet/certificate_authorities/[your Hydrant CA ID]/request_certificate' \
+  -X 'POST' \
+  -H 'accept: application/json, text/plain, */*' \
+  -H 'authorization: Bearer '"$FLEET_SECRET_FLEET_API_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-raw "${REQUEST}" -o response.json
+
+jq -r .certificate response.json > /opt/company/certificate.pem
+```
+
+The userinfo file in this example looks like this however the variables could be loaded from the output of a command or even a separate network request depending on your requirements:
+```shell
+PASSWORD="A password for the certificate's private key"
+USERNAME="Your user's email"
+TOKEN="Your user's oauth IDP token"
+CLIENT_ID='Your oauth IDP client ID'
+```
+
+3. **Create a policy to automate certificate issuance**
+Navigate to **Policies**. Select **Add policy**. Use the following query to detect the certificate's existence:
+```sql
+SELECT 1 FROM file WHERE path='/opt/company/certificate.pem';
+```
+Select **Save**, give the policy a descriptive Name, Description and Resolution and set only Linux as its target. Select **Save** again to create your new policy.
+
+4. **Attach an automation to the created policy**
+Select **Manage automations** and in the dropdown click **Scripts**. Select your newly-created policy and then in the dropdown to the right, select your newly created certificate issuance script.
+
 ## How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host.
