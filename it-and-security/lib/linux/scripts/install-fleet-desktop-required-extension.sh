@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script assumes one user is using the desktop environment (no multi-session).
-# It was tested on Fedora 38, 39 and Debian 12.
+# It was tested on Fedora 38, 39, Debian 12, and OpenSUSE Leap/Tumbleweed.
 
 set -x
 
@@ -21,12 +21,46 @@ while [ -z $fleet_desktop_pid ]; do
 	sleep 10
 done
 
-extension_name="appindicatorsupport@rgcjonas.gmail.com"
 username=$(ps -o user= -p $fleet_desktop_pid | xargs)
 uid=$(ps -o uid= -p $fleet_desktop_pid | xargs)
 
-# If the extension is not installed, then prompt the user.
-if [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" ]; then
+# Detect the Linux distribution
+if [ -f /etc/os-release ]; then
+	. /etc/os-release
+	distro_id="$ID"
+	distro_name="$NAME"
+else
+	distro_id="unknown"
+	distro_name="unknown"
+fi
+
+# Determine extension name and installation method based on distribution
+case "$distro_id" in
+	"opensuse-leap"|"opensuse-tumbleweed"|"opensuse")
+		extension_name="appindicatorsupport@rgcjonas.gmail.com"
+		install_method="gnome-extensions"
+		;;
+	"fedora"|"debian"|"ubuntu")
+		extension_name="appindicatorsupport@rgcjonas.gmail.com"
+		install_method="gnome-extensions"
+		;;
+	*)
+		# Default to the original extension for unknown distributions
+		extension_name="appindicatorsupport@rgcjonas.gmail.com"
+		install_method="gnome-extensions"
+		;;
+esac
+
+# Check if the AppIndicator extension is already installed
+extension_path="/home/$username/.local/share/gnome-shell/extensions/$extension_name"
+
+extension_installed=false
+if [ -d "$extension_path" ]; then
+	extension_installed=true
+fi
+
+# If no extension is installed, install the appropriate one
+if [ "$extension_installed" = false ]; then
 	# Show notification to user before the prompt.
 	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
 		gdbus call --session \
@@ -38,7 +72,7 @@ if [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" 
 	# Give some time to user to see notification.
 	sleep 10
 
-	# Prompt user for installation of extension.
+	# Use GNOME Extensions for all distributions (including OpenSUSE)
 	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
 		gdbus call --session \
 		--dest org.gnome.Shell.Extensions \
@@ -46,15 +80,17 @@ if [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" 
 		--method org.gnome.Shell.Extensions.InstallRemoteExtension \
 		"$extension_name"
 
-	# Wait until the extension is accepted by the user ("gbus call" command above is asynchronous).
+	# Wait until the extension is accepted by the user ("gdbus call" command above is asynchronous).
 	while [ ! -d "/home/$username/.local/share/gnome-shell/extensions/$extension_name" ]; do
-	  sleep 1
+		sleep 1
 	done
 
 	# Sleep to give some time for files to be downloaded.
 	sleep 15
 fi
 
-# Enable the extension in case it was disabled in the past.
-sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
-	gnome-extensions enable "$extension_name"
+# Enable the extension
+if [ -d "$extension_path" ]; then
+	sudo -i -u $username -H DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus \
+		gnome-extensions enable "$extension_name"
+fi

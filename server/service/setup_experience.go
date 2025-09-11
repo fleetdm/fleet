@@ -16,7 +16,7 @@ import (
 )
 
 type putSetupExperienceSoftwareRequest struct {
-	Platform string `url:"platform,optional"`
+	Platform string `json:"platform"`
 	TeamID   uint   `json:"team_id"`
 	TitleIDs []uint `json:"software_title_ids"`
 }
@@ -50,7 +50,7 @@ func (svc *Service) SetSetupExperienceSoftware(ctx context.Context, platform str
 }
 
 type getSetupExperienceSoftwareRequest struct {
-	Platform string `url:"platform,optional"`
+	Platform string `query:"platform,optional"`
 	fleet.ListOptions
 	TeamID uint `query:"team_id"`
 }

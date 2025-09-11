@@ -98,7 +98,17 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			return ctxerr.Wrap(ctx, err, "new Android host")
 		}
 		id, _ := result.LastInsertId()
-		host.Host.ID = uint(id) // nolint:gosec
+		if id == 0 {
+			// This was an UPDATE, not an INSERT, so we need to get the host ID
+			var hostID uint
+			err := sqlx.GetContext(ctx, tx, &hostID, `SELECT id FROM hosts WHERE node_key = ?`, host.NodeKey)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host ID after update")
+			}
+			host.Host.ID = hostID
+		} else {
+			host.Host.ID = uint(id) // nolint:gosec
+		}
 		host.Device.HostID = host.Host.ID
 
 		err = upsertHostDisplayNames(ctx, tx, *host.Host)

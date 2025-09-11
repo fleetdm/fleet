@@ -138,8 +138,8 @@ interface ISoftwareNameCellProps {
   hasInstaller?: boolean;
   isSelfService?: boolean;
   automaticInstallPoliciesCount?: number;
-  /** override the default icon. Occurs with e.g. `app_store_app`s */
-  iconUrl?: string;
+  /** e.g. custom icons & app_store_app's override default icons with URLs */
+  iconUrl?: string | null;
 }
 
 const SoftwareNameCell = ({

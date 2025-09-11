@@ -84,10 +84,9 @@ export const getStatusMessage = ({
             {" "}
             on {formattedHost} but couldn&apos;t because the host was locked or
             was running on battery power while in Power Nap
-            {displayTimeStamp && <> {displayTimeStamp}</>}
           </>
         )}
-        . Fleet will try again.
+        {displayTimeStamp && <> {displayTimeStamp}</>}. Fleet will try again.
       </>
     );
   }
@@ -121,15 +120,15 @@ export const getStatusMessage = ({
       <>
         The MDM command (request) to install <b>{appName}</b>
         {!isDUP && <> on {formattedHost}</>} failed
-        {!isDUP && displayTimeStamp && <> {displayTimeStamp}</>}. Please
-        re-attempt this installation.
+        {displayTimeStamp && <> {displayTimeStamp}</>}. Please re-attempt this
+        installation.
       </>
     );
   }
 
   const renderSuffix = () => {
     if (isDUP) {
-      return null;
+      return <> {displayTimeStamp && <> {displayTimeStamp}</>}</>;
     }
     return (
       <>

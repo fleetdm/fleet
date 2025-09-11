@@ -641,6 +641,9 @@ const (
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
 
+	// Software
+	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
+
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 
@@ -682,4 +685,12 @@ func (e ConflictError) StatusCode() int {
 // Errorer interface is implemented by response structs to encode business logic errors
 type Errorer interface {
 	Error() error
+}
+
+type VPPIconAvailable struct {
+	IconURL string
+}
+
+func (e *VPPIconAvailable) Error() string {
+	return fmt.Sprintf("VPP icon available at: %s", e.IconURL)
 }

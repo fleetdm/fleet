@@ -27,9 +27,9 @@ Inputs corresponding to sortable or indexed DB fields should be preprocessed (tr
 
 Invalid inputs should NOT log a server error. Server errors should be reserved for unexpected/serious issues. [`InvalidArgumentError` implements `IsClientError`](https://github.com/fleetdm/fleet/blob/529f4ed725117d99d668318aad23c9e1575fa7ee/server/fleet/errors.go#L134) method to indicate that it is a client error. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=6515110653090875786&highlights=%5B%7B%22type%22%3A%22SHARE%22%2C%22from%22%3A340%2C%22to%22%3A1578%7D%5D).
 
-### JSON unmarshaling
+### JSON unmarshalling
 
-`PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshaling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
+`PATCH` API calls often need to distinguish between a field being set to `null` and a field not being present in the JSON. Use the structs from `optjson` package to handle this. [Backend sync where discussed](https://us-65885.app.gong.io/call?id=4055688254267958899). [JSON unmarshalling article and example](https://victoronsoftware.com/posts/go-json-unmarshal/).
 
 ## Go
 
