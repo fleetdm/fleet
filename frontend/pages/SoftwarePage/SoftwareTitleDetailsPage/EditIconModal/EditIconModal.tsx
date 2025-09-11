@@ -234,7 +234,7 @@ const EditIconModal = ({
 
       // Enforce filesize limit
       if (file.size > MAX_FILE_SIZE) {
-        renderFlash("error", "Couldn't edit. File size must be 100KB or less.");
+        renderFlash("error", "Couldn't edit. Icon must be 100KB or less.");
         return;
       }
 
