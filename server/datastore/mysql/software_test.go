@@ -76,6 +76,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
+		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
@@ -5502,6 +5503,88 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 0)
+}
+
+func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	// Create a software installer and a pending install request
+	var installerID int64
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		installScript := `echo 'foo'`
+		res, err := q.ExecContext(ctx, `INSERT INTO script_contents (md5_checksum, contents) VALUES (UNHEX(md5(?)), ?)`, installScript, installScript)
+		require.NoError(t, err)
+		scriptContentID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `INSERT INTO software_titles (name, source) VALUES ('test-app', 'apps')`)
+		require.NoError(t, err)
+		titleID, _ := res.LastInsertId()
+
+		res, err = q.ExecContext(ctx, `
+			INSERT INTO software_installers
+				(title_id, filename, extension, version, install_script_content_id, storage_id, platform, package_ids)
+			VALUES
+				(?, ?, ?, ?, ?, ?, ?, ?)`,
+			titleID, "installer.pkg", "pkg", "v1.0.0", scriptContentID, []byte("test"), "darwin", "[]")
+		require.NoError(t, err)
+		installerID, _ = res.LastInsertId()
+
+		// Create a pending install request
+		_, err = q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service) 
+			VALUES (?, ?, ?, ?, ?, ?)`,
+			"original-uuid", host.ID, installerID, 1, 2, false)
+		return err
+	})
+
+	// Create an intermediate failure record
+	failedExecID, installResult, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout"),
+		WillRetry:             true,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, failedExecID)
+	require.NotNil(t, installResult)
+	require.Equal(t, "test-app", installResult.SoftwareTitle)
+	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
+	require.Equal(t, uint(1), *installResult.UserID)
+	require.Equal(t, uint(2), *installResult.PolicyID)
+	require.False(t, installResult.SelfService)
+
+	// Verify that we now have 2 records - original pending and new failed
+	var count int
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// Verify original record is still pending
+	var originalStatus sql.NullString
+	err = ds.writer(ctx).GetContext(ctx, &originalStatus, `
+		SELECT COALESCE(install_script_exit_code, 'pending') 
+		FROM host_software_installs 
+		WHERE execution_id = 'original-uuid'`)
+	require.NoError(t, err)
+	require.Equal(t, "pending", originalStatus.String)
+
+	// Verify new failed record exists with failure details
+	type failedRecord struct {
+		ExitCode int    `db:"install_script_exit_code"`
+		Output   string `db:"install_script_output"`
+	}
+	var failed []failedRecord
+	err = ds.writer(ctx).SelectContext(ctx, &failed, `
+		SELECT install_script_exit_code, install_script_output 
+		FROM host_software_installs 
+		WHERE host_id = ? AND execution_id != 'original-uuid'`, host.ID)
+	require.NoError(t, err)
+	require.Len(t, failed, 1)
+	require.Equal(t, 1, failed[0].ExitCode)
+	require.Equal(t, "network timeout", failed[0].Output)
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {

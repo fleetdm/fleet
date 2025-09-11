@@ -1363,6 +1363,38 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// always use the authenticated host's ID as host_id
 	result.HostID = host.ID
+
+	// If this is an intermediate failure that will be retried, handle it specially
+	if result.WillRetry {
+		// Create a duplicate failed record while keeping the original pending
+		failedExecID, hsi, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
+		}
+
+		if err := svc.NewActivity(
+			ctx,
+			nil,
+			fleet.ActivityTypeInstalledSoftware{
+				HostID:              host.ID,
+				HostDisplayName:     host.DisplayName(),
+				SoftwareTitle:       hsi.SoftwareTitle,
+				SoftwarePackage:     hsi.SoftwarePackage,
+				InstallUUID:         failedExecID,
+				Status:              string(result.Status()),
+				SelfService:         hsi.SelfService,
+				PolicyID:            nil,
+				PolicyName:          nil,
+				FromSetupExperience: true, // We assume that retries only occur during setup experience
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for intermediate software installation failure")
+		}
+
+		// Don't update setup experience status for intermediate failures
+		return nil
+	}
+
 	installWasCanceled, err := svc.ds.SetHostSoftwareInstallResult(ctx, result)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "save host software installation result")

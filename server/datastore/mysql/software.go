@@ -4421,6 +4421,96 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	return wasCanceled, err
 }
 
+func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, error) {
+	// Get the original installation details first, including software title and package info
+	const getDetailsStmt = `
+		SELECT 
+			hsi.software_installer_id,
+			hsi.user_id,
+			hsi.policy_id,
+			hsi.self_service,
+			si.filename AS software_package,
+			st.name AS software_title
+		FROM host_software_installs hsi
+		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
+		INNER JOIN software_titles st ON st.id = si.title_id
+		WHERE hsi.execution_id = ? AND hsi.host_id = ?
+	`
+
+	var details struct {
+		SoftwareInstallerID uint   `db:"software_installer_id"`
+		UserID              *uint  `db:"user_id"`
+		PolicyID            *uint  `db:"policy_id"`
+		SelfService         bool   `db:"self_service"`
+		SoftwarePackage     string `db:"software_package"`
+		SoftwareTitle       string `db:"software_title"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "get original install details")
+	}
+
+	// Generate a new execution ID for the failed attempt record
+	failedExecID := uuid.NewString()
+
+	// Create a new record with the failure details
+	const insertStmt = `
+		INSERT INTO host_software_installs (
+			execution_id,
+			host_id,
+			software_installer_id,
+			user_id,
+			policy_id,
+			self_service,
+			install_script_exit_code,
+			install_script_output,
+			pre_install_query_output,
+			post_install_script_exit_code,
+			post_install_script_output
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+
+	truncateOutput := func(output *string) *string {
+		if output != nil {
+			output = ptr.String(truncateScriptResult(*output))
+		}
+		return output
+	}
+
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, insertStmt,
+			failedExecID,
+			result.HostID,
+			details.SoftwareInstallerID,
+			details.UserID,
+			details.PolicyID,
+			details.SelfService,
+			result.InstallScriptExitCode,
+			truncateOutput(result.InstallScriptOutput),
+			truncateOutput(result.PreInstallConditionOutput),
+			result.PostInstallScriptExitCode,
+			truncateOutput(result.PostInstallScriptOutput),
+		)
+		return err
+	})
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "create intermediate failure record")
+	}
+
+	// Return the install result details
+	installResult := &fleet.HostSoftwareInstallerResult{
+		HostID:          result.HostID,
+		InstallUUID:     failedExecID,
+		SoftwareTitle:   details.SoftwareTitle,
+		SoftwarePackage: details.SoftwarePackage,
+		UserID:          details.UserID,
+		PolicyID:        details.PolicyID,
+		SelfService:     details.SelfService,
+	}
+
+	return failedExecID, installResult, nil
+}
+
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {
 	// We are overloading vpp_apps_count to indicate whether installed title is a VPP app or not.
 	const stmt = `
