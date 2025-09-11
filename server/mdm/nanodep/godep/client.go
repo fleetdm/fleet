@@ -15,7 +15,9 @@ import (
 
 const (
 	mediaType = "application/json;charset=UTF8"
-	userAgent = "nanodep-godep/0"
+	// Apple blocks the default nanodep user agent with newer protocol versions
+	// cf https://github.com/micromdm/nanodep/issues/42
+	userAgent = "fleetdm/nanodep"
 )
 
 // HTTPError encapsulates an HTTP response error from the DEP requests.
