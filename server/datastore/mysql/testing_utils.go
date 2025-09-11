@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
@@ -684,6 +685,7 @@ func SetTestABMAssets(t testing.TB, ds *Datastore, orgName string) *fleet.ABMTok
 	require.NoError(t, err)
 	appCfg.MDM.EnabledAndConfigured = true
 	appCfg.MDM.AppleBMEnabledAndConfigured = true
+	appCfg.MDM.MacOSSetup.BootstrapPackage = optjson.SetString("bootstrap1.pkg")
 	err = ds.SaveAppConfig(context.Background(), appCfg)
 	require.NoError(t, err)
 
