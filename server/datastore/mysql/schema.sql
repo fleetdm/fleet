@@ -227,7 +227,7 @@ CREATE TABLE `carve_metadata` (
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `certificate_authorities` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `type` enum('digicert','ndes_scep_proxy','custom_scep_proxy','hydrant','smallstep_scep_proxy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `type` enum('digicert','ndes_scep_proxy','custom_scep_proxy','hydrant','smallstep') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `url` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `api_token_encrypted` blob,
@@ -761,7 +761,7 @@ CREATE TABLE `host_mdm_idp_accounts` (
 CREATE TABLE `host_mdm_managed_certificates` (
   `host_uuid` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `profile_uuid` varchar(37) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `type` enum('digicert','custom_scep_proxy','ndes','smallstep_scep_proxy') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes',
+  `type` enum('digicert','custom_scep_proxy','ndes','smallstep') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ndes',
   `ca_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'NDES',
   `challenge_retrieved_at` timestamp(6) NULL DEFAULT NULL,
   `created_at` timestamp(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
