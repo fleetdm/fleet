@@ -27,6 +27,8 @@ Replace the virtual No Team concept with the concept of a _default_ team, which 
 
 Existing Fleet instances would have a new default team created for them via migration, while new instances would have one created during the setup process. This will be the case for both premium- and free-tier instances, although free-tier instances will continue to hide any team-related UI (as they do now with No Team).
 
+See the [WIP technical design document](https://docs.google.com/document/d/1tTO0ip1lGJXiL0O5vDet6DFlOzv_ufazuiZ6wqB60vY/edit?usp=sharing) for more details on implementation.
+
 ## Consequences
 
 ### Benefits
