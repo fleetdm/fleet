@@ -1222,10 +1222,6 @@ func getIconHashIfValid(path string) (string, error) {
 		return "", err
 	}
 
-	if _, err = iconReader.Seek(0, 0); err != nil {
-		return "", fmt.Errorf("preparing to hash icon file: %w", err)
-	}
-
 	h := sha256.New()
 	if _, err := io.Copy(h, iconReader); err != nil {
 		return "", fmt.Errorf("hashing icon file: %w", err)
