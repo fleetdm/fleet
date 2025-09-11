@@ -518,8 +518,8 @@ type SmallstepSCEPProxyCA struct {
 	Password     string `json:"password"` // not stored here -- encrypted in DB
 }
 
-// SmallstepSCEPChallengeRequestBody represents the request body for obtaining a challenge from a
-// Smallstep SCEP server.
+// SmallstepChallengeRequestBody represents the minimumrequest body for obtaining a challenge from a
+// Smallstep SCEP server. See also https://developer.jamf.com/jamf-pro/docs/webhooks-1#scepchallenge
 // Example:
 //
 //	{
@@ -530,23 +530,29 @@ type SmallstepSCEPProxyCA struct {
 //	    "name": ""
 //	  },
 //	  "event": {
-//	    "scepServerUrl": "https://agents.fleetdm-nfr.ca.smallstep.com/scep/integration-jamf-5c7e35d8",
+//	    "scepServerUrl": "https://example.scep.smallstep.com/p/agents/integration-jamf-5d7c45e9",
 //	    "payloadIdentifier": "CDB0BC64-F3EB-4B1A-AA5E-9A5D994CA593",
 //	    "payloadTypes": [
 //	      "com.apple.security.scep"
 //	    ]
 //	  }
 //	}
-type SmallstepSCEPChallengeRequestBody struct {
-	Webhook struct {
-		WebhookEvent   string `json:"webhookEvent"`
-		ID             int    `json:"id"`
-		EventTimestamp int64  `json:"eventTimestamp"`
-		Name           string `json:"name"`
-	} `json:"webhook"`
-	Event struct {
-		SCEPServerURL     string   `json:"scepServerUrl"`
-		PayloadIdentifier string   `json:"payloadIdentifier"`
-		PayloadTypes      []string `json:"payloadTypes"`
-	} `json:"event"`
+type SmallstepChallengeRequestBody struct {
+	Webhook SmallstepChallengeWebhook `json:"webhook"`
+	Event   SmallstepChallengeEvent   `json:"event"`
+}
+
+// SmallstepChallengeWebhook represents the webhook information in the Smallstep SCEP challenge request.
+type SmallstepChallengeWebhook struct {
+	WebhookEvent   string `json:"webhookEvent"`
+	ID             int    `json:"id"`
+	EventTimestamp int64  `json:"eventTimestamp"`
+	Name           string `json:"name"`
+}
+
+// SmallstepChallengeEvent represents the event information in the Smallstep SCEP challenge request.
+type SmallstepChallengeEvent struct {
+	SCEPServerURL     string   `json:"scepServerUrl"`
+	PayloadIdentifier string   `json:"payloadIdentifier"`
+	PayloadTypes      []string `json:"payloadTypes"`
 }
