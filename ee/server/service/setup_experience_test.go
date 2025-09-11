@@ -260,7 +260,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 	scriptReader := bytes.NewReader([]byte("hello"))
 	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
 	require.NoError(t, err)
-	_, _ = scriptReader.Seek(io.SeekStart, 0)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// Team
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
@@ -268,7 +268,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
 	require.NoError(t, err)
-	_, _ = scriptReader.Seek(io.SeekStart, 0)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// Manual agent install
 	appConfig.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(true)
@@ -280,7 +280,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
 	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
-	_, _ = scriptReader.Seek(io.SeekStart, 0)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// Team
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
@@ -288,7 +288,7 @@ func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
 
 	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
 	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
-	_, _ = scriptReader.Seek(io.SeekStart, 0)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
 
 	// We can still set software to none though
 	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{})
