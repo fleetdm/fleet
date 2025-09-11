@@ -27,6 +27,9 @@ type SCEPConfigService struct {
 	ValidateSCEPURLFunc        ValidateSCEPURLFunc
 	ValidateSCEPURLFuncInvoked bool
 
+	GetSmallstepSCEPChallengeFunc        func(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error)
+	GetSmallstepSCEPChallengeFuncInvoked bool
+
 	mu sync.Mutex
 }
 
@@ -49,4 +52,11 @@ func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) err
 	s.ValidateSCEPURLFuncInvoked = true
 	s.mu.Unlock()
 	return s.ValidateSCEPURLFunc(ctx, url)
+}
+
+func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
+	s.mu.Lock()
+	s.GetSmallstepSCEPChallengeFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetSmallstepSCEPChallengeFunc(ctx, ca)
 }

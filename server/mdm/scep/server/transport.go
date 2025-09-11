@@ -160,6 +160,7 @@ func message(r *http.Request) ([]byte, error) {
 				return nil, &BadRequestError{Message: "missing PKIOperation message"}
 			}
 
+			// msg2, err := url.QueryUnescape(msg) // TODO(sca): confirm we need QueryUnescape
 			msg2, err := url.PathUnescape(msg)
 			if err != nil {
 				return nil, &BadRequestError{Message: fmt.Sprintf("invalid PKIOperation message: %s", msg)}

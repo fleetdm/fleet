@@ -82,7 +82,7 @@ var (
 	fleetVarSCEPRenewalIDRegexp                   = regexp.MustCompile(fmt.Sprintf(`(\$FLEET_VAR_%s)|(\${FLEET_VAR_%[1]s})`, fleet.FleetVarSCEPRenewalID))
 
 	// TODO(HCA): Can we come up with a clearer name? This looks like any variables not in this slice is not supported,
-	// but that is not the case, digicert is totally supported just in a different way (multiple CA's)
+	// but that is not the case, digicert, custom scep, hydrant and smallstep are totally supported just in a different way (multiple CA's)
 	fleetVarsSupportedInAppleConfigProfiles = []fleet.FleetVarName{
 		fleet.FleetVarNDESSCEPChallenge, fleet.FleetVarNDESSCEPProxyURL, fleet.FleetVarHostEndUserEmailIDP,
 		fleet.FleetVarHostHardwareSerial, fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart,
@@ -509,6 +509,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
 		ndesVars       *ndesVarsFound
+		// smallstepVars  *smallstepVarsFound
 	)
 	for _, k := range fleetVars {
 		ok := true
@@ -548,6 +549,24 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 					if ca.Name == caName {
 						found = true
 						customSCEPVars, ok = customSCEPVars.SetChallenge(caName)
+						break
+					}
+				}
+			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+				for _, ca := range groupedCAs.SmallstepSCEP {
+					if ca.Name == caName {
+						found = true
+						// smallstepVars, ok = smallstepVars.SetURL(caName)
+						break
+					}
+				}
+			case strings.HasPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
+				caName := strings.TrimPrefix(k, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+				for _, ca := range groupedCAs.SmallstepSCEP {
+					if ca.Name == caName {
+						found = true
+						// smallstepVars, ok = smallstepVars.SetChallenge(caName)
 						break
 					}
 				}
@@ -737,6 +756,11 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 			}
 		}
 	}
+	return nil
+}
+
+func additionalSmallstepSCEPValidation(contents string, smallstepVars *smallstepVarsFound) error {
+	// TODO(sca): Implement smallstep SCEP validation
 	return nil
 }
 
@@ -4887,6 +4911,7 @@ func preprocessProfileContents(
 		ndesConfig    *fleet.NDESSCEPProxyCA
 		digiCertCAs   map[string]*fleet.DigiCertCA
 		customSCEPCAs map[string]*fleet.CustomSCEPProxyCA
+		smallstepCAs  map[string]*fleet.SmallstepSCEPProxyCA
 	)
 
 	// this is used to cache the host ID corresponding to the UUID, so we don't
@@ -4918,7 +4943,9 @@ func preprocessProfileContents(
 		// In the future we should expand variablesUpdatedAt logic to include non-CA variables as
 		// well
 		for fleetVar := range fleetVars {
-			if fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) || fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+			if fleetVar == string(fleet.FleetVarSCEPRenewalID) ||
+				fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL) ||
+				strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertPasswordPrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarDigiCertDataPrefix)) ||
 				strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)) {
 				// Give a few minutes leeway to account for clock skew
@@ -4983,6 +5010,26 @@ func preprocessProfileContents(
 				if !configured {
 					valid = false
 					break initialFleetVarLoop
+				}
+
+			case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+				if smallstepCAs == nil {
+					smallstepCAs = make(map[string]*fleet.SmallstepSCEPProxyCA)
+				}
+				var caName string
+				if strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)) {
+					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+				} else {
+					caName = strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+				}
+				configured, err := isSmallstepSCEPConfigured(ctx, groupedCAs, ds, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, smallstepCAs, profUUID, target, caName,
+					fleetVar)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking Smallstep SCEP configuration")
+				}
+				if !configured {
+					valid = false
+					break
 				}
 
 			default:
@@ -5134,6 +5181,56 @@ func preprocessProfileContents(
 						Type:        fleet.CAConfigCustomSCEPProxy,
 						CAName:      caName,
 					})
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix)):
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPChallengePrefix))
+					ca, ok := smallstepCAs[caName]
+					if !ok {
+						level.Error(logger).Log("msg", "Smallstep SCEP CA not found. "+
+							"This error should never happen since we validated/populated CAs earlier", "ca_name", caName)
+						continue
+					}
+					challenge, err := scepConfig.GetSmallstepSCEPChallenge(ctx, *ca)
+					if err != nil {
+						detail := fmt.Sprintf("Fleet couldn't populate $FLEET_VAR_%s. %s", fleet.FleetVarSmallstepSCEPChallengePrefix, err.Error())
+						err := ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+							CommandUUID:        target.cmdUUID,
+							HostUUID:           hostUUID,
+							Status:             &fleet.MDMDeliveryFailed,
+							Detail:             detail,
+							OperationType:      fleet.MDMOperationTypeInstall,
+							VariablesUpdatedAt: variablesUpdatedAt,
+						})
+						if err != nil {
+							return ctxerr.Wrap(ctx, err, "updating host MDM Apple profile for Smallstep SCEP challenge")
+						}
+						failed = true
+						break fleetVarLoop
+					}
+					level.Info(logger).Log("msg", "retrieved SCEP challenge from Smallstep", "host_uuid", hostUUID, "profile_uuid", profUUID)
+
+					payload := &fleet.MDMManagedCertificate{
+						HostUUID:             hostUUID,
+						ProfileUUID:          profUUID,
+						ChallengeRetrievedAt: ptr.Time(time.Now()),
+						Type:                 fleet.CAConfigSmallstepSCEP,
+						CAName:               caName,
+					}
+					managedCertificatePayloads = append(managedCertificatePayloads, payload)
+					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPChallengePrefix), ca.Name, hostContents, challenge)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP challenge variable")
+					}
+
+				case strings.HasPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)):
+					// Insert the SCEP URL into the profile contents
+					caName := strings.TrimPrefix(fleetVar, string(fleet.FleetVarSmallstepSCEPProxyURLPrefix))
+					proxyURL := fmt.Sprintf("%s%s%s", appConfig.MDMUrl(), apple_mdm.SCEPProxyPath,
+						url.PathEscape(fmt.Sprintf("%s,%s,%s", hostUUID, profUUID, caName)))
+					hostContents, err = replaceExactFleetPrefixVariableInXML(string(fleet.FleetVarSmallstepSCEPProxyURLPrefix), caName, hostContents, proxyURL)
+					if err != nil {
+						return ctxerr.Wrap(ctx, err, "replacing Smallstep SCEP URL variable")
+					}
 
 				case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP):
 					email, ok, err := getIDPEmail(ctx, ds, target, hostUUID)
@@ -5819,6 +5916,44 @@ func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertif
 	}
 
 	existingCustomSCEPCAs[caName] = scepCA
+	return true, nil
+}
+
+// TODO(sca): Implement methods on smallstepVarsFound if needed in the future.
+type smallstepVarsFound struct {
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
+	renewalIdFound bool
+}
+
+func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
+	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,
+	userEnrollmentsToHostUUIDsMap map[string]string,
+	existingSmallstepSCEPCAs map[string]*fleet.SmallstepSCEPProxyCA, profUUID string, target *cmdTarget, caName string, fleetVar string,
+) (bool, error) {
+	if !license.IsPremium(ctx) {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID, "Smallstep SCEP integration requires a Fleet Premium license.", ptr.Time(time.Now().UTC()))
+	}
+	if _, ok := existingSmallstepSCEPCAs[caName]; ok {
+		return true, nil
+	}
+	configured := false
+	var scepCA *fleet.SmallstepSCEPProxyCA
+	if len(groupedCAs.SmallstepSCEP) > 0 {
+		for _, ca := range groupedCAs.SmallstepSCEP {
+			if ca.Name == caName {
+				scepCA = &ca
+				configured = true
+				break
+			}
+		}
+	}
+	if !configured || scepCA == nil {
+		return markProfilesFailed(ctx, ds, target, hostProfilesToInstallMap, userEnrollmentsToHostUUIDsMap, profUUID,
+			fmt.Sprintf("Fleet couldn't populate $%s because %s certificate authority doesn't exist.", fleetVar, caName), ptr.Time(time.Now().UTC()))
+	}
+
+	existingSmallstepSCEPCAs[caName] = scepCA
 	return true, nil
 }
 
