@@ -44,7 +44,7 @@ The `AllowManualMDMUnenrollment` CSP is only supported on certain versions of Wi
 More mature organisations may already be using additional controls to protect against tampering. For example:
 
 - **ADMX-backed CSPs** such as `ADMX_AddRemovePrograms`, which can restrict software removal across the board.  
-  - Provides strong protection, but applies to *all* applications, not just the Fleet agent.  
+  - Protects all applications, not just Fleet. 
 
 - **AppLocker** or similar application control solutions, which can explicitly block execution of unapproved installers or uninstallers.  
   - Powerful, but requires more careful design and typically broader organisational adoption.  
