@@ -1510,6 +1510,7 @@ func TestMDMTokenUpdate(t *testing.T) {
 	require.False(t, ds.EnqueueSetupExperienceItemsFuncInvoked)
 	require.True(t, ds.SetHostMDMMigrationCompletedFuncInvoked)
 
+	ds.SetHostMDMMigrationCompletedFuncInvoked = false
 	err = svc.TokenUpdate(
 		&mdm.Request{
 			Context:  ctx,
