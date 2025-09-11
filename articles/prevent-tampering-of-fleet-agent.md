@@ -4,7 +4,7 @@
 On Windows, users with administrative rights can remove or modify management agents like **Fleet Orbit**.  
 Unlike many EDR and DLP tools with built-in tamper protection, Fleet doesn’t attempt to hide or lock itself down. This is intentional—Fleet is built on **openness and transparency**, with enforcement driven by policies you can see and manage.
 
-To keep the agent in place, IT teams can add their own guardrails using a combination of:
+But that doesn't mean you're left unprotected. To keep the agent in place, IT teams can add their own guardrails using a combination of:
 
 - A PowerShell script that sets hardened registry values  
 - A Fleet policy that checks those values and reapplies them if missing  
