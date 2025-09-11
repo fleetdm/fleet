@@ -1171,7 +1171,6 @@ func (m model) View() string {
 
 		// Add progress counter at the bottom
 		completedTasks := 0
-		// totalTasks already declared above
 		for _, task := range m.tasks {
 			if task.Status == TaskSuccess {
 				completedTasks++
