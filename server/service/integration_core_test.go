@@ -6961,7 +6961,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Fleet MDM is not configured")
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
