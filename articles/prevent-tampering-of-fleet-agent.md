@@ -15,7 +15,7 @@ Together, these components create a **self-healing enforcement loop** that ensur
 ---
 
 ## Hardening the installer
-Apply registry values via a PowerShell script to help prevent uninstallation or tampering of protected applications.
+One way to harden the installer is to apply registry values through a PowerShell script to help prevent uninstallation or tampering of protected applications.
 
 [Windows hardening PowerShell script](https://github.com/fleetdm/fleet/blob/main/assets/scripts/windows-fleet-hardening.ps1)
 
