@@ -47,7 +47,7 @@ More mature organisations may already be using additional controls to protect ag
   - Protects all applications, not just Fleet. 
 
 - **AppLocker** or similar application control solutions, which can explicitly block execution of unapproved installers or uninstallers.  
-  - Powerful, but requires more careful design and typically broader organisational adoption.  
+  - Powerful, but requires careful design and typically broader adoption.  
 
 The **Fleet script + policy + profile** approach offers a lightweight, targeted way to enforce persistence without restricting unrelated applications.
 
