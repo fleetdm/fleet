@@ -4,7 +4,7 @@ import Card from "components/Card";
 
 import { SetupExperiencePlatform } from "interfaces/platform";
 
-import LinuxAndWindowsInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/linux-windows-install-software-preview.mp4";
+import LinuxAndWindowsInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/linux-windows-install-software-preview-final.mp4";
 import MacInstallSoftwareEndUserPreview from "../../../../../../../../assets/videos/mac-install-software-preview.mp4";
 
 const baseClass = "install-software-preview";
