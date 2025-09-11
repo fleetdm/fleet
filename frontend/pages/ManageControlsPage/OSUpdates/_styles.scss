@@ -2,38 +2,14 @@
   font-size: $x-small;
 
   &__description {
-    margin: $pad-xxlarge 0;
+    margin: 22px 0; // 32 px total, 10 from react-tabs
   }
 
   &__content {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: $pad-xxlarge;
     margin: 0 auto;
-
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "current-version current-version"
-      "target nudge-preview";
-
-    @media (max-width: $break-md) {
-      grid-template-columns: 1fr;
-      grid-template-areas:
-        "current-version"
-        "target"
-        "nudge-preview";
-    }
-  }
-
-  &__current-version-container {
-    grid-area: current-version;
-  }
-
-  &__target-container {
-    grid-area: target;
-  }
-
-  &__nudge-preview-container {
-    grid-area: nudge-preview;
   }
 
   &__os-versions-card {

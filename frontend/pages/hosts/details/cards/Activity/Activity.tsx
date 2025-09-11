@@ -75,7 +75,7 @@ const Activity = ({
         </div>
       )}
       <CardHeader header="Activity" />
-      <TabNav>
+      <TabNav secondary>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}

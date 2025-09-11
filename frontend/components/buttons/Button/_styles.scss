@@ -4,7 +4,7 @@ $base-class: "button";
   outline-color: $core-focused-outline;
   outline-offset: $offset;
   outline-style: solid;
-  outline-width: 2px;
+  outline-width: 1px;
 }
 
 @mixin button-variant($color, $hover: null, $active: null, $inverse: false) {
@@ -32,7 +32,7 @@ $base-class: "button";
         width: 100%;
         height: 100%;
         position: absolute;
-        border: 1px solid $core-vibrant-blue;
+        border: 1px solid $core-fleet-black;
         border-radius: 6px;
       }
     }

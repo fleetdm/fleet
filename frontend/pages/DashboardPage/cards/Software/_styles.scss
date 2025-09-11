@@ -10,7 +10,7 @@
       vertical-align: middle;
     }
     &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
+      outline: 1px solid $core-focused-outline;
     }
   }
   .data-table__wrapper {

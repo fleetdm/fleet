@@ -2,14 +2,14 @@ export type Colors = keyof typeof COLORS;
 
 export const COLORS = {
   // 2025 branding
-  "core-fleet-black": "#192147", // Headers, thead, Field :focus outline
+  "core-fleet-black": "#192147", // Headers, thead, Field :focus outline, keyboard :focus-visible outline
   "core-fleet-green": "#009A7D",
   "core-fleet-white": "#FFFFFF",
   "ui-fleet-black-75": "#515774",
   "ui-fleet-black-50": "#8B8FA2", // Field :hover borders
   "ui-fleet-black-33": "#B3B6C1",
   "ui-fleet-black-25": "#C5C7D1",
-  "ui-fleet-black-10": "#E2E4EA", // Field borders
+  "ui-fleet-black-10": "#E2E4EA", // Field borders, card borders
   "ui-fleet-black-5": "#F4F4F6",
 
   // 2025 secondary colors

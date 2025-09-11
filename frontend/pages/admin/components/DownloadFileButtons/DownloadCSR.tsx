@@ -66,7 +66,7 @@ export const DownloadCSR = ({
       onClick={handleDownload}
     >
       <label htmlFor="request-csr">
-        <Icon name="download" color="core-fleet-blue" size="medium" />
+        <Icon name="download" color="core-fleet-black" size="medium" />
         <span>Download CSR</span>
       </label>
     </Button>

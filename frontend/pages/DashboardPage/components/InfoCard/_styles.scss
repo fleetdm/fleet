@@ -61,7 +61,7 @@
     gap: $pad-small;
 
     &:focus-visible {
-      outline: 1px solid $ui-fleet-black-75;
+      outline: 1px solid $core-focused-outline;
     }
   }
   &__action-button-text {
