@@ -151,7 +151,7 @@ const InstallSoftware = ({
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
-          <InstallSoftwarePreview />
+          <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
       );
     }

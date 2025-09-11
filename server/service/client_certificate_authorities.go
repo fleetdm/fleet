@@ -4,10 +4,13 @@ import "github.com/fleetdm/fleet/v4/server/fleet"
 
 // GetCertificateAuthoritiesSpec fetches the certificate authorities stored on the server
 func (c *Client) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
-	req := getCertificateAuthoritiesSpecRequest{IncludeSecrets: includeSecrets}
 	verb, path := "GET", "/api/latest/fleet/spec/certificate_authorities"
 	var responseBody getCertificateAuthoritiesSpecResponse
-	err := c.authenticatedRequest(req, verb, path, &responseBody)
+	query := ""
+	if includeSecrets {
+		query = "include_secrets=true"
+	}
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, query)
 	return responseBody.CertificateAuthorities, err
 }
 

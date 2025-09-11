@@ -4534,6 +4534,7 @@ parasails.registerPage('configuration-builder', {
         this.selectedPayloads = _.uniq(newSelectedPayloads);
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       }
+      await this._enableToolTips();
       await this.forceRender();
     },
     clickOpenResetFormModal: function() {
