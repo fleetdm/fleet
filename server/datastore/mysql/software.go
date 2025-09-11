@@ -987,7 +987,8 @@ func updateModifiedHostSoftwareDB(
 			}
 			// Log cases where the new software has no last opened timestamp, the current software does,
 			// and the software is marked as having a name change.
-			if ok && curSw.LastOpenedAt != nil {
+			// This is expected on macOS, but not on windows/linux.
+			if ok && curSw.LastOpenedAt != nil && newSw.Source != "apps" {
 				level.Warn(logger).Log(
 					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
 					"new_software", newSw.Name, "current_software", curSw.Name,
@@ -4164,7 +4165,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
 		}
 
-		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, softwareTitleIds)
+		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, append(vppTitleIds, softwareTitleIds...))
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}

@@ -3306,29 +3306,35 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	wrongTOCPkg := read("wrong-toc.pkg")
 	signedPkg := read("signed.pkg")
 
+	// dry run query param parsing test
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg"}, http.StatusOK, "", true)
+	// verify no bootstrap package was uploaded
+	var metadataResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
+
 	// empty bootstrap package
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{}, http.StatusBadRequest, "package multipart field is required")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{}, http.StatusBadRequest, "package multipart field is required", false)
 	// no name
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required", false)
 	// invalid
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type", false)
 	// invalid names
 	for _, char := range file.InvalidMacOSChars {
 		s.uploadBootstrapPackage(
 			&fleet.MDMAppleBootstrapPackage{
 				Bytes: signedPkg,
 				Name:  fmt.Sprintf("invalid_%c_name.pkg", char),
-			}, http.StatusBadRequest, "")
+			}, http.StatusBadRequest, "", false)
 	}
 	// unsigned
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed", false)
 	// wrong TOC
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package", false)
 	// not a Distribution package
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: read("not-distribution-signed.pkg"), Name: "pkg.pkg"}, http.StatusBadRequest,
-		fleet.BootstrapPkgNotDistributionErrMsg)
+		fleet.BootstrapPkgNotDistributionErrMsg, false)
 	// successfully upload a package
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 	// check the activity log
 	s.lastActivityMatches(
 		fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
@@ -3337,7 +3343,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	)
 
 	// get package metadata
-	var metadataResp bootstrapPackageMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
 	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
@@ -3382,7 +3387,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	require.NoError(t, err)
 
 	// upload a bootstrap package for "no team"
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
@@ -3401,7 +3406,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	team = createTeamResp.Team
 
 	// upload a bootstrap package for the team
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "", false)
 
 	// get package metadata
 	metadataResp = bootstrapPackageMetadataResponse{}
@@ -5006,6 +5011,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	pkg *fleet.MDMAppleBootstrapPackage,
 	expectedStatus int,
 	wantErr string,
+	dryRun bool,
 ) {
 	t := s.T()
 
@@ -5030,7 +5036,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), expectedStatus, headers, "dry_run", strconv.FormatBool(dryRun))
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)

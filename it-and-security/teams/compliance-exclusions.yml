@@ -36,7 +36,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
-  - path: ../lib/linux/policies/check-fleet-desktop-extension-exists.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
 software:
   packages:
