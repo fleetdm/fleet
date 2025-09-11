@@ -14,7 +14,7 @@ We currently support a virtual No Team for all instances, which acts as a restin
 
 * It is supported by thousands[^1] of lines of custom code and tests, causing a maintenance burden for developers.
 * In actual use, No Team often differs from "real" teams in subtle and unintuitive ways (for example, queries cannot be assigned to No Team, but policies can). This leads to frustration for customers and support staff. 
-* As noted [elsewhere](https://docs.google.com/presentation/d/1Q8u5KtgeBmm3g7emt3VJ7nochEV3dKJIm4zUJiiyXd0/edit?slide=id.g3796d19f491_0_59#slide=id.g3796d19f491_0_59), each sprint has capacity assigned to work dedicated partially or fully to supporting No Team.
+* As noted [elsewhere](https://docs.google.com/presentation/d/1Q8u5KtgeBmm3g7emt3VJ7nochEV3dKJIm4zUJiiyXd0/edit?slide=id.g3796d19f491_0_59#slide=id.g3796d19f491_0_59), each sprint has capacity assigned to work (bugs and stories) dedicated partially or fully to supporting No Team.
 
 ## Decision
 
@@ -36,26 +36,26 @@ Existing Fleet instances would have a new default team created for them via migr
 * Easier to document and explain to customers.
 * Relies on well-worn and tested concept (Fleet teams) rather than inventing something new; this will be a huge net _reduction_ in code.
 * The "new" features of the default team should be fairly straightforward to implement.
-* Can be done in a way that is invisible to existing customers (if we call their new default team "No Team"), other than that their "No Team" will now have upgraded features (like the ability to add queries).
+* Can be done in a way that is invisible to existing customers (especially if we name their new default team "No Team"), other than that their "No Team" will now have upgraded features (like the ability to add queries).
 
 ### Drawbacks
 
 * Requires a large database migration. Not necessarily complex, but touching a lot of tables (at least 20).
-* Very "high touch", in that it requires a lot of surgical code removal, although after the migration is successfully applied most of the code we want to remove will be inert. It may be possible to do this cleanup in several steps.
+* Fairly "high touch", in that it requires a surgical code removal from multiple unrelated files, although after the migration is successfully applied most of the code we want to remove will be inert. It may be possible to do this cleanup in several steps.
 * Carries significant risk (we're essentially deleting a team, albeit a virtual one, and transferring all its data to another team). Will require careful planning, testing and mitigation.
 
 ## Alternatives considered
 
 ### Leaving No Team as-is, and continue to add to [`DefaultTeam` config](https://github.com/fleetdm/fleet/blob/9df8e23f7a84ea2cc1f827f0209958ba3572e6a7/server/fleet/teams.go#L191-L194)
 
-The main benefit to this approach is the short-term risk reduction of not doing the work to migrate off of No Team. In the medium-to-long term, we will continue to accrue technical debt as we try to make our virtual team _look_ more like a regular team, and handle issue arising from the fact that it is not _actually_ a real team. The guiding principle of this ADR is that it is riskier and costlier to maintain the current No Team concept than it would be to eliminate it. 
+The main benefit to this approach is the short-term risk reduction of not doing the work to migrate off of No Team. In the medium-to-long term, we will continue to accrue technical debt as we try to make our virtual team _look_ more like a regular team, and handle issue arising from the fact that it is not _actually_ a real team. The guiding principle of this ADR is that it is [riskier and costlier](https://docs.google.com/presentation/d/1Q8u5KtgeBmm3g7emt3VJ7nochEV3dKJIm4zUJiiyXd0/edit?slide=id.g3796d19f491_0_59#slide=id.g3796d19f491_0_59) to maintain the current No Team concept than it would be to eliminate it. 
 
 ### Making No Team a real team, but with ID 0
 
 This leans into the fact that most (not all) of the data and config pointing to the current No Team abstraction uses ID `0` to represent it. By making a real team with that ID, we avoid much of the database migration, making this an attractive alternative. However, this has some significant drawbacks:
 
 1. Using `0` as an ID in a MySQL auto-incrementing table is non-standard and requires some special config.
-2. Much more significantly, we have a _lot_ of code that checks for team ID `0`, which we'd still want to remove, except now anything we miss would have significant impact because _the code would actually run_. This could lead to some difficult-to-debug issues affecting only the new default team. If instead we use a new, non-zero ID for the default team, any leftover No Team code will be "dead" because there will be no data with team ID `0` to trigger it.
+2. Much more significantly, we have a lot of code that checks for team ID `0`, which we'd still want to remove, except now anything we miss would have significant impact because _the code would actually run_. This could lead to some difficult-to-debug issues affecting only the new default team. If instead we use a new, non-zero ID for the default team, any leftover No Team code will be "dead" because there will be no data with team ID `0` to trigger it.
 
 ## References
 
