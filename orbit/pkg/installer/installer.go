@@ -483,7 +483,6 @@ func isNetworkOrTransientError(err error) bool {
 	}
 
 	// Check if it's a net.Error with Timeout() method
-	// Note: Temporary() is deprecated and should not be used
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		if netErr.Timeout() {
@@ -565,11 +564,6 @@ func isNetworkOrTransientError(err error) bool {
 
 	// "resource busy" - file locks, device busy errors
 	if strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "device or resource busy") {
-		return true
-	}
-
-	// "database is locked" - SQLite and other DB lock errors
-	if strings.Contains(errStr, "database is locked") || strings.Contains(errStr, "database locked") {
 		return true
 	}
 
