@@ -1,7 +1,5 @@
 .script-batch-details-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  @include page;
 
   &__header {
     margin-bottom: 0;

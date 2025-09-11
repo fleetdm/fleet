@@ -77,7 +77,7 @@ const HQRTable = ({
         >
           <>
             Export results
-            <Icon name="download" color="core-fleet-blue" />
+            <Icon name="download" color="ui-fleet-black-50" />
           </>
         </Button>
       </div>
