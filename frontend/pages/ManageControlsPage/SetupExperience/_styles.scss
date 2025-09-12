@@ -1,7 +1,11 @@
 .setup-experience {
-  > p {
-    font-size: $x-small;
-    margin: $pad-xxlarge 0;
+  margin-top: 22px; // 32 px total, 10 from react-tabs
+  display: flex;
+  flex-direction: column;
+  gap: $pad-xxlarge;
+
+  &__description {
+    margin: 0;
   }
 
   &__premium-feature-message {

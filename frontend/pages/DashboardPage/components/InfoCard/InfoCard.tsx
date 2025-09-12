@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
@@ -59,8 +59,9 @@ const useInfoCard = ({
         return (
           <Button
             className={`${baseClass}__action-button`}
-            variant="text-link"
+            variant="inverse"
             onClick={action.onClick}
+            justifyText="right"
           >
             <>
               <span className={`${baseClass}__action-button-text`}>
@@ -73,13 +74,22 @@ const useInfoCard = ({
 
       const linkTo = actionLink || action.to;
       if (linkTo) {
+        const onClick = (): void => {
+          browserHistory.push(linkTo);
+        };
+
         return (
-          <Link to={linkTo} className={`${baseClass}__action-button`}>
+          <Button
+            variant="inverse"
+            onClick={onClick}
+            justifyText="right"
+            className={`${baseClass}__action-button`}
+          >
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
             <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
-          </Link>
+          </Button>
         );
       }
     }
