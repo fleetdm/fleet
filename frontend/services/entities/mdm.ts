@@ -15,6 +15,12 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
+import {
+  createMockSetupExperienceSoftware,
+  createMockSoftwarePackage,
+  createMockSoftwareTitle,
+} from "__mocks__/softwareMock";
+
 import { ISoftwareTitlesResponse } from "./software";
 import { PaginationParams } from "./common";
 
@@ -371,7 +377,18 @@ const mdmService = {
       }
     )}`;
 
-    return sendRequest("GET", path);
+    // return sendRequest("GET", path);
+    return Promise.resolve(
+      createMockSetupExperienceSoftware({
+        software_titles: [
+          createMockSoftwareTitle({
+            software_package: createMockSoftwarePackage({
+              install_during_setup: true,
+            }),
+          }),
+        ],
+      })
+    );
   },
 
   updateSetupExperienceSoftware: (
