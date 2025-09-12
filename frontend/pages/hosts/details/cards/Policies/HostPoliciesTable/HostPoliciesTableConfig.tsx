@@ -54,7 +54,7 @@ const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
   return null;
 };
 
-const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
+export const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
   PolicyStatus,
   [IndicatorStatus, string]
 > = {
