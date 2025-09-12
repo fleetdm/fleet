@@ -4124,7 +4124,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | install_script_output         | string | body | The output from the install script.                     |
 | post_install_script_exit_code | number | body | The exit code from the post-install script.             |
 | post_install_script_output    | string | body | The output from the post-install script.                |
-| will_retry                    | boolean | body | Indicates that the agent will retry the installation after this failure. |
+| retries_remaining             | number | body | The number of retries remaining for this installation. When > 0, the server treats this as an intermediate failure. |
 
 ##### Example
 
@@ -4142,7 +4142,7 @@ Notifies the server about an agent error, resulting in two outcomes:
   "install_script_output ": "software installed",
   "post_install_script_exit_code ": 1,
   "post_install_script_output ": "error: post-install script failed",
-  "will_retry": false
+  "retries_remaining": 0
 }
 ```
 
