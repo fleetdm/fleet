@@ -377,18 +377,7 @@ const mdmService = {
       }
     )}`;
 
-    // return sendRequest("GET", path);
-    return Promise.resolve(
-      createMockSetupExperienceSoftware({
-        software_titles: [
-          createMockSoftwareTitle({
-            software_package: createMockSoftwarePackage({
-              install_during_setup: true,
-            }),
-          }),
-        ],
-      })
-    );
+    return sendRequest("GET", path);
   },
 
   updateSetupExperienceSoftware: (
