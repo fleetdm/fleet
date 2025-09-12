@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server, and [Hydrant](https://www.hidglobal.com/solutions/pki-service).
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
@@ -102,9 +102,12 @@ More DigiCert details:
 </plist>
 ```
 
+
+
+
 ## Microsoft NDES
 
-To connect end users to W-Fi or VPN with Microsoft NDES certificates, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with Microsoft NDES certificates, we'll do the following steps:
 
 - [Connect Fleet to NDES](#step-1-connect-fleet-to-ndes)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet)
@@ -198,7 +201,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 ## Custom SCEP server
 
-To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with a custom SCEP server, we'll do the following steps:
 
 - [Connect Fleet to custom SCEP server](#step-1-connect-fleet-to-custom-scep-server)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet2)
@@ -287,6 +290,41 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 </dict>
 </plist>
 ```
+
+## Hydrant
+To connect end users to Wi-Fi or VPN with Hydrant, we'll do the following steps:
+
+- [Create a Hydrant user and obtain its API credentials](#step-1-create-a-hydrant-user-and-obtain-its-api-credentials)
+- [Connect Fleet to Hydrant](#step-2-connect-fleet-to-hydrant)
+- [Request a certificate from a device](#step-3-request-a-certificate-from-a-device)
+
+
+The flow for Hydrant differs from the other certificate authorities (CA's), since they use a configuration profile to request a certificate, where the Hydrant flow will require the device itself to make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint for a valid Hydrant integration.
+
+**It is possible to optionally provide IDP related attributes, to further verify the IdP session matches the signed CSR.**
+
+### Step 1: Create a Hydrant user and obtain its API credentials
+
+1. Log in to your [company's ACM platform](https://help.hydrantid.com/html/authentication.html)
+1. Invite a [new user](https://help.hydrantid.com/html/authentication.html) that will be used for certificate generation and ensure it has the [required permissions](https://help.hydrantid.com/html/roles.html) to request certificates.
+1. Log out and log back in as the new user.
+1. Get the [API keys](https://help.hydrantid.com/html/manageapikeys.html) for the newly created user, make a note of the ID and Key, you will need that to connect Fleet with Hydrant in the next step.
+
+### Step 2: Connect Fleet to Hydrant
+
+1. In Fleet, head to **Settings > Integrations > Certificates**
+1. Select **Add CA** and then choose **Hydrant EST** in the dropdown
+1. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION")
+1. Add your Hydrant EST **URL**
+1. Add the ID and Key which were acquired from the Hydrant user in step 2.4
+1. Click **Add CA**. Your Hydrant CA should now appear in the list in Fleet
+
+### Step 3: Request a certificate from a Device
+
+1. _Optional: Generate an active IDP session token for the device requesting a certificate._
+1. Generate a certificate signing request (CSR) with the relevant attributes needed on the device.
+1. Make a request to the [`/request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) Fleet endpoint, with the necessary parameters and body values.
+1. Retrieve a PEM wrapped base64 encoded certificate.
 
 ## How the SCEP proxy works
 
