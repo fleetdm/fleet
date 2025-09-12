@@ -10,7 +10,7 @@ interface IInfoButton {
 
 const InfoButton = ({ onClick }: IInfoButton) => {
   return (
-    <Button className={baseClass} onClick={onClick} variant="text-icon">
+    <Button className={baseClass} onClick={onClick} variant="inverse">
       <>
         Info <Icon name="info" size="small" />
       </>

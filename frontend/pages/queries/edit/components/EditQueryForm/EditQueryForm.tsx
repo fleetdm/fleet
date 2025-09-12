@@ -419,7 +419,7 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
         <>
           Schema
           <Icon name="info" size="small" />
@@ -605,7 +605,6 @@ const EditQueryForm = ({
           >
             <Button
               className={`${baseClass}__run`}
-              variant="success"
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {

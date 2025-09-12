@@ -84,7 +84,7 @@ const QueryReport = ({
         <Button
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
-          variant="text-icon"
+          variant="inverse"
         >
           <>
             Export results

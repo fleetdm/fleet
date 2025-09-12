@@ -66,7 +66,7 @@ const RevealButton = ({
 
   const button = (
     <Button
-      variant="text-icon"
+      variant="inverse"
       className={classNames}
       onClick={onClick}
       autofocus={autofocus}

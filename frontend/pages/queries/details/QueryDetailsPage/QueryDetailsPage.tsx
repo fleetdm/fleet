@@ -27,7 +27,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import TooltipWrapper from "components/TooltipWrapper/TooltipWrapper";
 import QueryAutomationsStatusIndicator from "pages/queries/ManageQueriesPage/components/QueryAutomationsStatusIndicator/QueryAutomationsStatusIndicator";
@@ -260,7 +260,7 @@ const QueryDetailsPage = ({
     return (
       <>
         <div className={`${baseClass}__header-links`}>
-          <BackLink text="Back to queries" path={backToQueriesPath()} />
+          <BackButton text="Back to queries" path={backToQueriesPath()} />
         </div>
         <div className={`${baseClass}__header-details`}>
           {!isLoading && !isApiError && (
@@ -277,7 +277,7 @@ const QueryDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="text-icon"
+                  variant="inverse"
                 >
                   Show query
                 </Button>
@@ -308,7 +308,7 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="success"
+                        variant="brand-inverse-icon"
                         onClick={() => {
                           queryId &&
                             router.push(

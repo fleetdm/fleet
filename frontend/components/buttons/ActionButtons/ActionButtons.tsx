@@ -83,7 +83,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                 <GitOpsModeTooltipWrapper
                   renderChildren={(disableChildren) => (
                     <Button
-                      variant="text-icon"
+                      variant="inverse"
                       onClick={action.onClick}
                       disabled={disableChildren}
                     >
@@ -97,7 +97,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
               );
             }
             return (
-              <Button variant="text-icon" onClick={action.onClick}>
+              <Button variant="inverse" onClick={action.onClick}>
                 <>
                   {action.label}
                   {action.iconName && <Icon name={action.iconName} />}
@@ -112,7 +112,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
           <DropdownButton
             showCaret={false}
             options={secondaryActions}
-            variant="text-icon"
+            variant="inverse"
           >
             More options <Icon name="more" />
           </DropdownButton>

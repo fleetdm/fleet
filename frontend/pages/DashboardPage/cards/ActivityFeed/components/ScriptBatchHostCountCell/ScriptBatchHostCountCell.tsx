@@ -36,7 +36,7 @@ const ScriptBatchHostCountCell = ({
       <Button
         className={`${baseClass}__cancel-button`}
         onClick={onClickCancel}
-        variant="text-icon"
+        variant="inverse"
       >
         Cancel
       </Button>

@@ -200,7 +200,7 @@ const PlatformWrapper = ({
                 </>
               )}
               <Button
-                variant="text-icon"
+                variant="inverse"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
               >
@@ -395,7 +395,7 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="text-icon" onClick={onDownloadEnrollSecret}>
+                  <Button variant="inverse" onClick={onDownloadEnrollSecret}>
                     Download
                     <Icon
                       name="download"
@@ -420,13 +420,9 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="text-icon" onClick={onDownloadFlagfile}>
+                    <Button variant="inverse" onClick={onDownloadFlagfile}>
                       Download
-                      <Icon
-                        name="download"
-                        color="ui-fleet-black-75"
-                        size="small"
-                      />
+                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>

@@ -263,7 +263,6 @@ const WelcomeHost = ({
         </div>
         <div className={`${baseClass}__refetch`}>
           <Button
-            variant="success"
             className={`refetch-spinner ${
               showRefetchLoadingSpinner ? "spin" : ""
             }`}

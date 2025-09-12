@@ -6,12 +6,11 @@ const baseClass = "button";
 
 export type ButtonVariant =
   | "default"
-  | "success"
   | "alert"
   | "pill"
   | "text-link" // Underlines on hover
   | "text-link-dark" // underline on hover, dark text
-  | "primary-text-icon" // Green icon with text, no underline on hover
+  | "brand-inverse-icon" // Green icon with text, no underline on hover
   | "text-icon"
   | "icon" // Buttons without text
   | "inverse"
@@ -52,6 +51,8 @@ export interface IButtonProps {
     | "grid"
     | "dialog";
   ariaExpanded?: boolean;
+  /** Flushes button text to left or right of the parent component ignoring padding */
+  justifyText?: "left" | "right";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -125,6 +126,7 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       iconStroke,
       ariaHasPopup,
       ariaExpanded,
+      justifyText,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
@@ -133,12 +135,14 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       {
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-stroke`]: iconStroke,
+        [`${baseClass}--justify-left`]: justifyText === "left",
+        [`${baseClass}--justify-right`]: justifyText === "right",
       }
     );
     const onWhite =
       variant === "text-link" ||
       variant === "inverse" ||
-      variant === "primary-text-icon" ||
+      variant === "brand-inverse-icon" ||
       variant === "text-icon" ||
       variant === "pill";
 

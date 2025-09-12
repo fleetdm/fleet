@@ -62,7 +62,7 @@ export const DownloadCSR = ({
   return (
     <Button
       className={`${baseClass}__request-button`}
-      variant="text-icon"
+      variant="inverse"
       onClick={handleDownload}
     >
       <label htmlFor="request-csr">

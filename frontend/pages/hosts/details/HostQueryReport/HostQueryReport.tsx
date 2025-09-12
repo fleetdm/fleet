@@ -14,7 +14,7 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
 import ShowQueryModal from "components/modals/ShowQueryModal";
@@ -115,7 +115,7 @@ const HostQueryReport = ({
     return (
       <div className={`${baseClass}__header`}>
         <div className={`${baseClass}__header__row1`}>
-          <BackLink
+          <BackButton
             text="Back to host details"
             path={PATHS.HOST_QUERIES(hostId)}
           />

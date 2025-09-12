@@ -70,7 +70,7 @@ const RefetchButton = ({
           className={classNames}
           disabled={isDisabled}
           onClick={onRefetchHost}
-          variant="text-icon"
+          variant="inverse"
         >
           <Icon name="refresh" color="ui-fleet-black-75" size="small" />
           {buttonText}

@@ -102,7 +102,7 @@ const EnrollSecretModal = ({
                 disabled={disableChildren}
                 onClick={addNewSecretClick}
                 className={`${baseClass}__add-secret-btn`}
-                variant="text-icon"
+                variant="inverse"
                 iconStroke
               >
                 Add secret <Icon name="plus" />
