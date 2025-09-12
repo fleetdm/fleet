@@ -1521,12 +1521,12 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		isLinux := runtime.GOOS == "linux"
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
+		runSetupExperience := setupExperienceOS && serverHasWebSetup && setupExperienceNotDisabled
 		log.Debug().
-			Bool("isLinux", isLinux).
+			Bool("setupExperienceOS", setupExperienceOS).
 			Bool("serverHasSetup", serverHasWebSetup).
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
@@ -1564,6 +1564,14 @@ func main() {
 				if _, err := execuser.Run(browserBin, opts...); err != nil {
 					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 				}
+			case "windows":
+				cmdLine := fmt.Sprintf("/c start %s", browserURL)
+				opts := []execuser.Option{
+					execuser.WithArg(cmdLine, ""),
+				}
+				if _, err := execuser.Run("cmd.exe", opts...); err != nil {
+					return fmt.Errorf("opening windows browser: %w", err)
+				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
 				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
@@ -1574,7 +1582,7 @@ func main() {
 
 		if runSetupExperience {
 			log.Debug().Msg("web setup experience enabled")
-			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceFilename)
+			setupExpPath := filepath.Join(c.String("root-dir"), constant.SetupExperienceFilename)
 			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
 			}
@@ -1645,15 +1653,17 @@ type SetupExperienceInfo struct {
 
 // Returns the time setup experience was completed, or nil if it hasn't
 func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
-	f, err := os.Open(experienceCompletedPath)
+	log.Debug().Str("file", experienceCompletedPath).Msg("reading setup experience file")
+	b, err := os.ReadFile(experienceCompletedPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("read setup experience file: %w", err)
 	}
+	log.Debug().Str("contents", string(b)).Msg("setup experience file contents")
 	var exp *SetupExperienceInfo
-	if err := json.NewDecoder(f).Decode(exp); err != nil {
+	if err := json.Unmarshal(b, &exp); err != nil {
 		return nil, fmt.Errorf("decoding setup experience file: %w", err)
 	}
 
@@ -2219,7 +2229,6 @@ func (f *capabilitiesChecker) Execute() error {
 			}
 		case <-f.interruptCh:
 			return nil
-
 		}
 	}
 }
