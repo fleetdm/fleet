@@ -1093,6 +1093,46 @@ func TestInstallWithRetry(t *testing.T) {
 		require.Equal(t, 2, downloadAttempts, "Should retry after first failure")
 		require.Equal(t, 1, saveResultCalls, "Should attempt to report intermediate failure")
 	})
+
+	t.Run("retry on install script failure", func(t *testing.T) {
+		oc, r := testRunnerSetup()
+
+		downloadAttempts := 0
+		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+			downloadAttempts++
+			return filepath.Join(downloadDir, "installer.pkg"), nil
+		}
+
+		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+			return defaultTestInstallDetails(2), nil // Allow 2 retries
+		}
+
+		installAttempts := 0
+		r.execCmdFn = func(ctx context.Context, scriptPath string, env []string) ([]byte, int, error) {
+			installAttempts++
+			if installAttempts < 3 {
+				// First two attempts fail with exit code 1
+				return []byte("installation failed"), 1, nil
+			}
+			// Third attempt succeeds
+			return []byte("success"), 0, nil
+		}
+
+		oc.saveInstallerResultFn = noopSaveResultFn()
+		r.tempDirFn = tempDirFn(t)
+
+		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+
+		// Should succeed after retries
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+		require.Equal(t, 3, installAttempts, "Should retry install script failures")
+		require.Equal(t, 3, downloadAttempts, "Should download for each attempt")
+
+		// Final payload should show success
+		require.NotNil(t, payload.InstallScriptExitCode)
+		require.Equal(t, 0, *payload.InstallScriptExitCode)
+	})
 }
 
 // Test helper functions

@@ -273,7 +273,7 @@ func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.Software
 		// Attempt installation
 		resultPayload, err := r.attemptInstall(ctx, installer, payload, logger)
 
-		if err == nil {
+		if err == nil && payload.Status() == fleet.SoftwareInstalled {
 			// Success
 			logger.Debug().Msgf("Installation succeeded on attempt %d", attempt)
 			return resultPayload, nil
