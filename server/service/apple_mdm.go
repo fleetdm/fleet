@@ -557,7 +557,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 				for _, ca := range groupedCAs.Smallstep {
 					if ca.Name == caName {
 						found = true
-						// smallstepVars, ok = smallstepVars.SetURL(caName)
+						smallstepVars, ok = smallstepVars.SetURL(caName)
 						break
 					}
 				}
@@ -566,7 +566,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 				for _, ca := range groupedCAs.Smallstep {
 					if ca.Name == caName {
 						found = true
-						// smallstepVars, ok = smallstepVars.SetChallenge(caName)
+						smallstepVars, ok = smallstepVars.SetChallenge(caName)
 						break
 					}
 				}
@@ -584,6 +584,11 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 				customSCEPVars, ok = customSCEPVars.SetRenewalID()
 				if ok {
 					ndesVars, ok = ndesVars.SetRenewalID()
+				}
+				// TODO(sca): confirm with jordan if this still works as intended with 3 different
+				// CA types, maybe we can add some comments to help future readers too
+				if ok {
+					smallstepVars, ok = smallstepVars.SetRenewalID()
 				}
 			}
 		}
