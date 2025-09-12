@@ -115,7 +115,7 @@ interface IEditIconModalProps {
     versions?: number;
     source?: string;
     currentIconUrl: string | null;
-    /** Name used for FMA default icon matching */
+    /** Name used in preview UI but also for FMA default icon matching */
     name: string;
     countsUpdatedAt?: string;
   };
