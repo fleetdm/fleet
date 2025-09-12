@@ -22,7 +22,7 @@ Apple continues to expand Declarative Device Management (DDM) across macOS, iOS,
 
 In macOS 26, Apple expanded Platform Single Sign-On (PSSO) with a new option to set it up during Setup Assistant in Automated Device Enrollment. Instead of creating a local account first and enabling PSSO afterward, users can now authenticate with their identity provider as the first step in setup. The Mac then creates a local account linked to that identity, with credentials kept in sync.
 
-Fleet doesn’t yet support this new flow, but it’s on our roadmap. We’re working toward adding PSSO support to Fleet enrollment so admins can take advantage of this capability in the near future.
+Fleet is working to add support for this new enrollment flow, so admins will be able to take advantage of it in an upcoming release.
 
 Fleet remains committed to same-day support for Apple’s major operating system releases. Upgrade your devices with confidence, knowing Fleet is ready to manage macOS 26 Tahoe, iOS 26, and iPadOS 26 from day one. For more details, see the Fleet [handbook](https://fleetdm.com/handbook/engineering#provide-same-day-support-for-major-version-macos-releases).
 
