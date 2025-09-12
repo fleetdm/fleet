@@ -6,7 +6,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
-| Head of Finance | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
+| CFO | [Tina Ong](https://www.linkedin.com/in/ongtina/) _([@rfoo2015](https://github.com/rfoo2015))_
 | Deal Desk       | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
 
 
@@ -187,36 +187,24 @@ Payment information for customers within the United States is on Fleet's invoice
 For Fleet customers outside of the United States or instances where a customer is requesting payment information prior to invoicing, provide remittance information to customers by exporting ["💸 Paying Fleet"](https://docs.google.com/document/d/1KP_-x9c1x3sS1X9Q8Wlib2H7tq69xRONn1KMA3nVFQc/edit) into a PDF, then sending that to the prospect.
 
 
-### Communicate the status of customer financial actions
+### Communicate balance outstanding to a customer
 
-This reporting is performed to update the status of open or upcoming customer actions regarding the financial health of the opportunity. To complete the report:
-1. Check [SVB](https://connect.svb.com/#/) and [Brex](https://accounts.brex.com/login) for any recently received payments from customers and record them in SFDC.
-2. Go to this [report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) and this [report](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00BUG000001Z3iP2AS) in SFDC.
-3. Copy the template below and paste it into the [#help-sales slack channel](https://fleetdm.slack.com/archives/C030A767HQV) and complete all "todos" using the data from SFDC before sending.
-
-```
-Weekly revenue report - [@`todo: CRO` and @`todo: CEO`]
-- Number accounts with outstanding balances = `todo`
-- Number of customers awaiting invoices = `todo`
-- Number of past-due renewals = `todo`
-```
-
-4. Send payment reminders via email to all outstanding accounts by responding to the invoice email initially sent to the customer.
+This chaser email is sent when a customer has an overdue balance on their account.
+1. Check the [agings report](https://qbo.intuit.com/app/reportv2?token=AR_AGING&show_logo=false&date_macro=today&report_date=09/12/2025&showrows=active&showcols=active&edited_sections=false&divideby1000=false&hidecents=false&exceptzeros=true&adjusted_gain_loss=true&negativenums=1&negativered=false&show_header_title=true&show_header_range=true&show_footer_custom_message=true&show_footer_date=true&show_footer_time=true&header_alignment=Center&footer_alignment=Center&show_header_company=true&company_name=Fleet%20Device%20Management%20Inc&collapse_subs=false&footer_custom_message=&aging_as_of=true&aging_period=30&num_periods=4&backLinkText=Back%20to%20standard%20reports&backLinkRoute=standardreports) on the accounting system.
+2. For customers with balance due, send payment request via email using the following template: 
 
 ```
+Subject: Fleet invoice due
+
 Hello,
-This is a reminder that you have a coming due balance due for your Fleet Device Management premium subscription.
+This is a reminder that [Customer name] has a balance due for your Fleet Device Management premium subscription.
 We have included the invoice here for your convenience.
 For payment instructions, please refer to your invoice and reach out to [Fleet's billing contact] with any questions.
 
 Thanks,
 [name]
 ```
-
-5. If any accounts will become overdue within a week, reply in thread to the slack post, mention the opportunity owner of the account, and ask them to notify their contact that Fleet is still awaiting payment.
-6. If Finance is still awaiting a PO one week after the opportunity has been closed/won, reply to the thread in the Slack post, mention the CSM, and ask them to follow up with their customer contact.
-7. Review the [Accounts receivable](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001oc9Z2AQ/view) report in SFDC for customers on multiyear deals. For any customers due for invoicing within the next week, create an issue on the Finance board.
-
+3. For customers that require invoice submisison to be done via portal, send the payment request via the invoice portal. 
 
 ### Create an offer in AWS Marketplace
 
