@@ -157,7 +157,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% $WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                         <array>
