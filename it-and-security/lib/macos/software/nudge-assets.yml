@@ -3,5 +3,3 @@ self_service: false
 categories:
 post_install_script:
   path: ../scripts/nudge-postinstall.sh
-labels_include_any:
-  - "Nudge test devices"
