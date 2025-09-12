@@ -12226,6 +12226,47 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Equal(t, iconUrl, *details.SoftwareIconURL)
 	require.Equal(t, titleID, details.SoftwareTitleID)
 
+	// PUT: Icon too large
+	// Create a fake large file (101KB of data)
+	largeData := make([]byte, 101*1024)
+	reader := bytes.NewReader(largeData)
+	iconFile, err := fleet.NewTempFileReader(reader, func() string { return t.TempDir() })
+	require.NoError(t, err)
+
+	var bufInvalid bytes.Buffer
+	writer = multipart.NewWriter(&bufInvalid)
+	fileWriter, err = writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fileWriter, iconFile)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		bufInvalid.Bytes(),
+		http.StatusBadRequest,
+		headers,
+	)
+	var errorResp struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Name   string `json:"name"`
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(body, &errorResp)
+	require.NoError(t, err)
+	assert.Equal(t, "Bad request", errorResp.Message)
+	require.Len(t, errorResp.Errors, 1)
+	assert.Contains(t, errorResp.Errors[0].Reason, "icon must be less than 100KB")
+
 	// PUT: gitops workflow, passing in sha256 & filename
 	var storedIcons []fleet.SoftwareTitleIcon
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
