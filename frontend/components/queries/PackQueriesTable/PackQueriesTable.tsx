@@ -111,7 +111,7 @@ const PackQueriesTable = ({
       ) : (
         <div className={`${baseClass}__no-queries`}>
           <p>Your pack has no queries.</p>
-          <Button onClick={onAddPackQuery} variant="text-icon" iconStroke>
+          <Button onClick={onAddPackQuery} variant="inverse" iconStroke>
             <>
               Add query
               <Icon name="plus" />

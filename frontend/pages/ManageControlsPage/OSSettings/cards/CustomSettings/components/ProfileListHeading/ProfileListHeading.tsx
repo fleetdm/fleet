@@ -23,7 +23,7 @@ const ProfileListHeading = ({
           renderChildren={(disableChildren) => (
             <Button
               disabled={disableChildren}
-              variant="primary-text-icon"
+              variant="brand-inverse-icon"
               className={`${baseClass}__add-button`}
               onClick={onClickAddProfile}
               iconStroke

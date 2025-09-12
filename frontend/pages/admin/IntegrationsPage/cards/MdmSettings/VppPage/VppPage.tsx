@@ -10,7 +10,7 @@ import mdmAppleAPI, {
   IGetVppTokensResponse,
 } from "services/entities/mdm_apple";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
@@ -184,7 +184,7 @@ const VppPage = ({ router }: IVppPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
+        <BackButton
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-mdm`}

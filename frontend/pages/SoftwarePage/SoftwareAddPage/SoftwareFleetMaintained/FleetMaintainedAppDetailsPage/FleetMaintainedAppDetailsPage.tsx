@@ -17,7 +17,7 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -102,7 +102,7 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+        <Button variant="inverse" onClick={onClickShowAppDetails}>
           <Icon name="info" /> Show details
         </Button>
       </div>
@@ -277,7 +277,7 @@ const FleetMaintainedAppDetailsPage = ({
     if (fleetApp) {
       return (
         <>
-          <BackLink
+          <BackButton
             text="Back to add software"
             path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}

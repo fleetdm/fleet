@@ -49,7 +49,7 @@ const ConfigProfileHostCountCell = ({
       <Button
         className={`${baseClass}__resend-button`}
         onClick={onClickResend}
-        variant="text-icon"
+        variant="inverse"
       >
         <Icon name="refresh" color="ui-fleet-black-75" size="small" />
         <span>Resend</span>

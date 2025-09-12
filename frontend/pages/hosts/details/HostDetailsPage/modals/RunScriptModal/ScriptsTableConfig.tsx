@@ -105,7 +105,7 @@ export const generateTableColumnConfigs = (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="text-icon"
+            variant="inverse"
           >
             <span className={`script-info-text`}>{name}</span>
           </Button>

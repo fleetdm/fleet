@@ -15,7 +15,7 @@ import mdmAndroidAPI from "services/entities/mdm_android";
 import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 
 import MainContent from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
@@ -192,7 +192,7 @@ const AndroidMdmPage = ({ router }: IAndroidMdmPageProps) => {
 
   return (
     <MainContent className={baseClass}>
-      <BackLink
+      <BackButton
         text="Back to MDM"
         path={PATHS.ADMIN_INTEGRATIONS_MDM}
         className={`${baseClass}__back-to-mdm`}

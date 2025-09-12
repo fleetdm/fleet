@@ -214,7 +214,13 @@ $base-class: "button";
   // &--icon is used for svg icon buttons without text
   &--text-icon,
   &--icon {
-    @include button-variant(transparent);
+    @include button-variant(
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
+      $inverse: true
+    );
+    background-color: transparent;
     padding: 0;
     border: 0;
     box-shadow: none;
@@ -296,7 +302,7 @@ $base-class: "button";
   }
 
   // Used for primary buttons with green icon and green text, no underline on hover
-  &--primary-text-icon {
+  &--brand-inverse-icon {
     @include button-variant(transparent);
     padding: 0;
     border: 0;
@@ -379,10 +385,14 @@ $base-class: "button";
   }
 
   &--icon {
-    height: initial; // Override 38px height
-    svg {
-      padding: $pad-small;
-    }
+    @include button-variant(
+      $core-fleet-white,
+      $core-fleet-green-over,
+      $core-fleet-green-down,
+      $inverse: true
+    );
+    background-color: transparent;
+    // height: initial; // Override 38px height // TODO: with and without this
   }
 
   &--inverse {
@@ -491,5 +501,17 @@ $base-class: "button";
     padding: $pad-large $pad-small;
     font-size: $medium;
     width: 100%;
+  }
+
+  // Designed to offset padding for text to justify left of parent component
+  &.button--justify-left {
+    left: -$pad-small;
+    margin-right: -$pad-small;
+  }
+
+  // Designed to offset padding for text to justify right of parent component
+  &.button--justify-right {
+    right: -$pad-small;
+    margin-left: -$pad-small;
   }
 }

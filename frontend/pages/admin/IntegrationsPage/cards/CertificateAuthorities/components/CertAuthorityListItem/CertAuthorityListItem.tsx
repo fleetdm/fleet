@@ -23,9 +23,9 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onEdit}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="pencil" color="ui-fleet-black-75" />
+            <Icon name="pencil" />
           </Button>
         )}
       />
@@ -36,9 +36,9 @@ const Actions = ({ onEdit, onDelete }: IActionsProps) => {
             disabled={disableChildren}
             onClick={onDelete}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </Button>
         )}
       />

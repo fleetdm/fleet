@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import InfoBanner from "components/InfoBanner";
@@ -27,7 +27,7 @@ const WindowsAutomaticEnrollmentPage = () => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
+        <BackButton
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-automatic-enrollment`}
