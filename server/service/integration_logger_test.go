@@ -280,7 +280,7 @@ func (s *integrationLoggerTestSuite) TestSubmitLog() {
 	s.DoRawWithHeaders("POST", "/api/osquery/log", body.Bytes(), http.StatusBadRequest, nil)
 }
 
-func (s *integrationLoggerTestSuite) TestEnrollAgentLogsErrors() {
+func (s *integrationLoggerTestSuite) TestEnrollOsqueryLogsErrors() {
 	t := s.T()
 	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),

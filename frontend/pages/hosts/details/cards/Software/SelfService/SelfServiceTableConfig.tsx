@@ -14,7 +14,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCel
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import { ISWUninstallDetailsParentState } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 
-import InstallerStatusCell from "../InstallStatusCell/InstallStatusCell";
+import InstallStatusCell from "../InstallStatusCell/InstallStatusCell";
 import { installStatusSortType } from "../helpers";
 import HostInstallerActionCell from "../../HostSoftwareLibrary/HostInstallerActionCell/HostInstallerActionCell";
 
@@ -70,12 +70,12 @@ export const generateSoftwareTableHeaders = ({
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, app_store_app } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             source={source}
-            iconUrl={app_store_app?.icon_url}
+            iconUrl={icon_url}
             pageContext="deviceUser"
             isSelfService
           />
@@ -95,7 +95,7 @@ export const generateSoftwareTableHeaders = ({
       disableGlobalFilter: true,
       accessor: "ui_status",
       Cell: (cellProps: IStatusCellProps) => (
-        <InstallerStatusCell
+        <InstallStatusCell
           software={cellProps.row.original}
           onShowUpdateDetails={onShowUpdateDetails}
           onShowInstallDetails={onShowInstallDetails}

@@ -90,7 +90,7 @@ func TestParseJSONtoProjectItems(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			items, err := ParseJSONtoProjectItems([]byte(tt.jsonData), tt.limit)
+			items, _, err := ParseJSONtoProjectItems([]byte(tt.jsonData), tt.limit)
 
 			if tt.expectError {
 				if err == nil {

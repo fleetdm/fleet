@@ -307,7 +307,7 @@ The flow for Hydrant differs from the other certificate authorities (CA's). Othe
 1. Log in to your [company's ACM platform](https://help.hydrantid.com/html/authentication.html).
 1. Invite a [new user](https://help.hydrantid.com/html/authentication.html) that will be used for certificate generation and ensure it has the [required permissions](https://help.hydrantid.com/html/roles.html) to request certificates.
 1. Log out and log back in as the new user.
-1. Get the [API keys](https://help.hydrantid.com/html/manageapikeys.html) for the newly created user, make a note of the **ID** and **Key**, you will need that to connect Fleet with Hydrant in the next step.
+1. Get the [API keys](https://help.hydrantid.com/html/manageapikeys.html) for the newly created user, make a note of the **Client ID** and **Client Secret**, you will need that to connect Fleet with Hydrant in the next step.
 
 ### Step 2: Connect Fleet to Hydrant
 

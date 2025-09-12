@@ -1,0 +1,1 @@
+* Ignore warning when LastOpenedAt for software is nil on macOS

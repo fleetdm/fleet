@@ -36,7 +36,7 @@ controls:
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
-  - path: ../lib/linux/policies/check-fleet-desktop-extension-fedora-debian.yml
+  - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
 software:
   packages:
@@ -47,4 +47,12 @@ software:
   fleet_maintained_apps:
     # macOS apps
     - slug: santa/darwin # Santa for macOS
+      self_service: true
+    - slug: vnc-viewer/darwin # VNC Viewer for macOS
+      self_service: true
+    - slug: beyond-compare/darwin # Beyond Compare for macOS
+      self_service: true
+    - slug: iterm2/darwin # iTerm2 for macOS
+      self_service: true
+    - slug: yubico-yubikey-manager/darwin # YubiKey Manager for macOS
       self_service: true

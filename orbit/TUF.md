@@ -7,9 +7,9 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 | Component\OS |    macOS     | Linux  | Windows | Linux (arm64) | Windows (arm64) |
 |--------------|--------------|--------|---------|---------------|-----------------|
-| orbit        | 1.46.0       | 1.46.0 | 1.46.0  | 1.46.0        | 1.46.0          |
-| desktop      | 1.46.0       | 1.46.0 | 1.46.0  | 1.46.0        | 1.46.0          |
-| osqueryd     | 5.18.1       | 5.18.1 | 5.18.1  | 5.18.1        | 5.18.1          |
+| orbit        | 1.47.2       | 1.47.2 | 1.47.2  | 1.47.2        | 1.47.2          |
+| desktop      | 1.47.2       | 1.47.2 | 1.47.2  | 1.47.2        | 1.47.2          |
+| osqueryd     | 5.19.0       | 5.19.0 | 5.19.0  | 5.19.0        | 5.19.0          |
 | nudge        | 1.1.10.81462 | -      | -       | -             | -               |
 | swiftDialog  | 2.1.0        | -      | -       | -             | -               |
 | escrowBuddy  | 1.0.0        | -      | -       | -             | -               |
@@ -18,8 +18,8 @@ Following are the currently deployed versions of fleetd components on the `stabl
 
 | Component\OS | macOS  | Linux  | Windows | Linux (arm64) | Windows (arm64) |
 |--------------|--------|--------|---------|---------------|-----------------|
-| orbit        | 1.46.0 | 1.46.0 | 1.46.0  | 1.46.0        | 1.46.0          |
-| desktop      | 1.46.0 | 1.46.0 | 1.46.0  | 1.46.0        | 1.46.0          |
+| orbit        | 1.47.3 | 1.47.3 | 1.47.3  | 1.47.3        | 1.47.3          |
+| desktop      | 1.47.3 | 1.47.3 | 1.47.3  | 1.47.3        | 1.47.3          |
 | osqueryd     | 5.19.0 | 5.19.0 | 5.19.0  | 5.19.0        | 5.19.0          |
 | nudge        | -      | -      | -       | -             | -               |
 | swiftDialog  | -      | -      | -       | -             | -               |

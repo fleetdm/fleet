@@ -159,6 +159,7 @@ interface ISoftwareInstallerCardProps {
   };
   isSelfService: boolean;
   softwareId: number;
+  iconUrl?: string | null;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -181,6 +182,7 @@ const SoftwareInstallerCard = ({
   isSelfService,
   softwareInstaller,
   softwareId,
+  iconUrl,
   teamId,
   teamIdForApi,
   onDelete,
@@ -401,6 +403,9 @@ const SoftwareInstallerCard = ({
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
+          softwareTitleId={softwareId}
+          teamId={teamId}
+          iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
         />

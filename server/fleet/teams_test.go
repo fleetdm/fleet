@@ -303,3 +303,85 @@ func TestTeamMDMCopy(t *testing.T) {
 		require.NotSame(t, tm.MacOSSettings.DeprecatedEnableDiskEncryption, clone.MacOSSettings.DeprecatedEnableDiskEncryption)
 	})
 }
+
+func TestTeamConfigCopy(t *testing.T) {
+	t.Run("nil receiver", func(t *testing.T) {
+		var tc *TeamConfig
+		require.Nil(t, tc.Copy())
+	})
+
+	t.Run("deep copy webhook settings", func(t *testing.T) {
+		tc := &TeamConfig{
+			WebhookSettings: TeamWebhookSettings{
+				HostStatusWebhook: &HostStatusWebhookSettings{
+					Enable:         true,
+					DestinationURL: "https://example.com",
+					HostPercentage: 0.5,
+					DaysCount:      7,
+				},
+				FailingPoliciesWebhook: FailingPoliciesWebhookSettings{
+					Enable:         true,
+					DestinationURL: "https://policies.example.com",
+					PolicyIDs:      []uint{1, 2, 3},
+					HostBatchSize:  100,
+				},
+			},
+		}
+
+		clone := tc.Copy()
+		require.NotNil(t, clone)
+		require.NotSame(t, tc, clone)
+
+		// Verify deep copy of HostStatusWebhook pointer
+		require.NotSame(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
+		require.Equal(t, tc.WebhookSettings.HostStatusWebhook, clone.WebhookSettings.HostStatusWebhook)
+
+		// Verify deep copy of PolicyIDs slice
+		require.NotEqual(t,
+			reflect.ValueOf(tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
+			reflect.ValueOf(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs).Pointer(),
+		)
+		require.Equal(t, tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
+		// Modify original and verify clone is unaffected
+		tc.WebhookSettings.HostStatusWebhook.Enable = false
+		tc.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0] = 999
+		require.True(t, clone.WebhookSettings.HostStatusWebhook.Enable)
+		require.Equal(t, uint(1), clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs[0])
+	})
+
+	t.Run("deep copy features", func(t *testing.T) {
+		tc := &TeamConfig{
+			Features: Features{
+				EnableHostUsers:         true,
+				EnableSoftwareInventory: true,
+				AdditionalQueries:       ptr.RawMessage([]byte(`{"query": "test"}`)),
+				DetailQueryOverrides: map[string]*string{
+					"key1": ptr.String("value1"),
+					"key2": ptr.String("value2"),
+				},
+			},
+		}
+
+		clone := tc.Copy()
+		require.NotNil(t, clone)
+		require.NotSame(t, tc, clone)
+
+		// Verify deep copy of AdditionalQueries
+		require.NotSame(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
+		require.Equal(t, tc.Features.AdditionalQueries, clone.Features.AdditionalQueries)
+
+		// Verify deep copy of DetailQueryOverrides map
+		require.NotEqual(t,
+			reflect.ValueOf(tc.Features.DetailQueryOverrides).Pointer(),
+			reflect.ValueOf(clone.Features.DetailQueryOverrides).Pointer(),
+		)
+		require.Equal(t, tc.Features.DetailQueryOverrides, clone.Features.DetailQueryOverrides)
+
+		// Modify original and verify clone is unaffected
+		tc.Features.EnableHostUsers = false
+		*tc.Features.DetailQueryOverrides["key1"] = "modified"
+		require.True(t, clone.Features.EnableHostUsers)
+		require.Equal(t, "value1", *clone.Features.DetailQueryOverrides["key1"])
+	})
+}

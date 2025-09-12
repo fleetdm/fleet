@@ -104,7 +104,7 @@ func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 }
 
 func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
+	verb, path := "POST", "/api/latest/fleet/bootstrap"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
