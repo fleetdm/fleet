@@ -103,7 +103,7 @@ export const renderDownloadFilesText = ({
       ),
     });
   }
-  /* if (iconUrl) {
+  if (iconUrl) {
     items.push({
       key: "icon-url",
       element: (
@@ -112,7 +112,7 @@ export const renderDownloadFilesText = ({
         </Button>
       ),
     });
-  } */
+  }
 
   if (items.length === 0) return <></>;
 
@@ -193,12 +193,11 @@ export const createPackageYaml = ({
 `;
   }
 
-  // skipping pending GitOps support
-  /*  if (iconUrl) {
+  if (iconUrl) {
     yaml += `  icon_url:
     path: ./icons/${hyphenatedSWTitle}-icon.png
 `;
-  } */
+  }
 
   return yaml.trim();
 };
