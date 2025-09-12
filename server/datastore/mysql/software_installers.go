@@ -147,7 +147,11 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 
 	// Check if this install is part of setup experience and set retry count accordingly
 	var setupExperienceCount int
-	setupExpStmt := `SELECT COUNT(*) FROM setup_experience_status_results WHERE host_software_installs_execution_id = ? AND status IN (?, ?)`
+	setupExpStmt := `
+		SELECT EXISTS(
+			SELECT 1 FROM setup_experience_status_results
+			WHERE host_software_installs_execution_id = ? AND status IN (?, ?)
+		)`
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &setupExperienceCount, setupExpStmt, executionId, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, ctxerr.Wrap(ctx, err, "check if install is part of setup experience")
 	}

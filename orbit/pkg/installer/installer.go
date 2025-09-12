@@ -542,6 +542,11 @@ func isNetworkOrTransientError(err error) bool {
 		return true
 	}
 
+	// "context canceled" comes from Go's standard context package
+	if strings.Contains(errStr, "context canceled") {
+		return true
+	}
+
 	// Rate limiting and service availability errors
 	// These come from statusCodeErr in base_client.go which formats as "status XXX <body>"
 
