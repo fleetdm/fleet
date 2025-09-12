@@ -278,7 +278,7 @@ func testListPendingSoftwareInstalls(t *testing.T, ds *Datastore) {
 		host1.UUID, "test_software", fleet.SetupExperienceStatusPending, installerID1, setupExperienceInstallID)
 	require.NoError(t, err)
 
-	// Get the install details and check MaxRetries = setupExperienceSoftwareInstallsRetries (3)
+	// Get the install details and check MaxRetries = setupExperienceSoftwareInstallsRetries
 	setupExperienceInstallDetails, err := ds.GetSoftwareInstallDetails(ctx, setupExperienceInstallID)
 	require.NoError(t, err)
 	require.Equal(t, host1.ID, setupExperienceInstallDetails.HostID)
