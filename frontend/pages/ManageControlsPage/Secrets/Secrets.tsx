@@ -155,11 +155,12 @@ const Secrets = () => {
               {getTokenFromSecretName(secret.name)}
             </span>
             <Button
-              variant="unstyled"
+              variant="icon"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
+              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -243,11 +244,12 @@ const Secrets = () => {
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button
-                      variant="inverse"
+                      variant="brand-inverse-icon"
                       onClick={onClickAddSecret}
                       disabled={disableChildren}
+                      justifyText="right"
                     >
-                      <Icon name="plus" />
+                      <Icon name="plus" color="core-fleet-green" />
                       <span>Add custom variable</span>
                     </Button>
                   </span>

@@ -304,7 +304,7 @@ $base-class: "button";
   // Used for primary buttons with green icon and green text, no underline on hover
   &--brand-inverse-icon {
     @include button-variant(transparent);
-    padding: 0;
+    padding: $pad-small;
     border: 0;
     box-shadow: none;
     color: $core-fleet-green;
@@ -336,6 +336,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
+      background-color: rgba($core-fleet-black, 0.05);
       color: $core-fleet-green-over;
 
       svg {
@@ -353,25 +354,24 @@ $base-class: "button";
           }
         }
       }
-
-      // If .button--icon-stroke is present, use stroke instead of fill
-      // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
-      // so we need to modify that property instead. Adding a custom `fill`
-      // could make these icons render incorrectly.
-      &.button--icon-stroke {
-        &:hover,
-        &:focus {
+    }
+    // If .button--icon-stroke is present, use stroke instead of fill
+    // Some SVG icons in these buttons contain a `stroke` instead of a `fill`,
+    // so we need to modify that property instead. Adding a custom `fill`
+    // could make these icons render incorrectly.
+    &.button--icon-stroke {
+      &:hover,
+      &:focus {
+        svg {
+          path {
+            fill: none; // Prevent fill from interfering
+            stroke: $core-fleet-green-over;
+          }
+        }
+        &:active {
           svg {
             path {
-              fill: none; // Prevent fill from interfering
-              stroke: $ui-fleet-black-75-over;
-            }
-          }
-          &:active {
-            svg {
-              path {
-                stroke: $ui-fleet-black-75-down;
-              }
+              stroke: $core-fleet-green-over;
             }
           }
         }
@@ -470,7 +470,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-10;
       box-shadow: none;
     }
 

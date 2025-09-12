@@ -395,7 +395,11 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="inverse" onClick={onOpenSidebar}>
+                  <Button
+                    variant="inverse"
+                    onClick={onOpenSidebar}
+                    justifyText="right"
+                  >
                     Schema
                     <Icon name="info" size="small" />
                   </Button>

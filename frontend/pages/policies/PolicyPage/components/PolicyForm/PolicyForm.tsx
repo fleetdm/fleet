@@ -398,7 +398,11 @@ const PolicyForm = ({
     return (
       <div className={`${baseClass}__sql-editor-label-actions`}>
         {showOpenSchemaActionText && (
-          <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+          <Button
+            variant="inverse"
+            onClick={onOpenSchemaSidebar}
+            justifyText="right"
+          >
             <>
               Schema
               <Icon name="info" size="small" />
@@ -804,11 +808,11 @@ const PolicyForm = ({
               }
             >
               <Button
-                className={`${baseClass}__run`}
                 onClick={goToSelectTargets}
                 disabled={
                   (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
                 }
+                variant="inverse"
               >
                 Run
               </Button>

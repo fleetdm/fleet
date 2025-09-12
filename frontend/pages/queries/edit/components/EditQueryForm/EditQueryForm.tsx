@@ -419,7 +419,11 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onOpenSchemaSidebar}>
+      <Button
+        variant="inverse"
+        onClick={onOpenSchemaSidebar}
+        justifyText="right"
+      >
         <>
           Schema
           <Icon name="info" size="small" />
@@ -604,7 +608,6 @@ const EditQueryForm = ({
             data-tip-disable={!disabledLiveQuery}
           >
             <Button
-              className={`${baseClass}__run`}
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
@@ -615,7 +618,7 @@ const EditQueryForm = ({
               }}
               disabled={disabledLiveQuery}
             >
-              Live query
+              Live query <Icon name="run" />
             </Button>
           </div>
           <ReactTooltip
@@ -858,7 +861,7 @@ const EditQueryForm = ({
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
-                        variant="text-link"
+                        variant="inverse"
                         onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
@@ -921,7 +924,7 @@ const EditQueryForm = ({
                 }}
                 disabled={disabledLiveQuery}
               >
-                Live query
+                Live query <Icon name="run" />
               </Button>
             </TooltipWrapper>
           </div>
