@@ -4,7 +4,7 @@
 
 _Photo by [MariuszBlach](https://www.istockphoto.com/photo/lake-tahoe-gm480641071-36497954)_
 
-With Apple’s release of macOS 26 Tahoe, iOS 26, and iPadOS 26, Fleet continues to deliver same-day support to help organizations move forward without hesitation. Fleet empowers IT administrators to securely manage and monitor their devices, from seamless upgrades to ongoing support for Apple’s latest advancements in device management.
+With Apple's release of macOS Tahoe 26, iOS 26, and iPadOS 26, Fleet continues to provide same-day support so IT teams can upgrade immediately, knowing their devices will remain secure and fully managed.
 
 ## Simplified MDM migration with Apple Business Manager
 
