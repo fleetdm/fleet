@@ -470,7 +470,10 @@ $max-width: 2560px;
   }
 }
 
-@mixin bottom-border {
+@mixin bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
   // Light underline always visible
   &::before {
     content: "";
@@ -480,7 +483,7 @@ $max-width: 2560px;
     bottom: -1px;
     height: 1px;
     width: 100%;
-    background: $ui-fleet-black-25;
+    background: $inactive-color;
     pointer-events: none;
     transform: scaleX(1);
     transform-origin: right;
@@ -497,7 +500,7 @@ $max-width: 2560px;
     bottom: -1px;
     height: 1px;
     width: 100%;
-    background: $core-fleet-black;
+    background: $active-color;
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.2s ease;
@@ -505,14 +508,17 @@ $max-width: 2560px;
   }
 }
 
-@mixin animated-bottom-border {
+@mixin animated-bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
   position: relative;
 
   &:hover {
     margin-bottom: -3px; // Account for underline height, removed for link-cell truncated
   }
 
-  @include bottom-border;
+  @include bottom-border($active-color, $inactive-color);
 
   &:hover::after,
   &:focus::after {
