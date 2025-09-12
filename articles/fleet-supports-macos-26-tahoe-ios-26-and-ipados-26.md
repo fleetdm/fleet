@@ -16,7 +16,7 @@ Fleet is ready to support this migration workflow at release, making it easier f
 
 ## Declarative device management (DDM)
 
-Apple continues to expand Declarative Device Management (DDM) across macOS, iOS, and iPadOS. With Fleet, admins can already send declarative profiles to devices, meaning your team is ready to take advantage of Apple’s latest management features as they become available, without waiting for additional updates.
+Apple continues to expand Declarative Device Management (DDM) across macOS, iOS, and iPadOS. Fleet already supports declarative profiles, so IT teams can take advantage of Apple’s latest management features as soon as they’re released — without waiting for additional updates.
 
 ## Platform single sign-on
 
