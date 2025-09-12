@@ -717,7 +717,7 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 			case http.StatusUnauthorized, http.StatusForbidden:
 				// Authentication/authorization issues - don't delete the enterprise
 				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
-				return fmt.Errorf("verifying enterprise with Google: authentication error")
+				return fmt.Errorf("verifying enterprise with Google: authentication error: %w", err)
 			}
 		}
 		// LIST failed - this is likely a technical issue, not deletion
