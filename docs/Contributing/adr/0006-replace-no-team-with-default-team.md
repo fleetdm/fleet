@@ -38,7 +38,7 @@ See the [WIP technical design document](https://docs.google.com/document/d/1tTO0
 * Easier to document and explain to customers.
 * Relies on well-worn and tested concept (Fleet teams) rather than inventing something new; this will be a huge net _reduction_ in code.
 * The "new" features of the default team should be fairly straightforward to implement.
-* Can be done in a way that is invisible to existing customers (especially if we name their new default team "No Team"), other than that their "No Team" will now have upgraded features (like the ability to add queries).
+* Can be done in a way that is invisible to existing customers (especially if we name their new default team "No team"), other than that their "No team" will now have upgraded features (like the ability to add queries).
 
 ### Drawbacks
 
