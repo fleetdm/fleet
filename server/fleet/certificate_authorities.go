@@ -193,6 +193,9 @@ func (p *CertificateAuthorityUpdatePayload) ValidatePayload(privateKey string, e
 	if p.CustomSCEPProxyCAUpdatePayload != nil {
 		caInPayload++
 	}
+	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		caInPayload++
+	}
 	if caInPayload == 0 {
 		return &BadRequestError{Message: fmt.Sprintf("%sA certificate authority must be specified", errPrefix)}
 	}
@@ -460,15 +463,6 @@ func GroupCertificateAuthoritiesByType(cas []*CertificateAuthority) (*GroupedCer
 
 	return grouped, nil
 }
-
-// // TODO: Do we need optjson here? We aren't supporting patch behavior for batch updates
-// type CertificateAuthoritiesSpec struct {
-// 	DigiCert        optjson.Slice[DigiCertCA]        `json:"digicert"`
-// 	NDESSCEPProxy   optjson.Any[NDESSCEPProxyCA]     `json:"ndes_scep_proxy"`
-// 	CustomSCEPProxy optjson.Slice[CustomSCEPProxyCA] `json:"custom_scep_proxy"`
-// 	Hydrant         optjson.Slice[HydrantCA]         `json:"hydrant"`
-// 	Smallstep       optjson.Slice[SmallstepSCEPProxyCA] `json:"smallstep"`
-// }
 
 func ValidateCertificateAuthoritiesSpec(incoming interface{}) (*GroupedCertificateAuthorities, error) {
 	var groupedCAs GroupedCertificateAuthorities
