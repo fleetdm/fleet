@@ -321,6 +321,7 @@ func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.Software
 	}
 
 	// All retries exhausted
+	payload.WillRetry = false
 	logger.Err(lastErr).Msgf("Installation failed after %d attempts", maxAttempts)
 	return payload, lastErr
 }

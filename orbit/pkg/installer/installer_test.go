@@ -248,7 +248,7 @@ func TestInstallerRun(t *testing.T) {
 	var tmpDir string
 	r.tempDirFn = func(dir, pattern string) (string, error) {
 		tmpDirFnCalled = true
-		tmpDir = os.TempDir()
+		tmpDir = t.TempDir()
 		return tmpDir, nil
 	}
 
@@ -604,7 +604,7 @@ func TestInstallerRunWithInstallerFromURL(t *testing.T) {
 	var tmpDir string
 	r.tempDirFn = func(dir, pattern string) (string, error) {
 		tmpDirFnCalled = true
-		tmpDir = os.TempDir()
+		tmpDir = t.TempDir()
 		return tmpDir, nil
 	}
 
