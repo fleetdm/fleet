@@ -45,6 +45,7 @@ import YubikeyManager from "./YubikeyManager";
 import BeyondCompare from "./BeyondCompare";
 import ITerm from "./ITerm";
 import VncViewer from "./VncViewer";
+import WindowsAppRemote from "./WindowsAppRemote";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -83,6 +84,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
+  "windows app": WindowsAppRemote,
 } as const;
 
 // Maps all known Linux platforms to the LinuxOS icon
