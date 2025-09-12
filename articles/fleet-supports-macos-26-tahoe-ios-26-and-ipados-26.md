@@ -24,7 +24,9 @@ In macOS 26, Apple expanded Platform Single Sign-On (PSSO) with a new option to 
 
 Fleet is working to add support for this new enrollment flow, so admins will be able to take advantage of it in an upcoming release.
 
-Fleet remains committed to same-day support for Apple’s major operating system releases. Upgrade your devices with confidence, knowing Fleet is ready to manage macOS 26 Tahoe, iOS 26, and iPadOS 26 from day one. For more details, see the Fleet [handbook](https://fleetdm.com/handbook/engineering#provide-same-day-support-for-major-version-macos-releases).
+## Ready from day one
+
+Fleet is ready to manage macOS Tahoe 26, iOS 26, and iPadOS 26 from day one, so you can confidently upgrade. Fleet remains committed to same-day support for Apple’s major operating system releases. For more details, see the Fleet [handbook](https://fleetdm.com/handbook/engineering#provide-same-day-support-for-major-version-macos-releases).
 
 <meta name="category" value="announcements">
 <meta name="authorFullName" value="Andrey Kizimenko">
