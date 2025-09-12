@@ -576,7 +576,7 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 			COALESCE(icons.filename, "") AS icon_filename, COALESCE(icons.storage_id, "") AS icon_hash_sha256
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
-		LEFT JOIN software_title_icons icons ON va.title_id = icons.title_id AND vat.global_or_team_id = icons.team_id
+		LEFT JOIN software_title_icons icons ON va.title_id = icons.software_title_id AND vat.global_or_team_id = icons.team_id
 		WHERE global_or_team_id = ?`, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps")
 	}
