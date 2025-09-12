@@ -1,4 +1,4 @@
-# Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26 
+# Fleet supports Apple’s latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26 
 
 ![Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26](../website/assets/images/articles/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26.jpg)
 
