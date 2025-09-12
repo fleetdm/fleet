@@ -20,7 +20,7 @@ Apple continues to expand Declarative Device Management (DDM) across macOS, iOS,
 
 ## Platform single sign-on
 
-In macOS 26, Apple expanded Platform Single Sign-On (PSSO) with a new option to set it up during Setup Assistant in Automated Device Enrollment. Instead of creating a local account first and enabling PSSO afterward, users can now authenticate with their identity provider as the first step in setup. The Mac then creates a local account linked to that identity, with credentials kept in sync.
+In macOS Tahoe 26, Apple expanded Platform Single Sign-On (PSSO) with a new option to set it up during Setup Assistant in Automated Device Enrollment. Instead of creating a local account first and enabling PSSO afterward, users can now authenticate with their identity provider as the first step in setup. The Mac then creates a local account linked to that identity, with credentials kept in sync.
 
 Fleet is working to add support for this new enrollment flow, so admins will be able to take advantage of it in an upcoming release.
 
