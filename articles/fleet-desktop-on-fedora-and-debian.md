@@ -1,10 +1,10 @@
 # Enabling Fleet Desktop on Fedora, Debian, and OpenSUSE
 
-[Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) is a menu bar icon available on macOS, Windows, and Linux that gives your end users visibility into the security posture of their machine.
+[Fleet Desktop](https://fleetdm.com/guides/fleet-desktop) is an application for macOS, Linux, and Windows that gives end users visibility into how their device is managed by Fleet and that functions as a self-service portal.
 
-Fedora and Debian do not support tray icons by default and rely on the [appindicator-support](https://extensions.gnome.org/extension/615/appindicator-support/) GNOME extension for enabling tray icons. GNOME extensions prompt the end user to accept the installation.
+On Linux systems, Fleet Desktop appears as a tray icon. Fedora and Debian do not support tray icons by default and rely on the [appindicator-support](https://extensions.gnome.org/extension/615/appindicator-support/) GNOME extension for enabling tray icons. GNOME extensions prompt the end user to accept the installation.
 
-This article aims to explain how admins can enable Fleet Desktop on such Linux distributions by using policy queries paired with script execution.
+This article explains how admins can enable Fleet Desktop on Linux distributions without default support for tray icons by using policy queries paired with script execution.
 
 ## Policy and script execution
 
@@ -15,7 +15,7 @@ Starting in version v4.58.0, Fleet supports running scripts to remediate failing
 
 ### End-user experience
 
-Following are screenshots of the end-user experience when Fleet runs the script to install the extension (GNOME requires a prompt for installation of extensions for security purposes).
+The screen shots below show the end-user experience when Fleet runs the script to install the extension (GNOME requires a prompt for installation of extensions for security purposes).
 
 <p float="left">
   <img src="../website/assets/images/articles/fedora_38_appindicator_extension_prompt-326x434@2x.png" title="Fedora 38" width="300" />
