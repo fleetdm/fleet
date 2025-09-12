@@ -2492,7 +2492,7 @@ JOIN (
     COUNT(bahr.error)                                          AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
     COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
-    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
+	COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba2.canceled = 1), 1, NULL)) AS num_canceled
   FROM batch_activities AS ba2
   LEFT JOIN batch_activity_host_results AS bahr
 	  ON ba2.execution_id = bahr.batch_execution_id
