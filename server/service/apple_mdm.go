@@ -509,7 +509,7 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		digiCertVars   *digiCertVarsFound
 		customSCEPVars *customSCEPVarsFound
 		ndesVars       *ndesVarsFound
-		// smallstepVars  *smallstepVarsFound
+		smallstepVars  *smallstepVarsFound
 	)
 	for _, k := range fleetVars {
 		ok := true
@@ -601,12 +601,27 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, err
 		}
 	}
-	// Since both custom SCEP and NDES share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() && ndesVars.Found() {
+	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
+	found := 0
+	if customSCEPVars.Found() {
+		found++
+	}
+	if ndesVars.Found() {
+		found++
+	}
+	if smallstepVars.Found() {
+		found++
+	}
+	if found > 1 {
+		// TODO(sca): check with jordan if we need else/if logic here
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
-		} else if customSCEPVars.RenewalOnly() {
+		}
+		if customSCEPVars.RenewalOnly() {
 			customSCEPVars = nil
+		}
+		if smallstepVars.RenewalOnly() {
+			smallstepVars = nil
 		}
 	}
 	if customSCEPVars.Found() {
@@ -623,6 +638,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			return nil, &fleet.BadRequestError{Message: ndesVars.ErrorMessage()}
 		}
 		err := additionalNDESValidation(contents, ndesVars)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if smallstepVars.Found() {
+		if !smallstepVars.Ok() {
+			return nil, &fleet.BadRequestError{Message: smallstepVars.ErrorMessage()}
+		}
+		err := additionalSmallstepValidation(contents, smallstepVars)
 		if err != nil {
 			return nil, err
 		}
@@ -759,10 +783,58 @@ func additionalCustomSCEPValidation(contents string, customSCEPVars *customSCEPV
 	return nil
 }
 
-// func additionalSmallstepSCEPValidation(contents string, smallstepVars *smallstepVarsFound) error {
-// 	// TODO(sca): Implement smallstep SCEP validation
-// 	return nil
-// }
+func additionalSmallstepValidation(contents string, smallstepVars *smallstepVarsFound) error {
+	scepProf, err := unmarshalSCEPProfile(contents)
+	if err != nil {
+		return err
+	}
+	scepPayloadContent, err := checkThatOnlyOneSCEPPayloadIsPresent(scepProf)
+	if err != nil {
+		return err
+	}
+
+	var foundCAs []string
+	for _, ca := range smallstepVars.CAs() {
+		// Although this is a loop, we know that we can only have 1 set of SCEP vars because Apple only allows 1 SCEP payload in a profile.
+		// Check for the exact match on challenge and URL
+		challengePrefix := "FLEET_VAR_" + string(fleet.FleetVarSmallstepSCEPChallengePrefix)
+		if scepPayloadContent.Challenge != "$"+challengePrefix+ca && scepPayloadContent.Challenge != "${"+challengePrefix+ca+"}" {
+			payloadChallenge := scepPayloadContent.Challenge
+			if len(payloadChallenge) > maxValueCharsInError {
+				payloadChallenge = payloadChallenge[:maxValueCharsInError] + "..."
+			}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					string(fleet.FleetVarSmallstepSCEPChallengePrefix) + ca + "\" must be in the SCEP certificate's \"Challenge\" field.",
+				InternalErr: fmt.Errorf("Challenge: %s", payloadChallenge),
+			}
+		}
+		urlPrefix := "FLEET_VAR_" + string(fleet.FleetVarSmallstepSCEPProxyURLPrefix)
+		if scepPayloadContent.URL != "$"+urlPrefix+ca && scepPayloadContent.URL != "${"+urlPrefix+ca+"}" {
+			payloadURL := scepPayloadContent.URL
+			if len(payloadURL) > maxValueCharsInError {
+				payloadURL = payloadURL[:maxValueCharsInError] + "..."
+			}
+			return &fleet.BadRequestError{
+				Message: "Variable \"$FLEET_VAR_" +
+					string(fleet.FleetVarSmallstepSCEPProxyURLPrefix) + ca + "\" must be in the SCEP certificate's \"URL\" field.",
+				InternalErr: fmt.Errorf("URL: %s", payloadURL),
+			}
+		}
+		foundCAs = append(foundCAs, ca)
+	}
+	if !fleetVarSCEPRenewalIDRegexp.MatchString(scepPayloadContent.CommonName) {
+		return &fleet.BadRequestError{Message: "Variable $FLEET_VAR_" + string(fleet.FleetVarSCEPRenewalID) + " must be in the SCEP certificate's common name (CN)."}
+	}
+	if len(foundCAs) < len(smallstepVars.CAs()) {
+		for _, ca := range smallstepVars.CAs() {
+			if !slices.Contains(foundCAs, ca) {
+				return &fleet.BadRequestError{Message: fleet.SCEPVariablesNotInSCEPPayloadErrMsg}
+			}
+		}
+	}
+	return nil
+}
 
 func checkThatOnlyOneSCEPPayloadIsPresent(scepProf SCEPProfileContent) (SCEPPayloadContent, error) {
 	scepPayloadsFound := 0
@@ -5919,12 +5991,106 @@ func isCustomSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertif
 	return true, nil
 }
 
-// // TODO(sca): Implement methods on smallstepVarsFound if needed in the future.
-// type smallstepVarsFound struct {
-// 	urlCA          map[string]struct{}
-// 	challengeCA    map[string]struct{}
-// 	renewalIdFound bool
-// }
+type smallstepVarsFound struct {
+	urlCA          map[string]struct{}
+	challengeCA    map[string]struct{}
+	renewalIdFound bool
+}
+
+// Ok makes sure that Challenge is present only if URL is also present in SCEP profile.
+// This allows the Admin to override the SCEP challenge in the profile.
+func (cs *smallstepVarsFound) Ok() bool {
+	if cs == nil {
+		return true
+	}
+	// There must be a 1:1 mapping between URL and Challenge CAs
+	if len(cs.challengeCA) != len(cs.urlCA) {
+		return false
+	}
+	if len(cs.challengeCA) == 0 {
+		return false
+	}
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			// Unable to find matching URL CA for Challenge CA
+			return false
+		}
+	}
+	return cs.renewalIdFound
+}
+
+func (cs *smallstepVarsFound) Found() bool {
+	return cs != nil
+}
+
+func (cs *smallstepVarsFound) RenewalOnly() bool {
+	return cs != nil && len(cs.urlCA) == 0 && len(cs.challengeCA) == 0 && cs.renewalIdFound
+}
+
+func (cs *smallstepVarsFound) CAs() []string {
+	if cs == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(cs.urlCA))
+	for key := range cs.urlCA {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+func (cs *smallstepVarsFound) ErrorMessage() string {
+	if cs.renewalIdFound && len(cs.challengeCA) == 0 && len(cs.urlCA) == 0 {
+		return fleet.SCEPRenewalIDWithoutURLChallengeErrMsg
+	}
+	if !cs.renewalIdFound || len(cs.challengeCA) == 0 || len(cs.urlCA) == 0 {
+		return fmt.Sprintf("SCEP profile for Smallstep certificate authority requires: $FLEET_VAR_%s<CA_NAME>, $FLEET_VAR_%s<CA_NAME>, and $FLEET_VAR_%s variables.", fleet.FleetVarSmallstepSCEPChallengePrefix, fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSCEPRenewalID)
+	}
+	for ca := range cs.challengeCA {
+		if _, ok := cs.urlCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPProxyURLPrefix, ca)
+		}
+	}
+	for ca := range cs.urlCA {
+		if _, ok := cs.challengeCA[ca]; !ok {
+			return fmt.Sprintf("Missing $FLEET_VAR_%s%s in the profile", fleet.FleetVarSmallstepSCEPChallengePrefix, ca)
+		}
+	}
+	return fmt.Sprintf("CA name mismatch between $FLEET_VAR_%s<ca_name> and $FLEET_VAR_%s<ca_name> in the profile.",
+		fleet.FleetVarSmallstepSCEPProxyURLPrefix, fleet.FleetVarSmallstepSCEPChallengePrefix)
+}
+
+func (cs *smallstepVarsFound) SetURL(value string) (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	if cs.urlCA == nil {
+		cs.urlCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.urlCA[value]
+	cs.urlCA[value] = struct{}{}
+	return cs, !alreadyPresent
+}
+
+func (cs *smallstepVarsFound) SetChallenge(value string) (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	if cs.challengeCA == nil {
+		cs.challengeCA = make(map[string]struct{})
+	}
+	_, alreadyPresent := cs.challengeCA[value]
+	cs.challengeCA[value] = struct{}{}
+	return cs, !alreadyPresent
+}
+
+func (cs *smallstepVarsFound) SetRenewalID() (*smallstepVarsFound, bool) {
+	if cs == nil {
+		cs = &smallstepVarsFound{}
+	}
+	alreadyPresent := cs.renewalIdFound
+	cs.renewalIdFound = true
+	return cs, !alreadyPresent
+}
 
 func isSmallstepSCEPConfigured(ctx context.Context, groupedCAs *fleet.GroupedCertificateAuthorities, ds fleet.Datastore,
 	hostProfilesToInstallMap map[hostProfileUUID]*fleet.MDMAppleBulkUpsertHostProfilePayload,

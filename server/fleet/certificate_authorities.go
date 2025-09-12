@@ -19,6 +19,16 @@ const (
 	CAConfigSmallstep       CAConfigAssetType = "smallstep"
 )
 
+// ListCATypesWithRenewalIDSupport returns the CA types that support renewal IDs.
+func ListCATypesWithRenewalIDSupport() []CAConfigAssetType {
+	return []CAConfigAssetType{CAConfigDigiCert, CAConfigCustomSCEPProxy, CAConfigNDES, CAConfigSmallstep}
+}
+
+// SupportsRenewalID returns whether the CA type supports renewal IDs.
+func (t CAConfigAssetType) SupportsRenewalID() bool {
+	return slices.Contains(ListCATypesWithRenewalIDSupport(), t)
+}
+
 type CAConfigAsset struct {
 	Name  string            `db:"name"`
 	Value []byte            `db:"value"`
