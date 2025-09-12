@@ -1366,13 +1366,13 @@ func (svc *Service) SaveHostSoftwareInstallResult(ctx context.Context, result *f
 
 	// If this is an intermediate failure that will be retried, handle it specially
 	if result.RetriesRemaining > 0 {
-		// Create or update a duplicate failed record while keeping the original pending
+		// Create a record while keeping the original pending
 		failedExecID, hsi, isNewRecord, err := svc.ds.CreateIntermediateInstallFailureRecord(ctx, result)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "save intermediate install failure")
 		}
 
-		// Only create an activity if this is a new record (not an update)
+		// Only create an activity if this is a new record (not a replay of a previous request)
 		if isNewRecord {
 			if err := svc.NewActivity(
 				ctx,
