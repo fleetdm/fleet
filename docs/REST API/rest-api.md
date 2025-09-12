@@ -5265,6 +5265,10 @@ Returns a list of all the labels in Fleet.
 | --------------- | ------- | ----- |------------------------------------- |
 | order_key       | string  | query | What to order results by. Can be any column in the labels table.                                                  |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `"asc"` and `"desc"`. Default is `"asc"`. |
+| page                     | integer | query | Page number of the results to fetch. |
+| per_page                 | integer | query | Results per page. |
+| query                    | string | query | Search query keywords. Searchable fields include `name`. |
+| without_builtin          | boolean | query | If `true`, omits built-in labels (`"label_type": "builtin"`) from the response. |
 
 #### Example
 
