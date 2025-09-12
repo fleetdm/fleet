@@ -750,6 +750,13 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
 
+	if teamID != nil && meta.IconURL != nil && *meta.IconURL != "" {
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to delete unused software icons for team %d", *teamID))
+		}
+	}
+
 	return nil
 }
 
@@ -784,6 +791,17 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
+	}
+
+	if meta.IconUrl != nil && *meta.IconUrl != "" {
+		var teamIDForCleanup uint
+		if meta.TeamID != nil {
+			teamIDForCleanup = *meta.TeamID
+		}
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, teamIDForCleanup)
+		if err != nil {
+			return ctxerr.Wrap(ctx, fmt.Errorf("failed to delete unused software icons for team %d: %w", teamIDForCleanup, err))
+		}
 	}
 
 	return nil

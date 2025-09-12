@@ -12392,13 +12392,27 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"self_service", "true")
 	require.Len(t, listSw.SoftwareTitles, 0)
 
+	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID:   macOSTitleID,
+		Filename:  "icon.png",
+		TeamID:    team.ID,
+		StorageID: "icon_storage_id",
+	})
+	require.NoError(t, err)
+
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "platform": "%s"}`, team.Name,
-			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`, team.Name,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, addedApp.Platform), 0)
+
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, team.ID, macOSTitleID)
+	})
+	require.Equal(t, 0, count)
 
 	// deleting it again fails, not found
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNotFound,
@@ -12953,6 +12967,92 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusBadRequest, &ssInstallResp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, iOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
 		http.StatusBadRequest, &ssInstallResp)
+
+	// Delete VPP token and check that it's not appearing anymore
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Get the token
+	var resp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleet.PolicyNoTeamID}}, http.StatusOK, &resPatchVPP)
+
+	macOSApp := fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+
+	// Insert/deletion flow for macOS app
+	// Add an app store app to team no team
+	addedApp := macOSApp
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(fleet.PolicyNoTeamID), AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+
+	// list the software titles, to get the title id of the VPP app
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(fleet.PolicyNoTeamID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	macOSTitleID := listSw.SoftwareTitles[0].ID
+
+	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID:   macOSTitleID,
+		Filename:  "icon.png",
+		TeamID:    fleet.PolicyNoTeamID,
+		StorageID: "icon_storage_id",
+	})
+	require.NoError(t, err)
+
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
+	})
+	require.Equal(t, 1, count)
+
+	// delete the app store app for team no team
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
+		"team_id",
+		fmt.Sprint(fleet.PolicyNoTeamID))
+	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
+	})
+	require.Equal(t, 0, count)
 
 	// Delete VPP token and check that it's not appearing anymore
 
