@@ -8,7 +8,7 @@ With Apple's release of macOS Tahoe 26, iOS 26, and iPadOS 26, Fleet continues t
 
 ## Simplified MDM migration with Apple Business Manager
 
-MacOS 26, iOS 26, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
+MacOS Tahoe 26, iOS 26, and iPadOS 26 introduce a first-party workflow for migrating devices between MDMs. In Apple Business Manager, admins can now re-assign a device to a new MDM server and set a migration deadline.
 
 From there, users receive clear notifications that enrollment into a new management service is required. If they don’t act before the deadline, the system guides them through enrollment automatically. This eliminates the need for device wipes, scripts, or manual workarounds that previously made migrations complex and time-consuming.
 
