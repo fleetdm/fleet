@@ -76,7 +76,9 @@ module.exports = {
             pageToken: tokenForNextPageOfEnterprises,
           });
           tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
-          allEnterprises = allEnterprises.concat(listEnterprisesResponse.data.enterprises);
+          if (listEnterprisesResponse.data.enterprises) {
+            allEnterprises = allEnterprises.concat(listEnterprisesResponse.data.enterprises);
+          }
 
           if(!listEnterprisesResponse.data.nextPageToken){
             return true;
@@ -90,8 +92,11 @@ module.exports = {
       });
 
       // Filter the results to only include enterprises belonging to this Fleet instance
-      let allEnterprises = (enterprisesList && enterprisesList.enterprises) || [];
+      let allEnterprises = enterprisesList || [];
       let filteredEnterprises = allEnterprises.filter(enterprise => {
+        if (!enterprise) {
+          return false;
+        }
         // Extract enterprise ID from the Google enterprise name (format: "enterprises/ENTERPRISE_ID")
         let enterpriseId = enterprise.name ? enterprise.name.split('/')[1] : null;
         return enterpriseId === thisAndroidEnterprise.androidEnterpriseId;
