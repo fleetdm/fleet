@@ -32,6 +32,6 @@ Fleet is ready to manage macOS Tahoe 26, iOS 26, and iPadOS 26 from day one, so 
 <meta name="authorFullName" value="Andrey Kizimenko">
 <meta name="authorGitHubUsername" value="AndreyKizimenko">
 <meta name="publishedOn" value="2025-09-15">
-<meta name="articleTitle" value="Fleet supports Apple’s latest operating systems: macOS 26 Tahoe, iOS 26, and iPadOS 26">
+<meta name="articleTitle" value="Fleet supports Apple’s latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26.jpg">
 <meta name="description" value="Fleet is pleased to announce full support for macOS 26 Tahoe, iOS 26, and iPadOS 26.">
