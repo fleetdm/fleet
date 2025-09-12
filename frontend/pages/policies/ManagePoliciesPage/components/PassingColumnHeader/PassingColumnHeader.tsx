@@ -9,7 +9,7 @@ const baseClass = "passing-column-header";
 
 const PassingColumnHeader = ({ isPassing }: IPassingColumnHeaderProps) => {
   const iconName = isPassing ? "success" : "error";
-  const columnText = isPassing ? "Yes" : "No";
+  const columnText = isPassing ? "Pass" : "Fail";
 
   return (
     <div className={baseClass}>
