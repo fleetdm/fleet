@@ -37,6 +37,7 @@ func (ds *Datastore) GetCertificateAuthorityByID(ctx context.Context, id uint, i
 		certificate_user_principal_names,
 		certificate_seat_id,
 		admin_url,
+		challenge_url,
 		username,
 		password_encrypted,
 		challenge_encrypted,
@@ -550,6 +551,33 @@ func (ds *Datastore) generateUpdateQueryWithArgs(ctx context.Context, ca *fleet.
 			}
 			*args = append(*args, encryptedChallenge)
 		}
+	case string(fleet.CATypeSmallstep):
+		if ca.Name != nil {
+			updates = append(updates, "name = ?")
+			*args = append(*args, *ca.Name)
+		}
+		if ca.URL != nil {
+			updates = append(updates, "url = ?")
+			*args = append(*args, *ca.URL)
+		}
+		if ca.ChallengeURL != nil {
+			updates = append(updates, "challenge_url = ?")
+			*args = append(*args, *ca.ChallengeURL)
+		}
+		if ca.Username != nil {
+			updates = append(updates, "username = ?")
+			*args = append(*args, *ca.Username)
+		}
+		if ca.Password != nil {
+			updates = append(updates, "password_encrypted = ?")
+			encryptedPassword, err := encrypt([]byte(*ca.Password), ds.serverPrivateKey)
+			if err != nil {
+				return "", ctxerr.Wrap(ctx, err, "encrypting password for new certificate authority")
+			}
+			*args = append(*args, encryptedPassword)
+		}
+	default:
+		return "", fmt.Errorf("unknown certificate authority type: %s", ca.Type)
 	}
 	return fmt.Sprintf("SET %s", strings.Join(updates, ", ")), nil
 }

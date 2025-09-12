@@ -1079,6 +1079,32 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
 
 	}
+	if p.SmallstepSCEPProxyCAUpdatePayload != nil {
+		if p.SmallstepSCEPProxyCAUpdatePayload.IsEmpty() {
+			return &fleet.BadRequestError{Message: fmt.Sprintf("%sSmallstep SCEP Proxy CA update payload is empty", errPrefix)}
+		}
+
+		if err := p.SmallstepSCEPProxyCAUpdatePayload.ValidateRelatedFields(errPrefix, *oldCA.Name); err != nil {
+			return err
+		}
+		p.SmallstepSCEPProxyCAUpdatePayload.Preprocess()
+		// TODO(sca): implement validation
+		// if err := svc.validateSmallstepSCEPProxyUpdate(ctx, p.SmallstepSCEPProxyCAUpdatePayload, errPrefix); err != nil {
+		// 	return err
+		// }
+		caToUpdate.Type = string(fleet.CATypeSmallstep)
+		caToUpdate.Name = p.SmallstepSCEPProxyCAUpdatePayload.Name
+		caToUpdate.URL = p.SmallstepSCEPProxyCAUpdatePayload.URL
+		caToUpdate.ChallengeURL = p.SmallstepSCEPProxyCAUpdatePayload.ChallengeURL
+		caToUpdate.Username = p.SmallstepSCEPProxyCAUpdatePayload.Username
+		caToUpdate.Password = p.SmallstepSCEPProxyCAUpdatePayload.Password
+		if caToUpdate.Name != nil {
+			caActivityName = *caToUpdate.Name
+		} else {
+			caActivityName = *oldCA.Name
+		}
+		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
+	}
 
 	if oldCA.Type != caToUpdate.Type {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sThe certificate authority types must be the same.", errPrefix)}
