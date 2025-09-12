@@ -762,7 +762,8 @@ func main() {
 			// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
 			// we're getting true UUID, not a cached UUID. See
 			// https://github.com/fleetdm/fleet/issues/17934 and
-			// https://github.com/osquery/osquery/issues/7509 for more details.
+			// https://github.com/osquery/osquery/issues/7509 and
+			// https://github.com/fleetdm/fleet/issues/31934 for more details.
 
 			tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
 			oi, err := getHostInfo(osquerydPath, tmpDBPath)
@@ -774,8 +775,36 @@ func main() {
 				log.Info().Err(err).Msg("failed to remove temporary osquery db")
 			}
 
-			if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+			// Read the stored hardware UUID from file (if it exists)
+			hardwareUUIDFile := filepath.Join(c.String("root-dir"), constant.HardwareUUIDFileName)
+			var storedUUID string
+
+			fileContent, err := os.ReadFile(hardwareUUIDFile)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					// If there's an error other than file not existing, log it
+					log.Warn().Err(err).Msg("failed to read hardware UUID file")
+				}
+				// If file doesn't exist or can't be read, create it with the current UUID
+				if err := os.WriteFile(hardwareUUIDFile, []byte(oi.HardwareUUID), constant.DefaultFileMode); err != nil {
+					log.Error().Err(err).Msg("failed to write hardware UUID file")
+				} else {
+					log.Debug().Str("uuid", oi.HardwareUUID).Msg("created hardware UUID file")
+				}
+				storedUUID = oi.HardwareUUID
+			} else {
+				storedUUID = strings.TrimSpace(string(fileContent))
+			}
+
+			if !strings.EqualFold(oi.HardwareUUID, storedUUID) {
 				// Then we have moved to a new physical machine, so we should restart!
+				log.Info().Str("stored_uuid", storedUUID).Str("current_uuid", oi.HardwareUUID).Msg("detected hardware migration")
+
+				// Remove the hardware UUID file so it gets recreated with the new UUID on restart
+				if err := os.RemoveAll(hardwareUUIDFile); err != nil {
+					return fmt.Errorf("removing old hardware UUID file: %w", err)
+				}
+
 				// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
 				if err := os.RemoveAll(osqueryDB); err != nil {
 					return fmt.Errorf("removing old osquery.db: %w", err)
