@@ -1305,6 +1305,8 @@ type GetSoftwareIconsByTeamAndTitleIdsFunc func(ctx context.Context, teamID uint
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
 
+type DeleteIconsAssociatedWithTitlesWithoutInstallersFunc func(ctx context.Context, teamID uint) error
+
 type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error)
 
 type BatchInsertVPPAppsFunc func(ctx context.Context, apps []*fleet.VPPApp) error
@@ -3432,6 +3434,9 @@ type DataStore struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	DeleteIconsAssociatedWithTitlesWithoutInstallersFunc        DeleteIconsAssociatedWithTitlesWithoutInstallersFunc
+	DeleteIconsAssociatedWithTitlesWithoutInstallersFuncInvoked bool
 
 	ActivityDetailsForSoftwareTitleIconFunc        ActivityDetailsForSoftwareTitleIconFunc
 	ActivityDetailsForSoftwareTitleIconFuncInvoked bool
@@ -8227,6 +8232,13 @@ func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteIconsAssociatedWithTitlesWithoutInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc(ctx, teamID)
 }
 
 func (s *DataStore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {
