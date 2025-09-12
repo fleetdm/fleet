@@ -1,5 +1,5 @@
+import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import { POLICY_STATUS_TO_INDICATOR_PARAMS } from "pages/hosts/details/cards/Policies/HostPoliciesTable/HostPoliciesTableConfig";
 import React from "react";
 
 interface IPassingColumnHeaderProps {

@@ -5,10 +5,10 @@ import { PolicyResponse, DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { noop } from "lodash";
 
 import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
-import { IndicatorStatus } from "components/StatusIndicatorWithIcon/StatusIndicatorWithIcon";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
 
 interface IEnhancedHostPolicy extends IHostPolicy {
   status: PolicyStatus | null;
@@ -52,15 +52,6 @@ const getPolicyStatus = (policy: IHostPolicy): PolicyStatus | null => {
   }
   // can occur when response === ""
   return null;
-};
-
-export const POLICY_STATUS_TO_INDICATOR_PARAMS: Record<
-  PolicyStatus,
-  [IndicatorStatus, string]
-> = {
-  pass: ["success", "Pass"],
-  fail: ["failure", "Fail"],
-  actionRequired: ["actionRequired", "Action required"],
 };
 
 // NOTE: cellProps come from react-table
