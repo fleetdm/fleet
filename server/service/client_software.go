@@ -66,7 +66,7 @@ func (c *Client) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTit
 }
 
 func (c *Client) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software_titles/%d/icon", titleID)
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon", titleID)
 	response, err := c.AuthenticatedDo(verb, path, fmt.Sprintf("team_id=%d", teamID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("%s %s: %w", verb, path, err)
