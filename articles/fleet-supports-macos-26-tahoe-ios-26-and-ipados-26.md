@@ -12,7 +12,7 @@ MacOS 26, iOS 26, and iPadOS 26 introduce a first-party workflow for migrating d
 
 From there, users receive clear notifications that enrollment into a new management service is required. If they don’t act before the deadline, the system guides them through enrollment automatically. This eliminates the need for device wipes, scripts, or manual workarounds that previously made migrations complex and time-consuming.
 
-Fleet supports this migration workflow at release, making it much easier for organizations to move devices into Fleet with less downtime and fewer interruptions for users. You can [learn more](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) about configuring migration in Apple Business Manager.
+Fleet is ready to support this migration workflow at release, making it easier for organizations to move devices into Fleet with minimal disruption. You can [learn more](https://support.apple.com/guide/deployment/migrate-managed-devices-dep4acb2aa44/web) about configuring migration in Apple Business Manager.
 
 ## Declarative device management (DDM)
 
