@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -869,41 +870,42 @@ func TestInstallWithRetry(t *testing.T) {
 		require.Equal(t, "test-install", payload.InstallUUID)
 	})
 
-	// TODO: Use synctest.Test here once we upgrade to Go 1.25
 	t.Run("retry on transient error with delay", func(t *testing.T) {
-		oc, r := testRunnerSetup()
-		r.installerExecutionTimeout = 1 * time.Second
+		synctest.Test(t, func(t *testing.T) {
+			oc, r := testRunnerSetup()
+			r.installerExecutionTimeout = 1 * time.Second
 
-		downloadAttempts := 0
-		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
-			downloadAttempts++
-			if downloadAttempts == 1 {
-				// First attempt fails with network error
-				return "", errors.New("connection timeout")
+			downloadAttempts := 0
+			oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+				downloadAttempts++
+				if downloadAttempts == 1 {
+					// First attempt fails with network error
+					return "", errors.New("connection timeout")
+				}
+				// Second attempt succeeds
+				return filepath.Join(downloadDir, "installer.pkg"), nil
 			}
-			// Second attempt succeeds
-			return filepath.Join(downloadDir, "installer.pkg"), nil
-		}
 
-		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
-			return defaultTestInstallDetails(3), nil
-		}
+			oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+				return defaultTestInstallDetails(3), nil
+			}
 
-		oc.saveInstallerResultFn = noopSaveResultFn()
-		r.execCmdFn = successfulExecFn()
-		r.tempDirFn = tempDirFn(t)
+			oc.saveInstallerResultFn = noopSaveResultFn()
+			r.execCmdFn = successfulExecFn()
+			r.tempDirFn = tempDirFn(t)
 
-		// Note: In production this will wait 10 seconds for first retry due to transient error
-		// For testing, we accept the delay as part of integration testing
-		startTime := time.Now()
-		payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
-		duration := time.Since(startTime)
+			// Note: In production this will wait 10 seconds for first retry due to transient error
+			// For testing, we accept the delay as part of integration testing
+			startTime := time.Now()
+			payload, err := r.installSoftware(context.Background(), "test-install", log.With().Logger())
+			duration := time.Since(startTime)
 
-		require.NoError(t, err)
-		require.NotNil(t, payload)
-		require.Equal(t, 2, downloadAttempts, "Should retry once after transient error")
-		// Verify we waited at least 10 seconds (first retry delay for transient error)
-		require.True(t, duration >= 10*time.Second, "Should wait at least 10s before retry for transient error")
+			require.NoError(t, err)
+			require.NotNil(t, payload)
+			require.Equal(t, 2, downloadAttempts, "Should retry once after transient error")
+			// Verify we waited at least 10 seconds (first retry delay for transient error)
+			require.True(t, duration >= 10*time.Second, "Should wait at least 10s before retry for transient error")
+		})
 	})
 
 	t.Run("retry on non-transient error without delay", func(t *testing.T) {
@@ -962,93 +964,95 @@ func TestInstallWithRetry(t *testing.T) {
 		require.Equal(t, 1, downloadAttempts, "Should not retry when MaxRetries is 0")
 	})
 
-	// TODO: Use synctest.Test here once we upgrade to Go 1.25
 	t.Run("exhausts all retries with transient errors", func(t *testing.T) {
-		oc, r := testRunnerSetup()
-		r.installerExecutionTimeout = 1 * time.Second
+		synctest.Test(t, func(t *testing.T) {
+			oc, r := testRunnerSetup()
+			r.installerExecutionTimeout = 1 * time.Second
 
-		downloadAttempts := 0
-		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
-			downloadAttempts++
-			// Always fail with transient error
-			return "", errors.New("connection timeout")
-		}
-
-		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
-			return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts (1 initial + 2 retries)
-		}
-
-		oc.saveInstallerResultFn = noopSaveResultFn()
-		r.tempDirFn = tempDirFn(t)
-
-		// Transient errors will cause delays: 10s for first retry, 20s for second retry
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
-		startTime := time.Now()
-		payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
-		duration := time.Since(startTime)
-
-		require.Error(t, err)
-		require.NotNil(t, payload)
-		require.Equal(t, 3, downloadAttempts, "Should attempt 1 initial + 2 retries = 3 total")
-		require.Contains(t, err.Error(), "connection timeout")
-		// Should wait at least 30s total (10s + 20s for the two retries)
-		require.True(t, duration >= 30*time.Second, "Should wait for transient error retries")
-	})
-
-	// TODO: Use synctest.Test here once we upgrade to Go 1.25
-	t.Run("intermediate failure reporting with retry flag", func(t *testing.T) {
-		oc, r := testRunnerSetup()
-		r.installerExecutionTimeout = 1 * time.Second
-
-		downloadAttempts := 0
-		saveResultCalls := 0
-		var savedPayloads []*fleet.HostSoftwareInstallResultPayload
-
-		oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
-			downloadAttempts++
-			if downloadAttempts <= 2 {
-				// First two attempts fail
+			downloadAttempts := 0
+			oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+				downloadAttempts++
+				// Always fail with transient error
 				return "", errors.New("connection timeout")
 			}
-			// Third attempt succeeds
-			return filepath.Join(downloadDir, "installer.pkg"), nil
-		}
 
-		oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
-			return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts
-		}
+			oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+				return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts (1 initial + 2 retries)
+			}
 
-		oc.saveInstallerResultFn = func(payload *fleet.HostSoftwareInstallResultPayload) error {
-			saveResultCalls++
-			// Make a copy to capture the state at call time
-			payloadCopy := *payload
-			savedPayloads = append(savedPayloads, &payloadCopy)
-			return nil
-		}
+			oc.saveInstallerResultFn = noopSaveResultFn()
+			r.tempDirFn = tempDirFn(t)
 
-		r.execCmdFn = successfulExecFn()
-		r.tempDirFn = tempDirFn(t)
+			// Transient errors will cause delays: 10s for first retry, 20s for second retry
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+			defer cancel()
 
-		// Use shorter timeout for test (account for delays)
-		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-		defer cancel()
+			startTime := time.Now()
+			payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
+			duration := time.Since(startTime)
 
-		payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
+			require.Error(t, err)
+			require.NotNil(t, payload)
+			require.Equal(t, 3, downloadAttempts, "Should attempt 1 initial + 2 retries = 3 total")
+			require.Contains(t, err.Error(), "connection timeout")
+			// Should wait at least 30s total (10s + 20s for the two retries)
+			require.True(t, duration >= 30*time.Second, "Should wait for transient error retries")
+		})
+	})
 
-		require.NoError(t, err)
-		require.NotNil(t, payload)
-		require.Equal(t, 3, downloadAttempts, "Should make 3 attempts total")
+	t.Run("intermediate failure reporting with retry flag", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			oc, r := testRunnerSetup()
+			r.installerExecutionTimeout = 1 * time.Second
 
-		// Should report intermediate failures (2) but not the final success
-		require.Equal(t, 2, saveResultCalls, "Should report 2 intermediate failures")
+			downloadAttempts := 0
+			saveResultCalls := 0
+			var savedPayloads []*fleet.HostSoftwareInstallResultPayload
 
-		// Check that intermediate reports had WillRetry flag set
-		for i, p := range savedPayloads {
-			require.True(t, p.WillRetry, "Intermediate failure %d should have WillRetry=true", i+1)
-			require.NotNil(t, p.InstallScriptExitCode, "Should have exit code for failure %d", i+1)
-		}
+			oc.downloadInstallerFn = func(installerID uint, downloadDir string) (string, error) {
+				downloadAttempts++
+				if downloadAttempts <= 2 {
+					// First two attempts fail
+					return "", errors.New("connection timeout")
+				}
+				// Third attempt succeeds
+				return filepath.Join(downloadDir, "installer.pkg"), nil
+			}
+
+			oc.getInstallerDetailsFn = func(installID string) (*fleet.SoftwareInstallDetails, error) {
+				return defaultTestInstallDetails(2), nil // 2 retries = 3 total attempts
+			}
+
+			oc.saveInstallerResultFn = func(payload *fleet.HostSoftwareInstallResultPayload) error {
+				saveResultCalls++
+				// Make a copy to capture the state at call time
+				payloadCopy := *payload
+				savedPayloads = append(savedPayloads, &payloadCopy)
+				return nil
+			}
+
+			r.execCmdFn = successfulExecFn()
+			r.tempDirFn = tempDirFn(t)
+
+			// Use shorter timeout for test (account for delays)
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+			defer cancel()
+
+			payload, err := r.installSoftware(ctx, "test-install", log.With().Logger())
+
+			require.NoError(t, err)
+			require.NotNil(t, payload)
+			require.Equal(t, 3, downloadAttempts, "Should make 3 attempts total")
+
+			// Should report intermediate failures (2) but not the final success
+			require.Equal(t, 2, saveResultCalls, "Should report 2 intermediate failures")
+
+			// Check that intermediate reports had WillRetry flag set
+			for i, p := range savedPayloads {
+				require.True(t, p.WillRetry, "Intermediate failure %d should have WillRetry=true", i+1)
+				require.NotNil(t, p.InstallScriptExitCode, "Should have exit code for failure %d", i+1)
+			}
+		})
 	})
 
 	t.Run("intermediate failure reporting error is ignored", func(t *testing.T) {
