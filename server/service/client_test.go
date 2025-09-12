@@ -965,8 +965,8 @@ func TestGitOpsErrors(t *testing.T) {
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-			hashes := make([]string, 0)
-			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &hashes)
+			settings := fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
+			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &settings)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

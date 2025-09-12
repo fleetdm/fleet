@@ -130,12 +130,12 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		Hash string
 		URL  string
 	}
-	var byLookup map[lookup]fleet.SoftwareInstallerPayload
+	byLookup := make(map[lookup]fleet.SoftwareInstallerPayload)
 	for _, clientSide := range request {
 		byLookup[lookup{Hash: clientSide.SHA256, URL: clientSide.URL}] = clientSide
 	}
 
-	for _, serverSide := range response { // O(n^2) but n is
+	for _, serverSide := range response {
 		if clientSide, ok := byLookup[lookup{Hash: serverSide.HashSHA256, URL: serverSide.URL}]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath

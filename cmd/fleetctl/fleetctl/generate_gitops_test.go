@@ -990,7 +990,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team")
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}
