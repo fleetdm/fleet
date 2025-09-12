@@ -67,7 +67,6 @@ func (svc *scepProxyService) GetCACaps(ctx context.Context, identifier string) (
 	}
 
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
-	// client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout), scepclient.Insecure())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -87,7 +86,6 @@ func (svc *scepProxyService) GetCACert(ctx context.Context, message string, iden
 	}
 
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
-	// client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout), scepclient.Insecure())
 	if err != nil {
 		return nil, 0, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
@@ -108,7 +106,6 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 	}
 
 	client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout))
-	// client, err := scepclient.New(scepURL, svc.debugLogger, scepclient.WithTimeout(svc.Timeout), scepclient.Insecure())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating SCEP client")
 	}
