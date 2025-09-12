@@ -4421,7 +4421,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 	return wasCanceled, err
 }
 
-func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, error) {
+func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
 		SELECT 
@@ -4447,13 +4447,16 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 	}
 
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
-		return "", nil, ctxerr.Wrap(ctx, err, "get original install details")
+		return "", nil, false, ctxerr.Wrap(ctx, err, "get original install details")
 	}
 
-	// Generate a new execution ID for the failed attempt record
-	failedExecID := uuid.NewString()
+	// Generate a deterministic execution ID for the failed attempt record
+	// Use UUID v5 with the original InstallUUID and RetriesRemaining to ensure idempotency
+	namespace := uuid.MustParse("6ba7b810-9dad-11d1-80b4-00c04fd430c8") // Standard UUID namespace
+	failedExecID := uuid.NewSHA1(namespace, []byte(fmt.Sprintf("%s-%d", result.InstallUUID, result.RetriesRemaining))).String()
 
-	// Create a new record with the failure details
+	// Create or update a record with the failure details
+	// Use INSERT ... ON DUPLICATE KEY UPDATE to make this idempotent
 	const insertStmt = `
 		INSERT INTO host_software_installs (
 			execution_id,
@@ -4468,6 +4471,13 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			post_install_script_exit_code,
 			post_install_script_output
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			install_script_exit_code = VALUES(install_script_exit_code),
+			install_script_output = VALUES(install_script_output),
+			pre_install_query_output = VALUES(pre_install_query_output),
+			post_install_script_exit_code = VALUES(post_install_script_exit_code),
+			post_install_script_output = VALUES(post_install_script_output),
+			updated_at = CURRENT_TIMESTAMP(6)
 	`
 
 	truncateOutput := func(output *string) *string {
@@ -4477,8 +4487,9 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		return output
 	}
 
+	var isNewRecord bool
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, insertStmt,
+		res, err := tx.ExecContext(ctx, insertStmt,
 			failedExecID,
 			result.HostID,
 			details.SoftwareInstallerID,
@@ -4491,10 +4502,18 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 			result.PostInstallScriptExitCode,
 			truncateOutput(result.PostInstallScriptOutput),
 		)
-		return err
+		if err != nil {
+			return err
+		}
+		// Check if this was an insert (1 row affected) or update (2 rows affected in MySQL ON DUPLICATE KEY UPDATE)
+		rowsAffected, _ := res.RowsAffected()
+		// MySQL returns 1 for insert, 2 for update with ON DUPLICATE KEY UPDATE (if values changed)
+		// 0 if update didn't change anything
+		isNewRecord = rowsAffected == 1
+		return nil
 	})
 	if err != nil {
-		return "", nil, ctxerr.Wrap(ctx, err, "create intermediate failure record")
+		return "", nil, false, ctxerr.Wrap(ctx, err, "create intermediate failure record")
 	}
 
 	// Return the install result details
@@ -4508,7 +4527,7 @@ func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context,
 		SelfService:     details.SelfService,
 	}
 
-	return failedExecID, installResult, nil
+	return failedExecID, installResult, isNewRecord, nil
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

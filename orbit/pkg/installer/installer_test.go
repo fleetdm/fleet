@@ -1047,9 +1047,10 @@ func TestInstallWithRetry(t *testing.T) {
 			// Should report intermediate failures (2) but not the final success
 			require.Equal(t, 2, saveResultCalls, "Should report 2 intermediate failures")
 
-			// Check that intermediate reports had WillRetry flag set
+			// Check that intermediate reports had RetriesRemaining set correctly
 			for i, p := range savedPayloads {
-				require.True(t, p.WillRetry, "Intermediate failure %d should have WillRetry=true", i+1)
+				expectedRetries := uint(2 - i) //nolint:gosec // First failure has 2 retries left, second has 1
+				require.Equal(t, expectedRetries, p.RetriesRemaining, "Intermediate failure %d should have RetriesRemaining=%d", i+1, expectedRetries)
 				require.NotNil(t, p.InstallScriptExitCode, "Should have exit code for failure %d", i+1)
 			}
 		})

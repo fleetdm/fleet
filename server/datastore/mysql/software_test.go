@@ -5558,16 +5558,17 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	})
 
 	// Create an intermediate failure record
-	failedExecID, installResult, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+	failedExecID, installResult, isNewRecord, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
 		HostID:                host.ID,
 		InstallUUID:           "original-uuid",
 		InstallScriptExitCode: ptr.Int(1),
 		InstallScriptOutput:   ptr.String("network timeout"),
-		WillRetry:             true,
+		RetriesRemaining:      2,
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, failedExecID)
 	require.NotNil(t, installResult)
+	require.True(t, isNewRecord, "First call should create a new record")
 	require.Equal(t, "test-app", installResult.SoftwareTitle)
 	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
 	require.Equal(t, user.ID, *installResult.UserID)
@@ -5595,6 +5596,48 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
 	require.NoError(t, err)
 	require.Equal(t, 2, count)
+
+	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
+	failedExecID2, installResult2, isNewRecord2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout updated"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, failedExecID, failedExecID2, "Should generate same UUID for same retries_remaining")
+	require.NotNil(t, installResult2)
+	require.False(t, isNewRecord2, "Second call should update existing record")
+
+	// Verify still only 2 records (idempotent)
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count, "Should not create duplicate record")
+
+	// Verify the output was updated
+	updatedResult, err := ds.GetSoftwareInstallResults(ctx, failedExecID2)
+	require.NoError(t, err)
+	require.Equal(t, "network timeout updated", *updatedResult.Output)
+
+	// Test with different retries_remaining creates new record
+	failedExecID3, _, isNewRecord3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout"),
+		RetriesRemaining:      1,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, failedExecID, failedExecID3, "Should generate different UUID for different retries_remaining")
+	require.True(t, isNewRecord3, "Different retries_remaining should create new record")
+
+	// Verify now have 3 records
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count, "Should create new record for different retries_remaining")
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {
