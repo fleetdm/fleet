@@ -1,41 +1,39 @@
-## [Sprint Demo](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) 
+## Sprint Demo
 
-Purpose: Showcase features, improvements, and bug fixes contributed to the upcoming release to all engineering teams and stakeholders.
+Purpose: Showcase features, improvements, and bug fixes in the upcoming release to everyone at Fleet.
 
 Cadence: On the last day of each sprint, 90 minutes.
 
 Participants: All engineering teams and stakeholders.
 
+Ritual DRI: [Release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) or assigned team member.
+
 ### Format
-1. The meeting facilitator opens the session and introduces the agenda.
-2. Engineers from each product group present their contributions in turn.
-3. Each engineer has 3-10 minutes to demonstrate their work.
-4. Presentations focus on live demos rather than technical explanations.
-5. The facilitator manages time and transitions between presenters.
-6. The session is recorded for public posting on YouTube or other platforms.
-7. The facilitator closes the session and shares next steps.
+2. Each EM introduces their group's contributions.
+3. Each engineer takes less than 10 minutes to demo their work.
+5. Manage time and transitions between presenters.
+6. Record the ritual for the release article and social media.
 
 ### Agenda
-- Introduction and overview of sprint accomplishments
-- Feature demonstrations (show capabilities and user impact)
-- Bug fix presentations (explain customer impact and resolution)
-- Q&A and discussion time
-- Closing and next release timeline
+- Introduction and overview of sprint accomplishments.
+- Feature demonstrations, all product groups.
+- Bug fix presentations, all product groups.
+- Closing and next release timeline.
 
-### Notes
-Keep presentations accessible to all participants - avoid overly technical details. Focus on demonstrating what users can now do rather than how it was built.
+### Presentation Guidelines
+- **Time limit**: 3-10 minutes per contribution.
+- **Format**: Live demonstration preferred over slides.
+- **Audience**: Mixed technical and non-technical stakeholders.
+- **Focus**: User impact and capabilities, not implementation details.
+- **Privacy**: No specific customer names or confidential information.
+
+Keep presentations accessible to all participants. Avoid overly technical details. Focus on demonstrating what users can now do rather than how it was built.
 
 For **features**: Show what is now capable and demonstrate the user experience.
 
-For **bug fixes**: Explain how the issue might have impacted existing customers and demonstrate how the resolution addresses the problem.
+For **bug fixes**: Explain how the issue impacted existing customers.
 
-**Important**: These meetings are recorded and posted publicly. Do not mention specific customer names. Instead, use general terms like "a publicly-traded hosting company" or refer to customer types by their business model.
+**Important**: These meetings are recorded and posted publicly. Do not mention specific customer names.
 
-### Presentation Guidelines
-- **Time limit**: 3-10 minutes per contribution
-- **Format**: Live demonstration preferred over slides
-- **Audience**: Mixed technical and non-technical stakeholders  
-- **Focus**: User impact and capabilities, not implementation details
-- **Privacy**: No specific customer names or confidential information
-
-Handbook reference (process and definitions): https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies
+### Notes
+- See [sprint demo definition](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) in the handbook.

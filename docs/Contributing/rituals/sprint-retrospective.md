@@ -1,42 +1,42 @@
-## [Sprint Retrospective](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) 
+## Sprint retrospective
 
-Purpose: Encourage discussions among the team and stakeholders to reflect on the sprint and identify improvements for future sprints.
+Purpose: Encourage discussion among the team to reflect on the sprint and identify improvements for future sprints.
 
 Cadence: On the last day of each sprint, typically after the sprint demo, 30-45 minutes.
 
-Participants: Full product group and stakeholders.
+Participants: Full product group.
+
+Ritual DRI: EM or assigned team member.
 
 ### Format
-1. The EM or designated facilitator opens the retrospective and sets a collaborative tone.
-2. The facilitator shares their screen with a shared document or retrospective tool.
-3. Team members contribute thoughts in each of the three key areas.
-4. The facilitator encourages open discussion and ensures all voices are heard.
-5. Team identifies specific action items for improvement.
-6. The facilitator assigns owners and due dates for action items.
-7. The facilitator documents outcomes and closes the session.
+1. Open the retrospective and set a collaborative tone.
+2. Share screen and open ritual doc.
+3. Ask each team to answer the agenda questions.
+4. For each agenda item, add the team member's answers to the ritual doc.
+5. Ritual DRI goes last.
+6. Conduct 5-10 minute open discussion proposing action items based on the retro. 
+7. Add proposed action items to the ritual doc under the related feedback. 
+8. Ritual DRI decides which action items to convert to [timebox issues](https://fleetdm.com/handbook/company/product-groups#scrum-items) for the next sprint. 
+9. At least one timebox issue based on retro feedback must be created and brought into the next sprint.
+
+> Encourage open discussion and that all voices are heard. When a team member is sharing their retro, they have the full floor. Do not interrupt unless they have gone past their allotted time, or their feedback is not aligned with [our values](https://fleetdm.com/handbook/company#values).
 
 ### Agenda
-- **What went well** - Celebrate successes, effective practices, and positive outcomes from the sprint
-- **What could have been better** - Identify challenges, bottlenecks, and areas for improvement
-- **What we learned** - Capture insights, new knowledge, and lessons from the sprint experience
-- **Action items** - Define specific, actionable improvements with owners and timelines
-
-### Notes
-Create a safe environment for honest feedback. Focus on process and collaboration improvements rather than individual performance. 
-
-Retrospectives should result in concrete action items that can be implemented in future sprints. The EM or facilitator should track action items and follow up on progress.
-
-Consider using techniques like:
-- Anonymous input collection for sensitive topics
-- Timeboxing each section to maintain focus
-- Dot voting to prioritize improvement areas
-- Regular follow-up on previous action items
+- **What went well?** - Celebrate successes, effective practices, and positive outcomes from the sprint.
+- **What could have been better?** - Identify challenges, bottlenecks, and areas for improvement.
+- **What did we learn?** - Capture insights, new knowledge, and lessons from the sprint experience.
+- **Action items** - Define specific, actionable improvements with owners and timelines.
 
 ### Best Practices
-- **Be specific**: Vague feedback like "communication could be better" should be explored with concrete examples
-- **Focus forward**: While discussing problems, emphasize solutions and improvements
-- **Action-oriented**: Every major issue identified should result in an actionable next step
-- **Psychological safety**: Ensure team members feel comfortable sharing honest feedback
-- **Follow through**: Track and report on action items from previous retrospectives
+- **Be specific**: Vague feedback like "communication could be better" should be explored with concrete examples.
+- **Focus forward**: While discussing problems, emphasize solutions and improvements.
+- **Action-oriented**: Every major issue identified should result in an actionable next step like a timebox issue for the next sprint.
+- **Psychological safety**: Ensure team members feel comfortable sharing candid feedback.
+- **Follow through**: Track and report on action items from previous retrospectives.
 
-Handbook reference (process and definitions): https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies
+Create a safe environment for candid feedback. Focus on process and collaboration improvements rather than individual performance.
+
+### Notes
+- See [sprint retrospective definition](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) in the handbook.
+- Retrospectives must result in concrete action items that will be implemented in the next or future sprints.
+- The Ritual DRI is responsible for creating action items and timebox issues and making sure they are promptly completed. 
