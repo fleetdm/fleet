@@ -1311,7 +1311,6 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
-				level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth enabled", "username", config.Prometheus.BasicAuth.Username, "password", config.Prometheus.BasicAuth.Password)
 				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
