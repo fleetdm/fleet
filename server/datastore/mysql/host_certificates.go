@@ -115,7 +115,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		for _, hostMDMManagedCert := range hostMDMManagedCerts {
 			// Note that we only care about proxied SCEP certificates because DigiCert are requested
 			// by Fleet and stored in the DB directly, so we need not fetch them via osquery/MDM
-			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy && hostMDMManagedCert.Type != fleet.CAConfigNDES {
+			if !hostMDMManagedCert.Type.SupportsRenewalID() {
 				continue
 			}
 			for _, certToInsert := range toInsert {
@@ -254,7 +254,6 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}
