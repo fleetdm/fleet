@@ -53,5 +53,3 @@ software:
       self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
       self_service: true
-    - slug: yubico-yubikey-manager/darwin # YubiKey Manager for macOS
-      self_service: true
