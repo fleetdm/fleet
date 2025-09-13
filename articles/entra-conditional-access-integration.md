@@ -38,6 +38,7 @@ To connect Fleet to your Entra account you need your "Microsoft Entra tenant ID"
 Once you have your tenant ID, in Fleet, head to **Settings > Integrations > Conditional access** and enter the tenant ID.
 
 ![Conditional access setup](../website/assets/images/articles/conditional-access-setup-554x250@2x.png)
+> **Note:** If you’re on **Fleet Cloud** and the **Conditional access** integration is missing, please [reach out to support](https://fleetdm.com/support).
 
 After clicking **Save** you will be redirected to https://login.microsoftonline.com to consent to the permissions for Fleet's multi-tenant application. 
 
