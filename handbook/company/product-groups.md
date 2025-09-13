@@ -860,6 +860,8 @@ Sprints are numbered according to the release version. For example, for the spri
 
 ### Sprint ceremonies
 
+See the (rituals contributor docs)[https://github.com/fleetdm/fleet/tree/main/docs/Contributing/rituals] for detailed instructions on running each ceremony.
+
 Each sprint is marked by five essential ceremonies:
 
 1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
