@@ -313,6 +313,47 @@ WHERE id IN (%s)`
 	return nil
 }
 
+func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform string, teamID *uint) (*fleet.SetupExperienceCount, error) {
+	stmt := `
+		SELECT
+		(
+			SELECT COUNT(*)
+			FROM software_installers
+			WHERE team_id = ?
+			AND install_during_setup = 1
+			AND platform = ?
+		) AS installers,
+		(
+			SELECT COUNT(*)
+			FROM vpp_apps_teams
+			WHERE team_id = ?
+			AND platform = ?
+			AND install_during_setup = 1
+		) AS vpp,
+		(
+			SELECT COUNT(*)
+			FROM setup_experience_scripts
+			WHERE team_id = ?
+		) AS scripts`
+
+	sec := &fleet.SetupExperienceCount{}
+	if err := sqlx.GetContext(
+		ctx, ds.reader(ctx), sec, stmt,
+		teamID, platform,
+		teamID, platform,
+		teamID,
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "selecting setup experience counts")
+	}
+
+	// Only macOS supports scripts and VPP during setup experience currently
+	if platform != string(fleet.MacOSPlatform) {
+		sec.Scripts = 0
+	}
+
+	return sec, nil
+}
+
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
 		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)

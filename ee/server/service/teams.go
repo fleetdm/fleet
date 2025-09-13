@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -1757,6 +1758,19 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			if *payload.ManualAgentInstall && (!tm.Config.MDM.MacOSSetup.BootstrapPackage.Set || tm.Config.MDM.MacOSSetup.BootstrapPackage.Value == "") {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+			}
+			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting setup experience information")
+			}
+			if sec.Installers != 0 || sec.VPP != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+			}
+			if sec.Scripts != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+			}
 			tm.Config.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
 		}
