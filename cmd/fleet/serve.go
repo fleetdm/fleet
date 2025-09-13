@@ -1234,9 +1234,9 @@ the way that the Fleet server works.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", wrapWithOTEL(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", wrapWithOTEL(version.Handler(), "/version", config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", wrapWithOTELDynamic(service.ServeStaticAssets("/assets/"), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -1309,15 +1309,16 @@ the way that the Fleet server works.
 			}
 
 			if config.Prometheus.BasicAuth.Username != "" && config.Prometheus.BasicAuth.Password != "" {
+				level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth enabled", "username", config.Prometheus.BasicAuth.Username, "password", config.Prometheus.BasicAuth.Password)
 				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
-					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
+					service.PrometheusMetricsHandler("metrics", wrapWithOTEL(promhttp.Handler(), "/metrics", config)),
 				))
 			} else {
 				if config.Prometheus.BasicAuth.Disable {
 					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
-					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", wrapWithOTEL(promhttp.Handler(), "/metrics", config)))
 				} else {
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
@@ -1435,8 +1436,8 @@ the way that the Fleet server works.
 			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
-			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
-			rootMux.Handle("/", frontendHandler)
+			rootMux.Handle("/enroll", wrapWithOTEL(endUserEnrollOTAHandler, "/enroll", config))
+			rootMux.Handle("/", wrapWithOTELDynamic(frontendHandler, config))
 
 			debugHandler := &debugMux{
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
