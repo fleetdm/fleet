@@ -1,0 +1,43 @@
+- name: Windows - Windows Defender compliance check
+  query: |
+    WITH defender_main AS (
+        SELECT 
+            MAX(CASE WHEN name = 'IsServiceRunning' AND data = 1 THEN 1 ELSE 0 END) as service_running,
+            MAX(CASE WHEN name = 'DisableAntiVirus' AND data = 0 THEN 1 
+                     WHEN name = 'DisableAntiVirus' AND data = 1 THEN 0 
+                     ELSE 1 END) as antivirus_enabled,
+            MAX(CASE WHEN name = 'DisableAntiSpyware' AND data = 0 THEN 1 
+                     WHEN name = 'DisableAntiSpyware' AND data = 1 THEN 0 
+                     ELSE 1 END) as antispyware_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender'
+    ),
+    defender_realtime AS (
+        SELECT 
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'DisableRealtimeMonitoring' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'DisableRealtimeMonitoring' AND data = 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as realtime_enabled,
+            CASE 
+                WHEN COUNT(CASE WHEN name = 'DpaDisabled' THEN 1 END) = 0 THEN 1
+                WHEN MAX(CASE WHEN name = 'DpaDisabled' AND data = 0 THEN 1 ELSE 0 END) = 1 THEN 1
+                ELSE 0
+            END as dpa_enabled
+        FROM registry 
+        WHERE key = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection'
+    )
+    SELECT 
+        CASE 
+            WHEN (SELECT service_running FROM defender_main) = 1 
+             AND (SELECT antivirus_enabled FROM defender_main) = 1 
+             AND (SELECT antispyware_enabled FROM defender_main) = 1 
+             AND (SELECT realtime_enabled FROM defender_realtime) = 1 
+             AND (SELECT dpa_enabled FROM defender_realtime) = 1 
+            THEN 1
+            ELSE 0
+        END as policy_compliance;
+  critical: true
+  description: Failing this policy indicates that Windows Defender might not be running, the antivirus or antispyware might be disabled, or real-time protection and data protection access might not be enabled. This could leave your device vulnerable to malware, spyware, and other security threats.
+  resolution: Corrective actions include ensuring the Windows Defender service is running with antivirus, real-time protection, and data protection access all enabled. If these actions are not successful, try rebooting before sending a message to #help-dogfooding in Slack.
+  platform: windows
