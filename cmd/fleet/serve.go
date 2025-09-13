@@ -1290,10 +1290,10 @@ the way that the Fleet server works.
 
 			if license.IsPremium() {
 				// SCEP proxy (for NDES, etc.)
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
 				// Host identify SCEP feature only works if a private key has been set up
@@ -1302,7 +1302,7 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
-					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
 				} else {

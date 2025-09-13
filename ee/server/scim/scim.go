@@ -3,19 +3,22 @@ package scim
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
 	"github.com/elimity-com/scim"
-	"github.com/elimity-com/scim/errors"
+	scimerrors "github.com/elimity-com/scim/errors"
 	"github.com/elimity-com/scim/optional"
 	"github.com/elimity-com/scim/schema"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -29,7 +32,11 @@ func RegisterSCIM(
 	ds fleet.Datastore,
 	svc fleet.Service,
 	logger kitlog.Logger,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	config := scim.ServiceProviderConfig{
 		DocumentationURI: optional.NewString("https://fleetdm.com/docs/get-started/why-fleet"),
 		MaxResults:       maxResults,
@@ -209,7 +216,7 @@ func RegisterSCIM(
 		return err
 	}
 
-	// TODO: Add APM/OpenTelemetry tracing and Prometheus middleware
+	// Apply middleware including OTEL instrumentation
 	applyMiddleware := func(prefix string, server http.Handler) http.Handler {
 		handler := http.StripPrefix(prefix, server)
 		handler = AuthorizationMiddleware(authorizer, scimLogger, handler)
@@ -217,6 +224,7 @@ func RegisterSCIM(
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
+		handler = otel.WrapHandlerDynamic(handler, *fleetConfig)
 		return handler
 	}
 
@@ -253,13 +261,13 @@ func LastRequestMiddleware(ds fleet.Datastore, logger kitlog.Logger, next http.H
 		case multi.statusCode >= 400:
 			status = "error"
 			// Attempt to parse the response body as a SCIM error.
-			var parsedScimError errors.ScimError
+			var parsedScimError scimerrors.ScimError
 			if err := json.Unmarshal(multi.body.Bytes(), &parsedScimError); err == nil {
 				details = parsedScimError.Detail
 			} else {
 				details = multi.body.String()
 			}
-			if multi.statusCode == errors.ScimErrorInvalidValue.Status && details == errors.ScimErrorInvalidValue.Detail &&
+			if multi.statusCode == scimerrors.ScimErrorInvalidValue.Status && details == scimerrors.ScimErrorInvalidValue.Detail &&
 				strings.Contains(r.URL.Path, "/Users") {
 				// We customize the error message here since we can't do it inside the 3rd party SCIM library.
 				details = `Missing required attributes. "userName", "givenName", and "familyName" are required. Please configure your identity provider to send required attributes to Fleet.`
@@ -294,7 +302,7 @@ func AuthorizationMiddleware(authorizer *authz.Authorizer, logger kitlog.Logger,
 }
 
 func errorHandler(w http.ResponseWriter, logger kitlog.Logger, detail string, status int) {
-	scimErr := errors.ScimError{
+	scimErr := scimerrors.ScimError{
 		Status: status,
 		Detail: detail,
 	}
