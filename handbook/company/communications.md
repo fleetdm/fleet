@@ -861,6 +861,21 @@ Fleet benchmarks US-based team members based on the United States Dollar (USD). 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
+## Exercising options in Carta
+
+Fleet uses Carta to manage its cap table. Fleet option holders who would like to exercise their shares can now exercise those shares directly via Carta. This link provides all the details for your reference
+
+  - Before exercising your options, you should consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction
+
+For Fleeties exercising NSOs, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+  - For Fleeties who are US tax residents and employees of the company, Finance and People operations would update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system
+    - The taxable income = Fair Market Value of shares at exercise - the exercised price (strike price). If the Fair Market Value is the same or less than the exercised price, then there will not be a withholding tax amount.
+    - If the withholding tax amount is larger than $500, an email from Finance would be sent to you to confirm the total amount to be debited from your bank account before the request is approved
+  - For Fleeties who are non-US tax residents, please follow the instructions on this page to exercise your options
+Once the request is approved in Carta by the CEO, the full amount will be debited from your bank account. It will take a few days for the transactions to clear the banks, and for your share holdings to be updated in Carta
+
+
+
 ## Writing
 
 Learn how to communicate as Fleet with guidelines for tone of voice, our approach, grammar and mechanics, and more.
