@@ -19,7 +19,6 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import CustomLink from "components/CustomLink";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
@@ -55,7 +54,7 @@ const InstallSoftware = ({
 
   const {
     data: softwareTitles,
-    isLoading,
+    isLoading: isLoadingSoftwareTitles,
     isError,
     refetch: refetchSoftwareTitles,
   } = useQuery<
@@ -71,7 +70,6 @@ const InstallSoftware = ({
         per_page: PER_PAGE_SIZE,
       }),
     {
-      enabled: selectedPlatform !== "windows", // remove next iteration
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
     }
@@ -110,18 +108,11 @@ const InstallSoftware = ({
   );
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (platform === "windows") {
-      return (
-        <div className={`${baseClass}__windows`}>
-          <b>Windows setup experience is coming soon.</b>
-          <p>
-            Need to customize setup for Windows users?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </p>
-        </div>
-      );
-    }
-    if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
+    if (
+      isLoadingSoftwareTitles ||
+      isLoadingGlobalConfig ||
+      isLoadingTeamConfig
+    ) {
       return <Spinner />;
     }
 
@@ -133,9 +124,15 @@ const InstallSoftware = ({
       const appleMdmAndAbmEnabled =
         globalConfig?.mdm.enabled_and_configured &&
         globalConfig?.mdm.apple_bm_enabled_and_configured;
+      const turnOnAppleMdm = platform === "macos" && !appleMdmAndAbmEnabled;
 
-      // TODO - incorporate Windows MDM condition when implementing Windows software install on setup
-      if (platform === "macos" && !appleMdmAndAbmEnabled) {
+      const turnOnWindowsMdm =
+        platform === "windows" &&
+        !globalConfig?.mdm.windows_enabled_and_configured;
+
+      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm;
+
+      if (turnOnMdm) {
         return (
           <TurnOnMdmMessage
             header="Additional configuration required"
