@@ -161,7 +161,6 @@ const SoftwareVersionDetailsPage = ({
           <>
             <Card
               borderRadiusSize="xxlarge"
-              includeShadow
               className={`${baseClass}__summary-section`}
             >
               <SoftwareDetailsSummary
@@ -178,7 +177,6 @@ const SoftwareVersionDetailsPage = ({
             </Card>
             <Card
               borderRadiusSize="xxlarge"
-              includeShadow
               className={`${baseClass}__vulnerabilities-section`}
             >
               <h2 className="section__header">Vulnerabilities</h2>

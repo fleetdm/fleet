@@ -4,9 +4,7 @@
     margin-top: $pad-medium;
   }
 
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
+  @include page;
 
   @include color-contrasted-sections;
   .header {
@@ -79,7 +77,6 @@
 
   &__tab-nav,
   &__software-tab-nav {
-    background-color: $ui-off-white;
     width: 100%;
 
     // direct descendant of selector allows us to only change the first level of

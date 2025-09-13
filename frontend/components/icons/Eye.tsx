@@ -6,7 +6,7 @@ interface IEye {
   color?: Colors;
   size?: IconSizes;
 }
-const Eye = ({ color = "core-fleet-blue", size = "medium" }: IEye) => {
+const Eye = ({ color = "ui-fleet-black-75", size = "medium" }: IEye) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"

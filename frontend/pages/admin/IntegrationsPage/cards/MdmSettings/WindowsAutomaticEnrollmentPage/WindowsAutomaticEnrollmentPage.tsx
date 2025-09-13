@@ -5,7 +5,7 @@ import { AppContext } from "context/app";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import CustomLink from "components/CustomLink/CustomLink";
 import InfoBanner from "components/InfoBanner";
@@ -27,7 +27,7 @@ const WindowsAutomaticEnrollmentPage = () => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
+        <BackButton
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-automatic-enrollment`}
@@ -89,7 +89,7 @@ const WindowsAutomaticEnrollmentPage = () => {
                 icon="warning"
               >
                 <div className={`${baseClass}__banner-content`}>
-                  <Icon name="error-outline" color="core-fleet-blue" />
+                  <Icon name="error-outline" color="ui-fleet-black-75" />
                   <p>
                     If you&apos;re a managed-cloud customer, please reach out to
                     Fleet to create a TXT/MX record for you.

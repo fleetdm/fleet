@@ -14,19 +14,19 @@
     gap: $pad-xsmall;
     text-align: left;
     height: fit-content;
-    padding: $x-large;
+    padding: $pad-xlarge;
     border: 1px solid $ui-fleet-black-10;
-    background: $core-white;
+    background: $core-fleet-white;
     //done
 
     &:hover {
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-50;
     }
 
     &:focus-visible {
       outline: 0px;
       border-radius: $border-radius;
-      border-color: $core-vibrant-blue;
+      border-color: $core-focused-outline;
     }
   }
 
@@ -45,7 +45,7 @@
   }
 
   &__count {
-    font-size: $x-large;
+    font-size: $large;
     white-space: nowrap;
   }
 

@@ -142,15 +142,15 @@ const ProfileListItem = ({
         <div className={`${subClass}__actions`}>
           <Button
             className={`${subClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
             onClick={() => onClickInfo(profile)}
           >
-            <Icon name="info" color="ui-fleet-black-75" size="medium" />
+            <Icon name="info" size="medium" />
           </Button>
           {isPremium && labels !== undefined && labels.length && (
             <Button
               className={`${subClass}__action-button`}
-              variant="text-icon"
+              variant="icon"
               onClick={() => setProfileLabelsModalData({ ...profile })}
             >
               <Icon name="filter" />
@@ -158,7 +158,7 @@ const ProfileListItem = ({
           )}
           <Button
             className={`${subClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
             onClick={onClickDownload}
           >
             <Icon name="download" />
@@ -168,10 +168,10 @@ const ProfileListItem = ({
               <Button
                 disabled={disableChildren}
                 className={`${subClass}__action-button`}
-                variant="text-icon"
+                variant="icon"
                 onClick={() => onClickDelete(profile)}
               >
-                <Icon name="trash" color="ui-fleet-black-75" />
+                <Icon name="trash" />
               </Button>
             )}
           />

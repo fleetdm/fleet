@@ -67,7 +67,6 @@ const Activity = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       {isLoading && (
@@ -76,7 +75,7 @@ const Activity = ({
         </div>
       )}
       <CardHeader header="Activity" />
-      <TabNav>
+      <TabNav secondary>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}

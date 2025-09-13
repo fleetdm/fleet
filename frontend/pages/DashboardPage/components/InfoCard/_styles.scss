@@ -1,7 +1,7 @@
 .dashboard-info-card {
   padding: 32px;
   width: 100%;
-  background-color: $core-white;
+  background-color: $core-fleet-white;
   border: 1px solid $ui-fleet-black-10;
   border-radius: 8px;
   box-sizing: border-box;
@@ -9,6 +9,7 @@
   &__section-title-cta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     h2 {
       font-weight: $bold;
@@ -21,8 +22,8 @@
     span {
       display: flex;
       align-items: center;
-      background-color: $core-vibrant-blue;
-      color: $core-white;
+      background-color: $ui-fleet-black-75;
+      color: $core-fleet-white;
       font-size: $xx-small;
       font-weight: $bold;
       padding: 2px 4px;
@@ -55,13 +56,13 @@
     display: flex;
     align-items: center;
     font-size: $x-small;
-    color: $core-vibrant-blue;
+    color: $ui-fleet-black-75;
     font-weight: $bold;
     text-decoration: none !important;
     gap: $pad-small;
 
     &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
+      outline: 1px solid $core-focused-outline;
     }
   }
   &__action-button-text {

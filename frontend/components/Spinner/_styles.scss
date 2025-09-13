@@ -11,7 +11,7 @@
   }
 
   &.include-container {
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     width: 48px;
@@ -59,7 +59,7 @@
     padding: 0;
     &.white {
       .path {
-        stroke: $core-white;
+        stroke: $core-fleet-white;
       }
     }
     .loader {
@@ -86,13 +86,13 @@
   .path {
     stroke-dasharray: 1, 200;
     stroke-dashoffset: 0;
-    stroke: $core-vibrant-blue;
+    stroke: $core-fleet-green;
     animation: dash 1.5s ease-in-out infinite;
     stroke-linecap: round;
   }
 
   .background {
-    stroke: $ui-vibrant-blue-25;
+    stroke: $ui-fleet-black-25;
   }
 
   @keyframes rotate {

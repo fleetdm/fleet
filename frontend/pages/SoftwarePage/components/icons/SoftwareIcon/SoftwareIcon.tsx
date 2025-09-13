@@ -4,6 +4,7 @@ import classnames from "classnames";
 import { SOFTWARE_ICON_SIZES, SoftwareIconSizes } from "styles/var/icon_sizes";
 import { AxiosError } from "axios";
 import softwareAPI from "services/entities/software";
+import Spinner from "components/Spinner";
 import { getMatchedSoftwareIcon } from "../";
 
 const baseClass = "software-icon";

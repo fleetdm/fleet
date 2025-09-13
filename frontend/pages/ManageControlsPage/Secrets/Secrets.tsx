@@ -155,11 +155,12 @@ const Secrets = () => {
               {getTokenFromSecretName(secret.name)}
             </span>
             <Button
-              variant="unstyled"
+              variant="icon"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
+              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -173,14 +174,14 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="text-icon"
+          variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
           }}
         >
           <>
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </>
         </Button>
       )}
@@ -243,11 +244,12 @@ const Secrets = () => {
                 renderChildren={(disableChildren) => (
                   <span>
                     <Button
-                      variant="text-icon"
+                      variant="brand-inverse-icon"
                       onClick={onClickAddSecret}
                       disabled={disableChildren}
+                      justifyText="right"
                     >
-                      <Icon name="plus" />
+                      <Icon name="plus" color="core-fleet-green" />
                       <span>Add custom variable</span>
                     </Button>
                   </span>

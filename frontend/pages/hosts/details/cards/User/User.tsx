@@ -65,7 +65,6 @@ const User = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />

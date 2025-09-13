@@ -128,7 +128,7 @@ const ReportUpdatedCell = ({
           <Icon
             name="chevron-right"
             className={`${baseClass}__link-icon`}
-            color="core-fleet-blue"
+            color="ui-fleet-black-75"
           />
         </Link>
       )}

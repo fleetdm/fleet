@@ -127,7 +127,7 @@ interface ITableContainerProps<T = any> {
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = <T,>({
@@ -328,7 +328,9 @@ const TableContainer = <T,>({
         >
           <>
             {actionButton.buttonText}
-            {actionButton.iconSvg && <Icon name={actionButton.iconSvg} />}
+            {actionButton.iconSvg && (
+              <Icon name={actionButton.iconSvg} color="ui-fleet-black-75" />
+            )}
           </>
         </Button>
       );

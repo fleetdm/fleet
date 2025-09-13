@@ -7,7 +7,7 @@ html {
 }
 
 body {
-  color: $core-fleet-black;
+  color: $ui-fleet-black-75;
   padding: 0;
   margin: 0;
   font-family: "Inter", sans-serif;
@@ -35,6 +35,7 @@ h1,
 h2,
 h3 {
   line-height: 1.2;
+  color: $core-fleet-black;
 }
 
 p {
@@ -63,7 +64,7 @@ b {
 
 .__react_component_tooltip {
   a {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 
@@ -155,7 +156,7 @@ form,
     }
     code {
       color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
+      background-color: $core-fleet-white;
       padding: $pad-xxsmall;
       font-family: "SourceCodePro", $monospace;
     }
@@ -198,7 +199,7 @@ input {
 pre {
   padding: $pad-large;
   background-color: $core-fleet-black;
-  color: $core-white;
+  color: $core-fleet-white;
   border-radius: 4px;
   white-space: pre-wrap;
 
@@ -215,7 +216,7 @@ pre {
     color: magenta;
   }
   .key {
-    color: $core-white;
+    color: $core-fleet-white;
   }
 }
 

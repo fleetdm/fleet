@@ -32,7 +32,7 @@
         .data-table__table {
           tbody {
             .link-cell {
-              display: flex;
+              display: inline-flex; // Inline required for underline
               align-items: center;
               gap: $pad-small;
             }

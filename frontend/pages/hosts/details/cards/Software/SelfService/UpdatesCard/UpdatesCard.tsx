@@ -144,7 +144,6 @@ const UpdatesCard = ({
       className={`${baseClass}__updates-card`}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <div className={`${baseClass}__header`}>
         <CardHeader

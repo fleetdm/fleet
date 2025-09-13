@@ -10,11 +10,14 @@
   margin: 0;
   padding: 0;
   position: relative;
-  background-color: $core-white;
+  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
+  background-repeat: no-repeat;
+  background-color: #fff; // area below gradient will just be white
   display: flex;
 
   // App hidden below 768px
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xs - 1px)) {
     display: none;
   }
 
@@ -33,14 +36,15 @@
 }
 
 .site-nav-container {
-  background: $core-fleet-black;
+  background: $core-fleet-white;
+  border-bottom: 1px solid $ui-fleet-black-10;
   box-sizing: border-box;
   top: 0;
   left: 0;
   z-index: 100;
 
   // Nav hidden below 768px;
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xs - 1px)) {
     display: none;
   }
 

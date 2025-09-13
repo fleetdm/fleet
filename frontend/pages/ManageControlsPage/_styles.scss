@@ -1,4 +1,8 @@
 .manage-controls-page {
+  &__wrapper {
+    @include page;
+  }
+
   &__header-wrap {
     @include normalize-team-header;
 
