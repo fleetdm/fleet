@@ -61,6 +61,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -1234,9 +1235,9 @@ the way that the Fleet server works.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", wrapWithOTEL(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
-			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", wrapWithOTEL(version.Handler(), "/version", config)))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", wrapWithOTELDynamic(service.ServeStaticAssets("/assets/"), config)))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -1281,6 +1282,7 @@ the way that the Fleet server works.
 					ddmService,
 					commander,
 					appCfg.ServerSettings.ServerURL,
+					config,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
@@ -1313,12 +1315,12 @@ the way that the Fleet server works.
 				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
-					service.PrometheusMetricsHandler("metrics", wrapWithOTEL(promhttp.Handler(), "/metrics", config)),
+					service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)),
 				))
 			} else {
 				if config.Prometheus.BasicAuth.Disable {
 					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
-					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", wrapWithOTEL(promhttp.Handler(), "/metrics", config)))
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 				} else {
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
@@ -1436,13 +1438,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
-			rootMux.Handle("/enroll", wrapWithOTEL(endUserEnrollOTAHandler, "/enroll", config))
-			rootMux.Handle("/", wrapWithOTELDynamic(frontendHandler, config))
+			rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+			rootMux.Handle("/", otelmw.WrapHandlerDynamic(frontendHandler, config))
 
 			debugHandler := &debugMux{
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
-			rootMux.Handle("/debug/", debugHandler)
+			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
 			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
 				// test that we can load this

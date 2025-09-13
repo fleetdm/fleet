@@ -441,6 +441,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				},
 				commander,
 				"https://test-url.com",
+				cfg,
 			)
 			require.NoError(t, err)
 		}
