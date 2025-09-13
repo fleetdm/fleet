@@ -224,7 +224,9 @@ func RegisterSCIM(
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
-		handler = otel.WrapHandlerDynamic(handler, *fleetConfig)
+		// Not using the dynamic OTEL wrapper to avoid exposing identifiers in the span name.
+		// We can improve the OTEL instrumentation in the future if we need additional visibility into specific SCIM endpoints.
+		handler = otel.WrapHandler(handler, prefix, *fleetConfig)
 		return handler
 	}
 
