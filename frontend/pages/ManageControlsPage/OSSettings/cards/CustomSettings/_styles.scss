@@ -1,10 +1,4 @@
 .custom-settings {
-  &__description {
-    font-size: $x-small;
-    margin-bottom: $pad-large;
-    @include grey-text;
-  }
-
   .upload-list {
     &__list {
       .list-item__label-count {
