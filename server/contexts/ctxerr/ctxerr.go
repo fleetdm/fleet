@@ -25,6 +25,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type key int
@@ -157,7 +160,7 @@ func newError(ctx context.Context, msg string, cause error, data map[string]inte
 	return &FleetError{msg, stack, cause, edata}
 }
 
-func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
+func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
 	if cause == nil {
 		return nil
 	}
@@ -297,14 +300,46 @@ func Handle(ctx context.Context, err error) {
 	// a FleetError in the chain
 	var ferr *FleetError
 	if !errors.As(err, &ferr) {
-		err = Wrap(ctx, err, "missing FleetError in chain")
+		ferr = wrapError(ctx, "missing FleetError in chain", err, nil)
 	}
 
-	cause := err
-	if ferr := FleetCause(err); ferr != nil {
+	cause := ferr
+	if rootCause := FleetCause(err); rootCause != nil {
 		// use the FleetCause error so we send the most relevant stacktrace to APM
 		// (the one from the initial New/Wrap call).
-		cause = ferr
+		cause = rootCause
+	}
+
+	// send to OpenTelemetry if there's an active span
+	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
+		// Mark the current span as failed by setting the error status.
+		// This status can be overridden if we recovered from the error.
+		span.SetStatus(codes.Error, cause.Error())
+
+		// Build attributes for the exception event
+		attrs := []attribute.KeyValue{
+			attribute.String("exception.type", fmt.Sprintf("%T", cause)),
+			attribute.String("exception.message", cause.Error()),
+			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
+		}
+
+		// Add contextual information if available (same as Sentry)
+		v, _ := viewer.FromContext(ctx)
+		h, _ := host.FromContext(ctx)
+
+		if v.User != nil {
+			attrs = append(attrs,
+				attribute.String("user.email", v.User.Email),
+				attribute.Int("user.id", int(v.User.ID)),
+			)
+		} else if h != nil {
+			attrs = append(attrs,
+				attribute.String("host.hostname", h.Hostname),
+				attribute.Int("host.id", int(h.ID)),
+			)
+		}
+
+		span.AddEvent("exception", trace.WithAttributes(attrs...))
 	}
 
 	// send to elastic APM
