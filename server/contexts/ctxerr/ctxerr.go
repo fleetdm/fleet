@@ -338,7 +338,7 @@ func Handle(ctx context.Context, err error) {
 
 		if v.User != nil {
 			attrs = append(attrs,
-				attribute.String("user.email", v.User.Email),
+				// Not sending the email here as it may contain sensitive information (PII).
 				attribute.Int64("user.id", int64(v.User.ID)), //nolint:gosec
 			)
 		} else if h != nil {
@@ -382,7 +382,7 @@ func Handle(ctx context.Context, err error) {
 	}
 
 	if eh := FromContext(ctx); eh != nil {
-		eh.Store(err)
+		eh.Store(ferr)
 	}
 }
 
