@@ -29,16 +29,22 @@ agent_options:
 controls:
   enable_disk_encryption: true
   scripts:
+    # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
 software:
   packages:
+    # Linux apps
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
