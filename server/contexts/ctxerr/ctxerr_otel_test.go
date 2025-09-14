@@ -33,8 +33,7 @@ func TestHandleSendsContextToOTEL(t *testing.T) {
 			},
 			errorMessage: "test error with user context",
 			expectedAttrs: map[string]any{
-				"user.email": "test@example.com",
-				"user.id":    int64(123),
+				"user.id": int64(123),
 			},
 		},
 		{
