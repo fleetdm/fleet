@@ -18,9 +18,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
-	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 const (
@@ -224,17 +224,93 @@ func RegisterSCIM(
 		handler = LastRequestMiddleware(ds, scimLogger, handler)
 		handler = log.LogResponseEndMiddleware(scimLogger, handler)
 		handler = auth.SetRequestsContextMiddleware(svc, handler)
-		// Not using the dynamic OTEL wrapper to avoid exposing identifiers in the span name.
-		// We can improve the OTEL instrumentation in the future if we need additional visibility into specific SCIM endpoints.
-		handler = otel.WrapHandler(handler, prefix, *fleetConfig)
 		return handler
 	}
 
 	// We cannot use Go URL path pattern like {version} because the http.StripPrefix method
 	// that gets us to the root SCIM path does not support wildcards: https://github.com/golang/go/issues/64909
-	mux.Handle("/api/v1/fleet/scim/", applyMiddleware("/api/v1/fleet/scim", server))
-	mux.Handle("/api/latest/fleet/scim/", applyMiddleware("/api/latest/fleet/scim", server))
+	// Apply OTEL instrumentation at the mux level (outermost)
+	mux.Handle("/api/v1/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/v1/fleet/scim", server), "/api/v1/fleet/scim", *fleetConfig))
+	mux.Handle("/api/latest/fleet/scim/", scimOTELMiddleware(applyMiddleware("/api/latest/fleet/scim", server), "/api/latest/fleet/scim", *fleetConfig))
 	return nil
+}
+
+// scimOTELMiddleware provides OpenTelemetry instrumentation for SCIM endpoints
+// It creates proper span names without exposing sensitive IDs
+func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig) http.Handler {
+	if !cfg.Logging.TracingEnabled || cfg.Logging.TracingType != "opentelemetry" {
+		return next
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Determine the SCIM route pattern based on the path
+		// OTEL is the outermost middleware, so we see the full path including prefix
+		fullPath := r.URL.Path
+
+		// Remove the prefix to get the SCIM-specific path
+		scimPath := strings.TrimPrefix(fullPath, prefix)
+		// Handle both "/Schemas" and "Schemas" by trimming the leading slash
+		scimPath = strings.TrimPrefix(scimPath, "/")
+
+		var route string
+
+		// Debug: Log the actual path we're processing
+		// fmt.Printf("DEBUG: SCIM OTEL fullPath=%q, scimPath=%q\n", fullPath, scimPath)
+
+		// Normalize the path to create a route pattern without exposing IDs
+		switch {
+		case strings.HasPrefix(scimPath, "Users"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Users"
+			} else {
+				// Individual user operations - don't expose the user ID
+				route = prefix + "/Users/{id}"
+			}
+		case strings.HasPrefix(scimPath, "Groups"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Groups"
+			} else {
+				// Individual group operations - don't expose the group ID
+				route = prefix + "/Groups/{id}"
+			}
+		case strings.HasPrefix(scimPath, "Schemas"):
+			segments := strings.Split(scimPath, "/")
+			if len(segments) == 1 || (len(segments) == 2 && segments[1] == "") {
+				route = prefix + "/Schemas"
+			} else {
+				route = prefix + "/Schemas/{id}"
+			}
+		case scimPath == "ServiceProviderConfig" || scimPath == "ServiceProviderConfig/":
+			route = prefix + "/ServiceProviderConfig"
+		case scimPath == "ResourceTypes" || scimPath == "ResourceTypes/":
+			route = prefix + "/ResourceTypes"
+		default:
+			// For any other path, use the full path but check for potential IDs
+			// If the path looks like it might contain an ID (has multiple segments),
+			// we should sanitize it
+			segments := strings.Split(strings.Trim(scimPath, "/"), "/")
+			if len(segments) > 1 {
+				// Might be something like CustomResource/123
+				// Replace the last segment with {id} if it looks like an ID
+				route = prefix + "/" + segments[0] + "/{id}"
+			} else {
+				// Single segment path, use as is
+				route = prefix + "/" + scimPath
+			}
+		}
+
+		// Create the instrumented handler with the proper route
+		instrumentedHandler := otelhttp.NewHandler(
+			otelhttp.WithRouteTag(route, next),
+			"", // Empty operation name - will be set by span name formatter
+			otelhttp.WithSpanNameFormatter(func(operation string, req *http.Request) string {
+				return req.Method + " " + route
+			}),
+		)
+		instrumentedHandler.ServeHTTP(w, r)
+	})
 }
 
 // LastRequestMiddleware saves the details of the last request to SCIM endpoints in the datastore.

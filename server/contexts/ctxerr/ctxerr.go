@@ -160,7 +160,7 @@ func newError(ctx context.Context, msg string, cause error, data map[string]inte
 	return &FleetError{msg, stack, cause, edata}
 }
 
-func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) *FleetError {
+func wrapError(ctx context.Context, msg string, cause error, data map[string]interface{}) error {
 	if cause == nil {
 		return nil
 	}
@@ -294,17 +294,26 @@ func FromContext(ctx context.Context) Handler {
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration. It also takes
-// care of sending it to the configured APM, if any.
+// care of sending it to the configured OpenTelemetry/APM/Sentry, if any.
 func Handle(ctx context.Context, err error) {
+	if err == nil {
+		return
+	}
+
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
 	var ferr *FleetError
 	if !errors.As(err, &ferr) {
-		ferr = wrapError(ctx, "missing FleetError in chain", err, nil)
+		wrapped := wrapError(ctx, "missing FleetError in chain", err, nil)
+		if wrapped == nil {
+			return // shouldn't happen since err is not nil, but be safe
+		}
+		// wrapError returns an error interface, but we know it's a *FleetError
+		ferr = wrapped.(*FleetError)
 	}
 
 	cause := ferr
-	if rootCause := FleetCause(err); rootCause != nil {
+	if rootCause := FleetCause(ferr); rootCause != nil {
 		// use the FleetCause error so we send the most relevant stacktrace to APM
 		// (the one from the initial New/Wrap call).
 		cause = rootCause
@@ -330,12 +339,12 @@ func Handle(ctx context.Context, err error) {
 		if v.User != nil {
 			attrs = append(attrs,
 				attribute.String("user.email", v.User.Email),
-				attribute.Int("user.id", int(v.User.ID)),
+				attribute.Int64("user.id", int64(v.User.ID)), //nolint:gosec
 			)
 		} else if h != nil {
 			attrs = append(attrs,
 				attribute.String("host.hostname", h.Hostname),
-				attribute.Int("host.id", int(h.ID)),
+				attribute.Int64("host.id", int64(h.ID)), //nolint:gosec
 			)
 		}
 
