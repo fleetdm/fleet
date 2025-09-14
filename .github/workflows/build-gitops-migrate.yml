@@ -24,7 +24,7 @@ jobs:
       # Ex: gitops-migrate-windows-amd64.exe.sha256
       BIN_HASH_NAME: gitops-migrate-${{ matrix.GOOS }}-${{ matrix.GOARCH }}${{ matrix.GOOS == 'windows' && '.exe' || '' }}.sha256
       # This serves as the root path we `aws s3 cp` all built binaries to.
-      S3_URI: s3://download/tools
+      S3_URI: s3://download/tools/
     strategy:
       fail-fast: true
       matrix:
