@@ -1438,7 +1438,7 @@ the way that the Fleet server works.
 			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
 			rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
-			rootMux.Handle("/", otelmw.WrapHandlerDynamic(frontendHandler, config))
+			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
