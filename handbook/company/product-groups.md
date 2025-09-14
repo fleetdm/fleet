@@ -905,7 +905,7 @@ Sprints are numbered according to the release version. For example, for the spri
 
 ### Sprint ceremonies
 
-See the (rituals contributor docs)[https://github.com/fleetdm/fleet/tree/main/docs/Contributing/rituals] for detailed instructions on running each ceremony.
+See the [rituals contributor docs](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/rituals) for detailed instructions on running each ceremony.
 
 Each sprint is marked by five essential ceremonies:
 
