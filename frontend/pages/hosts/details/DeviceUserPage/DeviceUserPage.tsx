@@ -315,8 +315,11 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
-  const isFleetDrivenSetupExperienceSoftwareHost =
+  const isSetupExperienceSoftwareEnabledPlatform =
     isLinuxLike(host?.platform || "") || host?.platform === "windows";
+
+  const checkForSetupExperienceSoftware =
+    isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 
   const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
@@ -336,7 +339,7 @@ const DeviceUserPage = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.setup_experience_results.software,
-      enabled: isFleetDrivenSetupExperienceSoftwareHost,
+      enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
       refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
     }
@@ -481,7 +484,7 @@ const DeviceUserPage = ({
       return <DataError description="Could not get software setup status." />;
     }
     if (
-      isFleetDrivenSetupExperienceSoftwareHost &&
+      checkForSetupExperienceSoftware &&
       getIsSettingUpSoftware(softwareSetupStatuses)
     ) {
       // at this point, softwareSetupStatuses will be non-empty
