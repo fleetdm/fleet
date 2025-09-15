@@ -122,7 +122,18 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint, viewPIN bool) (un
 	}
 
 	switch {
-	// Note: IsPendingLock case removed - duplicate lock requests now handled properly by returning existing PIN
+	case lockWipe.IsPendingLock():
+		// For macOS, we handle duplicate lock requests at the MDM commander level
+		// by returning the existing PIN. For Windows/Linux, we need to prevent
+		// duplicate script executions.
+		if host.FleetPlatform() != "darwin" {
+			return "", ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_id", "Host has pending lock request. Host cannot be locked again until lock is complete.",
+				),
+			)
+		}
+		// For macOS, fall through to enqueueLockHostRequest which will handle the duplicate
 	case lockWipe.IsPendingUnlock():
 		return "", ctxerr.Wrap(
 			ctx, fleet.NewInvalidArgumentError(

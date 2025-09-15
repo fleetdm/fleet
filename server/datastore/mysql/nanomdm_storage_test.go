@@ -259,16 +259,17 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 			// Try to enqueue the lock command
 			err := storage.EnqueueDeviceLockCommand(ctx, host, cmd, pin)
 
-			if err == nil {
+			switch {
+			case err == nil:
 				successMu.Lock()
 				successCount++
 				pins = append(pins, pin)
 				successMu.Unlock()
-			} else if fleet.IsConflict(err) {
+			case fleet.IsConflict(err):
 				successMu.Lock()
 				conflictCount++
 				successMu.Unlock()
-			} else {
+			default:
 				// Unexpected error
 				t.Logf("Request %d got unexpected error: %v", idx, err)
 			}
