@@ -82,17 +82,53 @@ extract_minimum_version() {
 #     echo "$content"
 # }
 
-# Fetch the latest macOS version
-echo "Fetching latest macOS version..."
-latest_macos_version=$(curl -s "https://sofafeed.macadmins.io/v1/macos_data_feed.json" | \
-jq -r '.. | objects | select(has("ProductVersion")) | .ProductVersion' | sort -Vr | head -n 1)
+# Fetch the latest macOS n-1 version (latest in the most recent 2 major releases)
+echo "Fetching latest macOS n-1 version..."
+macos_versions=$(curl -s "https://sofafeed.macadmins.io/v1/macos_data_feed.json" | \
+jq -r '.. | objects | select(has("ProductVersion")) | .ProductVersion' | sort -Vr)
 
-if [ -z "$latest_macos_version" ]; then
-    echo "Error: Failed to fetch the latest macOS version."
+if [ -z "$macos_versions" ]; then
+    echo "Error: Failed to fetch macOS versions."
     exit 1
 fi
 
-echo "Latest macOS version: $latest_macos_version"
+# Extract major version numbers and find the latest 2 major releases
+latest_major_versions=$(echo "$macos_versions" | cut -d. -f1 | sort -nr | uniq | head -2)
+
+if [ -z "$latest_major_versions" ]; then
+    echo "Error: Could not determine major version numbers."
+    exit 1
+fi
+
+# Find the latest version in each of the most recent 2 major releases
+latest_versions=()
+for major in $latest_major_versions; do
+    version_in_major=$(echo "$macos_versions" | grep "^$major\." | head -1)
+    if [ -n "$version_in_major" ]; then
+        latest_versions+=("$version_in_major")
+    fi
+done
+
+if [ ${#latest_versions[@]} -eq 0 ]; then
+    echo "Error: Could not determine the latest macOS versions."
+    exit 1
+fi
+
+# Create the OR query for n-1 approach
+if [ ${#latest_versions[@]} -eq 1 ]; then
+    # If only one major release available, use single version
+    latest_macos_version="${latest_versions[0]}"
+    query_condition="version >= '$latest_macos_version'"
+else
+    # If two major releases available, use OR condition
+    version1="${latest_versions[0]}"
+    version2="${latest_versions[1]}"
+    query_condition="version >= '$version1' OR version >= '$version2'"
+    latest_macos_version="$version1 (n-1: $version1 OR $version2)"
+fi
+
+echo "Latest macOS n-1 versions: ${latest_versions[*]}"
+echo "Query condition: $query_condition"
 
 # Initialize update flags
 policy_update_needed=false
@@ -117,16 +153,12 @@ if [ -z "$query_line" ]; then
     exit 1
 fi
 
-# Extract the version number from the query line
-policy_version_number=$(echo "$query_line" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g")
-if [ -z "$policy_version_number" ]; then
-    echo "Error: Failed to extract the policy version number."
-    exit 1
-fi
+# Extract the current query condition from the policy
+current_query_condition=$(echo "$query_line" | sed "s/query: *//")
+echo "Current policy query: $current_query_condition"
 
-echo "Policy version number: $policy_version_number"
-
-if [ "$policy_version_number" != "$latest_macos_version" ]; then
+# Check if the policy needs updating
+if [ "$current_query_condition" != "SELECT 1 FROM os_version WHERE $query_condition;" ]; then
     policy_update_needed=true
     updates_needed=true
 fi
@@ -198,7 +230,7 @@ if [ "$updates_needed" = true ]; then
     # Update policy file if needed
     if [ "$policy_update_needed" = true ]; then
         echo "Updating policy file..."
-        new_query_line="query: SELECT 1 FROM os_version WHERE version >= '$latest_macos_version';"
+        new_query_line="query: SELECT 1 FROM os_version WHERE $query_condition;"
         updated_policy_response=$(echo "$policy_response" | sed "s/query: .*/$new_query_line/")
         
         if [ -z "$updated_policy_response" ]; then
@@ -224,11 +256,13 @@ if [ "$updates_needed" = true ]; then
     # fi
 
     # Create commit message
-    commit_message="Update macOS version to $latest_macos_version"
+    commit_message="Update macOS version to $latest_macos_version (n-1)"
     if [ "$policy_update_needed" = true ]; then
         commit_message="$commit_message
 
-- Updated policy version from $policy_version_number to $latest_macos_version"
+- Updated policy query to check for latest versions in most recent 2 major releases
+- New query: SELECT 1 FROM os_version WHERE $query_condition;
+- Versions: ${latest_versions[*]}"
     fi
     # COMMENTED OUT: Team updates commit message logic temporarily disabled
     # if [ "$team_updates_needed" = true ]; then
@@ -242,7 +276,7 @@ if [ "$updates_needed" = true ]; then
     git push origin "$NEW_BRANCH"
 
     # Create a pull request
-    pr_title="Update macOS version to $latest_macos_version"
+    pr_title="Update macOS version to $latest_macos_version (n-1)"
     pr_data=$(jq -n --arg title "$pr_title" \
                  --arg head "$NEW_BRANCH" \
                  --arg base "$BRANCH" \
@@ -289,5 +323,5 @@ if [ "$updates_needed" = true ]; then
     fi
     echo "Reviewers added successfully."
 else
-    echo "No updates needed; all versions and deadlines are current."
+    echo "No updates needed; all versions and deadlines are current (n-1 approach)."
 fi
