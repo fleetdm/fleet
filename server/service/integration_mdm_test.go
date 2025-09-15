@@ -17783,3 +17783,82 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
 }
+
+func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
+	ctx := s.T().Context()
+
+	successfulPushUUID := "successful-uuid"
+	failedPushUUID := "failed-uuid"
+
+	// Set up test data
+
+	// Perform the MDM enrollment.
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	model := "iPhone14,6"
+
+	successfulHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            successfulPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	successfulMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	successfulMdmDevice.SerialNumber = successfulHost.HardwareSerial
+	err = successfulMdmDevice.Enroll()
+	require.NoError(s.T(), err)
+
+	failedHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            failedPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	failedMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	failedMdmDevice.SerialNumber = failedHost.HardwareSerial
+	err = failedMdmDevice.Enroll()
+	require.NoError(s.T(), err)
+
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		require.Len(s.T(), pushes, 1)
+		pushObject := pushes[0]
+		switch pushObject.PushMagic {
+		case "pushmagic" + successfulMdmDevice.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  successfulPushUUID,
+					Err: nil,
+				},
+			}, nil
+		case "pushmagic" + failedMdmDevice.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  failedPushUUID,
+					Err: errors.New("device token is inactive"),
+				},
+			}, nil
+		}
+		return nil, errors.New("unknown device")
+	}
+
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
+	require.Contains(s.T(), err.Error(), "device token is inactive")
+
+	// Verify successful is still enrolled, and failed has been unenrolled
+	successfulHostMDM, err := s.ds.GetHostMDM(ctx, successfulHost.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), successfulHostMDM)
+	require.True(s.T(), successfulHostMDM.Enrolled)
+
+	failedHostMDM, err := s.ds.GetHostMDM(ctx, failedHost.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), failedHostMDM)
+	require.False(s.T(), failedHostMDM.Enrolled)
+}
