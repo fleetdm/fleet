@@ -1399,11 +1399,12 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
+	const rpmSource = "rpm_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
 	// Return early if platform is not Ubuntu or Debian
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" && platform != "debian" {
+	if platform != "ubuntu" && platform != "debian" && platform != "rhel" {
 		return
 	}
 
@@ -1421,6 +1422,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	// a fresh ubuntu 24.04 install
 	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
+	rpmPackages := make(map[string]struct{}, 40) // TODO: how many for fedora or other rhel install?
 
 	// Track indexes of rows to remove
 	indexesToRemove := []int{}
@@ -1436,6 +1438,10 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
 			}
+		case rpmSource:
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				rpmPackages[row["name"]] = struct{}{}
+			}
 		}
 	}
 
@@ -1450,6 +1456,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 
 		// Filter out Python packages that are also Debian packages
 		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else if _, found := rpmPackages[convertedName]; found {
 			indexesToRemove = append(indexesToRemove, index)
 		} else {
 			// Update remaining Python package names to match OVAL definitions
