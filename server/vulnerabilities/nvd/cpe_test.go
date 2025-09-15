@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1852,6 +1853,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
+
+		translation, okT, _ := cpeTranslations.Translate(reCache, &tt.software)
+		if okT {
+			if len(translation.SWEdition) == 0 || translation.SWEdition[0] == "" {
+				re := regexp.MustCompile(`\*:[^*]+:[^*]+:\*:\*$`)
+				assert.False(t, re.MatchString(cpe), "did not expect sw_edition for:"+cpe)
+			}
+		}
+
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}
