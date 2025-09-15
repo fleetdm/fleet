@@ -414,6 +414,7 @@ func ReadSetupExperienceStatusFile(rootDir string) (*SetupExperienceInfo, error)
 		}
 		return nil, fmt.Errorf("read setup experience file: %w", err)
 	}
+	defer f.Close()
 	var exp SetupExperienceInfo
 	if err := json.NewDecoder(f).Decode(&exp); err != nil {
 		return nil, fmt.Errorf("decoding setup experience file: %w", err)
@@ -426,10 +427,11 @@ func ReadSetupExperienceStatusFile(rootDir string) (*SetupExperienceInfo, error)
 func WriteSetupExperienceStatusFile(rootDir string, exp *SetupExperienceInfo) error {
 	infoPath := filepath.Join(rootDir, constant.SetupExperienceFilename)
 
-	f, err := os.Create(infoPath)
+	f, err := os.OpenFile(infoPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, constant.DefaultFileMode)
 	if err != nil {
 		return fmt.Errorf("create setup experience completed file: %w", err)
 	}
+	defer f.Close()
 	if err := json.NewEncoder(f).Encode(exp); err != nil {
 		return fmt.Errorf("write setup experience completed file: %w", err)
 	}
