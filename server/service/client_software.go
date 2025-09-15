@@ -135,10 +135,10 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 		byLookup[lookup{Hash: clientSide.SHA256, URL: clientSide.URL}] = clientSide
 	}
 
-	for _, serverSide := range response {
-		if clientSide, ok := byLookup[lookup{Hash: serverSide.HashSHA256, URL: serverSide.URL}]; ok {
-			serverSide.LocalIconHash = clientSide.IconHash
-			serverSide.LocalIconPath = clientSide.IconPath
+	for i := range response {
+		if clientSide, ok := byLookup[lookup{Hash: response[i].HashSHA256, URL: response[i].URL}]; ok {
+			response[i].LocalIconHash = clientSide.IconHash
+			response[i].LocalIconPath = clientSide.IconPath
 		}
 	}
 
@@ -155,6 +155,10 @@ func (c *Client) UploadIcon(teamID uint, titleID uint, filename string, iconRead
 	if _, err = io.Copy(fileWriter, iconReader); err != nil {
 		return err
 	}
+	// Close the writer before using the buffer
+	if err := writer.Close(); err != nil {
+		return err
+	}
 
 	return c.putIcon(teamID, titleID, writer, buf)
 }
@@ -166,6 +170,10 @@ func (c *Client) UpdateIcon(teamID uint, titleID uint, filename string, hash str
 		return err
 	}
 	if err := writer.WriteField("filename", filename); err != nil {
+		return err
+	}
+	// Close the writer before using the buffer
+	if err := writer.Close(); err != nil {
 		return err
 	}
 
