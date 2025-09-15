@@ -164,6 +164,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
     <SettingsSection className={baseClass} title="End user migration workflow">
       <form>
         <p>Control the end user migration workflow for macOS hosts.</p>
+        {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
         <video
           src={MdmMigrationVideo}
           className={`${baseClass}__preview-video`}
