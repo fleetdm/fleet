@@ -867,7 +867,12 @@ Fleet uses Carta to manage its cap table. Fleet option holders can [exercise sha
 
 
 For Fleeties exercising NSOs, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
-  - For Fleeties who are US tax residents and employees of the company, Finance and People operations would update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system
+- For *US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. 
+
+> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
+> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
+
+If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
   - For Fleeties who are non-US tax residents, please follow the instructions on this page to exercise your options
 Once the request is approved in Carta by the CEO, the full amount will be debited from your bank account. It will take a few days for the transactions to clear the banks, and for your share holdings to be updated in Carta
 
