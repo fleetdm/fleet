@@ -128,6 +128,12 @@ func TestMDMAppleCommander(t *testing.T) {
 
 	host := &fleet.Host{ID: 1, UUID: "A", Platform: "darwin"}
 	cmdUUID = uuid.New().String()
+
+	// Mock GetPendingLockCommand to return nil (no pending command)
+	mdmStorage.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		return nil, "", nil
+	}
+
 	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
 		require.NotNil(t, gotHost)
 		require.Equal(t, host.ID, gotHost.ID)
@@ -208,13 +214,15 @@ func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 		require.Equal(t, host.UUID, gotHost.UUID)
 		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
 		require.Len(t, pin, 6)
-		// Store the first command as pending
+		// Store the first command as pending, reject others with conflict
 		if !commandCreated {
 			pendingCommand = cmd
 			pendingPIN = pin
 			commandCreated = true
+			return nil
 		}
-		return nil
+		// Command already exists, return conflict error
+		return fleet.NewConflictError("host already has a pending lock command")
 	}
 
 	// Mock RetrievePushInfo
@@ -234,6 +242,11 @@ func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
 		// Return a mock certificate
 		return &tls.Certificate{}, "staleToken", nil
+	}
+
+	// Mock IsPushCertStale - return false (cert is not stale)
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
 	}
 
 	// Simulate concurrent lock requests
@@ -273,11 +286,15 @@ func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 		require.Equal(t, firstPIN, pin, "All requests should return the same PIN")
 	}
 
-	// Only one command should have been enqueued
-	require.Equal(t, 1, enqueueCalls, "Only one lock command should be enqueued")
+	// Due to race conditions, multiple goroutines may attempt to enqueue
+	// but only one should succeed, the rest should get conflict errors.
+	// The important thing is that all requests return the same PIN
+	require.GreaterOrEqual(t, enqueueCalls, 1, "At least one enqueue attempt should be made")
+	require.LessOrEqual(t, enqueueCalls, numGoroutines, "At most numGoroutines enqueue attempts")
 
 	// GetPendingLockCommand should have been called multiple times
-	require.Greater(t, getPendingCalls, 1, "GetPendingLockCommand should be called multiple times")
+	// This includes both initial checks and post-conflict checks
+	require.GreaterOrEqual(t, getPendingCalls, numGoroutines, "GetPendingLockCommand should be called at least once per request")
 }
 
 func newMockAPNSPushProviderFactory() (*svcmock.APNSPushProviderFactory, *svcmock.APNSPushProvider) {

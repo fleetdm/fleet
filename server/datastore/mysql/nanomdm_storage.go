@@ -162,6 +162,7 @@ func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID str
 //   - It can only be called for a single hosts, to ensure we don't use the same
 //     pin for multiple hosts.
 //   - The method performs fleet-specific actions after the command is enqueued.
+//   - It will fail with a ConflictError if a lock command already exists.
 func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	ctx context.Context,
 	host *fleet.Host,
@@ -169,10 +170,29 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	pin string,
 ) error {
 	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		// check if a lock already exists using SELECT FOR UPDATE to prevent a race
+		var existingLockRef *string
+		err := sqlx.GetContext(ctx, tx, &existingLockRef,
+			`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`,
+			host.ID)
+
+		// If we got a row and it has a lock_ref, fail with conflict
+		if err == nil && existingLockRef != nil && *existingLockRef != "" {
+			// A lock command already exists, don't overwrite
+			return fleet.NewConflictError("host already has a pending lock command")
+		}
+
+		// If the row doesn't exist, that's OK, we'll insert it
+		if err != nil && err != sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, err, "checking for existing lock")
+		}
+
+		// Now enqueue the command
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
 
+		// Insert or update the host_mdm_actions row
 		stmt := `
 			INSERT INTO host_mdm_actions (
 				host_id,
