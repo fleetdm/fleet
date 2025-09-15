@@ -20,12 +20,14 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import CustomLink from "components/CustomLink";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "install-software";
 
@@ -41,11 +43,10 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
 ];
 
-interface IInstallSoftwareProps {
-  currentTeamId: number;
-}
-
-const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
+const InstallSoftware = ({
+  currentTeamId,
+  router,
+}: ISetupExperienceCardProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [
     selectedPlatform,
@@ -81,7 +82,6 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId === API_NO_TEAM_ID,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
@@ -130,6 +130,21 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     }
 
     if (softwareTitles || softwareTitles === null) {
+      const appleMdmAndAbmEnabled =
+        globalConfig?.mdm.enabled_and_configured &&
+        globalConfig?.mdm.apple_bm_enabled_and_configured;
+
+      // TODO - incorporate Windows MDM condition when implementing Windows software install on setup
+      if (platform === "macos" && !appleMdmAndAbmEnabled) {
+        return (
+          <TurnOnMdmMessage
+            header="Additional configuration required"
+            info="To customize, first turn on automatic enrollment."
+            buttonText="Turn on"
+            router={router}
+          />
+        );
+      }
       return (
         <SetupExperienceContentContainer>
           <AddInstallSoftware
@@ -139,7 +154,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
-          <InstallSoftwarePreview />
+          <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
       );
     }

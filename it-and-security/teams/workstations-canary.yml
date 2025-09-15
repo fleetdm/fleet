@@ -38,6 +38,18 @@ agent_options:
   overrides:
     platforms:
       darwin:
+        decorators:
+          load:
+            - SELECT uuid AS host_uuid FROM system_info;
+            - SELECT hostname AS hostname FROM system_info;
+        options:
+          disable_distributed: false
+          distributed_interval: 10
+          distributed_plugin: tls
+          distributed_tls_max_attempts: 3
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 10
+          pack_delimiter: /
         auto_table_construction:
           tcc_system:
             path: /Library/Application Support/com.apple.TCC/TCC.db
@@ -142,6 +154,7 @@ controls:
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
     - path: ../lib/macos/scripts/install-wine.sh
     - path: ../lib/macos/scripts/create-conditional-access-allow-file.sh
+    - path: ../lib/macos/scripts/set-lock-screen-message.sh
     - path: ../lib/windows/scripts/turn-off-mdm.ps1
     - path: ../lib/windows/scripts/install-bitdefender.ps1
     - path: ../lib/windows/scripts/enable-ms-defender.ps1

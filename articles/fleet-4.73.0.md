@@ -61,7 +61,7 @@ Use Fleet's new built-in `$FLEET_VAR_HOST_UUID` variable in your Windows configu
 ### IT Admins
 - Added API endpoints for adding, deleting and listing secret variables.
 - Added ability to add and delete custom variables in the UI.
-- Added APIendpoints to get and list batch scripts. 
+- Added API endpoints to get and list batch scripts. 
 - Added cron job to launch scheduled batch scripts.
 - Added API endpoint to cancel scheduled batch script run.
 - Added the ability to cancel batch script runs directly from the UI summary modal.
