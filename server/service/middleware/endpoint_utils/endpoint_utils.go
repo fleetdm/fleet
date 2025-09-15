@@ -572,16 +572,14 @@ func (e *CommonEndpointer[H]) makeEndpoint(f H, v interface{}) http.Handler {
 
 	// Apply "after auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)
-	var endp endpoint.Endpoint
+	endp := next
 	if len(e.CustomMiddlewareAfterAuth) > 0 {
 		for i := len(e.CustomMiddlewareAfterAuth) - 1; i >= 0; i-- {
 			mw := e.CustomMiddlewareAfterAuth[i]
-			endp = mw(next)
+			endp = mw(endp)
 		}
-		endp = e.AuthFunc(e.FleetService, endp)
-	} else {
-		endp = e.AuthFunc(e.FleetService, next)
 	}
+	endp = e.AuthFunc(e.FleetService, endp)
 
 	// Apply "before auth" middleware (in reverse order so that the first wraps
 	// the second wraps the third etc.)

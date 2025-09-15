@@ -17,10 +17,11 @@ import (
 
 func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	var (
-		i           = 0
-		beforeIndex = 0
-		authIndex   = 0
-		afterIndex  = 0
+		i                = 0
+		beforeIndex      = 0
+		authIndex        = 0
+		afterFirstIndex  = 0
+		afterSecondIndex = 0
 	)
 	beforeAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
@@ -41,10 +42,17 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 		}
 	}
 
-	afterAuthMiddleware := func(next endpoint.Endpoint) endpoint.Endpoint {
+	afterAuthMiddlewareFirst := func(next endpoint.Endpoint) endpoint.Endpoint {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
 			i++
-			afterIndex = i
+			afterFirstIndex = i
+			return next(ctx, req)
+		}
+	}
+	afterAuthMiddlewareSecond := func(next endpoint.Endpoint) endpoint.Endpoint {
+		return func(ctx context.Context, req interface{}) (interface{}, error) {
+			i++
+			afterSecondIndex = i
 			return next(ctx, req)
 		}
 	}
@@ -66,7 +74,8 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 			beforeAuthMiddleware,
 		},
 		CustomMiddlewareAfterAuth: []endpoint.Middleware{
-			afterAuthMiddleware,
+			afterAuthMiddlewareFirst,
+			afterAuthMiddlewareSecond,
 		},
 		Router: r,
 	}
@@ -90,7 +99,8 @@ func TestCustomMiddlewareAfterAuth(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 	require.Equal(t, 1, beforeIndex)
 	require.Equal(t, 2, authIndex)
-	require.Equal(t, 3, afterIndex)
+	require.Equal(t, 3, afterFirstIndex)
+	require.Equal(t, 4, afterSecondIndex)
 }
 
 type nopRequest struct{}
