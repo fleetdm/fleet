@@ -79,7 +79,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.UpdateHostCertificates(ctx, 1, "95816502-d8c0-462c-882f-39991cc89a0c", payload))
 
 	// verify that we saved the records correctly
-	certs, _, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name"})
+	certs, meta, err := ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "common_name", IncludeMetadata: true})
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
 	require.Equal(t, expected2.Subject.CommonName, certs[0].CommonName)
@@ -88,6 +88,7 @@ func testUpdateAndListHostCertificates(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected1.Subject.CommonName, certs[1].CommonName)
 	require.Equal(t, expected1.Subject.CommonName, certs[1].SubjectCommonName)
 	require.Equal(t, fleet.SystemHostCertificate, certs[1].Source)
+	require.EqualValues(t, 2, meta.TotalResults)
 
 	// order by not_valid_after descending
 	certs, _, err = ds.ListHostCertificates(ctx, 1, fleet.ListOptions{OrderKey: "not_valid_after", OrderDirection: fleet.OrderAscending})

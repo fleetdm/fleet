@@ -254,7 +254,6 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}
@@ -304,8 +303,13 @@ WHERE
 	hc.host_id = ?
 	AND hc.deleted_at IS NULL`
 
-	args := []interface{}{hostID}
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+	const countStmt = `
+	SELECT COUNT(hc.id) FROM host_certificates hc
+	WHERE hc.host_id = ? AND hc.deleted_at IS NULL
+	`
+
+	baseArgs := []interface{}{hostID}
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, baseArgs, &opts)
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {
@@ -314,7 +318,12 @@ WHERE
 
 	var metaData *fleet.PaginationMetadata
 	if opts.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		var count uint
+		if err := sqlx.GetContext(ctx, tx, &count, countStmt, baseArgs...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "counting host certificates")
+		}
+
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0, TotalResults: count}
 		if len(certs) > int(opts.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			certs = certs[:len(certs)-1]
