@@ -43,9 +43,9 @@ export interface ILoadHostsResponse {
 
 export type IUnlockHostResponse =
   | {
-    host_id: number;
-    unlock_pin: string;
-  }
+      host_id: number;
+      unlock_pin: string;
+    }
   | Record<string, never>;
 
 // the source of truth for the filter option names.

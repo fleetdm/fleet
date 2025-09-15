@@ -43,6 +43,7 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
