@@ -298,6 +298,7 @@ const SaveNewPolicyModal = ({
                 </span>
               }
               suppressTitle
+              disableOptions={disableForm}
             />
           )}
           {isPremiumTier && (

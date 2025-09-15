@@ -135,6 +135,15 @@ form,
     &--error {
       color: $core-vibrant-red;
     }
+
+    // New padded buttons are within label and shouldn't push label height
+    .button {
+      margin: -$pad-small;
+    }
+
+    .custom-link {
+      margin-bottom: 0;
+    }
   }
 
   &__help-text {

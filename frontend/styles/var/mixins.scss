@@ -515,7 +515,7 @@ $max-width: 2560px;
   position: relative;
 
   &:hover {
-    margin-bottom: -3px; // Account for underline height, removed for link-cell truncated
+    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
   }
 
   @include bottom-border($active-color, $inactive-color);
