@@ -17,6 +17,7 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
+import SidePanelPage from "components/SidePanelPage";
 import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
@@ -319,32 +320,34 @@ const FleetMaintainedAppDetailsPage = ({
   };
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>{renderContent()}</>
-      </MainContent>
-      {isPremiumTier && fleetApp && isSidePanelOpen && (
-        <SidePanelContent className={`${baseClass}__side-panel`}>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={() => setSidePanelOpen(false)}
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>{renderContent()}</>
+        </MainContent>
+        {isPremiumTier && fleetApp && isSidePanelOpen && (
+          <SidePanelContent className={`${baseClass}__side-panel`}>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={() => setSidePanelOpen(false)}
+            />
+          </SidePanelContent>
+        )}
+        {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
+        {showAppDetailsModal && fleetApp && (
+          <FleetAppDetailsModal
+            name={fleetApp.name}
+            platform={fleetApp.platform}
+            version={fleetApp.version}
+            slug={fleetApp.slug}
+            url={fleetApp.url}
+            onCancel={() => setShowAppDetailsModal(false)}
           />
-        </SidePanelContent>
-      )}
-      {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
-      {showAppDetailsModal && fleetApp && (
-        <FleetAppDetailsModal
-          name={fleetApp.name}
-          platform={fleetApp.platform}
-          version={fleetApp.version}
-          slug={fleetApp.slug}
-          url={fleetApp.url}
-          onCancel={() => setShowAppDetailsModal(false)}
-        />
-      )}
-    </>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 
