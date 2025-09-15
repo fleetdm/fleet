@@ -499,7 +499,12 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			// Unescape any unicode chars added by the YAML marshaler.
 			b = unescapeUnicodeU8(b)
 		} else {
-			b = []byte(fileToWrite.(string))
+			switch fileToWrite := fileToWrite.(type) {
+			case []byte:
+				b = fileToWrite
+			case string:
+				b = []byte(fileToWrite)
+			}
 		}
 
 		// If --print is set, print the file to stdout.
