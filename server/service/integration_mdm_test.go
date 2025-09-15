@@ -9685,8 +9685,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			// try to lock the host again
 			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusConflict)
 			// try to wipe a locked host
-			res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
-			errMsg := extractServerErrorText(res.Body)
+			res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 			// unlock the host
