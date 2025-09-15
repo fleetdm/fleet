@@ -4360,6 +4360,21 @@ On macOS hosts, `last_opened_at` represents the last open time of the most recen
         }
       ]
     },
+    {
+      "id": 150,
+      "name": "GitHub Copilot",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "jetbrains_plugins",
+      "extension_for": "goland",
+      "installed_versions": [
+        {
+          "version": "1.2.3",
+          "vulnerabilities": [],
+          "installed_paths": ["/Users/username/Library/Application Support/JetBrains/GoLand2025.2/plugins/github-copilot-intellij"],
+        }
+      ]
+    }
   ],
   "meta": {
     "has_next_results": false,
@@ -9940,6 +9955,28 @@ Get a list of all software.
           "vulnerabilities": []
         }
       ]
+    },
+    {
+      "id": 77,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "versions_count": 2,
+      "source": "jetbrains_plugin",
+      "extensions_for": "goland",
+      "hosts_count": 19,
+      "versions": [
+        {
+          "id": 6501,
+          "version": "232.1.0",
+          "vulnerabilities": []
+        },
+        {
+          "id": 6502,
+          "version": "241.2.1",
+          "vulnerabilities": []
+        }
+      ]
     }
   ],
   "meta": {
@@ -10018,6 +10055,16 @@ Get a list of all software versions.
         "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
         "hosts_count": 345,
+        "vulnerabilities": null
+      },
+      {
+        "id": 3,
+        "name": "Prettier",
+        "version": "232.1.0",
+        "source": "jetbrains_plugins",
+        "extensions_for": "goland",
+        "generated_cpe": "cpe:2.3:a:*:prettier:232.1.0:*:*:*:*:node.js:*:*",
+        "hosts_count": 19,
         "vulnerabilities": null
       }
     ],
