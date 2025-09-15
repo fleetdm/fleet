@@ -863,7 +863,7 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 ## Exercising options in Carta
 
-Fleet uses Carta to manage its cap table. Fleet option holders who would like to exercise their shares can now exercise those shares directly via Carta. This link provides all the details for your reference
+Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](TODO_ADD_MISSING_LINK). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
 
 
 For Fleeties exercising NSOs, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
