@@ -67,6 +67,22 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 	}
 }
 
+func (g *GoogleClient) PoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+
+	var policies []*androidmanagement.Policy
+	err := g.mgmt.Enterprises.Policies.List(enterpriseName).Context(ctx).Pages(ctx, func(page *androidmanagement.ListPoliciesResponse) error {
+		policies = append(policies, page.Policies...)
+		return nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("listing policies: %w", err)
+	}
+	return policies, nil
+}
+
 func (g *GoogleClient) SignupURLsCreate(ctx context.Context, _, callbackURL string) (*android.SignupDetails, error) {
 	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
@@ -162,6 +178,19 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
+func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
+	fmt.Printf("Getting application with path %s\n", path)
+	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+	}
+	return app, nil
+}
+
 func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
 	switch {
@@ -189,6 +218,21 @@ func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.C
 		return nil, err
 	case err != nil:
 		return nil, fmt.Errorf("modifying application policy %s: %w", policyName, err)
+	}
+	return ret.Policy, nil
+}
+
+func (g *GoogleClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+	ret, err := g.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s to remove apps %v: %w", policyName, packageNames, err)
 	}
 	return ret.Policy, nil
 }

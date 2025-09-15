@@ -30,6 +30,10 @@ type Client interface {
 	// On success it returns the applied policy, with its version number set.
 	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
 
+	EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error)
+
+	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
+
 	// EnterprisesDevicesPatch updates a device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/patch
 	// On success it returns the updated device with latest applied policy information.
@@ -50,6 +54,8 @@ type Client interface {
 
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
+
+	PoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error)
 }
 
 type EnterprisesCreateRequest struct {

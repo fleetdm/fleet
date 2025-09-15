@@ -28,12 +28,13 @@ type ProxyClient struct {
 	licenseKey        string
 	proxyEndpoint     string
 	fleetServerSecret string
+	serverUrl         string
 }
 
 // Compile-time check to ensure that ProxyClient implements Client.
 var _ Client = &ProxyClient{}
 
-func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string) Client {
+func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string, getenv func(string) string, serverUrl string) Client {
 	proxyEndpoint := getenv("FLEET_DEV_ANDROID_PROXY_ENDPOINT")
 	if proxyEndpoint == "" {
 		proxyEndpoint = defaultProxyEndpoint
@@ -58,6 +59,7 @@ func NewProxyClient(ctx context.Context, logger kitlog.Logger, licenseKey string
 		mgmt:          mgmt,
 		licenseKey:    licenseKey,
 		proxyEndpoint: proxyEndpoint,
+		serverUrl:     serverUrl,
 	}
 }
 
@@ -157,6 +159,7 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Origin", p.serverUrl)
 	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
@@ -235,12 +238,27 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	return nil
 }
 
+func (p *ProxyClient) PoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error) {
+	// TODO
+	return nil, nil
+}
+
+func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	// TODO
+	return nil, nil
+}
+
+func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	return nil, nil
+}
+
 func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
 	call := p.mgmt.Enterprises.List().Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Origin", p.serverUrl)
 	resp, err := call.Do()
 	if err != nil {
 		// Convert proxy errors to proper googleapi.Error for service layer

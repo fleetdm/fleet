@@ -37,7 +37,7 @@ func ReconcileProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Lo
 		return ctxerr.Wrap(ctx, err, "get android enterprise")
 	}
 
-	client := newAMAPIClient(ctx, logger, licenseKey)
+	client := newAMAPIClient(ctx, logger, licenseKey, appConfig.ServerSettings.ServerURL)
 	reconciler := &profileReconciler{
 		DS:         ds,
 		Enterprise: enterprise,
