@@ -18,6 +18,7 @@ import { COLORS } from "styles/var/colors";
 
 import Icon from "components/Icon";
 import AvatarTopNav from "../../AvatarTopNav";
+import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 const baseClass = "user-menu";
 
@@ -146,6 +147,16 @@ const UserMenu = ({
     dropdownItems.unshift(manageUserNavItem);
   }
 
+  // unshift label option here
+  if (isOnGlobalTeam(currentUser)) {
+    const manageLabelsMenuItem = {
+      label: "Labels",
+      value: "labels",
+      onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
+    };
+    dropdownItems.unshift(manageLabelsMenuItem);
+  }
+
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
     const userAdminTeams = currentUser.teams.filter(
       (thisTeam: ITeam) => thisTeam.role === "admin"
@@ -161,12 +172,7 @@ const UserMenu = ({
       onClick: () => onUserMenuItemClick(settingsPath),
     };
 
-    const manageLabelsMenuItem = {
-      label: "Labels",
-      value: "labels",
-      onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
-    };
-    dropdownItems.unshift(adminMenuItem, manageLabelsMenuItem);
+    dropdownItems.unshift(adminMenuItem);
   }
 
   const customStyles: StylesConfig<IDropdownOption, false> = {
