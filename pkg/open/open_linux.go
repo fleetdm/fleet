@@ -163,6 +163,15 @@ func newEnvironmentWithVariablesFromNamedProcesses(exePaths []string, envvars ..
 		delete(localEnv, k)
 	}
 
+	if _, ok := localEnv["XDG_CURRENT_DESKTOP"]; ok && localEnv["XDG_CURRENT_DESKTOP"] == "KDE" {
+		// xdg-open checks KDE_SESSION_VERSION to determine how to launch the browser, but it is
+		// not always up-to-date and may fail for newer versions of KDE Plasma. Unsetting here
+		// will cause xdg-open to fall back to "generic" behavior for launching the browser, which
+		// ends up being more reliable.
+		log.Debug().Msg("unsetting XDG_CURRENT_DESKTOP=KDE for better xdg-open compatibility")
+		delete(localEnv, "XDG_CURRENT_DESKTOP")
+	}
+
 	var out []string
 	for k, v := range localEnv {
 		out = append(out, fmt.Sprintf("%s=%s", k, v))
