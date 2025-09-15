@@ -1655,7 +1655,16 @@ func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, op
 		// Setup experience wasn't checked yet, we start it.
 		log.Info().Msg("initiating setup experience")
 		initSetupExperienceResponse, err := orbitClient.InitiateSetupExperience()
-		if err != nil {
+		switch {
+		case err == nil:
+			// OK, continue
+		case errors.Is(err, service.ErrMissingLicense):
+			// Setup experience is a premium feature.
+			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
+			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
+				Enabled: false,
+			}
+		default:
 			return fmt.Errorf("initializing server-side setup experience: %w", err)
 		}
 		if initSetupExperienceResponse.Enabled {
