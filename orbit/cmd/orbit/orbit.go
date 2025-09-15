@@ -243,7 +243,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "disable-setup-experience",
-			Usage:   "Disables checking for setup experience on Linux hosts",
+			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
 	}
