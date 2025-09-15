@@ -480,17 +480,11 @@ func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 	require.Len(t, cmds, 2)
-	var foundTeamCmd, foundGlobalCmd bool
+	var got []string
 	for _, cmd := range cmds {
-		if cmd.CommandUUID == teamCmdUUID {
-			foundTeamCmd = true
-		}
-		if cmd.CommandUUID == globalCmdUUID {
-			foundGlobalCmd = true
-		}
+		got = append(got, cmd.CommandUUID)
 	}
-	require.True(t, foundTeamCmd, "team command should be visible to admin")
-	require.True(t, foundGlobalCmd, "global command should be visible to admin")
+	require.ElementsMatch(t, []string{teamCmdUUID, globalCmdUUID}, got)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
