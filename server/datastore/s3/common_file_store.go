@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"path"
 	"runtime"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -36,6 +37,12 @@ type commonFileStore struct {
 	*s3store
 	pathPrefix string
 	fileLabel  string // how to call the file in error messages
+
+	gcs bool
+}
+
+func isGCS(endpointURL string) bool {
+	return strings.Contains(endpointURL, "storage.googleapis.com")
 }
 
 // Get retrieves the requested file from S3.
@@ -76,18 +83,17 @@ func (s *commonFileStore) Put(ctx context.Context, fileID string, content io.Rea
 		u.Concurrency = runtime.NumCPU()
 	})
 
-	// TODO: The `UploadOutput` is discarded currently. However, it does include
-	// checksums of the uploaded content which are calculated _server-side_. We
-	// could do something like:
-	// - Wrap the `context.Context` with a cancellation.
-	// - Wrap the `content` `ReadSeeker` in a `TeeReader`.
-	// - Feed the `TeeReader` to a `hash.Hasher` (probably SHA1).
-	// - Compare the `hash.Hasher` result to the `manager.UploadOutput` hash to
-	//   verify upload integrity, cancelling the context if the hashes don't match.
+	var checksumAlgorithm types.ChecksumAlgorithm
+	if s.gcs {
+		checksumAlgorithm = types.ChecksumAlgorithmCrc32c // Required for GCS
+	}
+
 	_, err := uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: &s.bucket,
 		Body:   content,
 		Key:    &key,
+
+		ChecksumAlgorithm: checksumAlgorithm,
 	})
 
 	return err

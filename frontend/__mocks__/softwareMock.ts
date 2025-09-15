@@ -30,6 +30,7 @@ const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   vulnerabilities: null,
   last_opened_at: null,
   bundle_identifier: "com.app.mock",
+  icon_url: null,
 };
 
 export const createMockSoftware = (
@@ -143,7 +144,7 @@ export const createMockOSVersionsResponse = (
 
 const DEFAULT_APP_STORE_APP_MOCK: IAppStoreApp = {
   name: "test app",
-  app_store_id: 1,
+  app_store_id: "1",
   created_at: "2020-01-01T00:00:00.000Z",
   platform: "darwin",
   icon_url: "https://via.placeholder.com/512",
@@ -165,6 +166,7 @@ export const createMockAppStoreApp = (overrides?: Partial<IAppStoreApp>) => {
 const DEFAULT_SOFTWARE_TITLE_DETAILS_MOCK: ISoftwareTitleDetails = {
   id: 1,
   name: "test.app",
+  icon_url: null,
   software_package: null,
   app_store_app: null,
   source: "apps",
@@ -236,6 +238,7 @@ export const createMockSoftwarePackage = (
 const DEFAULT_SOFTWARE_TITLE_MOCK: ISoftwareTitle = {
   id: 1,
   name: "mock software 1.app",
+  icon_url: null,
   versions_count: 1,
   source: "apps",
   hosts_count: 1,

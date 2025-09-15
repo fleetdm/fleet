@@ -125,6 +125,11 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 }
 
 func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.TeamPayload) (*fleet.Team, error) {
+	// Special handling for team ID 0 (No team)
+	if teamID == 0 {
+		return svc.modifyDefaultTeamConfig(ctx, payload)
+	}
+
 	if err := svc.authz.Authorize(ctx, &fleet.Team{ID: teamID}, fleet.ActionWrite); err != nil {
 		return nil, err
 	}
@@ -151,6 +156,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.WebhookSettings != nil {
+		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
+			return nil, err
+		}
 		team.Config.WebhookSettings = *payload.WebhookSettings
 	}
 
@@ -710,6 +718,29 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 }
 
 func (svc *Service) GetTeam(ctx context.Context, teamID uint) (*fleet.Team, error) {
+	// Special handling for team ID 0 - return default team config
+	if teamID == 0 {
+		// Use same authorization as AppConfig reads
+		if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+
+		config, err := svc.ds.DefaultTeamConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		// Convert TeamConfig to Team for API compatibility
+		// Team ID 0 represents "No Team"
+		team := &fleet.Team{
+			ID:     0,
+			Name:   fleet.ReservedNameNoTeam,
+			Config: *config,
+		}
+
+		return team, nil
+	}
+
 	alreadyAuthd := svc.authz.IsAuthenticatedWith(ctx, authz_ctx.AuthnDeviceToken)
 	if alreadyAuthd {
 		// device-authenticated request can only get the device's team
@@ -1669,6 +1700,13 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 	}
 
 	if didUpdateEncryption || didUpdateRequirePIN {
+		if didUpdateEncryption && !tm.Config.MDM.EnableDiskEncryption && tm.Config.MDM.RequireBitLockerPIN {
+			return ctxerr.New(ctx, fleet.CantDisableDiskEncryptionIfPINRequiredErrMsg)
+		}
+		if !didUpdateEncryption && !tm.Config.MDM.EnableDiskEncryption && tm.Config.MDM.RequireBitLockerPIN {
+			return ctxerr.New(ctx, fleet.CantEnablePINRequiredIfDiskEncryptionEnabled)
+		}
+
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
 		}
@@ -1748,4 +1786,105 @@ func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.C
 	}
 
 	return nil
+}
+
+// validateTeamWebhookSettings validates webhook settings for teams and default team config
+func validateTeamWebhookSettings(ctx context.Context, webhookSettings *fleet.TeamWebhookSettings) error {
+	if webhookSettings == nil {
+		return nil
+	}
+
+	if webhookSettings.FailingPoliciesWebhook.Enable {
+		if webhookSettings.FailingPoliciesWebhook.DestinationURL == "" {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("webhook_settings.failing_policies_webhook.destination_url", "destination URL is required when webhook is enabled"))
+		}
+		if _, err := url.Parse(webhookSettings.FailingPoliciesWebhook.DestinationURL); err != nil {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("webhook_settings.failing_policies_webhook.destination_url", err.Error()))
+		}
+	}
+
+	return nil
+}
+
+func (svc *Service) modifyDefaultTeamConfig(ctx context.Context, payload fleet.TeamPayload) (*fleet.Team, error) {
+	// Use same authorization as AppConfig modifications
+	if err := svc.authz.Authorize(ctx, &fleet.AppConfig{}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	// Get current config
+	config, err := svc.ds.DefaultTeamConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply and validate webhook settings if provided
+	if payload.WebhookSettings != nil {
+		if err := validateTeamWebhookSettings(ctx, payload.WebhookSettings); err != nil {
+			return nil, err
+		}
+		config.WebhookSettings = *payload.WebhookSettings
+	}
+
+	// Apply integrations if provided
+	if payload.Integrations != nil {
+		// Note: GoogleCalendar and ConditionalAccessEnabled are currently not supported for "No team"
+		// Reject unsupported fields for "No team"
+		if payload.Integrations.GoogleCalendar != nil ||
+			payload.Integrations.ConditionalAccessEnabled.Set {
+			return nil, fleet.NewInvalidArgumentError("integrations",
+				"google_calendar and conditional_access_enabled are not supported for \"No team\"")
+		}
+
+		// Get app config for integration validation (needed even if clearing integrations)
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
+		}
+
+		// Always update integrations when provided (even if empty arrays to clear them)
+		config.Integrations.Jira = payload.Integrations.Jira
+		config.Integrations.Zendesk = payload.Integrations.Zendesk
+	}
+
+	// Validate mutual exclusivity of automations if either webhooks or integrations were updated
+	if payload.WebhookSettings != nil || payload.Integrations != nil {
+		// must validate that at most only one automation is enabled for each
+		// supported feature - by now the updated payload has been applied to config.
+		invalid := &fleet.InvalidArgumentError{}
+		fleet.ValidateEnabledFailingPoliciesTeamIntegrations(
+			config.WebhookSettings.FailingPoliciesWebhook,
+			config.Integrations,
+			invalid,
+		)
+		if invalid.HasErrors() {
+			return nil, ctxerr.Wrap(ctx, invalid)
+		}
+	}
+
+	// Save the configuration
+	if err := svc.ds.SaveDefaultTeamConfig(ctx, config); err != nil {
+		return nil, err
+	}
+
+	// Return as a Team for API compatibility
+	team := &fleet.Team{
+		ID:     0,
+		Name:   fleet.ReservedNameNoTeam,
+		Config: *config,
+	}
+
+	return team, nil
 }
