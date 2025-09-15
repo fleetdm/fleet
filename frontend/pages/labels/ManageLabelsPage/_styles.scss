@@ -1,7 +1,7 @@
 .manage-labels-page {
-  &__wrapper {
-    padding: 20px;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: $pad-small;
 
   &__header-wrap {
     @include normalize-team-header;
@@ -23,7 +23,6 @@
   }
 
   &__description {
-    margin-bottom: 24px;
     p {
       color: $ui-fleet-black-75;
       margin: 0;

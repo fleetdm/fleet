@@ -113,40 +113,38 @@ IManageLabelsPageProps): JSX.Element => {
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
-        <div className={`${baseClass}__header-wrap`}>
-          <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                <h1>Labels</h1>
-              </div>
+      <div className={`${baseClass}__header-wrap`}>
+        <div className={`${baseClass}__header`}>
+          <div className={`${baseClass}__text`}>
+            <div className={`${baseClass}__title`}>
+              <h1>Labels</h1>
             </div>
           </div>
-          {canWriteLabels && (
-            <div className={`${baseClass}__action-button-container`}>
-              <Button
-                className={`${baseClass}__create-button`}
-                onClick={onCreateLabelClick}
-              >
-                Add label
-              </Button>
-            </div>
-          )}
         </div>
-        <div className={`${baseClass}__description`}>
-          <p>Group hosts for targeting and filtering</p>
-        </div>
-        {renderTable()}
-        {labelToDelete && (
-          <DeleteLabelModal
-            onSubmit={onConfirmDelete}
-            onCancel={() => {
-              setLabelToDelete(null);
-            }}
-            isUpdatingLabel={isUpdating}
-          />
+        {canWriteLabels && (
+          <div className={`${baseClass}__action-button-container`}>
+            <Button
+              className={`${baseClass}__create-button`}
+              onClick={onCreateLabelClick}
+            >
+              Add label
+            </Button>
+          </div>
         )}
       </div>
+      <div className={`${baseClass}__description`}>
+        <p>Group hosts for targeting and filtering</p>
+      </div>
+      {renderTable()}
+      {labelToDelete && (
+        <DeleteLabelModal
+          onSubmit={onConfirmDelete}
+          onCancel={() => {
+            setLabelToDelete(null);
+          }}
+          isUpdatingLabel={isUpdating}
+        />
+      )}
     </MainContent>
   );
 };
