@@ -384,6 +384,79 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+
+	// Test listing MDM commands with team filter but no host identifier
+	// This reproduces the bug where h.team_id is referenced but the query uses combined_commands alias
+	t.Run("ListMDMCommands_WithTeamFilter_NoHostIdentifier", func(t *testing.T) {
+		// Create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team-mdm-commands"})
+		require.NoError(t, err)
+
+		// Create a host in the team
+		teamHost, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:       "team-host",
+			OsqueryHostID:  ptr.String("osquery-team"),
+			NodeKey:        ptr.String("node-key-team"),
+			UUID:           uuid.NewString(),
+			Platform:       "darwin",
+			HardwareSerial: "789012",
+			TeamID:         &team.ID,
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, teamHost, false)
+
+		// Create a command for the team host
+		teamCmdUUID := uuid.New().String()
+		teamCmd := createRawAppleCmd("ProfileList", teamCmdUUID)
+		err = commander.EnqueueCommand(ctx, []string{teamHost.UUID}, teamCmd)
+		require.NoError(t, err)
+
+		// Create a user with team access
+		teamUser := &fleet.User{
+			ID:    999,
+			Email: "team-user@example.com",
+			Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleMaintainer}},
+		}
+
+		// List commands with team filter (no host identifier) - this should trigger the bug hit by customer
+		cmds, err = ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: teamUser},
+			&fleet.MDMCommandListOptions{},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
+
+		// Test with a specific team filter
+		cmds, err = ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: teamUser, TeamID: &team.ID},
+			&fleet.MDMCommandListOptions{},
+		)
+		require.NoError(t, err)
+		require.Len(t, cmds, 1)
+		require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
+
+		// Test with admin user (should see all commands)
+		adminUser := test.UserAdmin
+		cmds, err = ds.ListMDMCommands(
+			ctx,
+			fleet.TeamFilter{User: adminUser},
+			&fleet.MDMCommandListOptions{},
+		)
+		require.NoError(t, err)
+		// Should see all commands including the team one
+		require.Greater(t, len(cmds), 1)
+		var foundTeamCmd bool
+		for _, cmd := range cmds {
+			if cmd.CommandUUID == teamCmdUUID {
+				foundTeamCmd = true
+				break
+			}
+		}
+		require.True(t, foundTeamCmd, "team command should be visible to admin")
+	})
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
