@@ -4324,8 +4324,7 @@ Retrieves the certificates installed on a host.
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
-  },
-  "count": 1
+  }
 }
 ```
 
