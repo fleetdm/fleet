@@ -150,7 +150,7 @@ func TestCheckinAndCommandHandler_ErrorHandling(t *testing.T) {
 				if isCheckin {
 					subtest = "Checkin"
 				}
-				t.Run(subtest+"_With_"+tt.name[:20], func(t *testing.T) {
+				t.Run(subtest, func(t *testing.T) {
 					// Setup error
 					err := tt.serviceError
 					if tt.wrapError {
@@ -177,7 +177,8 @@ func TestCheckinAndCommandHandler_ErrorHandling(t *testing.T) {
 							Enrollment:  mdm.Enrollment{UDID: "test-udid"},
 							MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
 						}
-						body, _ = plist.Marshal(tokenUpdate)
+						body, err = plist.Marshal(tokenUpdate)
+						require.NoError(t, err)
 						contentType = "application/x-apple-aspen-mdm-checkin"
 					} else {
 						handler = CommandAndReportResultsHandler(mockSvc, log.NopLogger)
@@ -186,7 +187,8 @@ func TestCheckinAndCommandHandler_ErrorHandling(t *testing.T) {
 							CommandUUID: "test-cmd-uuid",
 							Status:      "Acknowledged",
 						}
-						body, _ = plist.Marshal(cmdResults)
+						body, err = plist.Marshal(cmdResults)
+						require.NoError(t, err)
 						contentType = "application/x-apple-aspen-mdm"
 					}
 
@@ -215,7 +217,8 @@ func TestErrorResponseBody(t *testing.T) {
 		Enrollment:  mdm.Enrollment{UDID: "test-udid"},
 		MessageType: mdm.MessageType{MessageType: "TokenUpdate"},
 	}
-	body, _ := plist.Marshal(tokenUpdate)
+	body, err := plist.Marshal(tokenUpdate)
+	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodPost, "/mdm", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/x-apple-aspen-mdm-checkin")
