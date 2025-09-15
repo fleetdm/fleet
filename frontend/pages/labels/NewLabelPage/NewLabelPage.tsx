@@ -319,8 +319,8 @@ const NewLabelPage = ({
     }
     setIsUpdating(true);
     try {
-      const res = await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      await labelsAPI.create(formData);
+      router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
     } catch {
       renderFlash("error", "Couldn't add label. Please try again.");
