@@ -1,4 +1,4 @@
-name: Deploy Loadtest Environment
+name: Deploy Loadtest - Infrastructure
 
 on:
   workflow_dispatch:
@@ -135,7 +135,6 @@ jobs:
         id: apply
         run: |
           terraform apply -auto-approve
-          terraform apply -auto-approve -var=run_migrations=true
       - name: Terraform Destroy
         if: inputs.terraform_action == 'destroy'
         id: destroy

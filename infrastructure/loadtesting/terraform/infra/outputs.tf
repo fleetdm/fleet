@@ -1,11 +1,9 @@
 output "server_url" {
-  sensitive = true
   value     = "https://${aws_route53_record.main.fqdn}"
 }
 
 output "internal_alb_dns_name" {
-  sensitive = true
-  value     = var.run_migrations ? resource.aws_lb.internal.dns_name : ""
+  value     = resource.aws_lb.internal.dns_name
 }
 
 output "ecs_cluster" {
@@ -31,11 +29,6 @@ output "ecs_execution_arn" {
 output "logging_config" {
   sensitive = true
   value     = module.loadtest.byo-db.byo-ecs.logging_config
-}
-
-output "enroll_secret" {
-  sensitive = true
-  value     = data.aws_secretsmanager_secret_version.enroll_secret.secret_string
 }
 
 output "enroll_secret_arn" {

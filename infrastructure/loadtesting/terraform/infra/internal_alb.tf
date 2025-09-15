@@ -1,9 +1,27 @@
+resource "aws_security_group" "internal" {
+  name = "${local.prefix}-internal"
+  vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
+  ingress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+}
+
 resource "aws_lb" "internal" {
   name                       = "${local.prefix}-internal"
   internal                   = true
   security_groups            = [
-    data.terraform_remote_state.shared.outputs.alb_security_group.id, 
-    try(module.loadtest.byo-db.alb.security_group_id, ""),
+    resource.aws_security_group.internal.id,
   ]
   subnets                    = data.terraform_remote_state.shared.outputs.vpc.private_subnets
   idle_timeout               = 905

@@ -59,8 +59,3 @@ variable "redis_instance_count" {
     error_message = "var.redis_instance_count must be greater than or equal to 3."
   }
 }
-
-variable "run_migrations" {
-  type    = bool
-  default = false
-}

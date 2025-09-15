@@ -1,4 +1,4 @@
-name: Deploy Loadtest Environment
+name: Deploy Loadtest - Shared
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Deploy osquery perf
+name: Deploy Loadtest - Osquery Perf
 
 on:
   workflow_dispatch:

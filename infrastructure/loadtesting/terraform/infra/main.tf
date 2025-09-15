@@ -30,8 +30,7 @@ resource "aws_route53_record" "main" {
 }
 
 module "loadtest" {
-  #source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.1"
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=internal-lb-support"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.1"
   vpc_config = {
     name   = local.customer
     vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
@@ -75,11 +74,18 @@ module "loadtest" {
     mem                 = var.fleet_task_memory
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer
-    extra_load_balancers = var.run_migrations ? [{
-        target_group_arn = resource.aws_lb_target_group.internal.arn
-        container_name   = "fleet"
-        container_port   = 8080
-      }] : []
+    networking = {
+      ingress_sources     = {
+        security_groups = [
+          resource.aws_security_group.internal.id,
+        ]
+      }
+    }
+    extra_load_balancers = [{
+      target_group_arn = resource.aws_lb_target_group.internal.arn
+      container_name   = "fleet"
+      container_port   = 8080
+    }]
     autoscaling = {
       min_capacity = var.fleet_task_count
       max_capacity = var.fleet_task_count
@@ -183,7 +189,6 @@ module "ses" {
 }
 
 module "migrations" {
-  count                    = var.run_migrations ? 1 : 0
   source                   = "github.com/fleetdm/fleet-terraform//addons/migrations?ref=tf-mod-addon-migrations-v2.1.0"
   ecs_cluster              = module.loadtest.byo-db.byo-ecs.service.cluster
   task_definition          = module.loadtest.byo-db.byo-ecs.task_definition.family
@@ -193,6 +198,11 @@ module "migrations" {
   ecs_service              = module.loadtest.byo-db.byo-ecs.service.name
   desired_count            = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  
+  depends_on = [
+    module.loadtest, 
+    module.vuln-processing
+  ]
 }
 
 module "vuln-processing" {
@@ -236,7 +246,8 @@ module "logging_alb" {
 }
 
 module "logging_firehose" {
-  source = "github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.2.3"
+  source = "github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.2.4"
+  prefix = "${local.customer}-"
   osquery_results_s3_bucket = {
     name         = "${local.customer}-osquery-results-firehose-policy"
     expires_days = 1
