@@ -13,10 +13,11 @@ export const COLORS = {
   "ui-fleet-black-5": "#F4F4F6",
 
   // 2025 secondary colors
-  "ui-fleet-black-75-over": "darken(#515774, 5%)",
-  "ui-fleet-black-75-down": "darken(#515774, 10%)",
-  "core-fleet-green-over": "darken(#009A7D, 5%)",
-  "core-fleet-green-down": "darken(#009A7D, 10%)",
+  // Sass functions only work in SCSS, not in runtime TypeScript or JavaScript files
+  "ui-fleet-black-75-over": "#454C66", // darken(#515774, 5%) or color.adjust(#515774, $lightness: -5%)
+  "ui-fleet-black-75-down": "#3A3E59", // darken(#515774, 10%) or color.adjust(#515774, $lightness: -10%)
+  "core-fleet-green-over": "#00886C", // "darken(#009A7D, 5%)" or color.adjust(#009A7D, $lightness: -5%)
+  "core-fleet-green-down": "#00775F", // "darken(#009A7D, 10%)" or color.adjust(#009A7D, $lightness: -10%)
 
   // core colors
   "core-fleet-blue": "#6A67FE", // TODO: lots of work to correctly match scss core-fleet-blue and not ui-vibrant-blue

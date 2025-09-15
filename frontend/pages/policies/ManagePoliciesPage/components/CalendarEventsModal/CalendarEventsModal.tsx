@@ -191,7 +191,7 @@ const CalendarEventsModal = ({
       />
       <Button
         type="button"
-        variant="text-link"
+        variant="inverse"
         onClick={() => {
           setSelectedPolicyToPreview(undefined);
           togglePreviewCalendarEvent();
@@ -221,8 +221,7 @@ const CalendarEventsModal = ({
           }}
         />
         <Button
-          type="button"
-          variant="text-link"
+          variant="inverse"
           onClick={() => {
             setSelectedPolicyToPreview(undefined);
             togglePreviewCalendarEvent();

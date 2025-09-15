@@ -41,7 +41,7 @@ const getLeftMenuAlign = (menuAlign: "right" | "left" | "default") => {
     case "left":
       return "0";
     default:
-      return "-12px";
+      return "undefined";
   }
 };
 
@@ -49,6 +49,8 @@ const getRightMenuAlign = (menuAlign: "right" | "left" | "default") => {
   switch (menuAlign) {
     case "right":
       return "0";
+    case "left":
+      return "auto";
     default:
       return "undefined";
   }
@@ -184,12 +186,13 @@ const ActionsDropdown = ({
       display: "flex",
       flexDirection: "row",
       width: "max-content",
-      padding: "8px 0",
+      padding: "8px", // Match button padding
       backgroundColor: "initial",
       border: 0,
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
         boxShadow: "none",
         ".actions-dropdown-select__placeholder": {
           color: COLORS["ui-fleet-black-75-over"],
@@ -204,6 +207,7 @@ const ActionsDropdown = ({
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
         ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
@@ -299,12 +303,12 @@ const ActionsDropdown = ({
         onMenuOpen={() => setMenuIsOpen(true)} // Needed abstraction for brand-action button
         onMenuClose={() => setMenuIsOpen(false)} // Needed abstraction for brand-action-button
         components={{
-          Control: variant === "brand-button" ? ButtonControl : undefined,
           DropdownIndicator: CustomDropdownIndicator,
           IndicatorSeparator: () => null,
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
+          ...(variant === "brand-button" && { Control: ButtonControl }), // Needed for brand-action button
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option
