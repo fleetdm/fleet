@@ -30,13 +30,13 @@ const LabelCount = ({
 
 interface IProfileDetailsProps {
   platform: ProfilePlatform;
-  createdAt: string;
+  uploadedAt: string;
   isDDM?: boolean;
 }
 
 const ProfileDetails = ({
   platform,
-  createdAt,
+  uploadedAt,
   isDDM,
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
@@ -59,7 +59,7 @@ const ProfileDetails = ({
       <span className={`${baseClass}__platform`}>{getPlatformName()}</span>
       <span>&bull;</span>
       <span className={`${baseClass}__list-item-uploaded`}>
-        {`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}
+        {`Uploaded ${formatDistanceToNow(new Date(uploadedAt))} ago`}
       </span>
     </div>
   );
@@ -98,7 +98,7 @@ const ProfileListItem = ({
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
   const {
-    created_at,
+    updated_at,
     labels_include_all,
     labels_include_any,
     labels_exclude_any,
@@ -141,7 +141,7 @@ const ProfileListItem = ({
           <div className={`${subClass}__details`}>
             <ProfileDetails
               platform={platform}
-              createdAt={created_at}
+              uploadedAt={updated_at}
               isDDM={isDDMProfile(profile)}
             />
           </div>

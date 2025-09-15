@@ -2709,7 +2709,7 @@ func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) ActivityName() s
 }
 
 func (a ActivityTypeAddedConditionalAccessIntegrationMicrosoft) Documentation() (string, string, string) {
-	return "Generated when Microsoft Entra is connected for conditonal access.",
+	return "Generated when Microsoft Entra is connected for conditional access.",
 		"This activity does not contain any detail fields.", ""
 }
 

@@ -249,7 +249,7 @@ func (g *GoogleClient) EnterpriseDelete(ctx context.Context, enterpriseName stri
 	return nil
 }
 
-func (g *GoogleClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+func (g *GoogleClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
 	if g == nil || g.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}

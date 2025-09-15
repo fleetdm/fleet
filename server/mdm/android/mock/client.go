@@ -25,7 +25,7 @@ type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseN
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 
-type EnterprisesListFunc func(ctx context.Context) ([]*androidmanagement.Enterprise, error)
+type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 type SetAuthenticationSecretFunc func(secret string) error
 
@@ -99,11 +99,11 @@ func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseName string) er
 	return p.EnterpriseDeleteFunc(ctx, enterpriseName)
 }
 
-func (p *Client) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+func (p *Client) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
 	p.mu.Lock()
 	p.EnterprisesListFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesListFunc(ctx)
+	return p.EnterprisesListFunc(ctx, serverURL)
 }
 
 func (p *Client) SetAuthenticationSecret(secret string) error {

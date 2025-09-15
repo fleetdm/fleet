@@ -11737,12 +11737,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
 
+		_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+			TitleID:   titleID,
+			Filename:  "icon.png",
+			TeamID:    0,
+			StorageID: "icon_storage_id",
+		})
+		require.NoError(t, err)
+
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, 0, titleID)
+		})
+		require.Equal(t, 0, count)
+
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null, "team_id": null, "self_service": true}`, 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -12240,6 +12254,47 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
 	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
 	require.Equal(t, iconUrl, *details.SoftwareIconURL)
 	require.Equal(t, titleID, details.SoftwareTitleID)
+
+	// PUT: Icon too large
+	// Create a fake large file (101KB of data)
+	largeData := make([]byte, 101*1024)
+	reader := bytes.NewReader(largeData)
+	iconFile, err := fleet.NewTempFileReader(reader, func() string { return t.TempDir() })
+	require.NoError(t, err)
+
+	var bufInvalid bytes.Buffer
+	writer = multipart.NewWriter(&bufInvalid)
+	fileWriter, err = writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fileWriter, iconFile)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		bufInvalid.Bytes(),
+		http.StatusBadRequest,
+		headers,
+	)
+	var errorResp struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Name   string `json:"name"`
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(body, &errorResp)
+	require.NoError(t, err)
+	assert.Equal(t, "Bad request", errorResp.Message)
+	require.Len(t, errorResp.Errors, 1)
+	assert.Contains(t, errorResp.Errors[0].Reason, "icon must be less than 100KB")
 
 	// PUT: gitops workflow, passing in sha256 & filename
 	var storedIcons []fleet.SoftwareTitleIcon

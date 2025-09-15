@@ -299,7 +299,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 - Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live query orchestrator)
 
-GCP support for add/install software and file carve features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 ##### Example configuration breakpoints
 ###### [Up to 1000 hosts](https://cloud.google.com/products/calculator/#id=59670518-9af4-4044-af4a-cc100a9bed2f)
@@ -338,7 +338,7 @@ GCP support for add/install software and file carve features is coming soon. Get
 
 #### Azure
 
-Coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+Coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 #### Render
 

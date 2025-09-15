@@ -5,11 +5,15 @@
 package packaging
 
 import (
+	"crypto/sha512"
 	_ "embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -211,6 +215,14 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		return nil, fmt.Errorf("failed to get %s version: %w", constant.OsqueryTUFTargetName, err)
 	}
 
+	// Save hash and remove osqueryd tar.gz to prevent it from being included in the package
+	// (on macOS, osqueryd comes as osqueryd.app.tar.gz)
+	if strings.HasSuffix(osquerydLocalTarget.Path, ".tar.gz") {
+		if err := saveHashAndRemoveTarGz(osquerydLocalTarget.Path); err != nil {
+			log.Error().Err(err).Str("path", osquerydLocalTarget.Path).Msg("failed to save hash and remove osqueryd tar.gz")
+		}
+	}
+
 	orbitLocalTarget, err := updater.Get(constant.OrbitTUFTargetName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get %s: %w", constant.OrbitTUFTargetName, err)
@@ -242,6 +254,14 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		if err := json.Unmarshal(*desktopMeta.Custom, &desktopCustom); err != nil {
 			return nil, fmt.Errorf("failed to get %s version: %w", constant.DesktopTUFTargetName, err)
 		}
+
+		// Save hash and remove the tar.gz file to prevent it from being included in the package
+		// (fixes duplicate fleet-desktop in .deb and .pkg packages)
+		if strings.HasSuffix(desktopLocalTarget.Path, ".tar.gz") {
+			if err := saveHashAndRemoveTarGz(desktopLocalTarget.Path); err != nil {
+				log.Error().Err(err).Str("path", desktopLocalTarget.Path).Msg("failed to save hash and remove desktop tar.gz")
+			}
+		}
 	}
 
 	// Copy the new metadata file to the old location (pre-migration) to
@@ -265,6 +285,45 @@ func InitializeUpdates(updateOpt update.Options) (*UpdatesData, error) {
 		DesktopPath:    desktopPath,
 		DesktopVersion: desktopCustom.Version,
 	}, nil
+}
+
+// saveHashAndRemoveTarGz calculates the SHA512 hash of a tar.gz file,
+// saves it to a .sha512 file, then removes the tar.gz.
+// This allows orbit to verify integrity on first run without keeping duplicate tar.gz files.
+func saveHashAndRemoveTarGz(tarGzPath string) error {
+	// Open the tar.gz file
+	f, err := os.Open(tarGzPath)
+	if err != nil {
+		return fmt.Errorf("open tar.gz for hashing: %w", err)
+	}
+	defer f.Close()
+
+	// Calculate SHA512 (currently the only hash algorithm used by Fleet TUF)
+	sha512Hash := sha512.New()
+	if _, err := io.Copy(sha512Hash, f); err != nil {
+		return fmt.Errorf("hash tar.gz: %w", err)
+	}
+
+	// Save SHA512 hash
+	sha512Path := tarGzPath + ".sha512"
+	sha512Hex := hex.EncodeToString(sha512Hash.Sum(nil))
+	if err := os.WriteFile(sha512Path, []byte(sha512Hex), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write sha512 file: %w", err)
+	}
+
+	// Remove the tar.gz file
+	if err := os.Remove(tarGzPath); err != nil {
+		// Clean up hash file if we fail to remove tar.gz
+		_ = os.Remove(sha512Path)
+		return fmt.Errorf("remove tar.gz: %w", err)
+	}
+
+	log.Debug().
+		Str("path", tarGzPath).
+		Str("sha512", sha512Hex).
+		Msg("saved hash and removed tar.gz")
+
+	return nil
 }
 
 // writeSecret writes the orbit enroll secret to the designated file.
