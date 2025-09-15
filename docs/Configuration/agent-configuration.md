@@ -256,7 +256,7 @@ agent_options:
     # Note configs in overrides take precedence over the default config defined
     # under the config key above. Hosts receive overrides based on the platform
     # returned by `SELECT platform FROM os_version`. In this example, the base
-    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # config would be used for Windows, Ubuntu, and CentOS hosts, while Mac
     # hosts would receive their respective overrides. Note, these overrides are
     # NOT merged with the top level configuration.
     platforms:

@@ -21,6 +21,8 @@ const (
 	DesktopTokenFileName = "identifier"
 	// OrbitNodeKeyFileName is the filename on disk where we write the orbit node key to
 	OrbitNodeKeyFileName = "secret-orbit-node-key.txt"
+	// HardwareUUIDFileName is the filename on disk where we store the hardware UUID for migration detection
+	HardwareUUIDFileName = "hardware-uuid.txt"
 	// OrbitEnrollMaxRetries is the max number of retries when doing an enroll request.
 	// We set it to 6 to allow the retry backoff to take effect.
 	OrbitEnrollMaxRetries = 6

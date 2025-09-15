@@ -1,5 +1,3 @@
-import { SetupExperiencePlatform } from "interfaces/platform";
-
 const API_VERSION = "latest";
 
 export default {

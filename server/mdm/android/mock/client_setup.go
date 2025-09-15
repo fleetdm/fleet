@@ -25,7 +25,7 @@ func (p *Client) InitCommonMocks() {
 	p.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy) error {
 		return nil
 	}
-	p.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+	p.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		// Default implementation returns a single enterprise with a standard name
 		return []*androidmanagement.Enterprise{
 			{
