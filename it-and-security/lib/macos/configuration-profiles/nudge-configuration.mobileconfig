@@ -39,6 +39,8 @@
 				<true/>
 				<key>utilizeSOFAFeed</key>
 				<true/>
+				<key>refreshSOFAFeedTime</key>
+				<string>300</string>
 			</dict>
 			<key>osVersionRequirements</key>
 			<array>
