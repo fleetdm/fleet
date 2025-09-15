@@ -45,9 +45,9 @@
       // focus-visible only highlights when tabbing not clicking
       &:focus-visible {
         .tab-text {
-          // Outline used instead of border not to shift component
           outline: 1px solid $core-focused-outline;
-          outline-offset: 2px;
+          outline-offset: 5px;
+          border-radius: $border-radius-small;
         }
       }
 

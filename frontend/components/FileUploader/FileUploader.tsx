@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import classnames from "classnames";
 
 import Button from "components/buttons/Button";
@@ -49,7 +49,7 @@ interface IFileUploaderProps {
    * a link.
    * @default "button"
    */
-  buttonType?: "button" | "link";
+  buttonType?: "button" | "brand-inverse-icon";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
@@ -95,7 +95,8 @@ export const FileUploader = ({
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
   });
-  const buttonVariant = buttonType === "button" ? "default" : "text-icon";
+  const buttonVariant =
+    buttonType === "button" ? "default" : "brand-inverse-icon";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
@@ -159,7 +160,9 @@ export const FileUploader = ({
                 tabIndex={0}
               >
                 <label htmlFor="upload-file">
-                  {buttonType === "link" && <Icon name="upload" />}
+                  {buttonType === "brand-inverse-icon" && (
+                    <Icon color="core-fleet-green" name="upload" />
+                  )}
                   <span>{buttonMessage}</span>
                 </label>
               </Button>
@@ -187,7 +190,9 @@ export const FileUploader = ({
           tabIndex={0}
         >
           <label htmlFor="upload-file">
-            {buttonType === "link" && <Icon name="upload" />}
+            {buttonType === "brand-inverse-icon" && (
+              <Icon color="core-fleet-green" name="upload" />
+            )}
             <span>{buttonMessage}</span>
           </label>
         </Button>

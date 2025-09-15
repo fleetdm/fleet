@@ -325,7 +325,9 @@ const TableContainer = <T,>({
           onClick={actionButton.onClick}
           variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
-          justifyText="right"
+          {...(actionButton.variant === "inverse"
+            ? { justifyText: "right" }
+            : {})} // Inverse buttons get adjusted for their text edge
         >
           <>
             {actionButton.buttonText}

@@ -14,7 +14,7 @@
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: $pad-medium;
+    gap: $pad-small;
 
     > div {
       display: flex;
@@ -224,7 +224,7 @@
     .children-wrapper {
       overflow: hidden;
       white-space: nowrap;
-      display: block;
+      display: flex;
       text-overflow: ellipsis;
     }
 
@@ -236,16 +236,16 @@
     width: 120px;
   }
 
-  // This hides View all host link unless the row is hovered
+  // This hides View all host button unless the row is hovered
   tr {
-    .row-hover-link {
+    .row-hover-button {
       opacity: 0;
       transition: 250ms;
       text-overflow: none;
     }
     &:hover,
     &:focus-visible {
-      .row-hover-link {
+      .row-hover-button {
         opacity: 1;
       }
     }

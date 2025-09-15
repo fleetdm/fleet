@@ -221,14 +221,34 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Manage custom variables that will be available in scripts and profiles.{" "}
-        <CustomLink
-          text="Learn more"
-          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-          newTab
-        />
-      </p>
+      <div className={`${baseClass}__page-header`}>
+        <p className={`${baseClass}__description`}>
+          Manage custom variables that will be available in scripts and
+          profiles.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+            newTab
+          />
+        </p>
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <span>
+                <Button
+                  variant="brand-inverse-icon"
+                  onClick={onClickAddSecret}
+                  disabled={disableChildren}
+                  justifyText="right"
+                >
+                  <Icon name="plus" color="core-fleet-green" />
+                  <span>Add custom variable</span>
+                </Button>
+              </span>
+            )}
+          />
+        )}
+      </div>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
@@ -236,28 +256,7 @@ const Secrets = () => {
         count={count || 0}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
-        heading={
-          <div className={`${baseClass}__header`}>
-            <span>Custom variables</span>
-            {canEdit && (
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disableChildren) => (
-                  <span>
-                    <Button
-                      variant="brand-inverse-icon"
-                      onClick={onClickAddSecret}
-                      disabled={disableChildren}
-                      justifyText="right"
-                    >
-                      <Icon name="plus" color="core-fleet-green" />
-                      <span>Add custom variable</span>
-                    </Button>
-                  </span>
-                )}
-              />
-            )}
-          </div>
-        }
+        heading={<div className={`${baseClass}__header`}>Custom variables</div>}
         helpText={
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}
