@@ -1,4 +1,4 @@
-name: Compliance exclusions
+name: 🧪 Testing & QA
 team_settings:
   features:
     enable_host_users: true
@@ -7,7 +7,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
-    - secret: $DOGFOOD_COMPLIANCE_EXCLUSIONS_ENROLL_SECRET
+    - secret: $DOGFOOD_TESTING_AND_QA_ENROLL_SECRET
 agent_options:
   config:
     decorators:
@@ -23,23 +23,28 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
   update_channels:
-    # We want to use these hosts to smoke test edge releases.
     osqueryd: edge
     orbit: edge
     desktop: edge
 controls:
   enable_disk_encryption: true
   scripts:
+    # macOS scripts
     - path: ../lib/macos/scripts/uninstall-fleetd-macos.sh
+    # Windows scripts
     - path: ../lib/windows/scripts/uninstall-fleetd-windows.ps1
+    # Linux scripts
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
+  # Linux policies
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:
 software:
   packages:
+    # Linux apps
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RHEL
     - path: ../lib/linux/software/slack-deb.yml # Zoom for Ubuntu
@@ -53,6 +58,4 @@ software:
     - slug: beyond-compare/darwin # Beyond Compare for macOS
       self_service: true
     - slug: iterm2/darwin # iTerm2 for macOS
-      self_service: true
-    - slug: yubico-yubikey-manager/darwin # YubiKey Manager for macOS
       self_service: true
