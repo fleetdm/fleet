@@ -61,8 +61,10 @@ func NewService(
 ) (android.Service, error) {
 	var client androidmgmt.Client
 	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		fmt.Println("Using google client", os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT"))
 		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
 	} else {
+		fmt.Println("Using proxy!")
 		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
 	}
 	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
