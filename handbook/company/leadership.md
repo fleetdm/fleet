@@ -250,6 +250,12 @@ A completed open position entry should look something like this:
 
 This section is about hiring a new core team member, or fleetie, for an already approved position. 
 
+### Interviewing candidates
+
+At Fleet, the [Interim Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Every candidate, regardless of role, will interview with the Interim Head of People and the CEO. 
+
+To start the interview process, create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. Keep all feedback in the cadidate's 🛸 Why hire document as they move through the process. 
+
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
 
