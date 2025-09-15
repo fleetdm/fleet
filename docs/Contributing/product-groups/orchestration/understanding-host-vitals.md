@@ -292,7 +292,7 @@ WITH registry_keys AS (
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
@@ -598,7 +598,7 @@ SELECT package, MAX(atime) AS last_opened_at
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -682,7 +682,7 @@ FROM cached_users CROSS JOIN firefox_addons USING (uid);
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -867,7 +867,7 @@ SELECT 1 FROM (
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 		SELECT
@@ -913,7 +913,7 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -936,7 +936,7 @@ FROM cached_users CROSS JOIN vscode_extensions USING (uid)
 - Query:
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
 SELECT
@@ -1030,7 +1030,7 @@ select * from uptime limit 1
 - Query:
 ```sql
 WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')
 ```

@@ -18,6 +18,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   platform: "darwin",
   status: "verified",
   detail: "This is verified",
+  scope: "device",
+  managed_local_account: "",
 };
 
 export const createMockHostMdmProfile = (
@@ -202,6 +204,7 @@ export const DEFAULT_INSTALLED_VERSION = {
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
+  icon_url: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,
   source: "apps",

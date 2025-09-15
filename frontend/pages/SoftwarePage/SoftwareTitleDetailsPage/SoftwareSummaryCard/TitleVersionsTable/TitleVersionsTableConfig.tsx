@@ -1,9 +1,6 @@
 import React from "react";
 
-import {
-  ISoftwareTitleVersion,
-  ISoftwareVulnerability,
-} from "interfaces/software";
+import { ISoftwareTitleVersion } from "interfaces/software";
 import PATHS from "router/paths";
 import { getPathWithQueryParams } from "utilities/url";
 

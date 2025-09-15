@@ -14,7 +14,8 @@ module.exports = {
     },
     state: {
       type: 'string',
-      description: 'A token used to authenticate this request for a provided entra tenant.'
+      description: 'A token used to authenticate this request for a provided entra tenant.',
+      required: true,
     },
     error: {
       type: 'string',
@@ -39,9 +40,20 @@ module.exports = {
   fn: async function ({tenant, state, error, error_description}) {// eslint-disable-line camelcase
 
     // If an error or error_description are provided, then the admin did not consent, and we will return a 200 response.
-    if(error || error_description){// eslint-disable-line camelcase
-      throw 'adminDidNotConsent';
-    } else if (!tenant || !state) {
+    if(error || error_description) {// eslint-disable-line camelcase
+      // If an admin did not consent (or a user who started connecting the integration does not have admin permissions), try to match the provided state to a MicrosoftComplianceTenant record, and redirect to that.
+      let newSetupError = 'A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration.';
+      let tenantRecordWithThisState = await MicrosoftComplianceTenant.findOne({stateTokenForAdminConsent: state});
+      // If we couldn't find a MicrosoftComplianceTenant record with this state, return a notFound response.
+      // Note: This can happen if a user visits the conditional access integration page on their Fleet instance.
+      // FUTURE: handle edge cases where the state stored on the database record is regenerated during the admin consent flow.
+      if(!tenantRecordWithThisState) {
+        throw 'noMatchingTenant';
+      } else {
+        await MicrosoftComplianceTenant.updateOne({id: tenantRecordWithThisState.id}).set({setupError: newSetupError});
+        throw {redirect: tenantRecordWithThisState.fleetInstanceUrl + '/settings/integrations/conditional-access'};
+      }
+    } else if (!tenant) {
       throw 'badRequest';
     }
 
@@ -156,26 +168,26 @@ module.exports = {
       } catch(err){
         sails.log.warn(`An error occured when parsing the JSON response body from the PartnerCompliancePolicies endpoint for a microsoft compliance tenant. full error`, err);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        return {redirect: fleetInstanceUrlToRedirectTo };
+        throw {redirect: fleetInstanceUrlToRedirectTo };
       }
       let createdPolicyId = parsedPoliciesResponse.value[0].Id;
 
-      // Use the Microsoft Graph API to retreive the ID of the default "All users" group to assign the policy to.
+      // Use the Microsoft Graph API to retreive the ID of the "Fleet conditional access" Entra ID group that the customer created to assign the policy to.
       let groupResponse = await sails.helpers.http.sendHttpRequest.with({
         method: 'GET',
-        url: `https://graph.microsoft.com/v1.0/groups`,
+        url: `https://graph.microsoft.com/v1.0/groups?$filter=${encodeURIComponent(`displayName eq 'Fleet conditional access'`)}`,
         headers: {
           'Authorization': `Bearer ${graphAccessToken}`
         }
       }).intercept(async (err)=>{
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        sails.log.warn(`An error occurred when sending a request to find the default "All users" group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`An error occurred when sending a request to find the "Fleet conditional access" Entra ID group on a Microsoft compliance tenant. Full error: ${require('util').inspect(err, {depth: 3})}`);
         return {redirect: fleetInstanceUrlToRedirectTo };
       });
 
       // Log responses from Micrsoft APIs for Fleet's integration.
       if(informationAboutThisTenant.fleetInstanceUrl === 'https://dogfood.fleetdm.com') {
-        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a compliance policy: ${groupResponse.body}`);
+        sails.log.info(`Microsoft proxy: receive-redirect-from-microsoft created/found a entra ID group: ${groupResponse.body}`);
       }
       // Get the ID returned in the response.
       let parsedGroupResponse;
@@ -184,8 +196,16 @@ module.exports = {
       } catch(err){
         sails.log.warn(`An error occured when parsing the JSON response body returned by the Microsoft graph API for a new Microsoft compliance tenant. full error`, err);
         await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `${require('util').inspect(err, {depth: null})}`});
-        return {redirect: fleetInstanceUrlToRedirectTo };
+        throw {redirect: fleetInstanceUrlToRedirectTo };
       }
+
+      // If the response from the Microsoft Graph API did not contain any groups, log a warning and save a setup error on the database record for this tenant.
+      if(parsedGroupResponse.value.length === 0){
+        sails.log.warn(`When an Entra tenant (${informationAboutThisTenant.fleetInstanceUrl}) tried setting up a conditional access integration, no "Fleet conditional access" Entra ID group was found on this Entra tenant.`);
+        await MicrosoftComplianceTenant.updateOne({id: informationAboutThisTenant.id}).set({setupError:  `No "Fleet conditional access" Entra ID group was found on this Entra tenant.`});
+        throw {redirect: fleetInstanceUrlToRedirectTo };
+      }
+
       let groupId = parsedGroupResponse.value[0].id;
 
 

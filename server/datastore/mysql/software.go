@@ -460,7 +460,7 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		for _, i := range inserted {
 			// We don't support installing browser plugins as of 2024/08/22
 			if i.Browser == "" {
-				key := UniqueSoftwareTitleStr(i.Name, i.Source, i.BundleIdentifier)
+				key := UniqueSoftwareTitleStr(BundleIdentifierOrName(i.BundleIdentifier, i.Name), i.Source)
 				delete(deletedTitles, key)
 			}
 		}
@@ -987,7 +987,8 @@ func updateModifiedHostSoftwareDB(
 			}
 			// Log cases where the new software has no last opened timestamp, the current software does,
 			// and the software is marked as having a name change.
-			if ok && curSw.LastOpenedAt != nil {
+			// This is expected on macOS, but not on windows/linux.
+			if ok && curSw.LastOpenedAt != nil && newSw.Source != "apps" {
 				level.Warn(logger).Log(
 					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
 					"new_software", newSw.Name, "current_software", curSw.Name,
@@ -3121,11 +3122,11 @@ func promoteSoftwareTitleVPPApp(softwareTitleRecord *hostSoftware) {
 		Version:     version,
 		Platform:    platform,
 		SelfService: softwareTitleRecord.VPPAppSelfService,
-		IconURL:     softwareTitleRecord.VPPAppIconURL,
 	}
 	if softwareTitleRecord.VPPAppPlatform != nil {
 		softwareTitleRecord.AppStoreApp.Platform = *softwareTitleRecord.VPPAppPlatform
 	}
+	softwareTitleRecord.IconUrl = softwareTitleRecord.VPPAppIconURL
 
 	// promote the last install info to the proper destination fields
 	if softwareTitleRecord.LastInstallInstallUUID != nil && *softwareTitleRecord.LastInstallInstallUUID != "" {
@@ -4164,6 +4165,11 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
 		}
 
+		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, append(vppTitleIds, softwareTitleIds...))
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
+		}
+
 		indexOfSoftwareTitle := make(map[uint]uint)
 		deduplicatedList := make([]*hostSoftware, 0, len(hostSoftwareList))
 		for _, softwareTitleRecord := range hostSoftwareList {
@@ -4320,6 +4326,10 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 						"msg", "software title record should have an associated VPP application or software package",
 					)
 				}
+			}
+
+			if icon, ok := iconsBySoftwareTitleID[softwareTitleRecord.ID]; ok {
+				softwareTitleRecord.IconUrl = ptr.String(icon.IconUrl())
 			}
 
 			if _, ok := indexOfSoftwareTitle[softwareTitleRecord.ID]; !ok {

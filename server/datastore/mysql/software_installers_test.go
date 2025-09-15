@@ -1281,7 +1281,7 @@ func testBatchSetSoftwareInstallersSetupExperienceSideEffects(t *testing.T, ds *
 	})
 
 	// Add setup_experience_status_results for both installers
-	_, err = ds.EnqueueSetupExperienceItems(ctx, host1.UUID, *host1.TeamID)
+	_, err = ds.EnqueueSetupExperienceItems(ctx, "darwin", host1.UUID, *host1.TeamID)
 	require.NoError(t, err)
 
 	statuses, err := ds.ListSetupExperienceResultsByHostUUID(ctx, host1.UUID)
@@ -2477,7 +2477,7 @@ func testMatchOrCreateSoftwareInstallerWithAutomaticPolicies(t *testing.T, ds *D
 	require.Equal(t, `SELECT 1 WHERE EXISTS (
 	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
-	SELECT 1 FROM deb_packages WHERE name = 'Barfoo'
+	SELECT 1 FROM deb_packages WHERE name = 'Barfoo' AND status = 'install ok installed'
 );`, team2Policies[0].Query)
 	require.Equal(t, `Policy triggers automatic install of Barfoo on each host that's missing this software.
 Software won't be installed on Linux hosts with RPM-based distributions because this policy's query is written to always pass on these hosts.`, team2Policies[0].Description)

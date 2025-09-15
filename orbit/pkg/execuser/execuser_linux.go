@@ -20,7 +20,7 @@ import (
 
 // base command to setup an exec.Cmd using `runuser`
 func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
-	args, env, userContext, err := getConfigForCommand(path)
+	args, env, err := getConfigForCommand(path)
 	if err != nil {
 		return nil, fmt.Errorf("get args: %w", err)
 	}
@@ -48,16 +48,15 @@ func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
 		}
 	}
 
-	// If the user has an SELinux context, we run the command with runcon so that it has the correct context.
-	// Otherwise, we run the command directly.
-	if userContext != nil {
-		args = append(args, "-c", fmt.Sprintf("runcon \"%s\" env %s %s %s", *userContext, strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
-	} else {
-		args = append(args, "-c", fmt.Sprintf("%s %s %s", strings.Join(env, " "), path, strings.Join(cmdArgs, " ")))
-	}
+	// Run `env` to setup the environment.
+	args = append(args, "env")
+	args = append(args, env...)
+	// Pass the command and its arguments.
+	args = append(args, path)
+	args = append(args, cmdArgs...)
 
-	// Use runuser to run the command as the login user.
-	args = append([]string{"runuser"}, args...)
+	// Use sudo to run the command as the login user.
+	args = append([]string{"sudo"}, args...)
 
 	// If a timeout is set, prefix the command with "timeout".
 	if opts.timeout > 0 {
@@ -123,10 +122,10 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getConfigForCommand(path string) (args []string, env []string, userContext *string, err error) {
+func getConfigForCommand(path string) (args []string, env []string, err error) {
 	user, err := userpkg.GetLoginUser()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
 	log.Info().Str("user", user.Name).Int64("id", user.ID).Msg("attempting to get user session type and display")
@@ -135,7 +134,7 @@ func getConfigForCommand(path string) (args []string, env []string, userContext 
 	uid := strconv.FormatInt(user.ID, 10)
 	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
 	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
-		return nil, nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
+		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
 	}
 	if err != nil {
 		// Wayland is the default for most distributions, thus we assume
@@ -177,9 +176,9 @@ func getConfigForCommand(path string) (args []string, env []string, userContext 
 		Int64("id", user.ID).
 		Str("display", display).
 		Str("session_type", userDisplaySessionType.String()).
-		Msg("running runuser")
+		Msg("running sudo")
 
-	args = []string{"-l", user.Name}
+	args = []string{"-n", "-i", "-u", user.Name, "-H"}
 	env = make([]string, 0)
 
 	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
@@ -201,10 +200,7 @@ func getConfigForCommand(path string) (args []string, env []string, userContext 
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.ID),
 	)
 
-	// Get the user's SELinux context (if any).
-	userContext = userpkg.GetSELinuxUserContext(user)
-
-	return args, env, userContext, nil
+	return args, env, nil
 }
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)

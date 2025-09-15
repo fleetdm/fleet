@@ -37,8 +37,6 @@
 				<false/>
 				<key>enforceMinorUpdates</key>
 				<true/>
-				<key>honorFocusModes</key>
-				<true/>
 				<key>utilizeSOFAFeed</key>
 				<true/>
 			</dict>
@@ -47,8 +45,6 @@
 				<dict>
 					<key>aboutUpdateURL</key>
 					<string>https://support.apple.com/en-us/120283</string>
-					<key>requiredInstallationDate</key>
-					<string>2025-09-05T00:00:00</string>
 					<key>requiredMinimumOSVersion</key>
 					<string>latest-minor</string>
 					<key>targetedOSVersionsRule</key>
@@ -56,7 +52,7 @@
 				</dict>
 				<dict>
 					<key>aboutUpdateURL</key>
-					<string>http://fleetdm.com</string>
+					<string>https://www.apple.com/os/macos</string>
 					<key>requiredMinimumOSVersion</key>
 					<string>latest-minor</string>
 					<key>targetedOSVersionsRule</key>
@@ -118,6 +114,8 @@
 				<true/>
 				<key>simpleMode</key>
 				<false/>
+				<key>singleQuitButton</key>
+				<true/>
 				<key>updateElements</key>
 				<array>
 					<dict>
@@ -153,8 +151,6 @@ If you have any questions or need any assistance, please reach out via #help-it-
 						<string>One Hour</string>
 						<key>primaryQuitButtonText</key>
 						<string>Later</string>
-						<key>secondaryQuitButtonText</key>
-						<string>I Understand</string>
 						<key>subHeader</key>
 						<string>A friendly reminder from the IT &amp; Enablement team</string>
 					</dict>

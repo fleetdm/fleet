@@ -53,7 +53,12 @@ import {
   DEFAULT_USE_QUERY_OPTIONS,
 } from "utilities/constants";
 
-import { isAndroid, isIPadOrIPhone, isLinuxLike } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isIPadOrIPhone,
+  isLinuxLike,
+} from "interfaces/platform";
 import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
 import Spinner from "components/Spinner";
@@ -958,7 +963,7 @@ const HostDetailsPage = ({
   const isSoftwareLibrarySupported = isPremiumTier && !isAndroidHost;
 
   const showUsersCard =
-    isDarwinHost ||
+    isAppleDevice(host.platform) ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
@@ -1125,7 +1130,7 @@ const HostDetailsPage = ({
                   // so we add a hidden pseudo element with the same text string
                   return (
                     <Tab key={navItem.title}>
-                      <TabText count={navItem.count} isErrorCount>
+                      <TabText count={navItem.count} countVariant="alert">
                         {navItem.name}
                       </TabText>
                     </Tab>

@@ -33,9 +33,11 @@ Requests sent by Fleet Desktop and the web page that opens when clicking on the 
 
 The server uses this token to authenticate requests that give host information. Fleet uses the following methods to secure access to this information.
 
+Successfully brute-forcing this UUID is about [as likely as you getting hit by a meteorite this year](https://pkg.go.dev/github.com/google/uuid#NewRandom).
+
 **Rate limiting**
 
-To prevent brute-forcing, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
+To prevent brute-forcing attempts, Fleet rate-limits the endpoints used by Fleet Desktop on a per-IP basis. If an IP requests more than 720 invalid UUIDs in a one-hour interval, Fleet will return HTTP error code 429.
 
 **Token rotation**
 

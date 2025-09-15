@@ -521,22 +521,22 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create hosts in each team
-	host3, err := ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("3"),
-		fleet.WithEnrollHostNodeKey("3"),
-		fleet.WithEnrollHostTeamID(&team1.ID),
+	host3, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("3"),
+		fleet.WithEnrollOsqueryNodeKey("3"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
 	)
 	require.NoError(t, err)
-	host4, err := ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("4"),
-		fleet.WithEnrollHostNodeKey("4"),
-		fleet.WithEnrollHostTeamID(&team2.ID),
+	host4, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("4"),
+		fleet.WithEnrollOsqueryNodeKey("4"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
 	)
 	require.NoError(t, err)
-	host5, err := ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("5"),
-		fleet.WithEnrollHostNodeKey("5"),
-		fleet.WithEnrollHostTeamID(&team2.ID),
+	host5, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("5"),
+		fleet.WithEnrollOsqueryNodeKey("5"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
 	)
 	require.NoError(t, err)
 
@@ -1582,10 +1582,10 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
-	host2, err := ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("2"),
-		fleet.WithEnrollHostNodeKey("2"),
-		fleet.WithEnrollHostTeamID(&team1.ID),
+	host2, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
 	)
 	require.NoError(t, err)
 
@@ -1657,19 +1657,19 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 1, 1, 2)
 
 	// all host policies are removed when a host is enrolled in the same team
-	_, err = ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("2"),
-		fleet.WithEnrollHostNodeKey("2"),
-		fleet.WithEnrollHostTeamID(&team1.ID),
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
 	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
-	_, err = ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("2"),
-		fleet.WithEnrollHostNodeKey("2"),
-		fleet.WithEnrollHostTeamID(&team2.ID),
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
 	)
 	require.NoError(t, err)
 	// both hosts are now in team2
@@ -1680,9 +1680,9 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 0, 2, 2)
 
 	// all host policies are removed when a host is re-enrolled
-	_, err = ds.EnrollHost(ctx,
-		fleet.WithEnrollHostOsqueryHostID("2"),
-		fleet.WithEnrollHostNodeKey("2"),
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
 	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
@@ -3290,7 +3290,7 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
 	assert.Equal(t, 1, count)
 
-	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
+	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), host.ID)
 	require.NoError(t, err)
 
 	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")

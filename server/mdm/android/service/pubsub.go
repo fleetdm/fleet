@@ -181,10 +181,16 @@ func (svc *Service) enrollHost(ctx context.Context, device *androidmanagement.De
 	// lifecycle and update the lifecycle to support Android, so that TurnOnMDM
 	// inserts the host_mdm, and TurnOffMDM deletes it.
 
+	var enrollmentTokenRequest enrollmentTokenRequest
+	err = json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+	}
+
 	if host != nil {
 		level.Debug(svc.logger).Log("msg", "The enrolling Android host is already present in Fleet. Updating team if needed",
 			"device.name", device.Name, "device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
-		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
+		enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
 		if err != nil && !fleet.IsNotFound(err) {
 			return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 		}
@@ -248,6 +254,27 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.OSVersion = "Android " + device.SoftwareInfo.AndroidVersion
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
+
+	if device.MemoryInfo.TotalInternalStorage > 0 {
+		totalStorageBytes := device.MemoryInfo.TotalInternalStorage
+
+		var totalAvailableBytes int64
+		for _, event := range device.MemoryEvents {
+			switch event.EventType {
+			case "EXTERNAL_STORAGE_DETECTED":
+				totalStorageBytes += event.ByteCount
+			case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
+				totalAvailableBytes += event.ByteCount
+			}
+		}
+
+		if totalStorageBytes > 0 {
+			host.Host.GigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
+			host.Host.GigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
+			host.Host.PercentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
+		}
+	}
+
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
 	host.Host.HardwareModel = svc.getComputerName(device)
@@ -270,8 +297,14 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 }
 
 func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.Device) error {
-	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, device.EnrollmentTokenData)
-	if err != nil && !fleet.IsNotFound(err) {
+	var enrollmentTokenRequest enrollmentTokenRequest
+	err := json.Unmarshal([]byte(device.EnrollmentTokenData), &enrollmentTokenRequest)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
+	}
+
+	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
@@ -279,21 +312,47 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
+
+	var gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable float64
+	if device.MemoryInfo.TotalInternalStorage > 0 {
+		totalStorageBytes := device.MemoryInfo.TotalInternalStorage
+
+		var totalAvailableBytes int64
+		for _, event := range device.MemoryEvents {
+			switch event.EventType {
+			case "EXTERNAL_STORAGE_DETECTED":
+				totalStorageBytes += event.ByteCount
+			case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
+				totalAvailableBytes += event.ByteCount
+			}
+		}
+
+		if totalStorageBytes > 0 {
+			gigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
+			gigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
+			percentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
+		}
+	}
+
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
-			TeamID:          enrollSecret.GetTeamID(),
-			ComputerName:    svc.getComputerName(device),
-			Hostname:        svc.getComputerName(device),
-			Platform:        "android",
-			OSVersion:       "Android " + device.SoftwareInfo.AndroidVersion,
-			Build:           device.SoftwareInfo.AndroidBuildNumber,
-			Memory:          device.MemoryInfo.TotalRam,
-			HardwareSerial:  device.HardwareInfo.SerialNumber,
-			CPUType:         device.HardwareInfo.Hardware,
-			HardwareModel:   svc.getComputerName(device),
-			HardwareVendor:  device.HardwareInfo.Brand,
-			LabelUpdatedAt:  time.Time{},
-			DetailUpdatedAt: time.Time{},
+			TeamID:                    enrollSecret.GetTeamID(),
+			ComputerName:              svc.getComputerName(device),
+			Hostname:                  svc.getComputerName(device),
+			Platform:                  "android",
+			OSVersion:                 "Android " + device.SoftwareInfo.AndroidVersion,
+			Build:                     device.SoftwareInfo.AndroidBuildNumber,
+			Memory:                    device.MemoryInfo.TotalRam,
+			GigsTotalDiskSpace:        gigsTotalDiskSpace,
+			GigsDiskSpaceAvailable:    gigsDiskSpaceAvailable,
+			PercentDiskSpaceAvailable: percentDiskSpaceAvailable,
+			HardwareSerial:            device.HardwareInfo.SerialNumber,
+			CPUType:                   device.HardwareInfo.Hardware,
+			HardwareModel:             svc.getComputerName(device),
+			HardwareVendor:            device.HardwareInfo.Brand,
+			LabelUpdatedAt:            time.Time{},
+			DetailUpdatedAt:           time.Time{},
+			UUID:                      device.HardwareInfo.EnterpriseSpecificId,
 		},
 		Device: &android.Device{
 			DeviceID: deviceID,
@@ -316,6 +375,15 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+
+	if enrollmentTokenRequest.IdpUUID != "" {
+		level.Info(svc.logger).Log("msg", "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
+		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "associating host with idp account")
+		}
+	}
+
 	return nil
 }
 

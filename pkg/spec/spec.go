@@ -33,6 +33,7 @@ type Group struct {
 	EnrollSecret           *fleet.EnrollSecretSpec
 	UsersRoles             *fleet.UsersRoleSpec
 	TeamsDryRunAssumptions *fleet.TeamSpecsDryRunAssumptions
+	CertificateAuthorities *fleet.GroupedCertificateAuthorities
 }
 
 // Metadata holds the metadata for a single YAML section/item.
@@ -156,8 +157,20 @@ func generateRandomString(sizeBytes int) string {
 	return hex.EncodeToString(b)
 }
 
+// secretHandling defines how to handle FLEET_SECRET_ variables
+type secretHandling int
+
+const (
+	// secretsReject returns an error if FLEET_SECRET_ variables are found
+	secretsReject secretHandling = iota
+	// secretsIgnore leaves FLEET_SECRET_ variables as-is (for server to handle)
+	secretsIgnore
+	// secretsExpand expands FLEET_SECRET_ variables (for client-side validation only)
+	secretsExpand
+)
+
 func ExpandEnv(s string) (string, error) {
-	out, err := expandEnv(s, true)
+	out, err := expandEnv(s, secretsReject)
 	return out, err
 }
 
@@ -165,9 +178,8 @@ func ExpandEnv(s string) (string, error) {
 // $ can be escaped with a backslash, e.g. \$VAR
 // \$ can be escaped with another backslash, etc., e.g. \\\$VAR
 // $FLEET_VAR_XXX will not be expanded. These variables are expanded on the server.
-// If secretsMap is not nil, $FLEET_SECRET_XXX will be evaluated and put in the map
-// If secretsMap is nil, $FLEET_SECRET_XXX will cause an error.
-func expandEnv(s string, failOnSecret bool) (string, error) {
+// The secretMode parameter controls how $FLEET_SECRET_XXX variables are handled.
+func expandEnv(s string, secretMode secretHandling) (string, error) {
 	// Generate a random escaping prefix that doesn't exist in s.
 	var preventEscapingPrefix string
 	for {
@@ -182,7 +194,6 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 
 	var err *multierror.Error
 	s = fleet.MaybeExpand(s, func(env string, startPos, endPos int) (string, bool) {
-
 		switch {
 		case strings.HasPrefix(env, preventEscapingPrefix):
 			return "$" + strings.TrimPrefix(env, preventEscapingPrefix), true
@@ -190,11 +201,23 @@ func expandEnv(s string, failOnSecret bool) (string, error) {
 			// Don't expand fleet vars -- they will be expanded on the server
 			return "", false
 		case strings.HasPrefix(env, fleet.ServerSecretPrefix):
-			if failOnSecret {
+			switch secretMode {
+			case secretsExpand:
+				// Expand secrets for client-side validation
+				v, ok := os.LookupEnv(env)
+				if ok {
+					return v, true
+				}
+				// If secret not found, leave as-is for server to handle
+				return "", false
+			case secretsReject:
 				err = multierror.Append(err, fmt.Errorf("environment variables with %q prefix are only allowed in profiles and scripts: %q",
 					fleet.ServerSecretPrefix, env))
+				return "", false
+			default:
+				// Leave as-is for server to handle
+				return "", false
 			}
-			return "", false
 		}
 
 		// Don't expand fleet vars if they are inside an 'exclusion' zone,
@@ -227,7 +250,19 @@ func ExpandEnvBytes(b []byte) ([]byte, error) {
 }
 
 func ExpandEnvBytesIgnoreSecrets(b []byte) ([]byte, error) {
-	s, err := expandEnv(string(b), false)
+	s, err := expandEnv(string(b), secretsIgnore)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(s), nil
+}
+
+// ExpandEnvBytesIncludingSecrets expands environment variables including FLEET_SECRET_ variables.
+// This should only be used for client-side validation where the actual secrets are needed temporarily.
+// The expanded secrets are never sent to the server.
+// Missing FLEET_SECRET_ variables do not fail the method; they are just not expanded.
+func ExpandEnvBytesIncludingSecrets(b []byte) ([]byte, error) {
+	s, err := expandEnv(string(b), secretsExpand)
 	if err != nil {
 		return nil, err
 	}

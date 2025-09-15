@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	_ "embed"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -10,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/mdm"
+	shared_mdm "github.com/fleetdm/fleet/v4/pkg/mdm"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -20,6 +24,7 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Used for overriding the private key validation in testing
@@ -106,6 +111,16 @@ func (svc *Service) EnterpriseSignup(ctx context.Context) (*android.SignupDetail
 	// Check if server private key is configured (required for Android MDM)
 	if err := svc.checkServerPrivateKey(ctx); err != nil {
 		return nil, err
+	}
+
+	// Before checking if Android is already configured, verify if existing enterprise still exists
+	// This ensures we detect enterprise deletion even if user goes directly to signup page
+	if err := svc.verifyExistingEnterpriseIfAny(ctx); err != nil {
+		// If verification returns NotFound (enterprise was deleted), continue with signup
+		// Other errors should be returned as-is
+		if !fleet.IsNotFound(err) {
+			return nil, err
+		}
 	}
 
 	appConfig, err := svc.checkIfAndroidAlreadyConfigured(ctx)
@@ -372,6 +387,12 @@ func (svc *Service) GetEnterprise(ctx context.Context) (*android.Enterprise, err
 	case err != nil:
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
 	}
+
+	// Verify the enterprise still exists via Google API using shared method
+	if err := svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise); err != nil {
+		return nil, err
+	}
+
 	return enterprise, nil
 }
 
@@ -433,23 +454,57 @@ func (svc *Service) DeleteEnterprise(ctx context.Context) error {
 
 type enrollmentTokenRequest struct {
 	EnrollSecret string `query:"enroll_secret"`
+	IdpUUID      string // The UUID of the mdm_idp_account that was used if any, can be empty, will be taken from cookies
 }
 
-type enrollmentTokenResponse struct {
-	*android.EnrollmentToken
-	android.DefaultResponse
+func (enrollmentTokenRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+	enrollSecret := r.URL.Query().Get("enroll_secret")
+	if enrollSecret == "" {
+		return nil, &fleet.BadRequestError{
+			Message: "enroll_secret is required",
+		}
+	}
+
+	byodIdpCookie, err := r.Cookie(mdm.BYODIdpCookieName)
+
+	if err == http.ErrNoCookie {
+		// We do not fail here if no cookie is found, we validate later down the line if it's required
+		return &enrollmentTokenRequest{
+			EnrollSecret: enrollSecret,
+			IdpUUID:      "",
+		}, nil
+	}
+
+	if err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "something went wrong parsing the boyd idp cookie",
+			InternalErr: err,
+		}
+	}
+
+	if err = byodIdpCookie.Valid(); err != nil {
+		return nil, &fleet.BadRequestError{
+			Message:     "boyd idp cookie is not valid",
+			InternalErr: err,
+		}
+	}
+
+	return &enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      byodIdpCookie.Value,
+	}, nil
 }
 
 func enrollmentTokenEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
 	req := request.(*enrollmentTokenRequest)
-	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret)
+	token, err := svc.CreateEnrollmentToken(ctx, req.EnrollSecret, req.IdpUUID)
 	if err != nil {
 		return android.DefaultResponse{Err: err}
 	}
-	return enrollmentTokenResponse{EnrollmentToken: token}
+	return android.EnrollmentTokenResponse{EnrollmentToken: token}
 }
 
-func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret string) (*android.EnrollmentToken, error) {
+func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idpUUID string) (*android.EnrollmentToken, error) {
 	// Authorization is done by VerifyEnrollSecret below.
 	// We call SkipAuthorization here to avoid explicitly calling it when errors occur.
 	svc.authz.SkipAuthorization(ctx)
@@ -467,6 +522,29 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 		return nil, ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
 
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	requiresIdPUUID, err := shared_mdm.RequiresEnrollOTAAuthentication(ctx, svc.ds, enrollSecret, appCfg.MDM.MacOSSetup.EnableEndUserAuthentication)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "checking requirement of ota enrollment authentication")
+	}
+
+	if requiresIdPUUID && idpUUID == "" {
+		return nil, fleet.NewAuthFailedError("required idp uuid to be set, but none found")
+	}
+
+	if idpUUID != "" {
+		_, err := svc.ds.GetMDMIdPAccountByUUID(ctx, idpUUID)
+		if err != nil {
+			iae := &fleet.InvalidArgumentError{}
+			iae.Append("IDP UUID", "Failed validating IDP account existence")
+			return nil, ctxerr.Wrap(ctx, iae)
+		}
+	}
+
 	enterprise, err := svc.ds.GetEnterprise(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting enterprise")
@@ -478,10 +556,18 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret stri
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	enrollmentTokenRequest, err := json.Marshal(enrollmentTokenRequest{
+		EnrollSecret: enrollSecret,
+		IdpUUID:      idpUUID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshalling enrollment token request")
+	}
+
 	token := &androidmanagement.EnrollmentToken{
 		// Default duration is 1 hour
 
-		AdditionalData:     enrollSecret,
+		AdditionalData:     string(enrollmentTokenRequest),
 		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
 		OneTimeOnly:        true,
@@ -592,4 +678,107 @@ func (svc *Service) signupSSECheck(ctx context.Context, done chan string) bool {
 		return true
 	}
 	return false
+}
+
+// verifyEnterpriseExistsWithGoogle verifies if the given enterprise still exists in Google API.
+// Uses LIST-first approach for efficiency and better error handling.
+// Returns fleet.IsNotFound error if enterprise was deleted, nil if verification passed.
+func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterprise *android.Enterprise) error {
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting client authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+
+	// Get server URL from app config
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
+	// Use LIST API as primary verification method
+	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx, appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		var gerr *googleapi.Error
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Special case: 404 from proxy with deletion confirmation
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+			case http.StatusBadRequest:
+				// Bad request might indicate missing headers or invalid request format
+				// Don't delete the enterprise in this case
+				level.Error(svc.logger).Log("msg", "bad request when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: %s (check request headers and format)", err.Error())
+			case http.StatusUnauthorized, http.StatusForbidden:
+				// Authentication/authorization issues - don't delete the enterprise
+				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: authentication error: %w", err)
+			}
+		}
+		// LIST failed - this is likely a technical issue, not deletion
+		// Log the error but don't delete the enterprise
+		level.Error(svc.logger).Log("msg", "failed to list enterprises", "error", err)
+		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
+	}
+
+	// Check if our enterprise is in the list
+	enterpriseID := strings.TrimPrefix(enterprise.EnterpriseID, "enterprises/")
+	for _, ent := range enterprises {
+		if strings.HasSuffix(ent.Name, enterpriseID) {
+			// Enterprise exists - verification passed
+			return nil
+		}
+	}
+
+	// Enterprise NOT in list - it's deleted - perform cleanup
+	level.Info(svc.logger).Log("msg", "enterprise confirmed deleted via LIST API", "enterpriseID", enterpriseID)
+	svc.cleanupDeletedEnterprise(ctx, enterprise, enterpriseID)
+	return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+}
+
+// verifyExistingEnterpriseIfAny checks if there's an existing enterprise in the database
+// and if so, verifies it still exists in Google API. If it doesn't exist, performs cleanup.
+// Returns fleet.IsNotFound error if enterprise was deleted, nil if no enterprise exists or verification passed.
+func (svc *Service) verifyExistingEnterpriseIfAny(ctx context.Context) error {
+	// Check if there's an existing enterprise
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	switch {
+	case fleet.IsNotFound(err):
+		// No enterprise exists - this is fine for signup
+		return nil
+	case err != nil:
+		return ctxerr.Wrap(ctx, err, "checking for existing enterprise")
+	}
+
+	// Enterprise exists - verify it using the shared method
+	return svc.verifyEnterpriseExistsWithGoogle(ctx, enterprise)
+}
+
+// cleanupDeletedEnterprise performs the complete cleanup when an enterprise deletion is detected
+func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *android.Enterprise, enterpriseID string) {
+	// Clean up proxy database records by calling proxy DELETE endpoint
+	// This ensures the proxy won't return conflicts when creating new signup URLs
+	if deleteErr := svc.androidAPIClient.EnterpriseDelete(ctx, enterprise.Name()); deleteErr != nil {
+		level.Warn(svc.logger).Log("msg", "failed to delete proxy records after enterprise deletion (may not exist)", "err", deleteErr)
+	}
+
+	// Delete local enterprise records
+	if deleteErr := svc.ds.DeleteAllEnterprises(ctx); deleteErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to delete local enterprise records after deletion", "err", deleteErr)
+	}
+
+	// Turn off Android MDM
+	if setErr := svc.ds.SetAndroidEnabledAndConfigured(ctx, false); setErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to turn off Android MDM after enterprise deletion", "err", setErr)
+	}
+
+	// Unenroll Android hosts
+	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
+		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
+	}
 }

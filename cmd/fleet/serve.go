@@ -27,6 +27,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/service/digicert"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity"
 	"github.com/fleetdm/fleet/v4/ee/server/service/hostidentity/httpsig"
+	"github.com/fleetdm/fleet/v4/ee/server/service/hydrant"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
@@ -35,6 +36,7 @@ import (
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/cron"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/failing"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysqlredis"
@@ -83,6 +85,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
+	_ "google.golang.org/grpc/encoding/gzip" // Because we use gzip compression for OTLP
 )
 
 var allowedURLPrefixRegexp = regexp.MustCompile("^(?:/[a-zA-Z0-9_.~-]+)+$")
@@ -146,12 +149,18 @@ the way that the Fleet server works.
 			// Init tracing
 			if config.Logging.TracingEnabled {
 				ctx := context.Background()
-				client := otlptracegrpc.NewClient()
+				client := otlptracegrpc.NewClient(
+					// Enable gzip compression to reduce message size
+					otlptracegrpc.WithCompressor("gzip"),
+				)
 				otlpTraceExporter, err := otlptrace.New(ctx, client)
 				if err != nil {
 					initFatal(err, "Failed to initialize tracing")
 				}
-				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter)
+				// Configure batch span processor with smaller batch size to avoid exceeding message size limits (4MB default limit)
+				batchSpanProcessor := sdktrace.NewBatchSpanProcessor(otlpTraceExporter,
+					sdktrace.WithMaxExportBatchSize(256), // Reduce from default 512 to 256
+				)
 				tracerProvider := sdktrace.NewTracerProvider(
 					sdktrace.WithSpanProcessor(batchSpanProcessor),
 				)
@@ -181,6 +190,25 @@ the way that the Fleet server works.
 						"setting server URL prefix",
 					)
 				}
+			}
+
+			// Handle server private key configuration - either direct or via AWS Secrets Manager
+			if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
+				initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+			}
+
+			// Retrieve private key from AWS Secrets Manager if specified
+			if config.Server.PrivateKeySecretArn != "" {
+				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
+					context.Background(),
+					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretSTSAssumeRoleArn,
+					config.Server.PrivateKeySecretSTSExternalID,
+				)
+				if err != nil {
+					initFatal(err, "retrieve private key from secrets manager")
+				}
+				config.Server.PrivateKey = privateKey
 			}
 
 			if len(config.Server.PrivateKey) > 0 {
@@ -266,6 +294,10 @@ the way that the Fleet server works.
 				Password:                  config.Redis.Password,
 				Database:                  config.Redis.Database,
 				UseTLS:                    config.Redis.UseTLS,
+				Region:                    config.Redis.Region,
+				CacheName:                 config.Redis.CacheName,
+				StsAssumeRoleArn:          config.Redis.StsAssumeRoleArn,
+				StsExternalID:             config.Redis.StsExternalID,
 				ConnTimeout:               config.Redis.ConnectTimeout,
 				KeepAlive:                 config.Redis.KeepAlive,
 				ConnectRetryAttempts:      config.Redis.ConnectRetryAttempts,
@@ -398,7 +430,7 @@ the way that the Fleet server works.
 
 			failingPolicySet := redis_policy_set.NewFailing(redisPool)
 
-			task := async.NewTask(ds, redisPool, clock.C, config.Osquery)
+			task := async.NewTask(ds, redisPool, clock.C, &config)
 
 			if config.Sentry.Dsn != "" {
 				v := version.Version()
@@ -700,6 +732,8 @@ the way that the Fleet server works.
 			}
 
 			eh := errorstore.NewHandler(ctx, redisPool, logger, config.Logging.ErrorRetentionPeriod)
+			scepConfigMgr := eeservice.NewSCEPConfigService(logger, nil)
+			digiCertService := digicert.NewService(digicert.WithLogger(logger))
 			ctx = ctxerr.NewContext(ctx, eh)
 			svc, err := service.NewService(
 				ctx,
@@ -725,8 +759,8 @@ the way that the Fleet server works.
 				mdmPushService,
 				cronSchedules,
 				wstepCertManager,
-				eeservice.NewSCEPConfigService(logger, nil),
-				digicert.NewService(digicert.WithLogger(logger)),
+				scepConfigMgr,
+				digiCertService,
 				conditionalAccessMicrosoftProxy,
 			)
 			if err != nil {
@@ -746,8 +780,10 @@ the way that the Fleet server works.
 
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
+			var softwareTitleIconStore fleet.SoftwareTitleIconStore
 			var distributedLock fleet.Lock
 			if license.IsPremium() {
+				hydrantService := hydrant.NewService(hydrant.WithLogger(logger))
 				profileMatcher := apple_mdm.NewProfileMatcher(redisPool)
 				if config.S3.SoftwareInstallersBucket != "" {
 					if config.S3.BucketsAndPrefixesMatch() {
@@ -785,6 +821,11 @@ the way that the Fleet server works.
 					bootstrapPackageStore = bstore
 					level.Info(logger).Log("msg", "using S3 bootstrap package store", "bucket", config.S3.SoftwareInstallersBucket)
 
+					softwareTitleIconStore, err = s3.NewSoftwareTitleIconStore(config.S3)
+					if err != nil {
+						initFatal(err, "initializing S3 software title icon store")
+					}
+					level.Info(logger).Log("msg", "using S3 software title icon store", "bucket", config.S3.SoftwareInstallersBucket)
 				} else {
 					installerDir := os.TempDir()
 					if dir := os.Getenv("FLEET_SOFTWARE_INSTALLER_STORE_DIR"); dir != "" {
@@ -793,12 +834,27 @@ the way that the Fleet server works.
 					store, err := filesystem.NewSoftwareInstallerStore(installerDir)
 					if err != nil {
 						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software installer store")
-						softwareInstallStore = fleet.FailingSoftwareInstallerStore{}
+						softwareInstallStore = failing.NewFailingSoftwareInstallerStore()
 					} else {
 						softwareInstallStore = store
 						level.Info(logger).Log("msg",
 							"using local filesystem software installer store, this is not suitable for production use", "directory",
 							installerDir)
+					}
+
+					iconDir := os.TempDir()
+					if dir := os.Getenv("FLEET_SOFTWARE_TITLE_ICON_STORE_DIR"); dir != "" {
+						iconDir = dir
+					}
+					iconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+					if err != nil {
+						level.Error(logger).Log("err", err, "msg", "failed to configure local filesystem software title icon store")
+						softwareTitleIconStore = failing.NewFailingSoftwareTitleIconStore()
+					} else {
+						softwareTitleIconStore = iconStore
+						level.Warn(logger).Log("msg",
+							"using local filesystem software title icon store, this is not suitable for production use", "directory",
+							iconDir)
 					}
 				}
 
@@ -816,8 +872,12 @@ the way that the Fleet server works.
 					profileMatcher,
 					softwareInstallStore,
 					bootstrapPackageStore,
+					softwareTitleIconStore,
 					distributedLock,
 					redis_key_value.New(redisPool),
+					scepConfigMgr,
+					digiCertService,
+					hydrantService,
 				)
 				if err != nil {
 					initFatal(err, "initial Fleet Premium service")
@@ -889,7 +949,7 @@ the way that the Fleet server works.
 				func() (fleet.CronSchedule, error) {
 					commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander, softwareInstallStore, bootstrapPackageStore, softwareTitleIconStore,
 					)
 				},
 			); err != nil {
@@ -936,7 +996,7 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet, config.Partnerships.EnablePrimo)
+				return newAutomationsSchedule(ctx, instanceID, ds, logger, 5*time.Minute, failingPolicySet)
 			}); err != nil {
 				initFatal(err, "failed to register automations schedule")
 			}
@@ -1342,7 +1402,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
 					// For customers using large profiles and/or large numbers of profiles, the
 					// server needs time to completely read the request body and also to process
 					// all the side effects of a potentially large number of profiles being changed
@@ -1381,23 +1442,6 @@ the way that the Fleet server works.
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
 			rootMux.Handle("/debug/", debugHandler)
-
-			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
-				// test that we can load this
-				_, err := os.ReadFile(path)
-				if err != nil {
-					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
-				}
-				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := os.ReadFile(path)
-					if err != nil {
-						rw.WriteHeader(http.StatusNotFound)
-						return
-					}
-					rw.Write(testPage) //nolint:errcheck
-					rw.WriteHeader(http.StatusOK)
-				})
-			}
 
 			if debug {
 				// Add debug endpoints with a random

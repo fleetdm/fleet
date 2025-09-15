@@ -18,6 +18,7 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import Icon from "components/Icon";
 import Modal from "components/Modal";
+import ModalFooter from "components/ModalFooter";
 import Spinner from "components/Spinner";
 import Textarea from "components/Textarea";
 import RevealButton from "components/buttons/RevealButton";
@@ -30,7 +31,7 @@ import { renderContactOption } from "../SoftwareInstallDetailsModal/SoftwareInst
 const baseClass = "software-uninstall-details-modal";
 
 interface IUninstallStatusMessage {
-  host_display_name: string;
+  hostDisplayName: string;
   status: SoftwareUninstallStatus;
   softwareName: string;
   softwarePackageName?: string;
@@ -39,8 +40,8 @@ interface IUninstallStatusMessage {
   contactUrl?: string;
 }
 
-const StatusMessage = ({
-  host_display_name,
+export const StatusMessage = ({
+  hostDisplayName,
   status,
   softwareName,
   softwarePackageName,
@@ -48,11 +49,7 @@ const StatusMessage = ({
   isDUP,
   contactUrl,
 }: IUninstallStatusMessage) => {
-  const formattedHost = host_display_name ? (
-    <b>{host_display_name}</b>
-  ) : (
-    "the host"
-  );
+  const formattedHost = hostDisplayName ? <b>{hostDisplayName}</b> : "the host";
 
   const isPending = isPendingStatus(status);
   const displayTimeStamp =
@@ -100,6 +97,50 @@ const StatusMessage = ({
   );
 };
 
+interface IModalButtonsProps {
+  uninstallStatus: SoftwareUninstallStatus;
+  deviceAuthToken?: string;
+  onCancel: () => void;
+  onRetry?: (s: IHostSoftwareWithUiStatus) => void;
+  hostSoftware?: IHostSoftwareWithUiStatus;
+}
+
+export const ModalButtons = ({
+  uninstallStatus,
+  deviceAuthToken,
+  onCancel,
+  onRetry,
+  hostSoftware,
+}: IModalButtonsProps) => {
+  const onClickRetry = () => {
+    if (onRetry && hostSoftware) {
+      onRetry(hostSoftware);
+    }
+    onCancel();
+  };
+
+  if (deviceAuthToken && uninstallStatus === "failed_uninstall") {
+    return (
+      <ModalFooter
+        primaryButtons={
+          <>
+            <Button variant="inverse" onClick={onCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" onClick={onClickRetry}>
+              Retry
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+
+  return (
+    <ModalFooter primaryButtons={<Button onClick={onCancel}>Done</Button>} />
+  );
+};
+
 export interface ISWUninstallDetailsParentState {
   softwareName: string;
   uninstallStatus: SoftwareUninstallStatus;
@@ -141,14 +182,6 @@ const SoftwareUninstallDetailsModal = ({
   const [showDetails, setShowDetails] = useState(false);
 
   const toggleDetails = () => setShowDetails((prev) => !prev);
-
-  const onClickRetry = () => {
-    // on DUP, where this is relevant, both will be defined
-    if (onRetry && hostSoftware) {
-      onRetry(hostSoftware);
-    }
-    onCancel();
-  };
 
   const { data: uninstallResult, isLoading, isError, error } = useQuery<
     IScriptResultResponse,
@@ -192,7 +225,7 @@ const SoftwareUninstallDetailsModal = ({
     return (
       <div className={`${baseClass}__modal-content`}>
         <StatusMessage
-          host_display_name={hostDisplayName || ""}
+          hostDisplayName={hostDisplayName || ""}
           status={
             (uninstallStatus || "pending_uninstall") as SoftwareUninstallStatus
           }
@@ -225,26 +258,6 @@ const SoftwareUninstallDetailsModal = ({
     );
   };
 
-  const renderCta = () => {
-    if (deviceAuthToken && uninstallStatus === "failed_uninstall") {
-      return (
-        <div className="modal-cta-wrap">
-          <Button type="submit" onClick={onClickRetry}>
-            Retry
-          </Button>
-          <Button variant="inverse" onClick={onCancel}>
-            Cancel
-          </Button>
-        </div>
-      );
-    }
-    return (
-      <div className="modal-cta-wrap">
-        <Button onClick={onCancel}>Done</Button>
-      </div>
-    );
-  };
-
   return (
     <Modal
       title="Uninstall details"
@@ -254,7 +267,13 @@ const SoftwareUninstallDetailsModal = ({
     >
       <>
         {renderContent()}
-        {renderCta()}
+        <ModalButtons
+          uninstallStatus={uninstallStatus}
+          deviceAuthToken={deviceAuthToken}
+          onCancel={onCancel}
+          onRetry={onRetry}
+          hostSoftware={hostSoftware}
+        />
       </>
     </Modal>
   );

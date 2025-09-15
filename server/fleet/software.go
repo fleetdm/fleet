@@ -181,6 +181,8 @@ type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"icon_url"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -221,6 +223,8 @@ type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -323,7 +327,7 @@ type PathSignatureInformation struct {
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []HostSoftwareEntry `json:"software,omitempty" csv:"-"`
+	Software []HostSoftwareEntry `json:"software" csv:"-"`
 
 	// SoftwareUpdatedAt is the time that the host software was last updated
 	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`

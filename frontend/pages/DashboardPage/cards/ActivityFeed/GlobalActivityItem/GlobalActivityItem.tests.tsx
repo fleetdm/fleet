@@ -276,7 +276,21 @@ describe("Activity Feed", () => {
       })
     ).toBeInTheDocument();
     expect(
-      screen.getByText("foo@example.com", { exact: false })
+      screen.getByText("foo@example.com", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a user_failed_login without an email", () => {
+    const activity = createMockActivity({
+      type: ActivityType.UserFailedLogin,
+      details: { email: "", public_ip: "192.168.0.1" },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("Somebody failed", { exact: false })
     ).toBeInTheDocument();
   });
 
@@ -1520,5 +1534,53 @@ describe("Activity Feed", () => {
       screen.getByText(/deleted a certificate authority/)
     ).toBeInTheDocument();
     expect(screen.getByText(/DIGICERT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders addedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/added a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders editedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/edited a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
+  });
+
+  it("renders deletedHydrant activity correctly", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedHydrant,
+      details: {
+        name: "HYDRANT_TEST",
+      },
+    });
+    render(<GlobalActivityItem activity={activity} isPremiumTier={false} />);
+
+    expect(screen.getByText(/Test User/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/deleted a certificate authority/)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/HYDRANT_TEST/)).toBeInTheDocument();
   });
 });

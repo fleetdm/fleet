@@ -26,6 +26,8 @@ func TestAndroid(t *testing.T) {
 		{"NewAndroidHost", testNewAndroidHost},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
+		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -95,6 +97,7 @@ func createAndroidHost(enterpriseSpecificID string) *fleet.AndroidHost {
 			CPUType:        "cpu_type",
 			HardwareModel:  "hardware_model",
 			HardwareVendor: "hardware_vendor",
+			UUID:           uuid.New().String(),
 		},
 		Device: &android.Device{
 			DeviceID:             "device_id",
@@ -286,4 +289,140 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 1, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
+}
+
+func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
+	test.AddBuiltinLabels(t, ds)
+
+	// Android host with storage data
+	const enterpriseSpecificID = "storage_test_enterprise"
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:                  "android-storage-test",
+			ComputerName:              "Android Storage Test Device",
+			Platform:                  "android",
+			OSVersion:                 "Android 14",
+			Build:                     "UPB4.230623.005",
+			Memory:                    8192, // 8GB RAM
+			TeamID:                    nil,
+			HardwareSerial:            "STORAGE-TEST-SERIAL",
+			CPUType:                   "arm64-v8a",
+			HardwareModel:             "Google Pixel 8 Pro",
+			HardwareVendor:            "Google",
+			GigsTotalDiskSpace:        128.0, // 64GB system + 64GB external
+			GigsDiskSpaceAvailable:    35.0,  // 10GB + 25GB available
+			PercentDiskSpaceAvailable: 27.34, // 35/128 * 100
+		},
+		Device: &android.Device{
+			DeviceID:             "storage-test-device-id",
+			EnterpriseSpecificID: ptr.String(enterpriseSpecificID),
+			AndroidPolicyID:      ptr.Uint(1),
+			LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
+		},
+	}
+	host.SetNodeKey(enterpriseSpecificID)
+
+	// NewAndroidHost with storage data
+	result, err := ds.NewAndroidHost(testCtx(), host)
+	require.NoError(t, err)
+	require.NotZero(t, result.Host.ID)
+
+	// storage data was saved correctly
+	assert.Equal(t, 128.0, result.Host.GigsTotalDiskSpace, "Total disk space should be saved")
+	assert.Equal(t, 35.0, result.Host.GigsDiskSpaceAvailable, "Available disk space should be saved")
+	assert.Equal(t, 27.34, result.Host.PercentDiskSpaceAvailable, "Disk space percentage should be saved")
+
+	// AndroidHostLite provides lightweight Android data (no storage data)
+	resultLite, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
+	require.NoError(t, err)
+	assert.Equal(t, result.Host.ID, resultLite.Host.ID)
+
+	// UpdateAndroidHost preserves storage data
+	updatedHost := result
+	updatedHost.Host.Hostname = "updated-hostname"
+	updatedHost.Host.GigsTotalDiskSpace = 256.0       // Updated: 128GB system + 128GB external
+	updatedHost.Host.GigsDiskSpaceAvailable = 64.0    // Updated: 20GB + 44GB available
+	updatedHost.Host.PercentDiskSpaceAvailable = 25.0 // Updated: 64/256 * 100
+
+	err = ds.UpdateAndroidHost(testCtx(), updatedHost, false)
+	require.NoError(t, err)
+
+	// verify updated host data via host query (includes storage from host_disks)
+	finalResult, err := ds.AndroidHostLite(testCtx(), enterpriseSpecificID)
+	require.NoError(t, err)
+
+	// get host data to check storage updates
+	updatedFullHost, err := ds.Host(testCtx(), finalResult.Host.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "updated-hostname", updatedFullHost.Hostname, "Hostname should be updated")
+	assert.Equal(t, 256.0, updatedFullHost.GigsTotalDiskSpace, "Updated total disk space should be saved in host_disks")
+	assert.Equal(t, 64.0, updatedFullHost.GigsDiskSpaceAvailable, "Updated available disk space should be saved in host_disks")
+	assert.Equal(t, 25.0, updatedFullHost.PercentDiskSpaceAvailable, "Updated disk space percentage should be saved in host_disks")
+}
+
+func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	test.AddBuiltinLabels(t, ds)
+
+	// create IdP account... InsertMDMIdPAccount generates its own UUID
+	idpAccount := &fleet.MDMIdPAccount{
+		Username: "john.doe",
+		Fullname: "John Doe",
+		Email:    "john.doe@example.com",
+	}
+	err := ds.InsertMDMIdPAccount(ctx, idpAccount)
+	require.NoError(t, err)
+
+	// get the actual UUID that was generated
+	insertedAccount, err := ds.GetMDMIdPAccountByEmail(ctx, "john.doe@example.com")
+	require.NoError(t, err)
+	require.NotNil(t, insertedAccount)
+	idpAccount.UUID = insertedAccount.UUID
+
+	// create Android host
+	const enterpriseSpecificID = "enterprise_with_idp"
+	host := createAndroidHost(enterpriseSpecificID)
+	host.Host.UUID = "test-host-uuid" // Use a specific UUID for testing
+
+	result, err := ds.NewAndroidHost(ctx, host)
+	require.NoError(t, err)
+	require.NotZero(t, result.Host.ID)
+
+	// associate host with IdP account, triggering reconciliation
+	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	require.NoError(t, err)
+
+	// host_emails table has IdP email
+	emails, err := ds.GetHostEmails(ctx, "test-host-uuid", fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Len(t, emails, 1)
+	assert.Equal(t, "john.doe@example.com", emails[0])
+
+	// is reconciliation idempotent?
+	err = ds.AssociateHostMDMIdPAccount(ctx, "test-host-uuid", idpAccount.UUID)
+	require.NoError(t, err)
+
+	// still only one email (no duplicates)
+	emails, err = ds.GetHostEmails(ctx, "test-host-uuid", fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Len(t, emails, 1, "Should still have exactly one email after reassociation")
+	assert.Equal(t, "john.doe@example.com", emails[0])
+
+	// remove IdP account association and trigger reconciliation
+	_, err = ds.writer(ctx).ExecContext(ctx,
+		`DELETE FROM host_mdm_idp_accounts WHERE host_uuid = ?`,
+		"test-host-uuid")
+	require.NoError(t, err)
+
+	// test cleanup (in production this would happen on re-enrollment)
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := reconcileHostEmailsFromMdmIdpAccountsDB(ctx, tx, ds.logger, result.Host.ID)
+		return err
+	})
+	require.NoError(t, err)
+
+	// host_emails table no longer has IdP email
+	emails, err = ds.GetHostEmails(ctx, "test-host-uuid", fleet.DeviceMappingMDMIdpAccounts)
+	require.NoError(t, err)
+	require.Empty(t, emails, "IdP email should be removed when association is deleted")
 }

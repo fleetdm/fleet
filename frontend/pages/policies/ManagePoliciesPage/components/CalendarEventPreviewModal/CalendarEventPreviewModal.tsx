@@ -100,7 +100,7 @@ const CalendarEventPreviewModal = ({
                     </li>
                     <li>
                       Follow instructions to resolve any policies marked{" "}
-                      {`"No"`}
+                      {`"Fail"`}
                     </li>
                     <li>
                       Click <b>Refetch</b>

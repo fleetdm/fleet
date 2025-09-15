@@ -78,7 +78,7 @@ In the `decorators` key, you can specify queries to include additional informati
 
 ### yara
 
-You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules]((https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
+You can use Fleet to configure the `yara` and `yara_events` osquery tables, used to administer [YARA rules](https://fleetdm.com/guides/remote-yara-rules) for continuous monitoring.
 
 ## extensions
 
@@ -256,7 +256,7 @@ agent_options:
     # Note configs in overrides take precedence over the default config defined
     # under the config key above. Hosts receive overrides based on the platform
     # returned by `SELECT platform FROM os_version`. In this example, the base
-    # config would be used for Windows and CentOS hosts, while Mac and Ubuntu
+    # config would be used for Windows, Ubuntu, and CentOS hosts, while Mac
     # hosts would receive their respective overrides. Note, these overrides are
     # NOT merged with the top level configuration.
     platforms:
