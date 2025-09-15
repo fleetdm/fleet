@@ -89,7 +89,7 @@ const CertificatesTable = ({
       onSelectSingleRow={onClickTableRow}
       renderTableHelpText={() => helpText}
       renderCount={() => (
-        <TableCount name="certificates" count={data.certificates.length} />
+        <TableCount name="certificates" count={data.count} />
       )}
       pageSize={pageSize}
       pageIndex={page}
