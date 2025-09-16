@@ -10,7 +10,7 @@
     flex-wrap: wrap;
     align-content: center;
     z-index: 1;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
 
     &--active {
       color: $ui-fleet-black-75-down;
@@ -50,7 +50,7 @@
     }
 
     ::placeholder {
-      color: $core-fleet-blue;
+      color: $ui-fleet-black-50;
     }
 
     &:focus {
@@ -108,6 +108,7 @@
     display: block;
     font-size: $x-small;
     font-weight: $bold;
+    color: $core-fleet-black;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;

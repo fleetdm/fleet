@@ -8,13 +8,13 @@
     gap: $pad-medium;
     grid-template-columns: 1fr 1fr;
     grid-template-areas: "target nudge-preview";
-  }
 
-  @media (max-width: $break-md) {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "target"
-      "nudge-preview";
+    @media (max-width: $break-md) {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "target"
+        "nudge-preview";
+    }
   }
 
   &__target-container {

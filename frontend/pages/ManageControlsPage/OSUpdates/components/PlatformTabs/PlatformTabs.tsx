@@ -103,7 +103,6 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
-
             <div className={`${baseClass}__nudge-preview`}>
               <EndUserOSRequirementPreview
                 platform={selectedPlatform as OSUpdatesSupportedPlatform}
@@ -120,7 +119,6 @@ const PlatformTabs = ({
                 refetchAppConfig={refetchAppConfig}
                 refetchTeamConfig={refetchTeamConfig}
               />
-
               <div className={`${baseClass}__nudge-preview`}>
                 <EndUserOSRequirementPreview
                   platform={selectedPlatform as OSUpdatesSupportedPlatform}
@@ -138,7 +136,6 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
-
             <div className={`${baseClass}__nudge-preview`}>
               <EndUserOSRequirementPreview
                 platform={selectedPlatform as OSUpdatesSupportedPlatform}
@@ -155,7 +152,6 @@ const PlatformTabs = ({
               refetchAppConfig={refetchAppConfig}
               refetchTeamConfig={refetchTeamConfig}
             />
-
             <div className={`${baseClass}__nudge-preview`}>
               <EndUserOSRequirementPreview
                 platform={selectedPlatform as OSUpdatesSupportedPlatform}

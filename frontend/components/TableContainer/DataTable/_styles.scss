@@ -120,7 +120,7 @@ $shadow-transition-width: 10px;
         }
 
         &.actions__header,
-        &.id__header, // Same as actions__header on some pages
+        &.id__header // Same as actions__header on some pages
         {
           border-left: none;
           width: 99px;
@@ -143,6 +143,28 @@ $shadow-transition-width: 10px;
             display: flex;
             align-items: center;
             gap: 3px;
+          }
+        }
+
+        .header-cell {
+          font-weight: $bold;
+        }
+
+        // Sort arrows change color on hover
+        .sortable-header {
+          padding: $pad-small 0;
+
+          &:hover {
+            .header-cell:not(.ascending) {
+              .ascending-arrow {
+                border-bottom-color: $ui-fleet-black-50;
+              }
+            }
+            .header-cell.ascending {
+              .descending-arrow {
+                border-top-color: $ui-fleet-black-50;
+              }
+            }
           }
         }
       }

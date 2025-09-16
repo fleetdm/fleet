@@ -525,3 +525,10 @@ $max-width: 2560px;
     transform: scaleX(1);
   }
 }
+
+@mixin gradient-background {
+  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
+  background-repeat: no-repeat;
+  background-color: #fff; // area below gradient will just be white
+}

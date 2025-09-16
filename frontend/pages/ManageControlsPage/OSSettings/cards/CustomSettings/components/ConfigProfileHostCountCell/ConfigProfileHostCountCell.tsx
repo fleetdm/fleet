@@ -1,11 +1,12 @@
-import Button from "components/buttons/Button";
-import Icon from "components/Icon";
 import React from "react";
-import { Link } from "react-router";
-
 import PATHS from "router/paths";
+
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { buildQueryStringFromParams } from "utilities/url";
+
+import CustomLink from "components/CustomLink";
+import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 const baseClass = "config-profile-host-count-cell";
 
@@ -35,7 +36,7 @@ const ConfigProfileHostCountCell = ({
       return <div>{DEFAULT_EMPTY_CELL_VALUE}</div>;
     }
 
-    return <Link to={hostPath}>{count}</Link>;
+    return <CustomLink url={hostPath} text={count.toString()} />;
   };
 
   const renderResendButton = () => {

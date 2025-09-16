@@ -103,9 +103,10 @@ const CertificateAuthorities = () => {
       <p className={`${baseClass}__page-description`}>
         To help your end users connect to Wi-Fi or VPNs, you can add your
         certificate authority. Then, head over to{" "}
-        <Link to={paths.CONTROLS_CUSTOM_SETTINGS}>
-          Controls {">"} OS Settings {">"} Custom
-        </Link>{" "}
+        <CustomLink
+          url={paths.CONTROLS_CUSTOM_SETTINGS}
+          text="Controls > OS Settings > Custom"
+        />{" "}
         settings to configure how certificates are delivered to your hosts.{" "}
         <CustomLink
           text="Learn more"
