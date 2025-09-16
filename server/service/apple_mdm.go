@@ -581,14 +581,11 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			case string(fleet.FleetVarNDESSCEPChallenge):
 				ndesVars, ok = ndesVars.SetChallenge()
 			case string(fleet.FleetVarSCEPRenewalID):
+				// TODO(sca): confirm with jordan how this is supposed to work with 3 different
+				// CA types, maybe we can add some comments to help future readers too
 				customSCEPVars, ok = customSCEPVars.SetRenewalID()
 				if ok {
 					ndesVars, ok = ndesVars.SetRenewalID()
-				}
-				// TODO(sca): confirm with jordan if this still works as intended with 3 different
-				// CA types, maybe we can add some comments to help future readers too
-				if ok {
-					smallstepVars, ok = smallstepVars.SetRenewalID()
 				}
 			}
 		}
@@ -607,26 +604,13 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	found := 0
-	if customSCEPVars.Found() {
-		found++
-	}
-	if ndesVars.Found() {
-		found++
-	}
-	if smallstepVars.Found() {
-		found++
-	}
-	if found > 1 {
-		// TODO(sca): check with jordan if we need else/if logic here
+	if customSCEPVars.Found() && ndesVars.Found() {
+		// TODO(sca): confirm with jordan how this is supposed to work with 3 different
+		// CA types, maybe we can add some comments to help future readers too
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
-		}
-		if customSCEPVars.RenewalOnly() {
+		} else if customSCEPVars.RenewalOnly() {
 			customSCEPVars = nil
-		}
-		if smallstepVars.RenewalOnly() {
-			smallstepVars = nil
 		}
 	}
 	if customSCEPVars.Found() {
