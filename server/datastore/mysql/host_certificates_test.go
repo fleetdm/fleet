@@ -32,6 +32,7 @@ func TestHostCertificates(t *testing.T) {
 		{"Update certificate sources isolation", testUpdateHostCertificatesSourcesIsolation},
 		{"Create certificates with long country code", testHostCertificateWithInvalidCountryCode},
 		{"Truncate long certificate fields", testTruncateLongCertificateFields},
+		{"Count matches main query", testListHostCertificatesCountMatches},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -728,4 +729,68 @@ func testTruncateLongCertificateFields(t *testing.T, ds *Datastore) {
 	// Verify non-string fields remain unchanged
 	assert.Equal(t, fleet.UserHostCertificate, savedCert.Source, "Source should not be changed")
 	assert.Equal(t, host.ID, savedCert.HostID, "HostID should not be changed")
+}
+
+func testListHostCertificatesCountMatches(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create host
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("count-mismatch-host-osquery-id"),
+		NodeKey:         ptr.String("count-mismatch-host-node-key"),
+		UUID:            "count-mismatch-host-uuid",
+		Hostname:        "count-mismatch-host",
+	})
+	require.NoError(t, err)
+
+	// create a cert template and record
+	certTemplate := x509.Certificate{
+		Subject: pkix.Name{
+			Country:            []string{"US"},
+			CommonName:         "count.example.com",
+			Organization:       []string{"Org"},
+			OrganizationalUnit: []string{"Eng"},
+		},
+		Issuer: pkix.Name{
+			Country:      []string{"US"},
+			CommonName:   "issuer.example.com",
+			Organization: []string{"Issuer"},
+		},
+		SerialNumber: big.NewInt(424242),
+		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+
+		SignatureAlgorithm:    x509.SHA256WithRSA,
+		NotBefore:             time.Now().Add(-time.Hour).Truncate(time.Second).UTC(),
+		NotAfter:              time.Now().Add(24 * time.Hour).Truncate(time.Second).UTC(),
+		BasicConstraintsValid: true,
+	}
+
+	certRec := generateTestHostCertificateRecord(t, host.ID, &certTemplate)
+
+	// Update using ds.UpdateHostCertificates with two sources: system and user
+	certSys := *certRec
+	certSys.Source = fleet.SystemHostCertificate
+	certSys.Username = ""
+
+	certUser := *certRec
+	certUser.Source = fleet.UserHostCertificate
+	certUser.Username = "alice"
+
+	require.NoError(t, ds.UpdateHostCertificates(ctx, host.ID, host.UUID, []*fleet.HostCertificateRecord{&certSys, &certUser}))
+
+	// Now list with metadata
+	certs, meta, err := ds.ListHostCertificates(ctx, host.ID, fleet.ListOptions{IncludeMetadata: true})
+	require.NoError(t, err)
+
+	require.NotNil(t, meta)
+
+	// We expect two returned rows (one per source)
+	require.Len(t, certs, 2)
+
+	require.Equal(t, uint(len(certs)), meta.TotalResults, "expected total results to match returned rows")
 }
