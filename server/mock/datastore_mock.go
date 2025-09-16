@@ -491,6 +491,8 @@ type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
+type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error)
+
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
@@ -1306,6 +1308,8 @@ type GetTeamIdsForIconStorageIdFunc func(ctx context.Context, storageID string) 
 type GetSoftwareIconsByTeamAndTitleIdsFunc func(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]fleet.SoftwareTitleIcon, error)
 
 type DeleteSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) error
+
+type DeleteIconsAssociatedWithTitlesWithoutInstallersFunc func(ctx context.Context, teamID uint) error
 
 type ActivityDetailsForSoftwareTitleIconFunc func(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error)
 
@@ -2213,6 +2217,9 @@ type DataStore struct {
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
+
+	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
+	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
 	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
 	UploadedSoftwareExistsFuncInvoked bool
@@ -3437,6 +3444,9 @@ type DataStore struct {
 
 	DeleteSoftwareTitleIconFunc        DeleteSoftwareTitleIconFunc
 	DeleteSoftwareTitleIconFuncInvoked bool
+
+	DeleteIconsAssociatedWithTitlesWithoutInstallersFunc        DeleteIconsAssociatedWithTitlesWithoutInstallersFunc
+	DeleteIconsAssociatedWithTitlesWithoutInstallersFuncInvoked bool
 
 	ActivityDetailsForSoftwareTitleIconFunc        ActivityDetailsForSoftwareTitleIconFunc
 	ActivityDetailsForSoftwareTitleIconFuncInvoked bool
@@ -5383,6 +5393,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostSoftwareInstallResultFunc(ctx, result)
+}
+
+func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
+	s.mu.Lock()
+	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateIntermediateInstallFailureRecordFunc(ctx, result)
 }
 
 func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {
@@ -8239,6 +8256,13 @@ func (s *DataStore) DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, ti
 	s.DeleteSoftwareTitleIconFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteSoftwareTitleIconFunc(ctx, teamID, titleID)
+}
+
+func (s *DataStore) DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error {
+	s.mu.Lock()
+	s.DeleteIconsAssociatedWithTitlesWithoutInstallersFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc(ctx, teamID)
 }
 
 func (s *DataStore) ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (fleet.DetailsForSoftwareIconActivity, error) {

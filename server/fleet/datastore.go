@@ -657,6 +657,12 @@ type Datastore interface {
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
+	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
+	// installation attempt that will be retried, while keeping the original pending.
+	// Returns the execution ID of the failure record, the software install result details,
+	// and a boolean indicating whether a new record was created (true) or an existing one was updated (false).
+	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, *HostSoftwareInstallerResult, bool, error)
+
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
 	UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
@@ -2054,6 +2060,7 @@ type Datastore interface {
 	GetTeamIdsForIconStorageId(ctx context.Context, storageID string) ([]uint, error)
 	GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error
+	DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error
 	ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (DetailsForSoftwareIconActivity, error)
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error

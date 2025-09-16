@@ -52,6 +52,7 @@ import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
+import PageDescription from "components/PageDescription";
 import LastUpdatedText from "components/LastUpdatedText";
 import TooltipWrapper from "components/TooltipWrapper";
 
@@ -1330,9 +1331,7 @@ const ManagePolicyPage = ({
             </div>
           )}
         </div>
-        <div className={`${baseClass}__description`}>
-          <p>{teamsDropdownHelpText}</p>
-        </div>
+        <PageDescription content={teamsDropdownHelpText} />
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal

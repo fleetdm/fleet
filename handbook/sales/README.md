@@ -47,8 +47,7 @@ To track an objection you heard from a prospect, follow the relevant steps in ["
 
 ### Track a TODO for a Solutions Consultant
 
-In the "[#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8)" Slack channel, add the action item to the "TODO" section of the correct canvas.
-
+In the "[#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8)" Slack channel, add the action item to the "TODO" section of the correct canvas. You can use the [Solution Consultant canvas template](https://fleetdm.slack.com/docs/T019PP37ALW/F09ET55CQF3) for reference. 
 
 ### Change a contact's organization in Salesforce
 

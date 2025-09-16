@@ -5033,7 +5033,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
@@ -5047,7 +5049,13 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 			path = fmt.Sprintf(path, tkn)
 		}
 
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params any
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -11722,12 +11730,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
 
+		_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+			TitleID:   titleID,
+			Filename:  "icon.png",
+			TeamID:    0,
+			StorageID: "icon_storage_id",
+		})
+		require.NoError(t, err)
+
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, 0, titleID)
+		})
+		require.Equal(t, 0, count)
+
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null, "team_id": null, "self_service": true}`, 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -19412,4 +19434,23 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Equal(t, "entraUserPrincipalName3", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAuthBeforeMDM() {
+	t := s.T()
+
+	// macOS host should fail with MDM not enabled and configured.
+	h1 := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
+	)
+
+	// Linux host should not fail with MDM not enabled and configured.
+	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.Empty(t, orbitRes.Results)
 }
