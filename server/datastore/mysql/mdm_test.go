@@ -7886,9 +7886,9 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, appleHost, false)
 
 	i++
-	androidHost := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHost, err = ds.NewAndroidHost(ctx, androidHost)
-	androidHostHost := androidHost.Host
+	androidHostObj := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
+	androidHostObj, err = ds.NewAndroidHost(ctx, androidHostObj)
+	androidHost := androidHostObj.Host
 	require.NoError(t, err)
 
 	// Set LabelUpdatedAt to a time before labels were created to simulate hosts that haven't reported label membership
@@ -7901,22 +7901,22 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost)
 	require.NoError(t, err)
-	err = ds.UpdateHost(ctx, androidHostHost)
+	err = ds.UpdateHost(ctx, androidHost)
 	require.NoError(t, err)
 
 	// at this point the hosts have not reported any label results, so a sync
 	// does NOT install the exclude any profiles as we don't know yet if the
 	// hosts will be members or not
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 	assert.False(t, updates.AndroidConfigProfile)
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		appleHost:       {},
-		winHost:         {},
-		androidHostHost: {},
+		appleHost:   {},
+		winHost:     {},
+		androidHost: {},
 	})
 
 	// setting the LabelsUpdatedAt timestamp means that labels results were reported, so now
@@ -7928,10 +7928,10 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost)
 	require.NoError(t, err)
-	err = ds.UpdateHost(ctx, androidHostHost)
+	err = ds.UpdateHost(ctx, androidHost)
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
@@ -7939,7 +7939,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	assert.True(t, updates.AndroidConfigProfile)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		androidHostHost: {
+		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -7982,14 +7982,14 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		{labels[2].ID, winHost.ID},
 		{labels[3].ID, winHost.ID},
 		{labels[6].ID, winHost.ID},
-		{labels[1].ID, androidHostHost.ID},
-		{labels[2].ID, androidHostHost.ID},
-		{labels[3].ID, androidHostHost.ID},
-		{labels[6].ID, androidHostHost.ID},
+		{labels[1].ID, androidHost.ID},
+		{labels[2].ID, androidHost.ID},
+		{labels[3].ID, androidHost.ID},
+		{labels[6].ID, androidHost.ID},
 	})
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
@@ -8013,7 +8013,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		},
 		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
 		winHost: {},
-		androidHostHost: {
+		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -8032,13 +8032,13 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		{labels[1].ID, winHost.ID},
 		{labels[2].ID, winHost.ID},
 		{labels[6].ID, winHost.ID},
-		{labels[1].ID, androidHostHost.ID},
-		{labels[2].ID, androidHostHost.ID},
-		{labels[6].ID, androidHostHost.ID},
+		{labels[1].ID, androidHost.ID},
+		{labels[2].ID, androidHost.ID},
+		{labels[6].ID, androidHost.ID},
 	})
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
@@ -8046,7 +8046,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	assert.True(t, updates.AndroidConfigProfile)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		androidHostHost: {
+		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -8088,7 +8088,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	err = ds.DeleteLabel(ctx, labels[6].Name)
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
@@ -8097,7 +8097,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// broken profiles do not get reported as "to remove", except for android
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		androidHostHost: {
+		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -8153,22 +8153,22 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, appleHost2, false)
 
 	i++
-	androidHost2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
-	androidHost2, err = ds.NewAndroidHost(ctx, androidHost2)
+	androidHostObj2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
+	androidHostObj2, err = ds.NewAndroidHost(ctx, androidHostObj2)
 	require.NoError(t, err)
-	androidHost2Host := androidHost2.Host
+	androidHost2 := androidHostObj2.Host
 
 	winHost2.LabelUpdatedAt = time.Now()
 	appleHost2.LabelUpdatedAt = time.Now()
-	androidHost2Host.LabelUpdatedAt = time.Now()
+	androidHost2.LabelUpdatedAt = time.Now()
 	err = ds.UpdateHost(ctx, winHost2)
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost2)
 	require.NoError(t, err)
-	err = ds.UpdateHost(ctx, androidHost2Host)
+	err = ds.UpdateHost(ctx, androidHost2)
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID, winHost2.ID, appleHost2.ID, androidHost2Host.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID, winHost2.ID, appleHost2.ID, androidHost2.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
@@ -8177,7 +8177,7 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 
 	// broken profiles do not get reported as "to install"
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		androidHostHost: {
+		androidHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -8207,9 +8207,9 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 				IdentifierOrName: allProfs[3].Name,
 			},
 		},
-		appleHost2:       {},
-		winHost2:         {},
-		androidHost2Host: {},
+		appleHost2:   {},
+		winHost2:     {},
+		androidHost2: {},
 	})
 }
 
