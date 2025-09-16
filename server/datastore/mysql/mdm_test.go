@@ -1229,7 +1229,6 @@ func assertHostProfiles(t *testing.T, ds *Datastore, want map[*fleet.Host][]anyP
 	}
 }
 
-// TODO(AP): FInd a place to verify android config profiles.
 func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	// NOTE: this test is now a monster, it's pretty much impossible to change as it's too big
@@ -5488,7 +5487,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-// TODO(AP): Figure out where to test this elsewhere.
 func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -7814,7 +7812,6 @@ func testIsHostConnectedToFleetMDM(t *testing.T, ds *Datastore) {
 	require.False(t, connected)
 }
 
-// TODO(AP): Come back with enroll android host method
 func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
@@ -7889,13 +7886,9 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	nanoEnroll(t, ds, appleHost, false)
 
 	i++
-	androidHost, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      fmt.Sprintf("android-host%d-name", i),
-		OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
-		NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
-		UUID:          fmt.Sprintf("android-uuid-%d", i),
-		Platform:      "android",
-	})
+	androidHost := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
+	androidHost, err = ds.NewAndroidHost(ctx, androidHost)
+	androidHostHost := androidHost.Host
 	require.NoError(t, err)
 
 	// Set LabelUpdatedAt to a time before labels were created to simulate hosts that haven't reported label membership
@@ -7908,22 +7901,22 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost)
 	require.NoError(t, err)
-	err = ds.UpdateHost(ctx, androidHost)
+	err = ds.UpdateHost(ctx, androidHostHost)
 	require.NoError(t, err)
 
 	// at this point the hosts have not reported any label results, so a sync
 	// does NOT install the exclude any profiles as we don't know yet if the
 	// hosts will be members or not
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
 	assert.False(t, updates.AndroidConfigProfile)
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		appleHost:   {},
-		winHost:     {},
-		androidHost: {},
+		appleHost:       {},
+		winHost:         {},
+		androidHostHost: {},
 	})
 
 	// setting the LabelsUpdatedAt timestamp means that labels results were reported, so now
@@ -7935,25 +7928,18 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost)
 	require.NoError(t, err)
-	err = ds.UpdateHost(ctx, androidHost)
+	err = ds.UpdateHost(ctx, androidHostHost)
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error { // TODO(AP): I can't seem to figure out this test case? The `ListMDMAndroidProfilesToSend` method returns no profiles, and it does not pick up any host uuids that needs changing.
-		DumpTable(t, q, "mdm_android_configuration_profiles")
-		DumpTable(t, q, "labels")
-		DumpTable(t, q, "label_membership")
-		DumpTable(t, q, "mdm_configuration_profile_labels")
-		DumpTable(t, q, "host_mdm_android_profiles")
-		return nil
-	})
 	assert.True(t, updates.AndroidConfigProfile)
+
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		androidHost: {
+		androidHostHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
@@ -7985,125 +7971,165 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 		},
 	})
 
-	// make all hosts members of labels[1], [2], and [3] so that all profiles are
+	// make all hosts members of labels[1], [2], [3], [6] so that all profiles are
 	// excluded
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
 		{labels[1].ID, appleHost.ID},
 		{labels[2].ID, appleHost.ID},
 		{labels[3].ID, appleHost.ID},
+		{labels[6].ID, appleHost.ID},
 		{labels[1].ID, winHost.ID},
 		{labels[2].ID, winHost.ID},
 		{labels[3].ID, winHost.ID},
+		{labels[6].ID, winHost.ID},
+		{labels[1].ID, androidHostHost.ID},
+		{labels[2].ID, androidHostHost.ID},
+		{labels[3].ID, androidHostHost.ID},
+		{labels[6].ID, androidHostHost.ID},
 	})
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
+	assert.True(t, updates.AndroidConfigProfile)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
 		appleHost: {
-			{
-				ProfileUUID:      allProfs[0].ProfileUUID,
-				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeRemove,
-				IdentifierOrName: allProfs[0].Identifier,
-			},
 			{
 				ProfileUUID:      allProfs[1].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeRemove,
 				IdentifierOrName: allProfs[1].Identifier,
+			},
+			{
+				ProfileUUID:      allProfs[2].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[2].Identifier,
 			},
 		},
 		// windows profiles are directly deleted without a pending state (there's no on-host removal of profiles)
 		winHost: {},
+		androidHostHost: {
+			{
+				ProfileUUID:      allProfs[0].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[0].Name,
+			},
+		},
 	})
 
-	// make apple host member of labels[2], and windows host member of [3], which are irrelevant
+	// make apple host member of labels[2], and windows and android host member of [3], which are irrelevant
 	// for their platforms' profiles, so they get all profiles
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
 		{labels[1].ID, appleHost.ID},
 		{labels[3].ID, appleHost.ID},
+		{labels[6].ID, appleHost.ID},
 		{labels[1].ID, winHost.ID},
 		{labels[2].ID, winHost.ID},
+		{labels[6].ID, winHost.ID},
+		{labels[1].ID, androidHostHost.ID},
+		{labels[2].ID, androidHostHost.ID},
+		{labels[6].ID, androidHostHost.ID},
 	})
 	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
+	assert.True(t, updates.AndroidConfigProfile)
 
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		appleHost: {
+		androidHostHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[0].Identifier,
+				IdentifierOrName: allProfs[0].Name,
 			},
+		},
+		appleHost: {
 			{
 				ProfileUUID:      allProfs[1].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
 				IdentifierOrName: allProfs[1].Identifier,
 			},
-		},
-		winHost: {
 			{
 				ProfileUUID:      allProfs[2].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[2].Name,
+				IdentifierOrName: allProfs[2].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[3].Name,
 			},
 		},
 	})
 
-	// delete labels 0, 2 and 3, breaking all profiles
+	// delete labels 0, 2, 3, and 6, breaking all profiles
 	err = ds.DeleteLabel(ctx, labels[0].Name)
 	require.NoError(t, err)
 	err = ds.DeleteLabel(ctx, labels[2].Name)
 	require.NoError(t, err)
 	err = ds.DeleteLabel(ctx, labels[3].Name)
 	require.NoError(t, err)
+	err = ds.DeleteLabel(ctx, labels[6].Name)
+	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
+	assert.True(t, updates.AndroidConfigProfile) // "Broken profiles" behave differently for android.
 
-	// broken profiles do not get reported as "to remove"
+	// broken profiles do not get reported as "to remove", except for android
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		appleHost: {
+		androidHostHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[0].Identifier,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[0].Name,
 			},
+		},
+		appleHost: {
 			{
 				ProfileUUID:      allProfs[1].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
 				IdentifierOrName: allProfs[1].Identifier,
 			},
-		},
-		winHost: {
 			{
 				ProfileUUID:      allProfs[2].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[2].Name,
+				IdentifierOrName: allProfs[2].Identifier,
+			},
+		},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[3].Name,
 			},
 		},
 	})
 
-	// create a new windows and apple host, not a member of any label
+	// create a new windows, apple, and android host, not a member of any label
 	i++
 	winHost2, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      fmt.Sprintf("win-host%d-name", i),
@@ -8126,45 +8152,64 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, appleHost2, false)
 
+	i++
+	androidHost2 := createAndroidHost(fmt.Sprintf("android-host%d-name", i))
+	androidHost2, err = ds.NewAndroidHost(ctx, androidHost2)
+	require.NoError(t, err)
+	androidHost2Host := androidHost2.Host
+
 	winHost2.LabelUpdatedAt = time.Now()
 	appleHost2.LabelUpdatedAt = time.Now()
+	androidHost2Host.LabelUpdatedAt = time.Now()
 	err = ds.UpdateHost(ctx, winHost2)
 	require.NoError(t, err)
 	err = ds.UpdateHost(ctx, appleHost2)
 	require.NoError(t, err)
+	err = ds.UpdateHost(ctx, androidHost2Host)
+	require.NoError(t, err)
 
-	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, winHost2.ID, appleHost2.ID}, nil, nil, nil)
+	updates, err = ds.BulkSetPendingMDMHostProfiles(ctx, []uint{winHost.ID, appleHost.ID, androidHostHost.ID, winHost2.ID, appleHost2.ID, androidHost2Host.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	assert.False(t, updates.AppleConfigProfile)
 	assert.False(t, updates.WindowsConfigProfile)
 	assert.False(t, updates.AppleDeclaration)
+	assert.True(t, updates.AndroidConfigProfile) // True from first host
 
 	// broken profiles do not get reported as "to install"
 	assertHostProfiles(t, ds, map[*fleet.Host][]anyProfile{
-		appleHost: {
+		androidHostHost: {
 			{
 				ProfileUUID:      allProfs[0].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
-				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[0].Identifier,
+				OperationType:    fleet.MDMOperationTypeRemove,
+				IdentifierOrName: allProfs[0].Name,
 			},
+		},
+		appleHost: {
 			{
 				ProfileUUID:      allProfs[1].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
 				IdentifierOrName: allProfs[1].Identifier,
 			},
-		},
-		winHost: {
 			{
 				ProfileUUID:      allProfs[2].ProfileUUID,
 				Status:           &fleet.MDMDeliveryPending,
 				OperationType:    fleet.MDMOperationTypeInstall,
-				IdentifierOrName: allProfs[2].Name,
+				IdentifierOrName: allProfs[2].Identifier,
 			},
 		},
-		appleHost2: {},
-		winHost2:   {},
+		winHost: {
+			{
+				ProfileUUID:      allProfs[3].ProfileUUID,
+				Status:           &fleet.MDMDeliveryPending,
+				OperationType:    fleet.MDMOperationTypeInstall,
+				IdentifierOrName: allProfs[3].Name,
+			},
+		},
+		appleHost2:       {},
+		winHost2:         {},
+		androidHost2Host: {},
 	})
 }
 

@@ -783,7 +783,7 @@ OR
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 	}
 
-	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, tx, androidHosts)
+	updates.AndroidConfigProfile, err = ds.bulkSetPendingMDMAndroidHostProfilesDB(ctx, androidHosts)
 	if err != nil {
 		return updates, ctxerr.Wrap(ctx, err, "bulk set pending android host profiles")
 	}

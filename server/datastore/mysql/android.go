@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -156,6 +157,9 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	}
 	if host.LabelUpdatedAt.IsZero() {
 		host.LabelUpdatedAt = common_mysql.GetDefaultNonZeroTime()
+	}
+	if host.PolicyUpdatedAt.IsZero() {
+		host.PolicyUpdatedAt = common_mysql.GetDefaultNonZeroTime()
 	}
 }
 
@@ -917,15 +921,12 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		// profiles from the host.
 		//
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
-		fmt.Println("===QUERY", hostsWithChangesStmt)
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
 			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
-
-		fmt.Println("Got following host uuids:", hostUUIDs)
 
 		if len(hostUUIDs) == 0 {
 			return nil
@@ -1367,16 +1368,13 @@ func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx
 // For android we set the status to NIL
 func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	ctx context.Context,
-	tx sqlx.ExtContext,
 	hostUUIDs []string,
 ) (updatedDB bool, err error) {
-	fmt.Println("bulkSetPendingMDMAndroidHostProfilesDB called", hostUUIDs)
 	if len(hostUUIDs) == 0 {
 		return false, nil
 	}
 
 	profilesToInstall, profilesToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
-	fmt.Println("profiles to install", profilesToInstall, profilesToRemove)
 	if err != nil {
 		return false, ctxerr.Wrap(ctx, err, "list android profiles to send")
 	}
@@ -1385,29 +1383,21 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 		return false, nil
 	}
 
-	// TODO(AP): Combine?
 	var profilesToUpsert []*fleet.MDMAndroidProfilePayload
-	for _, p := range profilesToInstall {
-		profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
-			ProfileUUID:             p.ProfileUUID,
-			ProfileName:             p.ProfileName,
-			HostUUID:                p.HostUUID,
-			OperationType:           fleet.MDMOperationTypeInstall,
-			Status:                  nil,
-			Detail:                  "",
-			PolicyRequestUUID:       nil,
-			DeviceRequestUUID:       nil,
-			RequestFailCount:        0,
-			IncludedInPolicyVersion: nil,
-		})
-	}
+	allProfiles := append(profilesToInstall, profilesToRemove...)
+	for _, p := range allProfiles {
+		var operationType fleet.MDMOperationType
+		if slices.Contains(profilesToInstall, p) {
+			operationType = fleet.MDMOperationTypeInstall
+		} else {
+			operationType = fleet.MDMOperationTypeRemove
+		}
 
-	for _, p := range profilesToRemove {
 		profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
 			ProfileUUID:             p.ProfileUUID,
 			ProfileName:             p.ProfileName,
 			HostUUID:                p.HostUUID,
-			OperationType:           fleet.MDMOperationTypeRemove,
+			OperationType:           operationType,
 			Status:                  nil,
 			Detail:                  "",
 			PolicyRequestUUID:       nil,
