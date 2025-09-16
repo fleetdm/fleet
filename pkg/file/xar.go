@@ -327,6 +327,10 @@ var knownBadNames = map[string]struct{}{
 	"SU_TITLE":           {},
 }
 
+var idTranslations = map[string]string{
+	"com.sentinelone.sentinel-agent": "com.sentinelone.SentinelAgent",
+}
+
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file
 func getDistributionInfo(d *distributionXML) (name string, identifier string, version string, packageIDs []string) {
 	var appVersion string
@@ -456,6 +460,10 @@ func getDistributionInfo(d *distributionXML) (name string, identifier string, ve
 				break
 			}
 		}
+	}
+
+	if newID, ok := idTranslations[identifier]; ok {
+		identifier = newID
 	}
 
 	// if package IDs are still empty, use the identifier as the package ID

@@ -1,10 +1,8 @@
 .install-software {
-  .react-tabs__tab-list {
-    margin-bottom: $pad-small;
+  .tab-nav {
+    margin-top: -20px;
   }
-  &__windows {
-    @include tab-empty-state;
-    max-width: none;
-    padding: 64px 170px;
+  .react-tabs__tab-list {
+    margin-bottom: $pad-xxlarge;
   }
 }

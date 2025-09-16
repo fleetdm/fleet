@@ -18,7 +18,9 @@ import {
   ISoftwareVersionResponse,
 } from "services/entities/software";
 import { IOSVersionsResponse } from "../services/entities/operating_systems";
+import { IGetSetupExperienceSoftwareResponse } from "../services/entities/mdm";
 import { IOperatingSystemVersion } from "../interfaces/operating_system";
+import { createMockListEntitiesResponseCommon } from "./commonMock";
 
 const DEFAULT_SOFTWARE_MOCK: ISoftware = {
   hosts_count: 1,
@@ -227,6 +229,7 @@ const DEFAULT_SOFTWARE_PACKAGE_MOCK: ISoftwarePackage = {
   hash_sha256: "abcd1234",
   labels_include_any: null,
   labels_exclude_any: null,
+  install_during_setup: undefined,
 };
 
 export const createMockSoftwarePackage = (
@@ -334,4 +337,16 @@ export const createMockSoftwareInstallResult = (
     ...DEFAULT_SOFTWARE_INSTALL_RESULT,
     ...overrides,
   };
+};
+
+const DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK: IGetSetupExperienceSoftwareResponse = {
+  ...createMockListEntitiesResponseCommon(),
+  counts_updated_at: null,
+  software_titles: [createMockSoftwareTitle()],
+};
+
+export const createMockSetupExperienceSoftware = (
+  overrides?: Partial<IGetSetupExperienceSoftwareResponse>
+): IGetSetupExperienceSoftwareResponse => {
+  return { ...DEFAULT_SETUP_EXPERIENCE_SOFTWARE_MOCK, ...overrides };
 };

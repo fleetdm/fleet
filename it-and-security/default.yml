@@ -34,6 +34,7 @@ org_settings:
       - "💻🐣 Workstations (canary)"
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
+      - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""

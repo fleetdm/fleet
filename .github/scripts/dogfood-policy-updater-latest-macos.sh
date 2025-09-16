@@ -82,10 +82,27 @@ extract_minimum_version() {
 #     echo "$content"
 # }
 
-# Fetch the latest macOS version
-echo "Fetching latest macOS version..."
-latest_macos_version=$(curl -s "https://sofafeed.macadmins.io/v1/macos_data_feed.json" | \
-jq -r '.. | objects | select(has("ProductVersion")) | .ProductVersion' | sort -Vr | head -n 1)
+# Fetch the latest macOS version and previous major version
+echo "Fetching latest macOS versions..."
+macos_versions=$(curl -s "https://sofafeed.macadmins.io/v1/macos_data_feed.json" | \
+jq -r '.. | objects | select(has("ProductVersion")) | .ProductVersion' | sort -Vr)
+
+if [ -z "$macos_versions" ]; then
+    echo "Error: Failed to fetch macOS versions."
+    exit 1
+fi
+
+# Get the latest version (first in sorted list)
+latest_macos_version=$(echo "$macos_versions" | head -n 1)
+
+# Extract major version number from latest version (e.g., "15.7" -> "15")
+latest_major_version=$(echo "$latest_macos_version" | cut -d. -f1)
+
+# Calculate previous major version
+previous_major_version=$((latest_major_version - 1))
+
+# Find the latest version of the previous major version
+previous_major_latest_version=$(echo "$macos_versions" | grep "^$previous_major_version\." | head -n 1)
 
 if [ -z "$latest_macos_version" ]; then
     echo "Error: Failed to fetch the latest macOS version."
@@ -93,6 +110,11 @@ if [ -z "$latest_macos_version" ]; then
 fi
 
 echo "Latest macOS version: $latest_macos_version"
+if [ -n "$previous_major_latest_version" ]; then
+    echo "Latest previous major version (v$previous_major_version): $previous_major_latest_version"
+else
+    echo "Warning: No previous major version found for v$previous_major_version"
+fi
 
 # Initialize update flags
 policy_update_needed=false
@@ -117,16 +139,33 @@ if [ -z "$query_line" ]; then
     exit 1
 fi
 
-# Extract the version number from the query line
-policy_version_number=$(echo "$query_line" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g")
-if [ -z "$policy_version_number" ]; then
-    echo "Error: Failed to extract the policy version number."
+# Extract version numbers from the query line (handle both single version and OR conditions)
+policy_versions=$(echo "$query_line" | grep -oE "'[0-9]+\.[0-9]+(\.[0-9]+)?'" | sed "s/'//g" | sort -Vr)
+if [ -z "$policy_versions" ]; then
+    echo "Error: Failed to extract policy version numbers."
     exit 1
 fi
 
-echo "Policy version number: $policy_version_number"
+# Get the highest version from policy (should be the latest)
+policy_latest_version=$(echo "$policy_versions" | head -n 1)
+echo "Policy latest version: $policy_latest_version"
 
-if [ "$policy_version_number" != "$latest_macos_version" ]; then
+# Check if policy needs updating
+policy_needs_update=false
+if [ "$policy_latest_version" != "$latest_macos_version" ]; then
+    policy_needs_update=true
+    echo "Policy needs update: latest version changed from $policy_latest_version to $latest_macos_version"
+fi
+
+# If we have a previous major version, check if it's included in the policy
+if [ -n "$previous_major_latest_version" ]; then
+    if ! echo "$policy_versions" | grep -q "^$previous_major_latest_version$"; then
+        policy_needs_update=true
+        echo "Policy needs update: previous major version $previous_major_latest_version not found in policy"
+    fi
+fi
+
+if [ "$policy_needs_update" = true ]; then
     policy_update_needed=true
     updates_needed=true
 fi
@@ -198,7 +237,14 @@ if [ "$updates_needed" = true ]; then
     # Update policy file if needed
     if [ "$policy_update_needed" = true ]; then
         echo "Updating policy file..."
-        new_query_line="query: SELECT 1 FROM os_version WHERE version >= '$latest_macos_version';"
+        
+        # Build the query with both versions
+        if [ -n "$previous_major_latest_version" ]; then
+            new_query_line="query: SELECT 1 FROM os_version WHERE version >= '$latest_macos_version' OR version >= '$previous_major_latest_version';"
+        else
+            new_query_line="query: SELECT 1 FROM os_version WHERE version >= '$latest_macos_version';"
+        fi
+        
         updated_policy_response=$(echo "$policy_response" | sed "s/query: .*/$new_query_line/")
         
         if [ -z "$updated_policy_response" ]; then
@@ -225,10 +271,22 @@ if [ "$updates_needed" = true ]; then
 
     # Create commit message
     commit_message="Update macOS version to $latest_macos_version"
+    if [ -n "$previous_major_latest_version" ]; then
+        commit_message="$commit_message (includes previous major v$previous_major_version: $previous_major_latest_version)"
+    fi
+    
     if [ "$policy_update_needed" = true ]; then
         commit_message="$commit_message
 
-- Updated policy version from $policy_version_number to $latest_macos_version"
+- Updated policy to include latest version: $latest_macos_version"
+        if [ -n "$previous_major_latest_version" ]; then
+            commit_message="$commit_message
+- Updated policy to include previous major version: $previous_major_latest_version"
+        fi
+        if [ -n "$policy_latest_version" ]; then
+            commit_message="$commit_message
+- Previous policy version: $policy_latest_version"
+        fi
     fi
     # COMMENTED OUT: Team updates commit message logic temporarily disabled
     # if [ "$team_updates_needed" = true ]; then
@@ -242,7 +300,11 @@ if [ "$updates_needed" = true ]; then
     git push origin "$NEW_BRANCH"
 
     # Create a pull request
-    pr_title="Update macOS version to $latest_macos_version"
+    if [ -n "$previous_major_latest_version" ]; then
+        pr_title="Update latest macOS versions to $latest_macos_version and $previous_major_latest_version"
+    else
+        pr_title="Update latest macOS version to $latest_macos_version"
+    fi
     pr_data=$(jq -n --arg title "$pr_title" \
                  --arg head "$NEW_BRANCH" \
                  --arg base "$BRANCH" \

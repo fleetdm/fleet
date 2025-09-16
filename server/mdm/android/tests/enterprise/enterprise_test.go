@@ -37,7 +37,7 @@ func (s *enterpriseTestSuite) SetupTest() {
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = false
 	s.CreateCommonDSMocks()
 	// Override EnterprisesListFunc to return empty list initially (no enterprises exist)
-	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		return []*androidmanagement.Enterprise{}, nil
 	}
 }
@@ -70,7 +70,7 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	assert.Contains(s.T(), string(body), "window.close()")
 
 	// Update the LIST mock to return the enterprise after "creation"
-	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		return []*androidmanagement.Enterprise{
 			{Name: "enterprises/" + tests.EnterpriseID},
 		}, nil
@@ -87,7 +87,7 @@ func (s *enterpriseTestSuite) TestEnterprise() {
 	s.FleetSvc.AssertNumberOfCalls(s.T(), "NewActivity", 2)
 
 	// Reset LIST mock to empty after deletion
-	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		return []*androidmanagement.Enterprise{}, nil
 	}
 
@@ -147,7 +147,7 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 	s.Do("GET", s.ProxyCallbackURL, nil, http.StatusOK, "enterpriseToken", enterpriseToken)
 
 	// Update LIST mock to return the enterprise after "creation"
-	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		return []*androidmanagement.Enterprise{
 			{Name: "enterprises/" + tests.EnterpriseID},
 		}, nil
@@ -162,7 +162,7 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 
 	t.Run("enterprise deleted detection - 403 from GET, empty LIST", func(t *testing.T) {
 		// Mock EnterprisesListFunc to return empty list (enterprise deleted)
-		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{}, nil
 		}
 
@@ -185,7 +185,7 @@ func (s *enterpriseTestSuite) TestEnterpriseDeletedDetection() {
 		s.AndroidAPIClient.EnterprisesListFuncInvoked = false
 
 		// Mock EnterprisesListFunc to return the enterprise
-		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
 				{Name: "enterprises/" + tests.EnterpriseID},
 			}, nil

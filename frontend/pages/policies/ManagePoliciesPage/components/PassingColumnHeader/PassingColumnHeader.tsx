@@ -1,21 +1,17 @@
-import Icon from "components/Icon";
+import POLICY_STATUS_TO_INDICATOR_PARAMS from "components/policies/helpers";
+import StatusIndicatorWithIcon from "components/StatusIndicatorWithIcon";
 import React from "react";
 
 interface IPassingColumnHeaderProps {
   isPassing: boolean;
 }
 
-const baseClass = "passing-column-header";
-
 const PassingColumnHeader = ({ isPassing }: IPassingColumnHeaderProps) => {
-  const iconName = isPassing ? "success" : "error";
-  const columnText = isPassing ? "Yes" : "No";
-
+  const [indicatorStatus, displayText] = POLICY_STATUS_TO_INDICATOR_PARAMS[
+    isPassing ? "pass" : "fail"
+  ];
   return (
-    <div className={baseClass}>
-      <Icon name={iconName} />
-      <span className="status-header-text">{columnText}</span>
-    </div>
+    <StatusIndicatorWithIcon value={displayText} status={indicatorStatus} />
   );
 };
 

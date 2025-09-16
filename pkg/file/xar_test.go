@@ -211,7 +211,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			file:               "distribution-sentinelone.xml",
 			expectedName:       "SentinelOne",
 			expectedVersion:    "24.3.2.7753",
-			expectedBundleID:   "com.sentinelone.sentinel-agent",
+			expectedBundleID:   "com.sentinelone.SentinelAgent",
 			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent", "com.sentinelone.sentinel-agent"},
 		},
 		{

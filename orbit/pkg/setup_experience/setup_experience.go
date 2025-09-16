@@ -2,14 +2,18 @@ package setupexperience
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/swiftdialog"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/rs/zerolog/log"
 )
 
@@ -337,4 +341,99 @@ func resultToListItem(result *fleet.SetupExperienceStatusResult) swiftdialog.Lis
 		Status:     status,
 		StatusText: statusText,
 	}
+}
+
+// LinuxSetupExperiencer runs the setup experience on Linux hosts.
+type LinuxSetupExperiencer struct {
+	orbitClient Client
+	rootDir     string
+}
+
+// NewLinuxSetupExperiencer creates a config receiver to run the setup experience on Linux hosts.
+func NewLinuxSetupExperiencer(client Client, rootDir string) *LinuxSetupExperiencer {
+	return &LinuxSetupExperiencer{
+		orbitClient: client,
+		rootDir:     rootDir,
+	}
+}
+
+// Run implements fleet.OrbitConfigReceiver.
+//
+// Currently the fleet.OrbitConfig is ununsed but might be used in the future.
+func (s *LinuxSetupExperiencer) Run(_ *fleet.OrbitConfig) error {
+	info, err := ReadSetupExperienceStatusFile(s.rootDir)
+	if err != nil {
+		return fmt.Errorf("read setup experience file: %w", err)
+	}
+	if info == nil || info.TimeFinished != nil {
+		// nothing to do.
+		return nil
+	}
+
+	payload, err := s.orbitClient.GetSetupExperienceStatus()
+	if err != nil {
+		return err
+	}
+
+	if setupExperienceDone(payload) {
+		info.TimeFinished = ptr.Time(time.Now())
+		if err := WriteSetupExperienceStatusFile(s.rootDir, info); err != nil {
+			log.Error().Err(err).Msg("write setup experience status file")
+		}
+	}
+	return nil
+}
+
+func setupExperienceDone(payload *fleet.SetupExperienceStatusPayload) bool {
+	for _, software := range payload.Software {
+		if software != nil && (software.Status == fleet.SetupExperienceStatusPending || software.Status == fleet.SetupExperienceStatusRunning) {
+			return false
+		}
+	}
+	return true
+}
+
+// SetupExperienceInfo holds information of the state of the setup experience for a host.
+type SetupExperienceInfo struct {
+	// TimeInitiated is the time the setup experience was attempted during setup/installation.
+	TimeInitiated time.Time `json:"time_initiated"`
+	// Enabled is true if the setup experience was enabled during setup/installation.
+	Enabled bool `json:"enabled"`
+	// TimeFinished is the time the setup experience was finished by the host.
+	TimeFinished *time.Time `json:"time_finished,omitempty"`
+}
+
+// ReadSetupExperienceStatusFile reads the setup experience state from a known file in the rootDir.
+func ReadSetupExperienceStatusFile(rootDir string) (*SetupExperienceInfo, error) {
+	infoPath := filepath.Join(rootDir, constant.SetupExperienceFilename)
+
+	f, err := os.Open(infoPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("read setup experience file: %w", err)
+	}
+	defer f.Close()
+	var exp SetupExperienceInfo
+	if err := json.NewDecoder(f).Decode(&exp); err != nil {
+		return nil, fmt.Errorf("decoding setup experience file: %w", err)
+	}
+
+	return &exp, nil
+}
+
+// WriteSetupExperienceStatusFile writes the setup experience state to a file under rootDir.
+func WriteSetupExperienceStatusFile(rootDir string, exp *SetupExperienceInfo) error {
+	infoPath := filepath.Join(rootDir, constant.SetupExperienceFilename)
+
+	f, err := os.OpenFile(infoPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, constant.DefaultFileMode)
+	if err != nil {
+		return fmt.Errorf("create setup experience completed file: %w", err)
+	}
+	defer f.Close()
+	if err := json.NewEncoder(f).Encode(exp); err != nil {
+		return fmt.Errorf("write setup experience completed file: %w", err)
+	}
+	return nil
 }

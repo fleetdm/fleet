@@ -106,20 +106,13 @@ const SoftwareDetailsSummary = ({
             {title}
             {onClickEditIcon && (
               <div className={`${baseClass}__edit-icon`}>
-                <GitOpsModeTooltipWrapper
-                  position="right"
-                  tipOffset={8}
-                  renderChildren={(disableChildren) => (
-                    <Button
-                      disabled={disableChildren}
-                      onClick={onClickEditIcon}
-                      className={`${baseClass}__edit-icon-btn`}
-                      variant="text-icon"
-                    >
-                      <Icon name="pencil" />
-                    </Button>
-                  )}
-                />
+                <Button
+                  onClick={onClickEditIcon}
+                  className={`${baseClass}__edit-icon-btn`}
+                  variant="text-icon"
+                >
+                  <Icon name="pencil" />
+                </Button>
               </div>
             )}
           </h1>

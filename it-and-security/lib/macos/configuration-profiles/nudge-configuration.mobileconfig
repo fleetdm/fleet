@@ -39,6 +39,8 @@
 				<true/>
 				<key>utilizeSOFAFeed</key>
 				<true/>
+				<key>refreshSOFAFeedTime</key>
+				<string>300</string>
 			</dict>
 			<key>osVersionRequirements</key>
 			<array>
@@ -46,7 +48,7 @@
 					<key>aboutUpdateURL</key>
 					<string>https://support.apple.com/en-us/120283</string>
 					<key>requiredMinimumOSVersion</key>
-					<string>15.6</string>
+					<string>latest-minor</string>
 					<key>targetedOSVersionsRule</key>
 					<string>15</string>
 				</dict>

@@ -42,7 +42,7 @@ apiVersion: v1
 kind: team
 spec:
   team:
-    name: Compliance exclusions
+    name: 🧪 Testing & QA
 ---
 apiVersion: v1
 kind: team

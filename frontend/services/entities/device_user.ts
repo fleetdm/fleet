@@ -53,7 +53,7 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupSoftwareStatusesResponse {
-  setup_experience_results: { software: ISetupSoftwareStatus[] };
+  setup_experience_results: { software?: ISetupSoftwareStatus[] };
 }
 
 export interface IGetSetupSoftwareStatusesParams {
