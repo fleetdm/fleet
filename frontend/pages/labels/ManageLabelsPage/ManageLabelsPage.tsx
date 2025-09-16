@@ -7,6 +7,8 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
+import { isOnGlobalTeam } from "utilities/permissions/permissions";
+
 import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
 
 import Button from "components/buttons/Button";
@@ -17,22 +19,11 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { ILabel } from "interfaces/label";
 
 import LabelsTable from "./LabelsTable";
-import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 const baseClass = "manage-labels-page";
 
 interface IManageLabelsPageProps {
   router: InjectedRouter;
-  // location: {
-  //   pathname: string;
-  //   query: {
-  //     page?: string;
-  //     query?: string;
-  //     order_key?: string;
-  //     order_direction?: "asc" | "desc";
-  //   };
-  //   search: string;
-  // };
 }
 
 const ManageLabelsPage = ({
@@ -81,10 +72,10 @@ IManageLabelsPageProps): JSX.Element => {
   const onClickAction = (action: string, label: ILabel): void => {
     switch (action) {
       case "view_hosts":
-        router.push(`${PATHS.MANAGE_HOSTS}?label_id=${label.id}`);
+        router.push(PATHS.MANAGE_HOSTS_LABEL(label.id));
         break;
       case "edit":
-        router.push(`${PATHS.EDIT_LABEL(label.id)}`);
+        router.push(PATHS.EDIT_LABEL(label.id));
         break;
       case "delete":
         setLabelToDelete(label);
@@ -100,7 +91,7 @@ IManageLabelsPageProps): JSX.Element => {
     return <></>;
   }
 
-  const canWriteLabels = isGlobalAdmin || isGlobalMaintainer;
+  const canWriteLabels = isGlobalAdmin || isGlobalMaintainer; // TODO - confirm permissions
 
   const renderTable = () => {
     if (isLoading || !currentUser || !labels) {
@@ -109,7 +100,13 @@ IManageLabelsPageProps): JSX.Element => {
     if (error) {
       return <DataError />;
     }
-    return <LabelsTable labels={labels} onClickAction={onClickAction} />;
+    return (
+      <LabelsTable
+        currentUser={currentUser}
+        labels={labels}
+        onClickAction={onClickAction}
+      />
+    );
   };
 
   return (

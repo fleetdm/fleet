@@ -6,9 +6,14 @@ import PATHS from "router/paths";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import { isObserverPlus } from "utilities/permissions/permissions";
+import {
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isObserverPlus,
+} from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
 import { InjectedRouter } from "react-router";
+import { capitalize } from "lodash";
 
 interface IHeaderProps {
   column: {
@@ -47,14 +52,42 @@ interface IDataColumn {
   sortType?: string;
 }
 
-interface ILabelTableData extends ILabel {
-  actions: IDropdownOption[];
-}
+const generateActionDropdownOptions = (
+  currentUser: IUser
+): IDropdownOption[] => {
+  const options: IDropdownOption[] = [
+    {
+      label: "View all hosts",
+      disabled: false,
+      value: "view_hosts",
+    },
+  ];
+
+  if (isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser)) {
+    options.push(
+      {
+        label: "Edit",
+        disabled: false,
+        value: "edit",
+      },
+      {
+        label: "Delete",
+        disabled: false,
+        value: "delete",
+      }
+    );
+  }
+
+  return options;
+};
 
 // Generate table headers with action handler
 const generateTableHeaders = (
+  currentUser: IUser,
   onClickAction: (action: string, label: ILabel) => void
 ): IDataColumn[] => {
+  const dropdownOptions = generateActionDropdownOptions(currentUser);
+
   return [
     {
       title: "Name",
@@ -75,9 +108,9 @@ const generateTableHeaders = (
     {
       title: "Type",
       Header: "Type",
-      accessor: "label_type",
+      accessor: "label_membership_type",
       Cell: (cellProps: ICellProps) => (
-        <TextCell value={cellProps.cell.value} />
+        <TextCell value={capitalize(cellProps.cell.value)} />
       ),
     },
     {
@@ -91,7 +124,7 @@ const generateTableHeaders = (
           renderChildren={(disableChildren) => (
             <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
               <ActionsDropdown
-                options={cellProps.cell.value}
+                options={dropdownOptions}
                 onChange={(value: string) =>
                   onClickAction(value, cellProps.row.original)
                 }
@@ -106,51 +139,7 @@ const generateTableHeaders = (
   ];
 };
 
-// Generate action dropdown options based on user permissions
-const generateActionDropdownOptions = (
-  label: ILabel,
-  currentUser: IUser
-): IDropdownOption[] => {
-  const isObserverPlusUser = isObserverPlus(currentUser, null);
-
-  const options: IDropdownOption[] = [
-    {
-      label: "View all hosts",
-      disabled: false,
-      value: "view_hosts",
-    },
-  ];
-
-  // Hide edit and delete options for Observer and Observer+ users
-  if (!isObserverPlusUser) {
-    options.push(
-      {
-        label: "Edit",
-        disabled: false,
-        value: "edit",
-      },
-      {
-        label: "Delete",
-        disabled: false,
-        value: "delete",
-      }
-    );
-  }
-
-  return options;
-};
-
-// TODO - is this necessary?
-const generateDataSet = (
-  labels: ILabel[],
-  currentUser: IUser
-): ILabelTableData[] => {
-  return labels.map((label) => {
-    return {
-      ...label,
-      actions: generateActionDropdownOptions(label, currentUser),
-    };
-  });
-};
+const generateDataSet = (labels: ILabel[]) =>
+  labels.filter((label) => label.label_type !== "builtin");
 
 export { generateTableHeaders, generateDataSet };

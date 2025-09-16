@@ -3,16 +3,9 @@ Remaining TODO
 - access for global observers:
   - from settings list
   - no 'Add label' button
-- Header
-  - top margin
-  - subheader distance to header
-- delete label modal
 - actions:
-  - click through to filtered hosts page
-  - no edit or delete for < admins
+  - no edit or delete for < admins √
+  -   TODO: (global only?)
 - columns
   - add sort arrows (functionality is working)
-  - type
-    - should be sourced from `label.membership_type`, not `label.type`
-    - should exclude `label.type == builtin`
 - Actions menu only visible on row hover
