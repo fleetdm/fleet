@@ -5,6 +5,7 @@ import { IUser } from "interfaces/user";
 
 import TableContainer from "components/TableContainer";
 import TableCount from "components/TableContainer/TableCount";
+import EmptyTable from "components/EmptyTable";
 
 import { generateDataSet, generateTableHeaders } from "./LabelsTableConfig";
 
@@ -32,12 +33,17 @@ const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
       showMarkAllPages={false}
       isAllPagesSelected={false}
       isClientSidePagination
-      renderCount={() => <TableCount name="labels" count={tableData.length} />}
-      emptyComponent={() => (
-        <div className={`${baseClass}__empty-state`}>
-          <p>No labels found.</p>
-        </div>
-      )}
+      renderCount={() =>
+        tableData.length ? (
+          <TableCount name="labels" count={tableData.length} />
+        ) : null
+      }
+      emptyComponent={() =>
+        EmptyTable({
+          header: "No labels",
+          info: "Labels you create will appear here.",
+        })
+      }
     />
   );
 };
