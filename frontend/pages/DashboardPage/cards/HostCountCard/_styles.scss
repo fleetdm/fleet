@@ -14,9 +14,9 @@
     gap: $pad-xsmall;
     text-align: left;
     height: fit-content;
-    padding: $x-large;
+    padding: $pad-xlarge;
     border: 1px solid $ui-fleet-black-10;
-    background: $core-white;
+    background: $core-fleet-white;
     //done
 
     &:hover {
@@ -45,7 +45,7 @@
   }
 
   &__count {
-    font-size: $x-large;
+    font-size: $large;
     white-space: nowrap;
   }
 
