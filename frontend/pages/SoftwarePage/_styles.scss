@@ -34,7 +34,7 @@
 
   &__wrapper {
     .page-description {
-      margin-bottom: $pad-xlarge;
+      margin-bottom: px-to-rem(30);
       max-width: 75%;
 
       @media (min-width: $break-md) {
