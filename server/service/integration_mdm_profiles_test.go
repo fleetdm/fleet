@@ -4875,7 +4875,7 @@ func (s *integrationMDMTestSuite) TestBatchModifyMDMProfiles() {
 		{DisplayName: "N4", Profile: []byte(`{"foo":}`)},
 	}}, http.StatusUnprocessableEntity, "team_id", fmt.Sprint(tm.ID))
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "The file should include valid JSON")
+	require.Contains(t, errMsg, "N4 is not a valid macOS, Windows, or Android configuration profile.")
 
 	// profiles with reserved Windows location URIs
 	// bitlocker
