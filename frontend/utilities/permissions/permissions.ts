@@ -101,7 +101,7 @@ const isAnyTeamAdmin = (user: IUser): boolean => {
   return false;
 };
 
-const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
+export const isAnyTeamMaintainerOrTeamAdmin = (user: IUser): boolean => {
   if (!isOnGlobalTeam(user)) {
     return user.teams.some(
       (team) => team?.role === "maintainer" || team?.role === "admin"

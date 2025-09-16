@@ -8,6 +8,7 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
+  isAnyTeamMaintainerOrTeamAdmin,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
 import { capitalize } from "lodash";
@@ -52,7 +53,8 @@ interface IDataColumn {
 }
 
 const generateActionDropdownOptions = (
-  currentUser: IUser
+  currentUser: IUser,
+  label: ILabel
 ): IDropdownOption[] => {
   const options: IDropdownOption[] = [
     {
@@ -62,7 +64,14 @@ const generateActionDropdownOptions = (
     },
   ];
 
-  if (isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser)) {
+  const hasGlobalWritePermission =
+    isGlobalAdmin(currentUser) || isGlobalMaintainer(currentUser);
+
+  const hasLabelAuthorWritePermission =
+    isAnyTeamMaintainerOrTeamAdmin(currentUser) &&
+    label.author_id === currentUser.id;
+
+  if (hasGlobalWritePermission || hasLabelAuthorWritePermission) {
     options.push(
       {
         label: "Edit",
@@ -85,8 +94,6 @@ const generateTableHeaders = (
   currentUser: IUser,
   onClickAction: (action: string, label: ILabel) => void
 ): IDataColumn[] => {
-  const dropdownOptions = generateActionDropdownOptions(currentUser);
-
   return [
     {
       title: "Name",
@@ -133,22 +140,27 @@ const generateTableHeaders = (
       Header: "",
       disableSortBy: true,
       accessor: "actions",
-      Cell: (cellProps: IDropdownCellProps) => (
-        <ViewAllHostsLink
-          rowHover
-          noLink
-          excludeChevron
-          customContent={
-            <ActionsDropdown
-              options={dropdownOptions}
-              onChange={(value: string) =>
-                onClickAction(value, cellProps.row.original)
-              }
-              placeholder="Actions"
-            />
-          }
-        />
-      ),
+      Cell: (cellProps: IDropdownCellProps) => {
+        const label = cellProps.row.original;
+        const dropdownOptions = generateActionDropdownOptions(
+          currentUser,
+          label
+        );
+        return (
+          <ViewAllHostsLink
+            rowHover
+            noLink
+            excludeChevron
+            customContent={
+              <ActionsDropdown
+                options={dropdownOptions}
+                onChange={(value: string) => onClickAction(value, label)}
+                placeholder="Actions"
+              />
+            }
+          />
+        );
+      },
     },
   ];
 };
