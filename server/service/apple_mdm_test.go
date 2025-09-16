@@ -5651,6 +5651,8 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			errMsg: "Variable \"$FLEET_VAR_NDES_SCEP_PROXY_URL\" must be in the SCEP certificate's \"URL\" field.",
 		},
 		{
+			// TODO(sca): check with jordan how this should be handled, this test fails (i.e. we
+			// don't get the expected error) if we change "renewal only" validations to include smallstep 
 			name: "SCEP renewal ID without other variables",
 			profile: customSCEPForValidation("challenge", "url",
 				"Name", "com.apple.security.scep"),
