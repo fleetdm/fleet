@@ -30,21 +30,23 @@ type MDMAndroidConfigProfile struct {
 	UploadedAt       time.Time                   `db:"uploaded_at" json:"updated_at"` // Difference in DB field name vs JSON is conscious decision to match other platforms
 }
 
-// AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles
-var AndroidForbiddenJSONKeys = map[string]struct{}{
-	"statusReportingSettings":    {},
-	"applications":               {},
-	"appFunctions":               {},
-	"playStoreMode":              {},
-	"installAppsDisabled":        {},
-	"uninstallAppsDisabled":      {},
-	"blockApplicationsEnabled":   {},
-	"appAutoUpdatePolicy":        {},
-	"systemUpdate":               {},
-	"kioskCustomLauncherEnabled": {},
-	"kioskCustomization":         {},
-	"setupActions":               {},
-	"encryptionPolicy":           {},
+// AndroidForbiddenJSONKeys are keys that may not be included in user-provided Android configuration profiles and
+// associated error messages when they are included
+var AndroidForbiddenJSONKeys = map[string]string{
+	"statusReportingSettings":       `Couldn't add. Android configuration profile can't include "statusReportingSettings" setting. To get host vitals, use Get host endpoint: https://fleetdm.com/docs/rest-api/rest-api#get-host`,
+	"applications":                  `Couldn't add. Android configuration profile can't include "applications" setting. Software management is coming soon.`,
+	"appFunctions":                  `Couldn't add. Android configuration profile can't include "appFunctions" setting. Software management is coming soon.`,
+	"playStoreMode":                 `Couldn't add. Android configuration profile can't include "playStoreMode" setting. Software management is coming soon.`,
+	"installAppsDisabled":           `Couldn't add. Android configuration profile can't include "installAppsDisabled" setting. Software management is coming soon.`,
+	"uninstallAppsDisabled":         `Couldn't add. Android configuration profile can't include "uninstallAppsDisabled" setting. Software management is coming soon.`,
+	"blockApplicationsEnabled":      `Couldn't add. Android configuration profile can't include "blockApplicationsEnabled" setting. Software management is coming soon.`,
+	"appAutoUpdatePolicy":           `Couldn't add. Android configuration profile can't include "appAutoUpdatePolicy" setting. Software management is coming soon.`,
+	"systemUpdate":                  `Couldn't add. Android configuration profile can't include "systemUpdate" setting. OS updates are coming soon.`,
+	"kioskCustomLauncherEnabled":    `Couldn't add. Android configuration profile can't include "kioskCustomLauncherEnabled" setting. Currently, only personal hosts are supported.`,
+	"kioskCustomization":            `Couldn't add. Android configuration profile can't include "kioskCustomization" setting. Currently, only personal hosts are supported.`,
+	"persistentPreferredActivities": `Couldn't add. Android configuration profile can't include "persistentPreferredActivities" setting. Currently, only personal hosts are supported.`,
+	"setupActions":                  `Couldn't add. Android configuration profile can't include "setupActions" setting. Currently, setup experience customization isn't supported.`,
+	"encryptionPolicy":              `Couldn't add. Android configuration profile can't include "encryptionPolicy" setting. Currently, disk encryption isn't supported.`,
 }
 
 func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
@@ -66,8 +68,8 @@ func (m *MDMAndroidConfigProfile) ValidateUserProvided() error {
 		return errors.New("JSON profile is empty")
 	}
 	for key := range profileKeyMap {
-		if _, ok := AndroidForbiddenJSONKeys[key]; ok {
-			return fmt.Errorf("Key %q is not allowed in user-provided Android configuration profiles.", key)
+		if errMsg, ok := AndroidForbiddenJSONKeys[key]; ok {
+			return errors.New(errMsg)
 		}
 	}
 
