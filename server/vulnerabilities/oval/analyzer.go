@@ -20,6 +20,15 @@ const (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
+type SoftwareMatchingRule struct {
+	Name             string
+	SemVerConstraint string // TODO: how do CPE matching rules solve this?
+	// TODO: OSVersion
+	CVEs      map[string]struct{} // Maybe just a slice?
+	IgnoreAll bool
+	// TODO: IgnoreIf func(something) bool
+}
+
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
 // inserting any new vulnerabilities and deleting anything patched. Returns nil, nil when
 // the platform isn't supported.
@@ -68,6 +77,7 @@ func Analyze(
 		for _, hostID := range hostIDs {
 			hostID := hostID
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
+			// we have id, name, version, cpe available for us
 			if err != nil {
 				return nil, err
 			}
@@ -83,6 +93,85 @@ func Analyze(
 				return nil, err
 			}
 			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
+
+			// We only know about software in this scope
+			fmt.Println("------------------------- oval batch -------------------------")
+			for _, v := range foundInBatch {
+				fmt.Printf("%+v\n\n", v)
+			}
+			fmt.Println()
+			// we can filter by os version as well
+			// we probably need at least name and version range (SemVerConstraint)
+			// toFilter := make(map[uint][]fleet.SoftwareVulnerability)
+
+			// First idea:
+			// For each software, evaluate if it is a filtered software
+			//    - We get software as a slice, so this makes it O(n)
+			//    - Or we could make software a map O(n)
+			//            then search each filter if its in software
+			// Get its ID
+			// For each pair in foundInBatch
+			// delete pairs with ID and CVE match from filter
+
+			// Should we match software or cpe?
+			// My thought is software because RpmInfoTests don't use cpe
+
+			// How the heck do we optimize this?
+
+			ruleList := []SoftwareMatchingRule{ // Would it be more efficient to use a map? It's a very small lsit of things
+				{
+					Name:             "microcode_ctl",
+					SemVerConstraint: "2.1",
+					CVEs: map[string]struct{}{
+						"CVE-2025-20012": {},
+					},
+					IgnoreAll: true,
+				},
+			}
+
+			softwareIDs := make(map[uint]fleet.Software)
+			for _, s := range software {
+				softwareIDs[s.ID] = s
+			}
+
+			newVulns := make([]fleet.SoftwareVulnerability, len(foundInBatch[hostID]))
+			for _, v := range foundInBatch[hostID] {
+				sName := softwareIDs[v.SoftwareID].Name
+				// semVerConstraint
+				for _, r := range ruleList {
+					if sName == r.Name { // TODO: if SemVerConstraint is true
+						if _, found := r.CVEs[v.CVE]; found {
+							continue
+						}
+					}
+					newVulns = append(newVulns, v)
+				}
+			}
+
+			foundInBatch[hostID] = newVulns
+			fmt.Println("------------------------- modified -------------------------")
+			for _, v := range foundInBatch {
+				fmt.Printf("%+v\n\n", v)
+			}
+			fmt.Println()
+
+			// This is hoooooooorrible
+			// we need to make a map of ID: Software
+			// then just remove things from that
+			// var newVulns []fleet.SoftwareVulnerability
+			// for _, s := range software {
+			// 	for _, r := range ruleList {
+			// 		if s.Name == r.Name {
+			// 			for _, pair := range foundInBatch[s.ID] {
+			// 				if cve, found := r.CVEs[pair.CVE]; !found {
+			// 					newVulns = append(newVulns, cve)
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// }
+
+			// guh
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
