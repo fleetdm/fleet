@@ -12,7 +12,6 @@ import { ITeam } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import PATHS from "router/paths";
 import { getSortedTeamOptions } from "utilities/helpers";
-import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 import { PADDING } from "styles/var/padding";
 import { COLORS } from "styles/var/colors";

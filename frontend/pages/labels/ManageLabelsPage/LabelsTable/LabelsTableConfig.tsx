@@ -4,7 +4,6 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ActionsDropdown from "components/ActionsDropdown";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
@@ -89,7 +88,6 @@ const generateActionDropdownOptions = (
   return options;
 };
 
-// Generate table headers with action handler
 const generateTableHeaders = (
   currentUser: IUser,
   onClickAction: (action: string, label: ILabel) => void

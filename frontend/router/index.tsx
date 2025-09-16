@@ -238,7 +238,6 @@ const routes = (
           </Route>
           <Route path="labels">
             <IndexRedirect to="manage" />
-            {/* auth/push logic within ManageLabelsPage */}
             <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}

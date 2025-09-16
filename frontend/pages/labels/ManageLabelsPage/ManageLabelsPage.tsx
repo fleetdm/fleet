@@ -85,7 +85,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
     }
   };
 
-  const canWriteLabels =
+  const canAddLabel =
     isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
   const renderTable = () => {
@@ -114,7 +114,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
             </div>
           </div>
         </div>
-        {canWriteLabels && (
+        {canAddLabel && (
           <div className={`${baseClass}__action-button-container`}>
             <Button
               className={`${baseClass}__create-button`}
