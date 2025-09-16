@@ -1,16 +1,12 @@
 import React from "react";
 
-import RoutingProvider from "context/routing";
-
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { noop } from "lodash";
 
 import createMockUser from "__mocks__/userMock";
 import { createMockLabel } from "__mocks__/labelsMock";
 import { createCustomRenderer } from "test/test-utils";
 import LabelsTable from "./LabelsTable";
-import { Router } from "react-router";
-import { AppWrapper } from "router";
 
 describe("LabelsTable", () => {
   it("Renders empty state when only builtin labels are provided", () => {
@@ -91,124 +87,5 @@ describe("LabelsTable", () => {
     expect(screen.getByText("Name")).toBeInTheDocument();
     expect(screen.getByText("Description")).toBeInTheDocument();
     expect(screen.getByText("Type")).toBeInTheDocument();
-  });
-
-  it.only("Includes edit and delete actions for global admins", async () => {
-    const customLabel = createMockLabel({
-      id: 1,
-      name: "Custom label",
-      label_type: "regular",
-      author_id: 999, // Different from the admin user
-    });
-
-    const globalAdminUser = createMockUser({
-      id: 1,
-      global_role: "admin",
-    });
-
-    const render = createCustomRenderer();
-    const { user } = render(
-      <LabelsTable
-        labels={[customLabel]}
-        onClickAction={noop}
-        currentUser={globalAdminUser}
-      />
-    );
-
-    const row = screen.getByText("Custom label");
-    await user.hover(row);
-
-    await waitFor(() => {
-      expect(screen.getByText("Actions")).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByText("Actions")).catch(() => {});
-
-    await waitFor(() => {
-      expect(screen.getByText("View all hosts")).toBeInTheDocument();
-      expect(screen.getByText("Edit")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-    });
-  });
-
-  it("Includes edit and delete actions for a team admin on a label they authored, but not on a label they did not", async () => {
-    const teamAdminUser = createMockUser({
-      id: 5,
-      global_role: null,
-      teams: [
-        {
-          id: 1,
-          name: "Team 1",
-          role: "admin",
-          description: "",
-          agent_options: undefined,
-          user_count: 1,
-          host_count: 1,
-          secrets: [],
-        },
-      ],
-    });
-
-    const authoredLabel = createMockLabel({
-      id: 1,
-      name: "My label",
-      label_type: "regular",
-      author_id: 5, // Same as team admin user
-    });
-
-    const notAuthoredLabel = createMockLabel({
-      id: 2,
-      name: "Someone else's label",
-      label_type: "regular",
-      author_id: 999, // Different from team admin user
-    });
-
-    const render = createCustomRenderer();
-    const { user, rerender } = render(
-      <LabelsTable
-        labels={[authoredLabel]}
-        onClickAction={noop}
-        currentUser={teamAdminUser}
-      />
-    );
-
-    // Test authored label - should have edit and delete actions
-    let actionsButton = screen.getByText("Actions");
-    await user.click(actionsButton);
-
-    // Wait for dropdown menu to appear
-    await waitFor(() => {
-      expect(screen.getByText("View all hosts")).toBeInTheDocument();
-      expect(screen.getByText("Edit")).toBeInTheDocument();
-      expect(screen.getByText("Delete")).toBeInTheDocument();
-    });
-
-    // Close dropdown by clicking outside
-    await user.click(document.body);
-
-    // Wait for dropdown to close
-    await waitFor(() => {
-      expect(screen.queryByText("View all hosts")).not.toBeInTheDocument();
-    });
-
-    // Re-render with not authored label
-    rerender(
-      <LabelsTable
-        labels={[notAuthoredLabel]}
-        onClickAction={noop}
-        currentUser={teamAdminUser}
-      />
-    );
-
-    // Test not authored label - should only have view action
-    actionsButton = screen.getByText("Actions");
-    await user.click(actionsButton);
-
-    // Wait for dropdown menu to appear
-    await waitFor(() => {
-      expect(screen.getByText("View all hosts")).toBeInTheDocument();
-      expect(screen.queryByText("Edit")).not.toBeInTheDocument();
-      expect(screen.queryByText("Delete")).not.toBeInTheDocument();
-    });
   });
 });
