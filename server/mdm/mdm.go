@@ -149,7 +149,7 @@ func DetermineJSONConfigType(data []byte) (bool, bool, error) {
 		return false, false, errors.New("android configuration profile contains invalid keys")
 	}
 	// Didn't match either one
-	return false, false, errors.New("could not determine profile type from JSON keys")
+	return false, false, errors.New("Couldn't add. Keys in declaration (DDM) profile must contain only letters and start with a uppercase letter. Keys in Android profile must contain only letters and start with a lowercase letter.")
 }
 
 // GuessProfileExtension determines the likely file extension of a profile
