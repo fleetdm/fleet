@@ -5033,7 +5033,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
@@ -5047,7 +5049,13 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 			path = fmt.Sprintf(path, tkn)
 		}
 
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params any
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -19426,4 +19434,23 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Equal(t, "entraUserPrincipalName3", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAuthBeforeMDM() {
+	t := s.T()
+
+	// macOS host should fail with MDM not enabled and configured.
+	h1 := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
+	)
+
+	// Linux host should not fail with MDM not enabled and configured.
+	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.Empty(t, orbitRes.Results)
 }

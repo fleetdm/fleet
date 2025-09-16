@@ -25,7 +25,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 #### Statement:
 - **Author:** @lucasmrod
 - **Status:** `fixed`
-- **Products:**: `cpe:2.3:a:fleetdm:fleet:v4.64.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.63.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.62.4:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.58.1:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.53.2:*:*:*:*:*:*:*`
+- **Products:**: `pkg:golang/github.com/fleetdm/fleet/v4`,`cpe:2.3:a:fleetdm:fleet:v4.64.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.63.2:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.62.4:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.58.1:*:*:*:*:*:*:*`,`cpe:2.3:a:fleetdm:fleet:v4.53.2:*:*:*:*:*:*:*`
 - **Timestamp:** 2025-05-12 16:30:30
 
 #### Statement:
@@ -145,7 +145,7 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
 - **Status notes:** This vulnerability affected fleet, not fleetctl, adding it here to avoid false positives.
-- **Products:**: `fleetctl`,`pkg:github.com/fleetdm/fleet/v4`
+- **Products:**: `fleetctl`,`pkg:golang/github.com/fleetdm/fleet/v4`
 - **Justification:** `component_not_present`
 - **Timestamp:** 2025-09-12 09:25:41
 
