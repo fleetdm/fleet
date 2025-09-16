@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -1174,14 +1176,15 @@ func RegisterAppleMDMProtocolServices(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	return nil
@@ -1191,6 +1194,7 @@ func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
 	logger kitlog.Logger,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
 	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
@@ -1204,7 +1208,7 @@ func registerMDMServiceDiscovery(
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	})
-	mux.Handle(apple_mdm.ServiceDiscoveryPath, serviceDiscoveryHandler)
+	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
 	return nil
 }
 
@@ -1216,6 +1220,7 @@ func registerSCEP(
 	scepStorage scep_depot.Depot,
 	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1240,7 +1245,7 @@ func registerSCEP(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
-	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
 }
 
@@ -1249,7 +1254,11 @@ func RegisterSCEPProxy(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	timeout *time.Duration,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
@@ -1260,6 +1269,8 @@ func RegisterSCEPProxy(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, apple_mdm.SCEPProxyPath, scepLogger)
+	// Not using OTEL dynamic wrapper so as not to expose {identifier} in the span name
+	scepHandler = otel.WrapHandler(scepHandler, apple_mdm.SCEPProxyPath, *fleetConfig)
 	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
 	return nil
 }
@@ -1298,6 +1309,7 @@ func registerMDM(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
@@ -1329,7 +1341,7 @@ func registerMDM(
 	}
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
-	mux.Handle(apple_mdm.MDMPath, mdmHandler)
+	mux.Handle(apple_mdm.MDMPath, otel.WrapHandler(mdmHandler, apple_mdm.MDMPath, fleetConfig))
 	return nil
 }
 
