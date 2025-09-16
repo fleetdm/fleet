@@ -1414,7 +1414,6 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(installedAppsUUIDs) > 0 {
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		fmt.Println(err)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
 		if turnedOffError != nil {
 			return turnedOffError
@@ -1436,7 +1435,6 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(certsListUUIDs) > 0 {
 		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		fmt.Println(err)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
 		if turnedOffError != nil {
 			return turnedOffError
@@ -1459,7 +1457,6 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(deviceInfoUUIDs) > 0 {
 		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
-		fmt.Println(err)
 		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
 		if turnedOffError != nil {
 			return turnedOffError

@@ -17826,6 +17826,10 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	err = failedMdmDevice.Enroll()
 	require.NoError(s.T(), err)
 
+	originalPushFunc := s.pushProvider.PushFunc
+	s.T().Cleanup(func() {
+		s.pushProvider.PushFunc = originalPushFunc
+	})
 	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
 		require.Len(s.T(), pushes, 1)
 		pushObject := pushes[0]
@@ -17849,7 +17853,7 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	}
 
 	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
-	require.Contains(s.T(), err.Error(), "device token is inactive")
+	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled, and failed has been unenrolled
 	successfulHostMDM, err := s.ds.GetHostMDM(ctx, successfulHost.ID)
