@@ -24,6 +24,7 @@ const LabelsTable = ({ labels, onClickAction, currentUser }: ILabelsTable) => {
 
   return (
     <TableContainer
+      className={baseClass}
       isLoading={false}
       columnConfigs={tableHeaders}
       data={tableData}

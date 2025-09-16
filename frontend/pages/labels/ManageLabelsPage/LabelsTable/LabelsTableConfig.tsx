@@ -12,6 +12,7 @@ import {
 import { IUser } from "interfaces/user";
 import { capitalize } from "lodash";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
   column: {
@@ -133,12 +134,19 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (
-        <ActionsDropdown
-          options={dropdownOptions}
-          onChange={(value: string) =>
-            onClickAction(value, cellProps.row.original)
+        <ViewAllHostsLink
+          rowHover
+          noLink
+          excludeChevron
+          customContent={
+            <ActionsDropdown
+              options={dropdownOptions}
+              onChange={(value: string) =>
+                onClickAction(value, cellProps.row.original)
+              }
+              placeholder="Actions"
+            />
           }
-          placeholder="Actions"
         />
       ),
     },
