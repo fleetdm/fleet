@@ -17,6 +17,7 @@ import labelsAPI, { ILabelsResponse } from "services/entities/labels";
 import { ILabel } from "interfaces/label";
 
 import LabelsTable from "./LabelsTable";
+import { isOnGlobalTeam } from "utilities/permissions/permissions";
 
 const baseClass = "manage-labels-page";
 
@@ -92,12 +93,12 @@ IManageLabelsPageProps): JSX.Element => {
     }
   };
 
-  // if (!isOnGlobalTeam(currentUser)) {
-  //   // handling like this here since there is existing redirect logic at router level that needs to
-  //   // be reconciled
-  //   router.push("/404");
-  //   return <></>;
-  // }
+  if (currentUser && !isOnGlobalTeam(currentUser)) {
+    // handling like this here since there is existing redirect logic at router level that needs to
+    // be reconciled
+    router.push("/404");
+    return <></>;
+  }
 
   const canWriteLabels = isGlobalAdmin || isGlobalMaintainer;
 
