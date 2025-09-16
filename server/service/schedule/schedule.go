@@ -692,16 +692,37 @@ func truncateSecondsWithFloor(d time.Duration) time.Duration {
 	return d.Truncate(time.Second)
 }
 
-var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule")
+var (
+	tracerOnce sync.Once
+	tracer     trace.Tracer
+)
+
+// getTracer returns the tracer for the schedule package.
+// This is called lazily to ensure it gets the correct provider after otel.SetTracerProvider() is called.
+// It caches the tracer after first use to avoid mutex overhead on repeated calls.
+func getTracer() trace.Tracer {
+	tracerOnce.Do(func() {
+		tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule")
+	})
+	return tracer
+}
 
 // startRootSpan creates a new root span for async operations
 // This is necessary because cron jobs run in background goroutines without parent HTTP contexts
 // If OpenTelemetry is not configured at the application level, this will be a no-op
+// Details:
+// 1. When OpenTelemetry is NOT configured (i.e., config.Logging.TracingEnabled is false):
+// - otel.SetTracerProvider() is never called in /cmd/fleet/serve.go
+// - The global tracer provider remains unset
+// 2. When otel.Tracer() is called:
+// - Since no global TracerProvider was set, OpenTelemetry returns a no-op tracer
+// 3. When tracer.Start() is called:
+// - The no-op tracer returns a no-op span
+// - Has minimal performance impact (essentially just returns immediately)
+// - Still maintains proper context propagation
 func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	// Remove any parent span from the context to create a root span,
-	// but preserve other context values
-	ctx = trace.ContextWithSpan(ctx, nil)
-	return tracer.Start(ctx, name,
+	return getTracer().Start(ctx, name,
+		trace.WithNewRoot(),
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(attrs...))
 }
@@ -709,7 +730,7 @@ func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue
 // startSpan creates a child span
 // If OpenTelemetry is not configured at the application level, this will be a no-op
 func startSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
-	return tracer.Start(ctx, name,
+	return getTracer().Start(ctx, name,
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(attrs...))
 }
