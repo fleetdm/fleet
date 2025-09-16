@@ -249,7 +249,6 @@ A completed open position entry should look something like this:
 ## Hiring a new team member
 
 This section is about hiring a new core team member, or fleetie, for an already approved position. 
-
 ### Interviewing candidates
 
 At Fleet, the [Interim Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Interim Head of People and the CEO. 
