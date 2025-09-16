@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -831,6 +833,29 @@ func TestIsNetworkOrTransientError(t *testing.T) {
 
 		for _, err := range networkErrors {
 			t.Run(err.Error(), func(t *testing.T) {
+				require.True(t, isNetworkOrTransientError(err), "Error should be detected as network/transient error: %v", err)
+			})
+		}
+	})
+
+	t.Run("typed errors using errors.Is", func(t *testing.T) {
+		typedErrors := []error{
+			io.ErrUnexpectedEOF,
+			io.EOF,
+			context.DeadlineExceeded,
+			context.Canceled,
+			syscall.ECONNREFUSED,
+			syscall.ECONNRESET,
+			syscall.ENETUNREACH,
+			syscall.ETIMEDOUT,
+			// Wrapped errors should also work
+			fmt.Errorf("wrapped: %w", io.ErrUnexpectedEOF),
+			fmt.Errorf("wrapped: %w", context.DeadlineExceeded),
+			fmt.Errorf("wrapped: %w", syscall.ECONNREFUSED),
+		}
+
+		for _, err := range typedErrors {
+			t.Run(fmt.Sprintf("%T", err), func(t *testing.T) {
 				require.True(t, isNetworkOrTransientError(err), "Error should be detected as network/transient error: %v", err)
 			})
 		}

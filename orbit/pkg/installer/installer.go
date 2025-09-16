@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/docker/go-units"
@@ -273,7 +275,7 @@ func (r *Runner) installWithRetry(ctx context.Context, installer *fleet.Software
 		// Attempt installation
 		resultPayload, err := r.attemptInstall(ctx, installer, payload, logger)
 
-		if err == nil && payload.Status() == fleet.SoftwareInstalled {
+		if err == nil && resultPayload.Status() == fleet.SoftwareInstalled {
 			// Success
 			logger.Debug().Msgf("Installation succeeded on attempt %d", attempt)
 			return resultPayload, nil
@@ -492,6 +494,19 @@ func isNetworkOrTransientError(err error) bool {
 		return false
 	}
 
+	// Check standard library errors using errors.Is
+	// These are errors that the client creates directly
+	if errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, io.EOF) ||
+		errors.Is(err, context.DeadlineExceeded) ||
+		errors.Is(err, context.Canceled) ||
+		errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, syscall.ENETUNREACH) ||
+		errors.Is(err, syscall.ETIMEDOUT) {
+		return true
+	}
+
 	// Check if it's a net.Error with Timeout() method
 	var netErr net.Error
 	if errors.As(err, &netErr) {
@@ -500,102 +515,59 @@ func isNetworkOrTransientError(err error) bool {
 		}
 	}
 
-	// Fall back to string matching for errors that don't implement net.Error
+	// Check for DNS errors (these implement net.Error but we can also check the type)
+	var dnsErr *net.DNSError
+	if errors.As(err, &dnsErr) {
+		return true // DNS errors are transient
+	}
+
+	type statusCodeError interface {
+		StatusCode() int
+	}
+	var scErr statusCodeError
+	if errors.As(err, &scErr) {
+		code := scErr.StatusCode()
+		switch code {
+		case 429, // Too Many Requests
+			500, // Internal Server Error
+			502, // Bad Gateway
+			503, // Service Unavailable
+			504: // Gateway Timeout
+			return true
+		}
+	}
+
+	// Fall back to string matching only for error messages that come from the server
+	// or from libraries that don't expose typed errors
 	errStr := err.Error()
 
-	// Network errors - these patterns come from:
-
-	// "timeout" - net/http Client.Do() timeout errors, http.TimeoutHandler
-	// "TLS handshake" - crypto/tls handshake timeouts during HTTPS connections
-	if strings.Contains(errStr, "timeout") ||
-		(strings.Contains(errStr, "TLS") && strings.Contains(errStr, "handshake")) {
-		return true
-	}
-
-	// "connection refused" - syscall.ECONNREFUSED from net.Dial when server is not listening
-	if strings.Contains(errStr, "connection refused") {
-		return true
-	}
-
-	// "connection reset" - syscall.ECONNRESET from net.Conn.Read/Write when peer closes connection
-	if strings.Contains(errStr, "connection reset") {
-		return true
-	}
-
-	// "no such host" - net.LookupHost DNS resolution failures
-	if strings.Contains(errStr, "no such host") {
-		return true
-	}
-
-	// "network is unreachable" - syscall.ENETUNREACH from net.Dial when network is down
-	if strings.Contains(errStr, "network is unreachable") {
-		return true
-	}
-
-	// "unexpected EOF" - io.ErrUnexpectedEOF from http.Response.Body.Read() on incomplete responses
-	if strings.Contains(errStr, "unexpected EOF") {
-		return true
-	}
-
-	// "context deadline exceeded" - context.DeadlineExceeded from context timeouts
-	if strings.Contains(errStr, "context deadline exceeded") {
-		return true
-	}
-
-	// "context canceled" comes from Go's standard context package
-	if strings.Contains(errStr, "context canceled") {
-		return true
-	}
-
-	// Rate limiting and service availability errors
-	// These come from statusCodeErr in base_client.go which formats as "status XXX <body>"
-
-	// "status 429" - HTTP 429 Too Many Requests
-	if strings.Contains(errStr, "status 429") || strings.Contains(errStr, "too many requests") {
-		return true
-	}
-
-	// "status 503" - HTTP 503 Service Unavailable
-	if strings.Contains(errStr, "status 503") || strings.Contains(errStr, "service unavailable") {
-		return true
-	}
-
-	// "status 502" - HTTP 502 Bad Gateway (proxy/gateway issues)
-	if strings.Contains(errStr, "status 502") || strings.Contains(errStr, "bad gateway") {
-		return true
-	}
-
-	// "status 504" - HTTP 504 Gateway Timeout
-	if strings.Contains(errStr, "status 504") || strings.Contains(errStr, "gateway timeout") {
-		return true
-	}
-
-	// "status 500" - HTTP 500 Internal Server Error (temporary server issues)
-	if strings.Contains(errStr, "status 500") || strings.Contains(errStr, "internal server error") {
-		return true
-	}
-
-	// Resource contention errors
-
-	// "resource busy" - file locks, device busy errors
-	if strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "device or resource busy") {
-		return true
-	}
-
-	// "file is locked" - file system lock contention
-	if strings.Contains(errStr, "file is locked") || strings.Contains(errStr, "locked by another process") {
-		return true
-	}
-
-	// Temporary file system errors
-
-	// "no space left" - disk full, might resolve if something else cleans up
-	if strings.Contains(errStr, "no space left") {
-		return true
-	}
-
-	// "input/output error" - transient I/O errors
-	if strings.Contains(errStr, "input/output error") {
+	// TLS handshake errors (crypto/tls doesn't expose typed errors for all cases)
+	if strings.Contains(errStr, "TLS") && strings.Contains(errStr, "handshake") ||
+		// Additional timeout patterns not caught by net.Error.Timeout()
+		strings.Contains(errStr, "timeout") ||
+		// Network errors that might be string-wrapped or come from server messages
+		strings.Contains(errStr, "connection refused") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "no such host") ||
+		strings.Contains(errStr, "network is unreachable") ||
+		strings.Contains(errStr, "unexpected EOF") ||
+		strings.Contains(errStr, "context deadline exceeded") ||
+		strings.Contains(errStr, "context canceled") ||
+		// Fall back to string matching for HTTP status errors that might come from
+		// other sources (e.g., proxy servers) that don't use our statusCodeErr type
+		strings.Contains(errStr, "status 429") || strings.Contains(errStr, "too many requests") ||
+		strings.Contains(errStr, "status 503") || strings.Contains(errStr, "service unavailable") ||
+		strings.Contains(errStr, "status 502") || strings.Contains(errStr, "bad gateway") ||
+		strings.Contains(errStr, "status 504") || strings.Contains(errStr, "gateway timeout") ||
+		strings.Contains(errStr, "status 500") || strings.Contains(errStr, "internal server error") ||
+		// "resource busy" - file locks, device busy errors
+		strings.Contains(errStr, "resource busy") || strings.Contains(errStr, "device or resource busy") ||
+		// "file is locked" - file system lock contention
+		strings.Contains(errStr, "file is locked") || strings.Contains(errStr, "locked by another process") ||
+		// "no space left" - disk full, might resolve if something else cleans up
+		strings.Contains(errStr, "no space left") ||
+		// "input/output error" - transient I/O errors
+		strings.Contains(errStr, "input/output error") {
 		return true
 	}
 
