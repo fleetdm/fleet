@@ -525,7 +525,7 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
-		res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID)
+		res, err := tx.ExecContext(ctx, stmt, profileUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "deleting android mdm config profile")
 		}
@@ -1280,7 +1280,8 @@ WHERE
 		detail = NULL,
 		policy_request_uuid = NULL,
 		device_request_uuid = NULL,
-		status = NULL
+		status = NULL,
+		request_fail_count = 0
 	WHERE
 		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE name IN (?))
 	`

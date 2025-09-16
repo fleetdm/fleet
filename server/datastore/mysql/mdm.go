@@ -620,7 +620,6 @@ func (ds *Datastore) bulkSetPendingMDMHostProfilesDB(
 			} else if strings.HasPrefix(puid, fleet.MDMAppleDeclarationUUIDPrefix) {
 				hasAppleDecls = true
 			} else if strings.HasPrefix(puid, fleet.MDMAndroidProfileUUIDPrefix) {
-				fmt.Println("Got android profile", puid)
 				androidProfUUIDs = append(androidProfUUIDs, puid)
 			} else {
 				// Note: defaulting to windows profiles without checking the prefix as
@@ -764,7 +763,6 @@ OR
 		case "windows":
 			winHosts = append(winHosts, h.UUID)
 		case "android":
-			fmt.Println("Got android host", h.UUID)
 			androidHosts = append(androidHosts, h.UUID)
 		default:
 			level.Debug(ds.logger).Log(
