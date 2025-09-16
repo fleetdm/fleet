@@ -1,7 +1,6 @@
 import React from "react";
 import { ILabel } from "interfaces/label";
 import { IDropdownOption } from "interfaces/dropdownOption";
-import PATHS from "router/paths";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ActionsDropdown from "components/ActionsDropdown";
@@ -9,11 +8,10 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import {
   isGlobalAdmin,
   isGlobalMaintainer,
-  isObserverPlus,
 } from "utilities/permissions/permissions";
 import { IUser } from "interfaces/user";
-import { InjectedRouter } from "react-router";
 import { capitalize } from "lodash";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 
 interface IHeaderProps {
   column: {
@@ -91,15 +89,26 @@ const generateTableHeaders = (
   return [
     {
       title: "Name",
-      Header: "Name",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "name",
+      disableSortBy: false,
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value} />
       ),
     },
     {
       title: "Description",
-      Header: "Description",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "description",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={cellProps.cell.value || ""} />
@@ -107,7 +116,12 @@ const generateTableHeaders = (
     },
     {
       title: "Type",
-      Header: "Type",
+      Header: (cellProps) => (
+        <HeaderCell
+          value={cellProps.column.title}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
       accessor: "label_membership_type",
       Cell: (cellProps: ICellProps) => (
         <TextCell value={capitalize(cellProps.cell.value)} />
