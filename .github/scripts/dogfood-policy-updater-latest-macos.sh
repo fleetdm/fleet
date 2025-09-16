@@ -104,6 +104,16 @@ previous_major_version=$((latest_major_version - 1))
 # Find the latest version of the previous major version
 previous_major_latest_version=$(echo "$macos_versions" | grep "^$previous_major_version\." | head -n 1)
 
+# If no previous major version found, find the most recent stable version (not the latest)
+# This handles cases where the latest version is very new and we want to include a stable fallback
+if [ -z "$previous_major_latest_version" ]; then
+    # Look for the most recent version that's not the latest (skip duplicates)
+    previous_major_latest_version=$(echo "$macos_versions" | grep -v "^$latest_macos_version$" | head -n 1)
+    if [ -n "$previous_major_latest_version" ]; then
+        echo "No previous major version found, using most recent stable version: $previous_major_latest_version"
+    fi
+fi
+
 if [ -z "$latest_macos_version" ]; then
     echo "Error: Failed to fetch the latest macOS version."
     exit 1
@@ -111,9 +121,9 @@ fi
 
 echo "Latest macOS version: $latest_macos_version"
 if [ -n "$previous_major_latest_version" ]; then
-    echo "Latest previous major version (v$previous_major_version): $previous_major_latest_version"
+    echo "Stable fallback version: $previous_major_latest_version"
 else
-    echo "Warning: No previous major version found for v$previous_major_version"
+    echo "Warning: No stable fallback version found"
 fi
 
 # Initialize update flags
@@ -157,11 +167,11 @@ if [ "$policy_latest_version" != "$latest_macos_version" ]; then
     echo "Policy needs update: latest version changed from $policy_latest_version to $latest_macos_version"
 fi
 
-# If we have a previous major version, check if it's included in the policy
+# If we have a stable fallback version, check if it's included in the policy
 if [ -n "$previous_major_latest_version" ]; then
     if ! echo "$policy_versions" | grep -q "^$previous_major_latest_version$"; then
         policy_needs_update=true
-        echo "Policy needs update: previous major version $previous_major_latest_version not found in policy"
+        echo "Policy needs update: stable fallback version $previous_major_latest_version not found in policy"
     fi
 fi
 
@@ -272,7 +282,7 @@ if [ "$updates_needed" = true ]; then
     # Create commit message
     commit_message="Update macOS version to $latest_macos_version"
     if [ -n "$previous_major_latest_version" ]; then
-        commit_message="$commit_message (includes previous major v$previous_major_version: $previous_major_latest_version)"
+        commit_message="$commit_message (includes stable fallback: $previous_major_latest_version)"
     fi
     
     if [ "$policy_update_needed" = true ]; then
@@ -281,7 +291,7 @@ if [ "$updates_needed" = true ]; then
 - Updated policy to include latest version: $latest_macos_version"
         if [ -n "$previous_major_latest_version" ]; then
             commit_message="$commit_message
-- Updated policy to include previous major version: $previous_major_latest_version"
+- Updated policy to include stable fallback version: $previous_major_latest_version"
         fi
         if [ -n "$policy_latest_version" ]; then
             commit_message="$commit_message
@@ -302,7 +312,7 @@ if [ "$updates_needed" = true ]; then
     # Create a pull request
     pr_title="Update macOS version to $latest_macos_version"
     if [ -n "$previous_major_latest_version" ]; then
-        pr_title="$pr_title (includes v$previous_major_version: $previous_major_latest_version)"
+        pr_title="$pr_title (includes stable fallback: $previous_major_latest_version)"
     fi
     pr_data=$(jq -n --arg title "$pr_title" \
                  --arg head "$NEW_BRANCH" \
