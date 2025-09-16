@@ -1261,9 +1261,9 @@ WHERE
 		uploaded_at
 	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
-		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6)),
+		raw_json = VALUES(raw_json),
 		name = VALUES(name),
-		raw_json = VALUES(raw_json)
+		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
 `
 	for _, p := range profiles {
 		var res sql.Result
