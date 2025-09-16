@@ -491,6 +491,8 @@ type IsVPPAppLabelScopedFunc func(ctx context.Context, vppAppTeamID uint, hostID
 
 type SetHostSoftwareInstallResultFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
 
+type CreateIntermediateInstallFailureRecordFunc func(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error)
+
 type UploadedSoftwareExistsFunc func(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error)
 
 type NewSoftwareCategoryFunc func(ctx context.Context, name string) (*fleet.SoftwareCategory, error)
@@ -2215,6 +2217,9 @@ type DataStore struct {
 
 	SetHostSoftwareInstallResultFunc        SetHostSoftwareInstallResultFunc
 	SetHostSoftwareInstallResultFuncInvoked bool
+
+	CreateIntermediateInstallFailureRecordFunc        CreateIntermediateInstallFailureRecordFunc
+	CreateIntermediateInstallFailureRecordFuncInvoked bool
 
 	UploadedSoftwareExistsFunc        UploadedSoftwareExistsFunc
 	UploadedSoftwareExistsFuncInvoked bool
@@ -5388,6 +5393,13 @@ func (s *DataStore) SetHostSoftwareInstallResult(ctx context.Context, result *fl
 	s.SetHostSoftwareInstallResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetHostSoftwareInstallResultFunc(ctx, result)
+}
+
+func (s *DataStore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
+	s.mu.Lock()
+	s.CreateIntermediateInstallFailureRecordFuncInvoked = true
+	s.mu.Unlock()
+	return s.CreateIntermediateInstallFailureRecordFunc(ctx, result)
 }
 
 func (s *DataStore) UploadedSoftwareExists(ctx context.Context, bundleIdentifier string, teamID *uint) (bool, error) {

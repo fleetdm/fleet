@@ -52,6 +52,8 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
+	MaxRetries uint `json:"max_retries,omitempty"`
 }
 
 type SoftwareInstallerURL struct {
@@ -818,6 +820,11 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+
+	// RetriesRemaining indicates how many retries are left for this installation.
+	// When > 0, the server should treat this as an intermediate failure and assume
+	// another attempt is in progress. This field helps make retry handling idempotent.
+	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic

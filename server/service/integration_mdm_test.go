@@ -878,9 +878,9 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 		})
 		checkStoredCertAuthAssociation(mdmDevice.UUID, 0)
 
-		// TODO: server returns 500 on account of cert auth but what is the expected behavior?
+		// server returns 403 Forbidden for cert auth failures (enrollment not associated with cert)
 		res, err := mdmDevice.GetBootstrapToken()
-		require.ErrorContains(t, err, "500") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
+		require.ErrorContains(t, err, "403") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
 		require.Nil(t, res)
 	})
 }
@@ -1298,6 +1298,11 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
+	// Clear out all activities to other test leaking activities into this one.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		return err
+	})
 
 	// Enroll two devices into MDM
 	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
@@ -14352,17 +14357,17 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
 
-	// Confirm that turning off MDM, locking or wiping the host fails with an appropriate error
-	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForPersonalHostsMessage)
-
+	// Confirm that locking or wiping the host fails with an appropriate error
 	// Lock the host
-	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
+	r := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
 
 	// try to wipe the host
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantWipePersonalHostsMessage)
+
+	// Confirm that turning off MDM for personal hosts are allowed - NEEDS to be last, to not turn off MDM for the other checks.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
