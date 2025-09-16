@@ -2442,8 +2442,8 @@ SELECT
   si.url,
   si.storage_id AS hash_sha256,
   si.fleet_maintained_app_id,
-  COALESCE(icons.filename, "") AS icon_filename,
-  COALESCE(icons.storage_id, "") AS icon_hash_sha256
+  COALESCE(icons.filename, '') AS icon_filename,
+  COALESCE(icons.storage_id, '') AS icon_hash_sha256
 FROM software_installers si
 LEFT JOIN software_title_icons icons ON icons.software_title_id = si.title_id AND icons.team_id = si.global_or_team_id
 WHERE global_or_team_id = ?
