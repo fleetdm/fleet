@@ -19,7 +19,7 @@ notes: |-
 
   Links:
 
-  - Apple dcoumentaion on Safari Extensions: https://support.apple.com/en-us/102343
+  - Apple documentation on Safari Extensions: https://support.apple.com/en-us/102343
   - CROSS JOIN SQLite tutorial: https://www.sqlitetutorial.net/sqlite-cross-join/
   - [Fleet documentation on joining against the `users` table](https://fleetdm.com/guides/osquery-consider-joining-against-the-users-table)
   - [Fleet documentation on granting full disk access to osquery](https://fleetdm.com/guides/enroll-hosts#grant-full-disk-access-to-osquery-on-macos)
