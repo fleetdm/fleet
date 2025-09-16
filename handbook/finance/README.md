@@ -267,7 +267,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
 
 
 ### Run US commission payroll
