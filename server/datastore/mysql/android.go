@@ -1384,7 +1384,9 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	}
 
 	var profilesToUpsert []*fleet.MDMAndroidProfilePayload
-	allProfiles := append(profilesToInstall, profilesToRemove...)
+	var allProfiles []*fleet.MDMAndroidProfilePayload
+	allProfiles = append(allProfiles, profilesToInstall...)
+	allProfiles = append(allProfiles, profilesToRemove...)
 	for _, p := range allProfiles {
 		var operationType fleet.MDMOperationType
 		if slices.Contains(profilesToInstall, p) {
