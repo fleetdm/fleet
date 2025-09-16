@@ -36,9 +36,9 @@ Fleet must register as an employer in any state where we hire new teammates. To 
 2. Select "yes" when prompted to file a new hire report and complete the approval process.
 3. Once the profile is approved, navigate to Tax setup and select the state you’d like to register Fleet in.
 4. Log into CorpNet's payroll tax registration [page](https://www.corpnet.com/register-payroll-taxes/), and follow the instructions to register a new state. 
-6. Verify, add, and amend any company information to ensure accuracy.
-7. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
-8. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/finance#review-state-employment-tax-filings-for-the-previous-quarter).
+5. Verify, add, and amend any company information to ensure accuracy.
+6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
+7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/finance#review-state-employment-tax-filings-for-the-previous-quarter).
     
 
 ### Process an email from a state agency
