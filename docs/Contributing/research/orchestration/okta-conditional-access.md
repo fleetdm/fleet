@@ -108,4 +108,14 @@ sequenceDiagram
 **Tradeoffs.**
 
 * **Early Access** feature: some customers may not be willing to use it.
-* You must implement and operate the **SAML posture IdP** and its assertions.
+* Could not find any examples of security/MDM vendors actually using this.
+
+## Other alternatives to Okta Verify
+
+* Issue a device certificate if it is passing policies, and use the certificate as a factor in Okta flow.
+  * [Use your own certificate authority for managed devices](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/config-customer-provided-ca.htm)
+  * **Rough UX:** Certs trigger browser/keychain prompts and have cross-platform quirks, while a factor offers a cleaner check with built-in remediation.
+  * **Ops overhead:** PKI issuance/rotation/revocation creates lag and complexity, whereas a factor gives centralized, real-time allow/deny.
+  * Certs can be used in addition to posession factor for an additional layer of security.
+* Using inline hooks
+  * Can work for OIDC to block access, but not for SAML.
