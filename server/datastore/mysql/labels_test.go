@@ -2005,6 +2005,14 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 		HardwareSerial: "hwd3",
 		Platform:       "windows",
 	})
+	host4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("4"),
+		NodeKey:        ptr.String("4"),
+		UUID:           "uuid4",
+		Hostname:       "boop.local",
+		HardwareSerial: "hwd4",
+		Platform:       "linux",
+	})
 	require.NoError(t, err)
 
 	err = ds.ApplyLabelSpecs(ctx, []*fleet.LabelSpec{
@@ -2015,6 +2023,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 				"foo.local",
 				"hwd2",
 				"uuid3",
+				strconv.Itoa(int(host4.ID)),
 			},
 		},
 	})
@@ -2022,10 +2031,11 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 
 	hosts, err := ds.ListHostsInLabel(ctx, fleet.TeamFilter{User: test.UserAdmin}, 1, fleet.HostListOptions{})
 	require.NoError(t, err)
-	require.Len(t, hosts, 3)
+	require.Len(t, hosts, 4)
 	require.Equal(t, host1.ID, hosts[0].ID)
 	require.Equal(t, host2.ID, hosts[1].ID)
 	require.Equal(t, host3.ID, hosts[2].ID)
+	require.Equal(t, host4.ID, hosts[3].ID)
 }
 
 func testApplyLabelSpecsWithPlatformChange(t *testing.T, ds *Datastore) {
