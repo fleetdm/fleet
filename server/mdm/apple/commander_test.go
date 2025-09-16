@@ -297,6 +297,140 @@ func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 	require.GreaterOrEqual(t, getPendingCalls, numGoroutines, "GetPendingLockCommand should be called at least once per request")
 }
 
+func TestMDMAppleCommanderDeviceLockPushNotificationFailure(t *testing.T) {
+	ctx := context.Background()
+	mdmStorage := &mdmmock.MDMAppleStore{}
+
+	// Create a mock push provider that will fail
+	pushProvider := &svcmock.APNSPushProvider{}
+	pushFactory := &svcmock.APNSPushProviderFactory{}
+	pushFactory.NewPushProviderFunc = func(*tls.Certificate) (push.PushProvider, error) {
+		return pushProvider, nil
+	}
+
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	cmdr := NewMDMAppleCommander(mdmStorage, pusher)
+
+	host := &fleet.Host{ID: 1, UUID: "TEST-HOST-PUSH-FAIL", Platform: "darwin"}
+
+	// Track whether we're on the first or second request
+	var requestCount int
+	var existingCommand *mdm.Command
+	var existingPIN string
+
+	// Mock GetPendingLockCommand
+	mdmStorage.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		requestCount++
+		require.Equal(t, host.UUID, hostUUID)
+
+		switch requestCount {
+		case 1:
+			// First request - no pending command
+			return nil, "", nil
+		case 2:
+			// Second request initial check - still no pending command
+			// (hasn't been created yet)
+			return nil, "", nil
+		case 3:
+			// Second request after conflict - return the existing command
+			return existingCommand, existingPIN, nil
+		default:
+			t.Fatalf("Unexpected call to GetPendingLockCommand: %d", requestCount)
+			return nil, "", nil
+		}
+	}
+
+	// Mock EnqueueDeviceLockCommand
+	var enqueueCalls int
+	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
+		enqueueCalls++
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
+
+		switch enqueueCalls {
+		case 1:
+			// First request succeeds
+			existingCommand = cmd
+			existingPIN = pin
+			return nil
+		case 2:
+			// Second request gets conflict
+			return fleet.NewConflictError("host already has a pending lock command")
+		default:
+			t.Fatalf("Unexpected call to EnqueueDeviceLockCommand: %d", enqueueCalls)
+			return nil
+		}
+	}
+
+	// Mock RetrievePushInfo
+	mdmStorage.RetrievePushInfoFunc = func(ctx context.Context, tokens []string) (map[string]*mdm.Push, error) {
+		res := make(map[string]*mdm.Push)
+		for _, token := range tokens {
+			res[token] = &mdm.Push{
+				PushMagic: "magic",
+				Token:     []byte("token"),
+				Topic:     "topic",
+			}
+		}
+		return res, nil
+	}
+
+	// Mock RetrievePushCert
+	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+		return &tls.Certificate{}, "staleToken", nil
+	}
+
+	// Mock IsPushCertStale
+	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
+		return false, nil
+	}
+
+	// Configure push provider to fail on conflict scenario
+	var pushAttempts int
+	pushProvider.PushFunc = func(ctx context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		pushAttempts++
+
+		switch pushAttempts {
+		case 1:
+			// First request - push succeeds
+			return mockSuccessfulPush(ctx, pushes)
+		case 2:
+			// Second request during conflict handling - push fails
+			// This simulates a network error or push service issue
+			return nil, errors.New("push notification service unavailable")
+		default:
+			t.Fatalf("Unexpected push attempt: %d", pushAttempts)
+			return nil, nil
+		}
+	}
+
+	// First request - should succeed normally
+	pin1, err := cmdr.DeviceLock(ctx, host, "cmd-uuid-1")
+	require.NoError(t, err)
+	require.NotEmpty(t, pin1)
+	require.Len(t, pin1, 6)
+
+	// Reset request count for second request
+	requestCount = 1
+
+	// Second concurrent request - should get conflict but still return PIN despite push failure
+	pin2, err := cmdr.DeviceLock(ctx, host, "cmd-uuid-2")
+	require.NoError(t, err, "Should not return error even when push notification fails")
+	require.NotEmpty(t, pin2)
+	require.Equal(t, pin1, pin2, "Should return the same PIN as first request")
+
+	// Verify the expected number of calls
+	require.Equal(t, 2, enqueueCalls, "Should have attempted to enqueue twice")
+	require.Equal(t, 2, pushAttempts, "Should have attempted push twice")
+	require.Equal(t, 3, requestCount, "Should have called GetPendingLockCommand three times")
+}
+
 func newMockAPNSPushProviderFactory() (*svcmock.APNSPushProviderFactory, *svcmock.APNSPushProvider) {
 	provider := &svcmock.APNSPushProvider{}
 	provider.PushFunc = mockSuccessfulPush
