@@ -7,14 +7,17 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
+import labelsAPI, { ILabelsResponse } from "services/entities/labels";
+
+import { ILabel } from "interfaces/label";
+
 import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import labelsAPI, { ILabelsResponse } from "services/entities/labels";
-import { ILabel } from "interfaces/label";
+import PageDescription from "components/PageDescription";
 
 import LabelsTable from "./LabelsTable";
 
@@ -122,9 +125,7 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
           </div>
         )}
       </div>
-      <div className={`${baseClass}__description`}>
-        <p>Group hosts for targeting and filtering</p>
-      </div>
+      <PageDescription content="Group hosts for targeting and filtering" />
       {renderTable()}
       {labelToDelete && (
         <DeleteLabelModal
