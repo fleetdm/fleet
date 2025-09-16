@@ -241,13 +241,13 @@ func (s *Schedule) Start() {
 					attribute.String("cron.instance", s.instanceID),
 					attribute.String("cron.type", "triggered"),
 				)
-				defer span.End()
 
 				level.Debug(s.logger).Log("msg", "done, trigger received")
 
 				ok, cancelHold := s.holdLock(ctx)
 				if !ok {
 					level.Debug(s.logger).Log("msg", "unable to acquire lock")
+					span.End()
 					continue
 				}
 
@@ -279,6 +279,7 @@ func (s *Schedule) Start() {
 				}
 
 				cancelHold()
+				span.End()
 
 			case <-schedTicker.C:
 				// Create a root span for the entire scheduled tick processing
@@ -287,7 +288,6 @@ func (s *Schedule) Start() {
 					attribute.String("cron.instance", s.instanceID),
 					attribute.String("cron.type", "scheduled_tick"),
 				)
-				defer span.End()
 
 				level.Debug(s.logger).Log("msg", "done, tick received")
 
@@ -299,6 +299,7 @@ func (s *Schedule) Start() {
 					ctxerr.Handle(ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -306,6 +307,7 @@ func (s *Schedule) Start() {
 					// skip ahead to the next interval
 					level.Info(s.logger).Log("msg", fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -322,6 +324,7 @@ func (s *Schedule) Start() {
 					newWait := s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond
 					level.Info(s.logger).Log("msg", fmt.Sprintf("wait remaining interval %v", newWait))
 					schedTicker.Reset(newWait)
+					span.End()
 					continue
 				}
 
@@ -331,6 +334,7 @@ func (s *Schedule) Start() {
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
 					level.Debug(s.logger).Log("msg", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					span.End()
 					continue
 				}
 
@@ -338,6 +342,7 @@ func (s *Schedule) Start() {
 				if !ok {
 					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -363,6 +368,7 @@ func (s *Schedule) Start() {
 
 				schedTicker.Reset(s.getRemainingInterval(newStart))
 				cancelHold()
+				span.End()
 			}
 		}
 	}()
