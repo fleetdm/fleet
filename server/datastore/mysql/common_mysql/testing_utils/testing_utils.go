@@ -175,9 +175,9 @@ func MysqlTestConfig(testName string) *config.MysqlConfig {
 }
 
 func ProcessOptions(t testing.TB, opts *DatastoreTestOptions) (string, *DatastoreTestOptions) {
-	/* if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
+	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
-	} */
+	}
 
 	if opts == nil {
 		// so it is never nil in internal helper functions
