@@ -5652,7 +5652,8 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 		},
 		{
 			// TODO(sca): check with jordan how this should be handled, this test fails (i.e. we
-			// don't get the expected error) if we change "renewal only" validations to include smallstep 
+			// don't get the expected error) if we change "renewal only" validations to include
+			// smallstep
 			name: "SCEP renewal ID without other variables",
 			profile: customSCEPForValidation("challenge", "url",
 				"Name", "com.apple.security.scep"),
