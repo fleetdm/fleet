@@ -84,13 +84,6 @@ IManageLabelsPageProps): JSX.Element => {
     }
   };
 
-  if (currentUser && !isOnGlobalTeam(currentUser)) {
-    // handling like this here since there is existing redirect logic at router level that needs to
-    // be reconciled
-    router.push("/404");
-    return <></>;
-  }
-
   const canWriteLabels = isGlobalAdmin || isGlobalMaintainer; // TODO - confirm permissions
 
   const renderTable = () => {
