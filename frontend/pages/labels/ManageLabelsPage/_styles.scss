@@ -1,8 +1,4 @@
 .manage-labels-page {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-small;
-
   &__header-wrap {
     @include normalize-team-header;
   }
@@ -23,6 +19,8 @@
   }
 
   &__description {
+    margin: 0 0 $pad-xxlarge;
+
     p {
       color: $ui-fleet-black-75;
       margin: 0;
