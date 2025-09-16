@@ -917,12 +917,15 @@ func (ds *Datastore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet
 		// profiles from the host.
 		//
 		// see https://github.com/fleetdm/fleet/issues/25557#issuecomment-3246496873
+		fmt.Println("===QUERY", hostsWithChangesStmt)
 
 		var hostUUIDs []string
 		if err := sqlx.SelectContext(ctx, tx, &hostUUIDs, hostsWithChangesStmt,
 			fleet.MDMDeliveryFailed, fleet.MDMOperationTypeRemove, fleet.MDMDeliveryPending); err != nil {
 			return ctxerr.Wrap(ctx, err, "list android hosts with profile changes")
 		}
+
+		fmt.Println("Got following host uuids:", hostUUIDs)
 
 		if len(hostUUIDs) == 0 {
 			return nil

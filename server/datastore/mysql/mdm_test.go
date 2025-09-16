@@ -7943,8 +7943,11 @@ func testBulkSetPendingMDMHostProfilesExcludeAny(t *testing.T, ds *Datastore) {
 	assert.True(t, updates.AppleConfigProfile)
 	assert.True(t, updates.WindowsConfigProfile)
 	assert.True(t, updates.AppleDeclaration)
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error { // TODO(AP): I can't seem to figure out this test case? The `ListMDMAndroidProfilesToSend` method returns no profiles, and it does not pick up any host uuids that needs changing.
 		DumpTable(t, q, "mdm_android_configuration_profiles")
+		DumpTable(t, q, "labels")
+		DumpTable(t, q, "label_membership")
+		DumpTable(t, q, "mdm_configuration_profile_labels")
 		DumpTable(t, q, "host_mdm_android_profiles")
 		return nil
 	})
