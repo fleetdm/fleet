@@ -133,20 +133,12 @@ const generateTableHeaders = (
       disableSortBy: true,
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => (
-        <GitOpsModeTooltipWrapper
-          position="left"
-          renderChildren={(disableChildren) => (
-            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
-              <ActionsDropdown
-                options={dropdownOptions}
-                onChange={(value: string) =>
-                  onClickAction(value, cellProps.row.original)
-                }
-                placeholder="Actions"
-                disabled={disableChildren}
-              />
-            </div>
-          )}
+        <ActionsDropdown
+          options={dropdownOptions}
+          onChange={(value: string) =>
+            onClickAction(value, cellProps.row.original)
+          }
+          placeholder="Actions"
         />
       ),
     },
