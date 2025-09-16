@@ -42,7 +42,7 @@ Labels can be specified in your `default.yml` file using inline configuration or
 - `platform` specifies platforms for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. Only supported if `label_membership_type` is `dynamic`.
 - `label_membership_type` specifies label type which determines. Choices for platform are `dynamic` , `manual`, and `host_vitals`.
 - `query` is the query in SQL syntax used to filter the hosts. Only supported if `label_membership_type` is `dynamic`. 
-- `hosts` is the list of host identifiers (`id`, `hardware_serial`, or `uuid`) the label will apply to. Only supported if `label_membership_type` is `manual`. 
+- `hosts` is a list of host identifiers (`id`, `hardware_serial`, or `uuid`). The label will apply to any host with a matching identifier. Only supported if `label_membership_type` is `manual`. 
 - `criteria` - is the criteria for adding hosts to a host vitals label. Hosts with `vital` data matching the specified `value` will be added to the label. See [criteria](https://fleetdm.com/docs/rest-api/rest-api#criteria) documentation for details.
 
 Only one of `query`, `hosts`, or `critera` can be specified. If none are specified, a manual label with no hosts will be created.
