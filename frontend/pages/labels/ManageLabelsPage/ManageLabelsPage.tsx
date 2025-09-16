@@ -7,8 +7,6 @@ import PATHS from "router/paths";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { isOnGlobalTeam } from "utilities/permissions/permissions";
-
 import DeleteLabelModal from "pages/hosts/ManageHostsPage/components/DeleteLabelModal";
 
 import Button from "components/buttons/Button";
@@ -26,13 +24,13 @@ interface IManageLabelsPageProps {
   router: InjectedRouter;
 }
 
-const ManageLabelsPage = ({
-  router,
-}: // location,
-IManageLabelsPageProps): JSX.Element => {
-  const { currentUser, isGlobalAdmin, isGlobalMaintainer } = useContext(
-    AppContext
-  );
+const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
+  const {
+    currentUser,
+    isGlobalAdmin,
+    isGlobalMaintainer,
+    isAnyTeamMaintainerOrTeamAdmin,
+  } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [labelToDelete, setLabelToDelete] = useState<ILabel | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -84,7 +82,8 @@ IManageLabelsPageProps): JSX.Element => {
     }
   };
 
-  const canWriteLabels = isGlobalAdmin || isGlobalMaintainer; // TODO - confirm permissions
+  const canWriteLabels =
+    isGlobalAdmin || isGlobalMaintainer || isAnyTeamMaintainerOrTeamAdmin;
 
   const renderTable = () => {
     if (isLoading || !currentUser || !labels) {
