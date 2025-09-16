@@ -96,9 +96,7 @@ func Analyze(
 
 			// We only know about software in this scope
 			fmt.Println("------------------------- oval batch -------------------------")
-			for _, v := range foundInBatch {
-				fmt.Printf("%+v\n\n", v)
-			}
+			fmt.Println(foundInBatch[hostID])
 			fmt.Println()
 			// we can filter by os version as well
 			// we probably need at least name and version range (SemVerConstraint)
@@ -134,25 +132,29 @@ func Analyze(
 				softwareIDs[s.ID] = s
 			}
 
-			newVulns := make([]fleet.SoftwareVulnerability, len(foundInBatch[hostID]))
+			newVulns := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
+			fmt.Println("newVulns: ", newVulns)
 			for _, v := range foundInBatch[hostID] {
 				sName := softwareIDs[v.SoftwareID].Name
+				match := true
 				// semVerConstraint
 				for _, r := range ruleList {
 					if sName == r.Name { // TODO: if SemVerConstraint is true
 						if _, found := r.CVEs[v.CVE]; found {
-							continue
+							match = false
+							fmt.Println("skip cve: ", v.CVE)
+							break
 						}
 					}
+				}
+				if match {
 					newVulns = append(newVulns, v)
 				}
 			}
 
 			foundInBatch[hostID] = newVulns
 			fmt.Println("------------------------- modified -------------------------")
-			for _, v := range foundInBatch {
-				fmt.Printf("%+v\n\n", v)
-			}
+			fmt.Println(foundInBatch[hostID])
 			fmt.Println()
 
 			// This is hoooooooorrible

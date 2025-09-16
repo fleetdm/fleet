@@ -1,7 +1,6 @@
 package oval_parsed
 
 import (
-	"fmt"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -28,11 +27,6 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 			return nil, err
 		}
 		pkgTstResults[i] = rEval
-	}
-	for _, software := range pkgTstResults {
-		for _, v := range software {
-			fmt.Println("Name: ", v.Name, "   Version: ", v.Version)
-		}
 	}
 	// Evaluate RpmVerifyFileTests, which are used to make assertions against the installed OS
 	OSTstResults := make(map[int]bool)
