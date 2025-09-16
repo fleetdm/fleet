@@ -157,6 +157,9 @@ func (ds *Datastore) setTimesToNonZero(host *fleet.AndroidHost) {
 	if host.LabelUpdatedAt.IsZero() {
 		host.LabelUpdatedAt = common_mysql.GetDefaultNonZeroTime()
 	}
+	if host.PolicyUpdatedAt.IsZero() {
+		host.PolicyUpdatedAt = common_mysql.GetDefaultNonZeroTime()
+	}
 }
 
 func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error {
@@ -523,18 +526,23 @@ func (ds *Datastore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID
 }
 
 func (ds *Datastore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
-	stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting android mdm config profile")
-	}
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		stmt := `DELETE FROM mdm_android_configuration_profiles WHERE profile_uuid = ?`
+		res, err := tx.ExecContext(ctx, stmt, profileUUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "deleting android mdm config profile")
+		}
 
-	deleted, _ := res.RowsAffected()
-	if deleted != 1 {
-		return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(profileUUID))
-	}
+		deleted, _ := res.RowsAffected()
+		if deleted != 1 {
+			return ctxerr.Wrap(ctx, notFound("MDMAndroidConfigProfile").WithName(profileUUID))
+		}
 
-	return nil
+		if err := cancelAndroidHostInstallsForDeletedMDMProfiles(ctx, tx, []string{profileUUID}); err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (ds *Datastore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
@@ -1196,8 +1204,10 @@ WHERE
 
 	// Create list of names from profiles
 	incomingNames := make([]string, len(profiles))
+	incomingUUIDS := make([]string, len(profiles))
 	for i, p := range profiles {
 		incomingNames[i] = p.Name
+		incomingUUIDS[i] = p.ProfileUUID
 	}
 
 	var (
@@ -1235,7 +1245,9 @@ WHERE
 			updatedDB = rows > 0
 		}
 
-		// TODO(AP): Cancel android profile installs for deleted profiles
+		if err := cancelAndroidHostInstallsForDeletedMDMProfiles(ctx, tx, deletedProfileUUIDs); err != nil {
+			return false, ctxerr.Wrap(ctx, err, "cancel android host installs for deleted profiles")
+		}
 	}
 
 	// Insert or update incoming profiles
@@ -1248,11 +1260,10 @@ WHERE
 		uploaded_at
 	) VALUES (CONCAT('` + fleet.MDMAndroidProfileUUIDPrefix + `', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP(6))
 	ON DUPLICATE KEY UPDATE
-		name = VALUES(name),
 		raw_json = VALUES(raw_json),
+		name = VALUES(name),
 		uploaded_at = IF(raw_json = VALUES(raw_json) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP(6))
 `
-
 	for _, p := range profiles {
 		var res sql.Result
 		if res, err = tx.ExecContext(ctx, insertNewOrEditedProfile, profileTeamID, p.Name, p.RawJSON); err != nil {
@@ -1262,6 +1273,27 @@ WHERE
 		if insertOnDuplicateDidInsertOrUpdate(res) {
 			updatedDB = true
 		}
+	}
+
+	const updateIncludedInPolicyVersionStmt = `
+	UPDATE
+		host_mdm_android_profiles
+	SET
+		included_in_policy_version = NULL,
+		detail = NULL,
+		policy_request_uuid = NULL,
+		device_request_uuid = NULL,
+		status = NULL,
+		request_fail_count = 0
+	WHERE
+		profile_uuid IN (SELECT profile_uuid FROM mdm_android_configuration_profiles WHERE name IN (?))
+	`
+	stmt, args, err = sqlx.In(updateIncludedInPolicyVersionStmt, incomingNames)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "build query to update included in policy version")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return false, ctxerr.Wrap(ctx, err, "update included in policy version")
 	}
 
 	var mappedIncomingProfiles []*BatchSetAssociationIncomingProfile
@@ -1281,4 +1313,102 @@ WHERE
 	}
 
 	return updatedDB || didUpdateLabels, nil
+}
+
+func cancelAndroidHostInstallsForDeletedMDMProfiles(ctx context.Context, tx sqlx.ExtContext, profileUUIDs []string) error {
+	// For Android profiles, we can safely delete the rows where STATUS is null and operation is install.
+	// For any other profiles, we update the operating to remove and set the STATUS to null
+	// to let it be picked up by the reconciler.
+
+	if len(profileUUIDs) == 0 {
+		return nil
+	}
+
+	const delStmt = `
+	DELETE FROM
+		host_mdm_android_profiles
+	WHERE
+		profile_uuid IN (?) AND
+		status IS NULL AND
+		operation_type = ?`
+
+	stmt, args, err := sqlx.In(delStmt, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query to cancel android host installs for deleted profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "cancel android host installs for deleted profiles")
+	}
+
+	const updateStmt = `
+	UPDATE
+		host_mdm_android_profiles
+	SET
+		status = NULL,
+		operation_type = ?
+	WHERE
+		profile_uuid IN (?) AND
+		status IS NOT NULL AND
+		operation_type = ?`
+
+	stmt, args, err = sqlx.In(updateStmt, fleet.MDMOperationTypeRemove, profileUUIDs, fleet.MDMOperationTypeInstall)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build query to update android host installs for deleted profiles")
+	}
+
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "update android host installs for deleted profiles")
+	}
+
+	return nil
+}
+
+// For android we set the status to NIL
+func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
+	ctx context.Context,
+	hostUUIDs []string,
+) (updatedDB bool, err error) {
+	if len(hostUUIDs) == 0 {
+		return false, nil
+	}
+
+	profilesToInstall, profilesToRemove, err := ds.ListMDMAndroidProfilesToSend(ctx)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "list android profiles to send")
+	}
+
+	if len(profilesToInstall) == 0 && len(profilesToRemove) == 0 {
+		return false, nil
+	}
+
+	var profilesToUpsert []*fleet.MDMAndroidProfilePayload
+	for setIndex, profiles := range [][]*fleet.MDMAndroidProfilePayload{profilesToInstall, profilesToRemove} {
+		operationType := fleet.MDMOperationTypeInstall
+		if setIndex == 1 {
+			operationType = fleet.MDMOperationTypeRemove
+		}
+
+		for _, p := range profiles {
+			profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
+				ProfileUUID:             p.ProfileUUID,
+				ProfileName:             p.ProfileName,
+				HostUUID:                p.HostUUID,
+				OperationType:           operationType,
+				Status:                  nil,
+				Detail:                  "",
+				PolicyRequestUUID:       nil,
+				DeviceRequestUUID:       nil,
+				RequestFailCount:        0,
+				IncludedInPolicyVersion: nil,
+			})
+		}
+	}
+
+	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "bulk upsert android host profiles")
+	}
+
+	return true, nil
 }
