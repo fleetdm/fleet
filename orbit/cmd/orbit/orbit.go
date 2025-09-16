@@ -1550,7 +1550,7 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-    setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
 		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
 		log.Debug().
