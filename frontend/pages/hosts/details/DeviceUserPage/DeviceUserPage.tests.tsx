@@ -2,7 +2,7 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 
 import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
-import createMockHost from "__mocks__/hostMock";
+import createMockHost, { createMockHostEndUser } from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
@@ -106,6 +106,34 @@ describe("Device User Page", () => {
 
     expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
   });
+
+  it("hides the user card if the device is not apple or android device", async () => {
+    const host = createMockHost() as IHostDevice;
+    host.platform = "windows";
+    host.end_users = [];
+
+    mockServer.use(customDeviceHandler({ host }));
+    mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
+
+    const render = createCustomRenderer({
+      withBackendMock: true,
+    });
+
+    render(
+      <DeviceUserPage
+        router={mockRouter}
+        params={{ device_auth_token: "testToken" }}
+        location={mockLocation}
+      />
+    );
+
+    // waiting for the device data to render
+    await screen.findByText(/Details/);
+
+    expect(screen.queryByText(/User/)).not.toBeInTheDocument();
+  });
+
   describe("Setup experience software installation", () => {
     const REGULAR_DUP_MATCHER = /Last fetched/;
     const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/;
@@ -172,30 +200,6 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(SETTING_UP_YOUR_DEVICE_MATCHER)).toBeNull();
     });
-  });
-
-  it("hides the user card if the device is not apple or android device", async () => {
-    const host = createMockHost() as IHostDevice;
-    host.platform = "windows";
-
-    mockServer.use(customDeviceHandler({ host }));
-
-    const render = createCustomRenderer({
-      withBackendMock: true,
-    });
-
-    render(
-      <DeviceUserPage
-        router={mockRouter}
-        params={{ device_auth_token: "testToken" }}
-        location={mockLocation}
-      />
-    );
-
-    // waiting for the device data to render
-    await screen.findByText(/Details/);
-
-    expect(screen.queryByText(/User/)).not.toBeInTheDocument();
   });
 
   describe("MDM enrollment", () => {
