@@ -202,6 +202,14 @@ Fleet has several brand fronts that need to be updated from time to time. Check 
 - The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
 
+### Notify Customer Success about new macOS features
+
+Apple releases new major macOS versions every year (ex. [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26)).
+
+In the lead up to release, Apple will announce new MDM features that Fleet's customers may expect Fleet, their MDM solution, to support. 
+
+When a new major macOS version is annouced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
