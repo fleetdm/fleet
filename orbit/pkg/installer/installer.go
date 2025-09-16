@@ -129,7 +129,7 @@ func connectOsquery(r *Runner) error {
 	if r.OsqueryClient == nil {
 		osqueryClient, err := osquery.NewClient(r.osquerySocketPath, 10*time.Second)
 		if err != nil {
-			log.Err(err).Msg("establishing osquery connection for software install runner")
+			log.Error().Err(err).Msg("establishing osquery connection for software install runner")
 			return err
 		}
 
@@ -266,7 +266,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 		}
 		err := removeAllFn(tmpDir)
 		if err != nil {
-			log.Err(err)
+			log.Error().Err(err).Msg("failed to remove tmp dir")
 		}
 	}()
 
@@ -322,7 +322,7 @@ func (r *Runner) installSoftware(ctx context.Context, installID string, logger z
 	if strings.HasSuffix(installerPath, ".tgz") || strings.HasSuffix(installerPath, ".tar.gz") {
 		logger.Info().Msg("detected tar.gz archive, extracting to subdirectory")
 		extractDestination := filepath.Join(tmpDir, extractionDirectoryName)
-		err := os.Mkdir(extractDestination, 0700)
+		err := os.Mkdir(extractDestination, 0o700)
 		if err != nil {
 			logger.Err(err).Msg("failed to create directory for .tar.gz extraction")
 			// Using download failed exit code here to indicate that installer extraction failed
