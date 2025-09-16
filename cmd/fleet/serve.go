@@ -192,6 +192,25 @@ the way that the Fleet server works.
 				}
 			}
 
+			// Handle server private key configuration - either direct or via AWS Secrets Manager
+			if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
+				initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+			}
+
+			// Retrieve private key from AWS Secrets Manager if specified
+			if config.Server.PrivateKeySecretArn != "" {
+				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
+					context.Background(),
+					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretSTSAssumeRoleArn,
+					config.Server.PrivateKeySecretSTSExternalID,
+				)
+				if err != nil {
+					initFatal(err, "retrieve private key from secrets manager")
+				}
+				config.Server.PrivateKey = privateKey
+			}
+
 			if len(config.Server.PrivateKey) > 0 {
 				if len(config.Server.PrivateKey) < 32 {
 					initFatal(errors.New("private key must be at least 32 bytes long"), "validate private key")
@@ -1383,7 +1402,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
 					// For customers using large profiles and/or large numbers of profiles, the
 					// server needs time to completely read the request body and also to process
 					// all the side effects of a potentially large number of profiles being changed
@@ -1422,23 +1442,6 @@ the way that the Fleet server works.
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
 			rootMux.Handle("/debug/", debugHandler)
-
-			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
-				// test that we can load this
-				_, err := os.ReadFile(path)
-				if err != nil {
-					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
-				}
-				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := os.ReadFile(path)
-					if err != nil {
-						rw.WriteHeader(http.StatusNotFound)
-						return
-					}
-					rw.Write(testPage) //nolint:errcheck
-					rw.WriteHeader(http.StatusOK)
-				})
-			}
 
 			if debug {
 				// Add debug endpoints with a random

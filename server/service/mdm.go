@@ -2179,7 +2179,7 @@ func getAppleProfiles(
 			return nil, nil, nil
 		}
 
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
 	return profs, decls, nil
@@ -2256,7 +2256,7 @@ func getWindowsProfiles(
 			return nil, nil
 		}
 
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	return profs, nil
@@ -2476,33 +2476,9 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		profileName = prof.Name
 
 	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
-		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting apple declaration")
-		}
-		profileTeamID = decl.TeamID
-		profileName = decl.Name
-
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendAppleDeclarationProfilesMessage).WithStatus(http.StatusBadRequest), "check apple declaration resend")
 	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
-		}
-		if host.Platform != "windows" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows config profile")
-		}
-		profileTeamID = prof.TeamID
-		profileName = prof.Name
-
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendWindowsProfilesMessage).WithStatus(http.StatusBadRequest), "check windows profile resend")
 	default:
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
 	}

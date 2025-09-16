@@ -895,6 +895,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
 		getDeviceMDMCommandResultsRequest{})
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("resend_configuration_profile", desktopQuota, logger),
+	).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota, logger),

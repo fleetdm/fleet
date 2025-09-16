@@ -32,6 +32,8 @@ var (
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
+	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
+	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP
@@ -640,6 +642,9 @@ const (
 	RunScripSavedMaxLenErrMsg              = "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."
 	RunScripUnsavedMaxLenErrMsg            = "Script is too large. It's limited to 10,000 characters (approximately 125 lines)."
 	RunScriptGatewayTimeoutErrMsg          = "Gateway timeout. Fleet didn't hear back from the host and doesn't know if the script ran. Please make sure your load balancer timeout isn't shorter than the Fleet server timeout."
+
+	// Software
+	InstallSoftwarePersonalAppleDeviceErrMsg = "Couldn't install. Currently, software install isn't supported on personal (BYOD) iOS and iPadOS hosts."
 
 	// End user authentication
 	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101

@@ -341,7 +341,7 @@ Instructions for creating and maintaining a TUF repo are available on our [TUF h
 
 ### Provide same-day support for major version macOS releases
 
-Beginning with macOS 16, Fleet offers same-day support for all major version macOS releases. 
+Beginning with macOS 26, Fleet offers same-day support for all major version macOS releases. 
 
 1. Install major version macOS beta release on test devices. 
 2. Create a new [QA release issue](https://github.com/fleetdm/fleet/issues/new?assignees=xpkoala%2Cpezhub&labels=%23g-mdm%2C%23g-endpoint-ops%2C%3Arelease&projects=&template=release-qa.md&title=Release+QA%3A+macOS+16) with the new major version in the issue title.

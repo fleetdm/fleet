@@ -1,3 +1,11 @@
+## Orbit 1.47.4 (Sep 11, 2025)
+
+* Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
+
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
 ## Orbit 1.47.2 (Sep 04, 2025)
 
 * Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
