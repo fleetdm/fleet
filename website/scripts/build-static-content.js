@@ -1375,6 +1375,109 @@ module.exports = {
         });
         builtStaticContent.appLibrary = appLibrary;
       },
+      //
+      //   ██████╗ ██████╗ ███╗   ██╗████████╗██████╗  ██████╗ ██╗     ███████╗      ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔══██╗██╔═══██╗██║     ██╔════╝      ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ██║     ██║   ██║██╔██╗ ██║   ██║   ██████╔╝██║   ██║██║     ███████╗      ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██║     ██║   ██║██║╚██╗██║   ██║   ██╔══██╗██║   ██║██║     ╚════██║      ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ╚██████╗╚██████╔╝██║ ╚████║   ██║   ██║  ██║╚██████╔╝███████╗███████║      ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝      ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //
+      async()=>{
+        let controlsLibrary = {};
+        //
+        //  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗╔═╗
+        //  ╚═╗║  ╠╦╝║╠═╝ ║ ╚═╗
+        //  ╚═╝╚═╝╩╚═╩╩   ╩ ╚═╝
+        let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'website/assets/static-content/scripts.yml';
+        let scriptsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let scripts = YAML.parse(scriptsYaml, {prettyErrors: true});
+        controlsLibrary.scripts = [];
+        let scriptSlugsSeen = [];
+        for(let script of scripts) {
+          if(!script.name) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script}) is missing a "name" value. To resolve, add a name to this script, and try running this script again.`);
+          }
+
+          if(!script.description) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a description value. To resolve, add a description to this script and try running this script again.`);
+          }
+
+          if(!script.platform) {
+            throw new Error('missing platform', script);
+          } else if(!['windows', 'macos', 'linux'].includes(script.platform)){
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) has an unsupported platform value (${script.platform}). To resolve, change the platform value to be 'windows', 'macos', or 'linux'`);
+          }
+
+          if(!script.script) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a script value. To resolve, add a script value and try running this script again.`);
+          }
+          // Format the script so it be safely stored as a string in the website's JSON configuration.
+          script.script = _.escape(script.script);
+
+          // Create a url slug for this script
+          script.slug = _.kebabCase(script.platform+' '+script.name);// ex: macos-collect-fleetd-logs
+
+          // Throw an error if there are any duplicate slugs.
+          if(scriptSlugsSeen.includes(script.slug)){
+            throw new Error(`Could not build script library configuration from YAML: scripts as currently named would result in colliding (duplicate) slugs (${script.slug}).  To resolve, rename the ${script.name} script`);
+          }
+          scriptSlugsSeen.push(script.slug);
+
+          controlsLibrary.scripts.push(script);
+        }
+        if (scripts.length !== _.uniq(_.pluck(controlsLibrary.scripts, 'slug')).length) {
+          throw new Error('Failed parsing YAML for script library: scripts as currently named would result in colliding (duplicate) slugs.  To resolve, rename the scripts whose names are too similar.  Note the duplicates: ' + _.pluck(controlsLibrary.scripts, 'slug').sort());
+        }//•
+        builtStaticContent.scripts = controlsLibrary.scripts;
+
+
+        //  ╔╦╗╔╦╗╔╦╗  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗╔═╗
+        //  ║║║ ║║║║║  ║  ║ ║║║║║║║╠═╣║║║ ║║╚═╗
+        //  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
+        let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'website/assets/static-content/mdm-commands.yml';
+        let commandsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let mdmCommands = YAML.parse(commandsYaml, {prettyErrors: true});
+
+        // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
+        controlsLibrary.mdmCommands = [];
+        let commandSlugsSeen = [];
+        for(let command of mdmCommands) {
+          if(!command.name) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command}) is missing a "name" value. To resolve, add a name to this command, and try running this script again.`);
+          }
+          if(!command.platform) {
+            throw new Error('missing platform', command);
+          } else if(!['windows', 'apple'].includes(command.platform)){
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an unsupported platform value. To resolve, change the platform value to be either 'windows' or 'apple'`);
+          }
+          if(!command.description) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a description value. To resolve, add a description to this command and try running this script again.`);
+          }
+          if(!command.supportedDeviceTypes) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a supportedDeviceTypes value. To resolve, add a supportedDeviceTypes that contains a list of all operating systems that support this command and try running this script again.`);
+          } else if(!_.isArray(command.supportedDeviceTypes)) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an invalid supportedDeviceTypes value. To resolve, change the supportedDeviceTypes value to be an array of all operating systems that support this command and try running this script again.`);
+          }
+          if(!command.command) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a command value. To resolve, add a command that contains an XML (for Windows commands) or plist (for Apple commands) MDM command, and try running this script again.`);
+          }
+          command.command = _.escape(command.command);
+          command.description = _.escape(command.description);
+          // Create a url slug for this script
+          command.slug = _.kebabCase(command.platform+' '+command.name);
+
+          // Throw an error if there are any duplicate slugs.
+          if(commandSlugsSeen.includes(command.slug)){
+            throw new Error(`Could not build MDM command library configuration from YAML: commands as currently named would result in colliding (duplicate) slugs.  To resolve, rename the ${command.name} (platform: ${command.platform}) command`);
+          }
+          commandSlugsSeen.push(command.slug);
+
+          controlsLibrary.mdmCommands.push(command);
+        }
+        builtStaticContent.mdmCommands = controlsLibrary.mdmCommands;
+        // builtStaticContent.controlsLibrary = controlsLibrary;
+      }
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗
