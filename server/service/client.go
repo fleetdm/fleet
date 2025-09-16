@@ -1222,12 +1222,17 @@ func getIconHashIfValid(path string) (string, error) {
 		return "", err
 	}
 
+	// Reset file pointer to beginning before hashing
+	if _, err := iconReader.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("seeking icon file: %w", err)
+	}
+
 	h := sha256.New()
 	if _, err := io.Copy(h, iconReader); err != nil {
 		return "", fmt.Errorf("hashing icon file: %w", err)
 	}
-
-	return hex.EncodeToString(h.Sum(nil)), nil
+	hash := hex.EncodeToString(h.Sum(nil))
+	return hash, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
