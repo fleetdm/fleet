@@ -40,6 +40,9 @@ const (
 	WorkflowComplete
 )
 
+// Adding new workflow needs type, values
+// And support in switch cases
+// Search code for newworkflow
 type WorkflowType int
 
 const (
@@ -186,6 +189,7 @@ type workflowExitMsg struct {
 	message string
 }
 
+// base model w/ global defaults
 func initializeModel() model {
 	s := spinner.New()
 	s.Spinner = spinner.Moon
@@ -239,6 +243,8 @@ func initializeModel() model {
 	}
 }
 
+// Each view should have it's own initialize model to
+// add details to help the queries newview
 func initializeModelForIssues(search string) model {
 	m := initializeModel()
 	m.search = search
@@ -433,6 +439,7 @@ func (m *model) getOriginalIndex(filteredIndex int) int {
 	return filteredIndex
 }
 
+// newview Add a corresponding issue fetcher
 func fetchIssues(search string) tea.Cmd {
 	return func() tea.Msg {
 		issues, err := ghapi.GetIssues(search)
@@ -477,6 +484,7 @@ func fetchSprintItems(projectID, limit int) tea.Cmd {
 	}
 }
 
+// newview add command type / fetcher to switch
 func (m model) Init() tea.Cmd {
 	var fetchCmd tea.Cmd
 	switch m.commandType {
@@ -727,6 +735,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				m.workflowType = WorkflowType(m.workflowCursor)
 				switch m.workflowType {
+				// newworkflow Add to switch to support
 				case BulkAddLabel, BulkRemoveLabel:
 					m.workflowState = LabelInput
 					m.labelInput = ""
@@ -1086,6 +1095,7 @@ func (m model) View() string {
 	case Loading:
 		var loadingMessage string
 		switch m.commandType {
+		// newview add if non default message is preferred when loading
 		case IssuesCommand:
 			loadingMessage = "Fetching Issues..."
 		case ProjectCommand:
@@ -1412,6 +1422,7 @@ func (m *model) executeWorkflow() tea.Cmd {
 	// Create actions and tasks based on workflow type
 	var actions []ghapi.Action
 	switch m.workflowType {
+	// newworkflow add workflow steps here (actions / tasks)
 	case BulkDemoSummary:
 		// Build summary markdown grouped by label category and assignee
 		features := map[string][]ghapi.Issue{}
