@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1384,29 +1383,26 @@ func (ds *Datastore) bulkSetPendingMDMAndroidHostProfilesDB(
 	}
 
 	var profilesToUpsert []*fleet.MDMAndroidProfilePayload
-	var allProfiles []*fleet.MDMAndroidProfilePayload
-	allProfiles = append(allProfiles, profilesToInstall...)
-	allProfiles = append(allProfiles, profilesToRemove...)
-	for _, p := range allProfiles {
-		var operationType fleet.MDMOperationType
-		if slices.Contains(profilesToInstall, p) {
-			operationType = fleet.MDMOperationTypeInstall
-		} else {
+	for setIndex, profiles := range [][]*fleet.MDMAndroidProfilePayload{profilesToInstall, profilesToRemove} {
+		operationType := fleet.MDMOperationTypeInstall
+		if setIndex == 1 {
 			operationType = fleet.MDMOperationTypeRemove
 		}
 
-		profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
-			ProfileUUID:             p.ProfileUUID,
-			ProfileName:             p.ProfileName,
-			HostUUID:                p.HostUUID,
-			OperationType:           operationType,
-			Status:                  nil,
-			Detail:                  "",
-			PolicyRequestUUID:       nil,
-			DeviceRequestUUID:       nil,
-			RequestFailCount:        0,
-			IncludedInPolicyVersion: nil,
-		})
+		for _, p := range profiles {
+			profilesToUpsert = append(profilesToUpsert, &fleet.MDMAndroidProfilePayload{
+				ProfileUUID:             p.ProfileUUID,
+				ProfileName:             p.ProfileName,
+				HostUUID:                p.HostUUID,
+				OperationType:           operationType,
+				Status:                  nil,
+				Detail:                  "",
+				PolicyRequestUUID:       nil,
+				DeviceRequestUUID:       nil,
+				RequestFailCount:        0,
+				IncludedInPolicyVersion: nil,
+			})
+		}
 	}
 
 	err = ds.BulkUpsertMDMAndroidHostProfiles(ctx, profilesToUpsert)
