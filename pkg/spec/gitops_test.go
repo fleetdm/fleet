@@ -272,7 +272,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 					assert.Equal(t, "SELECT 1 FROM osquery_info", gitops.Labels[0].Query)
 					require.Len(t, gitops.Labels[1].Hosts, 2)
 					assert.Equal(t, "host1", gitops.Labels[1].Hosts[0])
-					assert.Equal(t, "host2", gitops.Labels[1].Hosts[1])
+					assert.Equal(t, "2", gitops.Labels[1].Hosts[1])
 
 				}
 

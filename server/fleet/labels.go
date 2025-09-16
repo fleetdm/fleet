@@ -181,6 +181,29 @@ type LabelQueryExecution struct {
 	HostID    uint
 }
 
+type HostsSlice []string
+
+func (s *HostsSlice) UnmarshalJSON(data []byte) error {
+	var raw []interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	var result []string
+	for _, v := range raw {
+		switch val := v.(type) {
+		case string:
+			result = append(result, val)
+		case float64:
+			// JSON numbers are float64, convert to int if needed
+			result = append(result, fmt.Sprintf("%.0f", val))
+		default:
+			return fmt.Errorf("hosts must be strings or integers, got %T", v)
+		}
+	}
+	*s = result
+	return nil
+}
+
 type LabelSpec struct {
 	ID                  uint                `json:"id"`
 	Name                string              `json:"name"`
@@ -189,7 +212,7 @@ type LabelSpec struct {
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts"`
+	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
 }
 
