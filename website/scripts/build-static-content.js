@@ -1394,6 +1394,7 @@ module.exports = {
         let scripts = YAML.parse(scriptsYaml, {prettyErrors: true});
         controlsLibrary.scripts = [];
         let scriptSlugsSeen = [];
+
         for(let script of scripts) {
           if(!script.name) {
             throw new Error(`Could not build script library configuration from YAML. A script (${script}) is missing a "name" value. To resolve, add a name to this script, and try running this script again.`);
@@ -1426,6 +1427,7 @@ module.exports = {
 
           controlsLibrary.scripts.push(script);
         }
+
         if (scripts.length !== _.uniq(_.pluck(controlsLibrary.scripts, 'slug')).length) {
           throw new Error('Failed parsing YAML for script library: scripts as currently named would result in colliding (duplicate) slugs.  To resolve, rename the scripts whose names are too similar.  Note the duplicates: ' + _.pluck(controlsLibrary.scripts, 'slug').sort());
         }//•
@@ -1476,7 +1478,6 @@ module.exports = {
           controlsLibrary.mdmCommands.push(command);
         }
         builtStaticContent.mdmCommands = controlsLibrary.mdmCommands;
-        // builtStaticContent.controlsLibrary = controlsLibrary;
       }
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
