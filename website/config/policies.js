@@ -69,6 +69,8 @@ module.exports.policies = {
   'view-meetups': true,
   'view-os-settings': true,
   'view-scripts': true,
+  'view-script-details': true,
+  'view-command-details': true,
   'view-mdm-commands': true,
   'view-fleetctl-preview': true,
   'get-llm-generated-configuration-profile': true,
