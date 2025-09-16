@@ -194,7 +194,11 @@ func (s *HostsSlice) UnmarshalJSON(data []byte) error {
 		case string:
 			result = append(result, val)
 		case float64:
-			// JSON numbers are float64, convert to int if needed
+			// Check if the float64 is actually an integer
+			if val != float64(int64(val)) {
+				return fmt.Errorf("hosts must be strings or integers, got float %f", val)
+			}
+			// Convert to string
 			result = append(result, fmt.Sprintf("%.0f", val))
 		default:
 			return fmt.Errorf("hosts must be strings or integers, got %T", v)
