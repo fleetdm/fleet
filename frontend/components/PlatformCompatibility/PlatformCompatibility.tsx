@@ -109,7 +109,7 @@ const PlatformCompatibility = ({
   return (
     <div className={baseClass}>
       <b>
-        <TooltipWrapper tipContent={tipContent}>
+        <TooltipWrapper delayShow tipContent={tipContent}>
           Compatible with:
         </TooltipWrapper>
       </b>
