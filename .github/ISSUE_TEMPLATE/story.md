@@ -63,7 +63,7 @@ What else should contributors [keep in mind](https://fleetdm.com/handbook/compan
 - [ ] Database schema migrations: TODO <!-- Specify what changes to the database schema are required. (This will be used to change migration scripts accordingly.) Remove this checkbox if there are no changes necessary. -->
 - [ ] Load testing: TODO  <!-- List any required scalability testing to be conducted.  Remove this checkbox if there is no scalability testing required. -->
 - [ ] Load testing/osquery-perf improvements: TODO <!-- List, or link a subtask for, any osquery-perf or load test environment changes required to comprehensively load test this story if load testing is needed. -->
-- [ ] This is a premium feature/addition. Make sure it's protected in backend as well as frontend: YES/NO <!-- Bolean answer: whether this a premium of free feature/addition. -->
+- [ ] This is a premium feature/addition. Make sure it's protected in backend as well as frontend: YES / NO / N\A <!-- Describes whether this a premium feature/addition, free or N\A. -->
 
 > ℹ️  Please read this issue carefully and understand it.  Pay [special attention](https://fleetdm.com/handbook/company/development-groups#developing-from-wireframes) to UI wireframes, especially "dev notes".
 
