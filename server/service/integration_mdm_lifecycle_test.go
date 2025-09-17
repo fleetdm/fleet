@@ -517,7 +517,7 @@ func (s *integrationMDMTestSuite) recordAppleHostStatus(
 ) ([]*micromdm.CommandPayload, getHostMDMSummaryResponse, getHostMDMResponseTest) {
 	t := s.T()
 
-	s.runWorker()
+	s.runWorkerUntilDone()
 	s.awaitTriggerProfileSchedule(t)
 
 	var cmds []*micromdm.CommandPayload
@@ -570,6 +570,7 @@ func (s *integrationMDMTestSuite) setupLifecycleSettings() {
 		&fleet.MDMAppleBootstrapPackage{Bytes: bp, Name: "pkg.pkg", TeamID: 0},
 		http.StatusOK,
 		"",
+		false,
 	)
 
 	// enable disk encryption
@@ -658,7 +659,7 @@ func (s *integrationMDMTestSuite) TestLifecycleSCEPCertExpiration() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "bs.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a device that's manually enrolled
 	desktopToken := uuid.New().String()

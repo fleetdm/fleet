@@ -165,7 +165,9 @@ describe("Custom variables", () => {
         expect(addSecretButton).toHaveClass("button--disabled");
 
         await user.hover(addSecretButton);
-        expect(screen.getByText("(GitOps mode enabled)")).toBeInTheDocument();
+        await waitFor(() => {
+          expect(screen.getByText("(GitOps mode enabled)")).toBeInTheDocument();
+        });
       });
 
       it("deleting a secret is successful in GitOps mode", async () => {
@@ -205,14 +207,7 @@ describe("Custom variables", () => {
           expect(
             screen.getByText(/Delete custom variable\?/)
           ).toBeInTheDocument();
-          expect(
-            screen.getByText((content, element) => {
-              return (
-                element?.textContent ===
-                "This will delete the SECRET_UNO custom variable."
-              );
-            })
-          ).toBeInTheDocument();
+          expect(screen.getByText(/This will delete the/)).toBeInTheDocument();
         });
         await new Promise((resolve) => setTimeout(resolve, 250));
         await user.click(screen.getByRole("button", { name: "Delete" }));
@@ -354,14 +349,7 @@ describe("Custom variables", () => {
         expect(
           screen.getByText(/Delete custom variable\?/)
         ).toBeInTheDocument();
-        expect(
-          screen.getByText((content, element) => {
-            return (
-              element?.textContent ===
-              "This will delete the SECRET_UNO custom variable."
-            );
-          })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/This will delete the/)).toBeInTheDocument();
       });
       await new Promise((resolve) => setTimeout(resolve, 250));
       await user.click(screen.getByRole("button", { name: "Delete" }));

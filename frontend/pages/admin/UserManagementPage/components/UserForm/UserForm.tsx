@@ -391,6 +391,7 @@ const UserForm = ({
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               text="Learn more about user permissions"
               newTab
+              variant="banner-link"
             />
           </InfoBanner>
         )}
@@ -448,6 +449,7 @@ const UserForm = ({
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
                   text="Learn more about user permissions"
                   newTab
+                  variant="banner-link"
                 />
               </InfoBanner>
               <SelectedTeamsForm

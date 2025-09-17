@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,34 +29,6 @@ type SoftwareInstallerStore interface {
 	Sign(ctx context.Context, fileID string) (string, error)
 }
 
-// FailingSoftwareInstallerStore is an implementation of SoftwareInstallerStore
-// that fails all operations. It is used when S3 is not configured and the
-// local filesystem store could not be setup.
-type FailingSoftwareInstallerStore struct{}
-
-func (FailingSoftwareInstallerStore) Get(ctx context.Context, installerID string) (io.ReadCloser, int64, error) {
-	return nil, 0, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Put(ctx context.Context, installerID string, content io.ReadSeeker) error {
-	return errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Exists(ctx context.Context, installerID string) (bool, error) {
-	return false, errors.New("software installer store not properly configured")
-}
-
-func (FailingSoftwareInstallerStore) Cleanup(ctx context.Context, usedInstallerIDs []string, removeCreatedBefore time.Time) (int, error) {
-	// do not fail for the failing store's cleanup, as unlike the other store
-	// methods, this will be called even if software installers are otherwise not
-	// used (by the cron job).
-	return 0, nil
-}
-
-func (FailingSoftwareInstallerStore) Sign(_ context.Context, _ string) (string, error) {
-	return "", errors.New("software installer store not properly configured")
-}
-
 // SoftwareInstallDetails contains all of the information
 // required for a client to pull in and install software from the fleet server
 type SoftwareInstallDetails struct {
@@ -80,6 +51,8 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
+	MaxRetries uint `json:"max_retries,omitempty"`
 }
 
 type SoftwareInstallerURL struct {
@@ -99,6 +72,8 @@ type SoftwareInstaller struct {
 	TitleID *uint `json:"title_id" db:"title_id"`
 	// Name is the name of the software package.
 	Name string `json:"name" db:"filename"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Extension is the file extension of the software package, inferred from package contents.
 	Extension string `json:"-" db:"extension"`
 	// Version is the version of the software package.
@@ -493,6 +468,7 @@ func SoftwareInstallerPlatformFromExtension(ext string) (string, error) {
 type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
+	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`
 	InstalledVersions []*HostSoftwareInstalledVersion `json:"installed_versions"`
@@ -512,6 +488,18 @@ func (h *HostSoftwareWithInstaller) IsPackage() bool {
 
 func (h *HostSoftwareWithInstaller) IsAppStoreApp() bool {
 	return h.AppStoreApp != nil
+}
+
+func (h *HostSoftwareWithInstaller) ForMyDevicePage(token string) {
+	// convert api style iconURL to device token URL
+	if h.IconUrl != nil && *h.IconUrl != "" {
+		matched := SoftwareTitleIconURLRegex.MatchString(*h.IconUrl)
+		if matched {
+			icon := SoftwareTitleIcon{SoftwareTitleID: h.ID}
+			deviceIconURL := icon.IconUrlWithDeviceToken(token)
+			h.IconUrl = ptr.String(deviceIconURL)
+		}
+	}
 }
 
 type AutomaticInstallPolicy struct {
@@ -534,7 +522,6 @@ type SoftwarePackageOrApp struct {
 	Version       string                 `json:"version"`
 	Platform      string                 `json:"platform"`
 	SelfService   *bool                  `json:"self_service,omitempty"`
-	IconURL       *string                `json:"icon_url"`
 	LastInstall   *HostSoftwareInstall   `json:"last_install"`
 	LastUninstall *HostSoftwareUninstall `json:"last_uninstall"`
 	PackageURL    *string                `json:"package_url"`
@@ -546,14 +533,15 @@ type SoftwarePackageOrApp struct {
 }
 
 type SoftwarePackageSpec struct {
-	URL               string                `json:"url"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
+	URL                string                `json:"url"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 
 	// FMA
 	Slug *string `json:"slug"`
@@ -580,6 +568,11 @@ func (spec SoftwarePackageSpec) ResolveSoftwarePackagePaths(baseDir string) Soft
 	return spec
 }
 
+func (spec SoftwarePackageSpec) IncludesFieldsDisallowedInPackageFile() bool {
+	return len(spec.LabelsExcludeAny) > 0 || len(spec.LabelsIncludeAny) > 0 || len(spec.Categories) > 0 ||
+		spec.SelfService || spec.InstallDuringSetup.Valid
+}
+
 func resolveApplyRelativePath(baseDir string, path string) string {
 	if path != "" && baseDir != "" && !filepath.IsAbs(path) {
 		return filepath.Join(baseDir, path)
@@ -589,27 +582,29 @@ func resolveApplyRelativePath(baseDir string, path string) string {
 }
 
 type MaintainedAppSpec struct {
-	Slug              string                `json:"slug"`
-	SelfService       bool                  `json:"self_service"`
-	PreInstallQuery   TeamSpecSoftwareAsset `json:"pre_install_query"`
-	InstallScript     TeamSpecSoftwareAsset `json:"install_script"`
-	PostInstallScript TeamSpecSoftwareAsset `json:"post_install_script"`
-	UninstallScript   TeamSpecSoftwareAsset `json:"uninstall_script"`
-	LabelsIncludeAny  []string              `json:"labels_include_any"`
-	LabelsExcludeAny  []string              `json:"labels_exclude_any"`
-	Categories        []string              `json:"categories"`
+	Slug               string                `json:"slug"`
+	SelfService        bool                  `json:"self_service"`
+	PreInstallQuery    TeamSpecSoftwareAsset `json:"pre_install_query"`
+	InstallScript      TeamSpecSoftwareAsset `json:"install_script"`
+	PostInstallScript  TeamSpecSoftwareAsset `json:"post_install_script"`
+	UninstallScript    TeamSpecSoftwareAsset `json:"uninstall_script"`
+	LabelsIncludeAny   []string              `json:"labels_include_any"`
+	LabelsExcludeAny   []string              `json:"labels_exclude_any"`
+	Categories         []string              `json:"categories"`
+	InstallDuringSetup optjson.Bool          `json:"setup_experience"`
 }
 
 func (spec MaintainedAppSpec) ToSoftwarePackageSpec() SoftwarePackageSpec {
 	return SoftwarePackageSpec{
-		Slug:              &spec.Slug,
-		PreInstallQuery:   spec.PreInstallQuery,
-		InstallScript:     spec.InstallScript,
-		PostInstallScript: spec.PostInstallScript,
-		UninstallScript:   spec.UninstallScript,
-		SelfService:       spec.SelfService,
-		LabelsIncludeAny:  spec.LabelsIncludeAny,
-		LabelsExcludeAny:  spec.LabelsExcludeAny,
+		Slug:               &spec.Slug,
+		PreInstallQuery:    spec.PreInstallQuery,
+		InstallScript:      spec.InstallScript,
+		PostInstallScript:  spec.PostInstallScript,
+		UninstallScript:    spec.UninstallScript,
+		SelfService:        spec.SelfService,
+		LabelsIncludeAny:   spec.LabelsIncludeAny,
+		LabelsExcludeAny:   spec.LabelsExcludeAny,
+		InstallDuringSetup: spec.InstallDuringSetup,
 	}
 }
 
@@ -626,94 +621,6 @@ type SoftwareSpec struct {
 	Packages            optjson.Slice[SoftwarePackageSpec] `json:"packages,omitempty"`
 	FleetMaintainedApps optjson.Slice[MaintainedAppSpec]   `json:"fleet_maintained_apps,omitempty"`
 	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
-}
-
-// Copy returns a deep copy of SoftwareSpec.
-func (s *SoftwareSpec) Copy() *SoftwareSpec {
-	if s == nil {
-		return nil
-	}
-
-	out := &SoftwareSpec{}
-
-	// Packages
-	out.Packages.Set = s.Packages.Set
-	if s.Packages.Set {
-		if len(s.Packages.Value) > 0 {
-			out.Packages.Value = make([]SoftwarePackageSpec, len(s.Packages.Value))
-			for i := range s.Packages.Value {
-				p := s.Packages.Value[i]
-				pCopy := p
-				if p.LabelsIncludeAny != nil {
-					pCopy.LabelsIncludeAny = append([]string(nil), p.LabelsIncludeAny...)
-				}
-				if p.LabelsExcludeAny != nil {
-					pCopy.LabelsExcludeAny = append([]string(nil), p.LabelsExcludeAny...)
-				}
-				if p.Categories != nil {
-					pCopy.Categories = append([]string(nil), p.Categories...)
-				}
-				if p.Slug != nil {
-					slugVal := *p.Slug
-					pCopy.Slug = &slugVal
-				}
-				out.Packages.Value[i] = pCopy
-			}
-		} else {
-			// Preserve Set=true even when the slice is empty
-			out.Packages.Value = nil
-		}
-	}
-
-	// FleetMaintainedApps
-	out.FleetMaintainedApps.Set = s.FleetMaintainedApps.Set
-	if s.FleetMaintainedApps.Set {
-		if len(s.FleetMaintainedApps.Value) > 0 {
-			out.FleetMaintainedApps.Value = make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value))
-			for i := range s.FleetMaintainedApps.Value {
-				m := s.FleetMaintainedApps.Value[i]
-				mCopy := m
-				if m.LabelsIncludeAny != nil {
-					mCopy.LabelsIncludeAny = append([]string(nil), m.LabelsIncludeAny...)
-				}
-				if m.LabelsExcludeAny != nil {
-					mCopy.LabelsExcludeAny = append([]string(nil), m.LabelsExcludeAny...)
-				}
-				if m.Categories != nil {
-					mCopy.Categories = append([]string(nil), m.Categories...)
-				}
-				out.FleetMaintainedApps.Value[i] = mCopy
-			}
-		} else {
-			out.FleetMaintainedApps.Value = nil
-		}
-	}
-
-	// AppStoreApps
-	out.AppStoreApps.Set = s.AppStoreApps.Set
-	if s.AppStoreApps.Set {
-		if len(s.AppStoreApps.Value) > 0 {
-			out.AppStoreApps.Value = make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value))
-			for i := range s.AppStoreApps.Value {
-				app := s.AppStoreApps.Value[i]
-				appCopy := app
-				if app.LabelsIncludeAny != nil {
-					appCopy.LabelsIncludeAny = append([]string(nil), app.LabelsIncludeAny...)
-				}
-				if app.LabelsExcludeAny != nil {
-					appCopy.LabelsExcludeAny = append([]string(nil), app.LabelsExcludeAny...)
-				}
-				if app.Categories != nil {
-					appCopy.Categories = append([]string(nil), app.Categories...)
-				}
-				out.AppStoreApps.Value[i] = appCopy
-			}
-		} else {
-			out.AppStoreApps.Value = nil
-		}
-	}
-
-	return out
 }
 
 // HostSoftwareInstall represents installation of software on a host from a
@@ -767,6 +674,11 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+
+	// RetriesRemaining indicates how many retries are left for this installation.
+	// When > 0, the server should treat this as an intermediate failure and assume
+	// another attempt is in progress. This field helps make retry handling idempotent.
+	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic

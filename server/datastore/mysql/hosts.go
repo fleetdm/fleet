@@ -89,6 +89,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			computer_name,
 			uuid,
 			platform,
+			platform_like,
 			osquery_version,
 			os_version,
 			uptime,
@@ -101,7 +102,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			hardware_serial,
 			refetch_critical_queries_until
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		`
 		result, err := tx.ExecContext(
 			ctx,
@@ -115,6 +116,7 @@ func (ds *Datastore) NewHost(ctx context.Context, host *fleet.Host) (*fleet.Host
 			host.ComputerName,
 			host.UUID,
 			host.Platform,
+			host.PlatformLike,
 			host.OsqueryVersion,
 			host.OSVersion,
 			host.Uptime,
@@ -1376,8 +1378,8 @@ func (ds *Datastore) applyHostFilters(
 }
 
 func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.HostListOptions) (batchScriptExecutionJoin string, batchScriptExecutionFilter string, updatedWhereParams []interface{}) {
-	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id`
-	batchScriptExecutionFilter = `bsehr.batch_execution_id = ?`
+	batchScriptExecutionJoin = `LEFT JOIN batch_activity_host_results bsehr ON h.id = bsehr.host_id JOIN batch_activities ba ON bsehr.batch_execution_id = ba.execution_id`
+	batchScriptExecutionFilter = `ba.execution_id = ?`
 	whereParams = append(whereParams, *opt.BatchScriptExecutionIDFilter)
 	if opt.BatchScriptExecutionStatusFilter.IsValid() {
 		batchScriptExecutionJoin += ` LEFT JOIN host_script_results hsr ON bsehr.host_execution_id = hsr.execution_id`
@@ -1391,13 +1393,16 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			//                      but either way we haven't canceled it.
 			// bsehr.error IS NULL <- this means the batch script framework didn't mark this host as incompatible
 			//                        with this script run.
-			batchScriptExecutionFilter += ` AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)`
+			batchScriptExecutionFilter += ` AND ((hsr.host_id AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)) OR (hsr.host_id is NULL AND ba.canceled = 0 AND bsehr.error IS NULL))`
 		case fleet.BatchScriptExecutionErrored:
 			batchScriptExecutionFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
 		case fleet.BatchScriptExecutionIncompatible:
 			batchScriptExecutionFilter += ` AND bsehr.error IS NOT NULL`
 		case fleet.BatchScriptExecutionCanceled:
-			batchScriptExecutionFilter += ` AND hsr.exit_code IS NULL AND hsr.canceled = 1`
+			// A host may have a host_script_results record if the batch started, in which case canceling will set that record's `canceled` field.
+			// Or it may not have one, if it's a scheduled batch, in which case if the batch is marked as canceled then we'll count
+			// the host as canceled as well.
+			batchScriptExecutionFilter += ` AND ((hsr.exit_code IS NULL AND hsr.canceled = 1) OR (hsr.host_id IS NULL AND bsehr.error IS NULL AND ba.canceled = 1))`
 		}
 	}
 	return batchScriptExecutionJoin, batchScriptExecutionFilter, whereParams
@@ -1497,7 +1502,7 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 		sql += fmt.Sprintf("AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(h.distributed_interval, h.config_tls_refresh) + %d SECOND) <= ?", fleet.OnlineIntervalBuffer)
 		params = append(params, now)
 	case fleet.StatusMIA, fleet.StatusMissing:
-		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ?"
+		sql += "AND DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending')"
 		params = append(params, now)
 	}
 	return sql, params
@@ -1968,6 +1973,9 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 		args = append(args, *lowDiskSpace)
 	}
 
+	// Always join with host_mdm to check enrollment status for ABM devices
+	hostMdmJoin := `LEFT JOIN host_mdm hmdm ON (h.id = hmdm.host_id)`
+
 	whereClause := ds.whereFilterHostsByTeams(filter, "h")
 	if platform != nil {
 		whereClause += " AND h.platform IN (?) "
@@ -1977,8 +1985,8 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	sqlStatement := fmt.Sprintf(`
 			SELECT
 				COUNT(*) total,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) mia,
-				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? THEN 1 ELSE 0 END), 0) missing_30_days_count,
+				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) mia,
+				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL 30 DAY) <= ? AND (hmdm.enrollment_status IS NULL OR hmdm.enrollment_status != 'Pending') THEN 1 ELSE 0 END), 0) missing_30_days_count,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) <= ? THEN 1 ELSE 0 END), 0) offline,
 				COALESCE(SUM(CASE WHEN DATE_ADD(COALESCE(hst.seen_time, h.created_at), INTERVAL LEAST(distributed_interval, config_tls_refresh) + %d SECOND) > ? THEN 1 ELSE 0 END), 0) online,
 				COALESCE(SUM(CASE WHEN DATE_ADD(h.created_at, INTERVAL 1 DAY) >= ? THEN 1 ELSE 0 END), 0) new,
@@ -1986,9 +1994,10 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 			FROM hosts h
 			LEFT JOIN host_seen_times hst ON (h.id = hst.host_id)
 			%s
+			%s
 			WHERE %s
 			LIMIT 1;
-		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostDisksJoin, whereClause)
+		`, fleet.OnlineIntervalBuffer, fleet.OnlineIntervalBuffer, lowDiskSelect, hostMdmJoin, hostDisksJoin, whereClause)
 
 	stmt, args, err := sqlx.In(sqlStatement, args...)
 	if err != nil {
@@ -2272,8 +2281,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 					hostname,
 					computer_name,
 					hardware_model,
-					platform
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+					platform,
+					platform_like
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
 			`
 			result, err := tx.ExecContext(ctx, sqlInsert,
 				zeroTime,
@@ -2290,6 +2300,7 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 				hostInfo.ComputerName,
 				hostInfo.HardwareModel,
 				hostInfo.Platform,
+				hostInfo.PlatformLike,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "orbit enroll error inserting host details")
@@ -2325,9 +2336,9 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, opts ...fleet.DatastoreEnr
 	return &host, nil
 }
 
-// EnrollHost enrolls the osquery agent to Fleet.
-func (ds *Datastore) EnrollHost(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-	enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+// EnrollOsquery enrolls the osquery agent to Fleet.
+func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+	enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 	for _, opt := range opts {
 		opt(enrollConfig)
 	}
@@ -4378,6 +4389,7 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 	// use writer as it is used just after creation in some cases
 	err := sqlx.GetContext(ctx, ds.writer(ctx), &hmdm, `
 		SELECT
+			h.id AS host_id,
 			h.hardware_serial,
 			COALESCE(hm.installed_from_dep, false) as installed_from_dep,
 			hd.display_name,
@@ -4385,7 +4397,10 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
 			h.node_key IS NOT NULL as osquery_enrolled,
 			EXISTS (SELECT 1 FROM nano_cert_auth_associations WHERE id = h.uuid AND renew_command_uuid IS NOT NULL) AS scep_renewal_in_progress,
-			h.platform
+			h.platform,
+			hda.mdm_migration_deadline IS NOT NULL AND
+				(hda.mdm_migration_completed IS NULL OR
+				(hda.mdm_migration_deadline > hda.mdm_migration_completed)) AS migration_in_progress
 		FROM
 			hosts h
 		LEFT JOIN

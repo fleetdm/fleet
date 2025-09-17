@@ -339,18 +339,6 @@ Conduct a postmortem meetings for every service or feature outage and every crit
 Instructions for creating and maintaining a TUF repo are available on our [TUF handbook page](https://fleetdm.com/handbook/engineering/tuf). 
 
 
-### Provide same-day support for major version macOS releases
-
-Beginning with macOS 16, Fleet offers same-day support for all major version macOS releases. 
-
-1. Install major version macOS beta release on test devices. 
-2. Create a new [QA release issue](https://github.com/fleetdm/fleet/issues/new?assignees=xpkoala%2Cpezhub&labels=%23g-mdm%2C%23g-endpoint-ops%2C%3Arelease&projects=&template=release-qa.md&title=Release+QA%3A+macOS+16) with the new major version in the issue title.
-3. Complete all manual smoke tests in the issue and confirm they are passing. 
-4. Confirm all automated tests are passing.
-5. [File bugs](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=P1%2Cbug%2C%3Areproduce%2C%3Aincoming&projects=&template=bug-report.md&title=) with a `P1` label and assign to the appropriate [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups).
-6. When all bugs are fixed, follow the [writing a feature guide](https://fleetdm.com/handbook/engineering#write-a-feature-guide) process to publish an article announcing Fleet same-day support for the new major release.
-
-
 ### Fix flaky Go tests
 
 Sometimes automated tests fail intermittently, causing PRs to become blocked and engineers to become sad and vengeful. Debugging a "flaky" or "rando" test failure typically involves:
@@ -630,6 +618,12 @@ If the action fails, please complete the following steps:
 
 <rituals :rituals="rituals['handbook/engineering/engineering.rituals.yml']"></rituals>
 
+#### Stubs
+The following stubs are included only to make links backward compatible.
+
+##### Provide same-day support for major version macOS releases
+
+Please see [Fleet supports Apple’s latest operating systems: macOS Tahoe 26, iOS 26, and iPadOS 26](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26)
 
 
 <meta name="maintainedBy" value="lukeheath">

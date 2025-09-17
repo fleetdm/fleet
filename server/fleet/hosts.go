@@ -1024,6 +1024,10 @@ func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
 }
 
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
@@ -1364,6 +1368,7 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
+	HostID             uint   `json:"-" db:"host_id"`
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
@@ -1372,6 +1377,7 @@ type HostMDMCheckinInfo struct {
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
 }
 

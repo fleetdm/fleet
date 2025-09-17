@@ -1388,6 +1388,7 @@ This activity contains the following fields:
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1423,6 +1424,7 @@ This activity contains the following fields:
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1527,6 +1529,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1596,6 +1599,7 @@ This activity contains the following fields:
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1714,6 +1718,51 @@ This activity contains the following fields:
 ```json
 {
   "name": "DIGICERT_WIFI"
+}
+```
+
+## added_hydrant
+
+Generated when Hydrant certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## deleted_hydrant
+
+Generated when Hydrant certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## edited_hydrant
+
+Generated when Hydrant certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
 }
 ```
 
@@ -1898,7 +1947,7 @@ This activity contains the following fields:
 
 ## added_conditional_access_integration_microsoft
 
-Generated when Microsoft Entra is connected for conditonal access.
+Generated when Microsoft Entra is connected for conditional access.
 
 This activity does not contain any detail fields.
 
@@ -1990,6 +2039,25 @@ This activity contains the following fields:
 {
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## edited_setup_experience_software
+
+Generated when a user edits setup experience software.
+
+This activity contains the following fields:
+- "platform": the platform of the host ("linux", "darwin").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").
+
+#### Example
+
+```json
+{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 

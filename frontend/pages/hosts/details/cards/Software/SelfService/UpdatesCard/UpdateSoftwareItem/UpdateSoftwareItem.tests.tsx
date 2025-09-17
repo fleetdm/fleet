@@ -10,7 +10,7 @@ import { IDeviceSoftwareWithUiStatus } from "interfaces/software";
 import UpdateSoftwareItem from "./UpdateSoftwareItem";
 
 describe("Self-service - UpdateSoftwareItem component", () => {
-  const render = createCustomRenderer();
+  const render = createCustomRenderer({ withBackendMock: true });
 
   it("renders software name, version, and icon", () => {
     const software: IDeviceSoftwareWithUiStatus = {

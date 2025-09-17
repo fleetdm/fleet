@@ -3,6 +3,8 @@ import { useQuery } from "react-query";
 import { isEmpty } from "lodash";
 import { InjectedRouter } from "react-router";
 
+import paths from "router/paths";
+
 import activitiesAPI, {
   IActivitiesResponse,
 } from "services/entities/activities";
@@ -32,7 +34,6 @@ import ActivityAutomationDetailsModal from "./components/ActivityAutomationDetai
 import RunScriptDetailsModal from "./components/RunScriptDetailsModal/RunScriptDetailsModal";
 import SoftwareDetailsModal from "./components/LibrarySoftwareDetailsModal";
 import VppDetailsModal from "./components/VPPDetailsModal";
-import ScriptBatchSummaryModal from "./components/ScriptBatchSummaryModal";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {
@@ -74,10 +75,6 @@ const ActivityFeed = ({
     setSoftwareDetails,
   ] = useState<IActivityDetails | null>(null);
   const [vppDetails, setVppDetails] = useState<IActivityDetails | null>(null);
-  const [
-    scriptBatchExecutionDetails,
-    setScriptBatchExecutionDetails,
-  ] = useState<IActivityDetails | null>(null);
 
   const queryShown = useRef("");
   const queryImpact = useRef<string | undefined>(undefined);
@@ -124,11 +121,7 @@ const ActivityFeed = ({
     setPageIndex(pageIndex + 1);
   };
 
-  const handleDetailsClick = ({
-    type,
-    details,
-    created_at,
-  }: IShowActivityDetailsData) => {
+  const handleDetailsClick = ({ type, details }: IShowActivityDetailsData) => {
     switch (type) {
       case ActivityType.LiveQuery:
         queryShown.current = details?.query_sql ?? "";
@@ -172,7 +165,11 @@ const ActivityFeed = ({
         break;
       case ActivityType.RanScriptBatch:
       case ActivityType.CanceledScriptBatch:
-        setScriptBatchExecutionDetails({ ...details, created_at });
+        router.push(
+          paths.CONTROLS_SCRIPTS_BATCH_DETAILS(
+            details?.batch_execution_id || ""
+          )
+        );
         break;
       default:
         break;
@@ -294,13 +291,6 @@ const ActivityFeed = ({
         <VppDetailsModal
           details={vppDetails}
           onCancel={() => setVppDetails(null)}
-        />
-      )}
-      {scriptBatchExecutionDetails && (
-        <ScriptBatchSummaryModal
-          scriptBatchExecutionDetails={scriptBatchExecutionDetails}
-          onCancel={() => setScriptBatchExecutionDetails(null)}
-          router={router}
         />
       )}
     </div>

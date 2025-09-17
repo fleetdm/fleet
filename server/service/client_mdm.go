@@ -67,13 +67,12 @@ func (c *Client) RequestAppleABM() ([]byte, error) {
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d/metadata", teamID)
-	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
 	var err error
 	if forUpdate {
-		err = c.authenticatedRequestWithQuery(request, verb, path, &responseBody, "for_update=true")
+		err = c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, "for_update=true")
 	} else {
-		err = c.authenticatedRequest(request, verb, path, &responseBody)
+		err = c.authenticatedRequest(nil, verb, path, &responseBody)
 	}
 	return responseBody.MDMAppleBootstrapPackage, err
 }
@@ -97,14 +96,13 @@ func (c *Client) DeleteBootstrapPackageIfNeeded(teamID uint, dryRun bool) error 
 
 func (c *Client) DeleteBootstrapPackage(teamID uint, dryRun bool) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
-	request := deleteBootstrapPackageRequest{}
 	var responseBody deleteBootstrapPackageResponse
-	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 
 func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage, dryRun bool) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
+	verb, path := "POST", "/api/latest/fleet/bootstrap"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -426,17 +424,15 @@ func (ec *eulaContent) Handle(res *http.Response) error {
 
 func (c *Client) GetEULAContent(token string) ([]byte, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
-	request := getMDMEULARequest{}
 	var responseBody eulaContent
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.Bytes, err
 }
 
 func (c *Client) GetEULAMetadata() (*fleet.MDMEULA, error) {
 	verb, path := "GET", "/api/latest/fleet/setup_experience/eula/metadata"
-	request := getMDMEULAMetadataRequest{}
 	var responseBody getMDMEULAMetadataResponse
-	err := c.authenticatedRequest(request, verb, path, &responseBody)
+	err := c.authenticatedRequest(nil, verb, path, &responseBody)
 	return responseBody.MDMEULA, err
 }
 
@@ -459,9 +455,8 @@ func (c *Client) DeleteEULAIfNeeded(dryRun bool) error {
 
 func (c *Client) DeleteEULA(token string, dryRun bool) error {
 	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/setup_experience/eula/%s", token)
-	request := deleteMDMEULARequest{}
 	var responseBody deleteMDMEULAResponse
-	err := c.authenticatedRequestWithQuery(request, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
+	err := c.authenticatedRequestWithQuery(nil, verb, path, &responseBody, fmt.Sprintf("dry_run=%t", dryRun))
 	return err
 }
 

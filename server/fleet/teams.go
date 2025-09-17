@@ -182,16 +182,26 @@ type TeamWebhookSettings struct {
 }
 
 // DefaultTeam represents the limited team information returned for team ID 0
-// Structure matches Team to be JSON-compatible with existing tests
 type DefaultTeam struct {
-	ID              uint                       `json:"id"`
-	Name            string                     `json:"name"`
+	ID                uint   `json:"id"`
+	Name              string `json:"name"`
+	DefaultTeamConfig        // Embedded struct - fields appear at top level in JSON
+}
+
+type DefaultTeamConfig struct {
 	WebhookSettings DefaultTeamWebhookSettings `json:"webhook_settings"`
+	Integrations    DefaultTeamIntegrations    `json:"integrations"`
 }
 
 // DefaultTeamWebhookSettings contains webhook settings for team ID 0
 type DefaultTeamWebhookSettings struct {
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
+}
+
+// DefaultTeamIntegrations contains only the integrations supported for team ID 0
+type DefaultTeamIntegrations struct {
+	Jira    []*TeamJiraIntegration    `json:"jira"`
+	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
 }
 
 type TeamSpecSoftwareAsset struct {
@@ -205,6 +215,10 @@ type TeamSpecAppStoreApp struct {
 	LabelsExcludeAny []string `json:"labels_exclude_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
+	// InstallDuringSetup indicates whether a package should be incorporated into setup experience;
+	// if not supplied (Valid field is false) then the server-side value for setup experience membership
+	// is not changed, for compatibility with the old fleetctl apply format
+	InstallDuringSetup optjson.Bool `json:"setup_experience"`
 }
 
 type TeamMDM struct {
@@ -336,25 +350,28 @@ func (t *TeamConfig) Copy() *TeamConfig {
 		clone.AgentOptions = &agentOptionsCopy
 	}
 
+	// Deep copy WebhookSettings
+	if t.WebhookSettings.HostStatusWebhook != nil {
+		hostStatusCopy := *t.WebhookSettings.HostStatusWebhook
+		clone.WebhookSettings.HostStatusWebhook = &hostStatusCopy
+	}
+	if len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs) > 0 {
+		clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs = make([]uint, len(t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs))
+		copy(clone.WebhookSettings.FailingPoliciesWebhook.PolicyIDs, t.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	}
+
 	// Deep copy integrations
 	clone.Integrations = t.Integrations.Copy()
+
+	// Deep copy Features
+	clone.Features = *t.Features.Copy()
 
 	// Deep copy all MDM fields (includes macOS/windows custom settings and setup software)
 	clone.MDM = *t.MDM.Copy()
 
-	// Deep copy Scripts slice
-	if t.Scripts.Set && len(t.Scripts.Value) > 0 {
-		clone.Scripts = optjson.Slice[string]{
-			Set:   true,
-			Value: make([]string, len(t.Scripts.Value)),
-		}
-		copy(clone.Scripts.Value, t.Scripts.Value)
-	}
-
-	// Deep copy Software if present
-	if t.Software != nil {
-		clone.Software = t.Software.Copy()
-	}
+	// Do not copy script and software since they will not be stored/cached in the database.
+	clone.Scripts = optjson.Slice[string]{}
+	clone.Software = nil
 
 	return &clone
 }

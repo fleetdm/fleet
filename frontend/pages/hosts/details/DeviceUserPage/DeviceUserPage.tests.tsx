@@ -1,14 +1,20 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 
 import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
 import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
+import createMockLicense from "__mocks__/licenseMock";
+
+import { IGetSetupSoftwareStatusesResponse } from "services/entities/device_user";
+
 import {
   customDeviceHandler,
   defaultDeviceCertificatesHandler,
   defaultDeviceHandler,
+  deviceSetupExperienceHandler,
+  emptySetupExperienceHandler,
 } from "test/handlers/device-handler";
 import DeviceUserPage from "./DeviceUserPage";
 
@@ -30,6 +36,7 @@ describe("Device User Page", () => {
   it("hides the software tab if the device has no software", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -52,6 +59,7 @@ describe("Device User Page", () => {
   it("hides the certificates card if the device has no certificates", async () => {
     mockServer.use(defaultDeviceHandler);
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -79,6 +87,7 @@ describe("Device User Page", () => {
 
     mockServer.use(customDeviceHandler({ host }));
     mockServer.use(defaultDeviceCertificatesHandler);
+    mockServer.use(emptySetupExperienceHandler);
 
     const render = createCustomRenderer({
       withBackendMock: true,
@@ -97,11 +106,79 @@ describe("Device User Page", () => {
 
     expect(screen.queryByText(/Certificates/)).not.toBeInTheDocument();
   });
+  describe("Setup experience software installation", () => {
+    const REGULAR_DUP_MATCHER = /Last fetched/;
+    const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/;
+
+    const setupTest = async (
+      deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
+      setupExperienceOverrides?: Partial<IGetSetupSoftwareStatusesResponse>
+    ) => {
+      mockServer.use(customDeviceHandler(deviceUserResponseOverrides));
+      mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(deviceSetupExperienceHandler(setupExperienceOverrides));
+
+      const render = createCustomRenderer({
+        withBackendMock: true,
+      });
+
+      const { user } = render(
+        <DeviceUserPage
+          router={mockRouter}
+          params={{ device_auth_token: "testToken" }}
+          location={mockLocation}
+        />
+      );
+
+      await screen.findByText(/My device/);
+
+      return user;
+    };
+
+    it("does not check for setup experience software on Fleet Free", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest({ host, license: createMockLicense({ tier: "free" }) });
+
+      await waitFor(() => {
+        expect(screen.getByText(REGULAR_DUP_MATCHER)).toBeInTheDocument();
+      });
+    });
+
+    it("checks for setup experience software on Fleet Premium, and renders Setting Up Your Device if there is such software", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest({ host });
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+    it("checks for setup experience software on Fleet Premium, and renders the normal device user page if there is no such software", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest({ host }, { setup_experience_results: {} });
+
+      await waitFor(() => {
+        expect(screen.getByText(REGULAR_DUP_MATCHER)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(SETTING_UP_YOUR_DEVICE_MATCHER)).toBeNull();
+    });
+  });
 
   describe("MDM enrollment", () => {
     const setupTest = async (overrides: Partial<IDeviceUserResponse>) => {
       mockServer.use(customDeviceHandler(overrides));
       mockServer.use(defaultDeviceCertificatesHandler);
+      mockServer.use(emptySetupExperienceHandler);
 
       const render = createCustomRenderer({
         withBackendMock: true,

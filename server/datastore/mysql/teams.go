@@ -558,7 +558,9 @@ func defaultTeamConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.Tea
 
 // SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
 func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
-	configBytes, err := json.Marshal(config)
+	// Create a copy to avoid saving unsupported fields such as scripts and software
+	configCopy := config.Copy()
+	configBytes, err := json.Marshal(&configCopy)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}
