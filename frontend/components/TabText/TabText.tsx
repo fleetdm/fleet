@@ -37,7 +37,7 @@ const TabText = ({
 
   return (
     <div className={classNames}>
-      <div className={`${baseClass}__text}`} data-text={children}>
+      <div className={`${baseClass}__text`} data-text={children}>
         {children}
       </div>
       {renderCount()}
