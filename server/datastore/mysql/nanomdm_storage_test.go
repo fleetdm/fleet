@@ -138,7 +138,7 @@ func testGetPendingLockCommand(t *testing.T, ds *Datastore) {
 	// This should fail with conflict error since a lock is already pending
 	err = ns.EnqueueDeviceLockCommand(ctx, host, lockCmd2, "111111")
 	require.Error(t, err)
-	require.True(t, fleet.IsConflict(err), "Should get conflict error for duplicate lock")
+	require.True(t, isConflict(err), "Should get conflict error for duplicate lock")
 
 	// The pending command should still be the original one
 	cmd, pin, err = ns.GetPendingLockCommand(ctx, host.UUID)
@@ -171,7 +171,7 @@ func testGetPendingLockCommand(t *testing.T, ds *Datastore) {
 
 	err = ns.EnqueueDeviceLockCommand(ctx, host, lockCmd3, "222222")
 	require.Error(t, err)
-	require.True(t, fleet.IsConflict(err), "Should still get conflict error since device is locked")
+	require.True(t, isConflict(err), "Should still get conflict error since device is locked")
 
 	// No pending command should exist since the previous was acknowledged
 	cmd, pin, err = ns.GetPendingLockCommand(ctx, host.UUID)
@@ -265,7 +265,7 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 				successCount++
 				pins = append(pins, pin)
 				successMu.Unlock()
-			case fleet.IsConflict(err):
+			case isConflict(err):
 				successMu.Lock()
 				conflictCount++
 				successMu.Unlock()
@@ -312,15 +312,5 @@ func testEnqueueDeviceLockCommandRaceCondition(t *testing.T, ds *Datastore) {
 	require.Equal(t, numGoroutines-1, conflictCount, "All other requests should get conflict error")
 	require.Equal(t, 1, commandCount, "Only one command should be in nano_commands table")
 	require.Len(t, pins, 1, "Only one PIN should be generated")
-	if len(pins) > 0 {
-		require.Equal(t, pins[0], storedPIN, "Stored PIN should match the successful request")
-	}
-
-	// Clean up
-	_, err = ds.writer(ctx).Exec(
-		`DELETE FROM nano_commands WHERE command_uuid LIKE 'test-lock-%'`)
-	require.NoError(t, err)
-	_, err = ds.writer(ctx).Exec(
-		`DELETE FROM host_mdm_actions WHERE host_id = ?`, host.ID)
-	require.NoError(t, err)
+	require.Equal(t, pins[0], storedPIN, "Stored PIN should match the successful request")
 }

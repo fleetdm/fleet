@@ -24,6 +24,30 @@ import (
 	nanomdm_log "github.com/micromdm/nanolib/log"
 )
 
+// lockConflictError indicates a lock command already exists for the host
+type lockConflictError struct {
+	hostUUID string
+}
+
+func (e lockConflictError) Error() string {
+	return "host already has a pending lock command"
+}
+
+func (e lockConflictError) IsConflict() bool {
+	return true
+}
+
+// isConflict checks if an error implements the IsConflict() interface
+func isConflict(err error) bool {
+	type conflictInterface interface {
+		IsConflict() bool
+	}
+	if c, ok := err.(conflictInterface); ok {
+		return c.IsConflict()
+	}
+	return false
+}
+
 // NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
@@ -131,11 +155,14 @@ func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID str
 		ORDER BY nc.created_at DESC
 		LIMIT 1`
 
-	var cmdUUID, requestType string
-	var cmdRaw []byte
-	var pin string
+	var result struct {
+		CommandUUID string `db:"command_uuid"`
+		RequestType string `db:"request_type"`
+		Command     []byte `db:"command"`
+		UnlockPIN   string `db:"unlock_pin"`
+	}
 
-	err := s.db.QueryRowContext(ctx, query, hostUUID).Scan(&cmdUUID, &requestType, &cmdRaw, &pin)
+	err := sqlx.GetContext(ctx, s.db, &result, query, hostUUID)
 	if err == sql.ErrNoRows {
 		return nil, "", nil
 	}
@@ -144,16 +171,16 @@ func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID str
 	}
 
 	cmd := &mdm.Command{
-		CommandUUID: cmdUUID,
+		CommandUUID: result.CommandUUID,
 		Command: struct {
 			RequestType string
 		}{
-			RequestType: requestType,
+			RequestType: result.RequestType,
 		},
-		Raw: cmdRaw,
+		Raw: result.Command,
 	}
 
-	return cmd, pin, nil
+	return cmd, result.UnlockPIN, nil
 }
 
 // EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
@@ -179,7 +206,7 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 		// If we got a row and it has a lock_ref, fail with conflict
 		if err == nil && existingLockRef != nil && *existingLockRef != "" {
 			// A lock command already exists, don't overwrite
-			return fleet.NewConflictError("host already has a pending lock command")
+			return lockConflictError{hostUUID: host.UUID}
 		}
 
 		// If the row doesn't exist, that's OK, we'll insert it

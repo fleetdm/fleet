@@ -682,15 +682,9 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
-// NewConflictError creates a new ConflictError with the given message.
-func NewConflictError(message string) error {
-	return &ConflictError{Message: message}
-}
-
-// IsConflict checks if the error is a ConflictError.
-func IsConflict(err error) bool {
-	var conflictErr *ConflictError
-	return errors.As(err, &conflictErr)
+// IsConflict implements the conflict interface for middleware compatibility
+func (e ConflictError) IsConflict() bool {
+	return true
 }
 
 // Errorer interface is implemented by response structs to encode business logic errors

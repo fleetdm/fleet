@@ -141,7 +141,10 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 
 	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, unlockPIN); err != nil {
 		// Check if another request just created a lock
-		if fleet.IsConflict(err) {
+		type conflictInterface interface {
+			IsConflict() bool
+		}
+		if c, ok := err.(conflictInterface); ok && c.IsConflict() {
 			// Another goroutine won the race, fetch the command that was created
 			existingCmd, existingPIN, err := svc.storage.GetPendingLockCommand(ctx, host.UUID)
 			if err != nil {
@@ -152,6 +155,7 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 				if pushErr := svc.SendNotifications(ctx, []string{host.UUID}); pushErr != nil {
 					// Log the push error but still return the PIN since the command exists
 					// The push can be retried on subsequent requests
+					ctxerr.Handle(ctx, ctxerr.Wrap(ctx, pushErr, "failed to send push notification after lock race"))
 					return existingPIN, nil
 				}
 				return existingPIN, nil

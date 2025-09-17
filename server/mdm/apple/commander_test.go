@@ -25,6 +25,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// mockConflictError is used in tests to simulate a conflict error
+type mockConflictError struct {
+	msg string
+}
+
+func (e *mockConflictError) Error() string {
+	return e.msg
+}
+
+func (e *mockConflictError) IsConflict() bool {
+	return true
+}
+
 func TestMDMAppleCommander(t *testing.T) {
 	ctx := context.Background()
 	mdmStorage := &mdmmock.MDMAppleStore{}
@@ -222,7 +235,7 @@ func TestMDMAppleCommanderConcurrentDeviceLock(t *testing.T) {
 			return nil
 		}
 		// Command already exists, return conflict error
-		return fleet.NewConflictError("host already has a pending lock command")
+		return &mockConflictError{msg: "host already has a pending lock command"}
 	}
 
 	// Mock RetrievePushInfo
@@ -361,7 +374,7 @@ func TestMDMAppleCommanderDeviceLockPushNotificationFailure(t *testing.T) {
 			return nil
 		case 2:
 			// Second request gets conflict
-			return fleet.NewConflictError("host already has a pending lock command")
+			return &mockConflictError{msg: "host already has a pending lock command"}
 		default:
 			t.Fatalf("Unexpected call to EnqueueDeviceLockCommand: %d", enqueueCalls)
 			return nil
