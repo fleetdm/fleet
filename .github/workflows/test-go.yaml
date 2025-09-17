@@ -91,7 +91,7 @@ jobs:
         if [[ "${{ matrix.suite }}" == "main" ]]; then
           echo "CI_TEST_PKG=main" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
-          echo "DOCKER_COMMAND=\"${{ env.DOCKER_COMMAND }} localstack\"" >> $GITHUB_ENV
+          echo "DOCKER_COMMAND=${{ env.DOCKER_COMMAND }} localstack" >> $GITHUB_ENV
         elif [[ "${{ matrix.suite }}" == "fast" ]]; then
           # DO NOT add any dependencies in this test suite.
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
