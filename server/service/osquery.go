@@ -1402,7 +1402,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	const rpmSource = "rpm_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu or Debian
+	// Return early if platform is not Ubuntu, Debian, or RHEL (Inc. Fedora)
 	// We may need to add more platforms in the future
 	if platform != "ubuntu" && platform != "debian" && platform != "rhel" {
 		return
