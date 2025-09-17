@@ -1422,7 +1422,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	// a fresh ubuntu 24.04 install
 	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
-	rpmPackages := make(map[string]struct{}, 40) // TODO: how many for fedora or other rhel install?
+	rpmPackages := make(map[string]struct{}, 60)
 
 	// Track indexes of rows to remove
 	indexesToRemove := []int{}
