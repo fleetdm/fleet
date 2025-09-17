@@ -189,9 +189,7 @@ func TestExpandEnv(t *testing.T) {
 			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
 		}, // nested variables
 	} {
-		origEnv := os.Environ()
-		t.Cleanup(func() { RestoreEnv(t, origEnv) })
-
+		SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -222,9 +220,7 @@ func TestLookupEnvSecrets(t *testing.T) {
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
 	} {
-		origEnv := os.Environ()
-		t.Cleanup(func() { RestoreEnv(t, origEnv) })
-
+		SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
