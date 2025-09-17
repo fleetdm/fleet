@@ -1386,7 +1386,6 @@ module.exports = {
       async()=>{
         let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'docs/scripts.yml';
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-        let linesInYamlFile = yaml.split('\n');
         let scripts = YAML.parse(yaml, {prettyErrors: true});
         let scriptsLibrary = [];
         let scriptSlugsSeen = [];
@@ -1409,14 +1408,6 @@ module.exports = {
           if(!script.script) {
             throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a script value. To resolve, add a script value and try running this script again.`);
           }
-
-          // Determine the line in the yaml that this query starts on.
-          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
-          let lineWithTheScriptsNameKey = _.find(linesInYamlFile, (line)=>{
-            return line.includes('name: '+script.name);
-          });
-          let lineNumberForEdittingThisScript = linesInYamlFile.indexOf(lineWithTheScriptsNameKey);
-          script.lineNumberInYaml = lineNumberForEdittingThisScript; // Set the line number for edits.
 
           // Format the script so it be safely stored as a string in the website's JSON configuration.
           script.script = _.escape(script.script);
@@ -1471,12 +1462,12 @@ module.exports = {
             throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a command value. To resolve, add a command that contains an XML (for Windows commands) or plist (for Apple commands) MDM command, and try running this script again.`);
           }
 
-          // Determine the line in the yaml that this query starts on.
-          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          // Determine the line in the yaml that this command starts on.
+          // this will allow us to link users directly to the commands position in the YAML file (currently >1500 lines) when users want to make a change.
           let lineWithThisCommandsNameKey = _.find(linesInYamlFile, (line)=>{
             return line.includes('name: '+command.name);
           });
-          let lineNumberForEdittingThisCommand = linesInYamlFile.indexOf(lineWithThisCommandsNameKey);
+          let lineNumberForEdittingThisCommand = linesInYamlFile.indexOf(lineWithThisCommandsNameKey) + 1;
           command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
 
 
