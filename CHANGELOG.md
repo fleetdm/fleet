@@ -1,3 +1,9 @@
+## Fleet 4.73.2 (Sep 17, 2025)
+
+### Bug fixes
+
+* Optimized the query used to list a host’s script results so it performs well with large result sets.
+
 ## Fleet 4.73.1 (Sep 11, 2025)
 
 ### Bug fixes
