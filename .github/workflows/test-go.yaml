@@ -118,7 +118,7 @@ jobs:
         else
           echo "CI_TEST_PKG=${{ matrix.suite }}" >> $GITHUB_ENV
           echo "NEED_DOCKER=1" >> $GITHUB_ENV
-          echo "START_LOCALSTACK=localstack" >> $GITHUB_ENV
+          echo "DOCKER_COMMAND=\"${{ env.DOCKER_COMMAND }} localstack\"" >> $GITHUB_ENV
         fi
 
     - name: Set Go race setting on schedule
@@ -139,7 +139,7 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND ${{ env.START_LOCALSTACK }} &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
