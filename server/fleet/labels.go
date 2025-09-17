@@ -188,7 +188,11 @@ func (s *HostsSlice) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	var result []string
+	if raw == nil {
+		// nil slice, nothing to do
+		return nil
+	}
+	result := make([]string, 0, len(raw))
 	for _, v := range raw {
 		switch val := v.(type) {
 		case string:
