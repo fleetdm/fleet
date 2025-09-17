@@ -475,7 +475,8 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 
 		updateStmt := fmt.Sprintf(
 			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
-			strings.Join(updateCases, " "), strings.Join(updateIDs, ",")
+			strings.Join(updateCases, " "),
+			strings.Join(updateIDs, ","),
 		)
 
 		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
@@ -484,7 +485,7 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 
 		insertStmt := fmt.Sprintf(
 			`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`,
-			strings.Join(insertValues, ", ")
+			strings.Join(insertValues, ", "),
 		)
 
 		if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
