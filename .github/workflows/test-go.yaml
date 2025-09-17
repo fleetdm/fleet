@@ -248,7 +248,6 @@ jobs:
 
     - name: Run Go Tests
       run: |
-        export AWS_ENDPOINT_URL="http://localhost:4566"
         GO_TEST_EXTRA_FLAGS="-v -race=$RACE_ENABLED -timeout=$GO_TEST_TIMEOUT ${{ env.RUN_TESTS_ARG }}" \
           TEST_LOCK_FILE_PATH=$(pwd)/lock \
           TEST_CRON_NO_RECOVER=1 \

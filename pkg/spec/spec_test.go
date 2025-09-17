@@ -161,8 +161,11 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "bar": "", "zoo": ""}, `$foo${bar}$zoo`, ``, nil},
 		{map[string]string{}, `$foo`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{"foo": "1"}, `$foo$bar`, ``, checkMultiErrors(t, "environment variable \"bar\" not set")},
-		{map[string]string{"bar": "1"}, `$foo $bar $zoo`, ``,
-			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set")},
+		{
+			map[string]string{"bar": "1"},
+			`$foo $bar $zoo`, ``,
+			checkMultiErrors(t, "environment variable \"foo\" not set", "environment variable \"zoo\" not set"),
+		},
 		{map[string]string{"foo": "4", "bar": "2"}, `$foo$bar`, `42`, nil},
 		{map[string]string{"foo": "42", "bar": ""}, `$foo$bar`, `42`, nil},
 		{map[string]string{}, `$$`, ``, checkMultiErrors(t, "environment variable \"$\" not set")},
@@ -180,9 +183,15 @@ func TestExpandEnv(t *testing.T) {
 		{map[string]string{"foo": "", "$": "2"}, `${$}${foo}var`, `2var`, nil},
 		{map[string]string{}, `${foo}var`, ``, checkMultiErrors(t, "environment variable \"foo\" not set")},
 		{map[string]string{}, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, `foo PREVENT_ESCAPING_bar $ FLEET_VAR_`, nil}, // nothing to replace
-		{map[string]string{"foo": "BAR"}, `\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
-			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil}, // nested variables
+		{
+			map[string]string{"foo": "BAR"},
+			`\$FLEET_VAR_$foo \${FLEET_VAR_$foo} \${FLEET_VAR_${foo}2}`,
+			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
+		}, // nested variables
 	} {
+		origEnv := os.Environ()
+		t.Cleanup(func() { RestoreEnv(t, origEnv) })
+
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -206,9 +215,16 @@ func TestLookupEnvSecrets(t *testing.T) {
 	}{
 		{map[string]string{"foo": "1"}, `$foo`, map[string]string{}, nil},
 		{map[string]string{"FLEET_SECRET_foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{"FLEET_SECRET_foo": "1"}, nil},
-		{map[string]string{"foo": "1"}, `$FLEET_SECRET_foo`, map[string]string{},
-			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set")},
+		{
+			map[string]string{"foo": "1"},
+			`$FLEET_SECRET_foo`,
+			map[string]string{},
+			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
+		},
 	} {
+		origEnv := os.Environ()
+		t.Cleanup(func() { RestoreEnv(t, origEnv) })
+
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -262,26 +278,26 @@ func TestGetExclusionZones(t *testing.T) {
 		{
 			[]string{"testdata", "policies", "policies.yml"},
 			map[[2]int]string{
-				[2]int{46, 106}:  "  description: This policy should always fail.\n  resolution:",
-				[2]int{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
-				[2]int{268, 328}: "  description: This policy should always pass.\n  resolution:",
-				[2]int{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
+				{46, 106}:  "  description: This policy should always fail.\n  resolution:",
+				{93, 155}:  "  resolution: There is no resolution for this policy.\n  query:",
+				{268, 328}: "  description: This policy should always pass.\n  resolution:",
+				{315, 678}: "  resolution: |\n    Automated method:\n    Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n    cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n  query:",
 			},
 		},
 		{
 			[]string{"testdata", "global_config_no_paths.yml"},
 			map[[2]int]string{
-				[2]int{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
-				[2]int{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
-				[2]int{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
-				[2]int{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
-				[2]int{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
-				[2]int{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
-				[2]int{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
-				[2]int{6102, 6149}: "    description: A cool global label\n    query:", //
-				[2]int{6246, 6292}: "    description: A fly global label\n    hosts:",  //
+				{866, 949}:   "    description: Collect osquery performance stats directly from osquery\n    query:", //
+				{1754, 1818}: "    description: This policy should always fail.\n    resolution:",                    //
+				{1803, 1869}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{1986, 2050}: "    description: This policy should always pass.\n    resolution:",                    //
+				{2035, 2101}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2394, 2458}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2443, 2509}: "    resolution: There is no resolution for this policy.\n    query:",                  //
+				{2613, 2677}: "    description: This policy should always fail.\n    resolution:",                    //
+				{2662, 3035}: "    resolution: |\n      Automated method:\n      Ask your system administrator to deploy the following script which will ensure proper Security Auditing Retention:\n      cp /etc/security/audit_control ./tmp.txt; origExpire=$(cat ./tmp.txt  | grep expire-after);  sed \"s/${origExpire}/expire-after:60d OR 5G/\" ./tmp.txt > /etc/security/audit_control; rm ./tmp.txt;\n    query:",
+				{6102, 6149}: "    description: A cool global label\n    query:", //
+				{6246, 6292}: "    description: A fly global label\n    hosts:",  //
 			},
 		},
 	}

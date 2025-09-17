@@ -30,6 +30,9 @@ func TestConfigRoundtrip(t *testing.T) {
 
 	// viper tries to load config from the environment too, clear it in case
 	// any config values are set in the environment.
+	origEnv := os.Environ()
+	t.Cleanup(func() { RestoreEnv(t, origEnv) })
+
 	os.Clearenv()
 
 	cmd := &cobra.Command{}
@@ -303,6 +306,9 @@ osquery:
 			// be done in our particular setup.
 
 			// set the environment variables
+			origEnv := os.Environ()
+			t.Cleanup(func() { RestoreEnv(t, origEnv) })
+
 			os.Clearenv()
 			for _, env := range c.envVars {
 				kv := strings.SplitN(env, "=", 2)
