@@ -181,7 +181,7 @@
       "slug": "p4v/darwin",
       "platform": "darwin",
       "unique_identifier": "com.perforce.p4v",
-      "description": ""
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
       "name": "Postman",
