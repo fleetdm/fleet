@@ -668,7 +668,7 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={false}
+            canResendProfiles={host.platform === "darwin"}
             hostId={host.id}
             platform={host.platform}
             hostMDMData={host.mdm}
