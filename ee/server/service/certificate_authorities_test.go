@@ -169,6 +169,13 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 		if ca.Type != string(fleet.CATypeNDESSCEPProxy) {
 			assert.Nil(t, ca.AdminURL)
+		}
+		if ca.Type != string(fleet.CATypeSmallstep) {
+			assert.Nil(t, ca.ChallengeURL)
+		}
+
+		// Since username and password is now shared for NDES and Smallstep
+		if ca.Type != string(fleet.CATypeNDESSCEPProxy) && ca.Type != string(fleet.CATypeSmallstep) {
 			assert.Nil(t, ca.Username)
 			assert.Nil(t, ca.Password)
 		}
@@ -199,8 +206,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			digiCertService: digicert.NewService(),
 			hydrantService:  hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
-				ValidateSCEPURLFunc:          func(_ context.Context, _ string) error { return nil },
-				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
+				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error { return nil },
 			},
 		}
 		svc.config.Server.PrivateKey = "supersecret"
@@ -392,6 +400,36 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.Username, *createdCA.Username)
 		require.NotNil(t, createdCA.Password)
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.Password, *createdCA.Password)
+		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - Happy path", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+		createdCA := createdCAs[0]
+
+		assert.Equal(t, createSmallstepRequest.Smallstep.Name, *createdCA.Name)
+		assert.Equal(t, createSmallstepRequest.Smallstep.URL, *createdCA.URL)
+		assert.Equal(t, string(fleet.CATypeSmallstep), createdCA.Type)
+		require.NotNil(t, createdCA.ChallengeURL)
+		assert.Equal(t, createSmallstepRequest.Smallstep.ChallengeURL, *createdCA.ChallengeURL)
+		require.NotNil(t, createdCA.Username)
+		assert.Equal(t, createSmallstepRequest.Smallstep.Username, *createdCA.Username)
+		require.NotNil(t, createdCA.Password)
+		assert.Equal(t, createSmallstepRequest.Smallstep.Password, *createdCA.Password)
 		verifyNilFieldsForType(t, createdCA)
 	})
 
@@ -883,6 +921,70 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 
 		createdCA, err := svc.NewCertificateAuthority(ctx, createNDESSCEPRequest)
 		require.ErrorContains(t, err, "Insufficient permissions for NDES SCEP admin URL. Please correct and try again.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - bad name", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "Smallstep SCEP WIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid characters in the \"name\" field.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - invalid URL format", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "bozo",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid Smallstep SCEP URL.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - invalid challenge validation", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		svc.scepConfigService = &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+			ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error {
+				return errors.New("some error")
+			},
+		}
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "bozo",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid challenge URL or credentials.")
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})

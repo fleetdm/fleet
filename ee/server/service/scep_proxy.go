@@ -373,6 +373,11 @@ func (s *SCEPConfigService) ValidateSCEPURL(ctx context.Context, url string) err
 	return nil
 }
 
+func (s *SCEPConfigService) ValidateSmallstepChallengeURL(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) error {
+	_, err := s.GetSmallstepSCEPChallenge(ctx, ca)
+	return err
+}
+
 func (s *SCEPConfigService) GetSmallstepSCEPChallenge(ctx context.Context, ca fleet.SmallstepSCEPProxyCA) (string, error) {
 	// Get the challenge from Smallstep
 	client := fleethttp.NewClient(fleethttp.WithTimeout(30 * time.Second))
