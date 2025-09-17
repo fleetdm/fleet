@@ -82,7 +82,6 @@ const EditLabelPage = ({ routeParams, router }: IEditLabelPageProps) => {
   ) => {
     try {
       await labelsAPI.update(labelId, formData);
-      router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label updated successfully.");
     } catch {
       renderFlash("error", "Couldn't edit label. Please try again.");
