@@ -132,16 +132,10 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		p.Smallstep.URL = fleet.Preprocess(p.Smallstep.URL)
 		p.Smallstep.ChallengeURL = fleet.Preprocess(p.Smallstep.ChallengeURL)
 		p.Smallstep.Username = fleet.Preprocess(p.Smallstep.Username)
-		// TODO(sca): add validation
-		// if err := svc.validateSmallstepSCEPProxy(ctx, &SmallstepSCEPProxyCA{
-		// 	Name:       p.Smallstep.Name,
-		// 	URL:        p.Smallstep.URL,
-		// 	ChallengeURL:  p.Smallstep.ChallengeURL,
-		// 	Username:   p.Smallstep.Username,
-		// 	Password:   p.Smallstep.Password,
-		// }); err != nil {
-		// 	return nil, err
-		// }
+
+		if err := svc.validateSmallstepSCEPProxy(ctx, p.Smallstep, errPrefix); err != nil {
+			return nil, err
+		}
 
 		caToCreate.Type = string(fleet.CATypeSmallstep)
 		caToCreate.Name = &p.Smallstep.Name
@@ -375,6 +369,24 @@ func (svc *Service) validateCustomSCEPProxy(ctx context.Context, customSCEP *fle
 	if err := svc.scepConfigService.ValidateSCEPURL(ctx, customSCEP.URL); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate custom SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+	}
+	return nil
+}
+
+func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCEP *fleet.SmallstepSCEPProxyCA, errPrefix string) error {
+	if err := validateCAName(smallstepSCEP.Name, errPrefix); err != nil {
+		return err
+	}
+	if err := validateURL(smallstepSCEP.URL, "Smallstep SCEP", errPrefix); err != nil {
+		return err
+	}
+	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
+	}
+	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
+		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
+		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
 	}
 	return nil
 }
