@@ -3393,14 +3393,63 @@ org_settings:
 	cases := []struct {
 		name             string
 		cfg              string
-		mockSetup        func(t *testing.T, ds *mock.Store)
+		mockSetup        func(t *testing.T, ds *mock.Store, gitopsDir string)
 		dryRunAssertion  func(t *testing.T, ds *mock.Store, out string, err error)
 		realRunAssertion func(t *testing.T, ds *mock.Store, out string, err error)
 	}{
 		{
 			name: "valid pdf file (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] would've applied EULA")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.NoError(t, err)
+				assert.Contains(t, out, "[+] applied EULA")
+				assert.True(t, ds.MDMInsertEULAFuncInvoked)
+			},
+		},
+		{
+			name: "relative path to working dir to pdf file (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./testdata/gitops/tiny_eula.pdf"`),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+					return nil, &notFoundError{} // No existing EULA
+				}
+			},
+			dryRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, "error uploading EULA: reading eula file:")
+				assert.ErrorContains(t, err, "no such file or directory")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+			realRunAssertion: func(t *testing.T, ds *mock.Store, out string, err error) {
+				assert.Error(t, err)
+				assert.ErrorContains(t, err, "error uploading EULA: reading eula file:")
+				assert.ErrorContains(t, err, "no such file or directory")
+				assert.False(t, ds.MDMInsertEULAFuncInvoked)
+			},
+		},
+		{
+			name: "relative path to yaml file to pdf file (no existing EULA uploaded)",
+			cfg:  createGlobalGitOpsConfig(`end_user_license_agreement: "./lib/eula.pdf"`),
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
+				err := os.Mkdir(filepath.Join(dir, "lib"), 0o755)
+				require.NoError(t, err)
+				tmpPDF, err := os.Create(filepath.Join(dir, "lib", "eula.pdf"))
+				require.NoError(t, err)
+				_, err = tmpPDF.Write(pdfContent)
+				require.NoError(t, err)
+				err = tmpPDF.Close()
+				require.NoError(t, err)
+
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3419,7 +3468,7 @@ org_settings:
 		{
 			name: "valid new pdf file (different EULA already uploaded)",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, pdfPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
@@ -3443,7 +3492,7 @@ org_settings:
 		{
 			name: "no EULA specified (no existing EULA uploaded)",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3464,7 +3513,7 @@ org_settings:
 		{
 			name: "deleting existing EULA",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return &fleet.MDMEULA{
 						Name:  pdfPath,
@@ -3486,7 +3535,7 @@ org_settings:
 		{
 			name: "not a PDF file",
 			cfg:  createGlobalGitOpsConfig(fmt.Sprintf(`end_user_license_agreement: "%s"`, invalidPDFPath)),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					return nil, &notFoundError{} // No existing EULA
 				}
@@ -3501,7 +3550,7 @@ org_settings:
 		{
 			name: "uploading the same EULA again",
 			cfg:  createGlobalGitOpsConfig(""),
-			mockSetup: func(t *testing.T, ds *mock.Store) {
+			mockSetup: func(t *testing.T, ds *mock.Store, dir string) {
 				ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
 					hash := sha256.Sum256(pdfContent) // Simulate same EULA
 					return &fleet.MDMEULA{
@@ -3536,13 +3585,13 @@ org_settings:
 				return nil
 			}
 
-			// these mocks are defined in the individual test cases
-			tt.mockSetup(t, ds)
-
 			tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 			require.NoError(t, err)
 			_, err = tmpFile.WriteString(tt.cfg)
 			require.NoError(t, err)
+
+			// these mocks are defined in the individual test cases
+			tt.mockSetup(t, ds, filepath.Dir(tmpFile.Name()))
 
 			// Dry run
 			out, err := RunAppNoChecks([]string{"gitops", "-f", tmpFile.Name(), "--dry-run"})

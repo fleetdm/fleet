@@ -2989,6 +2989,7 @@ func (r *listHostCertificatesRequest) ValidateRequest() error {
 type listHostCertificatesResponse struct {
 	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
 	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Count        uint                            `json:"count"`
 	Err          error                           `json:"error,omitempty"`
 }
 
@@ -3003,7 +3004,7 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 	if res == nil {
 		res = []*fleet.HostCertificatePayload{}
 	}
-	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
+	return listHostCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {

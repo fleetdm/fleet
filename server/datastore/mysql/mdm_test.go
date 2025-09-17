@@ -34,6 +34,7 @@ func TestMDMShared(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestMDMCommands", testMDMCommands},
+		{"TestListMDMCommandsWithTeamFilter", testListMDMCommandsWithTeamFilter},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
 		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
@@ -384,6 +385,106 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cmds, 1)
 	require.Equal(t, appleCmdUUID2, cmds[0].CommandUUID)
+}
+
+// testListMDMCommandsWithTeamFilter tests listing MDM commands with team filters
+// This specifically tests the regression where h.team_id was referenced but the query uses combined_commands alias
+func testListMDMCommandsWithTeamFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test-team-mdm-commands"})
+	require.NoError(t, err)
+
+	// Create a host in the team
+	teamHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "team-host",
+		OsqueryHostID:  ptr.String("osquery-team"),
+		NodeKey:        ptr.String("node-key-team"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "789012",
+		TeamID:         &team.ID,
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, teamHost, false)
+
+	// Create a command for the team host
+	teamCmdUUID := uuid.New().String()
+	teamCmd := createRawAppleCmd("ProfileList", teamCmdUUID)
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	err = commander.EnqueueCommand(ctx, []string{teamHost.UUID}, teamCmd)
+	require.NoError(t, err)
+
+	// Create a user with team access
+	teamUser := &fleet.User{
+		ID:    999,
+		Email: "team-user@example.com",
+		Teams: []fleet.UserTeam{{Team: *team, Role: fleet.RoleMaintainer}},
+	}
+
+	// List commands with team filter (no host identifier) - this would trigger the bug hit by customer
+	cmds, err := ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: teamUser},
+		&fleet.MDMCommandListOptions{},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
+
+	// Test with a specific team filter
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: teamUser, TeamID: &team.ID},
+		&fleet.MDMCommandListOptions{},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
+
+	// Create a host in no team
+	globalHost, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:       "global-host",
+		OsqueryHostID:  ptr.String("osquery-global"),
+		NodeKey:        ptr.String("node-key-global"),
+		UUID:           uuid.NewString(),
+		Platform:       "darwin",
+		HardwareSerial: "789013",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, globalHost, false)
+
+	// Create a command for the global host
+	globalCmdUUID := uuid.New().String()
+	globalCmd := createRawAppleCmd("ProfileList", globalCmdUUID)
+	err = commander.EnqueueCommand(ctx, []string{globalHost.UUID}, globalCmd)
+	require.NoError(t, err)
+
+	// Team user should only see team command
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: teamUser},
+		&fleet.MDMCommandListOptions{},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 1)
+	require.Equal(t, teamCmdUUID, cmds[0].CommandUUID)
+
+	// Test with admin user (should see all commands)
+	adminUser := test.UserAdmin
+	cmds, err = ds.ListMDMCommands(
+		ctx,
+		fleet.TeamFilter{User: adminUser},
+		&fleet.MDMCommandListOptions{},
+	)
+	require.NoError(t, err)
+	require.Len(t, cmds, 2)
+	var got []string
+	for _, cmd := range cmds {
+		got = append(got, cmd.CommandUUID)
+	}
+	require.ElementsMatch(t, []string{teamCmdUUID, globalCmdUUID}, got)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {

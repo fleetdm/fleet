@@ -99,7 +99,7 @@ func (ds *Datastore) ListMDMCommands(
 	}
 
 	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
-	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "h")
+	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "combined_commands")
 	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand

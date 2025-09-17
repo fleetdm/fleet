@@ -34,6 +34,8 @@ var (
 	CantLockPersonalHostsMessage                 = "Couldn't lock. This command isn't available for personal hosts."
 	CantDisableDiskEncryptionIfPINRequiredErrMsg = "Couldn't disable disk encryption, you need to disable the BitLocker PIN requirement first."
 	CantEnablePINRequiredIfDiskEncryptionEnabled = "Couldn't enable BitLocker PIN requirement, you must enable disk encryption first."
+	CantResendAppleDeclarationProfilesMessage    = "Can't resend declaration (DDM) profiles. Unlike configuration profiles (.mobileconfig), the host automatically checks in to get the latest DDM profiles."
+	CantResendWindowsProfilesMessage             = "Can't resend Windows configuration profiles."
 )
 
 // ErrWithStatusCode is an interface for errors that should set a specific HTTP

@@ -783,6 +783,20 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 	}
 }
 
+func (s *integrationMDMTestSuite) TestUserAuthenticate() {
+	t := s.T()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	err = mdmDevice.UserAuthenticate()
+	require.ErrorContains(t, err, "410 Gone")
+}
+
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
@@ -883,9 +897,9 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 		})
 		checkStoredCertAuthAssociation(mdmDevice.UUID, 0)
 
-		// TODO: server returns 500 on account of cert auth but what is the expected behavior?
+		// server returns 403 Forbidden for cert auth failures (enrollment not associated with cert)
 		res, err := mdmDevice.GetBootstrapToken()
-		require.ErrorContains(t, err, "500") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
+		require.ErrorContains(t, err, "403") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
 		require.Nil(t, res)
 	})
 }

@@ -3600,8 +3600,9 @@ func (svc *MDMAppleCheckinAndCommandService) GetBootstrapToken(*mdm.Request, *md
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/userauthenticate
-func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm.UserAuthenticate) ([]byte, error) {
-	return nil, nil
+func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(r *mdm.Request, ua *mdm.UserAuthenticate) ([]byte, error) {
+	level.Debug(svc.logger).Log("msg", "declining management of network user", "host_uuid", r.ID, "host_user_uuid", ua.UserID)
+	return nil, nano_service.NewHTTPStatusError(http.StatusGone, ctxerr.New(r.Context, "userAuthenticate not supported"))
 }
 
 // DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.

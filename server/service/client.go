@@ -1955,6 +1955,9 @@ func (c *Client) DoGitOps(
 
 		// we want to apply the EULA only for the global settings
 		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
+			if eulaPath != "" {
+				eulaPath = resolveApplyRelativePath(baseDir, eulaPath)
+			}
 			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 			if err != nil {
 				return nil, nil, err
