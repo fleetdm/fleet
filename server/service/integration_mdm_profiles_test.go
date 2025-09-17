@@ -3459,6 +3459,15 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Keys in declaration (DDM) profile must contain only letters and start with a uppercase letter. Keys in Android profile must contain only letters and start with a lowercase letter.")
 
+	// Android invalid keys
+	for key, expectedErr := range fleet.AndroidForbiddenJSONKeys {
+		body, headers = generateNewProfileMultipartRequest(t,
+			"android.json", []byte(fmt.Sprintf(`{"%s": true}`, key)), s.token, nil)
+		res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, expectedErr)
+	}
+
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
 		{ProfileUUID: noTeamAppleProfUUID, Platform: "darwin", Name: "apple-global-profile", Identifier: "test-global-ident", TeamID: nil, Scope: string(fleet.PayloadScopeSystem)},

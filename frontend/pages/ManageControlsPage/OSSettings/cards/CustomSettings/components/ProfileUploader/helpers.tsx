@@ -92,7 +92,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     return "Couldn't add. The JSON file doesn't include any fields.";
   }
 
-  if (apiReason.includes("keys in declaration (DDM) profile")) {
+  if (apiReason.includes("Keys in declaration (DDM) profile")) {
     return (
       <>
         <span>
@@ -119,7 +119,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (
     apiReason.includes(
-      'Android configuration profile can\'t include "statusReportingSettings" setting'
+      'Android configuration profile can\'t include "statusReportingSettings"'
     )
   ) {
     return (
