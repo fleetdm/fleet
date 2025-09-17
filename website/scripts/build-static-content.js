@@ -1376,23 +1376,19 @@ module.exports = {
         builtStaticContent.appLibrary = appLibrary;
       },
       //
-      //   ██████╗ ██████╗ ███╗   ██╗████████╗██████╗  ██████╗ ██╗     ███████╗      ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
-      //  ██╔════╝██╔═══██╗████╗  ██║╚══██╔══╝██╔══██╗██╔═══██╗██║     ██╔════╝      ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
-      //  ██║     ██║   ██║██╔██╗ ██║   ██║   ██████╔╝██║   ██║██║     ███████╗      ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
-      //  ██║     ██║   ██║██║╚██╗██║   ██║   ██╔══██╗██║   ██║██║     ╚════██║      ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
-      //  ╚██████╗╚██████╔╝██║ ╚████║   ██║   ██║  ██║╚██████╔╝███████╗███████║      ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
-      //   ╚═════╝ ╚═════╝ ╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚══════╝      ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //  ███████╗ ██████╗██████╗ ██╗██████╗ ████████╗███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔════╝██╔══██╗██║██╔══██╗╚══██╔══╝██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ███████╗██║     ██████╔╝██║██████╔╝   ██║   ███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ╚════██║██║     ██╔══██╗██║██╔═══╝    ██║   ╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ███████║╚██████╗██║  ██║██║██║        ██║   ███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝        ╚═╝   ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
       //
       async()=>{
-        let controlsLibrary = {};
-        //
-        //  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗╔═╗
-        //  ╚═╗║  ╠╦╝║╠═╝ ║ ╚═╗
-        //  ╚═╝╚═╝╩╚═╩╩   ╩ ╚═╝
         let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'docs/scripts.yml';
-        let scriptsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-        let scripts = YAML.parse(scriptsYaml, {prettyErrors: true});
-        controlsLibrary.scripts = [];
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
+        let scripts = YAML.parse(yaml, {prettyErrors: true});
+        let scriptsLibrary = [];
         let scriptSlugsSeen = [];
 
         for(let script of scripts) {
@@ -1413,6 +1409,15 @@ module.exports = {
           if(!script.script) {
             throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a script value. To resolve, add a script value and try running this script again.`);
           }
+
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithTheScriptsNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+script.name);
+          });
+          let lineNumberForEdittingThisScript = linesInYamlFile.indexOf(lineWithTheScriptsNameKey);
+          script.lineNumberInYaml = lineNumberForEdittingThisScript; // Set the line number for edits.
+
           // Format the script so it be safely stored as a string in the website's JSON configuration.
           script.script = _.escape(script.script);
 
@@ -1425,25 +1430,26 @@ module.exports = {
           }
           scriptSlugsSeen.push(script.slug);
 
-          controlsLibrary.scripts.push(script);
+          scriptsLibrary.push(script);
         }
-
-        if (scripts.length !== _.uniq(_.pluck(controlsLibrary.scripts, 'slug')).length) {
-          throw new Error('Failed parsing YAML for script library: scripts as currently named would result in colliding (duplicate) slugs.  To resolve, rename the scripts whose names are too similar.  Note the duplicates: ' + _.pluck(controlsLibrary.scripts, 'slug').sort());
-        }//•
-        builtStaticContent.scripts = controlsLibrary.scripts;
-
-
-        //  ╔╦╗╔╦╗╔╦╗  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗╔═╗
-        //  ║║║ ║║║║║  ║  ║ ║║║║║║║╠═╣║║║ ║║╚═╗
-        //  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
+        builtStaticContent.scripts = scriptsLibrary;
+        builtStaticContent.scriptsLibraryYmlRepoPath = RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO;
+      },
+      //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //   ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      async()=>{
         let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'docs/mdm-commands.yml';
-        let commandsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
-        let mdmCommands = YAML.parse(commandsYaml, {prettyErrors: true});
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
+        let mdmCommands = YAML.parse(yaml, {prettyErrors: true});
 
-        // Then for each item in the json, build a configuration object to add to the sails.builtStaticContent.appLibrary array.
-        controlsLibrary.mdmCommands = [];
+        let mdmCommandsLibrary = [];
         let commandSlugsSeen = [];
+
         for(let command of mdmCommands) {
           if(!command.name) {
             throw new Error(`Could not build MDM command library configuration from YAML. A command (${command}) is missing a "name" value. To resolve, add a name to this command, and try running this script again.`);
@@ -1464,6 +1470,16 @@ module.exports = {
           if(!command.command) {
             throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a command value. To resolve, add a command that contains an XML (for Windows commands) or plist (for Apple commands) MDM command, and try running this script again.`);
           }
+
+          // Determine the line in the yaml that this query starts on.
+          // this will allow us to link users directly to the query's position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithThisCommandsNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+command.name);
+          });
+          let lineNumberForEdittingThisCommand = linesInYamlFile.indexOf(lineWithThisCommandsNameKey);
+          command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
+
+
           command.command = _.escape(command.command);
           command.description = _.escape(command.description);
           // Create a url slug for this script
@@ -1475,9 +1491,10 @@ module.exports = {
           }
           commandSlugsSeen.push(command.slug);
 
-          controlsLibrary.mdmCommands.push(command);
+          mdmCommandsLibrary.push(command);
         }
-        builtStaticContent.mdmCommands = controlsLibrary.mdmCommands;
+        builtStaticContent.mdmCommands = mdmCommandsLibrary;
+        builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
       }
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
