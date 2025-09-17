@@ -154,19 +154,15 @@ $max-width: 2560px;
 }
 
 @mixin link {
-  color: $ui-fleet-black-75;
+  color: $core-vibrant-blue;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
-  &:hover {
-    color: $ui-fleet-black-75-over;
-    // border-bottom: 1px solid transparent;
-  }
   &:focus-visible {
-    outline-color: $core-focused-outline;
+    outline-color: #d9d9fe;
     outline-offset: 3px;
     outline-style: solid;
-    outline-width: 1px;
+    outline-width: 2px;
     border-radius: 2px;
   }
 }
@@ -309,7 +305,7 @@ $max-width: 2560px;
 
         // When tabbing
         &:focus-visible {
-          outline: 2px solid $core-fleet-black;
+          outline: 2px solid $ui-vibrant-blue-25;
           outline-offset: 1px;
           border-radius: 4px;
         }
@@ -413,14 +409,14 @@ $max-width: 2560px;
     align-items: center;
     height: 100%;
     padding: 0 16px;
-    color: $ui-fleet-black-75;
+    color: $core-fleet-black;
     font-weight: $regular;
     text-decoration: none;
     border-bottom: none;
     cursor: pointer;
 
     &:hover {
-      color: $ui-fleet-black-75-over;
+      color: $core-vibrant-blue;
     }
   }
 
@@ -428,7 +424,7 @@ $max-width: 2560px;
     background-color: $ui-fleet-black-5;
     a {
       font-weight: $bold;
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       * > .__react_component_tooltip {
         font-weight: initial;
       }
