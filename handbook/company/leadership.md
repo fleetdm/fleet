@@ -96,7 +96,8 @@ Departmental page structure:
 The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
 
 **Day 1 _Prepare_ (in-person):**
-  - Board deck finalization: CEO preps keynote, absorbs graphs provided by the E-Group, and begins derivation into top-level OKRs.
+  - Board deck finalization:
+  - The CEO preps keynote on plane, absorbs graphs in the airport, and derives top-level OKRs in the hotel.
   - T-Group arrives midday.
   - Last-minute edits with the team in the evening.
   - OKR brainstorming right after (+async for the E-Group who aren't physically there). 
