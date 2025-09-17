@@ -38,6 +38,7 @@ func TestSoftware(t *testing.T) {
 		{"SaveHost", testSoftwareSaveHost},
 		{"CPE", testSoftwareCPE},
 		{"HostDuplicates", testSoftwareHostDuplicates},
+		{"InsertNewInstalledHostSoftwareDB", testInsertNewInstalledHostSoftwareDB},
 		{"DuplicateNameDifferentBundleIdentifier", testSoftwareDuplicateNameDifferentBundleIdentifier},
 		{"DifferentNameSameBundleIdentifier", testSoftwareDifferentNameSameBundleIdentifier},
 		{"CheckForDeletedInstalledSoftware", testCheckForDeletedInstalledSoftware},
@@ -241,13 +242,343 @@ func testSoftwareCPE(t *testing.T, ds *Datastore) {
 	require.NoError(t, iterator.Close())
 }
 
+func testInsertNewInstalledHostSoftwareDB(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	testCases := []struct {
+		name     string
+		before   func(ds *Datastore)
+		testFunc func(*testing.T, *Datastore)
+	}{
+		{
+			name: "Bundle id updates with empty softwareChecksums",
+			before: func(ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+				sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+				require.NoError(t, err)
+
+				incoming := map[string]fleet.Software{sw.ToUniqueStr(): *sw}
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				_, _, err = ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+				// Create incoming software with same bundle ID but different name
+				sw, err := fleet.SoftwareFromOsqueryRow("GoLand 2.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+				require.NoError(t, err)
+
+				incoming := map[string]fleet.Software{sw.ToUniqueStr(): *sw}
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				// should contain existing software
+				require.NotEmpty(t, currentSoftware)
+				// should be empty due to bundle id update
+				require.Empty(t, incomingChecksumToSoftware)
+				// should contain bundle id that requires update
+				require.Len(t, existingBundleIDsToUpdate, 1)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				require.Empty(t, inserted)
+
+				require.Len(t, updated, 1)
+				require.NotNil(t, updated[0].BundleIdentifier)
+				require.Equal(t, "com.jetbrains.goland", *updated[0].BundleIdentifier)
+			},
+		},
+		{
+			name:   "Normal Software Processing",
+			before: func(ds *Datastore) {},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+				sw, err := fleet.SoftwareFromOsqueryRow("VSCode.app", "1.85.0", "apps", "", "", "", "", "com.microsoft.vscode", "", "", "")
+				require.NoError(t, err)
+
+				incoming := map[string]fleet.Software{sw.ToUniqueStr(): *sw}
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				// new software
+				require.NotEmpty(t, incomingChecksumToSoftware)
+				// no existing
+				require.Empty(t, existingBundleIDsToUpdate)
+				require.Empty(t, currentSoftware)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				// one new software inserted
+				require.Len(t, inserted, 1)
+				require.Equal(t, "VSCode.app", inserted[0].Name)
+
+				require.Empty(t, updated)
+			},
+		},
+		{
+			name: "Both inserted and updated softwares",
+			before: func(ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+				sw, err := fleet.SoftwareFromOsqueryRow("Slack.app", "1.0.0", "apps", "", "", "", "", "com.tinyspeck.slackmacgap", "", "", "")
+				require.NoError(t, err)
+
+				incoming := map[string]fleet.Software{sw.ToUniqueStr(): *sw}
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				_, _, err = ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+			},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+
+				incoming := make(map[string]fleet.Software)
+
+				newSw, err := fleet.SoftwareFromOsqueryRow("Chrome.app", "110.0", "apps", "", "", "", "", "com.google.Chrome", "", "", "")
+				require.NoError(t, err)
+				incoming[newSw.ToUniqueStr()] = *newSw
+
+				// Existing software with name change
+				updatedSw, err := fleet.SoftwareFromOsqueryRow("Slack 2.app", "1.0.0", "apps", "", "", "", "", "com.tinyspeck.slackmacgap", "", "", "")
+				require.NoError(t, err)
+				incoming[updatedSw.ToUniqueStr()] = *updatedSw
+
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				// new software for insertion
+				require.NotEmpty(t, incomingChecksumToSoftware)
+				// software with name changes
+				require.NotEmpty(t, existingBundleIDsToUpdate)
+				_, ok := existingBundleIDsToUpdate["com.tinyspeck.slackmacgap"]
+				require.True(t, ok)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				require.NotEmpty(t, inserted)
+				require.NotEmpty(t, updated)
+
+				insertedNames := make([]string, len(inserted))
+				for i, sw := range inserted {
+					insertedNames[i] = sw.Name
+				}
+				require.Contains(t, insertedNames, "Chrome.app", "Chrome should be in inserted")
+
+				require.Len(t, updated, 1, "Should have one updated record")
+				require.NotNil(t, updated[0].BundleIdentifier)
+				require.Equal(t, "com.tinyspeck.slackmacgap", *updated[0].BundleIdentifier, "Updated software should be Slack")
+			},
+		},
+		{
+			name:   "Windows software",
+			before: func(ds *Datastore) {},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+				sw, err := fleet.SoftwareFromOsqueryRow("Microsoft Office", "16.0.123", "programs", "Microsoft", "", "", "", "", "", "", "")
+				require.NoError(t, err)
+
+				incoming := map[string]fleet.Software{sw.ToUniqueStr(): *sw}
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				// Windows software should be present
+				require.NotEmpty(t, incomingChecksumToSoftware)
+				// No bundle ids for windows
+				require.Empty(t, existingBundleIDsToUpdate)
+				require.Empty(t, currentSoftware)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				require.Len(t, inserted, 1)
+				require.Equal(t, "Microsoft Office", inserted[0].Name)
+				require.Equal(t, "programs", inserted[0].Source)
+				require.Equal(t, "", inserted[0].BundleIdentifier)
+
+				require.Empty(t, updated)
+			},
+		},
+		{
+			name:   "Linux Package",
+			before: func(ds *Datastore) {},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+				incoming := make(map[string]fleet.Software)
+
+				packages := []struct {
+					name, version, source string
+				}{
+					{"curl", "7.68.0", "deb_packages"},
+					{"vim", "8.2.0", "deb_packages"},
+					{"git", "2.34.1", "deb_packages"},
+				}
+
+				for _, pkg := range packages {
+					sw, err := fleet.SoftwareFromOsqueryRow(pkg.name, pkg.version, pkg.source, "", "", "", "", "", "", "", "")
+					require.NoError(t, err)
+					incoming[sw.ToUniqueStr()] = *sw
+				}
+
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				// contains all linux software
+				require.Len(t, incomingChecksumToSoftware, 3)
+				// no bundle id updates for linux
+				require.Empty(t, existingBundleIDsToUpdate)
+				require.Empty(t, currentSoftware)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				require.Len(t, inserted, 3)
+				insertedNames := make(map[string]bool)
+				for _, sw := range inserted {
+					insertedNames[sw.Name] = true
+					require.Equal(t, "deb_packages", sw.Source)
+					require.Equal(t, "", sw.BundleIdentifier, "Linux packages should have empty bundle identifier")
+				}
+				_, ok := insertedNames["curl"]
+				require.True(t, ok)
+				_, ok = insertedNames["vim"]
+				require.True(t, ok)
+				_, ok = insertedNames["git"]
+				require.True(t, ok)
+
+				require.Empty(t, updated)
+			},
+		},
+		{
+			name:   "Browser Extensions",
+			before: func(ds *Datastore) {},
+			testFunc: func(t *testing.T, ds *Datastore) {
+				host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+				incoming := make(map[string]fleet.Software)
+
+				extensions := []struct {
+					name, version, extensionId, browser string
+				}{
+					{"1password", "1.45.0", "cjpalhdlnbpafiamejdnhcphjbkeiagm", "chrome"},
+					{"React Developer Tools", "3.14.2", "cfhdojbkjhnklbpkdaibdccddilifddb", "chrome"},
+					{"Grammarly", "14.1.0", "kbfnbcaeplbcioakkpcpgfkobkghlhen", "chrome"},
+				}
+
+				for _, ext := range extensions {
+					sw, err := fleet.SoftwareFromOsqueryRow(ext.name, ext.version, "browser_plugins", "", "", "", "", "", ext.extensionId, ext.browser, "")
+					require.NoError(t, err)
+					incoming[sw.ToUniqueStr()] = *sw
+				}
+
+				currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err := ds.getExistingSoftware(
+					ctx, make(map[string]fleet.Software), incoming,
+				)
+				require.NoError(t, err)
+
+				require.Len(t, incomingChecksumToSoftware, 3)
+				require.Empty(t, existingBundleIDsToUpdate)
+				require.Empty(t, currentSoftware)
+
+				tx, err := ds.writer(ctx).Beginx()
+				require.NoError(t, err)
+				inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
+					ctx, tx, host.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
+				)
+				require.NoError(t, err)
+				require.NoError(t, tx.Commit())
+
+				require.Len(t, inserted, 3)
+				require.Empty(t, updated)
+
+				for _, sw := range inserted {
+					require.Equal(t, "browser_plugins", sw.Source)
+					require.Equal(t, "", sw.BundleIdentifier)
+				}
+				insertedNames := make(map[string]fleet.Software)
+				for _, sw := range inserted {
+					insertedNames[sw.Name] = sw
+				}
+				require.Contains(t, insertedNames, "1password")
+				require.Contains(t, insertedNames, "React Developer Tools")
+				require.Contains(t, insertedNames, "Grammarly")
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+
+			tc.before(ds)
+
+			tc.testFunc(t, ds)
+		})
+	}
+}
+
 func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
 	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	bundleIdentifier := "com.jetbrains.goland"
 
 	incoming := make(map[string]fleet.Software)
-	sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+	sw, err := fleet.SoftwareFromOsqueryRow("GoLand.app", "2024.3", "apps", "", "", "", "", bundleIdentifier, "", "", "")
 	require.NoError(t, err)
 	soft2Key := sw.ToUniqueStr()
 	incoming[soft2Key] = *sw
@@ -258,7 +589,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	tx, err := ds.writer(ctx).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	_, _, err = ds.insertNewInstalledHostSoftwareDB(
 		ctx, tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
 	)
 	require.NoError(t, err)
@@ -278,20 +609,24 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.Len(t, softwareTitle, 1)
 
 	incoming = make(map[string]fleet.Software)
-	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 2.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
+	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 2.app", "2024.3", "apps", "", "", "", "", bundleIdentifier, "", "", "")
 	require.NoError(t, err)
 	soft3Key := sw.ToUniqueStr()
 	incoming[soft3Key] = *sw
 
+	current := make(map[string]fleet.Software)
+	for _, s := range software {
+		current[s.ToUniqueStr()] = s
+	}
 	currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, err = ds.getExistingSoftware(
-		ctx, make(map[string]fleet.Software), incoming,
+		ctx, current, incoming,
 	)
 	require.NoError(t, err)
 
 	require.Len(t, existingBundleIDsToUpdate, 1)
 	tx, err = ds.writer(ctx).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
 		ctx, tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate,
 	)
 	require.NoError(t, err)
@@ -307,21 +642,28 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	// hasn't updated yet because we haven't called updateExistingBundleIDs yet
 	require.Equal(t, "GoLand.app", software[0].Name)
 
-	// err = updateExistingBundleIDs(ctx, ds.writer(ctx), host1.ID, existingBundleIDsToUpdate)
-	// require.NoError(t, err)
+	var hs []hostSoftware
+	err = ds.writer(ctx).Select(&hs, `SELECT software_id from host_software WHERE host_id = ?`, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, hs, 1) // single host_software record
 
+	err = updateTargetedBundleIDs(ctx, ds.writer(ctx), host1.ID, inserted, updated, existingBundleIDsToUpdate)
+	require.NoError(t, err)
+
+	err = ds.writer(ctx).Select(&hs, `SELECT software_id from host_software WHERE host_id = ?`, host1.ID)
+	require.NoError(t, err)
+	require.Len(t, hs, 1) // no duplicate host_software record created
+
+	// check software is renamed
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
 	)
-
 	require.NoError(t, err)
 	// no duplicate row created
 	require.Len(t, software, 1)
 	require.NotEmpty(t, software[0].TitleID)
 	// software.name is updated now
-	// TODO: rename should happen in the future
-	// require.Equal(t, "GoLand 2.app", software[0].Name)
-	require.Equal(t, "GoLand.app", software[0].Name)
+	require.Equal(t, "GoLand 2.app", software[0].Name)
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&softwareTitle, `SELECT id, name FROM software_titles`,
@@ -341,9 +683,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	)
 	require.NoError(t, err)
 	require.Len(t, softwareTitle, 1)
-	// TODO: we want this to be renamed eventually
-	// require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
-	require.Equal(t, "GoLand.app", softwareTitle[0].Name)
+	require.Equal(t, "GoLand 2.app", softwareTitle[0].Name)
 
 	// Now ingest software from host2, with a rename
 	sw, err = fleet.SoftwareFromOsqueryRow("GoLand 3.app", "2024.3", "apps", "", "", "", "", "com.jetbrains.goland", "", "", "")
@@ -366,8 +706,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		require.NotEmpty(t, s.TitleID)
 		// software.name is updated now for GoLand
 		if s.BundleIdentifier == "com.jetbrains.goland" {
-			// require.Equal(t, "GoLand 3.app", s.Name) // TODO: the name should change eventually
-			require.Equal(t, "GoLand.app", s.Name)
+			require.Equal(t, "GoLand 3.app", s.Name)
 		}
 	}
 
@@ -381,9 +720,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 		&goland, `SELECT id, name FROM software_titles WHERE bundle_identifier = 'com.jetbrains.goland'`,
 	)
 	require.NoError(t, err)
-	// TODO: the name should change eventually
-	// require.Equal(t, "GoLand 3.app", goland.Name)
-	require.Equal(t, "GoLand.app", goland.Name)
+	require.Equal(t, "GoLand 3.app", goland.Name)
 }
 
 func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datastore) {
@@ -401,7 +738,7 @@ func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	_, _, err = ds.insertNewInstalledHostSoftwareDB(
 		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, map[string]fleet.Software{},
 	)
 	require.NoError(t, err)
@@ -432,7 +769,7 @@ func testSoftwareDuplicateNameDifferentBundleIdentifier(t *testing.T, ds *Datast
 	require.NoError(t, err)
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	_, _, err = ds.insertNewInstalledHostSoftwareDB(
 		context.Background(), tx, host1.ID, currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, map[string]fleet.Software{},
 	)
 	require.NoError(t, err)
@@ -471,7 +808,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	tx, err := ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	_, _, err = ds.insertNewInstalledHostSoftwareDB(
 		context.Background(), tx, host1.ID, incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, map[string]fleet.Software{},
 	)
 	require.NoError(t, err)
@@ -500,7 +837,7 @@ func testSoftwareHostDuplicates(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	tx, err = ds.writer(context.Background()).Beginx()
 	require.NoError(t, err)
-	_, err = ds.insertNewInstalledHostSoftwareDB(
+	_, _, err = ds.insertNewInstalledHostSoftwareDB(
 		context.Background(), tx, host1.ID, incomingByChecksum, existingSoftware, existingTitlesForNewSoftware, map[string]fleet.Software{},
 	)
 	require.NoError(t, err)

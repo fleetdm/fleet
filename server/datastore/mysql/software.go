@@ -387,7 +387,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				incomingByChecksumCopy[key] = value
 			}
 
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(
+			inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
 				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware, existingBundleIDsToUpdate,
 			)
 			if err != nil {
@@ -403,6 +403,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				return err
 			}
 
+			if err = updateTargetedBundleIDs(ctx, tx, hostID, inserted, updated, existingBundleIDsToUpdate); err != nil {
+				return err
+			}
+
 			if err = updateSoftwareUpdatedAt(ctx, tx, hostID); err != nil {
 				return err
 			}
@@ -415,27 +419,46 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	return r, err
 }
 
-//nolint:unused
-func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, bundleIDsToSoftware map[string]fleet.Software) error {
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, insertedSoftware []fleet.Software, updatedSoftware []softwareIDChecksum, bundleIDsToSoftware map[string]fleet.Software) error {
 	if len(bundleIDsToSoftware) == 0 {
 		return nil
 	}
 
-	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
+	// inserted/updated software id -> software whose name has changed (name / last_opened_at)
+	softwareIDToUpdate := make(map[uint]fleet.Software)
 
-	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software
-			(host_id, software_id, last_opened_at)
-		VALUES
-			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
+	// checking inserted software
+	for _, software := range insertedSoftware {
+		if software.BundleIdentifier != "" {
+			if updatedSoftware, needsUpdate := bundleIDsToSoftware[software.BundleIdentifier]; needsUpdate {
+				softwareIDToUpdate[software.ID] = updatedSoftware
+			}
+		}
+	}
 
-	for k, v := range bundleIDsToSoftware {
-		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software names")
+	// checking existing software
+	for _, software := range updatedSoftware {
+		if software.BundleIdentifier != nil && *software.BundleIdentifier != "" {
+			if updatedSoftware, needsUpdate := bundleIDsToSoftware[*software.BundleIdentifier]; needsUpdate {
+				softwareIDToUpdate[software.ID] = updatedSoftware
+			}
+		}
+	}
+
+	if len(softwareIDToUpdate) == 0 {
+		return nil
+	}
+
+	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.id = ?`
+	hostSoftwareStmt := `INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES (?, ?, ?)`
+
+	for softwareID, softwareInfo := range softwareIDToUpdate {
+		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, softwareInfo.Name, softwareID); err != nil {
+			return ctxerr.Wrap(ctx, err, "update targeted software name")
 		}
 
-		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host software")
+		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, softwareID, softwareInfo.LastOpenedAt); err != nil {
+			return ctxerr.Wrap(ctx, err, "insert targeted host software")
 		}
 	}
 	return nil
@@ -741,9 +764,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
 	existingBundleIDsToUpdate map[string]fleet.Software,
-) ([]fleet.Software, error) {
+) ([]fleet.Software, []softwareIDChecksum, error) {
 	var insertsHostSoftware []interface{}
 	var insertedSoftware []fleet.Software
+	var updatedSoftware []softwareIDChecksum
 	existingTitleNames := make(map[uint]string)
 	for _, s := range existingSoftware {
 		if s.TitleID != nil {
@@ -752,7 +776,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 	}
 
 	// First, we remove incoming software that already exists in the software table.
-	if len(softwareChecksums) > 0 {
+	if len(softwareChecksums) > 0 || len(existingBundleIDsToUpdate) > 0 {
 		for _, s := range existingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
@@ -761,10 +785,12 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					// that we wouldn't find it in softwareChecksums (we deleted it from that map
 					// earlier in ds.getExistingSoftware.
 					if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+						// saving it for a potential rename
+						updatedSoftware = append(updatedSoftware, s)
 						continue
 					}
 				}
-				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
@@ -838,7 +864,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				)
 			}
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "insert software")
+				return nil, nil, ctxerr.Wrap(ctx, err, "insert software")
 			}
 
 			// Insert into software_titles
@@ -855,7 +881,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
+					return nil, nil, ctxerr.Wrap(ctx, err, "insert software_titles")
 				}
 
 				updateSoftwareWithoutIdentifierStmt := `
@@ -869,10 +895,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				    `
 				updateSoftwareWithoutIdentifierStmt, updateArgs, err := sqlx.In(updateSoftwareWithoutIdentifierStmt, titleChecksums)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
+					return nil, nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
 				}
 				if _, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
+					return nil, nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
 				}
 
 				// update new title ids for new software table entries
@@ -887,10 +913,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				      AND s.checksum IN (?)`
 				updateSoftwareStmt, updateArgs, err = sqlx.In(updateSoftwareStmt, titleChecksums)
 				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
+					return nil, nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
 				}
 				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
+					return nil, nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
 				}
 			}
 		}
@@ -898,12 +924,12 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
 		updatedExistingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		for _, s := range updatedExistingSoftware {
 			software, ok := softwareChecksums[s.Checksum]
 			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("updated existing software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
+				return nil, nil, ctxerr.New(ctx, fmt.Sprintf("updated existing software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
 			}
 			software.ID = s.ID
 			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
@@ -936,11 +962,11 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
 		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
 		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "insert host software")
+			return nil, nil, ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
 
-	return insertedSoftware, nil
+	return insertedSoftware, updatedSoftware, nil
 }
 
 func getSoftwareIDsByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareIDChecksum, error) {
