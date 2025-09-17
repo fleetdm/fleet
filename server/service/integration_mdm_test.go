@@ -9675,7 +9675,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 			require.Equal(t, string(fleet.PendingActionLock), *getHostResp.Host.MDM.PendingAction)
 
-			// try locking the host while it is pending lock fails
+			// try locking the host while it is pending lock fails for Windows/Linux
 			res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "Host has pending lock request.")
@@ -9884,10 +9884,12 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
-	// try locking the host while it is pending lock fails
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Host has pending lock request.")
+	// try locking the host while it is pending lock returns the same PIN
+	var lockResp2 lockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp2, "view_pin", "true")
+	require.Equal(t, lockResp.UnlockPIN, lockResp2.UnlockPIN, "Should return the same PIN for duplicate lock request")
+	require.Equal(t, fleet.PendingActionLock, lockResp2.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp2.DeviceStatus)
 
 	// simulate a successful MDM result for the lock command
 	cmd, err := mdmClient.Idle()
@@ -9907,8 +9909,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	// try to lock the host again
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusConflict)
 	// try to wipe a locked host
-	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 	// unlock the host

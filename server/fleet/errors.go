@@ -684,6 +684,11 @@ func (e ConflictError) StatusCode() int {
 	return http.StatusConflict
 }
 
+// IsConflict implements the conflict interface for middleware compatibility
+func (e ConflictError) IsConflict() bool {
+	return true
+}
+
 // Errorer interface is implemented by response structs to encode business logic errors
 type Errorer interface {
 	Error() error
