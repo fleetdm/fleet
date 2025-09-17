@@ -469,6 +469,7 @@ const DeviceUserPage = ({
 
     const showUsersCard =
       host?.platform === "darwin" ||
+      host?.platform === "android" ||
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
