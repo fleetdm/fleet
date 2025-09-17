@@ -830,35 +830,26 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
+
+
 ### Compensation
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
-### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
+#### Payroll dates
 
+US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
 
-### Payroll dates
-
-US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
-
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
 
 
-### Workiversaries
+#### Compensation changes
 
-We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
-
-
-### Compensation changes
-
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation). 
-
-
-### Relocating
-
-When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
 
 
 #### Exercise stock options
@@ -873,6 +864,15 @@ Fleet uses Carta to manage its cap table. Fleet option holders can [exercise sha
 
 - For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
 
+
+## Workiversaries
+
+We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
+
+
+## Relocating
+
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
 ## Writing
