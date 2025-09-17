@@ -225,7 +225,8 @@ const NewLabelPage = ({
       enabled: isPremiumTier,
     }
   );
-  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+  // const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
+  const idpConfigured = true;
 
   let hostVitalsTooltipContent: React.ReactNode;
   if (!isPremiumTier) {
@@ -426,31 +427,39 @@ const NewLabelPage = ({
       case "host_vitals":
         return (
           <div className={`${baseClass}__host_vitals-fields`}>
-            <Dropdown
-              label="Label criteria"
-              name="vital"
-              onChange={onInputChange}
-              parseTarget
-              value={vital}
-              error={formErrors.criteria}
-              options={availableCriteria}
-              classname={`${baseClass}__criteria-dropdown`}
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
-              helpText="Currently, label criteria can be IdP group or department on macOS hosts."
-            />
-            <p>is equal to</p>
-            <InputField
-              error={formErrors.criteria}
-              name="vitalValue"
-              onChange={onInputChange}
-              onBlur={onInputBlur}
-              value={vitalValue}
-              inputClassName={`${baseClass}__vital-value`}
-              placeholder={
-                vital === "end_user_idp_group" ? "IT admins" : "Engineering"
-              }
-              parseTarget
-            />
+            <label className="form-field__label" htmlFor="criterion-and-value">
+              Label criteria
+            </label>
+            <span id="criterion-and-value">
+              <Dropdown
+                name="vital"
+                onChange={onInputChange}
+                parseTarget
+                value={vital}
+                error={formErrors.criteria}
+                options={availableCriteria}
+                classname={`${baseClass}__criteria-dropdown`}
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
+                // helpText="Currently, label criteria can be IdP group or department on macOS hosts."
+              />
+              <p>is equal to</p>
+              <InputField
+                error={formErrors.criteria}
+                name="vitalValue"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                value={vitalValue}
+                inputClassName={`${baseClass}__vital-value`}
+                placeholder={
+                  vital === "end_user_idp_group" ? "IT admins" : "Engineering"
+                }
+                parseTarget
+              />
+            </span>
+            <span className="form-field__help-text">
+              Currently, label criteria can be IdP group or department on macOS
+              hosts.
+            </span>
           </div>
         );
 
