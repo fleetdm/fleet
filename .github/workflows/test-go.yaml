@@ -139,7 +139,7 @@ jobs:
     - name: Start Infra Dependencies
       if: ${{ env.NEED_DOCKER }}
       # Use & to background this
-      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND $START_LOCALSTACK &
+      run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} $DOCKER_COMMAND ${{ env.START_LOCALSTACK }} &
 
     - name: Add TLS certificate for SMTP Tests
       if: ${{ env.NEED_DOCKER }}
