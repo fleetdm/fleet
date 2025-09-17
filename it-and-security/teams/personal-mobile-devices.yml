@@ -20,6 +20,8 @@ controls:
   macos_settings:
     custom_settings:
       - path: ../lib/ios/declaration-profiles/Passcode settings.json
+  macos_setup:
+    enable_end_user_authentication: true
   scripts:
 policies:
 queries:
