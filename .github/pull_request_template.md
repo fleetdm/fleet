@@ -1,5 +1,5 @@
-<!-- Add the related story/bug number, like Resolves #123 -->
-Story/Bug: Resolves #
+<!-- Add the related story/sub-task/bug number, like Resolves #123, or remove if NA -->
+**Related issue:** Resolves #
 
 # Checklist for submitter
 
