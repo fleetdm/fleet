@@ -130,7 +130,6 @@ const Info = ({
                 url="https://fleetdm.com/learn-more-about/organization-logo-size"
                 text="recommended sizes"
                 newTab
-                multiline
               />
             </p>
             <div className={`${cardClass}__logo-field-set`}>

@@ -219,7 +219,7 @@ const DropdownWrapper = ({
     },
 
     control: (provided, state) => {
-      if (variant === "button")
+      if (variant === "button") {
         return {
           backgroundColor: "initial",
           borderColor: "none",
@@ -273,6 +273,7 @@ const DropdownWrapper = ({
           }),
           ...(variant === "button" && { height: "22px" }),
         };
+      }
 
       return {
         ...provided,

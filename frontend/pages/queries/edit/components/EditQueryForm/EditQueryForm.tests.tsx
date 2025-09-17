@@ -180,9 +180,7 @@ describe("EditQueryForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Live query" }));
 
-    expect(container.querySelector("#live-query-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+    expect(screen.getByText(/live queries are disabled/i)).toBeInTheDocument();
   });
 
   it("shows automations warning icon when query frequency is set to 0", async () => {

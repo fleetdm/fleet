@@ -41,6 +41,8 @@ import {
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
+
+import SidePanelPage from "components/SidePanelPage";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
@@ -395,7 +397,11 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="text-icon" onClick={onOpenSidebar}>
+                  <Button
+                    variant="inverse"
+                    onClick={onOpenSidebar}
+                    justifyText="right"
+                  >
                     Schema
                     <Icon name="info" size="small" />
                   </Button>
@@ -556,27 +562,29 @@ const NewLabelPage = ({
   );
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <div className={`${baseClass}__header`}>
-          <h1>New label</h1>
-          <p className={`${baseClass}__page-description`}>
-            Create a new label for targeting and filtering hosts.
-          </p>
-        </div>
-        {renderLabelForm()}
-      </MainContent>
-      {type === "dynamic" && isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSidebar}
-          />
-        </SidePanelContent>
-      )}
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <div className={`${baseClass}__header`}>
+            <h1>New label</h1>
+            <p className={`${baseClass}__page-description`}>
+              Create a new label for targeting and filtering hosts.
+            </p>
+          </div>
+          {renderLabelForm()}
+        </MainContent>
+        {type === "dynamic" && isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

@@ -70,7 +70,7 @@ const RefetchButton = ({
           className={classNames}
           disabled={isDisabled}
           onClick={onRefetchHost}
-          variant="text-icon"
+          variant="inverse"
         >
           <Icon name="refresh" color="ui-fleet-black-75" size="small" />
           {buttonText}
@@ -87,7 +87,7 @@ interface IHostSummaryProps {
   onRefetchHost: (
     evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
   ) => void;
-  renderActionDropdown: () => JSX.Element | null;
+  renderActionsDropdown: () => JSX.Element | null;
   deviceUser?: boolean;
   hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
@@ -96,7 +96,7 @@ const HostHeader = ({
   summaryData,
   showRefetchSpinner,
   onRefetchHost,
-  renderActionDropdown,
+  renderActionsDropdown,
   deviceUser,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
@@ -185,7 +185,7 @@ const HostHeader = ({
   };
 
   return (
-    <div className="header title">
+    <div className={`${baseClass} header title`}>
       <div className="title__inner">
         <div className="display-name-container">
           <TooltipWrapper
@@ -214,8 +214,10 @@ const HostHeader = ({
           </div>
         </div>
       </div>
-      {renderRefetch()}
-      {renderActionDropdown()}
+      <div className="title__actions">
+        {renderRefetch()}
+        {renderActionsDropdown()}
+      </div>
     </div>
   );
 };

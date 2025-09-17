@@ -32,7 +32,7 @@ interface IUserMenuProps {
 const getOptionBackgroundColor = (
   state: OptionProps<IDropdownOption, false, GroupBase<IDropdownOption>>
 ) => {
-  return state.isFocused ? COLORS["ui-vibrant-blue-10"] : "transparent";
+  return state.isFocused ? COLORS["ui-fleet-black-10"] : "transparent";
 };
 
 const CustomDropdownIndicator = (

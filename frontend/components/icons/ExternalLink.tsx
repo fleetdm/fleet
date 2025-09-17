@@ -2,6 +2,8 @@ import React from "react";
 import { COLORS, Colors } from "styles/var/colors";
 import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
+/** Classes used for <CustomLink/> :hover styling of icon */
+const baseClass = "external-link-icon";
 interface IExternalLinkProps {
   size: IconSizes;
   color: Colors;
@@ -13,14 +15,25 @@ const ExternalLink = ({
 }: IExternalLinkProps) => {
   return (
     <svg
+      className={baseClass}
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 10 10"
     >
-      <rect width="8" height="8" x="1" y="1" stroke="#515774" rx="2" />
+      <rect
+        className={`${baseClass}__outline`}
+        width="8"
+        height="8"
+        x="1"
+        y="1"
+        fill="none"
+        stroke={COLORS[color]}
+        rx="2"
+      />
       <path
+        className={`${baseClass}__arrow`}
         stroke={COLORS[color]}
         strokeLinecap="round"
         strokeLinejoin="round"

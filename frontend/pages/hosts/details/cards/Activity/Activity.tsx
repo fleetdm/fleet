@@ -74,8 +74,11 @@ const Activity = ({
           <Spinner centered />
         </div>
       )}
-      <CardHeader header="Activity" />
-      <TabNav>
+      <div className={`${baseClass}__header`}>
+        <CardHeader header="Activity" />
+        <UpcomingTooltip />
+      </div>
+      <TabNav secondary>
         <Tabs
           selectedIndex={activeTab === "past" ? 0 : 1}
           onSelect={onChangeTab}
@@ -98,7 +101,6 @@ const Activity = ({
             />
           </TabPanel>
           <TabPanel>
-            <UpcomingTooltip />
             <UpcomingActivityFeed
               activities={
                 activities as IHostUpcomingActivitiesResponse | undefined

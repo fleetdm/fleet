@@ -1,14 +1,6 @@
 @import "../../../../../../../node_modules/react-tabs/style/react-tabs.scss";
 
 .platform-wrapper {
-  .tab-nav {
-    .react-tabs {
-      &__tab-list {
-        margin: 0 0 $pad-large;
-      }
-    }
-  }
-
   h1 {
     margin-bottom: $pad-small;
   }

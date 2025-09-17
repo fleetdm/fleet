@@ -58,6 +58,7 @@ const EnrollSecretRow = ({
             disabled={disableChildren}
             className={`${baseClass}__delete-secret-icon`}
             variant="icon"
+            justifyText="right"
           >
             <Icon name="trash" />
           </Button>

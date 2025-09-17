@@ -104,15 +104,15 @@ const ScriptListItem = ({
             disabled={disableChildren}
             onClick={onClickEdit}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="pencil" color="ui-fleet-black-75" />
+            <Icon name="pencil" />
           </Button>
         )}
       />
       <Button
         className={`${baseClass}__action-button`}
-        variant="text-icon"
+        variant="icon"
         onClick={onClickDownload}
       >
         <Icon name="download" />
@@ -123,9 +123,9 @@ const ScriptListItem = ({
             disabled={disableChildren}
             onClick={onClickDelete}
             className={`${baseClass}__action-button`}
-            variant="text-icon"
+            variant="icon"
           >
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </Button>
         )}
       />

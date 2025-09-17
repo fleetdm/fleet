@@ -4,9 +4,7 @@
     margin-top: $pad-medium;
   }
 
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
+  @include page;
 
   @include color-contrasted-sections;
   .header {

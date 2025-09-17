@@ -127,7 +127,7 @@ interface ITableContainerProps<T = any> {
 
 const baseClass = "table-container";
 
-const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = <T,>({
@@ -325,6 +325,9 @@ const TableContainer = <T,>({
           onClick={actionButton.onClick}
           variant={actionButton.variant || "default"}
           className={`${baseClass}__table-action-button`}
+          {...(actionButton.variant === "inverse"
+            ? { justifyText: "right" }
+            : {})} // Inverse buttons get adjusted for their text edge
         >
           <>
             {actionButton.buttonText}

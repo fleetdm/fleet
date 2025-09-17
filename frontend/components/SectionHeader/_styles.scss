@@ -15,6 +15,7 @@
 
   &__sub-title {
     &--grey {
+      font-size: $x-small;
       @include grey-text;
     }
   }

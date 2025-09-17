@@ -9,8 +9,9 @@ import { QueryContext } from "context/query";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 
+import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import SidePanelContent from "components/SidePanelContent";
@@ -102,50 +103,52 @@ const SoftwareAddPage = ({
   });
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>
-          <BackLink
-            text="Back to software"
-            path={backUrl}
-            className={`${baseClass}__back-to-software`}
-          />
-          <h1>Add software</h1>
-          <TabNav>
-            <Tabs
-              selectedIndex={getTabIndex(location?.pathname || "")}
-              onSelect={navigateToNav}
-            >
-              <TabList>
-                {addSoftwareSubNav.map((navItem) => {
-                  return (
-                    <Tab key={navItem.name} data-text={navItem.name}>
-                      <TabText>{navItem.name}</TabText>
-                    </Tab>
-                  );
-                })}
-              </TabList>
-            </Tabs>
-          </TabNav>
-          {React.cloneElement(children, {
-            router,
-            currentTeamId: parseInt(location.query.team_id, 10),
-            isSidePanelOpen,
-            setSidePanelOpen,
-          })}
-        </>
-      </MainContent>
-      {isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={() => setSidePanelOpen(false)}
-          />
-        </SidePanelContent>
-      )}
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>
+            <BackButton
+              text="Back to software"
+              path={backUrl}
+              className={`${baseClass}__back-to-software`}
+            />
+            <h1>Add software</h1>
+            <TabNav>
+              <Tabs
+                selectedIndex={getTabIndex(location?.pathname || "")}
+                onSelect={navigateToNav}
+              >
+                <TabList>
+                  {addSoftwareSubNav.map((navItem) => {
+                    return (
+                      <Tab key={navItem.name} data-text={navItem.name}>
+                        <TabText>{navItem.name}</TabText>
+                      </Tab>
+                    );
+                  })}
+                </TabList>
+              </Tabs>
+            </TabNav>
+            {React.cloneElement(children, {
+              router,
+              currentTeamId: parseInt(location.query.team_id, 10),
+              isSidePanelOpen,
+              setSidePanelOpen,
+            })}
+          </>
+        </MainContent>
+        {isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={() => setSidePanelOpen(false)}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

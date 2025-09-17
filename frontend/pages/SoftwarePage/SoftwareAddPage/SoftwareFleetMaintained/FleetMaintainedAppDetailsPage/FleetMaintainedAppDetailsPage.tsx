@@ -17,7 +17,8 @@ import { Platform, PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
 import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
-import BackLink from "components/BackLink";
+import SidePanelPage from "components/SidePanelPage";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -80,7 +81,6 @@ const FleetAppSummary = ({
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
-      color="grey"
     >
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
@@ -102,7 +102,7 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+        <Button variant="inverse" onClick={onClickShowAppDetails}>
           <Icon name="info" /> Show details
         </Button>
       </div>
@@ -277,7 +277,7 @@ const FleetMaintainedAppDetailsPage = ({
     if (fleetApp) {
       return (
         <>
-          <BackLink
+          <BackButton
             text="Back to add software"
             path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}
@@ -319,32 +319,34 @@ const FleetMaintainedAppDetailsPage = ({
   };
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <>{renderContent()}</>
-      </MainContent>
-      {isPremiumTier && fleetApp && isSidePanelOpen && (
-        <SidePanelContent className={`${baseClass}__side-panel`}>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={() => setSidePanelOpen(false)}
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <>{renderContent()}</>
+        </MainContent>
+        {isPremiumTier && fleetApp && isSidePanelOpen && (
+          <SidePanelContent className={`${baseClass}__side-panel`}>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={() => setSidePanelOpen(false)}
+            />
+          </SidePanelContent>
+        )}
+        {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
+        {showAppDetailsModal && fleetApp && (
+          <FleetAppDetailsModal
+            name={fleetApp.name}
+            platform={fleetApp.platform}
+            version={fleetApp.version}
+            slug={fleetApp.slug}
+            url={fleetApp.url}
+            onCancel={() => setShowAppDetailsModal(false)}
           />
-        </SidePanelContent>
-      )}
-      {showAddFleetAppSoftwareModal && <AddFleetAppSoftwareModal />}
-      {showAppDetailsModal && fleetApp && (
-        <FleetAppDetailsModal
-          name={fleetApp.name}
-          platform={fleetApp.platform}
-          version={fleetApp.version}
-          slug={fleetApp.slug}
-          url={fleetApp.url}
-          onCancel={() => setShowAppDetailsModal(false)}
-        />
-      )}
-    </>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 

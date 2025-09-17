@@ -1,6 +1,5 @@
 .os-settings {
-  font-size: $x-small;
-  margin-top: $pad-xxlarge;
+  margin-top: 22px; // 32 px total, 10 from react-tabs
   display: flex;
   flex-direction: column;
   gap: $pad-xxlarge;
@@ -16,8 +15,6 @@
   }
 
   .side-nav__card-container {
-    overflow-x: hidden;
-
     > .custom-settings {
       max-width: none;
     }

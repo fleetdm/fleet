@@ -9,6 +9,7 @@
   &__section-title-cta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     h2 {
       font-weight: $bold;
@@ -61,7 +62,7 @@
     gap: $pad-small;
 
     &:focus-visible {
-      outline: 1px solid $ui-fleet-black-75;
+      outline: 1px solid $core-focused-outline;
     }
   }
   &__action-button-text {

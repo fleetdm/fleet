@@ -62,7 +62,7 @@
 
 .Select {
   &.dropdown__select {
-    border: 1px solid $ui-fleet-black-50;
+    border: 1px solid $ui-fleet-black-10;
     border-radius: $border-radius;
 
     &:hover:not(.is-disabled) {
@@ -325,7 +325,7 @@
         cursor: default;
 
         &.is-focused {
-          background-color: $ui-vibrant-blue-10;
+          background-color: $ui-fleet-black-10;
           color: $core-fleet-white;
         }
       }

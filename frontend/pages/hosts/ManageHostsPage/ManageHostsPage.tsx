@@ -1631,11 +1631,11 @@ const ManageHostsPage = ({
           <Button
             className={`${baseClass}__export-btn`}
             onClick={onExportHostsResults}
-            variant="text-icon"
+            variant="inverse"
           >
             <>
               Export hosts
-              <Icon name="download" size="small" color="ui-fleet-black-75" />
+              <Icon name="download" size="small" />
             </>
           </Button>
         )}
@@ -1852,7 +1852,7 @@ const ManageHostsPage = ({
           name: "edit columns",
           buttonText: "Edit columns",
           iconSvg: "columns",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: toggleEditColumnsModal,
         }}
         primarySelectAction={{

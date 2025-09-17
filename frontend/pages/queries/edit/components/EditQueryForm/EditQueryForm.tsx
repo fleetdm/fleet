@@ -419,7 +419,11 @@ const EditQueryForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSchemaSidebar}>
+      <Button
+        variant="inverse"
+        onClick={onOpenSchemaSidebar}
+        justifyText="right"
+      >
         <>
           Schema
           <Icon name="info" size="small" />
@@ -597,15 +601,16 @@ const EditQueryForm = ({
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
         <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
-          <div
-            data-tip
-            data-for="live-query-button"
-            // Tooltip shows when live queries are globally disabled
-            data-tip-disable={!disabledLiveQuery}
+          <TooltipWrapper
+            className="live-query-button-tooltip"
+            tipContent="Live queries are disabled in organization settings"
+            disableTooltip={!disabledLiveQuery}
+            position="top"
+            showArrow
+            tipOffset={8}
+            underline={false}
           >
             <Button
-              className={`${baseClass}__run`}
-              variant="success"
               onClick={() => {
                 router.push(
                   getPathWithQueryParams(PATHS.LIVE_QUERY(queryIdForEdit), {
@@ -616,19 +621,9 @@ const EditQueryForm = ({
               }}
               disabled={disabledLiveQuery}
             >
-              Live query
+              Live query <Icon name="run" />
             </Button>
-          </div>
-          <ReactTooltip
-            className={`live-query-button-tooltip`}
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id="live-query-button"
-            data-html
-          >
-            Live queries are disabled in organization settings
-          </ReactTooltip>
+          </TooltipWrapper>
         </div>
       )}
     </form>
@@ -859,7 +854,7 @@ const EditQueryForm = ({
                   <GitOpsModeTooltipWrapper
                     renderChildren={(disableChildren) => (
                       <Button
-                        variant="text-link"
+                        variant="inverse"
                         onClick={toggleSaveAsNewQueryModal}
                         disabled={disableSaveFormErrors || disableChildren}
                       >
@@ -922,7 +917,7 @@ const EditQueryForm = ({
                 }}
                 disabled={disabledLiveQuery}
               >
-                Live query
+                Live query <Icon name="run" />
               </Button>
             </TooltipWrapper>
           </div>

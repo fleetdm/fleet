@@ -317,7 +317,11 @@ const SoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
+        <Button
+          variant="inverse"
+          onClick={onAddFiltersClick}
+          justifyText="right"
+        >
           <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>

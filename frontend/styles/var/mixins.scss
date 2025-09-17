@@ -163,10 +163,10 @@ $max-width: 2560px;
     // border-bottom: 1px solid transparent;
   }
   &:focus-visible {
-    outline-color: #d9d9fe;
+    outline-color: $core-focused-outline;
     outline-offset: 3px;
     outline-style: solid;
-    outline-width: 2px;
+    outline-width: 1px;
     border-radius: 2px;
   }
 }
@@ -189,25 +189,6 @@ $max-width: 2560px;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-}
-
-@mixin direction-link {
-  display: inline-flex;
-  align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
-  border-radius: 3px; // Visible while tabbing;
-  gap: $pad-xsmall;
-
-  &:hover {
-    color: $ui-fleet-black-75-over;
-    text-decoration: underline;
-
-    svg {
-      path {
-        stroke: $ui-fleet-black-75-over;
-      }
-    }
-  }
 }
 
 @mixin ellipse-text($max-width: auto) {
@@ -267,7 +248,7 @@ $max-width: 2560px;
 @mixin flex-column-1rem-gap {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: $pad-medium;
 }
 
 @mixin page {
@@ -328,7 +309,7 @@ $max-width: 2560px;
 
         // When tabbing
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-fleet-black;
           outline-offset: 1px;
           border-radius: 4px;
         }
@@ -470,7 +451,10 @@ $max-width: 2560px;
   }
 }
 
-@mixin bottom-border {
+@mixin bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
   // Light underline always visible
   &::before {
     content: "";
@@ -480,7 +464,7 @@ $max-width: 2560px;
     bottom: -1px;
     height: 1px;
     width: 100%;
-    background: $ui-fleet-black-25;
+    background: $inactive-color;
     pointer-events: none;
     transform: scaleX(1);
     transform-origin: right;
@@ -497,7 +481,7 @@ $max-width: 2560px;
     bottom: -1px;
     height: 1px;
     width: 100%;
-    background: $core-fleet-black;
+    background: $active-color;
     transform: scaleX(0);
     transform-origin: left;
     transition: transform 0.2s ease;
@@ -505,17 +489,27 @@ $max-width: 2560px;
   }
 }
 
-@mixin animated-bottom-border {
+@mixin animated-bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
   position: relative;
 
   &:hover {
-    margin-bottom: -3px; // Account for underline height, removed for link-cell truncated
+    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
   }
 
-  @include bottom-border;
+  @include bottom-border($active-color, $inactive-color);
 
   &:hover::after,
   &:focus::after {
     transform: scaleX(1);
   }
+}
+
+@mixin gradient-background {
+  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
+  background-repeat: no-repeat;
+  background-color: #fff; // area below gradient will just be white
 }
