@@ -6,7 +6,13 @@ import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
 
 import CustomLink from "components/CustomLink";
 
-export const parseFile = async (file: File): Promise<[string, string]> => {
+export interface IParseFileResult {
+  name: string;
+  platform: string;
+  ext: string;
+}
+
+export const parseFile = async (file: File): Promise<IParseFileResult> => {
   // get the file name and extension
   const nameParts = file.name.split(".");
   const name = nameParts.slice(0, -1).join(".");
@@ -14,13 +20,17 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
 
   switch (ext) {
     case "xml": {
-      return [name, "Windows"];
+      return {
+        name,
+        platform: "Windows",
+        ext,
+      };
     }
     case "mobileconfig": {
-      return [name, "macOS, iOS, iPadOS"];
+      return { name, platform: "macOS, iOS, iPadOS", ext };
     }
     case "json": {
-      return [name, "macOS, iOS, iPadOS"];
+      return { name, platform: "Android or macOS(DDM)", ext };
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
