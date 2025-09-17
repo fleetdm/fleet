@@ -14,6 +14,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
@@ -426,12 +427,14 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 
 	// inserted/updated software id -> software whose name has changed (name / last_opened_at)
 	softwareIDToUpdate := make(map[uint]fleet.Software)
+	var softwareIDs []uint
 
 	// checking inserted software
 	for _, software := range insertedSoftware {
 		if software.BundleIdentifier != "" {
 			if updatedSoftware, needsUpdate := bundleIDsToSoftware[software.BundleIdentifier]; needsUpdate {
 				softwareIDToUpdate[software.ID] = updatedSoftware
+				softwareIDs = append(softwareIDs, software.ID)
 			}
 		}
 	}
@@ -441,6 +444,7 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		if software.BundleIdentifier != nil && *software.BundleIdentifier != "" {
 			if updatedSoftware, needsUpdate := bundleIDsToSoftware[*software.BundleIdentifier]; needsUpdate {
 				softwareIDToUpdate[software.ID] = updatedSoftware
+				softwareIDs = append(softwareIDs, software.ID)
 			}
 		}
 	}
@@ -449,19 +453,46 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 		return nil
 	}
 
-	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.id = ?`
-	hostSoftwareStmt := `INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES (?, ?, ?)`
+	const batchSize = 100
+	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
+		updateArgs := make([]interface{}, 0, len(batch)*3)
+		updateCases := make([]string, 0, len(batch))
+		updateIDs := make([]string, 0, len(batch))
 
-	for softwareID, softwareInfo := range softwareIDToUpdate {
-		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, softwareInfo.Name, softwareID); err != nil {
-			return ctxerr.Wrap(ctx, err, "update targeted software name")
+		insertArgs := make([]interface{}, 0, len(batch)*3)
+		insertValues := make([]string, 0, len(batch))
+
+		for _, id := range batch {
+			software := softwareIDToUpdate[id]
+
+			updateCases = append(updateCases, "WHEN ? THEN ?")
+			updateArgs = append(updateArgs, id, software.Name, id)
+			updateIDs = append(updateIDs, "?")
+
+			insertValues = append(insertValues, "(?, ?, ?)")
+			insertArgs = append(insertArgs, hostID, id, software.LastOpenedAt)
 		}
 
-		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, softwareID, softwareInfo.LastOpenedAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert targeted host software")
+		updateStmt := fmt.Sprintf(
+			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
+			strings.Join(updateCases, " "), strings.Join(updateIDs, ",")
+		)
+
+		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch update software names")
 		}
-	}
-	return nil
+
+		insertStmt := fmt.Sprintf(
+			`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`,
+			strings.Join(insertValues, ", ")
+		)
+
+		if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert host software")
+		}
+
+		return nil
+	})
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
