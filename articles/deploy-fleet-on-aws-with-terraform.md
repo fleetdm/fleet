@@ -11,6 +11,8 @@ This workflow takes about 30 minutes to complete and supports between 10 and 350
 
 - An AWS Identity and Access Management (IAM) user with administrator privileges
 
+- An existing VPC
+
 - The latest version of AWS Command Line Interface `awscli`
 
 - The latest version of HashiCorp Terraform
