@@ -225,8 +225,7 @@ const NewLabelPage = ({
       enabled: isPremiumTier,
     }
   );
-  // const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
-  const idpConfigured = true;
+  const idpConfigured = !!scimIdPDetails?.last_request?.requested_at;
 
   let hostVitalsTooltipContent: React.ReactNode;
   if (!isPremiumTier) {
