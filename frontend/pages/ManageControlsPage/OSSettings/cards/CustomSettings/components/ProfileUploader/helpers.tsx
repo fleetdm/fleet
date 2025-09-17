@@ -117,7 +117,11 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
     return 'Couldn\'t add. Declaration (DDM) profile must include "Type" and "Payload" fields.';
   }
 
-  if (apiReason.includes("statusReportingSettings")) {
+  if (
+    apiReason.includes(
+      'Android configuration profile can\'t include "statusReportingSettings"'
+    )
+  ) {
     return (
       <>
         <span>
