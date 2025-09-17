@@ -12,6 +12,8 @@ import {
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
+import { isAppleDevice } from "interfaces/platform";
+import { isDDMProfile } from "services/entities/mdm";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
 import OSSettingStatusCell from "./OSSettingStatusCell";
@@ -79,16 +81,13 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "detail",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, platform, status } = cellProps.row.original;
-        const isFailedWindowsDiskEncryption =
-          platform === "windows" &&
-          name === "Disk encryption" &&
-          status === "failed";
+        const { platform } = cellProps.row.original;
+
+        const isMacOSMobileConfigProfile =
+          platform === "darwin" && !isDDMProfile(cellProps.row.original);
         return (
           <OSSettingsErrorCell
-            canResendProfiles={
-              canResendProfiles && !isFailedWindowsDiskEncryption
-            }
+            canResendProfiles={canResendProfiles && isMacOSMobileConfigProfile}
             hostId={hostId}
             profile={cellProps.row.original}
             onProfileResent={onProfileResent}
