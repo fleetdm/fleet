@@ -77,10 +77,10 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           y2="2458.14"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0.05" stop-color="#FFF44F" />
-          <stop offset="0.37" stop-color="#FF980E" />
-          <stop offset="0.53" stop-color="#FF3647" />
-          <stop offset="0.7" stop-color="#E31587" />
+          <stop offset="0.05" stopColor="#FFF44F" />
+          <stop offset="0.37" stopColor="#FF980E" />
+          <stop offset="0.53" stopColor="#FF3647" />
+          <stop offset="0.7" stopColor="#E31587" />
         </linearGradient>
         <radialGradient
           id={fillPathC}
@@ -90,11 +90,11 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(1838.24 -267.685) scale(2688.01 2733.28)"
         >
-          <stop offset="0.13" stop-color="#FFBD4F" />
-          <stop offset="0.28" stop-color="#FF980E" />
-          <stop offset="0.47" stop-color="#FF3750" />
-          <stop offset="0.78" stop-color="#EB0878" />
-          <stop offset="0.86" stop-color="#E50080" />
+          <stop offset="0.13" stopColor="#FFBD4F" />
+          <stop offset="0.28" stopColor="#FF980E" />
+          <stop offset="0.47" stopColor="#FF3750" />
+          <stop offset="0.78" stopColor="#EB0878" />
+          <stop offset="0.86" stopColor="#E50080" />
         </radialGradient>
         <radialGradient
           id={fillPathD}
@@ -104,11 +104,11 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(1057.58 861.92) scale(2755.21 2733.28)"
         >
-          <stop offset="0.3" stop-color="#960E18" />
-          <stop offset="0.35" stop-color="#B11927" stop-opacity="0.74" />
-          <stop offset="0.43" stop-color="#DB293D" stop-opacity="0.34" />
-          <stop offset="0.5" stop-color="#F5334B" stop-opacity="0.09" />
-          <stop offset="0.53" stop-color="#FF3750" stop-opacity="0" />
+          <stop offset="0.3" stopColor="#960E18" />
+          <stop offset="0.35" stopColor="#B11927" stopOpacity="0.74" />
+          <stop offset="0.43" stopColor="#DB293D" stopOpacity="0.34" />
+          <stop offset="0.5" stopColor="#F5334B" stopOpacity="0.09" />
+          <stop offset="0.53" stopColor="#FF3750" stopOpacity="0" />
         </radialGradient>
         <radialGradient
           id={fillPathE}
@@ -118,8 +118,8 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(318.193 -126.387) scale(882.276 1497.88)"
         >
-          <stop offset="0.13" stop-color="#FFF44F" />
-          <stop offset="0.53" stop-color="#FF980E" />
+          <stop offset="0.13" stopColor="#FFF44F" />
+          <stop offset="0.53" stopColor="#FF980E" />
         </radialGradient>
         <radialGradient
           id={fillPathF}
@@ -129,9 +129,9 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(275.964 1418.22) scale(1167.49 1279.58)"
         >
-          <stop offset="0.35" stop-color="#3A8EE6" />
-          <stop offset="0.67" stop-color="#9059FF" />
-          <stop offset="1" stop-color="#C139E6" />
+          <stop offset="0.35" stopColor="#3A8EE6" />
+          <stop offset="0.67" stopColor="#9059FF" />
+          <stop offset="1" stopColor="#C139E6" />
         </radialGradient>
         <radialGradient
           id={fillPathG}
@@ -141,8 +141,8 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(555.815 431.54) scale(619.935 754.951)"
         >
-          <stop offset="0.21" stop-color="#9059FF" stop-opacity="0" />
-          <stop offset="0.97" stop-color="#6E008B" stop-opacity="0.6" />
+          <stop offset="0.21" stopColor="#9059FF" stopOpacity="0" />
+          <stop offset="0.97" stopColor="#6E008B" stopOpacity="0.6" />
         </radialGradient>
         <radialGradient
           id={fillPathH}
@@ -152,8 +152,8 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(680.652 -313.962) scale(928.154 931.453)"
         >
-          <stop offset="0.1" stop-color="#FFE226" />
-          <stop offset="0.79" stop-color="#FF7139" />
+          <stop offset="0.1" stopColor="#FFE226" />
+          <stop offset="0.79" stopColor="#FF7139" />
         </radialGradient>
         <radialGradient
           id={fillPathI}
@@ -163,10 +163,10 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(2070.96 -840.899) scale(4431.21 3719.76)"
         >
-          <stop offset="0.11" stop-color="#FFF44F" />
-          <stop offset="0.46" stop-color="#FF980E" />
-          <stop offset="0.72" stop-color="#FF3647" />
-          <stop offset="0.9" stop-color="#E31587" />
+          <stop offset="0.11" stopColor="#FFF44F" />
+          <stop offset="0.46" stopColor="#FF980E" />
+          <stop offset="0.72" stopColor="#FF3647" />
+          <stop offset="0.9" stopColor="#E31587" />
         </radialGradient>
         <radialGradient
           id={fillPathJ}
@@ -176,10 +176,10 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientTransform="matrix(306.811 1371.98 -6163.7 304.481 346.698 56.8109)"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stop-color="#FFF44F" />
-          <stop offset="0.3" stop-color="#FF980E" />
-          <stop offset="0.57" stop-color="#FF3647" />
-          <stop offset="0.74" stop-color="#E31587" />
+          <stop stopColor="#FFF44F" />
+          <stop offset="0.3" stopColor="#FF980E" />
+          <stop offset="0.57" stopColor="#FF3647" />
+          <stop offset="0.74" stopColor="#E31587" />
         </radialGradient>
         <radialGradient
           id={fillPathK}
@@ -189,10 +189,10 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(215.037 -433.762) scale(2544.16 2499.47)"
         >
-          <stop offset="0.14" stop-color="#FFF44F" />
-          <stop offset="0.48" stop-color="#FF980E" />
-          <stop offset="0.66" stop-color="#FF3647" />
-          <stop offset="0.9" stop-color="#E31587" />
+          <stop offset="0.14" stopColor="#FFF44F" />
+          <stop offset="0.48" stopColor="#FF980E" />
+          <stop offset="0.66" stopColor="#FF3647" />
+          <stop offset="0.9" stopColor="#E31587" />
         </radialGradient>
         <radialGradient
           id={fillPathL}
@@ -202,8 +202,8 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           gradientUnits="userSpaceOnUse"
           gradientTransform="translate(1562.26 -378.01) scale(3058 2735.74)"
         >
-          <stop offset="0.09" stop-color="#FFF44F" />
-          <stop offset="0.63" stop-color="#FF980E" />
+          <stop offset="0.09" stopColor="#FFF44F" />
+          <stop offset="0.63" stopColor="#FF980E" />
         </radialGradient>
         <linearGradient
           id={fillPathM}
@@ -213,8 +213,8 @@ const Firefox = (props: SVGProps<SVGSVGElement>) => {
           y2="2225.56"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0.17" stop-color="#FFF44F" stop-opacity="0.8" />
-          <stop offset="0.6" stop-color="#FFF44F" stop-opacity="0" />
+          <stop offset="0.17" stopColor="#FFF44F" stopOpacity="0.8" />
+          <stop offset="0.6" stopColor="#FFF44F" stopOpacity="0" />
         </linearGradient>
       </defs>
     </svg>
