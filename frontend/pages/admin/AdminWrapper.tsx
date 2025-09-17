@@ -70,6 +70,9 @@ const AdminWrapper = ({
     });
   };
 
+  // we add a conditional sandbox-mode class here as we will need to make some
+  // styling changes on the settings page to have the sticky elements work
+  // with the sandbox mode expiry message
   const classNames = classnames(baseClass, { "sandbox-mode": isSandboxMode });
 
   return (
