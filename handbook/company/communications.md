@@ -872,7 +872,6 @@ For Fleeties exercising Non-Qualified Stock Options (NSOs), once an exercise req
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
   - For Fleeties who are non-US tax residents, please follow the instructions on this page to exercise your options
-Once the request is approved in Carta by the CEO, the full amount will be debited from your bank account. It will take a few days for the transactions to clear the banks, and for your share holdings to be updated in Carta
 
 
 
