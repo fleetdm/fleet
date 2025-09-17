@@ -144,8 +144,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 		caToCreate.Username = &p.Smallstep.Username
 		caToCreate.Password = &p.Smallstep.Password
 		caDisplayType = "Smallstep"
-		// TODO(sca): add activity
-		activity = fleet.ActivityAddedCustomSCEPProxy{Name: p.Smallstep.Name}
+		activity = fleet.ActivityAddedSmallstep{Name: p.Smallstep.Name}
 	}
 
 	createdCA, err := svc.ds.NewCertificateAuthority(ctx, caToCreate)
@@ -424,8 +423,7 @@ func (svc *Service) DeleteCertificateAuthority(ctx context.Context, certificateA
 			Name: ca.Name,
 		}
 	case string(fleet.CATypeSmallstep):
-		// TODO(sca): add activity for smallstep
-		activity = fleet.ActivityDeletedCustomSCEPProxy{
+		activity = fleet.ActivityDeletedSmallstep{
 			Name: ca.Name,
 		}
 	}
@@ -908,8 +906,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 				return ctxerr.Wrap(ctx, err, "create activity for added hydrant")
 			}
 		case string(fleet.CATypeSmallstep):
-			// TODO(sca): add activity for smallstep
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityAddedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for added smallstep SCEP proxy")
 			}
 		}
@@ -933,8 +930,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 				return ctxerr.Wrap(ctx, err, "create activity for edited hydrant")
 			}
 		case string(fleet.CATypeSmallstep):
-			// TODO(sca): add activity for smallstep
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityEditedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for edited smallstep SCEP proxy")
 			}
 		}
@@ -958,8 +954,7 @@ func (svc *Service) recordActivitiesBatchApplyCAs(ctx context.Context, ops *flee
 				return ctxerr.Wrap(ctx, err, "create activity for deleted hydrant")
 			}
 		case string(fleet.CATypeSmallstep):
-			// TODO(sca): add activity for smallstep
-			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedCustomSCEPProxy{Name: *ca.Name}); err != nil {
+			if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityDeletedSmallstep{Name: *ca.Name}); err != nil {
 				return ctxerr.Wrap(ctx, err, "create activity for deleted smallstep SCEP proxy")
 			}
 		}
@@ -1115,7 +1110,7 @@ func (svc *Service) UpdateCertificateAuthority(ctx context.Context, id uint, p f
 		} else {
 			caActivityName = *oldCA.Name
 		}
-		activity = fleet.ActivityEditedCustomSCEPProxy{Name: caActivityName}
+		activity = fleet.ActivityEditedSmallstep{Name: caActivityName}
 	}
 
 	if oldCA.Type != caToUpdate.Type {

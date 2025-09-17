@@ -205,6 +205,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityAddedHydrant{},
 	ActivityDeletedHydrant{},
 	ActivityEditedHydrant{},
+	ActivityAddedSmallstep{},
+	ActivityDeletedSmallstep{},
+	ActivityEditedSmallstep{},
 
 	ActivityTypeEnabledActivityAutomations{},
 	ActivityTypeEditedActivityAutomations{},
@@ -2499,6 +2502,51 @@ func (a ActivityEditedHydrant) Documentation() (activity string, details string,
 	return "Generated when Hydrant certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
 - "name": Name of the certificate authority.`, `{
   "name": "HYDRANT_WIFI"
+}`
+}
+
+type ActivityAddedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityAddedSmallstep) ActivityName() string {
+	return "added_smallstep"
+}
+
+func (a ActivityAddedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is added in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityDeletedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityDeletedSmallstep) ActivityName() string {
+	return "deleted_smallstep"
+}
+
+func (a ActivityDeletedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is deleted in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
+}`
+}
+
+type ActivityEditedSmallstep struct {
+	Name string `json:"name"`
+}
+
+func (a ActivityEditedSmallstep) ActivityName() string {
+	return "edited_smallstep"
+}
+
+func (a ActivityEditedSmallstep) Documentation() (activity string, details string, detailsExample string) {
+	return "Generated when Smallstep certificate authority configuration is edited in Fleet.", `This activity contains the following fields:
+- "name": Name of the certificate authority.`, `{
+  "name": "SMALLSTEP_WIFI"
 }`
 }
 
