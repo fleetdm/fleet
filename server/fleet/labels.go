@@ -183,13 +183,14 @@ type LabelQueryExecution struct {
 
 type HostsSlice []string
 
+// Custom unmarshaler to handle both string and integer host identifiers.
 func (s *HostsSlice) UnmarshalJSON(data []byte) error {
 	var raw []interface{}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	if raw == nil {
-		// nil slice, nothing to do
+		// Differentiate between nil and empty array.
 		return nil
 	}
 	result := make([]string, 0, len(raw))
@@ -198,11 +199,11 @@ func (s *HostsSlice) UnmarshalJSON(data []byte) error {
 		case string:
 			result = append(result, val)
 		case float64:
-			// Check if the float64 is actually an integer
+			// Check if the float64 is actually an integer.
 			if val != float64(int64(val)) {
 				return fmt.Errorf("hosts must be strings or integers, got float %g", val)
 			}
-			// Convert to string
+			// Convert to string.
 			result = append(result, fmt.Sprintf("%.0f", val))
 		default:
 			return fmt.Errorf("hosts must be strings or integers, got %T", v)
