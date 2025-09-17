@@ -5,14 +5,12 @@ import { IStringCellProps } from "interfaces/datatable_config";
 import { IHostMdmData } from "interfaces/host";
 import {
   FLEET_FILEVAULT_PROFILE_DISPLAY_NAME,
-  // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
   IHostMdmProfile,
   MdmDDMProfileStatus,
   MdmProfileStatus,
   isLinuxDiskEncryptionStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { isAppleDevice } from "interfaces/platform";
 import { isDDMProfile } from "services/entities/mdm";
 
 import OSSettingsNameCell from "./OSSettingsNameCell";
@@ -42,9 +40,9 @@ export type OsSettingsTableStatusValue =
   | INonDDMProfileStatus;
 
 const generateTableConfig = (
-  hostId: number,
   canResendProfiles: boolean,
-  onProfileResent?: () => void
+  resendRequest: (profileUUID: string) => Promise<void>,
+  onProfileResent: () => void
 ): ITableColumnConfig[] => {
   return [
     {
@@ -88,8 +86,8 @@ const generateTableConfig = (
         return (
           <OSSettingsErrorCell
             canResendProfiles={canResendProfiles && isMacOSMobileConfigProfile}
-            hostId={hostId}
             profile={cellProps.row.original}
+            resendRequest={resendRequest}
             onProfileResent={onProfileResent}
           />
         );
