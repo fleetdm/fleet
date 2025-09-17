@@ -8,10 +8,10 @@ export default function TooltipWrapperArchLinuxRolling() {
     <TooltipWrapper
       tipContent={
         <>
-          Latest stable versions of most software by following a rolling release
-          model.{" "}
+          Version follows a rolling release model.{" "}
           <CustomLink
-            url="https://wiki.archlinux.org/title/Arch_Linux"
+            url="https://fleetdm.com/learn-more-about/arch-linux-rolling-release"
+            variant="tooltip-link"
             text="Learn more"
             newTab
           />
