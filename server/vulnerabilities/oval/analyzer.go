@@ -20,15 +20,6 @@ const (
 
 var ErrUnsupportedPlatform = errors.New("unsupported platform")
 
-type SoftwareMatchingRule struct {
-	Name             string
-	SemVerConstraint string // TODO: how do CPE matching rules solve this?
-	// TODO: OSVersion or FleetSoftware.Release
-	CVEs      map[string]struct{} // Maybe just a slice?
-	IgnoreAll bool
-	// TODO: IgnoreIf func(FleetSoftware ) bool
-}
-
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
 // inserting any new vulnerabilities and deleting anything patched. Returns nil, nil when
 // the platform isn't supported.
@@ -117,28 +108,9 @@ func Analyze(
 
 			// How the heck do we optimize this?
 
-			ruleList := []SoftwareMatchingRule{ // Would it be more efficient to use a map? It's a very small lsit of things
-				{
-					Name:             "microcode_ctl",
-					SemVerConstraint: "2.1",
-					CVEs: map[string]struct{}{
-						"CVE-2025-20012": {},
-					},
-					IgnoreAll: true,
-				},
-				{
-					Name:             "shim-x64",
-					SemVerConstraint: "15.8",
-					CVEs: map[string]struct{}{
-						"CVE-2023-40546": {},
-						"CVE-2023-40547": {},
-						"CVE-2023-40548": {},
-						"CVE-2023-40549": {},
-						"CVE-2023-40550": {},
-						"CVE-2023-40551": {},
-					},
-					IgnoreAll: true,
-				},
+			rules, err := GetKnownOVALBugRules()
+			if err != nil {
+				return nil, err
 			}
 
 			softwareIDs := make(map[uint]fleet.Software)
@@ -146,28 +118,18 @@ func Analyze(
 				softwareIDs[s.ID] = s
 			}
 
-			newVulns := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
-			fmt.Println("newVulns: ", newVulns)
+			updatedBatch := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
+			fmt.Println("updatedBatch: ", updatedBatch)
 			for _, v := range foundInBatch[hostID] {
 				sName := softwareIDs[v.SoftwareID].Name
-				skip := false
-				// check for semVerConstraint
-				for _, r := range ruleList {
-					if sName != r.Name { // TODO: if SemVerConstraint is true
-						continue
-					}
-					if _, found := r.CVEs[v.CVE]; found {
-						skip = true
-						fmt.Println("skip cve: ", v.CVE)
-						break
-					}
-				}
+				sVer := softwareIDs[v.SoftwareID].Version
+				skip := rules.MatchesAny(sName, sVer, v.CVE)
 				if !skip {
-					newVulns = append(newVulns, v)
+					updatedBatch = append(updatedBatch, v)
 				}
 			}
 
-			foundInBatch[hostID] = newVulns
+			foundInBatch[hostID] = updatedBatch
 			fmt.Println("------------------------- modified -------------------------")
 			fmt.Println(foundInBatch[hostID])
 			fmt.Println()
