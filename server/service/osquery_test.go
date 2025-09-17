@@ -1589,8 +1589,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1614,6 +1615,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -2300,8 +2304,9 @@ func TestDistributedQueryResults(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -2320,6 +2325,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)

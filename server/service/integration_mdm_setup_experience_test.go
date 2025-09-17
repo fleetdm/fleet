@@ -1645,11 +1645,11 @@ func (s *integrationMDMTestSuite) TestSetupExperienceEndpointsWithPlatform() {
 	res := s.DoRawWithHeaders("PUT", "/api/v1/fleet/setup_experience/software", []byte(`{"platform": "foobar", "team_id": 0}`), http.StatusBadRequest, nil)
 	errMsg := extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"windows\", or \"linux\"")
 	res = s.DoRawWithHeaders("GET", "/api/v1/fleet/setup_experience/software?platform=foobar&team_id=0", nil, http.StatusBadRequest, nil)
 	errMsg = extractServerErrorText(res.Body)
 	require.NoError(t, res.Body.Close())
-	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"linux\" or \"macos\"")
+	require.Contains(t, errMsg, "platform \"foobar\" unsupported, platform must be \"macos\", \"windows\", or \"linux\"")
 }
 
 // TestSetupExperienceEndpointsPlatformIsolation tests that setting the setup experience software items
