@@ -34,13 +34,15 @@ func TestBatchHostnamesLarge(t *testing.T) {
 		large = append(large, strconv.Itoa(i))
 	}
 	batched := batchHostnames(large)
-	require.Equal(t, 6, len(batched))
-	assert.Equal(t, large[:20_000], batched[0])
-	assert.Equal(t, large[20_000:40_000], batched[1])
-	assert.Equal(t, large[40_000:60_000], batched[2])
-	assert.Equal(t, large[60_000:80_000], batched[3])
-	assert.Equal(t, large[80_000:100_000], batched[4])
-	assert.Equal(t, large[100_000:110_000], batched[5])
+	require.Equal(t, 8, len(batched))
+	assert.Equal(t, large[:15_000], batched[0])
+	assert.Equal(t, large[15_000:30_000], batched[1])
+	assert.Equal(t, large[30_000:45_000], batched[2])
+	assert.Equal(t, large[45_000:60_000], batched[3])
+	assert.Equal(t, large[60_000:75_000], batched[4])
+	assert.Equal(t, large[75_000:90_000], batched[5])
+	assert.Equal(t, large[90_000:105_000], batched[6])
+	assert.Equal(t, large[105_000:110_000], batched[7])
 }
 
 func TestBatchHostIdsSmall(t *testing.T) {
@@ -2005,6 +2007,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 		HardwareSerial: "hwd3",
 		Platform:       "windows",
 	})
+	require.NoError(t, err)
 	host4, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:  ptr.String("4"),
 		NodeKey:        ptr.String("4"),
@@ -2023,7 +2026,7 @@ func testApplyLabelSpecsForSerialUUID(t *testing.T, ds *Datastore) {
 				"foo.local",
 				"hwd2",
 				"uuid3",
-				strconv.Itoa(int(host4.ID)),
+				strconv.Itoa(int(host4.ID)), //nolint:gosec // dismiss G115
 			},
 		},
 	})
