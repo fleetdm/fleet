@@ -1389,7 +1389,7 @@ module.exports = {
         //  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗╔═╗
         //  ╚═╗║  ╠╦╝║╠═╝ ║ ╚═╗
         //  ╚═╝╚═╝╩╚═╩╩   ╩ ╚═╝
-        let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'website/assets/static-content/scripts.yml';
+        let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'docs/scripts.yml';
         let scriptsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let scripts = YAML.parse(scriptsYaml, {prettyErrors: true});
         controlsLibrary.scripts = [];
@@ -1437,7 +1437,7 @@ module.exports = {
         //  ╔╦╗╔╦╗╔╦╗  ╔═╗╔═╗╔╦╗╔╦╗╔═╗╔╗╔╔╦╗╔═╗
         //  ║║║ ║║║║║  ║  ║ ║║║║║║║╠═╣║║║ ║║╚═╗
         //  ╩ ╩═╩╝╩ ╩  ╚═╝╚═╝╩ ╩╩ ╩╩ ╩╝╚╝═╩╝╚═╝
-        let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'website/assets/static-content/mdm-commands.yml';
+        let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'docs/mdm-commands.yml';
         let commandsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let mdmCommands = YAML.parse(commandsYaml, {prettyErrors: true});
 
