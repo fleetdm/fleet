@@ -287,7 +287,34 @@ CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.co
 > Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
 
 
+### Board meeting and OKR planning
 
+The board meeting and OKR planning will be happening the first week of the third month of the quarter. See below for the agenda,
+
+- **Day 1 (in-person):**
+  - Board deck finalization
+    - CEO: Preps keynote.
+    - CEO: Aborbs graphs that was provided by the E-Group.
+    - CEO: Derivation into top level OKRs.
+  - T-Group arrives and socialize midday.
+    - Last minute edits with the team in the evening.
+    - OKR brainstorming right after (+async for the E-Group who aren't phycally there). 
+- **Day 2 (in-person):**
+  - Mock board meeting.
+  - Real board meeting.
+  - Closed session.
+  - Dinner with the board.
+- **Day 3 (in-person):**
+  - Leave.
+  - Catchup with daily work.
+  - Recover.
+  - Think.
+- **Day 4 (virtual):**
+  - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
+  - OKR finalization (CEO, EA, Interim Head of People and Head of Digital Workplace & GTM Systems to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
+- **Day 5 (virtual):**
+  - Each manager will work with their team to ratify, understand and raise any objections or initial edits to the OKRs. All the way down to the ICs.
+  - CEO, EA and Interim Head of People will meet for 1 hour to decide location of next baord meeting and eamail board members.
 
 
 ## Communicating departures
