@@ -132,7 +132,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 		}
 
 		// insert storage data into host_disks table for API consumption
-		if host.Host.GigsTotalDiskSpace > 0 || host.Host.GigsDiskSpaceAvailable > 0 {
+		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
+		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
@@ -219,7 +220,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 		}
 
 		// update storage data in host_disks table for API consumption
-		if host.Host.GigsTotalDiskSpace > 0 || host.Host.GigsDiskSpaceAvailable > 0 {
+		// Check != 0 to allow -1 sentinel value for "not supported" to be stored
+		if host.Host.GigsTotalDiskSpace != 0 || host.Host.GigsDiskSpaceAvailable != 0 {
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,

@@ -255,25 +255,8 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 	host.Host.Build = device.SoftwareInfo.AndroidBuildNumber
 	host.Host.Memory = device.MemoryInfo.TotalRam
 
-	if device.MemoryInfo.TotalInternalStorage > 0 {
-		totalStorageBytes := device.MemoryInfo.TotalInternalStorage
-
-		var totalAvailableBytes int64
-		for _, event := range device.MemoryEvents {
-			switch event.EventType {
-			case "EXTERNAL_STORAGE_DETECTED":
-				totalStorageBytes += event.ByteCount
-			case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
-				totalAvailableBytes += event.ByteCount
-			}
-		}
-
-		if totalStorageBytes > 0 {
-			host.Host.GigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
-			host.Host.GigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
-			host.Host.PercentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
-		}
-	}
+	host.Host.GigsTotalDiskSpace, host.Host.GigsDiskSpaceAvailable, host.Host.PercentDiskSpaceAvailable =
+		svc.calculateAndroidStorageMetrics(ctx, device, true)
 
 	host.Host.HardwareSerial = device.HardwareInfo.SerialNumber
 	host.Host.CPUType = device.HardwareInfo.Hardware
@@ -313,26 +296,8 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
 
-	var gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable float64
-	if device.MemoryInfo.TotalInternalStorage > 0 {
-		totalStorageBytes := device.MemoryInfo.TotalInternalStorage
-
-		var totalAvailableBytes int64
-		for _, event := range device.MemoryEvents {
-			switch event.EventType {
-			case "EXTERNAL_STORAGE_DETECTED":
-				totalStorageBytes += event.ByteCount
-			case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
-				totalAvailableBytes += event.ByteCount
-			}
-		}
-
-		if totalStorageBytes > 0 {
-			gigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
-			gigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
-			percentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
-		}
-	}
+	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable :=
+		svc.calculateAndroidStorageMetrics(ctx, device, false)
 
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
@@ -428,4 +393,84 @@ func (svc *Service) getPolicyID(ctx context.Context, device *androidmanagement.D
 		return nil, ctxerr.Wrapf(ctx, err, "parsing Android policy ID from %s", device.AppliedPolicyName)
 	}
 	return ptr.Uint(uint(result)), nil
+}
+
+// calculateAndroidStorageMetrics processes Android device memory events and calculates storage metrics.
+// Returns -1 for both available space and percentage values when we don't receive the AMAPI fields needed to calculate storage.
+func (svc *Service) calculateAndroidStorageMetrics(
+	ctx context.Context,
+	device *androidmanagement.Device,
+	isUpdate bool,
+) (gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable float64) {
+	if device.MemoryInfo == nil || device.MemoryInfo.TotalInternalStorage <= 0 {
+		return 0, 0, 0
+	}
+
+	totalStorageBytes := device.MemoryInfo.TotalInternalStorage
+
+	// Determine log message prefix based on context
+	logPrefix := "Processing Android memory events"
+	logSuffix := ""
+	if isUpdate {
+		logSuffix = " (update)"
+	}
+
+	// Log memory events for debugging
+	level.Debug(svc.logger).Log(
+		"msg", logPrefix+logSuffix,
+		"device_id", device.HardwareInfo.EnterpriseSpecificId,
+		"total_internal_storage", totalStorageBytes,
+		"memory_events_count", len(device.MemoryEvents),
+	)
+
+	var totalAvailableBytes int64
+	var hasMeasuredEvents bool
+
+	for _, event := range device.MemoryEvents {
+		level.Debug(svc.logger).Log(
+			"msg", "Android memory event"+logSuffix,
+			"event_type", event.EventType,
+			"byte_count", event.ByteCount,
+			"create_time", event.CreateTime,
+		)
+		switch event.EventType {
+		case "EXTERNAL_STORAGE_DETECTED":
+			totalStorageBytes += event.ByteCount
+		case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
+			totalAvailableBytes += event.ByteCount
+			hasMeasuredEvents = true
+		}
+	}
+
+	if totalStorageBytes > 0 {
+		gigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
+
+		// If we only have DETECTED events (no MEASURED events), storage measurement isn't supported
+		// We use -1 as sentinel value to indicate "not supported"
+		if !hasMeasuredEvents {
+			gigsDiskSpaceAvailable = -1
+			percentDiskSpaceAvailable = -1
+
+			level.Debug(svc.logger).Log(
+				"msg", "Android storage measurement not supported"+logSuffix,
+				"device_id", device.HardwareInfo.EnterpriseSpecificId,
+				"total_storage_bytes", totalStorageBytes,
+				"reason", "Only DETECTED events, no MEASURED events",
+			)
+		} else {
+			gigsDiskSpaceAvailable = float64(totalAvailableBytes) / (1024 * 1024 * 1024)
+			percentDiskSpaceAvailable = (float64(totalAvailableBytes) / float64(totalStorageBytes)) * 100
+
+			level.Debug(svc.logger).Log(
+				"msg", "Android storage calculation complete"+logSuffix,
+				"total_storage_bytes", totalStorageBytes,
+				"total_available_bytes", totalAvailableBytes,
+				"gigs_total", gigsTotalDiskSpace,
+				"gigs_available", gigsDiskSpaceAvailable,
+				"percent_available", percentDiskSpaceAvailable,
+			)
+		}
+	}
+
+	return gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable
 }
