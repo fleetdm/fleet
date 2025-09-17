@@ -865,7 +865,6 @@ When Fleeties relocate, there are vendors that need to be notified of the change
 
 Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](TODO_ADD_MISSING_LINK). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
 
-
 For Fleeties exercising Non-Qualified Stock Options (NSOs), once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
 - For *US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. 
 
