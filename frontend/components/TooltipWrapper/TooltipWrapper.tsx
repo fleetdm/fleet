@@ -10,7 +10,7 @@ export interface ITooltipWrapper {
   position?: PlacesType;
   /** A boolean or number defining how long to delay showing the tooltip content on hover over the
    * element. If a boolean, sets delay to the default below. If a number, sets to that
-   * many milliseconds. Overridden by `delayShowHide` */
+   * many milliseconds. Defaults to `true`, overridden by `delayShowHide` */
   delayShow?: boolean | number;
   /** A boolean or number defining how long to delay hiding the tooltip content on mouseout from the element. If a boolean, sets delay to the default below. If a number, sets to that
    * many milliseconds. Overridden by `delayShowHide`  */
@@ -51,7 +51,7 @@ and mouseout from the element. If a boolean, sets delay to the default below. If
 
 const baseClass = "component__tooltip-wrapper";
 
-const DEFAULT_DELAY_MS = 500;
+const DEFAULT_DELAY_MS = 250;
 
 const TooltipWrapper = ({
   // wrapperCustomClass,
@@ -61,7 +61,7 @@ const TooltipWrapper = ({
   tipContent,
   tipOffset = 5,
   position = "bottom-start",
-  delayShow,
+  delayShow = true,
   delayHide,
   delayShowHide,
   underline = true,
