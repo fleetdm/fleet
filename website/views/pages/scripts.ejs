@@ -37,7 +37,7 @@
         <div purpose="content">
           <div purpose="page-headline">
             <h1>Scripts</h1>
-            <p>A collection of scripts you can run on your devices Contributions welcome <a href="TODO">over on GitHub</a>.</p>
+            <p>A collection of scripts you can run on your devices Contributions welcome <a target="_blank" href="https://github.com/fleetdm/fleet/edit/main/docs/scripts.yml">over on GitHub</a>.</p>
           </div>
           <div purpose="platform-content" v-if="selectedPlatform === 'apple'">
             <% for(let script of macOsScripts){%>
@@ -87,9 +87,9 @@
       <p purpose="mobile-table-of-contents-header"><strong>Controls</strong></p>
         <div purpose="table-of-contents" class="w-100">
           <div purpose="modal-links">
-            <a class="d-block" purpose="modal-nav-link" href="/os-settings">OS settings</a>
-            <a class="d-block active" purpose="modal-nav-link" href="/scripts">Scripts</a>
-            <a class="d-block" purpose="modal-nav-link" href="/mdm-commands">MDM commands</a>
+            <a class="d-block" purpose="modal-nav-link" :href="'/os-settings#'+selectedPlatform">OS settings</a>
+            <a class="d-block active" purpose="modal-nav-link" :href="'/scripts#'+selectedPlatform">Scripts</a>
+            <a class="d-block" purpose="modal-nav-link" :href="'/mdm-commands#'+selectedPlatform">MDM commands</a>
           </div>
         </div>
     </modal>
