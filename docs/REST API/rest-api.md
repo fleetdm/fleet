@@ -9578,6 +9578,7 @@ Get a list of all software.
     {
       "id": 12,
       "name": "Firefox.app",
+      "display_name": "Firefox",
       "software_package": {
         "platform": "darwin",
         "fleet_maintained_app_id": 42,
@@ -9618,6 +9619,7 @@ Get a list of all software.
     {
       "id": 22,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 5,
@@ -9650,6 +9652,7 @@ Get a list of all software.
     {
       "id": 32,
       "name": "1Password – Password Manager",
+      "display_name": "",
       "software_package": null,
       "app_store_app": null,
       "versions_count": 1,
@@ -9712,6 +9715,7 @@ Get a list of all software versions.
       {
         "id": 1,
         "name": "glibc",
+        "display_name": "",
         "version": "2.12",
         "source": "rpm_packages",
         "release": "1.212.el6",
@@ -9735,6 +9739,7 @@ Get a list of all software versions.
       {
         "id": 2,
         "name": "1Password – Password Manager",
+        "display_name": "",
         "version": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
@@ -9839,6 +9844,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 12,
     "name": "Falcon.app",
+    "display_name": "Crowdstrike Falcon",
     "bundle_identifier": "crowdstrike.falcon.Agent",
     "available_software": {
       "fleet_maintained_app": {
@@ -9923,6 +9929,7 @@ Returns information about the specified software. By default, `versions` are sor
   "software_title": {
     "id": 15,
     "name": "Logic Pro",
+    "display_name": "",
     "bundle_identifier": "com.apple.logic10",
     "available_software": {
       "fleet_maintained_app": null,
@@ -9993,6 +10000,7 @@ Returns information about the specified software version.
   "software": {
     "id": 425224,
     "name": "Firefox.app",
+    "display_name": "Firefox",
     "version": "117.0",
     "bundle_identifier": "org.mozilla.firefox",
     "source": "apps",
@@ -10206,6 +10214,7 @@ Content-Type: application/octet-stream
   "software_package": {
     "title_id": 123,
     "name": "FalconSensor-6.44.pkg",
+    "display_name": "",
     "version": "6.44",
     "platform": "darwin",
     "fleet_maintained_app_id": 42,
@@ -10247,6 +10256,7 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
+| display_name    | string  | form | Optional override for the default `name`. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
@@ -10303,6 +10313,7 @@ Content-Type: application/octet-stream
 {
   "software_package": {
     "name": "FalconSensor-6.44.pkg",
+    "display_name": "",
     "categories": [],
     "version": "6.44",
     "platform": "darwin",
@@ -10351,6 +10362,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
   "app_store_apps": [
     {
       "name": "Xcode",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "15.4",
       "app_store_id": "497799835",
@@ -10358,6 +10370,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10365,6 +10378,7 @@ Returns the list of Apple App Store (VPP) that can be added to the specified tea
     },
     {
       "name": "Logic Pro",
+      "display_name": "",
       "icon_url": "https://is1-ssl.mzstatic.com/image/thumb/Purple211/v4/f1/65/1e/a4844ccd-486d-455f-bb31-67336fe46b14/AppIcon-1x_U007emarketing-0-7-0-85-220-0.png/512x512bb.jpg",
       "latest_version": "2.04",
       "app_store_id": "634148309",
@@ -10439,6 +10453,7 @@ Modify App Store (VPP) app's options.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | team_id       | integer | body | **Required**. The team ID. Edits App Store apps from the specified team.  |
+| display_name    | string  | form | Optional override for the default `name`. |
 | categories | string[] | body | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | self_service | boolean | body | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
@@ -10472,6 +10487,7 @@ Only one of `labels_include_any` or `labels_exclude_any` can be specified. If ne
 {
   "app_store_app": {
     "name": "Logic Pro",
+    "display_name": "",
     "app_store_id": 1091189122,
     "categories": ["Browser"],
     "latest_version": "2.04",

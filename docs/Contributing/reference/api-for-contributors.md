@@ -3266,9 +3266,10 @@ Lists the software installed on the current device.
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3299,6 +3300,7 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "display_name": "Firefox",
       "software_package": null,
       "app_store_app": null,
       "source": "apps",
