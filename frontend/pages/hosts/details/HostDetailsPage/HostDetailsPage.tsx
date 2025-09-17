@@ -1255,7 +1255,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}
