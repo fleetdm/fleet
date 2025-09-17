@@ -1809,6 +1809,38 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:minio:minio:2020-03-10T00-00-00Z:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:    "dify",
+				Source:  "npm_packages",
+				Version: "0.11.0",
+			},
+			cpe: "cpe:2.3:a:langgenius:dify:0.11.0:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "undici",
+				Source:  "npm_packages",
+				Version: "5.22.1",
+			},
+			cpe: "cpe:2.3:a:nodejs:undici:5.22.1:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "vite",
+				Source:  "npm_packages",
+				Version: "4.3.9",
+			},
+			cpe: "cpe:2.3:a:vitejs:vite:4.3.9:*:*:*:*:node.js:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "directus",
+				Source:  "npm_packages",
+				Version: "9.12.2",
+			},
+			cpe: "cpe:2.3:a:monospace:directus:9.12.2:*:*:*:*:node.js:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).

@@ -613,5 +613,13 @@
       "product": ["iterm2"],
       "vendor": ["iterm2"]
     }
+  },
+  {
+    "software": {
+      "source": ["npm_packages"]
+    },
+    "filter": {
+      "target_sw": ["node.js"]
+    }
   }
 ]
