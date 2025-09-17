@@ -1414,7 +1414,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(installedAppsUUIDs) > 0 {
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
 		if turnedOffError != nil {
 			return turnedOffError
 		}
@@ -1435,7 +1435,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(certsListUUIDs) > 0 {
 		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
 		if turnedOffError != nil {
 			return turnedOffError
 		}
@@ -1457,7 +1457,7 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(deviceInfoUUIDs) > 0 {
 		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
-		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err)
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
 		if turnedOffError != nil {
 			return turnedOffError
 		}
@@ -1476,14 +1476,18 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 
 // turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
 // Returns a boolean value to indicate whether or not MDM was turned off.
-func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error) (bool, error) {
+func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger kitlog.Logger) (bool, error) {
 	var e *APNSDeliveryError
 	if !errors.As(err, &e) {
 		return false, nil
 	}
-	for _, uuid := range e.FailedUUIDs() {
-		if err := ds.MDMTurnOff(ctx, uuid); err != nil {
-			return false, ctxerr.Wrap(ctx, err, "turn off mdm for failed device")
+
+	for uuid, err := range e.errorsByUUID {
+		if strings.Contains(err.Error(), "device token is inactive") {
+			level.Info(logger).Log("msg", "turning off MDM for device with inactive device token", "uuid", uuid)
+			if err := ds.MDMTurnOff(ctx, uuid); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "turn off mdm for failed device")
+			}
 		}
 	}
 	return true, nil

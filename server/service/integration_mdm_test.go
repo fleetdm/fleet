@@ -17826,6 +17826,19 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	err = failedMdmDevice.Enroll()
 	require.NoError(s.T(), err)
 
+	failedHostTokenInactive, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            failedPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	failedMdmDeviceTokenInactive := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	failedMdmDeviceTokenInactive.SerialNumber = failedHostTokenInactive.HardwareSerial
+	err = failedMdmDeviceTokenInactive.Enroll()
+	require.NoError(s.T(), err)
+
 	originalPushFunc := s.pushProvider.PushFunc
 	s.T().Cleanup(func() {
 		s.pushProvider.PushFunc = originalPushFunc
@@ -17841,11 +17854,18 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 					Err: nil,
 				},
 			}, nil
-		case "pushmagic" + failedMdmDevice.SerialNumber:
+		case "pushmagic" + failedMdmDeviceTokenInactive.SerialNumber:
 			return map[string]*push.Response{
 				pushObject.Token.String(): {
 					Id:  failedPushUUID,
 					Err: errors.New("device token is inactive"),
+				},
+			}, nil
+		case "pushmagic" + failedMdmDevice.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  failedPushUUID,
+					Err: errors.New("random apns error"),
 				},
 			}, nil
 		}
@@ -17855,14 +17875,21 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
-	// Verify successful is still enrolled, and failed has been unenrolled
+	// Verify successful is still enrolled
 	successfulHostMDM, err := s.ds.GetHostMDM(ctx, successfulHost.ID)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), successfulHostMDM)
 	require.True(s.T(), successfulHostMDM.Enrolled)
 
+	// Verify random APNS error host is still enrolled
 	failedHostMDM, err := s.ds.GetHostMDM(ctx, failedHost.ID)
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), failedHostMDM)
-	require.False(s.T(), failedHostMDM.Enrolled)
+	require.True(s.T(), failedHostMDM.Enrolled)
+
+	// Verify device token inactive host is no longer enrolled
+	failedHostMDMTokenInactive, err := s.ds.GetHostMDM(ctx, failedHostTokenInactive.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), failedHostMDMTokenInactive)
+	require.False(s.T(), failedHostMDMTokenInactive.Enrolled)
 }
