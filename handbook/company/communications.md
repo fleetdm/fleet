@@ -871,7 +871,7 @@ For Fleeties exercising Non-Qualified Stock Options (NSOs), once an exercise req
 > FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
-  - For Fleeties who are non-US tax residents, please follow the instructions on this page to exercise your options
+  - For Fleeties who are non-US tax residents, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
 
 
 
