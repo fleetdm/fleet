@@ -23,15 +23,21 @@
         </div>
       </div>
       <div purpose="sidebar-and-content">
-        <div purpose="sidebar">
+        <div purpose="sidebar" class="d-lg-flex d-none">
           <a purpose="sidebar-link" :href="'/os-settings#'+selectedPlatform">OS settings</a>
           <a purpose="sidebar-link" :href="'/scripts#'+selectedPlatform">Scripts</a>
           <a purpose="sidebar-link" class="active" :href="'/mdm-commands#'+selectedPlatform">MDM commands</a>
         </div>
+        <div class="d-flex d-lg-none">
+          <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between align-items-center" @click="clickOpenTableOfContents()">
+            <div><p>Controls</p></div>
+            <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+          </div>
+        </div>
         <div purpose="content">
           <div purpose="page-headline">
             <h1>Commands</h1>
-            <div v-if="selectedPlatform === 'linux'">
+            <div purpose="linux-empty-state" v-if="selectedPlatform === 'linux'">
               <p>Linux doesn't support MDM commands, but you can use scripts to perform common device management tasks.</p>
               <a href="/scripts#linux">View recommended scripts for Linux.</a>
             </div>
@@ -45,10 +51,10 @@
               <div purpose="command" class="d-flex flex-lg-row flex-column justify-content-between">
                 <div purpose="command-name-and-description" class="d-flex flex-column">
                   <div class="d-flex flex-column">
-                    <p purpose="command-name"><a href="/commands/<%= command.slug %>"><%- command.name %></a></p>
+                    <p purpose="command-name"><a href="/mdm-commands/<%= command.slug %>"><%- command.name %></a></p>
                   </div>
                   <div purpose="command-description"><p><%- command.description %></p></div>
-                  <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/command/<%= command.slug %>">View details</animated-arrow-button></div>
+                  <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/mdm-commands/<%= command.slug %>">View details</animated-arrow-button></div>
                 </div>
               </div>
               <% }%>
@@ -63,10 +69,10 @@
               <div purpose="command" class="d-flex flex-lg-row flex-column justify-content-between">
                 <div purpose="command-name-and-description" class="d-flex flex-column">
                   <div class="d-flex flex-column">
-                    <p purpose="command-name"><a href="/commands/<%= command.slug %>"><%- command.name %></a></p>
+                    <p purpose="command-name"><a href="/mdm-commands/<%= command.slug %>"><%- command.name %></a></p>
                   </div>
                   <div purpose="command-description"><p><%- command.description %></p></div>
-                  <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/command/<%= command.slug %>">View details</animated-arrow-button></div>
+                  <div purpose="read-more-link"><animated-arrow-button arrow-color="#192147" href="/mdm-commands/<%= command.slug %>">View details</animated-arrow-button></div>
                 </div>
               </div>
               <% }%>
@@ -77,6 +83,18 @@
         </div>
       </div>
     </div>
+  </div>
+  <div purpose="table-of-contents-modal">
+    <modal purpose="table-of-contents-modal" v-if="modal === 'table-of-contents'" @close="closeModal()">
+      <p purpose="mobile-table-of-contents-header"><strong>Controls</strong></p>
+        <div purpose="table-of-contents" class="w-100">
+          <div purpose="modal-links">
+            <a class="d-block" purpose="modal-nav-link" href="/os-settings">OS settings</a>
+            <a class="d-block" purpose="modal-nav-link" href="/scripts">Scripts</a>
+            <a class="d-block active" purpose="modal-nav-link" href="/mdm-commands">MDM commands</a>
+          </div>
+        </div>
+    </modal>
   </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
