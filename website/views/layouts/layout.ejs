@@ -394,18 +394,18 @@
                     </div>
                     <% if(_.has(me, 'id')) {%>
                       <hr>
-                      <a purpose="mobile-dropdown-link" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
+                      <a purpose="mobile-dropdown-toggle" href="/logout" class="d-flex mt-2 text-decoration-none">Log out</a>
                     <% }%>
+                    <%if(me && me.isSuperAdmin && showAdminLinks) {%>
+                      <hr>
+                      <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
+                      <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
+                        <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
+                        <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
+                      </div>
+                    <%}%>
                   </div>
-                  <%if(me && me.isSuperAdmin && showAdminLinks) {%>
-                    <hr>
-                    <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleAdmin">Admin</a>
-                    <div id="mobileNavbarToggleAdmin" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <a purpose="mobile-dropdown-link" href="/query-generator">Generate queries</a>
-                      <a purpose="mobile-dropdown-link" href="/admin/generate-license">License generator</a>
-                      <a purpose="mobile-dropdown-link" href="/admin/email-preview">HTML Email preview tool</a>
-                    </div>
-                  <%}%>
                   <%if(!hideGetStartedButton){%>
                   <div purpose="mobile-nav-cta" class="d-flex flex-row align-items-center">
 

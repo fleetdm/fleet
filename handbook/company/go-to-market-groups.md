@@ -145,11 +145,6 @@ Here are some topics for social media posts:
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
 
-#### Articles
-
-[Create an "📝 Article" issue](https://github.com/fleetdm/fleet/issues/new?template=fleet-article.md) and follow the instructions in the template to propose a new article for Fleet to publish.
-
-
 #### Events
 
 It's important for Fleet to engage at [events](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1931288160). This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
@@ -188,7 +183,7 @@ Intent signals help measure an individual's/organization's current level of enga
 - Identify accounts/contacts that would benefit from a POV conversation.
 
 When processing intent signals, prioritize accounts in the following order:
-1. Sales-ready: Accounts currently assigned to reps (i.e. pipeline + stage0 + pre-pipeline IQMs).
+1. Sales-ready: Accounts currently assigned to reps.
 2. Ads running: Accounts with trending psychological progression (as measured by fleetdm.com website signups (i.e. new contacts ± contacts that have increased their psystage to a certain point).
 3. Researched: Key accounts that fleeties have suggested to prioritize.
 

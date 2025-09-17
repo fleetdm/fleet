@@ -91,6 +91,35 @@ Departmental page structure:
 - `## Rituals`
 
 
+## Board meeting and OKR planning
+
+The board meeting and OKR planning happen during the first week of the third month of every quarter. Fleet uses the following agenda to prepare, execute, iterate on, and retro its in-person board meetings and quarterly Objective Key Results (OKRs):
+
+**Day 1 _Prepare_ (in-person):**
+  - Board deck finalization:
+  - The CEO preps keynote on plane, absorbs graphs in the airport, and derives top-level OKRs in the hotel.
+  - T-Group arrives midday.
+  - Last-minute edits with the team in the evening.
+  - OKR brainstorming right after (+async for the E-Group who aren't physically there). 
+
+**Day 2 _Board meeting_ (in-person):**
+  - Mock board meeting
+  - Real board meeting
+  - Closed session
+  - Dinner with the board
+
+**Day 3 _Travel_:**
+  - Leave, catch up with daily work, recover, and think.
+
+**Day 4 _Plan and finalize_ (virtual):**
+  - OKR planning (entire E-Group, over Zoom, everyone comes prepared) for 3.5 hours.
+  - OKR finalization (CEO, EA, Interim Head of People and Head of Digital Workplace & GTM Systems to clean up any details and messaging out to remind/help executives to book time with their teams if it is not booked already for Friday) for 1 hour. 
+
+**Day 5 _Communicate_ (virtual):**
+  - Each manager will work with their team to ratify, understand, and raise any objections or initial edits to the OKRs, all the way down to the ICs.
+  - CEO, EA and Interim Head of People will meet for 1 hour to decide the location of the next board meeting and email board members.
+
+
 ## Key reviews
 
 Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
@@ -192,7 +221,7 @@ Core team members:
 
 ## Creating a new role at Fleet
 
-> Are you making a planned hire (i.e. filling a role that is already in the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0))? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
+> Are you making a planned hire (i.e. filling a role that is already in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0))? Create a [🛸 Teammate pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=:help-customers&projects=&template=pre-onboarding.md&title=YYYY_MM_DD%20Pre-onboarding:%20TEAM_MEMBER_NAME) 
 
 Do you need to create a completely new role at Fleet? Use these steps to open up a completely new position on the core team and hire a [fleetie](https://fleetdm.com/handbook/company/leadership#core-team-members-fleeties) for that role.
 
@@ -248,7 +277,9 @@ A completed open position entry should look something like this:
 
 ## Hiring a new team member
 
-This section is about hiring a new core team member, or fleetie, for an already approved position. 
+Use this section to fill an already approved position.  At Fleet, the [Interim Head of People](https://fleetdm.com/handbook/people) is the DRI for setting the interview process for all open positions. Interview steps vary by role, but before an offer is made, every successful candidate will have interviewed with the Interim Head of People and the CEO.
+
+To start the interview process, the hiring manager will create a copy of the [🛸 Why hire document (internal Google doc)](https://docs.google.com/document/d/1Hoq7qeZT683JErYeqPYs0v2mIoQCw2lvWOepsZn9IDg/edit?tab=t.d2akkisfwhxy/copy) for each candidate. All feedback will be kept in the cadidate's 🛸 Why hire document as they move through the process. 
 
 > **To move an approved candidate into the final hiring stage**, [create a pre-onboarding issue](https://github.com/fleetdm/confidential/issues/new?template=pre-onboarding.md) and complete the hiring manager tasks. This final step includes reference checks and CEO interview, and may influence the final hiring decision.
 
@@ -283,9 +314,6 @@ CEO shadows join all meetings on the [CEO's calendar](https://calendar.google.co
 3. Know which meetings you're expected to join. **You won't be listed as an attendee on any of the CEO's calendar events** to avoid confusion when scheduling meetings with external participants. You're intentionally marked out of office to avoid scheduling conflicts.
 
 > Please **DO NOT** add yourself as an attendee to any of the CEO's meetings. The CEO regularly meets with prospects and customers in the community, and without the context of the CEO shadow program, an unknown name on the calendar event could be mistaken for a sales tactic.
-
-
-
 
 
 ## Communicating departures

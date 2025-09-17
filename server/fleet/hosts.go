@@ -1024,6 +1024,10 @@ func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
 }
 
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
+}
+
 func IsUnixLike(hostPlatform string) bool {
 	unixLikeOSs := HostLinuxOSs
 	unixLikeOSs = append(unixLikeOSs, "darwin")
