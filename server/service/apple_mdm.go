@@ -581,11 +581,15 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 			case string(fleet.FleetVarNDESSCEPChallenge):
 				ndesVars, ok = ndesVars.SetChallenge()
 			case string(fleet.FleetVarSCEPRenewalID):
-				// TODO(sca): confirm with jordan how this is supposed to work with 3 different
-				// CA types, maybe we can add some comments to help future readers too
+				// This is kind of a goofy way of doing things but essentially, since custom SCEP, NDES, and Smallstep
+				// share the renewal ID Fleet variable, we need to set the
+
 				customSCEPVars, ok = customSCEPVars.SetRenewalID()
 				if ok {
 					ndesVars, ok = ndesVars.SetRenewalID()
+					if ok {
+						smallstepVars, ok = smallstepVars.SetRenewalID()
+					}
 				}
 			}
 		}
@@ -604,13 +608,20 @@ func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo
 		}
 	}
 	// Since custom SCEP, NDES, and Smallstep share the renewal ID Fleet variable, we need to figure out which one to validate.
-	if customSCEPVars.Found() && ndesVars.Found() {
-		// TODO(sca): confirm with jordan how this is supposed to work with 3 different
-		// CA types, maybe we can add some comments to help future readers too
+	if customSCEPVars.Found() || ndesVars.Found() || smallstepVars.Found() {
 		if ndesVars.RenewalOnly() {
 			ndesVars = nil
-		} else if customSCEPVars.RenewalOnly() {
+		}
+		if customSCEPVars.RenewalOnly() {
 			customSCEPVars = nil
+		}
+		if smallstepVars.RenewalOnly() {
+			smallstepVars = nil
+		}
+		// If only the renewal ID variable appeared without any of its associated variables, return an error. It is shared
+		// by the 3 CA types but is only allowed when CA vars are in use
+		if ndesVars == nil && smallstepVars == nil && customSCEPVars == nil {
+			return nil, &fleet.BadRequestError{Message: fleet.SCEPRenewalIDWithoutURLChallengeErrMsg}
 		}
 	}
 	if customSCEPVars.Found() {
