@@ -1,3 +1,6 @@
+<!-- Add the related story/bug number, like Resolves #123 -->
+Story/Bug: Resolves #
+
 # Checklist for submitter
 
 If some of the following don't apply, delete the relevant line.
