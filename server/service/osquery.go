@@ -844,7 +844,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 		}
 		return inSetupExperience, nil
-	case fleet.IsLinux(host.Platform):
+	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
 		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
