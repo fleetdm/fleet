@@ -23,10 +23,10 @@ var ErrUnsupportedPlatform = errors.New("unsupported platform")
 type SoftwareMatchingRule struct {
 	Name             string
 	SemVerConstraint string // TODO: how do CPE matching rules solve this?
-	// TODO: OSVersion
+	// TODO: OSVersion or FleetSoftware.Release
 	CVEs      map[string]struct{} // Maybe just a slice?
 	IgnoreAll bool
-	// TODO: IgnoreIf func(something) bool
+	// TODO: IgnoreIf func(FleetSoftware ) bool
 }
 
 // Analyze scans all hosts for vulnerabilities based on the OVAL definitions for their platform,
@@ -78,6 +78,7 @@ func Analyze(
 			hostID := hostID
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
 			// we have id, name, version, cpe available for us
+			// release should be populated as well
 			if err != nil {
 				return nil, err
 			}
@@ -125,6 +126,19 @@ func Analyze(
 					},
 					IgnoreAll: true,
 				},
+				{
+					Name:             "shim-x64",
+					SemVerConstraint: "15.8",
+					CVEs: map[string]struct{}{
+						"CVE-2023-40546": {},
+						"CVE-2023-40547": {},
+						"CVE-2023-40548": {},
+						"CVE-2023-40549": {},
+						"CVE-2023-40550": {},
+						"CVE-2023-40551": {},
+					},
+					IgnoreAll: true,
+				},
 			}
 
 			softwareIDs := make(map[uint]fleet.Software)
@@ -136,18 +150,19 @@ func Analyze(
 			fmt.Println("newVulns: ", newVulns)
 			for _, v := range foundInBatch[hostID] {
 				sName := softwareIDs[v.SoftwareID].Name
-				match := true
-				// semVerConstraint
+				skip := false
+				// check for semVerConstraint
 				for _, r := range ruleList {
-					if sName == r.Name { // TODO: if SemVerConstraint is true
-						if _, found := r.CVEs[v.CVE]; found {
-							match = false
-							fmt.Println("skip cve: ", v.CVE)
-							break
-						}
+					if sName != r.Name { // TODO: if SemVerConstraint is true
+						continue
+					}
+					if _, found := r.CVEs[v.CVE]; found {
+						skip = true
+						fmt.Println("skip cve: ", v.CVE)
+						break
 					}
 				}
-				if match {
+				if !skip {
 					newVulns = append(newVulns, v)
 				}
 			}
@@ -164,7 +179,7 @@ func Analyze(
 			// for _, s := range software {
 			// 	for _, r := range ruleList {
 			// 		if s.Name == r.Name {
-			// 			for _, pair := range foundInBatch[s.ID] {
+			// 			for _, pair := range foundInBatch[s.ID] { // this doesnt even work it should be hostID
 			// 				if cve, found := r.CVEs[pair.CVE]; !found {
 			// 					newVulns = append(newVulns, cve)
 			// 				}
