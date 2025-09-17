@@ -18,7 +18,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -74,7 +73,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -104,7 +102,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -134,7 +131,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -215,7 +211,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -245,7 +240,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -275,7 +269,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -378,7 +371,6 @@
     - macOS 10.11+
     - tvOS 10.2+
     - visionOS 2.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -402,7 +394,6 @@
   supportedDeviceTypes:
     - iOS 9.0+
     - iPadOS 9.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -429,7 +420,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -459,7 +449,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -490,7 +479,6 @@
     - macOS 10.7+
     - visionOS 2.0+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -520,7 +508,6 @@
     - iPadOS 10.3+
     - macOS 10.13+
     - tvOS 10.2+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -545,7 +532,6 @@
     - iOS 10.3+
     - iPadOS 10.3+
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -573,7 +559,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -600,7 +585,6 @@
   description: Install an enterprise app on a device.
   supportedDeviceTypes:
     - macOS 10.13.6+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -632,7 +616,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -662,7 +645,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -690,7 +672,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -716,7 +697,6 @@
   supportedDeviceTypes:
     - iOS 5.0+
     - iPadOS 5.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -746,7 +726,6 @@
     - iPadOS 9.2+
     - tvOS 10.2+
     - visionOS 1.1+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -773,7 +752,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -805,7 +783,6 @@
     - tvOS 10.2+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -836,7 +813,6 @@
     - macOS 11.0+
     - tvOS 10.2+
     - visionOS 1.1+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -868,7 +844,6 @@
     - iOS 8.0+
     - iPadOS 8.0+
     - macOS 10.19+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -906,7 +881,6 @@
   supportedDeviceTypes:
     - iOS 8.0+
     - iPadOS 8.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -930,7 +904,6 @@
   supportedDeviceTypes:
     - iOS 8.0+
     - iPadOS 8.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -952,7 +925,6 @@
   description: Create and configure a local administrator account on a device.
   supportedDeviceTypes:
     - macOS 10.11+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1019,7 +991,6 @@
     - iOS 7.0+
     - iPadOS 7.0+
     - macOS 10.11+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1049,7 +1020,6 @@
     - iPadOS 4.0+
     - visionOS 1.1+
     - macOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1102,7 +1072,6 @@
   supportedDeviceTypes:
     - iOS 8.0+
     - iPadOS 8.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1125,7 +1094,6 @@
   description: Unlock a user account that the system locked because of too many failed password attempts.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1150,7 +1118,6 @@
   description: Update the local administrator account password.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1194,7 +1161,6 @@
   description: Change or clear the firmware password on a device.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1223,7 +1189,6 @@
   description: Verify the firmware password on a device.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1253,7 +1218,6 @@
   supportedDeviceTypes:
     - iOS 9.3+
     - ipadOS 9.3+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1283,7 +1247,6 @@
   supportedDeviceTypes:
     - iOS 9.3+
     - ipadOS 9.3+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1307,7 +1270,6 @@
   supportedDeviceTypes:
     - iOS 10.3+
     - ipadOS 10.3+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1331,7 +1293,6 @@
   supportedDeviceTypes:
     - iOS 9.3+
     - ipadOS 9.3+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1354,7 +1315,6 @@
   description: Set or clear the Recovery Lock password.
   supportedDeviceTypes:
     - macOS 11.5+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1377,7 +1337,6 @@
   description: Verify the device’s Recovery Lock password.
   supportedDeviceTypes:
     - macOS 11.5+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1400,7 +1359,6 @@
   description: Get the status of the content caches on a device.
   supportedDeviceTypes:
     - macOS 10.15.4+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     TODO
 
@@ -1413,7 +1371,6 @@
     - iOS 7.0+
     - ipadOS 7.0+
     - macOS 10.10+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1444,7 +1401,6 @@
     - iOS 7.0+
     - ipadOS 7.0+
     - macOS 10.10+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1468,7 +1424,6 @@
   supportedDeviceTypes:
     - iOS 13.0+
     - ipadOS 13.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1493,7 +1448,6 @@
   description: Disable Remote Desktop on a device.
   supportedDeviceTypes:
     - macOS 10.14.4+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1516,7 +1470,6 @@
   description: Enable Remote Desktop on a device.
   supportedDeviceTypes:
     - macOS 10.14.4+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1544,7 +1497,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1576,7 +1528,6 @@
   description: Send requests to a device using lights-out management (LOM).
   supportedDeviceTypes:
     - macOS 11.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1615,7 +1566,6 @@
   description: Get information from a device to set up lights-out management (LOM).
   supportedDeviceTypes:
     - macOS 11.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1643,7 +1593,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1671,7 +1620,6 @@
     - tvOS 9.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1699,7 +1647,6 @@
     - iPadOS 7.1+
     - macOS 10.15+
     - visionOS 2.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1725,7 +1672,6 @@
     - iPadOS 7.1+
     - macOS 10.15+
     - visionOS 2.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1748,7 +1694,6 @@
   description: Clear the Activation Lock bypass code on a device.
   supportedDeviceTypes:
     - macOS 10.9+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1797,7 +1742,6 @@
   description: Get a list of active extensions for a user on a device.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1824,7 +1768,6 @@
   description: Get a list of the installed extensions for a user on a device.
   supportedDeviceTypes:
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1849,7 +1792,6 @@
     - iOS 9.3+
     - ipadOS 9.3+
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1873,7 +1815,6 @@
   supportedDeviceTypes:
     - iOS 9.3+
     - ipadOS 9.3+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1898,7 +1839,6 @@
     - iOS 9.3+
     - ipadOS 9.3+
     - macOS 10.13+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1926,7 +1866,6 @@
     - tvOS 16.0+
     - visionOS 1.1+
     - watchOS 10.0+
-  url: PUT https://yourmdmhost.example.com/mdm
   command: |
     <?xml version="1.0" encoding="UTF-8"?>
     <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -1966,11 +1905,9 @@
   platform: windows
   category: BitLocker
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp#rotaterecoverypasswords
-  description: |
-    Triggers a one-time rotation of all numeric BitLocker recovery passwords for OS and fixed drives on Entra ID or hybrid-joined devices via MDM. Requires Active Directory backup of recovery passwords to be set to "required" before execution.
+  description: Triggers a one-time rotation of all numeric BitLocker recovery passwords for OS and fixed drives on Entra ID or hybrid-joined devices. Requires Active Directory backup of recovery passwords to be set to "required" before execution.
   supportedDeviceTypes:
     - Windows 10.0.18363
-  url: ./Device/Vendor/MSFT/BitLocker/RotateRecoveryPasswords
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -1996,7 +1933,6 @@
   description: Initiates SCEP certificate enrollment in the personal certificate store on the device.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/CertificateStore/MY/SCEP/Install/Enroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2004,7 +1940,7 @@
           <CmdID>1a3a3666-2df6-4dcf-a785-46b2f28d2fbf</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/SCEP/Install/Enroll</LocURI>
+              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/SCEP/{UniqueID}/Install/Enroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2020,10 +1956,9 @@
   platform: windows
   category: CertificateStore
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/certificatestore-csp#mywsteprenewrenewnow
-  description: Initiate a renew now
+  description: Triggers an immediate renewal of an existing certificate in the personal certificate store on the device.
   supportedDeviceTypes:
     - Windows 10.0.14393
-  url: ./Device/Vendor/MSFT/CertificateStore/MY/WSTEP/Renew/RenewNow
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2043,14 +1978,13 @@
        </syncbody>
      </syncml>
 
-- name: Enroll (Device scope)
+- name: Enroll (Device context)
   platform: windows
   category: ClientCertificateInstall
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescepuniqueidinstallenroll
   description: Triggers the device to start SCEP certificate enrollment at the device scope. The device will not notify MDM server after cert enrollment is done. The MDM server could later query the device to find out whether new cert is added.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/Install/Enroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2058,7 +1992,7 @@
           <CmdID>96821528-e7c2-41ce-b4a8-6a20c61df80b</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/Install/Enroll</LocURI>
+              <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2070,14 +2004,13 @@
        </syncbody>
      </syncml>
 
-- name: Enroll (User scope)
+- name: Enroll (User context)
   platform: windows
   category: ClientCertificateInstall
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescepuniqueidinstallenroll
   description: Triggers the user context to start SCEP certificate enrollment. The device will not notify MDM server after cert enrollment is done. The MDM server could later query the device to find out whether new cert is added.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/ClientCertificateInstall/SCEP/Install/Enroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2085,7 +2018,7 @@
           <CmdID>a901c1bc-3970-461d-9c92-932645cab9b3</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/Install/Enroll</LocURI>
+              <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2108,7 +2041,6 @@
     - Windows 10.0.19044.2193
     - Windows 10.0.19043.2193
     - Windows 10.0.19042.2193
-  url: ./Device/Vendor/MSFT/DMClient/Provider/LinkedEnrollment/Enroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2116,7 +2048,7 @@
           <CmdID>307799ee-7535-472d-a06e-a846d8e6f214</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/LinkedEnrollment/Enroll</LocURI>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Enroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2132,14 +2064,13 @@
   platform: windows
   category: DMClient
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridlinkedenrollmentunenroll
-  description: Trigger Unenroll for the Linked Enrollment
+  description: Triggers the device to unenroll from its linked MDM enrollment
   supportedDeviceTypes:
     - Windows 10.0.22621
     - Windows 10.0.22000.918
     - Windows 10.0.19044.2193
     - Windows 10.0.19043.2193
     - Windows 10.0.19042.2193
-  url: ./Device/Vendor/MSFT/DMClient/Provider/LinkedEnrollment/Unenroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2147,7 +2078,7 @@
           <CmdID>48e557bd-c055-4239-bb13-d24fb5e0c526</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/LinkedEnrollment/Unenroll</LocURI>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Unenroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2163,11 +2094,10 @@
   platform: windows
   category: DMClient
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridrecoveryinitiaterecovery
-  description: This node initiates a recovery action. The server can specify prerequisites before the action is taken.
+  description: Initiates a device recovery action. The server can specify prerequisites that must be met before the recovery action proceeds.
   supportedDeviceTypes:
     - Windows 10.0.22621
     - Windows 10.0.22000.1165
-  url: ./Device/Vendor/MSFT/DMClient/Provider/Recovery/InitiateRecovery
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2175,7 +2105,7 @@
           <CmdID>cc6ccbd3-3679-44c0-976a-581e8946a96a</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/Recovery/InitiateRecovery</LocURI>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Recovery/InitiateRecovery</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">int</Format>
@@ -2191,10 +2121,9 @@
   platform: windows
   category: DMClient
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridunenroll
-  description: This command calls the enrollment client to unenroll the device from the management server whose provider ID is specified in the <Data> tag under the <Item> element.
+  description: Triggers the device to unenroll from a specific MDM provider. The Provider ID of the management server must be specified in the <Data> element of the command.
   supportedDeviceTypes:
     - Windows 10.0.10240
-  url: ./Device/Vendor/MSFT/DMClient/Provider/Unenroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2202,7 +2131,7 @@
           <CmdID>e43a2271-7661-4587-b452-df8880005fd8</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/Unenroll</LocURI>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}//Unenroll</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -2218,10 +2147,9 @@
   platform: windows
   category: DMClient
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceunenroll
-  description: This command and calls the enrollment client to unenroll the device from the management server whose provider ID is specified in the <Data> tag under the <Item> element. Scope is permanent.
+  description: Triggers the device to permanently unenroll from its current MDM management server. The Provider ID of the management server must be specified in the <Data> element of the command.
   supportedDeviceTypes:
     - Windows 10.0.10240
-  url: ./Device/Vendor/MSFT/DMClient/Unenroll
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2245,10 +2173,9 @@
   platform: windows
   category: Defender
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#offlinescan
-  description: OfflineScan action starts a Microsoft Defender Offline scan on the computer where you run the command. After the next OS reboot, the device will start in Microsoft Defender Offline mode to begin the scan.
+  description: Starts a Microsoft Defender Offline scan on the device. After the next reboot, the device will start in Microsoft Defender Offline mode to perform a scan before Windows loads, helping detect and remove persistent or hard-to-find malware.
   supportedDeviceTypes:
     - Windows 10.0.17134
-  url: ./Device/Vendor/MSFT/Defender/OfflineScan
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2271,10 +2198,9 @@
   platform: windows
   category: Defender
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#rollbackengine
-  description: RollbackEngine action rolls back Microsoft Defender engine to it's last known good saved version on the computer where you run the command.
+  description: Rolls back the Microsoft Defender antimalware engine to its last known good version on the device.
   supportedDeviceTypes:
     - Windows 10.0.17134
-  url: ./Device/Vendor/MSFT/Defender/RollbackEngine
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2297,10 +2223,9 @@
   platform: windows
   category: Defender
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#rollbackplatform
-  description: RollbackPlatform action rolls back Microsoft Defender to it's last known good installation location on the computer where you run the command.
+  description: Rolls back Microsoft Defender to its last known good installation location on the device.
   supportedDeviceTypes:
     - Windows 10.0.17134
-  url: ./Device/Vendor/MSFT/Defender/RollbackPlatform
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2323,10 +2248,9 @@
   platform: windows
   category: Defender
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#scan
-  description: Node that can be used to start a Windows Defender scan on a device.
+  description: Starts a Windows Defender scan on the device
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/Defender/Scan
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2349,10 +2273,9 @@
   platform: windows
   category: Defender
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#updatesignature
-  description: Node that can be used to perform signature updates for Windows Defender.
+  description: Performs a Windows Defender signature update on the device.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/Defender/UpdateSignature
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2375,10 +2298,9 @@
   platform: windows
   category: DiagnosticLog
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#devicestatedatamdmconfiguration
-  description: This node is to trigger snapping of the Device Management state data with "SNAP".
+  description: Triggers a snapshot of the device’s management state data, capturing the current MDM configuration for diagnostic purposes.
   supportedDeviceTypes:
     - Windows 10.0.14393
-  url: ./Vendor/MSFT/DiagnosticLog/DeviceStateData/MdmConfiguration
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2392,6 +2314,7 @@
               <Format xmlns="syncml:metinf">chr</Format>
               <Type>text/plain</Type>
             </Meta>
+            <Data>SNAP</Data>
           </Item>
         </Exec>
        </syncbody>
@@ -2401,10 +2324,9 @@
   platform: windows
   category: DiagnosticLog
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#diagnosticarchivearchivedefinition
-  description: Root note for archive definition and collection.
+  description: Definition and collection point for diagnostic archives on the device.
   supportedDeviceTypes:
     - Windows 10.0.18362
-  url: ./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2427,10 +2349,9 @@
   platform: windows
   category: DiagnosticLog
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#etwlogchannelschannelnameexport
-  description: This node is to trigger exporting events into a log file from this node's associated Windows event channel. The log file's extension is .evtx, which is the standard extension of windows event channel log. The "Get" command returns the name of this node.
+  description: Triggers exporting events from the associated Windows event channel into a log file with the standard .evtx extension.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/DiagnosticLog/EtwLog/Channels/Export
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2454,10 +2375,9 @@
   platform: windows
   category: DiagnosticLog
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#etwlogcollectorscollectornametracecontrol
-  description: This node is to trigger "start" and "stop" of this collector node's associated trace session. "Get" returns the name of this node.
+  description: Triggers the start or stop of the associated trace session.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/TraceControl
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2465,7 +2385,7 @@
           <CmdID>a563bffc-2c4c-4f2f-a5e5-6545bab6ad95</CmdID>
           <Item>
             <Target>
-              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/TraceControl</LocURI>
+              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/{CollectorName}/TraceControl</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">chr</Format>
@@ -2476,14 +2396,13 @@
        </syncbody>
      </syncml>
 
-- name: DownloadInstall (Device scope)
+- name: DownloadInstall (Device context)
   platform: windows
   category: EnterpriseDesktopAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisedesktopappmanagement-csp#devicemsiproductiddownloadinstall
-  description: Executes the download and installation of the application. In Windows 10, version 1703 service release, a new tag <DownloadFromAad> was added to the <Enforcement> section of the XML. The default value is 0 (do not send token). This tag is optional and needs to be set to 1 in case the server wants the download URL to get the AADUserToken.
+  description: Executes the download and installation of an application. An optional <DownloadFromAad> tag in the <Enforcement> section of the XML (default 0) can be set to 1 to include the AAD user token when retrieving the download URL.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/DownloadInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2491,7 +2410,7 @@
           <CmdID>02802f7e-1266-494a-b4b0-9878a122fafa</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/DownloadInstall</LocURI>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2502,14 +2421,13 @@
        </syncbody>
      </syncml>
 
-- name: DownloadInstall (User scope)
+- name: DownloadInstall (User context)
   platform: windows
   category: EnterpriseDesktopAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisedesktopappmanagement-csp#usermsiproductiddownloadinstall
-  description: Executes the download and installation of the application. In Windows 10, version 1703 service release, a new tag <DownloadFromAad> was added to the <Enforcement> section of the XML. The default value is 0 (do not send token). This tag is optional and needs to be set to 1 in case the server wants the download URL to get the AADUserToken.
+  description: Executes the download and installation of an application. An optional <DownloadFromAad> tag in the <Enforcement> XML section (default 0) can be set to 1 to include the AAD user token when retrieving the download URL.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/DownloadInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2517,7 +2435,7 @@
           <CmdID>bbb7ee46-9032-4020-b1f5-0252104ab3a8</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/DownloadInstall</LocURI>
+              <LocURI>./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2528,14 +2446,13 @@
        </syncbody>
      </syncml>
 
-- name: HostedInstall
+- name: HostedInstall (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappinstallationpackagefamilynamehostedinstall
-  description: Command to perform an install of an app package from a hosted location (this can be a local drive, a UNC, or https data source).
+  description: Installs an app package from a hosted location, such as a local drive, UNC path, or HTTPS source.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/HostedInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2543,7 +2460,7 @@
           <CmdID>ba628a02-12d5-48c4-9586-34fa039a4a00</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/HostedInstall</LocURI>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/HostedInstall</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2554,14 +2471,13 @@
        </syncbody>
      </syncml>
 
-- name: StoreInstall
+- name: StoreInstall (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappinstallationpackagefamilynamestoreinstall
-  description: Command to perform an install of an app and a license from the Microsoft Store.
+  description: Installs an app along with its license from the Microsoft Store under the device context.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/StoreInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2569,7 +2485,7 @@
           <CmdID>19e07f1f-bce0-43a1-a364-477c1cd500ab</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/StoreInstall</LocURI>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/StoreInstall</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2580,14 +2496,13 @@
        </syncbody>
      </syncml>
 
-- name: AddLicense
+- name: AddLicense (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceapplicensesstorelicenseslicenseidaddlicense
-  description: Command to add license.
+  description: Adds a specified app license to the device using the provided license ID.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/AddLicense
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2595,7 +2510,7 @@
           <CmdID>2a7e4bc2-5b0d-4cf1-b66d-05f828177582</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/AddLicense</LocURI>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2606,14 +2521,13 @@
        </syncbody>
      </syncml>
 
-- name: GetLicenseFromStore
+- name: GetLicenseFromStore (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceapplicensesstorelicenseslicenseidgetlicensefromstore
-  description: Command to get license from the store.
+  description: Retrieves a specified app license from the Microsoft Store using the provided license ID.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/GetLicenseFromStore
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2621,7 +2535,7 @@
           <CmdID>aba692b8-bd1b-4bd1-90b6-eef510b03562</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/GetLicenseFromStore</LocURI>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2632,14 +2546,13 @@
        </syncbody>
      </syncml>
 
-- name: ResetPackage
+- name: ResetPackage (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappmanagementresetpackage
-  description: Used to restore the Windows app to its initial configuration.
+  description: Restores a specified Windows app to its initial state by resetting all configurations and data associated with the package.
   supportedDeviceTypes:
     - Windows 10.0.22000
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2658,14 +2571,13 @@
        </syncbody>
      </syncml>
 
-- name: UpdateScan
+- name: UpdateScan (Device context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappmanagementupdatescan
-  description: Used to start the Windows Update scan.
+  description: Starts a Windows Update scan on the device.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2685,14 +2597,13 @@
        </syncbody>
      </syncml>
 
-- name: HostedInstall (User scope)
+- name: HostedInstall (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappinstallationpackagefamilynamehostedinstall
-  description: Command to perform an install of an app package from a hosted location (this can be a local drive, a UNC, or https data source).
+  description: Installs an app package from a hosted location, such as a local drive, UNC path, or HTTPS source.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/HostedInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2711,14 +2622,13 @@
        </syncbody>
      </syncml>
 
-- name: StoreInstall (User scope)
+- name: StoreInstall (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappinstallationpackagefamilynamestoreinstall
   description: Command to perform an install of an app and a license from the Microsoft Store.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/StoreInstall
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2737,14 +2647,13 @@
        </syncbody>
      </syncml>
 
-- name: AddLicense (User scope)
+- name: AddLicense (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userapplicensesstorelicenseslicenseidaddlicense
-  description: Command to add license.
+  description: Adds a specified app license to the device using the provided license ID.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/AddLicense
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2752,7 +2661,7 @@
           <CmdID>9b0b3d42-e244-4359-8471-46f8cf62558e</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/AddLicense</LocURI>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2763,14 +2672,13 @@
        </syncbody>
      </syncml>
 
-- name: GetLicenseFromStore (User scope)
+- name: GetLicenseFromStore (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userapplicensesstorelicenseslicenseidgetlicensefromstore
-  description: Command to get license from the store.
+  description: Retrieves a specified app license from the Microsoft Store using the provided license ID.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/GetLicenseFromStore
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2778,7 +2686,7 @@
           <CmdID>f4796a1e-5bf9-4828-a602-d3a0ac9f5930</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/GetLicenseFromStore</LocURI>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">xml</Format>
@@ -2789,14 +2697,13 @@
        </syncbody>
      </syncml>
 
-- name: RemovePackage (User scope)
+- name: RemovePackage (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementremovepackage
-  description: Used to remove packages.
+  description: Removes a specified Windows app package from the device.
   supportedDeviceTypes:
     - Windows 10.0.15063
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/RemovePackage
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2810,19 +2717,21 @@
               <Format xmlns="syncml:metinf">xml</Format>
               <Type>text/plain</Type>
             </Meta>
+            <Data>
+              <Package Name="{PackageFullName}" RemoveForAllUsers="1" />
+            </Data>
           </Item>
         </Exec>
        </syncbody>
      </syncml>
 
-- name: ResetPackage (User scope)
+- name: ResetPackage (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementresetpackage
-  description: Used to restore the Windows app to its initial configuration.
+  description: Restores a specified Windows app to its initial state by resetting all configurations and data associated with the package.
   supportedDeviceTypes:
     - Windows 10.0.22000
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2841,14 +2750,13 @@
        </syncbody>
      </syncml>
 
-- name: UpdateScan (User scope)
+- name: UpdateScan (User context)
   platform: windows
   category: EnterpriseModernAppManagement
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementupdatescan
-  description: Used to start the Windows Update scan.
+  description: Starts a Windows Update scan under the user context to check for available app updates.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2872,10 +2780,9 @@
   platform: windows
   category: HealthAttestation
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/healthattestation-csp#triggerattestation
-  description: Notifies the device to trigger an attestation session asynchronously.
+  description: Triggers an asynchronous device health attestation session, prompting the device to collect and submit its current health status for verification.
   supportedDeviceTypes:
     - Windows 10.0.22000
-  url: ./Vendor/MSFT/HealthAttestation/TriggerAttestation
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2901,7 +2808,6 @@
   description: Notifies the device to prepare a device health verification request.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/HealthAttestation/VerifyHealth
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2925,7 +2831,7 @@
   platform: windows
   category: Local Administrator Password Solution (LAPS)
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/laps-csp#actionsresetpassword
-  description: Use this setting to tell the CSP to immediately generate and store a new password for the managed local administrator account.
+  description: Immediately generates and securely stores a new random password for the managed local administrator account on the device using Local Administrator Password Solution (LAPS).
   supportedDeviceTypes:
     - Windows 10.0.25145
     - Windows 10.0.22621.1480
@@ -2933,7 +2839,6 @@
     - Windows 10.0.20348.1663
     - Windows 10.0.19041.2784
     - Windows 10.0.17763.4244
-  url: ./Device/Vendor/MSFT/LAPS/Actions/ResetPassword
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2953,41 +2858,13 @@
        </syncbody>
      </syncml>
 
-- name: StartInstallation
-  platform: windows
-  category: LanguagePackManagement
-  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/language-pack-management-csp#installlanguage-idstartinstallation
-  description: Execution node to queue a language for installation on the device.
-  supportedDeviceTypes:
-    - Windows 99.9.9999
-  url: ./Device/Vendor/MSFT/LanguagePackManagement/Install/StartInstallation
-  command: |
-     <syncml xmlns="SYNCML:SYNCML1.2">
-       <syncbody>
-         <Exec>
-          <CmdID>0fb11584-57b9-4b68-9b71-4733e539d8ca</CmdID>
-          <Item>
-            <Target>
-              <LocURI>./Device/Vendor/MSFT/LanguagePackManagement/Install/StartInstallation</LocURI>
-            </Target>
-            <Meta>
-              <Format xmlns="syncml:metinf">null</Format>
-              <Type>text/plain</Type>
-            </Meta>
-            <Data></Data>
-          </Item>
-        </Exec>
-       </syncbody>
-     </syncml>
-
-- name: Install (User scope)
+- name: Install (User context)
   platform: windows
   category: Office
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#deviceinstallationidinstall
-  description: The install action will install office given the configuration in the data. The string data is the xml configuration to use in order to install office.
+  description: Installs Microsoft Office for the user based on the provided XML configuration.
   supportedDeviceTypes:
     - Windows 10.0.15063
-  url: ./Device/Vendor/MSFT/Office/Installation/Install
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -2995,7 +2872,7 @@
           <CmdID>b06743fc-3682-4aba-9f65-90a134b3dd6d</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/Office/Installation/Install</LocURI>
+              <LocURI>./Device/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">chr</Format>
@@ -3006,14 +2883,13 @@
        </syncbody>
      </syncml>
 
-- name: Install (Device scope)
+- name: Install (Device context)
   platform: windows
   category: Office
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#userinstallationidinstall
-  description: The install action will install office given the configuration in the data. The string data is the xml configuration to use in order to install office.
+  description: Installs Microsoft Office on the device using the provided XML configuration data.
   supportedDeviceTypes:
     - Windows 10.0.15063
-  url: ./User/Vendor/MSFT/Office/Installation/Install
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3021,7 +2897,7 @@
           <CmdID>2e9f2aba-db2e-44a4-9c78-6d05fd5ef4a4</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/Office/Installation/Install</LocURI>
+              <LocURI>./User/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">chr</Format>
@@ -3036,13 +2912,12 @@
   platform: windows
   category: PrinterProvisioning
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/printerprovisioning-csp#upprinterinstallsprintersharedidinstall
-  description: Support async execute. Install Universal Print printer.
+  description: Installs a Universal Print printer for the user asynchronously.
   supportedDeviceTypes:
     - Windows 10.0.22000
     - Windows 10.0.19044.1806
     - Windows 10.0.19043.1806
     - Windows 10.0.19042.1806
-  url: ./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/Install
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3050,7 +2925,7 @@
           <CmdID>0d2f967d-2c8b-45a6-9a5e-6969cb58b10a</CmdID>
           <Item>
             <Target>
-              <LocURI>./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/Install</LocURI>
+              <LocURI>./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/{PrinterSharedID}/Install</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">null</Format>
@@ -3066,10 +2941,9 @@
   platform: windows
   category: Reboot
   externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp#rebootnow
-  description: This node executes a reboot of the device. RebootNow triggers a reboot within 5 minutes to allow the user to wrap up any active work. If this node is set to execute during a sync session, the device will reboot at the end of the sync session.
+  description: Triggers an immediate device reboot, typically within 5 minutes to allow the user to finish active work. If executed during a sync session, the device will reboot at the end of the session.
   supportedDeviceTypes:
     - Windows 10.0.14393
-  url: ./Device/Vendor/MSFT/Reboot/RebootNow
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3096,7 +2970,6 @@
   description: Triggers an Autopilot reset on the device. Unlike a standard reset, the device remains enrolled in Azure AD and MDM, and preserves Wi-Fi profiles, region, language, keyboard settings, and other key configurations.
   supportedDeviceTypes:
     - Windows 10.0.17763
-  url: ./Device/Vendor/MSFT/RemoteWipe/AutomaticRedeployment/doAutomaticRedeployment
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3122,7 +2995,6 @@
   description: Performs a remote wipe on the device. The return status indicates whether the device accepted the command. When used with OMA Client Provisioning, include a dummy value of "1" for this element.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipe
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3148,7 +3020,6 @@
   description: Performs a cloud-based remote wipe on the device. The return status indicates whether the device accepted the command.
   supportedDeviceTypes:
     - Windows 10.0.22621
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipeCloud
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3174,7 +3045,6 @@
   description: Performs a cloud-based remote wipe while preserving provisioning data by backing it up to a persistent location. The backed-up data is restored and applied when the device resumes. The return status indicates whether the device accepted the command.
   supportedDeviceTypes:
     - Windows 10.0.22621
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistProvisionedData
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3200,7 +3070,6 @@
   description: Performs a cloud-based remote reset while preserving user accounts and data. The return status indicates whether the device accepted the command.
   supportedDeviceTypes:
     - Windows 10.0.22621
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistUserData
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3226,7 +3095,6 @@
   description: Performs a remote wipe while preserving provisioning data by backing it up to a persistent location. The backed-up data is restored and applied when the device resumes. The return status indicates whether the device accepted the command. When using OMA Client Provisioning, include a dummy value of "1" for this element.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipePersistProvisionedData
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3252,7 +3120,6 @@
   description: Performs a remote reset of the device while preserving user accounts and data. The return status indicates whether the device accepted the command.
   supportedDeviceTypes:
     - Windows 10.0.16299
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipePersistUserData
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3278,7 +3145,6 @@
   description: Performs a remote wipe that fully cleans the internal drive and continues retrying until complete, even after power cycles. Unlike doWipe, which can be interrupted by a simple power cycle, doWipeProtected ensures the wipe finishes. May render the device unbootable on some configurations.
   supportedDeviceTypes:
     - Windows 10.0.15063
-  url: ./Device/Vendor/MSFT/RemoteWipe/doWipeProtected
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3304,7 +3170,6 @@
   description: Remotely installs the Windows Defender Application Guard feature on the device.
   supportedDeviceTypes:
     - Windows 10.0.16299
-  url: ./Device/Vendor/MSFT/WindowsDefenderApplicationGuard/InstallWindowsDefenderApplicationGuard
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3330,7 +3195,6 @@
   description: Installs a new Windows product key on the device without requiring a reboot.
   supportedDeviceTypes:
     - Windows 10.0.15063
-  url: ./Vendor/MSFT/WindowsLicensing/ChangeProductKey
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3356,7 +3220,6 @@
   description: Checks if the provided product key is valid for upgrading the Windows edition on the device, returning TRUE if applicable.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/WindowsLicensing/CheckApplicability
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3382,7 +3245,6 @@
   description: Switches the device from Windows 10/11 S mode to a standard edition, if eligible. No reboot is required.
   supportedDeviceTypes:
     - Windows 10.0.17763
-  url: ./Vendor/MSFT/WindowsLicensing/SMode/SwitchFromSMode
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3409,7 +3271,6 @@
   description: Removes the subscription license from the device and resets the subscription type to a user-based subscription.
   supportedDeviceTypes:
     - Windows 99.9.99999
-  url: ./Vendor/MSFT/WindowsLicensing/Subscriptions/RemoveSubscription
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3436,7 +3297,6 @@
   description: Upgrades the Windows edition on the device by applying a provided license. No reboot is required to complete the upgrade.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithLicense
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3462,7 +3322,6 @@
   description: Upgrades the Windows edition on the device by applying a specified product key. A reboot is required to complete the upgrade.
   supportedDeviceTypes:
     - Windows 10.0.10586
-  url: ./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithProductKey
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3476,6 +3335,7 @@
               <Format xmlns="syncml:metinf">chr</Format>
               <Type>text/plain</Type>
             </Meta>
+            <Data>XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</Data>
           </Item>
         </Exec>
        </syncbody>
@@ -3488,7 +3348,6 @@
   description: Triggers an eUICC (embedded Universal Integrated Circuit Card) factory reset, permanently deleting all eSIM (embedded Subscriber Identity Module) profiles stored on the eUICC.
   supportedDeviceTypes:
     - Windows 10.0.16299
-  url: ./Device/Vendor/MSFT/eUICCs/Actions/ResetToFactoryState
   command: |
      <syncml xmlns="SYNCML:SYNCML1.2">
        <syncbody>
@@ -3496,7 +3355,7 @@
           <CmdID>ebb2aec5-4865-4419-9fa1-3458d32fcab6</CmdID>
           <Item>
             <Target>
-              <LocURI>./Device/Vendor/MSFT/eUICCs/Actions/ResetToFactoryState</LocURI>
+              <LocURI>./Device/Vendor/MSFT/eUICCs/{eUICC}/Actions/ResetToFactoryState</LocURI>
             </Target>
             <Meta>
               <Format xmlns="syncml:metinf">chr</Format>
