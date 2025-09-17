@@ -861,17 +861,17 @@ Fleet benchmarks US-based team members based on the United States Dollar (USD). 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
 
-## Exercising options in Carta
+#### Exercise stock options
 
 Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](TODO_ADD_MISSING_LINK). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
 
-For Fleeties exercising Non-Qualified Stock Options (NSOs), once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
-- For *US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
+- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
 
 > FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
 > I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
 
-  - For Fleeties who are non-US tax residents, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
+- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
 
 
 
