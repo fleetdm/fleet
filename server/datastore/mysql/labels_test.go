@@ -790,6 +790,10 @@ func setupLabelSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.LabelSpec {
 	err := ds.ApplyLabelSpecs(context.Background(), expectedSpecs)
 	require.Nil(t, err)
 
+	// Because `Hosts` for manual labels matches both host name AND host ID,
+	// specifying "1" will match both host with ID 1 (whose name is "0")
+	// and host with name "1".
+	expectedSpecs[4].Hosts = []string{"0", "1", "2", "3", "4"}
 	return expectedSpecs
 }
 
