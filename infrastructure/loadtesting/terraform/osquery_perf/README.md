@@ -11,8 +11,6 @@ Although deployments through the github action should be prioritized, for manual
 
 # Deploy with Github Actions
 
-> Note: All deployments should occur from main.
-
 1. [Navigate to the github action](https://github.com/fleetdm/fleet/actions/workflows/loadtest-osquery-perf.yml)
 
 2. On the top right corner, select the `Run Workflow` dropdown.
@@ -125,7 +123,7 @@ terraform workspace delete <workspace_name>
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | tf-mod-addon-osquery-perf-v1.1.1 |
+| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | internal-lb-support |
 
 ## Resources
 
@@ -152,4 +150,6 @@ terraform workspace delete <workspace_name>
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_osquery_perf"></a> [osquery\_perf](#output\_osquery\_perf) | n/a |
