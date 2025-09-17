@@ -1891,6 +1891,7 @@ func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string)
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
 	svc.authz.SkipAuthorization(ctx)
+	logging.WithLevel(ctx, level.Info)
 	logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
