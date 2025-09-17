@@ -119,7 +119,8 @@
     },
     "filter": {
       "product": ["desktop"],
-      "vendor": ["docker"]
+      "vendor": ["docker"],
+      "sw_edition": [""]
     }
   },
   {
@@ -620,6 +621,17 @@
     },
     "filter": {
       "target_sw": ["node.js"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Firefox ESR.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["firefox"],
+      "vendor": ["mozilla"],
+      "sw_edition": ["esr"]
     }
   }
 ]

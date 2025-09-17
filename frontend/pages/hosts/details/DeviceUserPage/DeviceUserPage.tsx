@@ -315,9 +315,9 @@ const DeviceUserPage = ({
   } = dupResponse || {};
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
-  const isSetupExperienceSoftwareEnabledPlatform = isLinuxLike(
-    host?.platform || ""
-  ); // TODO - add windows with next iteration
+  const isSetupExperienceSoftwareEnabledPlatform =
+    isLinuxLike(host?.platform || "") || host?.platform === "windows";
+
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
 

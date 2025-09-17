@@ -1,0 +1,1 @@
+* Changed the response code for UserAuthenticate checkin messages, which are unsupported, from a 5XX to "410 Gone" as specified in the Apple MDM protocol docs for servers that do not implement this method

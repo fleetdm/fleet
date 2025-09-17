@@ -127,7 +127,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.BoolFlag{
 				Name:        "disable-setup-experience",
-				Usage:       "Disable setup experience for Linux hosts",
+				Usage:       "Disable setup experience for Linux or Windows hosts",
 				Destination: &opt.DisableSetupExperience,
 			},
 			&cli.StringFlag{

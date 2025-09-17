@@ -154,7 +154,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - States: Default, Hover (with mouse), Active (when clicked), Focus (keyboard highlight)
 
 ## User permissions
-- Premium vs. Free
+- Premium vs. Free. Premium-only API endpoints and parameters return an easy to understand error message if you're using Fleet Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
 - Team level user (Admin, Maintainer, Observer, Observer+, API only)
 
