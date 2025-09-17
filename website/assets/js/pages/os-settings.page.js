@@ -4,6 +4,7 @@ parasails.registerPage('os-settings', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     selectedPlatform: 'apple', // Initially set to 'macos'
+    modal: undefined,
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -26,6 +27,8 @@ parasails.registerPage('os-settings', {
       }
       window.location.hash = '';
     }
+    this.handleScrollingPlatformFilters();
+    window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -35,5 +38,28 @@ parasails.registerPage('os-settings', {
     clickSelectPlatform: function(platform) {
       this.selectedPlatform = platform;
     },
+    handleScrollingPlatformFilters: function () {
+      let platformFilters = document.querySelector('div[purpose="platform-filters"]');
+      let scrollTop = window.pageYOffset;
+      let windowHeight = window.innerHeight;
+      // If the right nav bar exists, add and remove a class based on the current scroll position.
+      if (platformFilters) {
+        if (scrollTop > this.scrollDistance && scrollTop > windowHeight * 1.5) {
+          platformFilters.classList.add('header-hidden');
+          this.lastScrollTop = scrollTop;
+        } else if(scrollTop < this.lastScrollTop - 60) {
+          platformFilters.classList.remove('header-hidden');
+          this.lastScrollTop = scrollTop;
+        }
+      }
+      this.scrollDistance = scrollTop;
+    },
+    clickOpenTableOfContents: function () {
+      this.modal = 'table-of-contents';
+    },
+    closeModal: async function() {
+      this.modal = '';
+      await this.forceRender();
+    }
   }
 });
