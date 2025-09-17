@@ -10,7 +10,6 @@ import {
   IHostSoftware,
   IHostSoftwarePackage,
 } from "interfaces/software";
-import exp from "constants";
 
 const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   profile_uuid: "123-abc",

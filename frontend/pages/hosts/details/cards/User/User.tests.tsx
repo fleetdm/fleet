@@ -7,7 +7,7 @@ import { createMockHostEndUser } from "__mocks__/hostMock";
 import User from ".";
 
 describe("User card", () => {
-  it("renders the username field whene the platform is Apple", () => {
+  it("renders the username field when the platform is Apple", () => {
     const endUsers = [createMockHostEndUser()];
     render(
       <User
@@ -22,7 +22,7 @@ describe("User card", () => {
     expect(screen.getByText("jdoe")).toBeInTheDocument();
   });
 
-  it("renders the username field whene the platform is android", () => {
+  it("renders the username field when the platform is android", () => {
     const endUsers = [createMockHostEndUser()];
     render(
       <User
