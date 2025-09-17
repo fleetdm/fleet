@@ -160,6 +160,7 @@ type SCEPConfigService interface {
 	ValidateNDESSCEPAdminURL(ctx context.Context, proxy NDESSCEPProxyCA) error
 	GetNDESSCEPChallenge(ctx context.Context, proxy NDESSCEPProxyCA) (string, error)
 	ValidateSCEPURL(ctx context.Context, url string) error
+	ValidateSmallstepChallengeURL(ctx context.Context, ca SmallstepSCEPProxyCA) error
 	GetSmallstepSCEPChallenge(ctx context.Context, ca SmallstepSCEPProxyCA) (string, error)
 }
 
