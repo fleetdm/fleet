@@ -12,6 +12,7 @@ interface IUnenrollMdmModalProps {
   hostId: number;
   hostPlatform: string;
   hostName: string;
+  isBYODEnrollment?: boolean;
   onClose: () => void;
 }
 
@@ -21,6 +22,7 @@ const UnenrollMdmModal = ({
   hostId,
   hostPlatform,
   hostName,
+  isBYODEnrollment = false,
   onClose,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
@@ -33,22 +35,31 @@ const UnenrollMdmModal = ({
     setRequestState("unenrolling");
     try {
       await mdmAPI.unenrollHostFromMdm(hostId, 5000);
-      renderFlash(
-        "success",
-        <>
-          MDM will be turned off for <b>{hostName}</b> next time this host
-          checks in.
-        </>
-      );
+      const successMessage =
+        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+          <>
+            <b>{hostName}</b> will unenrolled next time this host checks in.
+          </>
+        ) : (
+          <>
+            MDM will be turned off for <b>{hostName}</b> next time this host
+            checks in.
+          </>
+        );
+      renderFlash("success", successMessage);
+      onClose();
     } catch (unenrollMdmError: unknown) {
-      renderFlash(
-        "error",
-        <>
-          Failed to turn off MDM for <b>{hostName}</b>.
-        </>
-      );
+      const errorMessage =
+        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+          "Couldn't unenroll. Please try again."
+        ) : (
+          <>
+            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+          </>
+        );
+      renderFlash("error", errorMessage);
     }
-    onClose();
+    setRequestState(undefined);
   };
 
   const generateDescription = () => {
@@ -56,10 +67,22 @@ const UnenrollMdmModal = ({
       return (
         <>
           <p>Settings configured by Fleet will be removed.</p>
-          <p>
-            To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
-            share the link with end user.
-          </p>
+          {isBYODEnrollment ? (
+            <p>
+              To re-enroll, ask your end user to navigate to{" "}
+              <b>
+                Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign
+                in to Work or School Account...
+              </b>{" "}
+              on their host and to log in with their work email.
+            </p>
+          ) : (
+            <p>
+              To re-enroll, make sure that the host is still in Apple Business
+              Manager (ABM). The host will automatically enroll after it&apos;s
+              reset.
+            </p>
+          )}
         </>
       );
     }
@@ -123,7 +146,13 @@ const UnenrollMdmModal = ({
       : "Turn off MDM";
 
   return (
-    <Modal title={title} onExit={onClose} className={baseClass} width="medium">
+    <Modal
+      title={title}
+      onExit={onClose}
+      className={baseClass}
+      width="medium"
+      isContentDisabled={requestState === "unenrolling"}
+    >
       {renderModalContent()}
     </Modal>
   );
