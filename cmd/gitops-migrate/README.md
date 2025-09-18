@@ -4,7 +4,7 @@ This directory contains the `gitops-migrate` tool, designed leading up to the `4
 
 # 4.74 YAML Changes
 
-The `4.74` release moves GitOps YAML keys: `self_service`, `categories`, `labels_exclude_any`, `labels_include_any` and `setup_experience` from the software files ([example](https://github.com/fleetdm/fleet/blob/c9a02741950f6510f9f1be48a2c19bc524417f70/cmd/fleetctl/gitops-migrate/testdata/mozilla-firefox.yml#L2-L9)) to the team files ([example](https://github.com/fleetdm/fleet/blob/c9a02741950f6510f9f1be48a2c19bc524417f70/it-and-security/teams/workstations.yml#L47-L70)).
+The `4.74` release moves GitOps YAML keys: `self_service`, `categories`, `labels_exclude_any`, and `labels_include_any` from the software files ([example](https://github.com/fleetdm/fleet/blob/c9a02741950f6510f9f1be48a2c19bc524417f70/cmd/fleetctl/gitops-migrate/testdata/mozilla-firefox.yml#L2-L9)) to the team files ([example](https://github.com/fleetdm/fleet/blob/c9a02741950f6510f9f1be48a2c19bc524417f70/it-and-security/teams/workstations.yml#L47-L70)).
 
 # Installation
 
@@ -44,7 +44,7 @@ The migration will unfold in two primary steps: `format` and `migrate`.
 
 ## Step 2: Migrate
 
-1. Run `gitops-migrate migrate ./`.
+1. Run `./gitops-migrate migrate ./`.
 
 In the command output, you should see messages like the following:
 ```shell
