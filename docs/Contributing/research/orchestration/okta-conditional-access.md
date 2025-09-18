@@ -14,7 +14,7 @@
 
 ### How does Okta Verify talk to Okta during login?
 
-* Okta Verify's FastPass first tries a silent local HTTP loopback to the Okta Verify app
+* Okta Verify's FastPass first tries a localhost connection to the Okta Verify app
 * If that can’t be used, the browser falls back to interactive deep links (custom URL scheme or app/universal links) to open Okta Verify.
 
 ---
