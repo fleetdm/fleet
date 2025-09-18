@@ -120,7 +120,7 @@
   frequency: "Weekly"
   description: "Every Friday, the Data & Video Specialist will clean up any duplicate accounts."
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
-  dri: "irenareedy"
+  dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential"
