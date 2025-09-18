@@ -93,9 +93,9 @@ func Analyze(
 			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
 
 			// We only know about software in this scope
-			fmt.Println("------------------------- oval batch -------------------------")
-			fmt.Println(foundInBatch[hostID])
-			fmt.Println()
+			// fmt.Println("------------------------- oval batch -------------------------")
+			// fmt.Println(foundInBatch[hostID])
+			// fmt.Println()
 			// we can filter by os version as well or rpm release
 			// we probably need at least name and version range (SemVerConstraint)
 
@@ -111,7 +111,7 @@ func Analyze(
 			}
 
 			updatedBatch := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
-			fmt.Println("updatedBatch: ", updatedBatch)
+			// fmt.Println("updatedBatch: ", updatedBatch)
 			for _, v := range foundInBatch[hostID] {
 				sName := softwareIDs[v.SoftwareID].Name
 				sVer := softwareIDs[v.SoftwareID].Version
@@ -122,9 +122,9 @@ func Analyze(
 			}
 
 			foundInBatch[hostID] = updatedBatch
-			fmt.Println("------------------------- modified -------------------------")
-			fmt.Println(foundInBatch[hostID])
-			fmt.Println()
+			// fmt.Println("------------------------- modified -------------------------")
+			// fmt.Println(foundInBatch[hostID])
+			// fmt.Println()
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)

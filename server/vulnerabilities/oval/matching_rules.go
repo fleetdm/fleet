@@ -20,6 +20,8 @@ type SoftwareMatchingRule struct {
 
 type SoftwareMatchingRules []SoftwareMatchingRule
 
+// GetKnownOVALBugRules returns a list of SoftwareMatchingRules used for
+// ignoring false positives detected during the OVAL vuln. detection process.
 func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 	rules := SoftwareMatchingRules{ // Would it be more efficient to use a map? It's a very small list of things
 		{
@@ -81,9 +83,9 @@ func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve s
 		// REMOVE COMMENT: if the version is >= VersionEnd
 		// the CVEs have been fixed and it is false positive
 		// so we want to return true
-		fmt.Println("Version compare: ", version, " , ", r.VersionEnd)
+		// fmt.Println("Version compare: ", version, " , ", r.VersionEnd, " cve: ", cve)
 		if nvd.SmartVerCmp(version, r.VersionEnd) < 0 {
-			continue
+			continue // true positive
 		}
 		if _, found := r.CVEs[cve]; found {
 			return true
