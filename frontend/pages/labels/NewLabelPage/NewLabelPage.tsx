@@ -25,6 +25,7 @@ import { NotificationContext } from "context/notification";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
+import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
