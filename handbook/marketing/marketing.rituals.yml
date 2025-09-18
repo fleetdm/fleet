@@ -117,9 +117,9 @@
 -
   task: "Manage duplicate accounts in CRM"
   startedOn: "2025-08-08"
-  frequency: "Weekly"
-  description: "Every Friday, the Data & Video Specialist will clean up any duplicate accounts."
-  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0"
+  frequency: "Daily"
+  description: "Daily, the Data & Video Specialist will clean up any duplicate accounts."
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicate-accounts-in-crm"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 
