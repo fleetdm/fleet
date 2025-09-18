@@ -10,7 +10,7 @@ interface IInfoCardProps {
   titleDetail?: JSX.Element | string | null;
   description?: JSX.Element | string;
   actionUrl?: string;
-  children: React.ReactChild | React.ReactChild[];
+  children: React.ReactNode;
   action?:
     | {
         type: "link";
