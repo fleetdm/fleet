@@ -445,12 +445,12 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 		// Check if we already have this CVE for this key (deduplication across architectures)
 		found := false
-		for _, existing := range vulnsByKey[key] {
+		for i, existing := range vulnsByKey[key] {
 			if existing.CVE == r.CVE {
 				found = true
 				// Keep the earliest CreatedAt time
 				if r.CreatedAt.Before(existing.CreatedAt) {
-					existing.CreatedAt = r.CreatedAt
+					vulnsByKey[key][i].CreatedAt = r.CreatedAt
 				}
 				break
 			}
