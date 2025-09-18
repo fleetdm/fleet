@@ -984,8 +984,12 @@ const HostDetailsPage = ({
         {isSoftwareLibrarySupported ? (
           <>
             <TabList>
-              <Tab>Inventory</Tab>
-              <Tab>Library</Tab>
+              <Tab>
+                <TabText>Inventory</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Library</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <SoftwareInventoryCard

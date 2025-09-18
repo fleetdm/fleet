@@ -2,7 +2,7 @@ import React from "react";
 import classnames from "classnames";
 
 interface ITabNavProps {
-  children: React.ReactChild | React.ReactChild[];
+  children: React.ReactNode;
   className?: string;
   secondary?: boolean;
 }
