@@ -2209,7 +2209,7 @@ func (c *Client) DoGitOps(
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
 				return nil, nil, err
 			}
-			logFn("[+] Set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn("[+] Set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
 			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
 		}
 	}
