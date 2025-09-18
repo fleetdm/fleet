@@ -60,7 +60,10 @@ func TestSoftwareMatchingRules(t *testing.T) {
 	match := rules.MatchesAny(s1.Name, s1.Version, "CVE-2025-20012")
 	require.True(t, match)
 	match = rules.MatchesAny(s1.Name, "2.2", "CVE-2025-20012")
+	require.True(t, match)
+	match = rules.MatchesAny(s1.Name, "2.0", "CVE-2025-20012")
 	require.False(t, match)
+
 	match = rules.MatchesAny("  ", s1.Version, "CVE-2025-20012")
 	require.False(t, match)
 	match = rules.MatchesAny(s1.Name, "    ", "CVE-2025-20012")

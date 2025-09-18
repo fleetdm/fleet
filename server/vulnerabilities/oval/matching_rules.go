@@ -82,7 +82,7 @@ func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve s
 		// the CVEs have been fixed and it is false positive
 		// so we want to return true
 		fmt.Println("Version compare: ", version, " , ", r.VersionEnd)
-		if nvd.SmartVerCmp(version, r.VersionEnd) > 0 {
+		if nvd.SmartVerCmp(version, r.VersionEnd) < 0 {
 			continue
 		}
 		if _, found := r.CVEs[cve]; found {
