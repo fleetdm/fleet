@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -946,23 +945,27 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:          "newDefaultTeamNoLicense",
 			licenseTier:   "free",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:          "notFoundNew",
 			licenseTier:   "premium",
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:          "notFoundEdit",
 			licenseTier:   "premium",
 			oldMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "foobar"},
 			newMDM:        fleet.MDM{DeprecatedAppleBMDefaultTeam: "bar"},
 			expectedError: notFoundErr,
-		}, {
+		},
+		{
 			name:        "foundNew",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -988,7 +991,8 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "foundEdit",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1015,13 +1019,15 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:          "ssoFree",
 			licenseTier:   "free",
 			findTeam:      true,
 			newMDM:        fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedError: licenseErr,
-		}, {
+		},
+		{
 			name:        "ssoFreeNoChanges",
 			licenseTier: "free",
 			findTeam:    true,
@@ -1048,7 +1054,8 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoAllFields",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1082,7 +1089,8 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoShortEntityID",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1116,7 +1124,8 @@ func TestMDMConfig(t *testing.T) {
 				},
 				RequireBitLockerPIN: optjson.Bool{Set: true, Value: false},
 			},
-		}, {
+		},
+		{
 			name:        "ssoMissingMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1125,7 +1134,8 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:  "onelogin",
 			}}},
 			expectedError: "either metadata or metadata_url must be defined",
-		}, {
+		},
+		{
 			name:        "ssoMultiMetadata",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1136,7 +1146,8 @@ func TestMDMConfig(t *testing.T) {
 				IDPName:     "onelogin",
 			}}},
 			expectedError: "invalid URI for request",
-		}, {
+		},
+		{
 			name:        "ssoIdPName",
 			licenseTier: "premium",
 			findTeam:    true,
@@ -1145,7 +1156,8 @@ func TestMDMConfig(t *testing.T) {
 				Metadata: "not-empty",
 			}}},
 			expectedError: "idp_name required",
-		}, {
+		},
+		{
 			name:        "disableDiskEncryption",
 			licenseTier: "premium",
 			newMDM: fleet.MDM{
@@ -1580,27 +1592,5 @@ func TestModifyEnableAnalytics(t *testing.T) {
 				require.Equal(t, tt.expectedEnabled, ac.ServerSettings.EnableAnalytics)
 			}
 		})
-	}
-}
-
-func newMockDigicertCA(url string, name string) fleet.DigiCertCA {
-	digiCertCA := fleet.DigiCertCA{
-		Name:                          name,
-		URL:                           url,
-		APIToken:                      "api_token",
-		ProfileID:                     "profile_id",
-		CertificateCommonName:         "common_name",
-		CertificateUserPrincipalNames: []string{"user_principal_name"},
-		CertificateSeatID:             "seat_id",
-	}
-	return digiCertCA
-}
-
-func newMockCustomSCEPProxyCA(url string, name string) fleet.CustomSCEPProxyCA {
-	challenge, _ := server.GenerateRandomText(6)
-	return fleet.CustomSCEPProxyCA{
-		Name:      name,
-		URL:       url,
-		Challenge: challenge,
 	}
 }
