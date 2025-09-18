@@ -41,7 +41,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "arch",
-				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb, rpm, or msi)",
+				Usage:       "Target CPU Architecture for the installer package (Only supported with '--type' deb, rpm, msi, or pkg.tar.zst)",
 				Destination: &opt.Architecture,
 				Value:       "amd64",
 			},
@@ -297,8 +297,8 @@ func packageCommand() *cli.Command {
 			}
 
 			if opt.FleetManagedHostIdentityCertificate {
-				if c.String("type") != "deb" && c.String("type") != "rpm" {
-					return errors.New("--fleet-managed-host-identity-certificate is only supported for deb/rpm packages")
+				if c.String("type") != "deb" && c.String("type") != "rpm" && c.String("type") != "pkg.tar.zst" {
+					return errors.New("--fleet-managed-host-identity-certificate is only supported for deb/rpm/pkg.tar.zst packages")
 				}
 				if opt.FleetTLSClientCertificate != "" {
 					return errors.New("--fleet-managed-host-identity-certificate and --fleet-tls-client-certificate may not be provided together")
@@ -339,10 +339,10 @@ func packageCommand() *cli.Command {
 				}
 
 				switch c.String("type") {
-				case "msi", "deb", "rpm":
+				case "msi", "deb", "rpm", "pkg.tar.zst":
 					// ok
 				default:
-					return errors.New("Can only set --end-user-email when building an MSI, DEB, or RPM package.")
+					return errors.New("Can only set --end-user-email when building an msi, deb, rpm, or pkg.tar.zst package.")
 				}
 			}
 
@@ -368,19 +368,23 @@ func packageCommand() *cli.Command {
 				switch c.String("type") {
 				case "deb":
 					if !strings.HasSuffix(opt.CustomOutfile, ".deb") {
-						return errors.New("output file must end with .deb for DEB packages")
+						return errors.New("output file must end with .deb for deb packages")
 					}
 				case "rpm":
 					if !strings.HasSuffix(opt.CustomOutfile, ".rpm") {
-						return errors.New("output file must end with .rpm for RPM packages")
+						return errors.New("output file must end with .rpm for rpm packages")
+					}
+				case "pkg.tar.zst":
+					if !strings.HasSuffix(opt.CustomOutfile, ".pkg.tar.zst") {
+						return errors.New("output file must end with .pkg.tar.zst for pkg.tar.zst packages")
 					}
 				case "msi":
 					if !strings.HasSuffix(opt.CustomOutfile, ".msi") {
-						return errors.New("output file must end with .msi for MSI packages")
+						return errors.New("output file must end with .msi for msi packages")
 					}
 				case "pkg":
 					if !strings.HasSuffix(opt.CustomOutfile, ".pkg") {
-						return errors.New("output file must end with .pkg for PKG packages")
+						return errors.New("output file must end with .pkg for pkg packages")
 					}
 				default:
 					return fmt.Errorf("unsupported package type %q for custom outfile", c.String("type"))
@@ -389,7 +393,7 @@ func packageCommand() *cli.Command {
 
 			linuxPackage := false
 			switch c.String("type") {
-			case "deb", "rpm":
+			case "deb", "rpm", "pkg.tar.zst":
 				linuxPackage = true
 			}
 			windowsPackage := c.String("type") == "msi"
@@ -421,6 +425,13 @@ func packageCommand() *cli.Command {
 					opt.NativePlatform = "linux-arm64"
 				}
 				buildFunc = packaging.BuildRPM
+			case "pkg.tar.zst":
+				if opt.Architecture == packaging.ArchAmd64 {
+					opt.NativePlatform = "linux"
+				} else {
+					opt.NativePlatform = "linux-arm64"
+				}
+				buildFunc = packaging.BuildPkgTarZst
 			case "msi":
 				if opt.Architecture == packaging.ArchAmd64 {
 					opt.NativePlatform = "windows"
@@ -429,7 +440,7 @@ func packageCommand() *cli.Command {
 				}
 				buildFunc = packaging.BuildMSI
 			default:
-				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi')")
+				return errors.New("type must be one of ('pkg', 'deb', 'rpm', 'msi', 'pkg.tar.zst')")
 			}
 
 			// disable detailed logging unless verbose is set
