@@ -208,6 +208,24 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		Password: ptr.String("ndes-password"),
 	}
 
+	// Smallstep CA
+	smallstepCA1 := &fleet.CertificateAuthority{
+		Name:         ptr.String("Smallstep SCEP CA"),
+		URL:          ptr.String("https://smallstep-scep.example.com"),
+		Type:         string(fleet.CATypeSmallstep),
+		ChallengeURL: ptr.String("https://smallstep-scep.example.com/challenge"),
+		Username:     ptr.String("smallstep-username"),
+		Password:     ptr.String("smallstep-password"),
+	}
+	smallstepCA2 := &fleet.CertificateAuthority{
+		Name:         ptr.String("Smallstep SCEP CA 2"),
+		URL:          ptr.String("https://smallstep-scep2.example.com"),
+		Type:         string(fleet.CATypeSmallstep),
+		ChallengeURL: ptr.String("https://smallstep-scep2.example.com/challenge"),
+		Username:     ptr.String("smallstep-username2"),
+		Password:     ptr.String("smallstep-password2"),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		digicertCA2,
@@ -216,6 +234,8 @@ func testCreateCertificateAuthority(t *testing.T, ds *Datastore) {
 		customSCEPCA1,
 		customSCEPCA2,
 		ndesCA,
+		smallstepCA1,
+		smallstepCA2,
 	}
 
 	for _, ca := range casToCreate {
@@ -383,11 +403,22 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		Password: ptr.String("ndes-password"),
 	}
 
+	// Smallstep CA
+	smallstepCA1 := &fleet.CertificateAuthority{
+		Name:         ptr.String("Smallstep SCEP CA"),
+		URL:          ptr.String("https://smallstep-scep.example.com"),
+		Type:         string(fleet.CATypeSmallstep),
+		ChallengeURL: ptr.String("https://smallstep-scep.example.com/challenge"),
+		Username:     ptr.String("smallstep-username"),
+		Password:     ptr.String("smallstep-password"),
+	}
+
 	casToCreate := []*fleet.CertificateAuthority{
 		digicertCA1,
 		hydrantCA1,
 		customSCEPCA1,
 		ndesCA1,
+		smallstepCA1,
 	}
 
 	caMap := map[fleet.CAType]*fleet.CertificateAuthority{}
@@ -491,6 +522,28 @@ func testUpdateCertificateAuthorityByID(t *testing.T, ds *Datastore) {
 		require.Equal(t, "Updated SCEP", *updatedCA.Name)
 		require.Equal(t, "https://localhost", *updatedCA.URL)
 		require.Equal(t, "updated-challenge", *updatedCA.Challenge)
+	})
+
+	t.Run("successfully updates smallstep SCEP proxy CA", func(t *testing.T) {
+		smallstepCA := caMap[fleet.CATypeSmallstep]
+
+		smallstepCA.Name = ptr.String("Updated Smallstep")
+		smallstepCA.URL = ptr.String("https://localhost")
+		smallstepCA.ChallengeURL = ptr.String("https://localhost/challenge")
+		smallstepCA.Username = ptr.String("updated-username")
+		smallstepCA.Password = ptr.String("updated-password")
+
+		err := ds.UpdateCertificateAuthorityByID(ctx, smallstepCA.ID, smallstepCA)
+		require.NoError(t, err)
+
+		updatedCA, err := ds.GetCertificateAuthorityByID(ctx, smallstepCA.ID, true)
+		require.NoError(t, err)
+
+		require.Equal(t, "Updated Smallstep", *updatedCA.Name)
+		require.Equal(t, "https://localhost", *updatedCA.URL)
+		require.Equal(t, "https://localhost/challenge", *updatedCA.ChallengeURL)
+		require.Equal(t, "updated-username", *updatedCA.Username)
+		require.Equal(t, "updated-password", *updatedCA.Password)
 	})
 }
 
