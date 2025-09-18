@@ -1175,6 +1175,23 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a user deletes a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 ## created_declaration_profile
 
 Generated when a user adds a new macOS declaration to a team (or no team).

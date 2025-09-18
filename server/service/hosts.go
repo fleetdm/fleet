@@ -814,6 +814,18 @@ func (svc *Service) DeleteHost(ctx context.Context, id uint) error {
 		return ctxerr.Wrap(ctx, err, "delete host")
 	}
 
+	// Log the activity for host deletion
+	if err := svc.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create deleted host activity")
+	}
+
 	if fleet.MDMSupported(host.Platform) {
 		mdmLifecycle := mdmlifecycle.New(svc.ds, svc.logger)
 		err = mdmLifecycle.Do(ctx, mdmlifecycle.HostOptions{

@@ -1090,13 +1090,26 @@ func TestDeleteHost(t *testing.T) {
 	host := test.NewHost(t, ds, "foo", "192.168.1.10", "1", "1", mockClock.Now())
 	assert.NotZero(t, host.ID)
 
-	err := svc.DeleteHost(test.UserContext(ctx, test.UserAdmin), host.ID)
+	// Check activities before deletion
+	activitiesBefore, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	assert.Nil(t, err)
+
+	err = svc.DeleteHost(test.UserContext(ctx, test.UserAdmin), host.ID)
 	assert.Nil(t, err)
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 	hosts, err := ds.ListHosts(ctx, filter, fleet.HostListOptions{})
 	assert.Nil(t, err)
 	assert.Len(t, hosts, 0)
+
+	// Check that a deleted_host activity was created
+	activitiesAfter, _, err := ds.ListActivities(ctx, fleet.ListActivitiesOptions{})
+	assert.Nil(t, err)
+	assert.Len(t, activitiesAfter, len(activitiesBefore)+1)
+
+	// Verify the activity type is correct
+	newActivity := activitiesAfter[len(activitiesAfter)-1]
+	assert.Equal(t, "deleted_host", newActivity.Type)
 }
 
 func TestAddHostsToTeamByFilter(t *testing.T) {

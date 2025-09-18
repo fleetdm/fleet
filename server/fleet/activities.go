@@ -169,6 +169,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+	ActivityTypeDeletedHost{},
 
 	ActivityTypeCreatedDeclarationProfile{},
 	ActivityTypeDeletedDeclarationProfile{},
@@ -1695,6 +1696,29 @@ func (a ActivityTypeWipedHost) HostIDs() []uint {
 
 func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
 	return `Generated when a user sends a request to wipe a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeDeletedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeDeletedHost) ActivityName() string {
+	return "deleted_host"
+}
+
+func (a ActivityTypeDeletedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeDeletedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a host.`,
 		`This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.`, `{
