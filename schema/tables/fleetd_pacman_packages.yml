@@ -1,4 +1,4 @@
-name: orbit_pacman
+name: fleetd_pacman_packages
 platforms:
   - linux
 description: List the packages installed using the `pacman` package manager.

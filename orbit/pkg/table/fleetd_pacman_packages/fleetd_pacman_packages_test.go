@@ -1,4 +1,4 @@
-package orbit_pacman
+package fleetd_pacman_packages
 
 import (
 	_ "embed"

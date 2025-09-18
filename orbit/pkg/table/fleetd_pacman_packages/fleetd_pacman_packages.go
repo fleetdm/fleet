@@ -1,4 +1,4 @@
-package orbit_pacman
+package fleetd_pacman_packages
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 
 	"github.com/osquery/osquery-go/plugin/table"
 )
+
+const TableName = "fleetd_pacman_packages"
 
 // Columns is the schema of the table.
 func Columns() []table.ColumnDefinition {
@@ -41,13 +43,12 @@ func Columns() []table.ColumnDefinition {
 //
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	// If no package manager, return nothing but don't fail
-	if _, err := os.Stat("/usr/bin/pacman"); os.IsNotExist(err) {
-		return nil, nil
-	}
-
 	out, err := exec.Command("/usr/bin/pacman", "-Qi").Output()
-	if err != nil {
+	if os.IsNotExist(err) {
+		// If no package manager, return nothing but don't fail
+		return nil, nil
+	} else if err != nil {
+		// Some other error
 		return nil, fmt.Errorf("command failed: %w", err)
 	}
 	return parsePacmanQiOutput(string(out)), nil
