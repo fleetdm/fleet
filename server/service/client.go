@@ -2204,7 +2204,7 @@ func (c *Client) DoGitOps(
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
 		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
 		if dryRun {
-			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
 		} else {
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
 				return nil, nil, err
