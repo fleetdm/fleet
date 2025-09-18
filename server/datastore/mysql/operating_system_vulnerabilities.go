@@ -356,7 +356,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 
 	// Build query using IN with tuples - more efficient with the index on (name, version)
 	tuples := make([]string, 0, len(osVersions))
-	args := make([]interface{}, 0, len(osVersions)*2)
+	args := make([]any, 0, len(osVersions)*2)
 
 	for _, os := range osVersions {
 		tuples = append(tuples, "(?, ?)")
@@ -415,7 +415,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(osIDs)), ",") + `)
 	`
 
-	osArgs := make([]interface{}, len(osIDs))
+	osArgs := make([]any, len(osIDs))
 	for i, id := range osIDs {
 		osArgs[i] = id
 	}
@@ -434,13 +434,13 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	for _, r := range osVulnResults {
 		key := osIDMap[r.OSID]
 		vuln := fleet.CVE{
-			CVE:         r.CVE,
-			DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", r.CVE),
-			CreatedAt:   r.CreatedAt,
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
 		}
 
 		if r.ResolvedInVersion != nil {
-			vuln.ResolvedInVersion = &r.ResolvedInVersion
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
 		}
 
 		// Check if we already have this CVE for this key (deduplication across architectures)
@@ -476,7 +476,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			AND khc.hosts_count > 0
 		`
 
-		kargs := make([]interface{}, len(linuxOSIDs))
+		kargs := make([]any, len(linuxOSIDs))
 		for i, id := range linuxOSIDs {
 			kargs[i] = id
 		}
@@ -501,13 +501,13 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 		for _, r := range kernelVulnResults {
 			key := osIDMap[r.OSID]
 			vuln := fleet.CVE{
-				CVE:         r.CVE,
-				DetailsLink: fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", r.CVE),
-				CreatedAt:   r.CreatedAt,
+				CVE:       r.CVE,
+				CreatedAt: r.CreatedAt,
 			}
 
 			if r.ResolvedInVersion != nil {
-				vuln.ResolvedInVersion = &r.ResolvedInVersion
+				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+				vuln.ResolvedInVersion = &resolvedVersion
 			}
 
 			// Check if we already have this CVE
@@ -557,7 +557,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 				FROM cve_meta
 				WHERE cve IN (` + placeholders + `)`
 
-			metaArgs := make([]interface{}, len(batch))
+			metaArgs := make([]any, len(batch))
 			for j, cve := range batch {
 				metaArgs[j] = cve
 			}
@@ -572,8 +572,7 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			}
 
 			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &metaResults, metaQuery, metaArgs...); err != nil {
-				// Don't fail the entire operation if CVE metadata is not available
-				return nil
+				return ctxerr.Wrap(ctx, err, "batch query CVE metadata")
 			}
 
 			for _, r := range metaResults {
