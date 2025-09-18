@@ -61,8 +61,10 @@ describe("QuerySidePanel - component", () => {
     );
     await user.hover(screen.getByText("type"));
 
-    const tooltip = screen.getByText(/Not returned in SELECT */i);
-    expect(tooltip).toBeInTheDocument();
+    await waitFor(() => {
+      const tooltip = screen.getByText(/Not returned in SELECT */i);
+      expect(tooltip).toBeInTheDocument();
+    });
   });
   it("renders the platform specific column tooltip", async () => {
     const { user } = renderWithSetup(
