@@ -443,7 +443,21 @@ func (ds *Datastore) ListVulnsByMultipleOSVersions(
 			vuln.ResolvedInVersion = &r.ResolvedInVersion
 		}
 
-		vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		// Check if we already have this CVE for this key (deduplication across architectures)
+		found := false
+		for _, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				// Keep the earliest CreatedAt time
+				if r.CreatedAt.Before(existing.CreatedAt) {
+					existing.CreatedAt = r.CreatedAt
+				}
+				break
+			}
+		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
 		cveSet[r.CVE] = struct{}{}
 	}
 

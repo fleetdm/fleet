@@ -7,6 +7,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -175,14 +176,16 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 
 		// Get the created OS
 		stmt := `SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? LIMIT 1`
-		var osID uint
-		var osVersionID uint
-		err = ds.writer(ctx).QueryRowContext(ctx, stmt, osName, osVersion).Scan(&osID, &osVersionID)
+		var result struct {
+			ID          uint `db:"id"`
+			OSVersionID uint `db:"os_version_id"`
+		}
+		err = sqlx.GetContext(ctx, ds.writer(ctx), &result, stmt, osName, osVersion)
 		require.NoError(t, err)
 
 		osVersionObj := fleet.OSVersion{
-			ID:          osID,
-			OSVersionID: osVersionID,
+			ID:          result.ID,
+			OSVersionID: result.OSVersionID,
 			NameOnly:    osName,
 			Version:     osVersion,
 			Platform:    platform,
@@ -192,7 +195,7 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 		// Add a vulnerability for each OS
 		vulns := []fleet.OSVulnerability{
 			{
-				OSID:              osID,
+				OSID:              result.ID,
 				CVE:               fmt.Sprintf("CVE-2024-PLAT-%d", i),
 				ResolvedInVersion: ptr.String(osVersion + ".1"),
 			},
@@ -219,7 +222,7 @@ func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore
 
 // Helper function to set up test OS versions with vulnerabilities
 func setupTestOSVersionsWithVulns(t *testing.T, ds *Datastore, ctx context.Context) []fleet.OSVersion {
-	osVersions := []fleet.OSVersion{}
+	var osVersions []fleet.OSVersion
 
 	for i := 0; i < 3; i++ {
 		osName := "Ubuntu"
@@ -282,8 +285,8 @@ func setupKernelVulnsWithTeam(t *testing.T, ds *Datastore, ctx context.Context, 
 	require.NoError(t, err)
 
 	var titleID uint
-	err = ds.writer(ctx).QueryRowContext(ctx,
-		`SELECT id FROM software_titles WHERE name = 'linux-kernel'`).Scan(&titleID)
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &titleID,
+		`SELECT id FROM software_titles WHERE name = 'linux-kernel'`)
 	require.NoError(t, err)
 
 	_, err = ds.writer(ctx).ExecContext(ctx, `
@@ -294,8 +297,8 @@ func setupKernelVulnsWithTeam(t *testing.T, ds *Datastore, ctx context.Context, 
 	require.NoError(t, err)
 
 	var softwareID uint
-	err = ds.writer(ctx).QueryRowContext(ctx,
-		`SELECT id FROM software WHERE name = 'linux-kernel' AND version = '5.15.0'`).Scan(&softwareID)
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &softwareID,
+		`SELECT id FROM software WHERE name = 'linux-kernel' AND version = '5.15.0'`)
 	require.NoError(t, err)
 
 	// Add kernel CVE
