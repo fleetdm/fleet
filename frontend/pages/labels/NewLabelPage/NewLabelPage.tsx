@@ -25,6 +25,7 @@ import { NotificationContext } from "context/notification";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
+import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
@@ -563,27 +564,29 @@ const NewLabelPage = ({
   );
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <div className={`${baseClass}__header`}>
-          <h1>New label</h1>
-          <p className={`${baseClass}__page-description`}>
-            Create a new label for targeting and filtering hosts.
-          </p>
-        </div>
-        {renderLabelForm()}
-      </MainContent>
-      {type === "dynamic" && isSidePanelOpen && (
-        <SidePanelContent>
-          <QuerySidePanel
-            key="query-side-panel"
-            onOsqueryTableSelect={onOsqueryTableSelect}
-            selectedOsqueryTable={selectedOsqueryTable}
-            onClose={onCloseSidebar}
-          />
-        </SidePanelContent>
-      )}
-    </>
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <div className={`${baseClass}__header`}>
+            <h1>New label</h1>
+            <p className={`${baseClass}__page-description`}>
+              Create a new label for targeting and filtering hosts.
+            </p>
+          </div>
+          {renderLabelForm()}
+        </MainContent>
+        {type === "dynamic" && isSidePanelOpen && (
+          <SidePanelContent>
+            <QuerySidePanel
+              key="query-side-panel"
+              onOsqueryTableSelect={onOsqueryTableSelect}
+              selectedOsqueryTable={selectedOsqueryTable}
+              onClose={onCloseSidebar}
+            />
+          </SidePanelContent>
+        )}
+      </>
+    </SidePanelPage>
   );
 };
 
