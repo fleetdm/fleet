@@ -274,8 +274,12 @@ const TAGGED_TEMPLATES = {
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
+
   mdmEnrolled: (activity: IActivity) => {
-    if (activity.details?.mdm_platform === "microsoft") {
+    const { mdm_platform, platform = "", host_display_name, host_serial } =
+      activity.details || {};
+
+    if (mdm_platform === "microsoft") {
       return (
         <>
           <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
@@ -284,15 +288,8 @@ const TAGGED_TEMPLATES = {
       );
     }
 
-    const { platform = "", enrollment_id } = activity.details || {};
-
     if (isAndroid(platform) || isIPadOrIPhone(platform)) {
-      return (
-        <>
-          {enrollment_id ? <b>{enrollment_id}</b> : "A device"} enrolled to
-          Fleet
-        </>
-      );
+      return <>{host_display_name} enrolled to Fleet.</>;
     }
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
@@ -304,10 +301,8 @@ const TAGGED_TEMPLATES = {
       enrollmentTypeText = "manual";
     }
 
-    const hostDisplayText =
-      activity.details?.host_display_name || activity.details?.host_serial;
-
-    const hostDisplayPrefixText = activity.details?.host_display_name
+    const hostDisplayText = host_display_name || host_serial;
+    const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
 
@@ -322,39 +317,39 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
   mdmUnenrolled: (activity: IActivity) => {
     const { actor_full_name } = activity;
-    const { platform = "", enrollment_id } = activity.details || {};
+    const { platform = "", host_display_name } = activity.details || {};
 
     if (isAndroid(platform) || isIPadOrIPhone(platform)) {
       return actor_full_name ? (
         <>
           <b>{actor_full_name}</b> told Fleet to unenroll{" "}
-          {enrollment_id ? <b>{enrollment_id}</b> : "a device"}.
+          <b>{host_display_name}.</b>
         </>
       ) : (
         <>
-          {enrollment_id ? (
-            <>
-              <b>{enrollment_id}</b> is
-            </>
-          ) : (
-            "A device"
-          )}{" "}
-          unenrolled from Fleet.
+          <b>{host_display_name}</b> is unenrolled from Fleet.
         </>
       );
     }
 
     return (
       <>
-        {activity.actor_full_name
-          ? " told Fleet to turn off mobile device management (MDM) for"
-          : "Mobile device management (MDM) was turned off for"}{" "}
-        <b>{activity.details?.host_display_name}</b>.
+        {actor_full_name ? (
+          <>
+            <b>{actor_full_name}</b> told Fleet to turn off mobile device
+            management (MDM) for
+          </>
+        ) : (
+          "Mobile device management (MDM) was turned off for"
+        )}{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
+
   editedAppleosMinVersion: (
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
