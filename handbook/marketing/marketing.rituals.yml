@@ -115,11 +115,11 @@
     labels: [ ":help-marketing" ] 
     repo: "confidential"
 -
-  task: "Manage duplicate accounts in CRM"
+  task: "Manage duplicates in CRM"
   startedOn: "2025-08-08"
   frequency: "Daily"
   description: "Daily, the Data & Video Specialist will clean up any duplicate accounts."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicate-accounts-in-crm"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicates-in-crm"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 
