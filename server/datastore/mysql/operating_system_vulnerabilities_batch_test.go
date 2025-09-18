@@ -11,9 +11,30 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListVulnsByMultipleOSVersionsBatchQuery(t *testing.T) {
+func TestListVulnsByMultipleOSVersions(t *testing.T) {
 	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+
+	cases := []struct {
+		name string
+		fn   func(t *testing.T, ds *Datastore)
+	}{
+		{"BatchQuery", testListVulnsByMultipleOSVersionsBatchQuery},
+		{"EmptyInput", testListVulnsByMultipleOSVersionsEmptyInput},
+		{"WithCVSS", testListVulnsByMultipleOSVersionsWithCVSS},
+		{"WithTeamFilter", testListVulnsByMultipleOSVersionsWithTeamFilter},
+		{"NonExistentOS", testListVulnsByMultipleOSVersionsNonExistentOS},
+		{"MixedPlatforms", testListVulnsByMultipleOSVersionsMixedPlatforms},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
+			c.fn(t, ds)
+		})
+	}
+}
+
+func testListVulnsByMultipleOSVersionsBatchQuery(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	// Create test OS versions
 	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
@@ -41,18 +62,16 @@ func TestListVulnsByMultipleOSVersionsBatchQuery(t *testing.T) {
 	}
 }
 
-func TestListVulnsByMultipleOSVersionsEmptyInput(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+func testListVulnsByMultipleOSVersionsEmptyInput(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	vulnsMap, err := ds.ListVulnsByMultipleOSVersions(ctx, []fleet.OSVersion{}, false, nil)
 	require.NoError(t, err)
 	assert.Empty(t, vulnsMap)
 }
 
-func TestListVulnsByMultipleOSVersionsWithCVSS(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+func testListVulnsByMultipleOSVersionsWithCVSS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	// Create test OS versions
 	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
@@ -91,9 +110,8 @@ func TestListVulnsByMultipleOSVersionsWithCVSS(t *testing.T) {
 	assert.True(t, foundMetadata, "Should find vulnerability with CVSS metadata")
 }
 
-func TestListVulnsByMultipleOSVersionsWithTeamFilter(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+func testListVulnsByMultipleOSVersionsWithTeamFilter(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	// Create test OS versions
 	osVersions := setupTestOSVersionsWithVulns(t, ds, ctx)
@@ -114,9 +132,8 @@ func TestListVulnsByMultipleOSVersionsWithTeamFilter(t *testing.T) {
 	assert.GreaterOrEqual(t, len(vulns), 2)
 }
 
-func TestListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+func testListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	// Create OS versions that don't exist in the database
 	// Don't set ID so it will be looked up by name/version
@@ -135,9 +152,8 @@ func TestListVulnsByMultipleOSVersionsNonExistentOS(t *testing.T) {
 	assert.Empty(t, vulnsMap)
 }
 
-func TestListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T) {
-	ds := CreateMySQLDS(t)
-	ctx := context.Background()
+func testListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
 
 	// Create OS versions for different platforms
 	osVersions := []fleet.OSVersion{}
@@ -154,7 +170,7 @@ func TestListVulnsByMultipleOSVersionsMixedPlatforms(t *testing.T) {
 			KernelVersion: "test-kernel",
 		}
 
-		err := ds.UpdateHostOperatingSystem(ctx, uint(100+i), os)
+		err := ds.UpdateHostOperatingSystem(ctx, uint(100+i), os) //nolint:gosec
 		require.NoError(t, err)
 
 		// Get the created OS
@@ -216,7 +232,7 @@ func setupTestOSVersionsWithVulns(t *testing.T, ds *Datastore, ctx context.Conte
 			KernelVersion: "5.15.0-generic",
 		}
 
-		err := ds.UpdateHostOperatingSystem(ctx, uint(i+1), os)
+		err := ds.UpdateHostOperatingSystem(ctx, uint(i+1), os) //nolint:gosec
 		require.NoError(t, err)
 
 		// Get the created OS
