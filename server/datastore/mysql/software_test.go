@@ -76,6 +76,7 @@ func TestSoftware(t *testing.T) {
 		{"ListHostSoftwareWithVPPApps", testListHostSoftwareWithVPPApps},
 		{"ListHostSoftwareVPPSelfService", testListHostSoftwareVPPSelfService},
 		{"SetHostSoftwareInstallResult", testSetHostSoftwareInstallResult},
+		{"CreateIntermediateInstallFailureRecord", testCreateIntermediateInstallFailureRecord},
 		{"ListHostSoftwareInstallThenTransferTeam", testListHostSoftwareInstallThenTransferTeam},
 		{"ListHostSoftwareInstallThenDeleteInstallers", testListHostSoftwareInstallThenDeleteInstallers},
 		{"ListSoftwareVersionsVulnerabilityFilters", testListSoftwareVersionsVulnerabilityFilters},
@@ -5381,6 +5382,26 @@ func testListHostSoftwareWithVPPApps(t *testing.T, ds *Datastore) {
 	assert.Equal(t, vPPApp.AdamID, sw[0].AppStoreApp.AppStoreID)
 	assert.Equal(t, "0.1.0", sw[0].InstalledVersions[0].Version)
 	assert.Nil(t, sw[0].Status)
+
+	// insert an icon
+	icon, err := ds.CreateOrUpdateSoftwareTitleIcon(ctx, &fleet.UploadSoftwareTitleIconPayload{
+		TeamID:    tm.ID,
+		TitleID:   va1.TitleID,
+		StorageID: "storage-id-1",
+		Filename:  "test-icon.png",
+	})
+	require.NoError(t, err)
+	opts = fleet.HostSoftwareTitleListOptions{
+		ListOptions:                fleet.ListOptions{Page: 0, PerPage: 20},
+		SelfServiceOnly:            false,
+		IncludeAvailableForInstall: true,
+		OnlyAvailableForInstall:    true,
+		IsMDMEnrolled:              true,
+	}
+	sw, _, err = ds.ListHostSoftware(ctx, anotherHost, opts)
+	require.NoError(t, err)
+	assert.Len(t, sw, 1)
+	assert.Equal(t, icon.IconUrl(), *sw[0].IconUrl)
 }
 
 func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
@@ -5502,6 +5523,129 @@ func testListHostSoftwareVPPSelfService(t *testing.T, ds *Datastore) {
 	sw, _, err = ds.ListHostSoftware(ctx, host, opts)
 	require.NoError(t, err)
 	assert.Len(t, sw, 0)
+}
+
+func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "test", "test@example.com", true)
+
+	// Create a software installer using the standard method
+	tfr, err := fleet.NewTempFileReader(strings.NewReader("test-package"), t.TempDir)
+	require.NoError(t, err)
+	installerID, _, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   `echo 'foo'`,
+		UninstallScript: `echo 'uninstall'`,
+		InstallerFile:   tfr,
+		StorageID:       "test-storage",
+		Filename:        "installer.pkg",
+		Title:           "test-app",
+		Version:         "v1.0.0",
+		Source:          "apps",
+		UserID:          user.ID,
+		ValidatedLabels: &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	// Create a pending install request with a specific execution ID and created_at for testing
+	// We need to use raw SQL here to set a specific execution_id and created_at that we can reference in the test
+	originalCreatedAt := time.Now().Add(-1 * time.Hour).UTC().Truncate(time.Microsecond) // Set to 1 hour ago
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at) 
+			VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt)
+		return err
+	})
+
+	// Create an intermediate failure record
+	failedExecID, installResult, isNewRecord, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, failedExecID)
+	require.NotNil(t, installResult)
+	require.True(t, isNewRecord, "First call should create a new record")
+	require.Equal(t, "test-app", installResult.SoftwareTitle)
+	require.Equal(t, "installer.pkg", installResult.SoftwarePackage)
+	require.Equal(t, user.ID, *installResult.UserID)
+	require.Nil(t, installResult.PolicyID)
+	require.False(t, installResult.SelfService)
+
+	// Verify original record is still pending using GetSoftwareInstallResults
+	originalResult, err := ds.GetSoftwareInstallResults(ctx, "original-uuid")
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallPending, originalResult.Status)
+	require.Nil(t, originalResult.InstallScriptExitCode)
+
+	// Verify new failed record exists with failure details
+	failedResult, err := ds.GetSoftwareInstallResults(ctx, failedExecID)
+	require.NoError(t, err)
+	require.Equal(t, fleet.SoftwareInstallFailed, failedResult.Status)
+	require.NotNil(t, failedResult.InstallScriptExitCode)
+	require.Equal(t, 1, *failedResult.InstallScriptExitCode)
+	require.NotNil(t, failedResult.Output)
+	require.Equal(t, "network timeout", *failedResult.Output)
+
+	// Verify the created_at timestamp was preserved from the original record
+	var failedRecordCreatedAt time.Time
+	err = ds.writer(ctx).GetContext(ctx, &failedRecordCreatedAt, `
+		SELECT created_at FROM host_software_installs WHERE execution_id = ?`, failedExecID)
+	require.NoError(t, err)
+	require.Equal(t, originalCreatedAt, failedRecordCreatedAt, "Failed record should preserve original created_at timestamp")
+
+	// Verify that we now have 2 distinct records (this still needs raw SQL as there's no method for counting)
+	var count int
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	// Test idempotency: calling again with same retries_remaining should return same UUID and not create new record
+	failedExecID2, installResult2, isNewRecord2, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout updated"),
+		RetriesRemaining:      2,
+	})
+	require.NoError(t, err)
+	require.Equal(t, failedExecID, failedExecID2, "Should generate same UUID for same retries_remaining")
+	require.NotNil(t, installResult2)
+	require.False(t, isNewRecord2, "Second call should update existing record")
+
+	// Verify still only 2 records (idempotent)
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 2, count, "Should not create duplicate record")
+
+	// Verify the output was updated
+	updatedResult, err := ds.GetSoftwareInstallResults(ctx, failedExecID2)
+	require.NoError(t, err)
+	require.Equal(t, "network timeout updated", *updatedResult.Output)
+
+	// Test with different retries_remaining creates new record
+	failedExecID3, _, isNewRecord3, err := ds.CreateIntermediateInstallFailureRecord(ctx, &fleet.HostSoftwareInstallResultPayload{
+		HostID:                host.ID,
+		InstallUUID:           "original-uuid",
+		InstallScriptExitCode: ptr.Int(1),
+		InstallScriptOutput:   ptr.String("network timeout"),
+		RetriesRemaining:      1,
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, failedExecID, failedExecID3, "Should generate different UUID for different retries_remaining")
+	require.True(t, isNewRecord3, "Different retries_remaining should create new record")
+
+	// Verify now have 3 records
+	err = ds.writer(ctx).GetContext(ctx, &count, `
+		SELECT COUNT(*) FROM host_software_installs WHERE host_id = ?`, host.ID)
+	require.NoError(t, err)
+	require.Equal(t, 3, count, "Should create new record for different retries_remaining")
 }
 
 func testSetHostSoftwareInstallResult(t *testing.T, ds *Datastore) {

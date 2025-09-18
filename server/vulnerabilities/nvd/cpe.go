@@ -439,6 +439,7 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 				"c.rowid",
 				"c.product",
 				"c.vendor",
+				"c.sw_edition",
 				"c.deprecated",
 				goqu.L("1 as weight"),
 			).Limit(1)
@@ -461,6 +462,13 @@ func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, t
 			var exps []goqu.Expression
 			for _, targetSW := range translation.TargetSW {
 				exps = append(exps, goqu.I("c.target_sw").Eq(targetSW))
+			}
+			ds = ds.Where(goqu.Or(exps...))
+		}
+		if len(translation.SWEdition) > 0 {
+			var exps []goqu.Expression
+			for _, SWEdition := range translation.SWEdition {
+				exps = append(exps, goqu.I("c.sw_edition").Eq(SWEdition))
 			}
 			ds = ds.Where(goqu.Or(exps...))
 		}
