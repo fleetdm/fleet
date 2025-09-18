@@ -11,7 +11,6 @@ interface IDiskSpaceIndicatorProps {
   baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
-  id: string;
   platform: string;
   tooltipPosition?: PlacesType;
 }
@@ -20,7 +19,6 @@ const DiskSpaceIndicator = ({
   baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
-  id,
   platform,
   tooltipPosition = "top",
 }: IDiskSpaceIndicatorProps): JSX.Element => {

@@ -184,7 +184,6 @@ const HostSummary = ({
             baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
-            id={`disk-space-tooltip-${summaryData.id}`}
             platform={platform}
             tooltipPosition="bottom"
           />
