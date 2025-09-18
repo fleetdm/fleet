@@ -11,6 +11,8 @@ type SoftwareMatchingRule struct {
 	Name       string
 	VersionEnd string // Version where CVEs were resolved
 	// TODO: OSVersion or FleetSoftware.Release
+	// rpm packages specify a release but ubuntu dont
+	// Maybe add release for rpm packages but make it nullable
 	CVEs      map[string]struct{} // Maybe just a slice?
 	IgnoreAll bool
 	// TODO: IgnoreIf func(FleetSoftware ) bool
@@ -19,7 +21,7 @@ type SoftwareMatchingRule struct {
 type SoftwareMatchingRules []SoftwareMatchingRule
 
 func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
-	rules := []SoftwareMatchingRule{ // Would it be more efficient to use a map? It's a very small list of things
+	rules := SoftwareMatchingRules{ // Would it be more efficient to use a map? It's a very small list of things
 		{
 			Name:       "microcode_ctl",
 			VersionEnd: "2.1",
@@ -62,12 +64,13 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 	return rules, nil
 }
 
-// Returns true if this software and cve have a matching ignore rule
+// Returns true if the software and cve have a matching ignore rule
 func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve string) bool { //version string release string
-	if name == "" {
+	if strings.TrimSpace(name) == "" {
 		return false
 	}
-	if version == "" {
+	if strings.TrimSpace(version) == "" {
+		// TODO: maybe log this
 		return false
 	}
 
@@ -79,10 +82,9 @@ func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve s
 		// the CVEs have been fixed and it is false positive
 		// so we want to return true
 		fmt.Println("Version compare: ", version, " , ", r.VersionEnd)
-		if nvd.SmartVerCmp(version, r.VersionEnd) < 0 {
+		if nvd.SmartVerCmp(version, r.VersionEnd) > 0 {
 			continue
 		}
-		// TODO: version comparison with SmartVerCmp or SemVerConstraint
 		if _, found := r.CVEs[cve]; found {
 			return true
 		}
@@ -90,11 +92,14 @@ func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve s
 	return false
 }
 
+// Use in testing not runtime
 func (rule SoftwareMatchingRule) Validate() error {
 	if strings.TrimSpace(rule.Name) == "" {
 		return fmt.Errorf("Name can't be empty")
 	}
-	// TODO: If sem version is wrong: Error
+	if strings.TrimSpace(rule.VersionEnd) == "" {
+		return fmt.Errorf("Version can't be empty")
+	}
 	for cve := range rule.CVEs {
 		if strings.TrimSpace(cve) == "" {
 			return fmt.Errorf("CVE can't be empty")

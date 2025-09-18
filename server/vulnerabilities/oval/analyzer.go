@@ -46,6 +46,11 @@ func Analyze(
 		return nil, err
 	}
 
+	rules, err := GetKnownOVALBugRules()
+	if err != nil {
+		return nil, err
+	}
+
 	// Since hosts and software have a M:N relationship, the following sets are used to
 	// avoid doing duplicated inserts/delete operations (a vulnerable software might be
 	// present in many hosts).
@@ -65,6 +70,7 @@ func Analyze(
 		offset += hostsBatchSize
 
 		foundInBatch := make(map[uint][]fleet.SoftwareVulnerability)
+
 		for _, hostID := range hostIDs {
 			hostID := hostID
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
@@ -90,28 +96,14 @@ func Analyze(
 			fmt.Println("------------------------- oval batch -------------------------")
 			fmt.Println(foundInBatch[hostID])
 			fmt.Println()
-			// we can filter by os version as well
+			// we can filter by os version as well or rpm release
 			// we probably need at least name and version range (SemVerConstraint)
-			// toFilter := make(map[uint][]fleet.SoftwareVulnerability)
-
-			// First idea:
-			// For each software, evaluate if it is a filtered software
-			//    - We get software as a slice, so this makes it O(n)
-			//    - Or we could make software a map O(n)
-			//            then search each filter if its in software
-			// Get its ID
-			// For each pair in foundInBatch
-			// delete pairs with ID and CVE match from filter
-
-			// Should we match software or cpe?
-			// My thought is software because RpmInfoTests don't use cpe
 
 			// How the heck do we optimize this?
 
-			rules, err := GetKnownOVALBugRules()
-			if err != nil {
-				return nil, err
-			}
+			// Create a map of all software listed
+			// For each pair (id, cve) in foundInBatch for this host
+			// Find if it matches any false positive rule
 
 			softwareIDs := make(map[uint]fleet.Software)
 			for _, s := range software {
@@ -133,24 +125,6 @@ func Analyze(
 			fmt.Println("------------------------- modified -------------------------")
 			fmt.Println(foundInBatch[hostID])
 			fmt.Println()
-
-			// This is hoooooooorrible
-			// we need to make a map of ID: Software
-			// then just remove things from that
-			// var newVulns []fleet.SoftwareVulnerability
-			// for _, s := range software {
-			// 	for _, r := range ruleList {
-			// 		if s.Name == r.Name {
-			// 			for _, pair := range foundInBatch[s.ID] { // this doesnt even work it should be hostID
-			// 				if cve, found := r.CVEs[pair.CVE]; !found {
-			// 					newVulns = append(newVulns, cve)
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// }
-
-			// guh
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)
