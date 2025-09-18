@@ -1,6 +1,5 @@
 .dashboard-info-card {
-  // Display flex columns with 24px gap
-  @include page;
+  @include card;
 
   &__section-title-cta {
     display: flex;

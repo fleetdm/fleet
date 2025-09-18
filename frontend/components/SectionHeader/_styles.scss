@@ -27,4 +27,9 @@
     width: 100%;
     color: $core-fleet-black;
   }
+
+  // GOAL: rely on gap instead of these bottom margins
+  &__no-margin {
+    margin: 0;
+  }
 }

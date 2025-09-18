@@ -74,6 +74,7 @@ const User = ({
             className={`${baseClass}__add-user-btn`}
             variant="inverse"
             onClick={onAddEndUser}
+            size="small"
           >
             <Icon name="plus" /> Add user
           </Button>

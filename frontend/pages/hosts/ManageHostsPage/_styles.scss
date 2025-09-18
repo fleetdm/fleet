@@ -106,7 +106,7 @@
         .manage-hosts__filter-dropdowns {
           display: flex;
           flex-direction: row;
-          margin-left: $pad-medium;
+          margin-left: $gap-table-elements;
           align-items: center;
 
           // Dropdown height matches search bar height
@@ -244,7 +244,7 @@
   }
 
   &__label-filter-dropdown {
-    margin-left: $pad-small;
+    margin-left: $gap-table-elements;
   }
 
   &__info-banners {

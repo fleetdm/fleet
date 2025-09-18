@@ -1,4 +1,6 @@
 .host-queries-card {
+  @include page-tab-panel;
+
   .table-container__header {
     display: none;
   }

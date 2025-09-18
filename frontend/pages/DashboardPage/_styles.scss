@@ -1,8 +1,6 @@
 .dashboard-page {
   overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
-  display: flex;
-  flex-direction: column;
-  gap: $gap-page-component;
+  @include page;
 
   h2 {
     font-size: $small;

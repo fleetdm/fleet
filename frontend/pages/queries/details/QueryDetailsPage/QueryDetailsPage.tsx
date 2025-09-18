@@ -432,7 +432,7 @@ const QueryDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
@@ -442,7 +442,7 @@ const QueryDetailsPage = ({
             onCancel={onShowQueryModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

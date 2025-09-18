@@ -261,6 +261,16 @@ $max-width: 2560px;
   @include flex-column-24px-gap;
 }
 
+// Separate in case there's any card level styling we need
+@mixin card {
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any tab level styling we need
+@mixin page-tab-panel {
+  @include flex-column-24px-gap;
+}
+
 @mixin form-button-extra-clickable-area-compensation {
   // compensate in layout for extra clickable area button height
   margin: -8px 0;

@@ -1,7 +1,5 @@
 .host-software-library-card {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-small;
+  @include page-tab-panel;
 
   &__header {
     display: flex;

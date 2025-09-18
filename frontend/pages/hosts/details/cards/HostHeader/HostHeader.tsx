@@ -68,7 +68,7 @@ const RefetchButton = ({
       <div className={`${baseClass}__refetch`} {...conditionalProps}>
         <Button
           className={classNames}
-          disabled={isDisabled}
+          disabled={isDisabled || isFetching}
           onClick={onRefetchHost}
           variant="inverse"
         >

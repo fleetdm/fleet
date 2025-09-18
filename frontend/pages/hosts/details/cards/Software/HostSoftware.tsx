@@ -37,7 +37,7 @@ import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } fro
 import HostSoftwareTable from "./HostSoftwareTable";
 import { getSoftwareSubheader } from "./helpers";
 
-const baseClass = "software-card";
+const baseClass = "host-software-card";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings

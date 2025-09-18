@@ -1,4 +1,6 @@
 .agent-options-card {
+  @include card;
+
   .component__tooltip-wrapper__tip-text {
     max-width: 326px;
   }

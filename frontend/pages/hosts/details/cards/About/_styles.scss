@@ -1,4 +1,6 @@
 .about-card {
+  @include card;
+
   .truncated-tooltip {
     .about-card__device-mapping__source {
       color: inherit;

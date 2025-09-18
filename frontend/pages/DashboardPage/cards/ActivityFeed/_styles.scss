@@ -1,6 +1,6 @@
 .activity-feed {
-  display: flex;
-  flex-direction: column;
+  @include card;
+
   position: relative;
   min-height: 500px;
 

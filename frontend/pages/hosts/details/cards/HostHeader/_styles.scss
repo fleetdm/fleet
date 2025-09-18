@@ -28,9 +28,6 @@
     display: flex;
 
     .refetch-btn {
-      font-size: $x-small;
-      height: 38px;
-
       &:hover {
         svg {
           path {
@@ -40,15 +37,8 @@
       }
     }
 
+    // Inherits disabled button styles
     .refetch-spinner {
-      color: $core-vibrant-blue;
-      cursor: default;
-      font-size: $x-small;
-      height: 38px;
-      opacity: 50%;
-      filter: saturate(100%);
-      margin-left: $pad-small;
-
       .icon {
         animation: spin 2s linear infinite;
       }

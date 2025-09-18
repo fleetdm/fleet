@@ -1,10 +1,10 @@
-.activity-card {
-  position: relative;
+.host-activity-card {
+  @include card;
 
   &__header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: baseline; // Aligns bottom of text
   }
 
   &__loading-overlay {

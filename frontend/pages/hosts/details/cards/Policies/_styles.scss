@@ -1,7 +1,6 @@
-.policies-card {
-  .info-banner {
-    margin-bottom: 1rem;
-  }
+.host-policies-card {
+  @include page-tab-panel;
+
   .table-container__header {
     display: none;
   }

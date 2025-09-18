@@ -1,11 +1,13 @@
 .software-self-service {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-large;
+  @include page-tab-panel;
 
   // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
   .empty-table__container {
     margin: 64px 0;
+  }
+
+  &__self-service-card {
+    @include card;
   }
 
   &__header-filters {

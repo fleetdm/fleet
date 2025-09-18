@@ -25,16 +25,6 @@ import { NotificationContext } from "context/notification";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
-import SidePanelPage from "components/SidePanelPage";
-import MainContent from "components/MainContent";
-import SidePanelContent from "components/SidePanelContent";
-import QuerySidePanel from "components/side_panels/QuerySidePanel";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
-// @ts-ignore
-import Dropdown from "components/forms/fields/Dropdown";
-import Button from "components/buttons/Button";
-
 import { RouteComponentProps } from "react-router";
 import {
   LabelHostVitalsCriterion,
@@ -44,11 +34,18 @@ import { IHost } from "interfaces/host";
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import SidePanelPage from "components/SidePanelPage";
+import MainContent from "components/MainContent";
+import SidePanelContent from "components/SidePanelContent";
+import QuerySidePanel from "components/side_panels/QuerySidePanel";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
+import Button from "components/buttons/Button";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
-
 import PlatformField from "../components/PlatformField";
 
 const availableCriteria: {

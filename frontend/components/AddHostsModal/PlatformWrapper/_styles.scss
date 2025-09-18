@@ -18,7 +18,7 @@
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       color: $core-fleet-blue;
-      line-height: 20px;
+      line-height: $line-height;
       line-break: anywhere;
       padding: 12px $pad-xlarge 12px $pad-medium;
     }

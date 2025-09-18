@@ -1,8 +1,6 @@
 .os-updates {
-  margin-top: 22px; // 32 px total, 10 from react-tabs
-  display: flex;
-  flex-direction: column;
-  gap: $pad-xxlarge;
+  @include page-tab-panel;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__description {
     margin: 0;

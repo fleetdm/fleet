@@ -16,7 +16,7 @@ import {
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
 
-const baseClass = "policies-card";
+const baseClass = "host-policies-card";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];

@@ -6,7 +6,8 @@ import classnames from "classnames";
 import Button from "components/buttons/Button";
 
 interface IBackButtonProps {
-  text: string;
+  /** Default: "Back" */
+  text?: string;
   path?: string;
   className?: string;
 }
@@ -14,7 +15,7 @@ interface IBackButtonProps {
 const baseClass = "back-button";
 
 const BackButton = ({
-  text,
+  text = "Back",
   path,
   className,
 }: IBackButtonProps): JSX.Element => {

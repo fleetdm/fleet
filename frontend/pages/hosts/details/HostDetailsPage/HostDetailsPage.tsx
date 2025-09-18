@@ -1104,10 +1104,7 @@ const HostDetailsPage = ({
             />
           )}
           <div className={`${baseClass}__header-links`}>
-            <BackButton
-              text="Back to all hosts"
-              path={filteredHostsPath || PATHS.MANAGE_HOSTS}
-            />
+            <BackButton path={filteredHostsPath || PATHS.MANAGE_HOSTS} />
           </div>
           <div className={`${baseClass}__header-summary`}>
             <HostHeader

@@ -19,7 +19,7 @@ import { ShowActivityDetailsHandler } from "components/ActivityItem/ActivityItem
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
-const baseClass = "activity-card";
+const baseClass = "host-activity-card";
 
 const UpcomingTooltip = () => {
   return (

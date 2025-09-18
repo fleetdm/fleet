@@ -51,6 +51,7 @@ const CustomLabelGroupHeading = (
               variant="brand-inverse-icon"
               onClick={onAddLabel}
               iconStroke
+              size="small"
             >
               <>
                 Add label

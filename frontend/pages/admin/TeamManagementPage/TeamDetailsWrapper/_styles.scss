@@ -29,10 +29,6 @@
     white-space: nowrap;
   }
 
-  .react-tabs__tab-list {
-    margin-bottom: 50px;
-  }
-
   .disabled-by-gitops-mode {
     @include disabled;
     .actions-dropdown-select__control--is-disabled {

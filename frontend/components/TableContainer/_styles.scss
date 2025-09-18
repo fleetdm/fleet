@@ -1,4 +1,8 @@
 .table-container {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-table-elements;
+
   // Container is responsive design used when customFilters is rendered
   .container {
     display: grid;
@@ -6,7 +10,7 @@
     grid-template-rows: auto auto; /* Two rows for smaller screens*/
     width: 100%;
     height: max-content;
-    gap: $pad-small $pad-medium;
+    gap: $gap-table-elements;
   }
 
   .stackable-header {
@@ -14,7 +18,7 @@
     align-content: center;
     display: flex;
     flex-direction: row;
-    gap: $pad-small;
+    gap: $gap-table-elements;
 
     > div {
       display: flex;
@@ -73,12 +77,8 @@
     width: 100%;
     justify-content: space-between;
     align-items: center;
-    gap: $pad-small;
+    gap: $gap-table-elements;
     margin-top: 3px; // Fits button highlight during tabbing
-
-    .input-icon-field {
-      height: 40px; // Height 40px on table headers
-    }
 
     &.stack-table-controls {
       align-items: start;
@@ -109,7 +109,7 @@
     // filter and search bar height
     .dropdown__select,
     .input-with-icon {
-      height: 40px;
+      height: 36px;
     }
   }
 
@@ -137,11 +137,11 @@
     font-weight: $bold;
     color: $core-fleet-black;
     margin: 0;
-    height: 40px;
-    gap: 12px;
+    height: 36px;
+    gap: $gap-table-elements;
 
     > span {
-      line-height: 40px; // Match other header components' height but still align text baseline
+      line-height: 36px; // Match other header components' height but still align text baseline
       min-width: fit-content;
     }
 

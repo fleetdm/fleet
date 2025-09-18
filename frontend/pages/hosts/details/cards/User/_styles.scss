@@ -1,4 +1,5 @@
 .user-card {
+  @include card;
 
   &__header {
     display: flex;

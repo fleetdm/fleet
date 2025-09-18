@@ -8,7 +8,7 @@ import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import { LABEL_DISPLAY_MAP } from "utilities/constants";
 
-const baseClass = "labels-card";
+const baseClass = "host-labels-card";
 
 interface ILabelsProps {
   onLabelClick: (label: ILabel) => void;
