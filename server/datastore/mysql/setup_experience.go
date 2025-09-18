@@ -36,12 +36,12 @@ INNER JOIN software_titles st
 WHERE install_during_setup = true
 AND global_or_team_id = ?
 AND (
-	-- installer platform matches the host's fleet platform (linux or darwin)
+	-- installer platform matches the host's fleet platform (darwin, linux or windows)
 	si.platform = ?
 	AND
 	(
-		-- platform is 'darwin', so nothing else to check.
-		si.platform = 'darwin'
+		-- platform is 'darwin' or 'windows', so nothing else to check.
+		(si.platform = 'darwin' OR si.platform = 'windows')
 		-- platform is 'linux', so we must check if the installer is compatible with the linux distribution.
 		OR
 		(
@@ -156,8 +156,8 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
-	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" {
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -355,8 +355,8 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 }
 
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
-	if platform != string(fleet.MacOSPlatform) && platform != "linux" {
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" {
+		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
 	}
 
 	opts.IncludeMetadata = true
