@@ -1,5 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import LastUpdatedText from ".";
 
@@ -26,12 +27,13 @@ describe("Last updated text", () => {
   });
 
   it("renders tooltip on hover", async () => {
-    render(<LastUpdatedText whatToRetrieve="software" />);
+    const { user } = renderWithSetup(
+      <LastUpdatedText whatToRetrieve="software" />
+    );
 
     const updatedNeverText = screen.getByText("Updated never");
-    fireEvent.mouseEnter(updatedNeverText);
+    await user.hover(updatedNeverText);
 
-    // Wait for the tooltip to appear
     await waitFor(() => {
       expect(screen.getByText(/to retrieve software/i)).toBeInTheDocument();
     });
