@@ -285,11 +285,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const {
-        id,
-        platform,
-        percent_disk_space_available,
-      } = cellProps.row.original;
+      const { platform, percent_disk_space_available } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
@@ -298,7 +294,6 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
           baseClass="gigs_disk_space_available__cell"
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
           platform={platform}
         />
       );

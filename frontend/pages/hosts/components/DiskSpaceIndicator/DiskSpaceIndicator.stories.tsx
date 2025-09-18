@@ -9,7 +9,6 @@ const meta: Meta<typeof DiskSpaceIndicator> = {
     baseClass: "disk-space-indicator",
     gigsDiskSpaceAvailable: 100,
     percentDiskSpaceAvailable: 75,
-    id: "disk-space-indicator",
     platform: "darwin",
   },
 };

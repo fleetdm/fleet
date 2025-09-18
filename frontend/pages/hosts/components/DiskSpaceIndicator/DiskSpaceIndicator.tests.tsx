@@ -12,7 +12,6 @@ describe("Disk space Indicator", () => {
         baseClass="data-set"
         gigsDiskSpaceAvailable={17}
         percentDiskSpaceAvailable={10}
-        id="disk-space-indicator"
         platform="darwin"
         tooltipPosition="bottom"
       />
@@ -36,7 +35,6 @@ describe("Disk space Indicator", () => {
         baseClass="data-set"
         gigsDiskSpaceAvailable={5}
         percentDiskSpaceAvailable={2}
-        id="disk-space-indicator"
         platform="windows"
         tooltipPosition="bottom"
       />
@@ -60,7 +58,6 @@ describe("Disk space Indicator", () => {
         baseClass="data-set"
         gigsDiskSpaceAvailable={33}
         percentDiskSpaceAvailable={15}
-        id="disk-space-indicator"
         platform="windows"
         tooltipPosition="bottom"
       />
