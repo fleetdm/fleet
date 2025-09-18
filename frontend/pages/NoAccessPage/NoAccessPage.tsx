@@ -8,9 +8,10 @@ import { CONTACT_FLEET_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button/Button";
 // @ts-ignore
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import StackedWhiteBoxes from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import CustomLink from "components/CustomLink/CustomLink";
+import AuthenticationNav from "components/AuthenticationNav";
 
 const baseClass = "no-access-page";
 
@@ -41,25 +42,22 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
   }, [onBackToLogin]);
 
   return (
-    <AuthenticationFormWrapper>
-      <StackedWhiteBoxes
-        router={router}
-        headerText="This account does not currently have access to Fleet."
-      >
-        <>
-          <p>
-            To get access,{" "}
-            <CustomLink
-              url={orgContactUrl || CONTACT_FLEET_LINK}
-              text="contact your administrator"
-            />
-            .
-          </p>
-          <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
-            Back to login
-          </Button>
-        </>
-      </StackedWhiteBoxes>
+    <AuthenticationFormWrapper header="Access denied">
+      <AuthenticationNav router={router} />
+      <>
+        <p>This account does not currently have access to Fleet.</p>
+        <p>
+          To get access,{" "}
+          <CustomLink
+            url={orgContactUrl || CONTACT_FLEET_LINK}
+            text="contact your administrator"
+          />
+          .
+        </p>
+        <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
+          Back to login
+        </Button>
+      </>
     </AuthenticationFormWrapper>
   );
 };

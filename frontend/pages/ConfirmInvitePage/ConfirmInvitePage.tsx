@@ -13,7 +13,6 @@ import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
 import { useQuery } from "react-query";
 import { IInvite } from "interfaces/invite";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 import ConfirmInviteForm from "components/forms/ConfirmInviteForm";
 import { IConfirmInviteFormData } from "components/forms/ConfirmInviteForm/ConfirmInviteForm";
 import { getErrorReason } from "interfaces/errors";
@@ -86,19 +85,19 @@ const ConfirmInvitePage = ({ router, params }: IConfirmInvitePageProps) => {
     // error is how API communicates an invalid invite
     if (validateInviteError) {
       return (
-        <StackedWhiteBoxes className={baseClass}>
+        <div className={baseClass}>
           <>
             <p>
               <b>That invite is invalid.</b>
             </p>
             <p>Please confirm your invite link.</p>
           </>
-        </StackedWhiteBoxes>
+        </div>
       );
     }
     // valid - return form pre-filled with data from api response
     return (
-      <div className={`${baseClass}`}>
+      <div className={baseClass}>
         <div className={`${baseClass}__lead-wrapper`}>
           <p className={`${baseClass}__lead-text`}>Welcome to Fleet</p>
           <p className={`${baseClass}__sub-lead-text`}>

@@ -6,7 +6,6 @@ import usersAPI from "services/entities/users";
 
 import Button from "components/buttons/Button";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
 
 interface IApiOnlyUserProps {
   router: InjectedRouter;
@@ -38,24 +37,17 @@ const ApiOnlyUser = ({ router }: IApiOnlyUserProps): JSX.Element => {
   }, []);
 
   return (
-    <div className={baseClass}>
-      <AuthenticationFormWrapper>
-        <StackedWhiteBoxes router={router}>
-          <>
-            <p>You attempted to access Fleet with an API only user.</p>
-            <p className={`${baseClass}__sub-lead-text`}>
-              This user doesn&apos;t have access to the Fleet UI.
-            </p>
-            <Button
-              onClick={handleClick}
-              className={`${baseClass}__login-button`}
-            >
-              Back to login
-            </Button>
-          </>
-        </StackedWhiteBoxes>
-      </AuthenticationFormWrapper>
-    </div>
+    <AuthenticationFormWrapper header="Access denied">
+      <>
+        <p>You attempted to access Fleet with an API only user.</p>
+        <p className={`${baseClass}__sub-lead-text`}>
+          This user doesn&apos;t have access to the Fleet UI.
+        </p>
+        <Button onClick={handleClick} className={`${baseClass}__login-button`}>
+          Back to login
+        </Button>
+      </>
+    </AuthenticationFormWrapper>
   );
 };
 

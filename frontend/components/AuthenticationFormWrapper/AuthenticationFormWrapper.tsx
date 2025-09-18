@@ -1,20 +1,49 @@
 import React from "react";
 
+import Card from "components/Card";
+import CardHeader from "components/CardHeader";
 // @ts-ignore
-import fleetLogoText from "../../../assets/images/fleet-logo-text-white.svg";
+import OrgLogoIcon from "components/icons/OrgLogoIcon";
+import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
 
 interface IAuthenticationFormWrapperProps {
   children: React.ReactNode;
+  header?: string;
+  headerCta?: JSX.Element;
 }
 
 const baseClass = "auth-form-wrapper";
 
 const AuthenticationFormWrapper = ({
   children,
+  header,
+  headerCta,
 }: IAuthenticationFormWrapperProps) => (
-  <div className={baseClass}>
-    <img alt="Fleet" src={fleetLogoText} className={`${baseClass}__logo`} />
-    {children}
+  <div className="app-wrap">
+    <nav className="site-nav-container">
+      <div className="site-nav-content">
+        <ul className="site-nav-left">
+          <li className="site-nav-item dup-org-logo" key="dup-org-logo">
+            <div className="site-nav-item__logo-wrapper">
+              <div className="site-nav-item__logo">
+                <OrgLogoIcon className="logo" src={FleetIcon} />
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </nav>
+    <div className={baseClass}>
+      <Card className={`${baseClass}__card`} paddingSize="xxlarge">
+        {(header || headerCta) && (
+          <div className={`${baseClass}__header-container`}>
+            {header && <CardHeader header={header} />}
+            {headerCta && headerCta}
+          </div>
+        )}
+        {children}
+      </Card>
+    </div>
   </div>
 );
 

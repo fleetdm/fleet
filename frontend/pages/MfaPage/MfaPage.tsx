@@ -11,7 +11,7 @@ import sessionsAPI from "services/entities/sessions";
 
 import Button from "components/buttons/Button";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import StackedWhiteBoxes from "components/AuthenticationNav";
 import Spinner from "components/Spinner";
 
 interface IMfaPage {
@@ -107,15 +107,13 @@ const MfaPage = ({ router, params }: IMfaPage) => {
   if (isExpired) {
     return (
       <AuthenticationFormWrapper>
-        <StackedWhiteBoxes className={baseClass}>
-          <>
-            <p>
-              <b>That link is expired.</b>
-            </p>
-            <p>Log in again for a new link.</p>
-            <Button onClick={onClickLoginButton}>Back to login</Button>
-          </>
-        </StackedWhiteBoxes>
+        <>
+          <p>
+            <b>That link is expired.</b>
+          </p>
+          <p>Log in again for a new link.</p>
+          <Button onClick={onClickLoginButton}>Back to login</Button>
+        </>
       </AuthenticationFormWrapper>
     );
   }

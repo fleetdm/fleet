@@ -10,8 +10,9 @@ import formatErrorResponse from "utilities/format_error_response";
 // @ts-ignore
 import ResetPasswordForm from "components/forms/ResetPasswordForm";
 // @ts-ignore
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import StackedWhiteBoxes from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
+import AuthenticationNav from "components/AuthenticationNav";
 
 interface IResetPasswordPageProps {
   location: any; // no type in react-router v3
@@ -81,12 +82,11 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
 
   return (
     <AuthenticationFormWrapper>
-      <StackedWhiteBoxes
+      <AuthenticationNav
         router={router}
         leadText="Create a new password. Your new password must include 12-48 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-      >
-        <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
-      </StackedWhiteBoxes>
+      />
+      <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
     </AuthenticationFormWrapper>
   );
 };

@@ -7,7 +7,7 @@ import formatErrorResponse from "utilities/format_error_response";
 // @ts-ignore
 import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 // @ts-ignore
-import StackedWhiteBoxes from "components/StackedWhiteBoxes";
+import AuthenticationNav from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -78,10 +78,13 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
   };
 
   return (
-    <AuthenticationFormWrapper>
-      <StackedWhiteBoxes previousLocation={PATHS.LOGIN} router={router}>
-        <div className={baseClass}>{renderContent()}</div>
-      </StackedWhiteBoxes>
+    <AuthenticationFormWrapper
+      header="Reset password"
+      headerCta={
+        <AuthenticationNav previousLocation={PATHS.LOGIN} router={router} />
+      }
+    >
+      {renderContent()}
     </AuthenticationFormWrapper>
   );
 };

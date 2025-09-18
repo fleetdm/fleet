@@ -9,3 +9,8 @@ $pad-large: px-to-rem(24);
 $pad-xlarge: px-to-rem(32);
 $pad-xxlarge: px-to-rem(40);
 $pad-xxxlarge: px-to-rem(80);
+
+// 2025 Stylesheet
+$gap-page-component: $pad-large;
+$gap-page-component-inner: $pad-medium;
+$gap-form: $pad-medium;

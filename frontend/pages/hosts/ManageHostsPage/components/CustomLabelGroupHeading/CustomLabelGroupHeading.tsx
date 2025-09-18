@@ -47,7 +47,11 @@ const CustomLabelGroupHeading = (
         <span className={`${baseClass}__label-title`}>{props.children}</span>
         <div className={`${baseClass}__add_new_label`}>
           {canAddNewLabels && (
-            <Button variant="inverse" onClick={onAddLabel} iconStroke>
+            <Button
+              variant="brand-inverse-icon"
+              onClick={onAddLabel}
+              iconStroke
+            >
               <>
                 Add label
                 <Icon name="plus" />
