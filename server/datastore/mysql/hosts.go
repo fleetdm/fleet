@@ -2544,7 +2544,7 @@ func (ds *Datastore) EnrollOsquery(ctx context.Context, opts ...fleet.DatastoreE
 }
 
 // getContextTryStmt will attempt to run sqlx.GetContext on a cached statement if available, resorting to ds.reader.
-// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// IMPORTANT: Adding prepare statements consumes MySQL server resources and is limited by the MySQL max_prepared_stmt_count
 // system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
@@ -2552,13 +2552,13 @@ func (ds *Datastore) getContextTryStmt(ctx context.Context, dest interface{}, qu
 	// nolint the statements are closed in Datastore.Close.
 	if stmt := ds.loadOrPrepareStmt(ctx, query); stmt != nil {
 		err := stmt.GetContext(ctx, dest, args...)
-		if err == nil || !isMySQLUnknownStatement(err) {
+		if err == nil || !isBadConnection(err) {
 			return err
 		}
 
 		// if the statement is unknown to the MySQL server, delete it
-		// from the cache and fallback to the regular statement call
-		// bellow. This function will get called again eventually and
+		// from the cache and fall back to the regular statement call
+		// bellow. This function will get called again eventually, and
 		// we will store a new prepared statement in the cache.
 		//
 		// - see https://github.com/fleetdm/fleet/issues/20781 for an

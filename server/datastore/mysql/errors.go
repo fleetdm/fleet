@@ -1,10 +1,13 @@
 package mysql
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"syscall"
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -141,10 +144,30 @@ func isMySQLAccessDenied(err error) bool {
 	return false
 }
 
-func isMySQLUnknownStatement(err error) bool {
-	err = ctxerr.Cause(err)
+// isBadConnection checks if the error is a connection-level error that
+// justifies retrying the operation on a new connection.
+func isBadConnection(err error) bool {
+	if errors.Is(err, driver.ErrBadConn) || errors.Is(err, mysql.ErrInvalidConn) {
+		return true
+	}
+
 	var mySQLErr *mysql.MySQLError
-	return errors.As(err, &mySQLErr) && (mySQLErr.Number == mysqlerr.ER_UNKNOWN_STMT_HANDLER)
+	if errors.As(err, &mySQLErr) {
+		switch mySQLErr.Number {
+		case 1243, // ER_UNKNOWN_STMT_HANDLER
+			2006, // ER_SERVER_GONE_ERROR
+			1053: // ER_SERVER_SHUTDOWN
+			return true
+		}
+	}
+
+	// Check for underlying network errors.
+	var se *os.SyscallError
+	if errors.As(err, &se) {
+		return errors.Is(se.Err, syscall.ECONNRESET) || errors.Is(se.Err, syscall.EPIPE)
+	}
+
+	return false
 }
 
 // ErrPartialResult indicates that a batch operation was completed,
