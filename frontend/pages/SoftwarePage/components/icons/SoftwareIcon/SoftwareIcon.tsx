@@ -58,7 +58,7 @@ const SoftwareIcon = ({
   if (isApiUrl) {
     if (isLoading) {
       // Return empty div while loading custom icon so component size doesn't jump
-      return <div className={classNames} />;
+      return <div className={classNames.concat(" loading-placeholder")} />;
     }
     if (currentCustomIconBlob) {
       // Uses custom icon blob from API if fetch succeeded
