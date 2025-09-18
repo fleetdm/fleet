@@ -8,7 +8,6 @@ The Fleet roadmap is set for fall 2025. Watch the video above for a walkthrough,
 
 In the next 3 months, Fleet will ship...
 
-- Lost Mode
 - Auto install apps on iOS and Android on first boot
 - Deploy certificates on Windows, Linux, and Android
 - Fleet-maintained apps Windows
