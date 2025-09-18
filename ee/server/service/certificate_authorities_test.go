@@ -218,6 +218,15 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		return svc, ctx
 	}
 
+	t.Run("Errors when no CA type is specified", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createRequest := fleet.CertificateAuthorityPayload{}
+		createdCA, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "Couldn't add certificate authority. A certificate authority must be specified")
+		require.Nil(t, createdCA)
+	})
+
 	t.Run("Create DigiCert CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
@@ -1111,6 +1120,13 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 		return svc, ctx
 	}
+
+	t.Run("Errors on empty payload", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		err := svc.UpdateCertificateAuthority(ctx, digicertID, fleet.CertificateAuthorityUpdatePayload{})
+		require.EqualError(t, err, "Couldn't edit certificate authority. A certificate authority must be specified")
+	})
 
 	t.Run("Errors if no certificate authority is found", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
