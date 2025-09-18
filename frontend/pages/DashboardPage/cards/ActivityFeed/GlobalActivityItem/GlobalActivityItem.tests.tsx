@@ -1036,10 +1036,11 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders a 'mdm_enrolled' type for android or apple personal devices with enrollment ID provided", () => {
+  it("renders a 'mdm_enrolled' type for android or apple personal devices with actor full name provided", () => {
     const activity = createMockActivity({
       type: ActivityType.MdmEnrolled,
       details: {
+        host_display_name: "Test Host",
         enrollment_id: "test-enrollment-id",
         platform: "android",
       },
@@ -1048,25 +1049,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText((content, node) => {
-        return (
-          node?.innerHTML === "<b>test-enrollment-id</b> enrolled to Fleet"
-        );
-      })
-    ).toBeInTheDocument();
-  });
-
-  it("renders a 'mdm_enrolled' type for android or apple personal devices without enrollment ID provided", () => {
-    const activity = createMockActivity({
-      type: ActivityType.MdmEnrolled,
-      details: {
-        platform: "ios",
-      },
-    });
-    render(<GlobalActivityItem activity={activity} isPremiumTier />);
-
-    expect(
-      screen.getByText((content, node) => {
-        return node?.innerHTML === "A device enrolled to Fleet";
+        return node?.innerHTML === "<b>Test Host</b> enrolled to Fleet.";
       })
     ).toBeInTheDocument();
   });
@@ -1604,14 +1587,14 @@ describe("Activity Feed", () => {
       actor_full_name: "Test User",
       details: {
         platform: "ios",
-        enrollment_id: "Test Enrollment ID",
+        host_display_name: "Test Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
     expect(screen.getByText(/Test User/)).toBeInTheDocument();
     expect(screen.getByText(/told Fleet to unenroll/)).toBeInTheDocument();
-    expect(screen.getByText(/Test Enrollment ID/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
   });
 
   it("renders an mdm unenroll activity with no actor name for ios, ipados, and android devices", () => {
@@ -1620,12 +1603,12 @@ describe("Activity Feed", () => {
       actor_full_name: undefined,
       details: {
         platform: "ios",
-        enrollment_id: "Test Enrollment ID",
+        host_display_name: "Test Host",
       },
     });
     render(<GlobalActivityItem activity={activity} isPremiumTier />);
 
-    expect(screen.getByText(/Test Enrollment ID/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Host/)).toBeInTheDocument();
     expect(screen.getByText(/is unenrolled from Fleet/)).toBeInTheDocument();
   });
 });

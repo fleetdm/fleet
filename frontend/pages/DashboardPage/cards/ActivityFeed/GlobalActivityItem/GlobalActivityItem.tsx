@@ -289,7 +289,11 @@ const TAGGED_TEMPLATES = {
     }
 
     if (isAndroid(platform) || isIPadOrIPhone(platform)) {
-      return <>{host_display_name} enrolled to Fleet.</>;
+      return (
+        <>
+          <b>{host_display_name}</b> enrolled to Fleet.
+        </>
+      );
     }
 
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
