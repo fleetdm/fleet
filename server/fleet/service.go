@@ -1133,6 +1133,9 @@ type Service interface {
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
+	// ResendDeviceHostMDMProfile resends the MDM profile to the device host that requested it.
+	ResendDeviceHostMDMProfile(ctx context.Context, host *Host, profileUUID string) error
+
 	// BatchResendMDMProfileToHosts resends an MDM profile to the hosts that
 	// satisfy the specified filters.
 	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) error
