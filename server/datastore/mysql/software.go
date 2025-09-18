@@ -627,15 +627,17 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 
 	// Get titles for software without bundle_identifier.
 	if len(argsWithoutBundleIdentifier) > 0 {
-		whereClause := strings.TrimSuffix(
-			strings.Repeat(`
-			  (
-			    (name = ? AND source = ? AND browser = ?)
-			  ) OR`, len(argsWithoutBundleIdentifier)/3), " OR",
-		)
+		// Build IN clause with composite values for better performance
+		// Each triplet of args represents (name, source, browser)
+		numItems := len(argsWithoutBundleIdentifier) / 3
+		valuePlaceholders := make([]string, 0, numItems)
+		for i := 0; i < numItems; i++ {
+			valuePlaceholders = append(valuePlaceholders, "(?, ?, ?)")
+		}
+
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, browser FROM software_titles WHERE %s",
-			whereClause,
+			"SELECT id, name, source, browser FROM software_titles WHERE (name, source, browser) IN (%s)",
+			strings.Join(valuePlaceholders, ", "),
 		)
 		var existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitle
 		if err := sqlx.SelectContext(ctx,
