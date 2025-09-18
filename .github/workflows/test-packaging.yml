@@ -109,6 +109,12 @@ jobs:
       - name: Build RPM with Fleet Desktop
         run: ./build/fleetctl package --type rpm --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
 
+      - name: Build PKG.TAR.ZST
+        run: ./build/fleetctl package --type pkg.tar.zst --enroll-secret=foo --fleet-url=https://localhost:8080
+
+      - name: Build PKG.TAR.ZST with Fleet Desktop
+        run: ./build/fleetctl package --type pkg.tar.zst --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
       - name: Build MSI
         if: ${{ !startsWith(matrix.os, 'macos') }}
         run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080
