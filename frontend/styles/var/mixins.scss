@@ -245,14 +245,20 @@ $max-width: 2560px;
   }
 }
 
-@mixin flex-column-1rem-gap {
+@mixin flex-column-16px-gap {
   display: flex;
   flex-direction: column;
-  gap: $pad-medium;
+  gap: $gap-form;
+}
+
+@mixin flex-column-24px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-page-component;
 }
 
 @mixin page {
-  @include flex-column-1rem-gap;
+  @include flex-column-24px-gap;
 }
 
 @mixin form-button-extra-clickable-area-compensation {

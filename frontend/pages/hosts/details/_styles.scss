@@ -78,14 +78,6 @@
   &__tab-nav,
   &__software-tab-nav {
     width: 100%;
-
-    // direct descendant of selector allows us to only change the first level of
-    // tab styling and not change the tabs inside the cards.
-    > .react-tabs > .react-tabs__tab-list {
-      .react-tabs__tab--selected {
-        background-color: $ui-off-white;
-      }
-    }
   }
 
   .col-50 {

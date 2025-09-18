@@ -7,11 +7,33 @@ $base-class: "button";
   outline-width: 1px;
 }
 
+// Buttons with background colors
+@mixin button-pad-8px-16px {
+  padding: $pad-small $pad-medium;
+  height: 32px;
+}
+
+// Buttons without background colors
+@mixin button-pad-8px-8px {
+  padding: $pad-small $pad-small;
+  height: 32px;
+}
+
+// Size small buttons (with and without background colors)
+@mixin button-pad-4px-8px {
+  padding: $pad-xsmall $pad-small;
+  height: 24px;
+}
+
 @mixin button-variant($color, $hover: null, $active: null, $inverse: false) {
   background-color: $color;
 
   @if $inverse {
-    padding: $pad-small;
+    @include button-pad-8px-8px;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
 
     &:hover {
       background-color: rgba($core-fleet-black, 0.05);
@@ -53,6 +75,7 @@ $base-class: "button";
 
 .#{$base-class} {
   @include button-variant($core-fleet-green);
+  @include button-pad-8px-16px;
   transition: color 150ms ease-in-out, background 150ms ease-in-out,
     top 50ms ease-in-out, box-shadow 50ms ease-in-out, border 50ms ease-in-out;
   position: relative;
@@ -61,13 +84,11 @@ $base-class: "button";
   flex-direction: row;
   justify-content: center;
   align-items: center;
-  padding: $pad-small $pad-medium;
   border-radius: 6px;
   font-size: $x-small;
   font-family: "Inter", sans-serif;
   font-weight: $bold;
   display: inline-flex;
-  height: 38px;
   top: 0;
   border: 0;
   position: relative;
@@ -304,7 +325,7 @@ $base-class: "button";
   // Used for primary buttons with green icon and green text, no underline on hover
   &--brand-inverse-icon {
     @include button-variant(transparent);
-    padding: $pad-small;
+    @include button-pad-8px-8px;
     border: 0;
     box-shadow: none;
     color: $core-fleet-green;
@@ -312,6 +333,10 @@ $base-class: "button";
     font-weight: $bold;
     cursor: pointer;
     white-space: nowrap;
+
+    &__small {
+      @include button-pad-4px-8px;
+    }
 
     img {
       transform: scale(0.5);
@@ -392,7 +417,6 @@ $base-class: "button";
       $inverse: true
     );
     background-color: transparent;
-    // height: initial; // Override 38px height // TODO: with and without this
   }
 
   &--inverse {

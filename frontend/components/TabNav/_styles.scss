@@ -16,12 +16,11 @@
       height: 43px;
       margin: 0; // Override react-tab 10px bottom margin
       position: relative; // Required for shift left
-      left: -8px; // Design request for text to justify left despite hover padding
     }
 
     &__tab {
       font-size: $x-small;
-      border-radius: $border-radius;
+      border-radius: $border-radius-large;
       border: none;
       padding: 6px $pad-small;
       display: inline-flex;
@@ -75,7 +74,7 @@
     }
 
     &__tab-panel--selected {
-      margin-top: $pad-large;
+      margin-top: $gap-page-component;
 
       .no-results-message {
         margin-top: $pad-xxlarge;
@@ -115,7 +114,6 @@
       &__tab-list {
         gap: $pad-xxlarge;
         border-bottom: 1px solid $ui-fleet-black-10;
-        left: 0; // Undo design request for text to justify left as there's no hover padding
       }
 
       &__tab {

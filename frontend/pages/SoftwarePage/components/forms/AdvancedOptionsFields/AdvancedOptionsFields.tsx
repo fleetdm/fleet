@@ -55,7 +55,7 @@ const AdvancedOptionsFields = ({
     }
 
     return (
-      <Button variant="inverse" onClick={onClickShowSchema} justifyText="right">
+      <Button variant="inverse" onClick={onClickShowSchema}>
         Schema
         <Icon name="info" size="small" />
       </Button>

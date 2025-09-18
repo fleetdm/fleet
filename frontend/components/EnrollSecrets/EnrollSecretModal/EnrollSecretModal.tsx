@@ -79,7 +79,6 @@ const EnrollSecretModal = ({
                       className={`${baseClass}__add-secret-btn`}
                       variant="brand-inverse-icon"
                       iconStroke
-                      justifyText="right"
                     >
                       Add secret <Icon name="plus" color="core-fleet-green" />
                     </Button>

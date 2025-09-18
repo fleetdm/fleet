@@ -239,7 +239,6 @@ const Secrets = () => {
                   variant="brand-inverse-icon"
                   onClick={onClickAddSecret}
                   disabled={disableChildren}
-                  justifyText="right"
                 >
                   <Icon name="plus" color="core-fleet-green" />
                   <span>Add custom variable</span>

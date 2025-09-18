@@ -5,7 +5,7 @@
     position: absolute;
     left: 12px;
     top: 0;
-    height: 40px;
+    height: 36px;
     width: 16px;
     flex-wrap: wrap;
     align-content: center;
@@ -26,7 +26,7 @@
   // Relative input wrapper with absolute icon corrects icon alignment on all browsers
   &__input-wrapper {
     position: relative;
-    height: 40px;
+    height: 36px;
     display: flex;
     align-items: center;
   }
@@ -147,7 +147,7 @@
     position: absolute;
     right: 12px;
     top: 0;
-    height: 40px;
+    height: 36px;
     width: 16px;
     flex-wrap: wrap;
     align-content: center;

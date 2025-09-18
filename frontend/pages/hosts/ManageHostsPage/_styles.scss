@@ -1,13 +1,14 @@
 .manage-hosts {
+  @include page;
+
   &__header-wrap {
     @include normalize-team-header;
-    margin-bottom: $pad-medium;
+  }
 
-    .button-wrap {
-      display: flex;
-      justify-content: flex-end;
-      white-space: nowrap;
-    }
+  &__button-wrap {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
   }
 
   .ace-fleet {
@@ -246,17 +247,8 @@
     margin-left: $pad-small;
   }
 
-  &__enroll-hosts {
-    padding: $pad-small;
-    margin-right: $pad-small;
-  }
-
   &__info-banners {
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
-  }
-
-  &__export-btn {
-    margin-left: $pad-xsmall;
   }
 }

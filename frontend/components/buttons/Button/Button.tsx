@@ -51,8 +51,8 @@ export interface IButtonProps {
     | "grid"
     | "dialog";
   ariaExpanded?: boolean;
-  /** Flushes button text to left or right of the parent component ignoring padding */
-  justifyText?: "left" | "right";
+  /** Small: 1/2 the padding */
+  size?: "small" | "default";
 }
 
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
@@ -126,17 +126,16 @@ class Button extends React.Component<IButtonProps, IButtonState> {
       iconStroke,
       ariaHasPopup,
       ariaExpanded,
-      justifyText,
+      size,
     } = this.props;
     const fullClassName = classnames(
       baseClass,
       `${baseClass}--${variant}`,
       className,
       {
+        [`${baseClass}--${variant}__small`]: size === "small",
         [`${baseClass}--disabled`]: disabled,
         [`${baseClass}--icon-stroke`]: iconStroke,
-        [`${baseClass}--justify-left`]: justifyText === "left",
-        [`${baseClass}--justify-right`]: justifyText === "right",
       }
     );
     const onWhite =

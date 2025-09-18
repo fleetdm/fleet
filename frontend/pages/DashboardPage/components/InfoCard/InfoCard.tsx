@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { browserHistory } from "react-router";
 
+import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -60,8 +61,8 @@ const useInfoCard = ({
           <Button
             className={`${baseClass}__action-button`}
             variant="inverse"
+            size="small"
             onClick={action.onClick}
-            justifyText="right"
           >
             <>
               <span className={`${baseClass}__action-button-text`}>
@@ -82,8 +83,8 @@ const useInfoCard = ({
           <Button
             variant="inverse"
             onClick={onClick}
-            justifyText="right"
             className={`${baseClass}__action-button`}
+            size="small"
           >
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
@@ -109,9 +110,9 @@ const useInfoCard = ({
   });
 
   return (
-    <div className={baseClass}>
+    <Card className={baseClass} paddingSize="xlarge" borderRadiusSize="large">
       {showTitle && (
-        <>
+        <div>
           <div className={`${baseClass}__section-title-cta`}>
             <div className={`${baseClass}__section-title-group`}>
               <div className={`${baseClass}__section-title`}>
@@ -128,13 +129,15 @@ const useInfoCard = ({
             </div>
             {renderAction()}
           </div>
-          <div className={`${baseClass}__section-description`}>
-            {description}
-          </div>
-        </>
+          {description && (
+            <div className={`${baseClass}__section-description`}>
+              {description}
+            </div>
+          )}
+        </div>
       )}
       {clonedChildren}
-    </div>
+    </Card>
   );
 };
 

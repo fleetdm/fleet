@@ -72,7 +72,6 @@ const RevealButton = ({
       autofocus={autofocus}
       disabled={disabled}
       iconStroke
-      justifyText="left"
     >
       {buttonContent()}
     </Button>

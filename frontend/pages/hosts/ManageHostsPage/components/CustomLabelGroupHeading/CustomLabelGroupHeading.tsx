@@ -54,7 +54,7 @@ const CustomLabelGroupHeading = (
             >
               <>
                 Add label
-                <Icon name="plus" />
+                <Icon name="plus" color="core-fleet-green" />
               </>
             </Button>
           )}

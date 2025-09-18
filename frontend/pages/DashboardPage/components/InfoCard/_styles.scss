@@ -1,10 +1,6 @@
 .dashboard-info-card {
-  padding: 32px;
-  width: 100%;
-  background-color: $core-fleet-white;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: 8px;
-  box-sizing: border-box;
+  // Display flex columns with 24px gap
+  @include page;
 
   &__section-title-cta {
     display: flex;
@@ -50,22 +46,5 @@
     p {
       margin: 8px 0 0 0;
     }
-  }
-
-  &__action-button {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $ui-fleet-black-75;
-    font-weight: $bold;
-    text-decoration: none !important;
-    gap: $pad-small;
-
-    &:focus-visible {
-      outline: 1px solid $core-focused-outline;
-    }
-  }
-  &__action-button-text {
-    text-align: right;
   }
 }

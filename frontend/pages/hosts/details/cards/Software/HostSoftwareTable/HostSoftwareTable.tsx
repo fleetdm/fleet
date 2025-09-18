@@ -206,11 +206,7 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button
-          variant="inverse"
-          onClick={onAddFiltersClick}
-          justifyText="right"
-        >
+        <Button variant="inverse" onClick={onAddFiltersClick}>
           <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>

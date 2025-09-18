@@ -24,7 +24,7 @@
     border: 1px solid $ui-fleet-black-10;
     background-color: $core-fleet-white;
     border-radius: $border-radius;
-    height: 40px;
+    height: 36px;
 
     &:hover {
       cursor: pointer;
@@ -136,6 +136,9 @@
   }
 
   .label-filter-select__group-heading {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
     padding: 0;
   }
 

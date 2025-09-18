@@ -213,7 +213,7 @@ const DropdownWrapper = ({
       return {
         ...provided,
         width: "100%",
-        height: "40px",
+        height: "36px",
         ...(variant === "button" && buttonVariantContainer),
       };
     },

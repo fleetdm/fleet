@@ -128,7 +128,6 @@ const HostQueryReport = ({
             onClick={() => {
               browserHistory.push(fullReportPath);
             }}
-            justifyText="right"
             iconStroke
           >
             <>

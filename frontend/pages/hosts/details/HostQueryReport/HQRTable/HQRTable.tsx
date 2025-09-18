@@ -74,7 +74,6 @@ const HQRTable = ({
           className={`${baseClass}__export-btn`}
           onClick={onExportQueryResults}
           variant="inverse"
-          justifyText="right"
         >
           <>
             Export results

@@ -47,7 +47,6 @@ const Pagination = ({
         disabled={disableNext}
         onClick={onNextPage}
         className={`${baseClass}__pagination-button`}
-        justifyText="right"
       >
         Next <Icon name="chevron-right" color="ui-fleet-black-75" />
       </Button>
