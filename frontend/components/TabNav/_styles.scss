@@ -28,13 +28,10 @@
       align-items: center;
       line-height: 21px;
 
+      // Undoes blue native shadow
       &:focus {
         box-shadow: none;
         outline: 0;
-        &:after {
-          left: 0;
-          bottom: 0;
-        }
       }
 
       &:hover {
@@ -42,12 +39,10 @@
       }
 
       // focus-visible only highlights when tabbing not clicking
+      // outline instead of border prevents pixel shifts
       &:focus-visible {
-        .tab-text {
-          outline: 1px solid $core-focused-outline;
-          outline-offset: 5px;
-          border-radius: $border-radius-small;
-        }
+        outline: 1px solid $core-focused-outline;
+        outline-offset: -1px;
       }
 
       // // Bolding text when the button is active causes a layout shift
@@ -63,7 +58,6 @@
       }
 
       &--selected {
-        border-radius: $border-radius;
         font-weight: $bold;
         background-color: $ui-fleet-black-5;
       }
@@ -95,12 +89,10 @@
       align-items: center; /* Vertically align items */
 
       .tab-text__text {
-        display: relative;
-
         // Reserve space for bold text using a hidden pseudo-element
         &::before {
           content: attr(data-text); /* Same text as the visible one */
-          font-weight: 600; /* Mimic bold styling */
+          font-weight: $bold; /* Mimic bold styling */
           visibility: hidden; /* Keep it invisible */
           position: absolute; /* Prevent it from affecting layout */
         }
@@ -121,6 +113,24 @@
 
         &:hover {
           background-color: transparent;
+        }
+
+        // Aligns underline correctly when focused
+        &:focus {
+          &:after {
+            left: 0;
+            bottom: 0;
+          }
+        }
+
+        &:focus-visible {
+          outline: none; // Undo primary tabbing through app styling as it runs into edges
+
+          .tab-text {
+            outline: 1px solid $core-focused-outline;
+            outline-offset: 3px;
+            border-radius: $border-radius;
+          }
         }
 
         &--selected {
@@ -165,12 +175,6 @@
 
         &.no-count:not(.errors-empty).react-tabs__tab--selected::after {
           bottom: -2px;
-        }
-
-        &:focus-visible {
-          .tab-text {
-            border-radius: $border-radius;
-          }
         }
       }
     }
