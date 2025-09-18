@@ -327,7 +327,6 @@ func batchUpsertCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 
 	stmt := fmt.Sprintf(sqlUpsertCertificateAuthority, strings.TrimSuffix(placeholders.String(), ","))
 
-	// TODO(hca): with retry?
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "upserting certificate authorities")
 	}
@@ -349,7 +348,6 @@ func batchDeleteCertificateAuthorities(ctx context.Context, tx sqlx.ExtContext, 
 	}
 	stmt = fmt.Sprintf(stmt, strings.TrimSuffix(placeholders.String(), ","))
 
-	// TODO(hca): with retry?
 	_, err := tx.ExecContext(ctx, stmt, args...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting certificate authorities")
