@@ -86,7 +86,7 @@ sequenceDiagram
     F->>D: Install client cert
     U->>A: Open app
     A->>O: Redirect to Okta
-    O-->>O: Auth policy requires "Fleet device check" factor
+    O-->>O: Auth policy requires "Fleet device health" factor
     O->>U: Redirect to Fleet SAML endpoint
     U->>LB: mTLS connection with client cert
     Note over U,LB: Browser may prompt for cert selection
@@ -184,3 +184,7 @@ Currently, we can also use any Okta test or developer account to develop and QA 
 Being in OIN gives our customers one-click install and preconfigured endpoints. It also increases our visibility to Okta admins and signals enterprise readiness, which helps shorten sales cycles. Jamf has an official Okta partnership and device trust integration, and Kandji has an OIN app listed. Having Fleet server in OIN positions us alongside these and other competitors. Kandji's OIN app simply bundles SAML+SCIM, so the app itself does not provide conditional access. Thus, OIN is largely a separate discussion from this feature.
 
 ---
+
+## Links
+* [Zach's POC](https://github.com/fleetdm/fleet/pull/17304)
+* [Zach's POC video](https://www.loom.com/share/8bba3a146a374cf58f8b3673414559aa)
