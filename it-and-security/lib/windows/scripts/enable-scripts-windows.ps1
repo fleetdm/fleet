@@ -1,3 +1,5 @@
+# Please don't delete. This script is used in the guide here: https://fleetdm.com/guides/scripts
+
 # Error if not run as admin
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Error "This script must be run as an administrator."

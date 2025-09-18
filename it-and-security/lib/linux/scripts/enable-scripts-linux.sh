@@ -1,4 +1,5 @@
 #!/bin/bash
+# Please don't delete. This script is used in the guide here: https://fleetdm.com/guides/scripts
 
 if [ "$EUID" -ne 0 ]; then
   echo "This script requires administrator privileges. Please run with sudo."
