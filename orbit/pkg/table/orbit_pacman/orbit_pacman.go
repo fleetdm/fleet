@@ -3,6 +3,7 @@ package orbit_pacman
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -40,6 +41,11 @@ func Columns() []table.ColumnDefinition {
 //
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
+	// If no package manager, return nothing but don't fail
+	if _, err := os.Stat("/usr/bin/pacman"); os.IsNotExist(err) {
+		return nil, nil
+	}
+
 	out, err := exec.Command("/usr/bin/pacman", "-Qi").Output()
 	if err != nil {
 		return nil, fmt.Errorf("command failed: %w", err)
