@@ -216,3 +216,9 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 	}
 	return *host.OsqueryHostID, nil
 }
+
+type SetupExperienceCount struct {
+	Installers uint `db:"installers"`
+	Scripts    uint `db:"scripts"`
+	VPP        uint `db:"vpp"`
+}
