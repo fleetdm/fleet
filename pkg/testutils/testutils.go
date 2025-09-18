@@ -1,4 +1,4 @@
-package spec
+package testutils
 
 import (
 	"os"

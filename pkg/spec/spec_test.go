@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/hashicorp/go-multierror"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -189,7 +190,8 @@ func TestExpandEnv(t *testing.T) {
 			`$FLEET_VAR_BAR ${FLEET_VAR_BAR} ${FLEET_VAR_BAR2}`, nil,
 		}, // nested variables
 	} {
-		SaveEnv(t)
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
@@ -220,7 +222,8 @@ func TestLookupEnvSecrets(t *testing.T) {
 			checkMultiErrors(t, "environment variable \"FLEET_SECRET_foo\" not set"),
 		},
 	} {
-		SaveEnv(t)
+		// save the current env before clearing it.
+		testutils.SaveEnv(t)
 		os.Clearenv()
 		for k, v := range tc.environment {
 			_ = os.Setenv(k, v)
