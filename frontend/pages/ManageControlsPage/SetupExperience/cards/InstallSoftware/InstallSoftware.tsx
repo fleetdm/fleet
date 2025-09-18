@@ -19,13 +19,14 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import CustomLink from "components/CustomLink";
+import TurnOnMdmMessage from "components/TurnOnMdmMessage";
 
 import InstallSoftwarePreview from "./components/InstallSoftwarePreview";
 import AddInstallSoftware from "./components/AddInstallSoftware";
 import SelectSoftwareModal from "./components/SelectSoftwareModal";
 import SetupExperienceContentContainer from "../../components/SetupExperienceContentContainer";
-import { getManualAgentInstallSetting } from "../BootstrapPackage/BootstrapPackage";
+import { ISetupExperienceCardProps } from "../../SetupExperienceNavItems";
+import getManualAgentInstallSetting from "../../helpers";
 
 const baseClass = "install-software";
 
@@ -41,11 +42,10 @@ export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "linux",
 ];
 
-interface IInstallSoftwareProps {
-  currentTeamId: number;
-}
-
-const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
+const InstallSoftware = ({
+  currentTeamId,
+  router,
+}: ISetupExperienceCardProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
   const [
     selectedPlatform,
@@ -54,7 +54,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
 
   const {
     data: softwareTitles,
-    isLoading,
+    isLoading: isLoadingSoftwareTitles,
     isError,
     refetch: refetchSoftwareTitles,
   } = useQuery<
@@ -70,7 +70,6 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
         per_page: PER_PAGE_SIZE,
       }),
     {
-      enabled: selectedPlatform !== "windows", // remove next iteration
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
     }
@@ -81,7 +80,6 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId === API_NO_TEAM_ID,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
@@ -110,18 +108,11 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
   );
 
   const renderTabContent = (platform: SetupExperiencePlatform) => {
-    if (platform === "windows") {
-      return (
-        <div className={`${baseClass}__windows`}>
-          <b>Windows setup experience is coming soon.</b>
-          <p>
-            Need to customize setup for Windows users?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </p>
-        </div>
-      );
-    }
-    if (isLoading || isLoadingGlobalConfig || isLoadingTeamConfig) {
+    if (
+      isLoadingSoftwareTitles ||
+      isLoadingGlobalConfig ||
+      isLoadingTeamConfig
+    ) {
       return <Spinner />;
     }
 
@@ -130,6 +121,27 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
     }
 
     if (softwareTitles || softwareTitles === null) {
+      const appleMdmAndAbmEnabled =
+        globalConfig?.mdm.enabled_and_configured &&
+        globalConfig?.mdm.apple_bm_enabled_and_configured;
+      const turnOnAppleMdm = platform === "macos" && !appleMdmAndAbmEnabled;
+
+      const turnOnWindowsMdm =
+        platform === "windows" &&
+        !globalConfig?.mdm.windows_enabled_and_configured;
+
+      const turnOnMdm = turnOnAppleMdm || turnOnWindowsMdm;
+
+      if (turnOnMdm) {
+        return (
+          <TurnOnMdmMessage
+            header="Additional configuration required"
+            info="To customize, first turn on automatic enrollment."
+            buttonText="Turn on"
+            router={router}
+          />
+        );
+      }
       return (
         <SetupExperienceContentContainer>
           <AddInstallSoftware
@@ -139,7 +151,7 @@ const InstallSoftware = ({ currentTeamId }: IInstallSoftwareProps) => {
             onAddSoftware={() => setShowSelectSoftwareModal(true)}
             platform={platform}
           />
-          <InstallSoftwarePreview />
+          <InstallSoftwarePreview platform={platform} />
         </SetupExperienceContentContainer>
       );
     }

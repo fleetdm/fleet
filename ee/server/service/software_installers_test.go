@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -211,6 +212,33 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	// Host scripts disabled
 	host.ScriptsEnabled = ptr.Bool(false)
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
+}
+
+// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits is placed to hit some edge cases.
+func TestInstallSoftwareTitle(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	host := &fleet.Host{
+		UUID:         "personal-ios",
+		OrbitNodeKey: ptr.String("orbit_key"),
+		Platform:     "ios",
+		TeamID:       ptr.Uint(1),
+	}
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{
+			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
+		}, nil
+	}
+
+	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
 }
 
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {

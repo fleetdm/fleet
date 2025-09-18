@@ -987,7 +987,8 @@ func updateModifiedHostSoftwareDB(
 			}
 			// Log cases where the new software has no last opened timestamp, the current software does,
 			// and the software is marked as having a name change.
-			if ok && curSw.LastOpenedAt != nil {
+			// This is expected on macOS, but not on windows/linux.
+			if ok && curSw.LastOpenedAt != nil && newSw.Source != "apps" {
 				level.Warn(logger).Log(
 					"msg", "updateModifiedHostSoftwareDB: last opened at is nil for new software, but not for current software",
 					"new_software", newSw.Name, "current_software", curSw.Name,
@@ -4164,7 +4165,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			policiesBySoftwareTitleId[p.TitleID] = append(policiesBySoftwareTitleId[p.TitleID], p)
 		}
 
-		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, softwareTitleIds)
+		iconsBySoftwareTitleID, err := ds.GetSoftwareIconsByTeamAndTitleIds(ctx, teamID, append(vppTitleIds, softwareTitleIds...))
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "get software icons by team and title IDs")
 		}
@@ -4418,6 +4419,120 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 		return nil
 	})
 	return wasCanceled, err
+}
+
+func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
+	// Get the original installation details first, including software title and package info
+	const getDetailsStmt = `
+		SELECT 
+			hsi.software_installer_id,
+			hsi.user_id,
+			hsi.policy_id,
+			hsi.self_service,
+			hsi.created_at,
+			si.filename AS software_package,
+			st.name AS software_title
+		FROM host_software_installs hsi
+		INNER JOIN software_installers si ON si.id = hsi.software_installer_id
+		INNER JOIN software_titles st ON st.id = si.title_id
+		WHERE hsi.execution_id = ? AND hsi.host_id = ?
+	`
+
+	var details struct {
+		SoftwareInstallerID uint      `db:"software_installer_id"`
+		UserID              *uint     `db:"user_id"`
+		PolicyID            *uint     `db:"policy_id"`
+		SelfService         bool      `db:"self_service"`
+		CreatedAt           time.Time `db:"created_at"`
+		SoftwarePackage     string    `db:"software_package"`
+		SoftwareTitle       string    `db:"software_title"`
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &details, getDetailsStmt, result.InstallUUID, result.HostID); err != nil {
+		return "", nil, false, ctxerr.Wrap(ctx, err, "get original install details")
+	}
+
+	// Generate a deterministic execution ID for the failed attempt record
+	// Use UUID v5 with the original InstallUUID and RetriesRemaining to ensure idempotency
+	// Use a custom UUID namespace since our use case doesn't fit one of the standard UUID namespaces.
+	namespace := uuid.MustParse("a87db2d7-a372-4d2f-9bd2-afdcd9775ca8")
+	failedExecID := uuid.NewSHA1(namespace, []byte(fmt.Sprintf("%s-%d", result.InstallUUID, result.RetriesRemaining))).String()
+
+	// Create or update a record with the failure details
+	// Use INSERT ... ON DUPLICATE KEY UPDATE to make this idempotent
+	const insertStmt = `
+		INSERT INTO host_software_installs (
+			execution_id,
+			host_id,
+			software_installer_id,
+			user_id,
+			policy_id,
+			self_service,
+			created_at,
+			install_script_exit_code,
+			install_script_output,
+			pre_install_query_output,
+			post_install_script_exit_code,
+			post_install_script_output
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		ON DUPLICATE KEY UPDATE
+			install_script_exit_code = VALUES(install_script_exit_code),
+			install_script_output = VALUES(install_script_output),
+			pre_install_query_output = VALUES(pre_install_query_output),
+			post_install_script_exit_code = VALUES(post_install_script_exit_code),
+			post_install_script_output = VALUES(post_install_script_output),
+			updated_at = CURRENT_TIMESTAMP(6)
+	`
+
+	truncateOutput := func(output *string) *string {
+		if output != nil {
+			output = ptr.String(truncateScriptResult(*output))
+		}
+		return output
+	}
+
+	var isNewRecord bool
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertStmt,
+			failedExecID,
+			result.HostID,
+			details.SoftwareInstallerID,
+			details.UserID,
+			details.PolicyID,
+			details.SelfService,
+			details.CreatedAt,
+			result.InstallScriptExitCode,
+			truncateOutput(result.InstallScriptOutput),
+			truncateOutput(result.PreInstallConditionOutput),
+			result.PostInstallScriptExitCode,
+			truncateOutput(result.PostInstallScriptOutput),
+		)
+		if err != nil {
+			return err
+		}
+		// Check if this was an insert (1 row affected) or update (2 rows affected in MySQL ON DUPLICATE KEY UPDATE)
+		rowsAffected, _ := res.RowsAffected()
+		// MySQL returns 1 for insert, 2 for update with ON DUPLICATE KEY UPDATE (if values changed)
+		// 0 if update didn't change anything
+		isNewRecord = rowsAffected == 1
+		return nil
+	})
+	if err != nil {
+		return "", nil, false, ctxerr.Wrap(ctx, err, "create intermediate failure record")
+	}
+
+	// Return the install result details
+	installResult := &fleet.HostSoftwareInstallerResult{
+		HostID:          result.HostID,
+		InstallUUID:     failedExecID,
+		SoftwareTitle:   details.SoftwareTitle,
+		SoftwarePackage: details.SoftwarePackage,
+		UserID:          details.UserID,
+		PolicyID:        details.PolicyID,
+		SelfService:     details.SelfService,
+	}
+
+	return failedExecID, installResult, isNewRecord, nil
 }
 
 func getInstalledByFleetSoftwareTitles(ctx context.Context, qc sqlx.QueryerContext, hostID uint) ([]fleet.SoftwareTitle, error) {

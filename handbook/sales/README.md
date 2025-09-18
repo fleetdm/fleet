@@ -45,6 +45,10 @@ To get the CEO's attention and introduce him to an account, follow the relevant 
 To track an objection you heard from a prospect, follow the relevant steps in ["Why Fleet?"](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.vfxwnwufxzzi)
 
 
+### Track a TODO for a Solutions Consultant
+
+In the "[#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8)" Slack channel, add the action item to the "TODO" section of the correct canvas. You can use the [Solution Consultant canvas template](https://fleetdm.slack.com/docs/T019PP37ALW/F09ET55CQF3) for reference. 
+
 ### Change a contact's organization in Salesforce
 
 Use the following steps to change a contact's organization in Salesforce:
@@ -54,9 +58,9 @@ Use the following steps to change a contact's organization in Salesforce:
 
 ### Review Salesforce opportunities
 
-Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, Head of Digital Workplace & GTM Systems, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons including: 
-- If the opportunity is older than 30 days but the prospect hasn't been sent an order form yet.
-- Any closed lost new business or expansion opportunity from the previous week.
+Every week, the sales manager will review the necessary opportunities with internal stakeholders. The AE or CSM who owned the deal, their manager, the Head of Marketing, Head of Digital Workplace & GTM Systems, and the CEO will review all opportunities on the "[Ω Ops for review](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001qyE12AI/view?queryScope=userFolders)" report in Salesforce. Opportunities will be reviewed for a number of reasons, including: 
+- If the opportunity is older than 30 days, but the prospect hasn't been sent an order form yet.
+- Any closed-lost new business or expansion opportunity from the previous week.
 - Any opportunity with a closed date pushed into a different quarter.
 
 If no opportunities meet these criteria, the meeting is used to discuss the oldest opportunities and close any that are stalled.
@@ -64,10 +68,10 @@ If no opportunities meet these criteria, the meeting is used to discuss the olde
 
 ### Communicate Gross new ARR added
 
-Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the ammount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
+Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, the CEO and CRO will measure the amount of "Gross new ARR" added towards the goal set forth by the CEO. To do this:
 1. Before the meeting, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) will copy the goal from the gross new ARR goal from ["OCV GOH: Fleet" doc (confidential document)](https://docs.google.com/document/d/17VK0_pRrFGTqKCRfppIjUgfjdL012Ssirks8Jxk4SE4/edit?tab=t.0) and add it to the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0). 
-2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based off of "Close date" and add it to the doc. 
-3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed) the Executive Assistant will calculate the progress toward the goal and "Ammount left to close" and add it to the doc. 
+2. Before the meeting, the Executive Assistant will take a screenshot of the [Ω Open ops (Next 45 days) oppty list](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=Open_ops_Next_45_days) that includes the next 5+ deals set to close based on "Close date" and add it to the doc. 
+3. Using the ["Ω ∆ARR won + open pipeline (current Q)" Salesforce report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG0000019LuH2AU/view) (and adjusting the filters if needed), the Executive Assistant will calculate the progress toward the goal and "Amount left to close" and add it to the doc. 
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
@@ -93,7 +97,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 > **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
-4. In the internal Slack channel for the deal, `@`mention the CRO and the [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
+4. In the internal Slack channel for the deal, `@`mention the `@order-form-review` Slack group with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.

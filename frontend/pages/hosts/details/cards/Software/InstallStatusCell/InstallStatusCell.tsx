@@ -79,16 +79,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         return undefined;
       }
 
-      return isAppStoreApp ? (
-        <>
-          The host acknowledged the MDM
-          <br />
-          command to install the app.
-        </>
-      ) : (
+      return (
         <>
           Software was installed{" "}
-          {!isSelfService && "(install script finished with exit code 0) "}
+          {!isSelfService &&
+            !isAppStoreApp &&
+            "(install script finished with exit code 0) "}
           {dateAgo(lastInstalledAt)}.
         </>
       );
@@ -497,6 +493,7 @@ const InstallStatusCell = ({
         position="top"
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
+        tipOffset={8}
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (

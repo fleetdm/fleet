@@ -51,6 +51,8 @@ type SoftwareInstallDetails struct {
 	SelfService bool `json:"self_service" db:"self_service"`
 	// SoftwareInstallerURL contains the details to download the software installer from CDN.
 	SoftwareInstallerURL *SoftwareInstallerURL `json:"installer_url,omitempty"`
+	// MaxRetries is the number of additional attempts allowed after the initial attempt (0 = no retries).
+	MaxRetries uint `json:"max_retries,omitempty"`
 }
 
 type SoftwareInstallerURL struct {
@@ -621,94 +623,6 @@ type SoftwareSpec struct {
 	AppStoreApps        optjson.Slice[TeamSpecAppStoreApp] `json:"app_store_apps,omitempty"`
 }
 
-// Copy returns a deep copy of SoftwareSpec.
-func (s *SoftwareSpec) Copy() *SoftwareSpec {
-	if s == nil {
-		return nil
-	}
-
-	out := &SoftwareSpec{}
-
-	// Packages
-	out.Packages.Set = s.Packages.Set
-	if s.Packages.Set {
-		if len(s.Packages.Value) > 0 {
-			out.Packages.Value = make([]SoftwarePackageSpec, len(s.Packages.Value))
-			for i := range s.Packages.Value {
-				p := s.Packages.Value[i]
-				pCopy := p
-				if p.LabelsIncludeAny != nil {
-					pCopy.LabelsIncludeAny = append([]string(nil), p.LabelsIncludeAny...)
-				}
-				if p.LabelsExcludeAny != nil {
-					pCopy.LabelsExcludeAny = append([]string(nil), p.LabelsExcludeAny...)
-				}
-				if p.Categories != nil {
-					pCopy.Categories = append([]string(nil), p.Categories...)
-				}
-				if p.Slug != nil {
-					slugVal := *p.Slug
-					pCopy.Slug = &slugVal
-				}
-				out.Packages.Value[i] = pCopy
-			}
-		} else {
-			// Preserve Set=true even when the slice is empty
-			out.Packages.Value = nil
-		}
-	}
-
-	// FleetMaintainedApps
-	out.FleetMaintainedApps.Set = s.FleetMaintainedApps.Set
-	if s.FleetMaintainedApps.Set {
-		if len(s.FleetMaintainedApps.Value) > 0 {
-			out.FleetMaintainedApps.Value = make([]MaintainedAppSpec, len(s.FleetMaintainedApps.Value))
-			for i := range s.FleetMaintainedApps.Value {
-				m := s.FleetMaintainedApps.Value[i]
-				mCopy := m
-				if m.LabelsIncludeAny != nil {
-					mCopy.LabelsIncludeAny = append([]string(nil), m.LabelsIncludeAny...)
-				}
-				if m.LabelsExcludeAny != nil {
-					mCopy.LabelsExcludeAny = append([]string(nil), m.LabelsExcludeAny...)
-				}
-				if m.Categories != nil {
-					mCopy.Categories = append([]string(nil), m.Categories...)
-				}
-				out.FleetMaintainedApps.Value[i] = mCopy
-			}
-		} else {
-			out.FleetMaintainedApps.Value = nil
-		}
-	}
-
-	// AppStoreApps
-	out.AppStoreApps.Set = s.AppStoreApps.Set
-	if s.AppStoreApps.Set {
-		if len(s.AppStoreApps.Value) > 0 {
-			out.AppStoreApps.Value = make([]TeamSpecAppStoreApp, len(s.AppStoreApps.Value))
-			for i := range s.AppStoreApps.Value {
-				app := s.AppStoreApps.Value[i]
-				appCopy := app
-				if app.LabelsIncludeAny != nil {
-					appCopy.LabelsIncludeAny = append([]string(nil), app.LabelsIncludeAny...)
-				}
-				if app.LabelsExcludeAny != nil {
-					appCopy.LabelsExcludeAny = append([]string(nil), app.LabelsExcludeAny...)
-				}
-				if app.Categories != nil {
-					appCopy.Categories = append([]string(nil), app.Categories...)
-				}
-				out.AppStoreApps.Value[i] = appCopy
-			}
-		} else {
-			out.AppStoreApps.Value = nil
-		}
-	}
-
-	return out
-}
-
 // HostSoftwareInstall represents installation of software on a host from a
 // Fleet software installer.
 type HostSoftwareInstall struct {
@@ -760,6 +674,11 @@ type HostSoftwareInstallResultPayload struct {
 	InstallScriptOutput       *string `json:"install_script_output"`
 	PostInstallScriptExitCode *int    `json:"post_install_script_exit_code"`
 	PostInstallScriptOutput   *string `json:"post_install_script_output"`
+
+	// RetriesRemaining indicates how many retries are left for this installation.
+	// When > 0, the server should treat this as an intermediate failure and assume
+	// another attempt is in progress. This field helps make retry handling idempotent.
+	RetriesRemaining uint `json:"retries_remaining,omitempty"`
 }
 
 // Status returns the status computed from the result payload. It should match the logic

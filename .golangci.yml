@@ -42,7 +42,7 @@ linters-settings:
       - ruleguard
     settings:
       ruleguard:
-        rules: "./tools/ci/rules.go"
+        rules: "${configDir}/tools/ci/rules.go"
         failOn: all
 
   gofmt:

@@ -60,6 +60,17 @@ func TestClone(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "yara rule",
+			src: &fleet.YaraRule{
+				Name:     "test_rule.yar",
+				Contents: "rule TestRule { condition: true }",
+			},
+			want: &fleet.YaraRule{
+				Name:     "test_rule.yar",
+				Contents: "rule TestRule { condition: true }",
+			},
+		},
 	}
 
 	for _, tc := range tests {
@@ -847,4 +858,126 @@ func TestGetAllMDMConfigAssetsByName(t *testing.T) {
 	_, err = ds.GetAllMDMConfigAssetsByName(context.Background(), []fleet.MDMAssetName{"not exists"}, nil)
 	require.Error(t, err)
 	require.Equal(t, "error fetching hashes", err.Error())
+}
+
+func TestCachedYaraRules(t *testing.T) {
+	t.Parallel()
+
+	mockedDS := new(mock.Store)
+	ds := New(mockedDS, WithYaraRuleByNameExpiration(100*time.Millisecond))
+
+	testRule1 := &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1 { condition: true }",
+	}
+	testRule2 := &fleet.YaraRule{
+		Name:     "rule2.yar",
+		Contents: "rule Rule2 { condition: true }",
+	}
+
+	// Setup mock functions
+	mockedDS.YaraRuleByNameFunc = func(_ context.Context, name string) (*fleet.YaraRule, error) {
+		switch name {
+		case "rule1.yar":
+			return testRule1, nil
+		case "rule2.yar":
+			return testRule2, nil
+		default:
+			return nil, errors.New("rule not found")
+		}
+	}
+
+	mockedDS.ApplyYaraRulesFunc = func(_ context.Context, _ []fleet.YaraRule) error {
+		return nil
+	}
+
+	// Test 1: First call gets the result from the DB
+	rule1, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1)
+	require.Same(t, testRule1, rule1)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked)
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Test 2: Cached call returns cloned value
+	rule1Cached, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Cached)             // returns the cached value
+	require.NotSame(t, testRule1, rule1Cached)           // have been cloned
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // from cache
+
+	// Test 3: Deep change doesn't alter the stored value
+	rule1Cached.Contents = "modified content"
+	require.NotEqual(t, rule1, rule1Cached)
+
+	// Verify original cached value is unchanged
+	rule1Again, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Again)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // still from cache
+
+	// Test 4: Cache multiple rules
+	rule2, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked)
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Both rules should now be cached
+	rule2Cached, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2Cached)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // from cache
+
+	// Test 5: ApplyYaraRules invalidates all cached rules
+	newRules := []fleet.YaraRule{
+		{Name: "rule1.yar", Contents: "rule Rule1Modified { condition: false }"},
+		{Name: "rule3.yar", Contents: "rule Rule3 { condition: true }"},
+	}
+	err = ds.ApplyYaraRules(context.Background(), newRules)
+	require.NoError(t, err)
+	require.True(t, mockedDS.ApplyYaraRulesFuncInvoked)
+
+	// Update mock to return modified rule
+	testRule1 = &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1Modified { condition: false }",
+	}
+
+	// After ApplyYaraRules, cache should be invalidated, so next call hits the DB
+	rule1AfterApply, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1AfterApply)        // updated rule
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB, not cache
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// rule2 should also be invalidated even though it wasn't changed
+	rule2AfterApply, err := ds.YaraRuleByName(context.Background(), "rule2.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule2, rule2AfterApply)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB, not cache
+	mockedDS.YaraRuleByNameFuncInvoked = false
+
+	// Test 6: Cache expiration
+	// The previous call (rule1AfterApply) already cached rule1, so verify it's cached
+	rule1Cached2, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Cached2)
+	require.False(t, mockedDS.YaraRuleByNameFuncInvoked) // should be from cache
+
+	// Wait for cache to expire
+	time.Sleep(200 * time.Millisecond)
+
+	// Update mock to return a different value
+	testRule1 = &fleet.YaraRule{
+		Name:     "rule1.yar",
+		Contents: "rule Rule1Expired { condition: true }",
+	}
+
+	// This call should get from DB again since cache expired
+	rule1Expired, err := ds.YaraRuleByName(context.Background(), "rule1.yar")
+	require.NoError(t, err)
+	require.Equal(t, testRule1, rule1Expired) // new value from DB
+	require.Same(t, testRule1, rule1Expired)
+	require.True(t, mockedDS.YaraRuleByNameFuncInvoked) // from DB after expiration
 }

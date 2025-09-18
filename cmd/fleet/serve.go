@@ -61,6 +61,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/conditional_access_microsoft_proxy"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	otelmw "github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/redis_key_value"
 	"github.com/fleetdm/fleet/v4/server/service/redis_lock"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
@@ -190,6 +191,25 @@ the way that the Fleet server works.
 						"setting server URL prefix",
 					)
 				}
+			}
+
+			// Handle server private key configuration - either direct or via AWS Secrets Manager
+			if config.Server.PrivateKey != "" && config.Server.PrivateKeySecretArn != "" {
+				initFatal(errors.New("cannot specify both private_key and private_key_secret_arn"), "validate private key configuration")
+			}
+
+			// Retrieve private key from AWS Secrets Manager if specified
+			if config.Server.PrivateKeySecretArn != "" {
+				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
+					context.Background(),
+					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretSTSAssumeRoleArn,
+					config.Server.PrivateKeySecretSTSExternalID,
+				)
+				if err != nil {
+					initFatal(err, "retrieve private key from secrets manager")
+				}
+				config.Server.PrivateKey = privateKey
 			}
 
 			if len(config.Server.PrivateKey) > 0 {
@@ -1215,9 +1235,9 @@ the way that the Fleet server works.
 			launcher := launcher.New(svc, logger, grpc.NewServer(), healthCheckers)
 
 			rootMux := http.NewServeMux()
-			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", health.Handler(httpLogger, healthCheckers)))
-			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", version.Handler()))
-			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", service.ServeStaticAssets("/assets/")))
+			rootMux.Handle("/healthz", service.PrometheusMetricsHandler("healthz", otelmw.WrapHandler(health.Handler(httpLogger, healthCheckers), "/healthz", config)))
+			rootMux.Handle("/version", service.PrometheusMetricsHandler("version", otelmw.WrapHandler(version.Handler(), "/version", config)))
+			rootMux.Handle("/assets/", service.PrometheusMetricsHandler("static_assets", otelmw.WrapHandlerDynamic(service.ServeStaticAssets("/assets/"), config)))
 
 			if len(config.Server.PrivateKey) > 0 {
 				commander := apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
@@ -1262,6 +1282,7 @@ the way that the Fleet server works.
 					ddmService,
 					commander,
 					appCfg.ServerSettings.ServerURL,
+					config,
 				); err != nil {
 					initFatal(err, "setup mdm apple services")
 				}
@@ -1269,10 +1290,10 @@ the way that the Fleet server works.
 
 			if license.IsPremium() {
 				// SCEP proxy (for NDES, etc.)
-				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil); err != nil {
+				if err = service.RegisterSCEPProxy(rootMux, ds, logger, nil, &config); err != nil {
 					initFatal(err, "setup SCEP proxy")
 				}
-				if err = scim.RegisterSCIM(rootMux, ds, svc, logger); err != nil {
+				if err = scim.RegisterSCIM(rootMux, ds, svc, logger, &config); err != nil {
 					initFatal(err, "setup SCIM")
 				}
 				// Host identify SCEP feature only works if a private key has been set up
@@ -1281,7 +1302,7 @@ the way that the Fleet server works.
 					if err != nil {
 						initFatal(err, "setup host identity SCEP depot")
 					}
-					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger); err != nil {
+					if err = hostidentity.RegisterSCEP(rootMux, hostIdentitySCEPDepot, ds, logger, &config); err != nil {
 						initFatal(err, "setup host identity SCEP")
 					}
 				} else {
@@ -1293,12 +1314,12 @@ the way that the Fleet server works.
 				rootMux.Handle("/metrics", basicAuthHandler(
 					config.Prometheus.BasicAuth.Username,
 					config.Prometheus.BasicAuth.Password,
-					service.PrometheusMetricsHandler("metrics", promhttp.Handler()),
+					service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)),
 				))
 			} else {
 				if config.Prometheus.BasicAuth.Disable {
 					level.Info(logger).Log("msg", "metrics endpoint enabled with http basic auth disabled")
-					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", promhttp.Handler()))
+					rootMux.Handle("/metrics", service.PrometheusMetricsHandler("metrics", otelmw.WrapHandler(promhttp.Handler(), "/metrics", config)))
 				} else {
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
@@ -1383,7 +1404,8 @@ the way that the Fleet server works.
 					}
 				}
 
-				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/mdm/profiles/batch") ||
+					(req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/configuration_profiles/batch")) {
 					// For customers using large profiles and/or large numbers of profiles, the
 					// server needs time to completely read the request body and also to process
 					// all the side effects of a potentially large number of profiles being changed
@@ -1415,30 +1437,13 @@ the way that the Fleet server works.
 			rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 			rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 
-			rootMux.Handle("/enroll", endUserEnrollOTAHandler)
-			rootMux.Handle("/", frontendHandler)
+			rootMux.Handle("/enroll", otelmw.WrapHandler(endUserEnrollOTAHandler, "/enroll", config))
+			rootMux.Handle("/", otelmw.WrapHandler(frontendHandler, "/", config))
 
 			debugHandler := &debugMux{
 				fleetAuthenticatedHandler: service.MakeDebugHandler(svc, config, logger, eh, ds),
 			}
-			rootMux.Handle("/debug/", debugHandler)
-
-			if path, ok := os.LookupEnv("FLEET_TEST_PAGE_PATH"); ok {
-				// test that we can load this
-				_, err := os.ReadFile(path)
-				if err != nil {
-					initFatal(err, "loading FLEET_TEST_PAGE_PATH")
-				}
-				rootMux.HandleFunc("/test", func(rw http.ResponseWriter, req *http.Request) {
-					testPage, err := os.ReadFile(path)
-					if err != nil {
-						rw.WriteHeader(http.StatusNotFound)
-						return
-					}
-					rw.Write(testPage) //nolint:errcheck
-					rw.WriteHeader(http.StatusOK)
-				})
-			}
+			rootMux.Handle("/debug/", otelmw.WrapHandlerDynamic(debugHandler, config))
 
 			if debug {
 				// Add debug endpoints with a random

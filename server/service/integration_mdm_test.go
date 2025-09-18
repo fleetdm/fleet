@@ -779,6 +779,20 @@ func (s *integrationMDMTestSuite) awaitTriggerProfileSchedule(t *testing.T) {
 	}
 }
 
+func (s *integrationMDMTestSuite) TestUserAuthenticate() {
+	t := s.T()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}, "MacBookPro16,1")
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	err = mdmDevice.UserAuthenticate()
+	require.ErrorContains(t, err, "410 Gone")
+}
+
 func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 	// see https://developer.apple.com/documentation/devicemanagement/get_bootstrap_token
 	t := s.T()
@@ -879,9 +893,9 @@ func (s *integrationMDMTestSuite) TestGetBootstrapToken() {
 		})
 		checkStoredCertAuthAssociation(mdmDevice.UUID, 0)
 
-		// TODO: server returns 500 on account of cert auth but what is the expected behavior?
+		// server returns 403 Forbidden for cert auth failures (enrollment not associated with cert)
 		res, err := mdmDevice.GetBootstrapToken()
-		require.ErrorContains(t, err, "500") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
+		require.ErrorContains(t, err, "403") // getbootstraptoken service: cert auth: existing enrollment: enrollment not associated with cert
 		require.Nil(t, res)
 	})
 }
@@ -1299,6 +1313,11 @@ func (s *integrationMDMTestSuite) TestDeviceMDMManualEnroll() {
 
 func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	t := s.T()
+	// Clear out all activities to other test leaking activities into this one.
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `DELETE FROM activities`)
+		return err
+	})
 
 	// Enroll two devices into MDM
 	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
@@ -3307,29 +3326,35 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	wrongTOCPkg := read("wrong-toc.pkg")
 	signedPkg := read("signed.pkg")
 
+	// dry run query param parsing test
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg"}, http.StatusOK, "", true)
+	// verify no bootstrap package was uploaded
+	var metadataResp bootstrapPackageMetadataResponse
+	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
+
 	// empty bootstrap package
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{}, http.StatusBadRequest, "package multipart field is required")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{}, http.StatusBadRequest, "package multipart field is required", false)
 	// no name
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg}, http.StatusBadRequest, "package multipart field is required", false)
 	// invalid
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: invalidPkg, Name: "invalid.tar.gz"}, http.StatusBadRequest, "invalid file type", false)
 	// invalid names
 	for _, char := range file.InvalidMacOSChars {
 		s.uploadBootstrapPackage(
 			&fleet.MDMAppleBootstrapPackage{
 				Bytes: signedPkg,
 				Name:  fmt.Sprintf("invalid_%c_name.pkg", char),
-			}, http.StatusBadRequest, "")
+			}, http.StatusBadRequest, "", false)
 	}
 	// unsigned
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: unsignedPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "file is not signed", false)
 	// wrong TOC
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: wrongTOCPkg, Name: "pkg.pkg"}, http.StatusBadRequest, "invalid package", false)
 	// not a Distribution package
 	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: read("not-distribution-signed.pkg"), Name: "pkg.pkg"}, http.StatusBadRequest,
-		fleet.BootstrapPkgNotDistributionErrMsg)
+		fleet.BootstrapPkgNotDistributionErrMsg, false)
 	// successfully upload a package
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 	// check the activity log
 	s.lastActivityMatches(
 		fleet.ActivityTypeAddedBootstrapPackage{}.ActivityName(),
@@ -3338,7 +3363,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	)
 
 	// get package metadata
-	var metadataResp bootstrapPackageMetadataResponse
 	s.DoJSON("GET", "/api/latest/fleet/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
 	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
@@ -3383,7 +3407,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	require.NoError(t, err)
 
 	// upload a bootstrap package for "no team"
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
@@ -3402,7 +3426,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	team = createTeamResp.Team
 
 	// upload a bootstrap package for the team
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: team.ID}, http.StatusOK, "", false)
 
 	// get package metadata
 	metadataResp = bootstrapPackageMetadataResponse{}
@@ -5007,6 +5031,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 	pkg *fleet.MDMAppleBootstrapPackage,
 	expectedStatus int,
 	wantErr string,
+	dryRun bool,
 ) {
 	t := s.T()
 
@@ -5031,7 +5056,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/bootstrap", b.Bytes(), expectedStatus, headers, "dry_run", strconv.FormatBool(dryRun))
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
@@ -9651,7 +9676,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 			require.Equal(t, string(fleet.PendingActionLock), *getHostResp.Host.MDM.PendingAction)
 
-			// try locking the host while it is pending lock fails
+			// try locking the host while it is pending lock fails for Windows/Linux
 			res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "Host has pending lock request.")
@@ -9860,10 +9885,12 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
 
-	// try locking the host while it is pending lock fails
-	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Host has pending lock request.")
+	// try locking the host while it is pending lock returns the same PIN
+	var lockResp2 lockHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusOK, &lockResp2, "view_pin", "true")
+	require.Equal(t, lockResp.UnlockPIN, lockResp2.UnlockPIN, "Should return the same PIN for duplicate lock request")
+	require.Equal(t, fleet.PendingActionLock, lockResp2.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, lockResp2.DeviceStatus)
 
 	// simulate a successful MDM result for the lock command
 	cmd, err := mdmClient.Idle()
@@ -9883,8 +9910,8 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	// try to lock the host again
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusConflict)
 	// try to wipe a locked host
-	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
+	res := s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 	// unlock the host
@@ -12393,13 +12420,27 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		"self_service", "true")
 	require.Len(t, listSw.SoftwareTitles, 0)
 
+	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID:   macOSTitleID,
+		Filename:  "icon.png",
+		TeamID:    team.ID,
+		StorageID: "icon_storage_id",
+	})
+	require.NoError(t, err)
+
 	// delete the app store app for team 1
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
 		"team_id",
 		fmt.Sprint(team.ID))
 	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
-		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "https://example.com/images/2", "team_id": %d, "platform": "%s"}`, team.Name,
-			addedApp.Name, addedApp.AdamID, team.ID, addedApp.Platform), 0)
+		fmt.Sprintf(`{"team_name": "%s", "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`, team.Name,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, team.ID, team.ID, addedApp.Platform), 0)
+
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, team.ID, macOSTitleID)
+	})
+	require.Equal(t, 0, count)
 
 	// deleting it again fails, not found
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNotFound,
@@ -12954,6 +12995,92 @@ func (s *integrationMDMTestSuite) TestVPPApps() {
 		http.StatusBadRequest, &ssInstallResp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/device/%s/software/install/%d", selfServiceToken, iOSTitleID), &fleetSelfServiceSoftwareInstallRequest{},
 		http.StatusBadRequest, &ssInstallResp)
+
+	// Delete VPP token and check that it's not appearing anymore
+
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d", validToken.Token.ID), &deleteVPPTokenResponse{}, http.StatusNoContent)
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+}
+
+func (s *integrationMDMTestSuite) TestNoTeamVPPAppIcons() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	// Valid token
+	orgName := "Fleet Device Management Inc."
+	location := "Fleet Location One"
+	token := "mycooltoken"
+	expTime := time.Now().Add(200 * time.Hour).UTC().Round(time.Second)
+	expDate := expTime.Format(fleet.VPPTimeFormat)
+	tokenJSON := fmt.Sprintf(`{"expDate":"%s","token":"%s","orgName":"%s"}`, expDate, token, orgName)
+	t.Setenv("FLEET_DEV_VPP_URL", s.appleVPPConfigSrv.URL)
+	var validToken uploadVPPTokenResponse
+	s.uploadDataViaForm("/api/latest/fleet/vpp_tokens", "token", "token.vpptoken", []byte(base64.StdEncoding.EncodeToString([]byte(tokenJSON))), http.StatusAccepted, "", &validToken)
+
+	// Get the token
+	var resp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &resp)
+	require.NoError(t, resp.Err)
+	require.Len(t, resp.Tokens, 1)
+	require.Equal(t, orgName, resp.Tokens[0].OrgName)
+	require.Equal(t, location, resp.Tokens[0].Location)
+	require.Equal(t, expTime, resp.Tokens[0].RenewDate)
+
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{fleet.PolicyNoTeamID}}, http.StatusOK, &resPatchVPP)
+
+	macOSApp := fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+		Name:             "App 1",
+		BundleIdentifier: "a-1",
+		IconURL:          "https://example.com/images/1",
+		LatestVersion:    "1.0.0",
+	}
+
+	// Insert/deletion flow for macOS app
+	// Add an app store app to team no team
+	addedApp := macOSApp
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: ptr.Uint(fleet.PolicyNoTeamID), AppStoreID: addedApp.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+
+	// list the software titles, to get the title id of the VPP app
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(fleet.PolicyNoTeamID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 1)
+	require.True(t, *listSw.SoftwareTitles[0].AppStoreApp.SelfService)
+	macOSTitleID := listSw.SoftwareTitles[0].ID
+
+	_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+		TitleID:   macOSTitleID,
+		Filename:  "icon.png",
+		TeamID:    fleet.PolicyNoTeamID,
+		StorageID: "icon_storage_id",
+	})
+	require.NoError(t, err)
+
+	var count int
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
+	})
+	require.Equal(t, 1, count)
+
+	// delete the app store app for team no team
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", macOSTitleID), nil, http.StatusNoContent,
+		"team_id",
+		fmt.Sprint(fleet.PolicyNoTeamID))
+	s.lastActivityMatches(fleet.ActivityDeletedAppStoreApp{}.ActivityName(),
+		fmt.Sprintf(`{"team_name": null, "software_title": "%s", "app_store_id": "%s", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=%d", "team_id": %d, "platform": "%s"}`,
+			addedApp.Name, addedApp.AdamID, macOSTitleID, fleet.PolicyNoTeamID, fleet.PolicyNoTeamID, addedApp.Platform), 0)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, fleet.PolicyNoTeamID, macOSTitleID)
+	})
+	require.Equal(t, 0, count)
 
 	// Delete VPP token and check that it's not appearing anymore
 
@@ -14247,17 +14374,17 @@ func (s *integrationMDMTestSuite) TestAppleMDMActionsOnPersonalHost() {
 	assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 	assert.True(t, *host.MDM.ConnectedToFleet)
 
-	// Confirm that turning off MDM, locking or wiping the host fails with an appropriate error
-	r := s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusBadRequest)
-	require.Contains(t, extractServerErrorText(r.Body), fleet.CantTurnOffMDMForPersonalHostsMessage)
-
+	// Confirm that locking or wiping the host fails with an appropriate error
 	// Lock the host
-	r = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
+	r := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantLockPersonalHostsMessage)
 
 	// try to wipe the host
 	r = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusBadRequest)
 	require.Contains(t, extractServerErrorText(r.Body), fleet.CantWipePersonalHostsMessage)
+
+	// Confirm that turning off MDM for personal hosts are allowed - NEEDS to be last, to not turn off MDM for the other checks.
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", host.ID), nil, http.StatusNoContent)
 }
 
 func (s *integrationMDMTestSuite) TestSCEPProxy() {
@@ -17672,4 +17799,114 @@ func (s *integrationMDMTestSuite) TestBYODEnrollmentWithIdPEnabled() {
 	location = res.Header.Get("Location")
 	require.NotEmpty(t, location)
 	require.True(t, strings.HasPrefix(location, "http://localhost:9080/simplesaml/"))
+}
+
+func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
+	ctx := s.T().Context()
+
+	successfulPushUUID := "successful-uuid"
+	failedPushUUID := "failed-uuid"
+
+	// Set up test data
+
+	// Perform the MDM enrollment.
+	mdmEnrollInfo := mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.scepChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	}
+	model := "iPhone14,6"
+
+	successfulHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            successfulPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	successfulMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	successfulMdmDevice.SerialNumber = successfulHost.HardwareSerial
+	err = successfulMdmDevice.Enroll()
+	require.NoError(s.T(), err)
+
+	failedHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            failedPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	failedMdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	failedMdmDevice.SerialNumber = failedHost.HardwareSerial
+	err = failedMdmDevice.Enroll()
+	require.NoError(s.T(), err)
+
+	failedHostTokenInactive, err := s.ds.NewHost(ctx, &fleet.Host{
+		HardwareSerial:  mdmtest.RandSerialNumber(),
+		UUID:            failedPushUUID,
+		Platform:        string(fleet.IOSPlatform),
+		DetailUpdatedAt: time.Now().Add(-2 * time.Hour), // ensure refetch is needed
+	})
+	require.NoError(s.T(), err)
+
+	failedMdmDeviceTokenInactive := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
+	failedMdmDeviceTokenInactive.SerialNumber = failedHostTokenInactive.HardwareSerial
+	err = failedMdmDeviceTokenInactive.Enroll()
+	require.NoError(s.T(), err)
+
+	originalPushFunc := s.pushProvider.PushFunc
+	s.T().Cleanup(func() {
+		s.pushProvider.PushFunc = originalPushFunc
+	})
+	s.pushProvider.PushFunc = func(_ context.Context, pushes []*mdm.Push) (map[string]*push.Response, error) {
+		require.Len(s.T(), pushes, 1)
+		pushObject := pushes[0]
+		switch pushObject.PushMagic {
+		case "pushmagic" + successfulMdmDevice.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  successfulPushUUID,
+					Err: nil,
+				},
+			}, nil
+		case "pushmagic" + failedMdmDeviceTokenInactive.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  failedPushUUID,
+					Err: errors.New("device token is inactive"),
+				},
+			}, nil
+		case "pushmagic" + failedMdmDevice.SerialNumber:
+			return map[string]*push.Response{
+				pushObject.Token.String(): {
+					Id:  failedPushUUID,
+					Err: errors.New("random apns error"),
+				},
+			}, nil
+		}
+		return nil, errors.New("unknown device")
+	}
+
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
+	require.NoError(s.T(), err) // Verify it not longer throws an error
+
+	// Verify successful is still enrolled
+	successfulHostMDM, err := s.ds.GetHostMDM(ctx, successfulHost.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), successfulHostMDM)
+	require.True(s.T(), successfulHostMDM.Enrolled)
+
+	// Verify random APNS error host is still enrolled
+	failedHostMDM, err := s.ds.GetHostMDM(ctx, failedHost.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), failedHostMDM)
+	require.True(s.T(), failedHostMDM.Enrolled)
+
+	// Verify device token inactive host is no longer enrolled
+	failedHostMDMTokenInactive, err := s.ds.GetHostMDM(ctx, failedHostTokenInactive.ID)
+	require.NoError(s.T(), err)
+	require.NotNil(s.T(), failedHostMDMTokenInactive)
+	require.False(s.T(), failedHostMDMTokenInactive.Enrolled)
 }

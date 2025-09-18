@@ -75,7 +75,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "", false)
 
 	// add a custom setup assistant and ensure enable_release_device_manually is
 	// false (the default)
@@ -137,6 +137,20 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	for _, enableReleaseManually := range []bool{false, true} {
 		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow", enableReleaseManually), func(t *testing.T) {
 			s.runDEPEnrollReleaseDeviceTest(t, globalDevice, DEPEnrollTestOpts{
+				EnableReleaseManually:             enableReleaseManually,
+				TeamID:                            nil,
+				CustomProfileIdent:                "I1",
+				UseOldFleetdFlow:                  false,
+				EnrollmentProfileFromDEPUsingPost: true,
+			})
+		})
+	}
+	// test manual and automatic release with a migrating host
+	migratingDevice := globalDevice
+	migratingDevice.MDMMigrationDeadline = ptr.Time(time.Now().Add(24 * time.Hour))
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t;new_flow_with_DEP_migration", enableReleaseManually), func(t *testing.T) {
+			s.runDEPEnrollReleaseDeviceTest(t, migratingDevice, DEPEnrollTestOpts{
 				EnableReleaseManually:             enableReleaseManually,
 				TeamID:                            nil,
 				CustomProfileIdent:                "I1",
@@ -218,7 +232,7 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
 	require.NoError(t, err)
 	signedPkg := b
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "")
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "", false)
 
 	// add a custom setup assistant and ensure enable_release_device_manually is
 	// false (the default)
@@ -552,7 +566,7 @@ func (s *integrationMDMTestSuite) runDEPEnrollReleaseDeviceTest(t *testing.T, de
 	// check if it has setup experience items or not
 	hasSetupExpItems := true
 	_, err = s.ds.GetHostAwaitingConfiguration(ctx, mdmDevice.UUID)
-	if fleet.IsNotFound(err) {
+	if fleet.IsNotFound(err) || device.MDMMigrationDeadline != nil {
 		hasSetupExpItems = false
 	} else if err != nil {
 		require.NoError(t, err)

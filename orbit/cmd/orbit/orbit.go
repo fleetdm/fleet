@@ -243,7 +243,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "disable-setup-experience",
-			Usage:   "Disables checking for setup experience on Linux hosts",
+			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
 	}
@@ -762,7 +762,8 @@ func main() {
 			// Get the hardware UUID. We use a temporary osquery DB location in order to guarantee that
 			// we're getting true UUID, not a cached UUID. See
 			// https://github.com/fleetdm/fleet/issues/17934 and
-			// https://github.com/osquery/osquery/issues/7509 for more details.
+			// https://github.com/osquery/osquery/issues/7509 and
+			// https://github.com/fleetdm/fleet/issues/31934 for more details.
 
 			tmpDBPath := filepath.Join(os.TempDir(), strings.Join([]string{uuid.NewString(), "tmp-db"}, "-"))
 			oi, err := getHostInfo(osquerydPath, tmpDBPath)
@@ -774,8 +775,36 @@ func main() {
 				log.Info().Err(err).Msg("failed to remove temporary osquery db")
 			}
 
-			if oi.HardwareUUID != orbitHostInfo.HardwareUUID {
+			// Read the stored hardware UUID from file (if it exists)
+			hardwareUUIDFile := filepath.Join(c.String("root-dir"), constant.HardwareUUIDFileName)
+			var storedUUID string
+
+			fileContent, err := os.ReadFile(hardwareUUIDFile)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					// If there's an error other than file not existing, log it
+					log.Warn().Err(err).Msg("failed to read hardware UUID file")
+				}
+				// If file doesn't exist or can't be read, create it with the current UUID
+				if err := os.WriteFile(hardwareUUIDFile, []byte(oi.HardwareUUID), constant.DefaultFileMode); err != nil {
+					log.Error().Err(err).Msg("failed to write hardware UUID file")
+				} else {
+					log.Debug().Str("uuid", oi.HardwareUUID).Msg("created hardware UUID file")
+				}
+				storedUUID = oi.HardwareUUID
+			} else {
+				storedUUID = strings.TrimSpace(string(fileContent))
+			}
+
+			if !strings.EqualFold(oi.HardwareUUID, storedUUID) {
 				// Then we have moved to a new physical machine, so we should restart!
+				log.Info().Str("stored_uuid", storedUUID).Str("current_uuid", oi.HardwareUUID).Msg("detected hardware migration")
+
+				// Remove the hardware UUID file so it gets recreated with the new UUID on restart
+				if err := os.RemoveAll(hardwareUUIDFile); err != nil {
+					return fmt.Errorf("removing old hardware UUID file: %w", err)
+				}
+
 				// Removing the osquery DB should trigger a re-enrollment when fleetd is restarted.
 				if err := os.RemoveAll(osqueryDB); err != nil {
 					return fmt.Errorf("removing old osquery.db: %w", err)
@@ -1521,17 +1550,20 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		isLinux := runtime.GOOS == "linux"
-		serverHasWebSetup := orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience)
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		runSetupExperience := isLinux && serverHasWebSetup && setupExperienceNotDisabled
+		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
 		log.Debug().
-			Bool("isLinux", isLinux).
-			Bool("serverHasSetup", serverHasWebSetup).
+			Bool("setupExperienceOS", setupExperienceOS).
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
 		openMyDevicePage := func() error {
+			if !c.Bool("fleet-desktop") {
+				log.Debug().Msg("fleet desktop disabled, not launching my device page")
+				return nil
+			}
+
 			log.Debug().Msg("launching browser for my device page")
 			token, err := trw.Read()
 			if err != nil {
@@ -1564,6 +1596,14 @@ func main() {
 				if _, err := execuser.Run(browserBin, opts...); err != nil {
 					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
 				}
+			case "windows":
+				cmdLine := fmt.Sprintf("/c start %s", browserURL)
+				opts := []execuser.Option{
+					execuser.WithArg(cmdLine, ""),
+				}
+				if _, err := execuser.Run("cmd.exe", opts...); err != nil {
+					return fmt.Errorf("opening windows browser: %w", err)
+				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
 				return errors.New("opening setup experience browser page not supported on " + runtime.GOOS)
@@ -1574,8 +1614,7 @@ func main() {
 
 		if runSetupExperience {
 			log.Debug().Msg("web setup experience enabled")
-			setupExpPath := path.Join(c.String("root-dir"), constant.SetupExperienceFilename)
-			if err := processSetupExperience(orbitClient, setupExpPath, openMyDevicePage); err != nil {
+			if err := processSetupExperience(orbitClient, c.String("root-dir"), openMyDevicePage); err != nil {
 				log.Error().Err(err).Msg("initiating setup experience")
 			}
 		} else {
@@ -1599,75 +1638,75 @@ func main() {
 	}
 }
 
-func processSetupExperience(oc *service.OrbitClient, setupExperienceStatusPath string, openMyDevicePage func() error) error {
+func processSetupExperience(orbitClient *service.OrbitClient, rootDir string, openMyDevicePage func() error) error {
 	log.Debug().Msg("checking setup experience file")
-	exp, err := readSetupExperienceStatusFile(setupExperienceStatusPath)
+	exp, err := setupexperience.ReadSetupExperienceStatusFile(rootDir)
 	if err != nil {
 		return fmt.Errorf("read setup experience file: %w", err)
 	}
 
-	// Setup experience has been completed
-	if exp != nil && exp.TimeInitiated != nil {
+	switch {
+	case exp == nil:
+		// If communicating with an old Fleet server, write setup experience file and not run setup experience.
+		if !orbitClient.GetServerCapabilities().Has(fleet.CapabilityWebSetupExperience) {
+			log.Debug().Msg("server does not support setup experience, writing setup experience file, and continuing")
+			initTime := time.Now()
+			if err := setupexperience.WriteSetupExperienceStatusFile(rootDir, &setupexperience.SetupExperienceInfo{
+				TimeInitiated: initTime,
+				Enabled:       false,
+			}); err != nil {
+				return fmt.Errorf("writing setup experience file: %w", err)
+			}
+			return nil
+		}
+
+		// Setup experience wasn't checked yet, we start it.
+		log.Info().Msg("initiating setup experience")
+		initSetupExperienceResponse, err := orbitClient.InitiateSetupExperience()
+		switch {
+		case err == nil:
+			// OK, continue
+		case errors.Is(err, service.ErrMissingLicense):
+			// Setup experience is a premium feature.
+			log.Debug().Msg("setup experience is a premium feature, writing setup experience file, and continuing")
+			initSetupExperienceResponse = fleet.SetupExperienceInitResult{
+				Enabled: false,
+			}
+		default:
+			return fmt.Errorf("initializing server-side setup experience: %w", err)
+		}
+		if initSetupExperienceResponse.Enabled {
+			// Setup experience enabled for us and is now kicked off, open a browser
+			if err := openMyDevicePage(); err != nil {
+				log.Error().Err(err).Msg("opening setup experience my device page using")
+			}
+		}
+		// Even if it wasn't enabled, mark it as complete so we don't start it again later
+		initTime := time.Now()
+		log.Info().
+			Time("time", initTime).
+			Bool("enabled", initSetupExperienceResponse.Enabled).
+			Msg("writing setup experience file")
+		if err := setupexperience.WriteSetupExperienceStatusFile(rootDir, &setupexperience.SetupExperienceInfo{
+			TimeInitiated: initTime,
+			Enabled:       initSetupExperienceResponse.Enabled,
+		}); err != nil {
+			return fmt.Errorf("writing setup experience file: %w", err)
+		}
+
+		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+		orbitClient.RegisterConfigReceiver(setupExperiencer)
+	case !exp.Enabled:
+		// Setup experience was checked, but was disabled at the time, nothing else to do.
+		log.Debug().Msg("setup experience already checked and disabled at the time")
+	case exp.TimeFinished == nil:
+		// Setup experience started but not finished.
+		log.Debug().Msg("setup experience started but not finished")
+		setupExperiencer := setupexperience.NewLinuxSetupExperiencer(orbitClient, rootDir)
+		orbitClient.RegisterConfigReceiver(setupExperiencer)
+	case exp.TimeFinished != nil:
+		// Setup experience is complete, nothing else to do.
 		log.Debug().Msg("setup experience already completed")
-		return nil
-	}
-
-	log.Debug().Msg("initiating setup experience")
-	resp, err := oc.InitiateSetupExperience()
-	if err != nil {
-		return fmt.Errorf("initializing server-side setup experience: %w", err)
-	}
-
-	// Setup experience enabled for us and is now kicked off, open a browser
-	if resp.Enabled {
-		if err := openMyDevicePage(); err != nil {
-			log.Err(err).Msg("opening setup experience my device page using")
-		}
-	} else {
-		log.Debug().Msg("setup experience not enabled on team")
-	}
-
-	// Even if it wasn't enabled, mark it as complete so we don't start it again later
-	log.Debug().Msg("writing setup experience file")
-	initTime := time.Now()
-	if err := writeSetupExperienceStatusFile(setupExperienceStatusPath, &SetupExperienceInfo{
-		TimeInitiated: &initTime,
-	}); err != nil {
-		return fmt.Errorf("writing setup experience file: %w", err)
-	}
-
-	return nil
-}
-
-type SetupExperienceInfo struct {
-	TimeInitiated *time.Time `json:"time_initiated,omitempty"`
-}
-
-// Returns the time setup experience was completed, or nil if it hasn't
-func readSetupExperienceStatusFile(experienceCompletedPath string) (*SetupExperienceInfo, error) {
-	f, err := os.Open(experienceCompletedPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("read setup experience file: %w", err)
-	}
-	var exp *SetupExperienceInfo
-	if err := json.NewDecoder(f).Decode(exp); err != nil {
-		return nil, fmt.Errorf("decoding setup experience file: %w", err)
-	}
-
-	return exp, nil
-}
-
-func writeSetupExperienceStatusFile(experienceCompletedPath string, exp *SetupExperienceInfo) error {
-	f, err := os.Create(experienceCompletedPath)
-	if err != nil {
-		return fmt.Errorf("create setup experience completed file: %w", err)
-	}
-
-	if err := json.NewEncoder(f).Encode(exp); err != nil {
-		return fmt.Errorf("write setup experience completed file: %w", err)
 	}
 
 	return nil
@@ -2219,7 +2258,6 @@ func (f *capabilitiesChecker) Execute() error {
 			}
 		case <-f.interruptCh:
 			return nil
-
 		}
 	}
 }

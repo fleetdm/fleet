@@ -60,6 +60,14 @@ func gitopsCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			logf := func(format string, a ...interface{}) {
+				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			if len(c.Args().Slice()) != 0 {
+				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
+			}
+
 			totalFilenames := len(flFilenames.Value())
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
@@ -84,9 +92,6 @@ func gitopsCommand() *cli.Command {
 			}
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
-			}
-			logf := func(format string, a ...interface{}) {
-				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
