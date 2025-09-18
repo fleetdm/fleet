@@ -466,7 +466,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 		return err
 	})
 	s.checkMDMProfilesSummaries(t, &tm.ID, fleet.MDMProfilesSummary{Failed: 1}, nil)
-	_ = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", token, mcUUID), nil, http.StatusAccepted)
+	_ = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", token, mcUUID), nil, http.StatusAccepted)
 	s.awaitTriggerProfileSchedule(t)
 	installs, removes = checkNextPayloads(t, mdmDevice, false)
 	require.Len(t, installs, 1)
@@ -532,7 +532,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileManagement() {
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/configuration_profiles/%s/resend", host.ID, declUUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.CantResendAppleDeclarationProfilesMessage)
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", token, declUUID), nil, http.StatusBadRequest)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", token, declUUID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.CantResendAppleDeclarationProfilesMessage)
 
@@ -4184,7 +4184,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
 	deviceToken := "windows-device-token"
 	createDeviceTokenForHost(t, s.ds, host.ID, deviceToken)
-	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusBadRequest)
+	res = s.DoRawNoAuth("POST", fmt.Sprintf("/api/latest/fleet/device/%s/configuration_profiles/%s/resend", deviceToken, globalProfiles[0]), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.CantResendWindowsProfilesMessage)
 
