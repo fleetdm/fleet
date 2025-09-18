@@ -27,7 +27,7 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
   });
 });
 
-export const customDeviceHandler = (overrides: Partial<IDeviceUserResponse>) =>
+export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
   http.get(baseUrl("/device/:token"), () => {
     return HttpResponse.json(
       Object.assign(
@@ -79,17 +79,20 @@ export const defaultDeviceCertificatesHandler = http.get(
         has_next_results: false,
         has_previous_results: false,
       },
+      count: 1,
     });
   }
 );
 
-export const defaultSetupSoftwareStatusesHandler = http.post(
-  baseUrl("/device/:token/setup_experience/status"),
-  () => {
-    return HttpResponse.json<IGetSetupSoftwareStatusesResponse>(
-      createMockSetupSoftwareStatusesResponse({
-        setup_experience_results: { software: [] },
-      })
+export const deviceSetupExperienceHandler = (
+  overrides?: Partial<IGetSetupSoftwareStatusesResponse>
+) =>
+  http.post(baseUrl("/device/:token/setup_experience/status"), () => {
+    return HttpResponse.json(
+      createMockSetupSoftwareStatusesResponse(overrides)
     );
-  }
-);
+  });
+
+export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
+  setup_experience_results: { software: [] },
+});

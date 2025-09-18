@@ -43,6 +43,7 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
@@ -53,7 +54,7 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupSoftwareStatusesResponse {
-  setup_experience_results: { software: ISetupSoftwareStatus[] };
+  setup_experience_results: { software?: ISetupSoftwareStatus[] };
 }
 
 export interface IGetSetupSoftwareStatusesParams {
