@@ -1,11 +1,18 @@
 import React from "react";
 
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
+
+import { COLORS } from "styles/var/colors";
 
 import DiskSpaceIndicator from "./DiskSpaceIndicator";
 
 describe("Disk space Indicator", () => {
+  const [errStyle, warningStyle, okayStyle] = [
+    `background-color: ${COLORS["ui-error"]}`,
+    `background-color: ${COLORS["ui-warning"]}`,
+    `background-color: ${COLORS["status-success"]}`,
+  ];
   it("renders warning tooltip for <32gB when hovering over the yellow disk space indicator for darwin or windows", async () => {
     const { user } = renderWithSetup(
       <DiskSpaceIndicator
@@ -17,16 +24,16 @@ describe("Disk space Indicator", () => {
       />
     );
 
-    expect(screen.getByTitle("disk space indicator")).toHaveStyle("width: 10%");
-    expect(screen.getByTitle("disk space indicator")).toHaveClass(
-      "data-set__disk-space--yellow"
-    );
+    const section = screen.getByTestId("section-0");
+    expect(section).toHaveStyle(warningStyle);
 
-    await user.hover(screen.getByTitle("disk space indicator"));
-    const tooltip = screen.getByText(
-      "Not enough disk space available to install most large operating systems updates."
-    );
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(section);
+    await waitFor(() => {
+      const tooltip = screen.getByText(
+        "Not enough disk space available to install most large operating systems updates."
+      );
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it("renders severe warning tooltip for <16 gBwhen hovering over the red disk space indicator for darwin or windows", async () => {
@@ -40,16 +47,17 @@ describe("Disk space Indicator", () => {
       />
     );
 
-    expect(screen.getByTitle("disk space indicator")).toHaveStyle("width: 2%");
-    expect(screen.getByTitle("disk space indicator")).toHaveClass(
-      "data-set__disk-space--red"
-    );
+    const section = screen.getByTestId("section-0");
+    expect(section).toHaveStyle(errStyle);
 
-    await user.hover(screen.getByTitle("disk space indicator"));
-    const tooltip = screen.getByText(
-      "Not enough disk space available to install most small operating systems updates."
-    );
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(section);
+
+    await waitFor(() => {
+      const tooltip = screen.getByText(
+        "Not enough disk space available to install most small operating systems updates."
+      );
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it("renders tooltip when hovering over the green disk space indicator for darwin or windows", async () => {
@@ -63,15 +71,16 @@ describe("Disk space Indicator", () => {
       />
     );
 
-    expect(screen.getByTitle("disk space indicator")).toHaveStyle("width: 15%");
-    expect(screen.getByTitle("disk space indicator")).toHaveClass(
-      "data-set__disk-space--green"
-    );
+    const section = screen.getByTestId("section-0");
+    expect(section).toHaveStyle(okayStyle);
 
-    await user.hover(screen.getByTitle("disk space indicator"));
-    const tooltip = screen.getByText(
-      "Enough disk space available to install most operating systems updates."
-    );
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(section);
+
+    await waitFor(() => {
+      const tooltip = screen.getByText(
+        "Enough disk space available to install most operating systems updates."
+      );
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 });
