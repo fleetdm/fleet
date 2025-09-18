@@ -8,7 +8,16 @@ The Fleet roadmap is set for fall 2025. Watch the video above for a walkthrough,
 
 In the next 3 months, Fleet will ship...
 
-TODO
+- Lost Mode
+- Auto install apps on iOS and Android on first boot
+- Deploy certificates on Windows, Linux, and Android
+- Fleet-maintained apps Windows
+- Self-service scripts
+- Windows configuration profile improvements
+- Conditional access w/ Okta
+- Entra conditional access for Windows and Linux
+- Dismiss vulnerabilities
+- Downloadable agents
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
