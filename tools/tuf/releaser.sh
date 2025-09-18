@@ -53,7 +53,7 @@ setup () {
     # Passphrases need to be exported for use by `fleetctl updates` commands.
     #
 
-    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable" ]] || [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
         FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
         export FLEET_TARGETS_PASSPHRASE
         FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
@@ -112,6 +112,45 @@ promote_component_edge_to_stable () {
             exit 1
             ;;
     esac
+    popd
+}
+
+update_osquery_schema_and_flags () {
+    version=$1
+
+    GO_TOOLS_DIRECTORY=$(mktemp -d)
+    SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    go build -o "$GO_TOOLS_DIRECTORY/replace" "$SCRIPT_DIR/../../tools/tuf/replace"
+
+    pushd "$GIT_REPOSITORY_DIRECTORY"
+    branch_name=update-osquery-schema-v$version
+    git checkout -b "$branch_name"
+
+    # 1. Update the version used to generate the osquery schema in Fleet.
+    pushd website
+    "$GO_TOOLS_DIRECTORY/replace" ./config/custom.js "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: .+\n" "versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '$version',\n"
+    npm install
+    ./node_modules/sails/bin/sails.js run generate-merged-schema
+    popd
+    git add ./website/config/custom.js
+    git add ./schema/osquery_fleet_schema.json
+
+    # 2. Update cli/flags.
+    "$GO_TOOLS_DIRECTORY/replace" ./tools/osquery-agent-options/main.go "osqueryVersion = .+\n" "osqueryVersion = \"$version\"\n"
+    pushd server/fleet/
+    go generate
+    popd
+    git add ./tools/osquery-agent-options/main.go
+    git add ./server/fleet/agent_options_generated.go
+
+    # 3. Check for manual changes.
+    prompt "Make sure to check for OS-specific osquery flags in $version. If there are any make sure to 'git add' them. See ./tools/osquery-agent-options/README.md"
+
+    # 4. Commit and PR.
+    git commit -m "Update osquery schemas and flags to $version"
+    git push origin "$branch_name"
+    prompt "A PR will be created to trigger a Github Action to build osqueryd."
+    gh pr create -f -B main -t "Update osquery schema and flags to $version"
     popd
 }
 
@@ -288,6 +327,18 @@ print_reminder () {
     if [[ $ACTION == "release-to-edge" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --orbit-channel=edge --desktop-channel=edge' on Linux amd64, Linux arm64, Windows, and macOS."
+            milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+            echo "Milestone checks:"
+            if [[ -n $milestone_url ]]; then
+                prompt "1. It seems fleetd version $VERSION milestone is: $milestone_url"
+            else
+                prompt "1. fleetd $VERSION has a milestone in https://github.com/fleetdm/fleet/milestones"
+            fi
+            echo "Orbit changes:"
+            cat orbit/changes/*
+            echo 
+            prompt "2. All items above under orbit/changes/ correspond to a Github issue"
+            prompt "3. All items in the $VERSION milestone are in 'Ready for release'"
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge --update-interval=1m' on Linux amd64, Linux arm64, Windows, and macOS."
         fi
@@ -299,6 +350,10 @@ print_reminder () {
         prompt "To smoke test the release make sure to generate and install fleetd with on Linux amd64, Linux arm64, Windows, and macOS. Use 'fleetctl package [...] --update-interval=1m --orbit-channel=edge --desktop-channel=edge' if you are releasing fleetd to 'edge' or 'fleetctl package [...] --update-interval=1m --osqueryd-channel=edge' if you are releasing osquery to 'edge'."
     elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
         :
+    elif [[ $ACTION == "update-osquery-schema" ]]; then
+        :
+    elif [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
+        prompt "We don't have/use edge channel for swiftDialog, so (currently) we can only release to stable."
     else
         echo "Unsupported action: $ACTION"
         exit 1
@@ -309,6 +364,12 @@ fleetctl_version_check () {
     echo "Using '$GIT_REPOSITORY_DIRECTORY/build/fleetctl'"
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" --version
     prompt "Make sure the fleetctl executable and version are correct."
+}
+
+release_swiftDialog_to_stable () {
+    pushd "$TUF_DIRECTORY"
+    "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$SWIFT_DIALOG_PATH" --platform macos --name swiftDialog --version "$VERSION" -t stable
+    popd
 }
 
 print_reminder
@@ -327,6 +388,23 @@ elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     pull_from_staging
     promote_edge_to_stable
     push_to_staging
+elif [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
+    if [[ -z $SWIFT_DIALOG_PATH ]]; then
+        echo "Missing $SWIFT_DIALOG_PATH"
+        exit 1
+    fi
+
+    if [ ! -f "$SWIFT_DIALOG_PATH" ]; then
+        echo "Path SWIFT_DIALOG_PATH='$SWIFT_DIALOG_PATH' does not exist or is not accessible."
+    fi
+    prompt "Using $SWIFT_DIALOG_PATH"
+
+    trap clean_up EXIT
+    setup
+    fleetctl_version_check
+    pull_from_staging
+    release_swiftDialog_to_stable
+    push_to_staging
 elif [[ $ACTION == "update-timestamp" ]]; then
     trap clean_up EXIT
     setup
@@ -338,6 +416,14 @@ elif [[ $ACTION == "release-to-production" ]]; then
     release_to_production
 elif [[ $ACTION == "create-fleetd-release-pr" ]]; then
     create_fleetd_release_pr
+elif [[ $ACTION == "update-osquery-schema" ]]; then
+    NODE_VERSION=$(node --version)
+    EXPECTED_NODE_VERSION=$(cat package.json | jq -r .engines.node)
+    if [[ $NODE_VERSION != "v${EXPECTED_NODE_VERSION}" ]]; then
+        echo "Seems your node version is $NODE_VERSION, version must be v${EXPECTED_NODE_VERSION} to generate schemas..."
+        exit 1
+    fi
+    update_osquery_schema_and_flags "$VERSION"
 else
     echo "Unsupported action: $ACTION"
     exit 1

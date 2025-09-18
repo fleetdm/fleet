@@ -2,11 +2,15 @@ package fleetctl
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"math"
 	"os"
 	pathUtils "path"
 	"reflect"
 	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -72,10 +76,11 @@ type generateGitopsClient interface {
 	GetQueries(teamID *uint, name *string) ([]fleet.Query, error)
 	GetLabels() ([]*fleet.LabelSpec, error)
 	Me() (*fleet.User, error)
-	GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error)
+	GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error)
 	GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error)
 	GetSetupExperienceScript(teamID uint) (*fleet.Script, error)
 	GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetupAssistant, error)
+	GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error)
 }
 
 // Given a struct type and a field name, return the JSON field name.
@@ -282,8 +287,7 @@ func (cmd *GenerateGitopsCommand) Run() error {
 		if cmd.CLI.String("team") != "" {
 			transformedSelectedName := generateFilename(cmd.CLI.String("team"))
 			for _, team := range teams {
-				transformedTeamName := generateFilename(team.Name)
-				if transformedSelectedName == transformedTeamName {
+				if transformedSelectedName == generateFilename(team.Name) {
 					teamsToProcess = []teamToProcess{{
 						ID:   &team.ID,
 						Team: &team,
@@ -486,6 +490,8 @@ func (cmd *GenerateGitopsCommand) Run() error {
 			}
 			// Replace any empty values with a blank.
 			b = emptyVal.ReplaceAll(b, []byte(":"))
+			// Unescape any unicode chars added by the YAML marshaler.
+			b = unescapeUnicodeU8(b)
 		} else {
 			b = []byte(fileToWrite.(string))
 		}
@@ -557,6 +563,8 @@ func (cmd *GenerateGitopsCommand) AddComment(filename, comment string) string {
 	return token
 }
 
+var footguns = []rune{'/', '\\', ':', '*', '?', '"', '<', '>', '|'}
+
 // Given a name, generate a filename by replacing spaces with dashes and
 // removing any non-alphanumeric characters.
 func generateFilename(name string) string {
@@ -566,8 +574,14 @@ func generateFilename(name string) string {
 			return unicode.ToLower(r)
 		case unicode.IsSpace(r):
 			return '-'
+		// replace common footguns with unique letters.
+		case slices.Contains(footguns, r):
+			return rune('a' + slices.Index(footguns, r))
+		// bail on control characters
+		case r < 0x20:
+			panic("Cannot process filename " + name + " because it has control characters in it.")
 		default:
-			return -1
+			return r
 		}
 	}, name)
 	// Strip any leading/trailing dashes using regex.
@@ -602,16 +616,25 @@ func (cmd *GenerateGitopsCommand) generateOrgSettings() (orgSettings map[string]
 		jsonFieldName(t, "ServerSettings"):     cmd.AppConfig.ServerSettings,
 		jsonFieldName(t, "WebhookSettings"):    cmd.AppConfig.WebhookSettings,
 	}
+
 	integrations, err := cmd.generateIntegrations("default.yml", &GlobalOrTeamIntegrations{GlobalIntegrations: &cmd.AppConfig.Integrations})
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "Integrations")] = integrations
+
+	certificateAuthorities, err := cmd.generateCertificateAuthorities("default.yml")
+	if err != nil {
+		return nil, err
+	}
+	orgSettings["certificate_authorities"] = certificateAuthorities // TODO(hca): Ask Scott about jsonFieldName usage
+
 	mdm, err := cmd.generateMDM(&cmd.AppConfig.MDM)
 	if err != nil {
 		return nil, err
 	}
 	orgSettings[jsonFieldName(t, "MDM")] = mdm
+
 	yaraRules, err := cmd.generateYaraRules(cmd.AppConfig.YaraRules)
 	if err != nil {
 		return nil, err
@@ -707,6 +730,7 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 		result = result["team_integrations"].(map[string]interface{})
 
 		// We currently don't support configuring Jira and Zendesk integrations on the team.
+		// https://github.com/fleetdm/fleet/issues/20287
 		delete(result, "jira")
 		delete(result, "zendesk")
 
@@ -744,6 +768,46 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				})
 			}
 		}
+	}
+
+	return result, nil
+}
+
+func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string) (map[string]interface{}, error) {
+	// TODO(hca): Implement this!
+	if filePath != "default.yml" {
+		// TODO(hca): confirm desired behavior
+		return nil, errors.New("certificate authorities are only supported in the default yaml")
+	}
+
+	// // TODO(hca): Confirm that we still want users to be able to extract their CA information via
+	// // generate gitops if their license is downgraded.
+	// if !cmd.AppConfig.License.IsPremium() {
+	// 	return map[string]interface{}{}, nil
+	// }
+
+	includeSecrets := cmd.CLI.Bool("insecure")
+
+	// Get the certificate authorities spec
+	cas, err := cmd.Client.GetCertificateAuthoritiesSpec(includeSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	// Rather than crawling through the whole struct, we'll marshall/unmarshall it
+	// to get the keys we want.
+	b, err := yaml.Marshal(cas)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error marshaling certificate authorities: %s\n", err)
+		return nil, err
+	}
+	var result map[string]interface{}
+	if err := yaml.Unmarshal(b, &result); err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error unmarshaling certificate authorities: %s\n", err)
+		return nil, err
+	}
+
+	if !includeSecrets {
 		if digicert, ok := result["digicert"]; ok && digicert != nil {
 			for _, intg := range digicert.([]interface{}) {
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
@@ -766,6 +830,15 @@ func (cmd *GenerateGitopsCommand) generateIntegrations(filePath string, integrat
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
 					Key:      "integrations.custom_scep_proxy.challenge",
+				})
+			}
+		}
+		if hydrant, ok := result["hydrant"]; ok && hydrant != nil {
+			for _, intg := range hydrant.([]interface{}) {
+				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "integrations.hydrant.client_secret",
 				})
 			}
 		}
@@ -863,11 +936,13 @@ func (cmd *GenerateGitopsCommand) generateTeamSettings(filePath string, team *fl
 	t := reflect.TypeOf(fleet.TeamConfig{})
 
 	// For "No Team" (team ID 0), only include webhook settings
+	// Note: Jira/Zendesk integrations are not supported at the team level (including No Team)
+	// See https://github.com/fleetdm/fleet/issues/20287
 	if team.ID == 0 {
-		webhookSettings := map[string]interface{}{
+		webhookSettings := map[string]any{
 			"failing_policies_webhook": team.Config.WebhookSettings.FailingPoliciesWebhook,
 		}
-		teamSettings = map[string]interface{}{
+		teamSettings = map[string]any{
 			jsonFieldName(t, "WebhookSettings"): webhookSettings,
 		}
 		return teamSettings, nil
@@ -956,21 +1031,6 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
-			// See if the team has macOS setup software configured.
-			setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(*teamId)
-			if err != nil {
-				fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
-				return nil, err
-			}
-			hasSetupSoftware := false
-			for _, software := range setupSoftware {
-				pkg := software.SoftwarePackage
-				if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
-					hasSetupSoftware = true
-					break
-				}
-			}
-
 			// See if the team has macOS bootstrap package configured.
 			bootstrapPackage, err := cmd.Client.GetBootstrapPackageMetadata(*teamId, false)
 			if err != nil && !strings.Contains(err.Error(), "bootstrap package for this team does not exist") {
@@ -996,7 +1056,7 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 			hasEnrollmentProfile := enrollmentProfile != nil
 
 			// If the team has any of these configured, we need to generate the macos_setup section.
-			if hasSetupSoftware || hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
+			if hasBootstrapPackage || hasSetupScript || hasEnrollmentProfile || (teamMdm != nil && teamMdm.MacOSSetup.EnableEndUserAuthentication) {
 				result[jsonFieldName(mdmT, "MacOSSetup")] = "TODO: update with your macos_setup configuration"
 				cmd.Messages.Notes = append(cmd.Messages.Notes, Note{
 					Filename: teamName,
@@ -1233,8 +1293,8 @@ func (cmd *GenerateGitopsCommand) generateQueries(teamId *uint) ([]map[string]in
 	return result, nil
 }
 
-func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint, teamFilename string) (map[string]interface{}, error) {
-	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamId)
+func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint, teamFilename string) (map[string]interface{}, error) {
+	query := fmt.Sprintf("available_for_install=1&team_id=%d", teamID)
 	software, err := cmd.Client.ListSoftwareTitles(query)
 	if err != nil {
 		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software: %s\n", err)
@@ -1243,6 +1303,31 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 	if len(software) == 0 {
 		return nil, nil
 	}
+
+	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
+	setupSoftwareByVppApp := make(map[string]struct{})
+
+	for _, platform := range []string{"linux", "macos"} {
+		// See if the team has macOS or Linux setup software configured.
+		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
+		if err != nil {
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)
+			return nil, err
+		}
+		for _, software := range setupSoftware {
+			pkg := software.SoftwarePackage
+			if pkg != nil && pkg.InstallDuringSetup != nil && *pkg.InstallDuringSetup {
+				setupSoftwareBySoftwareTitle[software.ID] = struct{}{}
+			}
+			if platform == "macos" {
+				appStoreApp := software.AppStoreApp
+				if appStoreApp != nil && appStoreApp.InstallDuringSetup != nil && *appStoreApp.InstallDuringSetup {
+					setupSoftwareByVppApp[appStoreApp.AppStoreID] = struct{}{}
+				}
+			}
+		}
+	}
+
 	result := make(map[string]interface{})
 	packages := make([]map[string]interface{}, 0)
 	appStoreApps := make([]map[string]interface{}, 0)
@@ -1275,7 +1360,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			continue
 		}
 
-		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamId)
+		softwareTitle, err := cmd.Client.GetSoftwareTitleByID(sw.ID, &teamID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software title %s: %s\n", sw.Name, err)
 			return nil, err
@@ -1332,6 +1417,20 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 			if softwareTitle.SoftwarePackage.URL != "" {
 				softwareSpec["url"] = softwareTitle.SoftwarePackage.URL
 			}
+
+			if softwareTitle.SoftwarePackage.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.SoftwarePackage.Categories
+			}
+		}
+
+		if softwareTitle.AppStoreApp != nil {
+			if softwareTitle.AppStoreApp.SelfService {
+				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
+			}
+
+			if softwareTitle.AppStoreApp.Categories != nil {
+				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
+			}
 		}
 
 		if cmd.AppConfig.License.IsPremium() {
@@ -1346,6 +1445,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 					labels = softwareTitle.SoftwarePackage.LabelsExcludeAny
 					labelKey = "labels_exclude_any"
 				}
+				if _, exists := setupSoftwareBySoftwareTitle[softwareTitle.ID]; exists {
+					softwareSpec["setup_experience"] = true
+				}
 			} else {
 				if len(softwareTitle.AppStoreApp.LabelsIncludeAny) > 0 {
 					labels = softwareTitle.AppStoreApp.LabelsIncludeAny
@@ -1354,6 +1456,9 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamId uint,
 				if len(softwareTitle.AppStoreApp.LabelsExcludeAny) > 0 {
 					labels = softwareTitle.AppStoreApp.LabelsExcludeAny
 					labelKey = "labels_exclude_any"
+				}
+				if _, exists := setupSoftwareByVppApp[softwareTitle.AppStoreApp.AdamID]; exists {
+					softwareSpec["setup_experience"] = true
 				}
 			}
 			if len(labels) > 0 {
@@ -1416,6 +1521,19 @@ func (cmd *GenerateGitopsCommand) generateLabels() ([]map[string]interface{}, er
 		result = append(result, labelSpec)
 	}
 	return result, nil
+}
+
+var uniEscape = regexp.MustCompile(`\\U([0-9A-Fa-f]{8})`)
+
+// Utility function to unescape Unicode U+XXXX sequences added by the YAML marshaler.
+func unescapeUnicodeU8(b []byte) []byte {
+	return uniEscape.ReplaceAllFunc(b, func(m []byte) []byte {
+		v, err := strconv.ParseUint(string(m[2:]), 16, 32)
+		if err != nil || v > math.MaxInt32 {
+			return m
+		}
+		return []byte(string(rune(v)))
+	})
 }
 
 var _ generateGitopsClient = (*service.Client)(nil)

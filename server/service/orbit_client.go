@@ -501,6 +501,7 @@ func (oc *OrbitClient) enroll() (string, error) {
 		HardwareSerial:    oc.hostInfo.HardwareSerial,
 		Hostname:          oc.hostInfo.Hostname,
 		Platform:          oc.hostInfo.Platform,
+		PlatformLike:      oc.hostInfo.PlatformLike,
 		OsqueryIdentifier: oc.hostInfo.OsqueryIdentifier,
 		ComputerName:      oc.hostInfo.ComputerName,
 		HardwareModel:     oc.hostInfo.HardwareModel,
@@ -736,4 +737,14 @@ func (oc *OrbitClient) SendLinuxKeyEscrowResponse(lr luks.LuksResponse) error {
 	}
 
 	return nil
+}
+
+func (oc *OrbitClient) InitiateSetupExperience() (fleet.SetupExperienceInitResult, error) {
+	verb, path := "POST", "/api/fleet/orbit/setup_experience/init"
+	var resp orbitSetupExperienceInitResponse
+	if err := oc.authenticatedRequest(verb, path, &orbitSetupExperienceInitRequest{}, &resp); err != nil {
+		return fleet.SetupExperienceInitResult{}, err
+	}
+
+	return resp.Result, nil
 }

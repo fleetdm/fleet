@@ -82,7 +82,7 @@ func (svc *Service) AddFleetMaintainedApp(
 	}
 	defer installerTFR.Close()
 
-	gotHash, err := maintained_apps.SHA256FromInstallerFile(installerTFR)
+	gotHash, err := file.SHA256FromTempFileReader(installerTFR)
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "calculating SHA256 hash")
 	}

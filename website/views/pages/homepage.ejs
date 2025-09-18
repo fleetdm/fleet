@@ -1,6 +1,6 @@
 <div id="homepage" v-cloak>
   <div purpose="announcement-banner">
-    <animated-arrow-button arrow-color="white" text-color="white" href="/funding-announcement" target="_blank">🎉 Fleet raises $27M for<br> open device management </animated-arrow-button>
+    <animated-arrow-button arrow-color="white" text-color="white" href="/contact">$0 MDM migration</animated-arrow-button>
   </div>
   <%/* Hero container */%>
   <div purpose="hero-container">
@@ -9,40 +9,22 @@
         <div class="d-flex flex-row justify-content-start justify-content-sm-center justify-content-md-start align-items-start">
           <%/* Hero text */%>
           <div purpose="hero-text" class="d-flex flex-column justify-content-start">
-            <h1>One agent for <br>
-              <div purpose="ticker-container" class="d-flex align-items-center flex-row text-nowrap">
-                every
-                <div purpose="option-container" class="pl-2 d-flex flex-column">
-                  <span purpose="hero-ticker-option" class="visible">OS</span>
-                  <span purpose="hero-ticker-option">audit</span>
-                  <span purpose="hero-ticker-option">script</span>
-                  <span purpose="hero-ticker-option">config</span>
-                  <span purpose="hero-ticker-option">question</span>
-                  <span purpose="hero-ticker-option">laptop</span>
-                  <span purpose="hero-ticker-option">desktop</span>
-                  <span purpose="hero-ticker-option">phone</span>
-                  <span purpose="hero-ticker-option">server</span>
-                  <span purpose="hero-ticker-option">cloud instance</span>
-                  <span purpose="hero-ticker-option">container</span>
-                  <span purpose="hero-ticker-option">tablet</span>
-                  <span purpose="hero-ticker-option">hospital</span>
-                  <span purpose="hero-ticker-option">factory</span>
-                  <span purpose="hero-ticker-option">report</span>
-                  <span purpose="hero-ticker-option">new hire</span>
-                  <span purpose="hero-ticker-option">offboard</span>
-                  <span purpose="hero-ticker-option">employee</span>
-                  <span purpose="hero-ticker-option">agent</span>
-                  <span purpose="hero-ticker-option">robot</span>
-                  <span purpose="hero-ticker-option">satellite</span>
-                  <span purpose="hero-ticker-option">telescope</span>
-                  <span purpose="hero-ticker-option">computer</span>
-                </div>
-              </div>
+            <h4>Open device management</h4>
+            <h1>“I just moved 10,000<br> Macs to Fleet”
+
             </h1>
-            <p>Replace the sprawl with lightning fast device management that puts you back in control.</p>
+            <div purpose="hero-quote-author" class="d-flex flex-row align-items-center">
+              <div purpose="hero-quote-profile-image">
+                <img alt="Wes Whetstone" src="/images/homepage-hero-wes-whetstone-86x72@2x.png">
+              </div>
+              <div purpose="quote-author-info">
+                <p purpose="quote-author-name">Wes Whetstone</p>
+                <p purpose="quote-author-title">Client Platform Engineer at Stripe</p>
+              </div>
+            </div>
             <div purpose="button-row" class="d-flex justify-content-start align-items-center">
-              <a purpose="cta-button" href="/contact">Talk to an engineer</a>
-              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png"> Watch demo <span>3 mins</span></a>
+              <a purpose="cta-button" href="/contact">Get a demo</a>
+              <a purpose="video-button"  @click="clickOpenVideoModal('fleet-in-three-minutes')"><img alt="Play" class="d-inline" src="/images/icon-play-video-32x32@2x.png">See Fleet in action<span>3 mins</span></a>
             </div>
           </div>
         </div>
@@ -53,83 +35,39 @@
   <div purpose="hero-logos" class="mx-auto">
     <logo-carousel></logo-carousel>
   </div>
+  <a purpose="statistics" class="d-flex" href="/testimonials" no-underline>
+    <div purpose="statistics-column">
+      <div purpose="customers" class="d-none d-sm-block">
+        <h4>1,300+</h4>
+        <p>customers</p>
+      </div>
+      <div purpose="countries" class="d-block d-sm-none">
+        <h4>90+</h4>
+        <p>countries</p>
+      </div>
+      <div purpose="devices">
+        <h4>2,000,000+</h4>
+        <p>computing devices</p>
+      </div>
+    </div>
+    <div purpose="statistics-column">
+      <div purpose="countries" class="d-none d-sm-block">
+        <h4>90+</h4>
+        <p>countries</p>
+      </div>
+      <div purpose="customers" class="d-block d-sm-none">
+        <h4>1,300+</h4>
+        <p>customers</p>
+      </div>
+      <div purpose="response-time">
+        <h4>21 minutes</h4>
+        <p>avg support response time</p>
+      </div>
+    </div>
+  </a>
   <%/* Homepage content */%>
   <div purpose="homepage-content" class="container">
-    <div purpose="page-section">
-      <div purpose="homepage-text-block" class="mt-0">
-        <h2>Everything in one place</h2>
-        <p>Manage devices consistently in a single, open platform for Apple, Linux, and Windows.</p>
-      </div>
-      <div purpose="feature-cards" class="card-deck">
-        <a purpose="feature-card" class="card" href="/device-management">
-          <div purpose="card-content">
-            <h5>Multi-platform MDM</h5>
-            <p>Remotely manage, and protect laptops and mobile devices.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-        <a purpose="feature-card" class="card" href="/orchestration">
-          <div purpose="card-content">
-            <h5>Orchestration</h5>
-            <p>Automate tasks across devices, from app installs to scripts.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-        <a purpose="feature-card" class="card" href="/software-management">
-          <div purpose="card-content">
-            <h5>Software management</h5>
-            <p>Inventory, patch, and manage installed software.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-        <a purpose="feature-card" class="card" href="/announcements/large-gaming-company-enhances-server-observability-with-fleet">
-          <div purpose="card-content">
-            <h5>Security</h5>
-            <p>Monitor activity, spot anomalies, and get situational awareness.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-        <a purpose="feature-card" class="card" href="/announcements/vehicle-manufacturer-transitions-to-fleet-for-endpoint-security">
-          <div purpose="card-content">
-            <h5>Vulnerability management</h5>
-            <p>Detect, prioritize, and understand security risks and flaws.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-        <a purpose="feature-card" class="card" href="https://www.linkedin.com/pulse/managing-santa-via-gitops-skip-sync-server-allen-houchins-3ni1c" target="_blank" no-icon>
-          <div purpose="card-content">
-            <h5>Binary authorization <span>Coming soon</span></h5>
-            <p>Only allow trusted, pre-approved software to run.</p>
-          </div>
-          <div purpose="card-chevron">
-            <svg purpose="chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">
-              <path  d="M1.35712 1L5.64283 6L1.35712 11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-        </a>
-      </div>
-
-
+    <div purpose="page-section" class="mb-0">
       <div purpose="homepage-text-block">
         <h2>Freedom at every level</h2>
         <p>Manage devices your way, without vendor limits. Fleet gives you full control and supports the choices that work for your organization.</p>
@@ -141,8 +79,8 @@
 
         <div purpose="feature-text">
           <div purpose="feature-block">
-            <h5>All features, any deployment</h5>
-            <p>Let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
+            <h5>All features, flexible deployment</h5>
+            <p>Unlike other solutions, you can let us host Fleet for you or deploy it yourself. You get the same experience either way.</p>
           </div>
           <div purpose="feature-block">
             <h5>UI, API, or GitOps</h5>
@@ -156,52 +94,18 @@
 
       </div>
 
-      <a purpose="statistics" class="d-flex" href="/testimonials" no-underline>
-        <div purpose="statistics-column">
-          <div purpose="customers" class="d-none d-sm-block">
-            <h4>100+</h4>
-            <p>customers</p>
-          </div>
-          <div purpose="countries" class="d-block d-sm-none">
-            <h4>90+</h4>
-            <p>countries</p>
-          </div>
-          <div purpose="devices">
-            <h4>2,000,000+</h4>
-            <p>computing devices</p>
-          </div>
-        </div>
-        <div purpose="statistics-column">
-          <div purpose="countries" class="d-none d-sm-block">
-            <h4>90+</h4>
-            <p>countries</p>
-          </div>
-          <div purpose="customers" class="d-block d-sm-none">
-            <h4>100+</h4>
-            <p>customers</p>
-          </div>
-          <div purpose="response-time">
-            <h4>8 minutes</h4>
-            <p>avg support response time</p>
-          </div>
-        </div>
-      </a>
+      <div purpose="testimonials-header">
+        <h2>What people are saying</h2>
+      </div>
+    </div>
+  </div>
 
-      <a purpose="quote" class="d-block" href="/announcements/consolidate-multiple-tools-with-fleet" no-underline>
-        <img purpose="quote-logo" alt="Stripe logo" src="/images/social-proof-logo-stripe-67x32@2x.png">
-        <p purpose="quote-text">
-          Fleet helped us avoid being forced to the cloud by our current MDM provider. We were able to migrate everything over to Fleet a few weeks ahead of our renewal, and now Stripe is in control.
-        </p>
-        <div purpose="quote-attribution">
-          <img alt="Scott MacVicar" purpose="quote-author-image" src="/images/testimonial-author-scott-macvicar-100x100@2x.png">
-          <p purpose="name">Scott MacVicar</p>
-          <p purpose="job-title">Head of Developer Infrastructure and Corporate Technology</p>
-        </div>
-      </a>
-
+  <scrollable-tweets :testimonials="testimonialsForScrollableTweets"></scrollable-tweets>
+  <div purpose="homepage-content" class="container">
+    <div purpose="page-section">
       <div purpose="comparison-section">
-        <h2>How does Fleet compare?</h2>
-        <p>Considering a move to Fleet? See how we compare:</p>
+        <h2>Moving to Fleet?</h2>
+        <p>See how Fleet compares with your other options.</p>
         <div purpose="comparison-table-switch" class="d-flex d-sm-none">
           <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'it' ? 'selected' : '']"  @click="clickSwitchComparisonMode('it')">IT</div>
           <div purpose="comparison-table-switch-option" :class="[comparisonTableMode === 'security' ? 'selected' : '']"  @click="clickSwitchComparisonMode('security')">Security</div>
@@ -1476,7 +1380,7 @@
 
         <div purpose="button-row">
           <a purpose="cta-button" href="/pricing">Compare all features</a>
-          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
+          <animated-arrow-button href="/contact">Get a demo</animated-arrow-button>
         </div>
       </div>
 
@@ -1547,8 +1451,8 @@
           </div>
         </h1>
         <div purpose="button-row" style="margin-top: 40px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
-          <a purpose="cta-button" href="/register">Try it yourself</a>
-          <animated-arrow-button href="/contact">Talk to an engineer</animated-arrow-button>
+          <a purpose="cta-button" href="/contact">Get a demo</a>
+          <animated-arrow-button href="/register">Try it yourself</animated-arrow-button>
         </div>
       </div>
     </div>

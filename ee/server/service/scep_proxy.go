@@ -116,9 +116,9 @@ func (svc *scepProxyService) PKIOperation(ctx context.Context, data []byte, iden
 func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier string, checkChallenge bool) (string,
 	error,
 ) {
-	appConfig, err := svc.ds.AppConfig(ctx)
+	groupedCAs, err := svc.ds.GetGroupedCertificateAuthorities(ctx, false)
 	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "getting app config")
+		return "", ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
 	}
 
 	parsedID, err := url.PathUnescape(identifier)
@@ -166,7 +166,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 	var scepURL string
 	switch profile.Type {
 	case fleet.CAConfigNDES:
-		if !appConfig.Integrations.NDESSCEPProxy.Valid {
+		if groupedCAs.NDESSCEP == nil {
 			// Return error that implements kithttp.StatusCoder interface
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
@@ -179,9 +179,9 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 			}
 			return "", &scepserver.BadRequestError{Message: "challenge password has expired"}
 		}
-		scepURL = appConfig.Integrations.NDESSCEPProxy.Value.URL
+		scepURL = groupedCAs.NDESSCEP.URL
 	case fleet.CAConfigCustomSCEPProxy:
-		if !appConfig.Integrations.CustomSCEPProxy.Valid {
+		if len(groupedCAs.CustomScepProxy) < 1 {
 			return "", &scepserver.BadRequestError{Message: MessageSCEPProxyNotConfigured}
 		}
 		if checkChallenge {
@@ -200,7 +200,7 @@ func (svc *scepProxyService) validateIdentifier(ctx context.Context, identifier 
 				}
 			}
 		}
-		for _, ca := range appConfig.Integrations.CustomSCEPProxy.Value {
+		for _, ca := range groupedCAs.CustomScepProxy {
 			if ca.Name == profile.CAName {
 				scepURL = ca.URL
 				break
@@ -268,12 +268,12 @@ func NewSCEPConfigService(logger log.Logger, timeout *time.Duration) fleet.SCEPC
 // Compile check that SCEPConfigService implements the interface.
 var _ fleet.SCEPConfigService = (*SCEPConfigService)(nil)
 
-func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) error {
+func (s *SCEPConfigService) ValidateNDESSCEPAdminURL(ctx context.Context, proxy fleet.NDESSCEPProxyCA) error {
 	_, err := s.GetNDESSCEPChallenge(ctx, proxy)
 	return err
 }
 
-func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyIntegration) (string, error) {
+func (s *SCEPConfigService) GetNDESSCEPChallenge(ctx context.Context, proxy fleet.NDESSCEPProxyCA) (string, error) {
 	adminURL, username, password := proxy.AdminURL, proxy.Username, proxy.Password
 	// Get the challenge from NDES
 	client := fleethttp.NewClient(fleethttp.WithTimeout(*s.Timeout))

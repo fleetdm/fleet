@@ -32,6 +32,10 @@ type Client interface {
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/delete
 	EnterpriseDelete(ctx context.Context, enterpriseName string) error
 
+	// EnterprisesList lists all enterprises accessible to the calling user.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/list
+	EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
+
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
 }

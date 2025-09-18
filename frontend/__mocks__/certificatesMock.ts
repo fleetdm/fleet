@@ -1,4 +1,7 @@
-import { IHostCertificate } from "interfaces/certificates";
+import {
+  ICertificateAuthorityPartial,
+  IHostCertificate,
+} from "interfaces/certificates";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
 const DEFAULT_HOST_CERTIFICATE_MOCK: IHostCertificate = {
@@ -40,10 +43,23 @@ const DEFAULT_HOST_CERTIFICATES_RESPONSE_MOCK: IGetHostCertificatesResponse = {
     has_next_results: false,
     has_previous_results: false,
   },
+  count: 1,
 };
 
 export const createMockGetHostCertificatesResponse = (
   overrides?: Partial<IGetHostCertificatesResponse>
 ): IGetHostCertificatesResponse => {
   return { ...DEFAULT_HOST_CERTIFICATES_RESPONSE_MOCK, ...overrides };
+};
+
+const DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK: ICertificateAuthorityPartial = {
+  id: 1,
+  name: "Test CA",
+  type: "digicert",
+};
+
+export const createMockCertificateAuthorityPartial = (
+  overrides?: Partial<ICertificateAuthorityPartial>
+): ICertificateAuthorityPartial => {
+  return { ...DEFAULT_CERT_AUTHORITY_PARTIAL_MOCK, ...overrides };
 };

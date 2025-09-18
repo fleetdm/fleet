@@ -617,6 +617,10 @@ func (d *DEPService) processDeviceResponse(
 	}
 
 	for _, device := range resp.Devices {
+		deadline := "nil"
+		if device.MDMMigrationDeadline != nil {
+			deadline = device.MDMMigrationDeadline.String()
+		}
 		level.Debug(d.logger).Log( // Keeping this at Debug level since this could generate a lot of log traffic (one per device)
 			"msg", "device",
 			"serial_number", device.SerialNumber,
@@ -627,6 +631,7 @@ func (d *DEPService) processDeviceResponse(
 			"profile_assign_time", device.ProfileAssignTime,
 			"push_push_time", device.ProfilePushTime,
 			"profile_uuid", device.ProfileUUID,
+			"mdm_migration_deadline", deadline,
 		)
 
 		switch strings.ToLower(device.OpType) {
@@ -775,6 +780,7 @@ func (d *DEPService) processDeviceResponse(
 	// for all other hosts we received, find out the right DEP profile to
 	// assign, based on the team.
 	existingHosts := []fleet.Host{}
+	existingHostMigrationDeadlines := make(map[uint]time.Time)
 	for _, existingHost := range existingSerials {
 		dd, ok := modifiedDevices[existingHost.HardwareSerial]
 		if !ok {
@@ -783,6 +789,9 @@ func (d *DEPService) processDeviceResponse(
 				existingHost.HardwareSerial)
 			continue
 		}
+		if dd.MDMMigrationDeadline != nil {
+			existingHostMigrationDeadlines[existingHost.ID] = *dd.MDMMigrationDeadline
+		}
 		existingHosts = append(existingHosts, *existingHost)
 		devicesByTeam[existingHost.TeamID] = append(devicesByTeam[existingHost.TeamID], dd)
 	}
@@ -790,7 +799,7 @@ func (d *DEPService) processDeviceResponse(
 	// Upsert the host DEP assignment records now so that the team is properly linked to the ABM
 	// token if this is the first device DEP host for this token assigned to the team.
 	if len(existingHosts) > 0 {
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID); err != nil {
+		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, existingHosts, abmTokenID, existingHostMigrationDeadlines); err != nil {
 			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing devices")
 		}
 	}
@@ -1405,7 +1414,11 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(installedAppsUUIDs) > 0 {
 		err = commander.InstalledApplicationList(ctx, installedAppsUUIDs, fleet.RefetchAppsCommandUUIDPrefix+commandUUID, false)
-		if err != nil {
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
+		if turnedOffError != nil {
+			return turnedOffError
+		}
+		if err != nil && !turnedOff {
 			return ctxerr.Wrap(ctx, err, "send InstalledApplicationList commands to ios and ipados devices")
 		}
 	}
@@ -1422,7 +1435,11 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 	}
 	if len(certsListUUIDs) > 0 {
 		err = commander.CertificateList(ctx, certsListUUIDs, fleet.RefetchCertsCommandUUIDPrefix+commandUUID)
-		if err != nil {
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
+		if turnedOffError != nil {
+			return turnedOffError
+		}
+		if err != nil && !turnedOff {
 			return ctxerr.Wrap(ctx, err, "send CertificateList commands to ios and ipados devices")
 		}
 	}
@@ -1439,7 +1456,12 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		}
 	}
 	if len(deviceInfoUUIDs) > 0 {
-		if err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID); err != nil {
+		err := commander.DeviceInformation(ctx, deviceInfoUUIDs, fleet.RefetchDeviceCommandUUIDPrefix+commandUUID)
+		turnedOff, turnedOffError := turnOffMDMIfAPNSFailed(ctx, ds, err, logger)
+		if turnedOffError != nil {
+			return turnedOffError
+		}
+		if err != nil && !turnedOff {
 			return ctxerr.Wrap(ctx, err, "send DeviceInformation commands to ios and ipados devices")
 		}
 	}
@@ -1450,6 +1472,25 @@ func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMApp
 		return ctxerr.Wrap(ctx, err, "add host mdm commands")
 	}
 	return nil
+}
+
+// turnOffMDMIfAPNSFailed checks if the error is an APNSDeliveryError and turns off MDM for the failed devices.
+// Returns a boolean value to indicate whether or not MDM was turned off.
+func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, logger kitlog.Logger) (bool, error) {
+	var e *APNSDeliveryError
+	if !errors.As(err, &e) {
+		return false, nil
+	}
+
+	for uuid, err := range e.errorsByUUID {
+		if strings.Contains(err.Error(), "device token is inactive") {
+			level.Info(logger).Log("msg", "turning off MDM for device with inactive device token", "uuid", uuid)
+			if err := ds.MDMTurnOff(ctx, uuid); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "turn off mdm for failed device")
+			}
+		}
+	}
+	return true, nil
 }
 
 func GenerateOTAEnrollmentProfileMobileconfig(orgName, fleetURL, enrollSecret, idpUUID string) ([]byte, error) {

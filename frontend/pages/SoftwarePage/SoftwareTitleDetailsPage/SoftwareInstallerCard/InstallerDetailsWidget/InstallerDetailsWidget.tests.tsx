@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { createCustomRenderer } from "test/test-utils";
 
 import InstallerDetailsWidget from "./InstallerDetailsWidget";
 
@@ -12,6 +13,8 @@ beforeAll(() => {
 afterAll(() => {
   jest.useRealTimers();
 });
+
+const render = createCustomRenderer({ withBackendMock: true });
 
 describe("InstallerDetailsWidget", () => {
   const defaultProps = {

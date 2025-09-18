@@ -32,6 +32,8 @@ const (
 type CarveStore struct {
 	*s3store
 	metadatadb fleet.CarveStore
+
+	gcs bool
 }
 
 // NewCarveStore creates a new store with the given config
@@ -41,7 +43,12 @@ func NewCarveStore(config config.S3Config, metadatadb fleet.CarveStore) (*CarveS
 		return nil, err
 	}
 
-	return &CarveStore{s3store, metadatadb}, nil
+	return &CarveStore{
+		s3store:    s3store,
+		metadatadb: metadatadb,
+
+		gcs: isGCS(config.EndpointURL),
+	}, nil
 }
 
 // generateS3Key builds S3 key from carve metadata
@@ -54,9 +61,17 @@ func (c *CarveStore) generateS3Key(metadata *fleet.CarveMetadata) string {
 // NewCarve initializes a new file carving session
 func (c *CarveStore) NewCarve(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error) {
 	objectKey := c.generateS3Key(metadata)
+
+	var checksumAlgorithm types.ChecksumAlgorithm
+	if c.gcs {
+		checksumAlgorithm = types.ChecksumAlgorithmCrc32c // Required for GCS
+	}
+
 	res, err := c.s3Client.CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
 		Bucket: &c.bucket,
 		Key:    &objectKey,
+
+		ChecksumAlgorithm: checksumAlgorithm,
 	})
 	if err != nil {
 		// even if we fail to create the multipart upload, we still want to create
@@ -216,12 +231,20 @@ func (c *CarveStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata
 
 	objectKey := c.generateS3Key(metadata)
 	partNumber := int32(blockID) + 1 // PartNumber is 1-indexed
+
+	var checksumAlgorithm types.ChecksumAlgorithm
+	if c.gcs {
+		checksumAlgorithm = types.ChecksumAlgorithmCrc32c // Required for GCS
+	}
+
 	_, err := c.s3Client.UploadPart(ctx, &s3.UploadPartInput{
 		Body:       bytes.NewReader(data),
 		Bucket:     &c.bucket,
 		Key:        &objectKey,
 		PartNumber: &partNumber,
 		UploadId:   &metadata.SessionId,
+
+		ChecksumAlgorithm: checksumAlgorithm,
 	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "s3 multipart carve upload")
@@ -247,7 +270,7 @@ func (c *CarveStore) NewBlock(ctx context.Context, metadata *fleet.CarveMetadata
 			},
 		})
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "s3 multipart carve upload")
+			return ctxerr.Wrap(ctx, err, "s3 complete multipart carve upload")
 		}
 	}
 	return nil

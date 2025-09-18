@@ -323,7 +323,7 @@ spec:
           -- in order to account for hosts that might not have this
           -- key, and servers
               WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-          -- old enrollments that aren't completely cleaned up may still be aronud
+          -- old enrollments that aren't completely cleaned up may still be around
           -- in the registry so we want to make sure we return the one with an actual
           -- discovery URL set if there is one. LENGTH is used here to prefer those
           -- with actual URLs over empty string/null if there are multiple
@@ -382,7 +382,7 @@ kind: built-in
 spec:
   name: Munki info
   platform: darwin
-  description: Retrives information about the last Munki run on a macOS device.
+  description: Retrieves information about the last Munki run on a macOS device.
   query: |
     SELECT 
       version, errors, warnings 
@@ -397,7 +397,7 @@ kind: built-in
 spec:
   name: Network interfaces (Chrome)
   platform: chrome
-  description: Retrives information about a ChromeOS device's current network.
+  description: Retrieves information about a ChromeOS device's current network.
   query: |
     SELECT 
     ipv4 AS address, mac 
@@ -546,7 +546,7 @@ kind: built-in
 spec:
   name: Orbit information
   platform: darwin, linux, windows
-  description: Retreives configuration information the osquery version and configuration manager running on a device.
+  description: Retrieves configuration information the osquery version and configuration manager running on a device.
   query: SELECT * FROM orbit_info
   purpose: Informational
   tags: built-in
@@ -2275,7 +2275,7 @@ spec:
   name: Get Docker contained processes on a system
   platform: darwin, linux
   description: Docker containers Processes, can be used on normal systems or a kubenode.
-  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c CROSS JOIN docker_container_processes p using(id);
+  query: SELECT c.id, c.name, c.image, c.image_id, c.command, c.created, c.state, c.status, p.cmdline  FROM docker_containers c JOIN docker_container_processes p ON c.id = p.id;
   bash: echo "id,name,image,image_id,command,created,state,status,cmdline"; for id in $(docker ps -q); do cont=$(docker inspect --format='{{.Id}},{{.Name}},{{.Config.Image}},{{.Image}},{{.Path}} {{range .Args}}{{.}} {{end}},{{.Created}},{{.State.Status}},{{.State.ExitCode}}' "$id"); docker top "$id" aux | sed '1d' | while IFS= read -r proc; do echo "$cont,\"$proc\""; done; done
   purpose: Informational
   tags: built-in, containers, inventory
@@ -2910,8 +2910,7 @@ spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin, linux, windows
   description: Get a list of installed VS Code extensions (requires osquery > 5.11.0).
-  query: |
-    SELECT u.username, vs.* FROM users u CROSS JOIN vscode_extensions vs USING (uid);
+  query: SELECT u.username, vs.* FROM users u JOIN vscode_extensions vs ON u.uid = vs.uid;
   bash: echo "username,extension_name" && for u in /Users/*; do [ -d "$u/.vscode/extensions" ] && for ext in "$u/.vscode/extensions"/*; do [ -d "$ext" ] && echo "$(basename "$u"),$(basename "$ext")"; done; done
   powershell: >
     $users = @(

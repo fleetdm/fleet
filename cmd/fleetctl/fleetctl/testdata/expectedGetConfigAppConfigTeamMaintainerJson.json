@@ -64,9 +64,6 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null,
-      "custom_scep_proxy": null,
-      "digicert": null,
       "conditional_access_enabled": null
     },
     "mdm": {

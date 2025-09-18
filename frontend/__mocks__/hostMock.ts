@@ -1,4 +1,4 @@
-import { IHost } from "interfaces/host";
+import { IHost, IHostEndUser } from "interfaces/host";
 import { IHostMdmProfile } from "interfaces/mdm";
 import { pick } from "lodash";
 
@@ -18,6 +18,8 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   platform: "darwin",
   status: "verified",
   detail: "This is verified",
+  scope: "device",
+  managed_local_account: "",
 };
 
 export const createMockHostMdmProfile = (
@@ -202,6 +204,7 @@ export const DEFAULT_INSTALLED_VERSION = {
 const DEFAULT_HOST_SOFTWARE_MOCK: IHostSoftware = {
   id: 1,
   name: "mock software.app",
+  icon_url: null,
   software_package: createMockHostSoftwarePackage(),
   app_store_app: null,
   source: "apps",
@@ -235,6 +238,21 @@ export const createMockGetHostSoftwareResponse = (
     ...DEFAULT_GET_HOST_SOFTWARE_RESPONSE_MOCK,
     ...overrides,
   };
+};
+
+export const DEFAULT_HOST_END_USER_MOCK: IHostEndUser = {
+  idp_department: "Engineering",
+  idp_info_updated_at: "2025-09-15T12:00:00Z",
+  idp_username: "jdoe",
+  idp_full_name: "John Doe",
+  idp_groups: ["GroupA", "GroupB"],
+  other_emails: [{ email: "other@example.com", source: "chrome" }],
+};
+
+export const createMockHostEndUser = (
+  overrides?: Partial<IHostEndUser>
+): IHostEndUser => {
+  return { ...DEFAULT_HOST_END_USER_MOCK, ...overrides };
 };
 
 export default createMockHost;

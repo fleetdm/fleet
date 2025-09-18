@@ -1601,6 +1601,42 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 	return profLabels, nil
 }
 
+type batchModifyMDMConfigProfilesRequest struct {
+	TeamID                *uint                                      `json:"-" query:"team_id,optional"`
+	TeamName              *string                                    `json:"-" query:"team_name,optional"`
+	DryRun                bool                                       `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	ConfigurationProfiles []fleet.BatchModifyMDMConfigProfilePayload `json:"configuration_profiles"`
+}
+
+type batchModifyMDMConfigProfilesResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchModifyMDMConfigProfilesResponse) Error() error { return r.Err }
+func (r batchModifyMDMConfigProfilesResponse) Status() int  { return http.StatusNoContent }
+
+// this is the handler for the public endpoint for batch modifying MDM profiles.
+func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchModifyMDMConfigProfilesRequest)
+
+	// We want to still use the existing BatchSetMDMProfiles method, so we convert
+	// the payload to the expected type.
+	profiles := make([]fleet.MDMProfileBatchPayload, len(req.ConfigurationProfiles))
+	for i, p := range req.ConfigurationProfiles {
+		profiles[i] = fleet.MDMProfileBatchPayload{
+			Name:             p.DisplayName,
+			Contents:         p.Profile,
+			LabelsIncludeAll: p.LabelsIncludeAll,
+			LabelsIncludeAny: p.LabelsIncludeAny,
+			LabelsExcludeAny: p.LabelsExcludeAny,
+		}
+	}
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
+		return batchSetMDMProfilesResponse{Err: err}, nil
+	}
+	return batchModifyMDMConfigProfilesResponse{}, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Batch Replace MDM Profiles
 ////////////////////////////////////////////////////////////////////////////////
@@ -1766,7 +1802,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
@@ -1862,14 +1898,19 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig), lic)
+		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
@@ -2138,7 +2179,7 @@ func getAppleProfiles(
 			return nil, nil, nil
 		}
 
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
 	return profs, decls, nil
@@ -2215,7 +2256,7 @@ func getWindowsProfiles(
 			return nil, nil
 		}
 
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	return profs, nil
@@ -2417,53 +2458,9 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var profileTeamID *uint
-	var profileName string
-	switch {
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
-		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting apple config profile")
-		}
-		profileTeamID = prof.TeamID
-		profileName = prof.Name
-
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
-		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting apple declaration")
-		}
-		profileTeamID = decl.TeamID
-		profileName = decl.Name
-
-	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
-		}
-		if host.Platform != "windows" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows config profile")
-		}
-		profileTeamID = prof.TeamID
-		profileName = prof.Name
-
-	default:
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
+	profileTeamID, profileName, err := getProfileToResendDetails(ctx, profileUUID, svc, host)
+	if err != nil {
+		return err
 	}
 
 	// check again based on team id of profile before we proceeding
@@ -2471,6 +2468,29 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "authorizing profile team")
 	}
 
+	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	_, profileName, err := getProfileToResendDetails(ctx, profileUUID, svc, host)
+	if err != nil {
+		return err
+	}
+
+	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, profileUUID string, profileName string) error {
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -2498,8 +2518,36 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
-
 	return nil
+}
+
+// getPRofileToResendDetails returns the team ID and name of the profile to be resent.
+func getProfileToResendDetails(ctx context.Context, profileUUID string, svc *Service, host *fleet.Host) (*uint, string, error) {
+	var profileTeamID *uint
+	var profileName string
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
+		}
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "getting apple config profile")
+		}
+		profileTeamID = prof.TeamID
+		profileName = prof.Name
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendAppleDeclarationProfilesMessage).WithStatus(http.StatusBadRequest), "check apple declaration resend")
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendWindowsProfilesMessage).WithStatus(http.StatusBadRequest), "check windows profile resend")
+	default:
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
+	}
+	return profileTeamID, profileName, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -6,7 +6,7 @@
       "slug": "1password/darwin",
       "platform": "darwin",
       "unique_identifier": "com.1password.1password",
-      "description": "Password manager that keeps all passwords secure behind one password"
+      "description": "Password manager that keeps all passwords secure behind one password."
     },
     {
       "name": "Adobe Acrobat Reader",
@@ -202,7 +202,7 @@
       "slug": "slack/darwin",
       "platform": "darwin",
       "unique_identifier": "com.tinyspeck.slackmacgap",
-      "description": "Slack is a team communication and collaboration software for modern workplaces"
+      "description": "Slack is a team communication and collaboration software for modern workplaces."
     },
     {
       "name": "TeamViewer",
@@ -251,7 +251,7 @@
       "slug": "yubico-yubikey-manager/darwin",
       "platform": "darwin",
       "unique_identifier": "com.yubico.ykman",
-      "description": ""
+      "description": "YubiKey Manager is an application for configuring any YubiKey. Requires Rosetta 2. YubiKey Manager won't get security updates or bug fixes. It's End of Life: <a target=\"_blank\" href=\"https://www.yubico.com/support/download/yubikey-manager/\">https://www.yubico.com/support/download/yubikey-manager/</a>"
     },
     {
       "name": "Zoom",
