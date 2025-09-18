@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -104,15 +105,51 @@ type serverError struct {
 	} `json:"errors"`
 }
 
+// truncateAndDetectHTML truncates a response body to a reasonable length and
+// detects if it's HTML content. Returns the truncated body and whether it's HTML.
+func truncateAndDetectHTML(body string, maxLen int) (truncated string, isHTML bool) {
+	truncated = body
+	if len(truncated) > maxLen {
+		truncated = truncated[:maxLen] + "..."
+	}
+
+	isHTML = strings.Contains(truncated, "<html") || strings.Contains(truncated, "<!DOCTYPE")
+	return truncated, isHTML
+}
+
 func extractServerErrorText(body io.Reader) string {
 	_, reason := extractServerErrorNameReason(body)
 	return reason
 }
 
 func extractServerErrorNameReason(body io.Reader) (string, string) {
+	// Read the body first so we can try to parse it as JSON and fallback to text if needed
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return "", "failed to read response body"
+	}
+
+	// Try to parse as JSON first
 	var serverErr serverError
-	if err := json.NewDecoder(body).Decode(&serverErr); err != nil {
-		return "", "unknown"
+	if err := json.Unmarshal(bodyBytes, &serverErr); err != nil {
+		// If it's not JSON, it might be HTML or plain text error from a proxy/load balancer
+		bodyStr := string(bodyBytes)
+
+		// Truncate and detect HTML
+		const maxLen = 200
+		truncated, isHTML := truncateAndDetectHTML(bodyStr, maxLen)
+
+		if isHTML {
+			// Generic HTML response
+			return "", "server returned HTML instead of JSON response"
+		}
+
+		// Return cleaned up text for non-HTML responses
+		truncated = strings.TrimSpace(truncated)
+		if truncated == "" {
+			return "", "empty response body"
+		}
+		return "", truncated
 	}
 
 	errName := ""
