@@ -103,11 +103,20 @@ const MfaPage = ({ router, params }: IMfaPage) => {
 
   if (isExpired) {
     return (
+<<<<<<< HEAD
       <AuthenticationFormWrapper className={baseClass} header="Invalid token">
         <>
           <div className={`${baseClass}__description`}>
             <p>Log in again for a new link.</p>
           </div>
+=======
+      <AuthenticationFormWrapper>
+        <>
+          <p>
+            <b>That link is expired.</b>
+          </p>
+          <p>Log in again for a new link.</p>
+>>>>>>> 32c2027273 (First pass at login pages)
           <Button onClick={onClickLoginButton}>Back to login</Button>
         </>
       </AuthenticationFormWrapper>
