@@ -39,6 +39,26 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
+### Manage duplicate accounts in CRM
+
+1. Navigate to ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view?queryScope=userFolders).
+2. Verify that each potential duplicate account is indeed a duplicate of the account's it has been paired with.
+3. Open duplicate accounts and compare duplicate accounts to select the best account to "Use as principal" (the account all other duplicates will be merged into). Consider the following:
+  - Is there an open opportunity on any of the accounts? If so, this is your "principal" account.
+  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
+  - Do any of these accounts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal account.
+4. Click view duplicates, select all relevant accounts that appear. Click next.
+5. Select the best and most up-to-date data to combine into the single principal account.
+
+> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
+
+6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
+7. Verify that the principal account details match exactly what is on LinkedIn. The end result should be as follows:
+  - LinkedIn company url
+  - Website
+  - Employees
+
+
 ### Begin or modify an advertising campaign
 
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
