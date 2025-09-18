@@ -106,6 +106,9 @@ controls:
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
+    - path: ../lib/macos/scripts/enable-scripts-macos.sh
+    - path: ../lib/windows/scripts/enable-scripts-windows.ps1
+    - path: ../lib/linux/scripts/enable-scripts-linux.sh
 policies:
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
