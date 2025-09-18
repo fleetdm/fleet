@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import RevealButton from "./RevealButton";
 
@@ -74,7 +75,7 @@ describe("Reveal button", () => {
   });
 
   it("renders tooltip on hover if provided", async () => {
-    render(
+    const { user } = renderWithSetup(
       <RevealButton
         isShowing={false}
         hideText={HIDE_TEXT}
@@ -84,8 +85,10 @@ describe("Reveal button", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText(SHOW_TEXT));
+    await user.hover(screen.getByText(SHOW_TEXT));
 
-    expect(screen.getByText(TOOLTIP_CONTENT)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(TOOLTIP_CONTENT)).toBeInTheDocument();
+    });
   });
 });
