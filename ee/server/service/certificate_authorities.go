@@ -372,10 +372,16 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	if err := validateURL(smallstepSCEP.URL, "Smallstep SCEP", errPrefix); err != nil {
 		return err
 	}
-	/* if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
+	if smallstepSCEP.Username == "" {
+		return fleet.NewInvalidArgumentError("username", fmt.Sprintf("%sSmallstep username cannot be empty", errPrefix))
+	}
+	if smallstepSCEP.Password == "" || smallstepSCEP.Password == fleet.MaskedPassword {
+		return fleet.NewInvalidArgumentError("password", fmt.Sprintf("%sSmallstep password cannot be empty", errPrefix))
+	}
+	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
-	} */
+	}
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
@@ -861,21 +867,8 @@ func (svc *Service) processSmallstepCAs(ctx context.Context, batchOps *fleet.Cer
 	}
 
 	for name, incoming := range incomingByName {
-		// TODO(sca): extract validation and confirm what specific validations are needed
-		if incoming.Password == "" || incoming.Password == fleet.MaskedPassword {
-			return fleet.NewInvalidArgumentError("password", "certificate_authorities.smallstep.password: Smallstep SCEP Proxy password cannot be empty.")
-		}
-		if err := validateCAName(incoming.Name, "certificate_authorities.smallstep: "); err != nil {
+		if err := svc.validateSmallstepSCEPProxy(ctx, incoming, "certificate_authorities.smallstep: "); err != nil {
 			return err
-		}
-		if err := validateURL(incoming.URL, "Smallstep URL", "certificate_authorities.smallstep: "); err != nil {
-			return err
-		}
-		if err := validateURL(incoming.ChallengeURL, "Smallstep challenge", "certificate_authorities.smallstep: "); err != nil {
-			return err
-		}
-		if incoming.Username == "" {
-			return fleet.NewInvalidArgumentError("username", "certificate_authorities.smallstep.username: Smallstep username cannot be empty.")
 		}
 
 		// create the payload to be added or updated
