@@ -1375,6 +1375,118 @@ module.exports = {
         });
         builtStaticContent.appLibrary = appLibrary;
       },
+      //
+      //  ███████╗ ██████╗██████╗ ██╗██████╗ ████████╗███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔════╝██╔══██╗██║██╔══██╗╚══██╔══╝██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ███████╗██║     ██████╔╝██║██████╔╝   ██║   ███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ╚════██║██║     ██╔══██╗██║██╔═══╝    ██║   ╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ███████║╚██████╗██║  ██║██║██║        ██║   ███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝        ╚═╝   ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //
+      async()=>{
+        let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'docs/scripts.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let scripts = YAML.parse(yaml, {prettyErrors: true});
+        let scriptsLibrary = [];
+        let scriptSlugsSeen = [];
+
+        for(let script of scripts) {
+          if(!script.name) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script}) is missing a "name" value. To resolve, add a name to this script, and try running this script again.`);
+          }
+
+          if(!script.description) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a description value. To resolve, add a description to this script and try running this script again.`);
+          }
+
+          if(!script.platform) {
+            throw new Error('missing platform', script);
+          } else if(!['windows', 'macos', 'linux'].includes(script.platform)){
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) has an unsupported platform value (${script.platform}). To resolve, change the platform value to be 'windows', 'macos', or 'linux'`);
+          }
+
+          if(!script.script) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a script value. To resolve, add a script value and try running this script again.`);
+          }
+
+          // Format the script so it be safely stored as a string in the website's JSON configuration.
+          script.script = _.escape(script.script);
+
+          // Create a url slug for this script
+          script.slug = _.kebabCase(script.platform+' '+script.name);// ex: macos-collect-fleetd-logs
+
+          // Throw an error if there are any duplicate slugs.
+          if(scriptSlugsSeen.includes(script.slug)){
+            throw new Error(`Could not build script library configuration from YAML: scripts as currently named would result in colliding (duplicate) slugs (${script.slug}).  To resolve, rename the ${script.name} script`);
+          }
+          scriptSlugsSeen.push(script.slug);
+
+          scriptsLibrary.push(script);
+        }
+        builtStaticContent.scripts = scriptsLibrary;
+        builtStaticContent.scriptsLibraryYmlRepoPath = RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO;
+      },
+      //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //   ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      async()=>{
+        let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'docs/mdm-commands.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
+        let mdmCommands = YAML.parse(yaml, {prettyErrors: true});
+
+        let mdmCommandsLibrary = [];
+        let commandSlugsSeen = [];
+
+        for(let command of mdmCommands) {
+          if(!command.name) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command}) is missing a "name" value. To resolve, add a name to this command, and try running this script again.`);
+          }
+          if(!command.platform) {
+            throw new Error('missing platform', command);
+          } else if(!['windows', 'apple'].includes(command.platform)){
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an unsupported platform value. To resolve, change the platform value to be either 'windows' or 'apple'`);
+          }
+          if(!command.description) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a description value. To resolve, add a description to this command and try running this script again.`);
+          }
+          if(!command.supportedDeviceTypes) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a supportedDeviceTypes value. To resolve, add a supportedDeviceTypes that contains a list of all operating systems that support this command and try running this script again.`);
+          } else if(!_.isArray(command.supportedDeviceTypes)) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an invalid supportedDeviceTypes value. To resolve, change the supportedDeviceTypes value to be an array of all operating systems that support this command and try running this script again.`);
+          }
+          if(!command.command) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a command value. To resolve, add a command that contains an XML (for Windows commands) or plist (for Apple commands) MDM command, and try running this script again.`);
+          }
+
+          // Determine the line in the yaml that this command starts on.
+          // this will allow us to link users directly to the commands position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithThisCommandsNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+command.name);
+          });
+          let lineNumberForEdittingThisCommand = linesInYamlFile.indexOf(lineWithThisCommandsNameKey) + 1;
+          command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
+
+
+          command.command = _.escape(command.command);
+          command.description = _.escape(command.description);
+          // Create a url slug for this script
+          command.slug = _.kebabCase(command.platform+' '+command.name);
+
+          // Throw an error if there are any duplicate slugs.
+          if(commandSlugsSeen.includes(command.slug)){
+            throw new Error(`Could not build MDM command library configuration from YAML: commands as currently named would result in colliding (duplicate) slugs.  To resolve, rename the ${command.name} (platform: ${command.platform}) command`);
+          }
+          commandSlugsSeen.push(command.slug);
+
+          mdmCommandsLibrary.push(command);
+        }
+        builtStaticContent.mdmCommands = mdmCommandsLibrary;
+        builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
+      }
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗

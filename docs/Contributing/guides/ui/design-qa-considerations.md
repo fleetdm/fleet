@@ -5,6 +5,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 ## fleetd and Fleet Desktop
 - Fleet Free and Fleet Premium
 - Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
+- If there's a new SwiftDialog version, test the new Mac setup and MDM migration flow and verify that there's no regressions.
 
 ## User
 
