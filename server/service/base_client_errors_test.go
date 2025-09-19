@@ -24,6 +24,11 @@ func TestExtractServerErrorText(t *testing.T) {
 			expected: "server returned HTML instead of JSON response",
 		},
 		{
+			name:     "HTML with uppercase tags",
+			body:     `<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY>Server Error</BODY></HTML>`,
+			expected: "server returned HTML instead of JSON response",
+		},
+		{
 			name:     "plain text error",
 			body:     "Connection refused",
 			expected: "Connection refused",

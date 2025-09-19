@@ -109,10 +109,6 @@ type serverError struct {
 // truncateAndDetectHTML truncates a response body to a reasonable length and
 // detects if it's HTML content. Returns the truncated body and whether it's HTML.
 func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bool) {
-	// Check for HTML markers in the byte slice directly
-	isHTML = bytes.Contains(body, []byte("<html")) || bytes.Contains(body, []byte("<!DOCTYPE"))
-
-	// Return truncated byte slice
 	if len(body) > maxLen {
 		// Use append which is more idiomatic and efficient
 		truncated = append([]byte(nil), body[:maxLen]...)
@@ -122,7 +118,10 @@ func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bo
 		// converted to string soon anyway and won't hold a large underlying array
 		truncated = body
 	}
+	lowerPrefix := bytes.ToLower(truncated)
+	isHTML = bytes.Contains(lowerPrefix, []byte("<html")) || bytes.Contains(lowerPrefix, []byte("<!doctype"))
 
+	// Return truncated byte slice
 	return truncated, isHTML
 }
 
