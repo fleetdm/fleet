@@ -500,9 +500,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.digicert: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		ca.URL = fleet.Preprocess(ca.URL)
-		ca.ProfileID = fleet.Preprocess(ca.ProfileID)
+		ca.Preprocess()
+
 		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
 			return nil, err
 		}
@@ -512,7 +511,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
+		ca.Preprocess()
+
 		if err := checkAllNames(ca.Name, "custom_scep_proxy", "Custom SCEP Proxy"); err != nil {
 			return nil, err
 		}
@@ -522,8 +522,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.hydrant: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		ca.URL = fleet.Preprocess(ca.URL)
+		ca.Preprocess()
+
 		if err := checkAllNames(ca.Name, "hydrant", "Hydrant"); err != nil {
 			return nil, err
 		}
@@ -533,17 +533,9 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		if ca.Name == "" {
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.smallstep: CA name cannot be empty.")
 		}
-		ca.Name = fleet.Preprocess(ca.Name)
-		ca.URL = fleet.Preprocess(ca.URL)
-		ca.ChallengeURL = fleet.Preprocess(ca.ChallengeURL)
-		ca.Username = fleet.Preprocess(ca.Username)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "smallstep" {
-				return nil, fmtDuplicateCANameError(ca.Name, "smallstep")
-			}
-		}
-		if err := checkAllNames(ca.Name, "smallstep"); err != nil {
+		ca.Preprocess()
+
+		if err := checkAllNames(ca.Name, "smallstep", "Smallstep"); err != nil {
 			return nil, err
 		}
 	}
@@ -1316,10 +1308,10 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		if err := validateURL(*smallstep.URL, "SCEP", errPrefix); err != nil {
 			return err
 		}
-		/* if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
+		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
-		} */
+		}
 	}
 	if smallstep.ChallengeURL != nil {
 		if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
