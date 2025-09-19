@@ -505,6 +505,7 @@ $max-width: 2560px;
   }
 }
 
+// Caution: LinkCell depends on this to have animation only under text and not icons etc
 @mixin animated-bottom-border(
   $active-color: $core-fleet-black,
   $inactive-color: $ui-fleet-black-25

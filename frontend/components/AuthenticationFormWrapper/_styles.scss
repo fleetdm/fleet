@@ -9,13 +9,14 @@
   @include gradient-background;
 
   &__card {
+    @include card;
     width: 470px;
   }
 
   &__header-container {
     display: flex;
     align-items: center;
-    margin-bottom: $pad-medium;
+    padding-bottom: $pad-medium;
     border-bottom: 1px solid $ui-fleet-black-10;
   }
 

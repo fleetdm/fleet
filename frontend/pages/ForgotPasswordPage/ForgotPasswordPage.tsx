@@ -9,7 +9,6 @@ import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
 // @ts-ignore
 import AuthenticationNav from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
-import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 
 interface IForgotPasswordPage {
@@ -45,9 +44,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
   };
 
   const renderContent = () => {
-    if (isLoading) {
-      return <Spinner />;
-    } else if (email) {
+    if (email) {
       return (
         <div className={`${baseClass}__text-wrapper`}>
           <p className={`${baseClass}__text`}>
@@ -73,6 +70,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
         handleSubmit={handleSubmit}
         onChangeFunc={() => setErrors({})}
         serverErrors={errors}
+        isLoading={isLoading}
       />
     );
   };
@@ -83,6 +81,7 @@ const ForgotPasswordPage = ({ router }: IForgotPasswordPage) => {
       headerCta={
         <AuthenticationNav previousLocation={PATHS.LOGIN} router={router} />
       }
+      className={baseClass}
     >
       {renderContent()}
     </AuthenticationFormWrapper>

@@ -94,7 +94,7 @@ form,
 
   .button-wrap {
     margin: 0;
-    margin-top: $pad-medium; // 24px gap between form fields + this additional 16px = style-guide specified 40px between form submit and above field
+    margin-top: $pad-small; // 16px gap between form fields + this additional 8px = style-guide specified 24px between form submit and above field
     display: flex;
     gap: $pad-medium;
   }

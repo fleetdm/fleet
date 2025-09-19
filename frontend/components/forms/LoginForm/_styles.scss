@@ -1,4 +1,6 @@
 .login-form {
+  gap: $gap-page-component; // 24px between buttons and form
+
   &--hidden {
     opacity: 0;
   }

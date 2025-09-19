@@ -42,11 +42,17 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
   }, [onBackToLogin]);
 
   return (
-    <AuthenticationFormWrapper header="Access denied">
-      <AuthenticationNav router={router} />
-      <>
-        <p>This account does not currently have access to Fleet.</p>
+    <AuthenticationFormWrapper
+      header="Access denied"
+      headerCta={
+        <AuthenticationNav router={router} previousLocation={PATHS.LOGIN} />
+      }
+      className={baseClass}
+    >
+      <div className={`${baseClass}__description`}>
         <p>
+          This account does not currently have access to Fleet.
+          <br />
           To get access,{" "}
           <CustomLink
             url={orgContactUrl || CONTACT_FLEET_LINK}
@@ -54,10 +60,10 @@ const NoAccessPage = ({ router, orgContactUrl }: INoAccessPageProps) => {
           />
           .
         </p>
-        <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
-          Back to login
-        </Button>
-      </>
+      </div>
+      <Button onClick={onBackToLogin} className={`${baseClass}__btn`}>
+        Back to login
+      </Button>
     </AuthenticationFormWrapper>
   );
 };

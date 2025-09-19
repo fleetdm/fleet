@@ -302,7 +302,7 @@ $shadow-transition-width: 10px;
           }
         }
 
-        // Caution: LinkCell depends on this to have animation on text only
+        // Caution: LinkCell depends on this to have animation only under text and not icons etc
         .link-cell {
           display: inline-block; // Underline only words
           overflow: visible;
