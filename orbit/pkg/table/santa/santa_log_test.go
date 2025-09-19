@@ -1,4 +1,6 @@
-// santa_extract_values_test.go
+//go:build darwin
+// +build darwin
+
 package santa
 
 import (
