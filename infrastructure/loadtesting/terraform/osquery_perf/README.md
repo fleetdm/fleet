@@ -9,7 +9,7 @@ Although deployments through the github action should be prioritized, for manual
 - Docker
 - Go
 
-# Deploy with Github Actions
+# Deploy with Github Actions (Coming Soon)
 
 1. [Navigate to the github action](https://github.com/fleetdm/fleet/actions/workflows/loadtest-osquery-perf.yml)
 
@@ -123,7 +123,7 @@ terraform workspace delete <workspace_name>
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | internal-lb-support |
+| <a name="module_osquery_perf"></a> [osquery\_perf](#module\_osquery\_perf) | github.com/fleetdm/fleet-terraform//addons/osquery-perf | tf-mod-addon-osquery-perf-v1.2.0 |
 
 ## Resources
 

@@ -89,8 +89,35 @@ jobs:
       - name: Terraform workspace
         id: workspace
         run: |
-          terraform workspace new ${{ input.terraform_workspace }}
-          terraform workspace select ${{ inputs.terraform_workspace }}
+          if terraform workspace list | grep -q ${{ input.terraform_workspace }};
+          then
+            echo "MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            
+            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" || ${{ input.terraform_action }} = "destroy" ]];
+            then
+              terraform workspace select ${{ input.terraform_workspace }}
+              
+              if [[ $(echo $?) = "0" ]];
+              then
+                echo "WORKSPACE CHANGED TO ${{ input.terraform_workspace }}\n"
+              fi
+            fi
+          else
+            echo "NO MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            
+            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" ]];
+            then
+              echo "CREATING NEW TERRAFORM WORKSPACE: ${{ input.terraform_workspace }}"
+              terraform workspace new ${{ input.terraform_workspace }}
+              
+              if [[ $(echo $?) = "0" ]];
+              then
+                echo "TERRAFORM WORKSPACE: SUCCESSFULLY CREATED"
+              else
+                echo "TERRAFORM WORKSPACE: ERROR CREATING"
+              fi
+            fi
+          fi
         continue-on-error: true
       - name: Terraform fmt
         id: fmt
@@ -101,13 +128,77 @@ jobs:
         run: terraform validate -no-color
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color
+        run: |
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            terraform plan -no-color
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi
         continue-on-error: true
       - name: Terraform Apply
         if: inputs.terraform_action == 'apply'
         id: apply
-        run: terraform apply -auto-approve
+        run: |
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            terraform apply -auto-approve
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi
       - name: Terraform Destroy
         if: inputs.terraform_action == 'destroy'
         id: destroy
-        run: terraform destroy -auto-approve
+        run: | 
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            if [[ ${{ input.terraform_action }} = "destroy" ]];  
+            then
+              if [[ $(terraform state list | wc -l) -gt 0 ]];
+              then
+                echo "RESOURCES DETECTED IN TERRAFORM STATE FILE"
+                echo "TERRAFORM DESTROY: STARTED"
+                terraform destroy -auto-approve
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM DESTROY: SUCCESSFUL\n"
+                  TERRAFORM_DELETE_STATUS="complete"
+                else
+                  echo "TERRAFORM DESTROY: ERROR\n"
+                  TERRAFORM_DELETE_STATUS="error"
+                fi
+              else
+                echo "NO RESOURCES DETECTED IN TERRAFORM STATE FILE"
+                TERRAFORM_DELETE_STATUS="complete"
+              fi
+              
+              if [[ $TERRAFORM_DELETE_STATUS = "complete" ]];
+              then
+                echo "SETTING WORKSPACE TO DEFAULT"
+                terraform workspace select default
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM WORKSPACE: SUCCESSFULLY SELECTING DEFAULT\n"
+                else
+                  echo "TERRAFORM WORKSPACE: ERROR SELECTING DEFAULT\n"
+                fi
+
+                echo "REMOVING TERRAFORM WORKSPACE: ${{ input.terraform_workspace }}"
+                terraform workspace delete ${{ input.terraform_workspace }}
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM WORKSPACE: SUCCESSFULLY DELETED\n"
+                else
+                  echo "TERRAFORM WORKSPACE: ERROR DELETING\n"
+                fi
+              fi
+            fi
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi

@@ -12,12 +12,12 @@ variable "git_branch" {
 
 variable "loadtest_containers" {
   description = "Number of loadtest containers to deploy"
-  type = number
-  default = 1
+  type        = number
+  default     = 1
 }
 
 variable "extra_flags" {
   description = "Comma delimited list (string) for passing extra flags to osquery-perf containers"
-  type = list(string)
-  default = ["--orbit_prob", "0.0"]
+  type        = list(string)
+  default     = ["--orbit_prob", "0.0"]
 }

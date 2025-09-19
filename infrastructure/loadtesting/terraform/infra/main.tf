@@ -247,7 +247,7 @@ module "logging_alb" {
 
 module "logging_firehose" {
   source = "github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.2.4"
-  prefix = "${local.customer}-"
+  prefix = "${local.customer}"
   osquery_results_s3_bucket = {
     name         = "${local.customer}-osquery-results-firehose-policy"
     expires_days = 1

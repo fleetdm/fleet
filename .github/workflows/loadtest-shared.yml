@@ -3,10 +3,6 @@ name: Deploy Loadtest - Shared
 on:
   workflow_dispatch:
     inputs:
-      terraform_workspace:
-        description: "Terraform workspace that you will be deploying to"
-        type: string
-        required: true
       terraform_action:
         description: Dry run only? No "terraform apply"
         type: choice
@@ -65,12 +61,6 @@ jobs:
       - name: Terraform Init
         id: init
         run: terraform init
-      - name: Terraform workspace
-        id: workspace
-        run: |
-          terraform workspace new ${{ input.terraform_workspace }}
-          terraform workspace select ${{ inputs.terraform_workspace }}
-        continue-on-error: true
       - name: Terraform fmt
         id: fmt
         run: terraform fmt -check

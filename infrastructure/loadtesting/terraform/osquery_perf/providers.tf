@@ -16,7 +16,7 @@ terraform {
   backend "s3" {
     bucket               = "fleet-terraform-state20220408141538466600000002"
     key                  = "loadtesting/loadtesting/osqp/terraform.tfstate" # This should be set to account_alias/unique_key/terraform.tfstate
-    workspace_key_prefix = "loadtesting"                               # This should be set to the account alias
+    workspace_key_prefix = "loadtesting"                                    # This should be set to the account alias
     region               = "us-east-2"
     encrypt              = true
     kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
@@ -40,12 +40,12 @@ provider "aws" {
 }
 
 data "terraform_remote_state" "infra" {
-  backend = "s3"
+  backend   = "s3"
   workspace = terraform.workspace
   config = {
     bucket               = "fleet-terraform-state20220408141538466600000002"
     key                  = "loadtesting/loadtesting/terraform.tfstate" # This should be set to account_alias/unique_key/terraform.tfstate
-    workspace_key_prefix = "loadtesting"                                      # This should be set to the account alias
+    workspace_key_prefix = "loadtesting"                               # This should be set to the account alias
     region               = "us-east-2"
     encrypt              = true
     kms_key_id           = "9f98a443-ffd7-4dbe-a9c3-37df89b2e42a"
