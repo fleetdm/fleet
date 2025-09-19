@@ -35,6 +35,9 @@
   &__empty {
     @include tab-empty-state;
   }
+  .react-tabs__tab-list {
+    margin-bottom: $pad-large;
+  }
 
   .paginated-list .loading-overlay {
     position: initial;
