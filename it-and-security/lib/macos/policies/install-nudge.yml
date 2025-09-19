@@ -8,3 +8,5 @@
   install_software:
     package_path: ../software/nudge-assets.yml
   platform: darwin
+  labels_include_any:
+    - "Nudge test devices"
