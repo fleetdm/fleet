@@ -167,7 +167,7 @@ $max-width: 2560px;
     outline-color: $core-focused-outline;
     outline-offset: 3px;
     outline-style: solid;
-    outline-width: 2px;
+    outline-width: 1px;
     border-radius: 2px;
   }
 }
@@ -246,14 +246,30 @@ $max-width: 2560px;
   }
 }
 
-@mixin flex-column-1rem-gap {
+@mixin flex-column-16px-gap {
   display: flex;
   flex-direction: column;
-  gap: $pad-medium;
+  gap: $gap-form;
+}
+
+@mixin flex-column-24px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-page-component;
 }
 
 @mixin page {
-  @include flex-column-1rem-gap;
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any card level styling we need
+@mixin card {
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any tab level styling we need
+@mixin page-tab-panel {
+  @include flex-column-24px-gap;
 }
 
 @mixin form-button-extra-clickable-area-compensation {
@@ -310,7 +326,7 @@ $max-width: 2560px;
 
         // When tabbing
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-fleet-black;
           outline-offset: 1px;
           border-radius: 4px;
         }
@@ -414,14 +430,14 @@ $max-width: 2560px;
     align-items: center;
     height: 100%;
     padding: 0 16px;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     font-weight: $regular;
     text-decoration: none;
     border-bottom: none;
     cursor: pointer;
 
     &:hover {
-      color: $core-vibrant-blue;
+      color: $ui-fleet-black-75-over;
     }
   }
 
@@ -429,7 +445,7 @@ $max-width: 2560px;
     background-color: $ui-fleet-black-5;
     a {
       font-weight: $bold;
-      color: $ui-fleet-black-75;
+      color: $core-fleet-black;
       * > .__react_component_tooltip {
         font-weight: initial;
       }
@@ -490,6 +506,7 @@ $max-width: 2560px;
   }
 }
 
+// Caution: LinkCell depends on this to have animation only under text and not icons etc
 @mixin animated-bottom-border(
   $active-color: $core-fleet-black,
   $inactive-color: $ui-fleet-black-25
