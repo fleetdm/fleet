@@ -13,13 +13,13 @@ module "s3_bucket_for_logs" {
   attach_require_latest_tls_policy      = true
   # attach_policy                         = var.extra_s3_log_policies != []
   # policy                                = var.extra_s3_log_policies != [] ? data.aws_iam_policy_document.s3_log_bucket[0].json : null
-  block_public_acls                     = true
-  block_public_policy                   = true
-  ignore_public_acls                    = true
-  restrict_public_buckets               = true
-  acl                                   = "private"
-  control_object_ownership              = true
-  object_ownership                      = "ObjectWriter"
+  block_public_acls        = true
+  block_public_policy      = true
+  ignore_public_acls       = true
+  restrict_public_buckets  = true
+  acl                      = "private"
+  control_object_ownership = true
+  object_ownership         = "ObjectWriter"
 
   server_side_encryption_configuration = {
     rule = {
@@ -68,10 +68,10 @@ module "athena-s3-bucket" {
   attach_require_latest_tls_policy      = true
   # attach_policy                         = var.extra_s3_athena_policies != []
   # policy                                = var.extra_s3_athena_policies != [] ? data.aws_iam_policy_document.s3_athena_bucket[0].json : null
-  block_public_acls                     = true
-  block_public_policy                   = true
-  ignore_public_acls                    = true
-  restrict_public_buckets               = true
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
   server_side_encryption_configuration = {
     rule = {
       bucket_key_enabled = true
@@ -110,7 +110,7 @@ resource "aws_athena_database" "logs" {
 }
 
 resource "aws_athena_workgroup" "logs" {
-  name  = "fleet-loadtesting-logs"
+  name = "fleet-loadtesting-logs"
 
   configuration {
     enforce_workgroup_configuration    = true
