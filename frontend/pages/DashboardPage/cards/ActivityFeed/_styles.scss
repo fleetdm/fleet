@@ -1,7 +1,6 @@
 .activity-feed {
-  margin-top: $pad-large;
-  display: flex;
-  flex-direction: column;
+  @include card;
+
   position: relative;
   min-height: 500px;
 

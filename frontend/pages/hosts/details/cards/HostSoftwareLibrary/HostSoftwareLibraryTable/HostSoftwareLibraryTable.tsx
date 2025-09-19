@@ -204,6 +204,7 @@ const HostSoftwareLibraryTable = ({
         defaultSearchQuery={searchQuery}
         pageIndex={page}
         disableNextPage={data?.meta.has_next_results === false}
+        hideFooter={page === 0 && data?.meta.has_next_results === false}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
         onQueryChange={onQueryChange}

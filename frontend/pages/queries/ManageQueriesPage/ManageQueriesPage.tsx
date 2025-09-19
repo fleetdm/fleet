@@ -403,41 +403,41 @@ const ManageQueriesPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
-          </div>
-
-          {canCustomQuery && (
-            <div className={`${baseClass}__action-button-container`}>
-              {(isGlobalAdmin || isTeamAdmin) &&
-                !!queriesAvailableToAutomate.length && (
+            {canCustomQuery && (
+              <div className={`${baseClass}__action-button-container`}>
+                {(isGlobalAdmin || isTeamAdmin) &&
+                  !!queriesAvailableToAutomate.length && (
+                    <Button
+                      onClick={onManageAutomationsClick}
+                      className={`${baseClass}__manage-automations button`}
+                      variant="inverse"
+                    >
+                      Manage automations
+                    </Button>
+                  )}
+                {canCustomQuery && (
                   <Button
-                    onClick={onManageAutomationsClick}
-                    className={`${baseClass}__manage-automations button`}
-                    variant="inverse"
+                    className={`${baseClass}__create-button`}
+                    onClick={onCreateQueryClick}
                   >
-                    Manage automations
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 )}
-              {canCustomQuery && (
-                <Button
-                  className={`${baseClass}__create-button`}
-                  onClick={onCreateQueryClick}
-                >
-                  {isObserverPlus ? "Live query" : "Add query"}
-                </Button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+
+          <PageDescription content={dropdownHelpText} />
         </div>
-        <PageDescription content={dropdownHelpText} />
         {renderQueriesTable()}
         {renderModals()}
-      </div>
+      </>
     </MainContent>
   );
 };

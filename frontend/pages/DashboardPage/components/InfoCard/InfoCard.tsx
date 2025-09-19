@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
+import Card from "components/Card";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
@@ -99,9 +100,9 @@ const useInfoCard = ({
   });
 
   return (
-    <div className={baseClass}>
+    <Card className={baseClass} paddingSize="xlarge" borderRadiusSize="large">
       {showTitle && (
-        <>
+        <div>
           <div className={`${baseClass}__section-title-cta`}>
             <div className={`${baseClass}__section-title-group`}>
               <div className={`${baseClass}__section-title`}>
@@ -121,10 +122,10 @@ const useInfoCard = ({
           <div className={`${baseClass}__section-description`}>
             {description}
           </div>
-        </>
+        </div>
       )}
       {clonedChildren}
-    </div>
+    </Card>
   );
 };
 

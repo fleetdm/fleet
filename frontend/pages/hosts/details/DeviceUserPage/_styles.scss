@@ -29,7 +29,7 @@
 
   &__details-panel {
     display: grid;
-    gap: $pad-medium;
+    gap: $gap-page-component-inner;
     // this gives a single column grid layout for the details panel content
     // at smaller screen widths
     grid-template-columns: minmax(0, 1fr);
@@ -67,7 +67,11 @@
     }
   }
 
-  .policies-card .data-table-block .data-table__table thead .response__header {
+  .host-policies-card
+    .data-table-block
+    .data-table__table
+    thead
+    .response__header {
     width: $col-md;
   }
 }

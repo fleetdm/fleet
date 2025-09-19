@@ -1,14 +1,10 @@
 .dashboard-info-card {
-  padding: 32px;
-  width: 100%;
-  background-color: $core-fleet-white;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: 8px;
-  box-sizing: border-box;
+  @include card;
 
   &__section-title-cta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     h2 {
       font-weight: $bold;
