@@ -3,9 +3,9 @@
   // No background color as TabNav is often over a background gradient
 
   .react-tabs {
-    // Remove 8px top margin react-tab adds causing buggy 8px gap in all uses
+    // Remove 12px top margin react-tab adds causing buggy 12px gap in all uses
     // TODO: Find upstream fix
-    margin-top: -8px;
+    margin-top: -12px;
 
     &__tab-list {
       display: inline-flex;
@@ -13,7 +13,7 @@
       gap: $pad-medium;
       border-bottom: none;
       width: 100%;
-      height: 43px;
+      height: 33px;
       margin: 0; // Override react-tab 10px bottom margin
       position: relative; // Required for shift left
     }
@@ -106,6 +106,7 @@
       &__tab-list {
         gap: $pad-xxlarge;
         border-bottom: 1px solid $ui-fleet-black-10;
+        padding-bottom: 10px;
       }
 
       &__tab {
