@@ -85,9 +85,9 @@ func (bc *baseClient) parseResponse(verb, path string, response *http.Response, 
 				truncatedBytes, isHTML := truncateAndDetectHTML(b, maxBodyLen)
 
 				if isHTML {
-					return fmt.Errorf("decode %s %s response: %w (server returned HTML instead of JSON)", verb, path, err)
+					return fmt.Errorf("decode %s %s response: %w, (server returned HTML instead of JSON), body: %s", verb, path, err, truncatedBytes)
 				}
-				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, string(truncatedBytes))
+				return fmt.Errorf("decode %s %s response: %w, body: %s", verb, path, err, truncatedBytes)
 			}
 			if e, ok := responseDest.(fleet.Errorer); ok {
 				if e.Error() != nil {
