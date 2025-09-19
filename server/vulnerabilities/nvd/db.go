@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS cpe_2 (
     product TEXT,
     version TEXT,
     target_sw TEXT,
+    sw_edition TEST,
     deprecated BOOLEAN DEFAULT FALSE
 );
 CREATE VIEW IF NOT EXISTS cpe AS
@@ -54,6 +55,7 @@ CREATE INDEX IF NOT EXISTS idx_cpe_2_vendor ON cpe_2 (vendor);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_product ON cpe_2 (product);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_version ON cpe_2 (version);
 CREATE INDEX IF NOT EXISTS idx_cpe_2_target_sw ON cpe_2 (target_sw);
+CREATE INDEX IF NOT EXISTS idx_cpe_2_sw_edition ON cpe_2 (sw_edition);
 CREATE INDEX IF NOT EXISTS idx_deprecated_by ON deprecated_by (cpe23);
 `)
 	return err
@@ -69,8 +71,9 @@ func generateCPEItem(item cpedict.CPEItem) ([]interface{}, map[string]string, er
 	product := wfn.StripSlashes(item.CPE23.Name.Product)
 	version := wfn.StripSlashes(item.CPE23.Name.Version)
 	targetSW := wfn.StripSlashes(item.CPE23.Name.TargetSW)
+	SWEdition := wfn.StripSlashes(item.CPE23.Name.SWEdition)
 
-	cpes = append(cpes, cpe23, title, vendor, product, version, targetSW, item.Deprecated)
+	cpes = append(cpes, cpe23, title, vendor, product, version, targetSW, SWEdition, item.Deprecated)
 
 	if item.CPE23.Deprecation != nil {
 		for _, deprecatedBy := range item.CPE23.Deprecation.DeprecatedBy {
@@ -165,7 +168,7 @@ func bulkInsertDeprecations(deprecationsCount int, db *sqlx.DB, allDeprecations 
 }
 
 func bulkInsertCPEs(cpesCount int, db *sqlx.DB, allCPEs []interface{}) error {
-	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?), ", cpesCount), ", ")
+	values := strings.TrimSuffix(strings.Repeat("(?, ?, ?, ?, ?, ?, ?, ?), ", cpesCount), ", ")
 	_, err := db.Exec(
 		fmt.Sprintf(`
 INSERT INTO cpe_2 (
@@ -175,6 +178,7 @@ INSERT INTO cpe_2 (
 	product,
 	version,
 	target_sw,
+	sw_edition,
 	deprecated
 )
 VALUES %s`, values),

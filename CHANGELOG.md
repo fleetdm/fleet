@@ -1,3 +1,9 @@
+## Fleet 4.73.1 (Sep 11, 2025)
+
+### Bug fixes
+
+* Changed MDM Enrollment logic so that devices identified as having a Migration deadline by ABM will not run Setup Experience on the next enrollment(the migration) but will on subsequent enrollments.
+
 ## Fleet 4.73.0 (Sep 8, 2025)
 
 ### Security Engineers

@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import {
   createMockHostAppStoreApp,
@@ -284,9 +284,11 @@ describe("HostInstallerActionCell component", () => {
     );
     const btn = screen.getByTestId(`${baseClass}__install-button--test`);
     await user.hover(btn);
-    expect(
-      screen.getByText(/To install, turn on MDM for this host/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/To install, turn on MDM for this host/)
+      ).toBeInTheDocument();
+    });
   });
 
   it('renders correct retry/reinstall for "failed_install" with installed_versions', () => {

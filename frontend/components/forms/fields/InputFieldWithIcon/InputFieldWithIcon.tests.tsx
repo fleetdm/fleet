@@ -1,6 +1,7 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithSetup } from "test/test-utils";
 // @ts-ignore
 import InputFieldWithIcon from "./InputFieldWithIcon";
 
@@ -111,7 +112,7 @@ describe("InputFieldWithIcon Component", () => {
   });
 
   test("renders tooltip when provided", async () => {
-    render(
+    const { user } = renderWithSetup(
       <InputFieldWithIcon
         value=""
         onChange={mockOnChange}
@@ -122,8 +123,10 @@ describe("InputFieldWithIcon Component", () => {
       />
     );
 
-    await fireEvent.mouseEnter(screen.getByText(/test input/i));
-    const tooltip = screen.getByText("This is a tooltip.");
-    expect(tooltip).toBeInTheDocument();
+    await user.hover(screen.getByText(/test input/i));
+    await waitFor(() => {
+      const tooltip = screen.getByText("This is a tooltip.");
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 });

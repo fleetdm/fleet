@@ -15,8 +15,8 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon";
-import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import { isSafeImagePreviewUrl } from "pages/SoftwarePage/helpers";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 import SoftwareIcon from "../../icons/SoftwareIcon";
 import OSIcon from "../../icons/OSIcon";
@@ -103,7 +103,15 @@ const SoftwareDetailsSummary = ({
         )}
         <dl className={`${baseClass}__info`}>
           <h1>
-            {title}
+            {title === "Arch Linux rolling" ||
+            title === "Arch Linux ARM rolling" ? (
+              <span>
+                {title.slice(0, -7 /* removing lowercase rolling suffix */)}
+                <TooltipWrapperArchLinuxRolling />
+              </span>
+            ) : (
+              title
+            )}
             {onClickEditIcon && (
               <div className={`${baseClass}__edit-icon`}>
                 <Button

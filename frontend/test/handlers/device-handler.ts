@@ -79,6 +79,7 @@ export const defaultDeviceCertificatesHandler = http.get(
         has_next_results: false,
         has_previous_results: false,
       },
+      count: 1,
     });
   }
 );

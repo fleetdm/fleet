@@ -216,6 +216,7 @@ export interface IGetHostCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export type ILoadHostDetailsExtension = "macadmins";

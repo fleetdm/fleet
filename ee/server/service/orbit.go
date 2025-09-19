@@ -22,7 +22,8 @@ func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNode
 		return nil, err
 	}
 
-	if fleet.IsLinux(host.Platform) {
+	if fleet.IsLinux(host.Platform) || host.Platform == "windows" {
+		// Windows and Linux setup experience only have software.
 		status, err := svc.getHostSetupExperienceStatus(ctx, host)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host setup experience status")

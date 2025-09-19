@@ -1,6 +1,7 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import createMockOsqueryTable from "__mocks__/osqueryTableMock";
 import QuerySidePanel from "./QuerySidePanel";
@@ -51,30 +52,34 @@ describe("QuerySidePanel - component", () => {
     expect(platformList.length).toBe(13); // 2 of 13 columns are set to hidden but still show
   });
   it("renders the hidden column tooltip", async () => {
-    render(
+    const { user } = renderWithSetup(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
         onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
-    await fireEvent.mouseEnter(screen.getByText("type"));
+    await user.hover(screen.getByText("type"));
 
-    const tooltip = screen.getByText(/Not returned in SELECT */i);
-    expect(tooltip).toBeInTheDocument();
+    await waitFor(() => {
+      const tooltip = screen.getByText(/Not returned in SELECT */i);
+      expect(tooltip).toBeInTheDocument();
+    });
   });
   it("renders the platform specific column tooltip", async () => {
-    render(
+    const { user } = renderWithSetup(
       <QuerySidePanel
         selectedOsqueryTable={createMockOsqueryTable()}
         onOsqueryTableSelect={() => noop}
         onClose={noop}
       />
     );
-    await fireEvent.mouseEnter(screen.getByText("email"));
+    await user.hover(screen.getByText("email"));
 
-    const tooltip = screen.getByText(/only available on chrome/i);
-    expect(tooltip).toBeInTheDocument();
+    await waitFor(() => {
+      const tooltip = screen.getByText(/only available on chrome/i);
+      expect(tooltip).toBeInTheDocument();
+    });
   });
 
   it("render an example", () => {

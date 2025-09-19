@@ -16,6 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ReloadInterval reloads and returns a new interval.
@@ -188,7 +191,7 @@ func New(
 //
 // All jobs must be added before calling Start.
 func (s *Schedule) Start() {
-	prevScheduledRun, _, err := s.GetLatestStats()
+	prevScheduledRun, _, err := s.GetLatestStats(s.ctx)
 	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
 		ctxerr.Handle(s.ctx, err)
@@ -218,7 +221,7 @@ func (s *Schedule) Start() {
 	g.Add(+1)
 	go func() {
 		defer func() {
-			s.releaseLock()
+			s.releaseLock(s.ctx)
 			g.Done()
 		}()
 
@@ -232,20 +235,28 @@ func (s *Schedule) Start() {
 				return
 
 			case <-s.trigger:
+				// Create a root span for the entire triggered execution
+				ctx, span := startRootSpan(s.ctx, "cron.triggered."+s.name,
+					attribute.String("cron.name", s.name),
+					attribute.String("cron.instance", s.instanceID),
+					attribute.String("cron.type", "triggered"),
+				)
+
 				level.Debug(s.logger).Log("msg", "done, trigger received")
 
-				ok, cancelHold := s.holdLock()
+				ok, cancelHold := s.holdLock(ctx)
 				if !ok {
 					level.Debug(s.logger).Log("msg", "unable to acquire lock")
+					span.End()
 					continue
 				}
 
-				s.runWithStats(fleet.CronStatsTypeTriggered)
+				s.runWithStats(ctx, fleet.CronStatsTypeTriggered)
 
-				prevScheduledRun, _, err := s.GetLatestStats()
+				prevScheduledRun, _, err := s.GetLatestStats(ctx)
 				if err != nil {
 					level.Error(s.logger).Log("err", "trigger get cron stats", "details", err)
-					ctxerr.Handle(s.ctx, err)
+					ctxerr.Handle(ctx, err)
 				}
 
 				clearScheduleChannels(s.trigger, schedTicker.C) // in case another signal arrived during this run
@@ -268,18 +279,27 @@ func (s *Schedule) Start() {
 				}
 
 				cancelHold()
+				span.End()
 
 			case <-schedTicker.C:
+				// Create a root span for the entire scheduled tick processing
+				ctx, span := startRootSpan(s.ctx, "cron.scheduled_tick."+s.name,
+					attribute.String("cron.name", s.name),
+					attribute.String("cron.instance", s.instanceID),
+					attribute.String("cron.type", "scheduled_tick"),
+				)
+
 				level.Debug(s.logger).Log("msg", "done, tick received")
 
 				schedInterval := s.getSchedInterval()
 
-				prevScheduledRun, prevTriggeredRun, err := s.GetLatestStats()
+				prevScheduledRun, prevTriggeredRun, err := s.GetLatestStats(ctx)
 				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
-					ctxerr.Handle(s.ctx, err)
+					ctxerr.Handle(ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -287,6 +307,7 @@ func (s *Schedule) Start() {
 					// skip ahead to the next interval
 					level.Info(s.logger).Log("msg", fmt.Sprintf("pending job might still be running, wait %v", schedInterval))
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
@@ -303,6 +324,7 @@ func (s *Schedule) Start() {
 					newWait := s.getRemainingInterval(intervalStartedAt) + 100*time.Millisecond
 					level.Info(s.logger).Log("msg", fmt.Sprintf("wait remaining interval %v", newWait))
 					schedTicker.Reset(newWait)
+					span.End()
 					continue
 				}
 
@@ -312,20 +334,22 @@ func (s *Schedule) Start() {
 					s.setIntervalStartedAt(newStart)
 					schedTicker.Reset(s.getRemainingInterval(newStart))
 					level.Debug(s.logger).Log("msg", fmt.Sprintf("prior run spanned schedule interval, new wait %v", s.getRemainingInterval(newStart)))
+					span.End()
 					continue
 				}
 
-				ok, cancelHold := s.holdLock()
+				ok, cancelHold := s.holdLock(ctx)
 				if !ok {
 					level.Debug(s.logger).Log("msg", "unable to acquire lock")
 					schedTicker.Reset(schedInterval)
+					span.End()
 					continue
 				}
 
 				newStart := time.Now()
 				s.setIntervalStartedAt(newStart)
 
-				s.runWithStats(fleet.CronStatsTypeScheduled)
+				s.runWithStats(ctx, fleet.CronStatsTypeScheduled)
 
 				// we need to re-synchronize this schedule instance so that the next scheduled run
 				// starts at the beginning of the next full interval
@@ -344,6 +368,7 @@ func (s *Schedule) Start() {
 
 				schedTicker.Reset(s.getRemainingInterval(newStart))
 				cancelHold()
+				span.End()
 			}
 		}
 	}()
@@ -413,7 +438,7 @@ func (s *Schedule) Start() {
 // is blocked or otherwise unavailable to publish the signal. From the caller's perspective, both
 // cases are deemed to be equivalent.
 func (s *Schedule) Trigger() (*fleet.CronStats, error) {
-	sched, trig, err := s.GetLatestStats()
+	sched, trig, err := s.GetLatestStats(s.ctx)
 	switch {
 	case err != nil:
 		return nil, err
@@ -442,33 +467,33 @@ func (s *Schedule) Name() string {
 // runWithStats runs all jobs in the schedule. Prior to starting the run, it creates a
 // record in the database for the provided stats type with "pending" status. After completing the
 // run, the stats record is updated to "completed" status.
-func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
-	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
+func (s *Schedule) runWithStats(ctx context.Context, statsType fleet.CronStatsType) {
+	statsID, err := s.insertStats(ctx, statsType, fleet.CronStatsStatusPending)
 	if err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-		ctxerr.Handle(s.ctx, err)
+		ctxerr.Handle(ctx, err)
 	}
 	level.Info(s.logger).Log("status", "pending")
 
-	s.runAllJobs()
+	s.runAllJobs(ctx)
 
-	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
+	if err := s.updateStats(ctx, statsID, fleet.CronStatsStatusCompleted); err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
-		ctxerr.Handle(s.ctx, err)
+		ctxerr.Handle(ctx, err)
 	}
 	level.Info(s.logger).Log("status", "completed")
 }
 
-// runAllJobs runs all jobs in the schedule.
-func (s *Schedule) runAllJobs() {
+// runAllJobs runs all jobs in the schedule with tracing context.
+func (s *Schedule) runAllJobs(ctx context.Context) {
 	// Clear errors from the schedule before each run.
 	s.errors = make(fleet.CronScheduleErrors)
 	for _, job := range s.jobs {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
-		if err := runJob(s.ctx, job.Fn); err != nil {
+		if err := runJob(ctx, job.Fn); err != nil {
 			s.errors[job.ID] = err
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
-			ctxerr.Handle(s.ctx, err)
+			ctxerr.Handle(ctx, err)
 		}
 	}
 }
@@ -540,11 +565,11 @@ func (s *Schedule) getRemainingInterval(start time.Time) time.Duration {
 	return interval - (time.Since(start) % interval)
 }
 
-func (s *Schedule) acquireLock() bool {
-	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
+func (s *Schedule) acquireLock(ctx context.Context) bool {
+	ok, err := s.locker.Lock(ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
-		ctxerr.Handle(s.ctx, err)
+		ctxerr.Handle(ctx, err)
 		return false
 	}
 	if !ok {
@@ -554,11 +579,11 @@ func (s *Schedule) acquireLock() bool {
 	return true
 }
 
-func (s *Schedule) releaseLock() {
-	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
+func (s *Schedule) releaseLock(ctx context.Context) {
+	err := s.locker.Unlock(ctx, s.getLockName(), s.instanceID)
 	if err != nil {
 		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
-		ctxerr.Handle(s.ctx, err)
+		ctxerr.Handle(ctx, err)
 	}
 }
 
@@ -566,25 +591,25 @@ func (s *Schedule) releaseLock() {
 // goroutine that periodically extends the lock, and it returns `true` along with a
 // context.CancelFunc that will end the goroutine and release the lock. If it is unable to initially
 // acquire a lock, it returns `false, nil`. The maximum duration of the hold is two hours.
-func (s *Schedule) holdLock() (bool, context.CancelFunc) {
-	if ok := s.acquireLock(); !ok {
+func (s *Schedule) holdLock(ctx context.Context) (bool, context.CancelFunc) {
+	if ok := s.acquireLock(ctx); !ok {
 		return false, nil
 	}
 
-	ctx, cancelFn := context.WithCancel(s.ctx)
+	ctxWithCancel, cancelFn := context.WithCancel(ctx)
 
 	go func() {
 		t := time.NewTimer(s.getSchedInterval() * 8 / 10) // hold timer is 80% of schedule interval
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ctxWithCancel.Done():
 				if !t.Stop() {
 					<-t.C
 				}
-				s.releaseLock()
+				s.releaseLock(ctx)
 				return
 			case <-t.C:
-				s.acquireLock()
+				s.acquireLock(ctx)
 				t.Reset(s.getSchedInterval() * 8 / 10)
 			}
 		}
@@ -593,10 +618,18 @@ func (s *Schedule) holdLock() (bool, context.CancelFunc) {
 	return true, cancelFn
 }
 
-func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
+func (s *Schedule) GetLatestStats(ctx context.Context) (fleet.CronStats, fleet.CronStats, error) {
+	// Create an OTEL span for stats retrieval
+	// This uses startSpan which will create a child span if there's a parent,
+	// or a root span if there isn't. If OTEL is disabled, it returns a no-op span.
+	ctx, span := startSpan(ctx, "cron.get_latest_stats",
+		attribute.String("cron.name", s.name),
+	)
+	defer span.End()
+
 	var scheduled, triggered fleet.CronStats
 
-	cs, err := s.statsStore.GetLatestCronStats(s.ctx, s.name)
+	cs, err := s.statsStore.GetLatestCronStats(ctx, s.name)
 	if err != nil {
 		return fleet.CronStats{}, fleet.CronStats{}, err
 	}
@@ -618,12 +651,12 @@ func (s *Schedule) GetLatestStats() (fleet.CronStats, fleet.CronStats, error) {
 	return scheduled, triggered, nil
 }
 
-func (s *Schedule) insertStats(statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {
-	return s.statsStore.InsertCronStats(s.ctx, statsType, s.name, s.instanceID, status)
+func (s *Schedule) insertStats(ctx context.Context, statsType fleet.CronStatsType, status fleet.CronStatsStatus) (int, error) {
+	return s.statsStore.InsertCronStats(ctx, statsType, s.name, s.instanceID, status)
 }
 
-func (s *Schedule) updateStats(id int, status fleet.CronStatsStatus) error {
-	return s.statsStore.UpdateCronStats(s.ctx, id, status, &s.errors)
+func (s *Schedule) updateStats(ctx context.Context, id int, status fleet.CronStatsStatus) error {
+	return s.statsStore.UpdateCronStats(ctx, id, status, &s.errors)
 }
 
 func (s *Schedule) getLockName() string {
@@ -657,4 +690,47 @@ func truncateSecondsWithFloor(d time.Duration) time.Duration {
 		return 1 * time.Second
 	}
 	return d.Truncate(time.Second)
+}
+
+var (
+	tracerOnce sync.Once
+	tracer     trace.Tracer
+)
+
+// getTracer returns the tracer for the schedule package.
+// This is called lazily to ensure it gets the correct provider after otel.SetTracerProvider() is called.
+// It caches the tracer after first use to avoid mutex overhead on repeated calls.
+func getTracer() trace.Tracer {
+	tracerOnce.Do(func() {
+		tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/service/schedule")
+	})
+	return tracer
+}
+
+// startRootSpan creates a new root span for async operations
+// This is necessary because cron jobs run in background goroutines without parent HTTP contexts
+// If OpenTelemetry is not configured at the application level, this will be a no-op
+// Details:
+// 1. When OpenTelemetry is NOT configured (i.e., config.Logging.TracingEnabled is false):
+// - otel.SetTracerProvider() is never called in /cmd/fleet/serve.go
+// - The global tracer provider remains unset
+// 2. When otel.Tracer() is called:
+// - Since no global TracerProvider was set, OpenTelemetry returns a no-op tracer
+// 3. When tracer.Start() is called:
+// - The no-op tracer returns a no-op span
+// - Has minimal performance impact (essentially just returns immediately)
+// - Still maintains proper context propagation
+func startRootSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return getTracer().Start(ctx, name,
+		trace.WithNewRoot(),
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(attrs...))
+}
+
+// startSpan creates a child span
+// If OpenTelemetry is not configured at the application level, this will be a no-op
+func startSpan(ctx context.Context, name string, attrs ...attribute.KeyValue) (context.Context, trace.Span) {
+	return getTracer().Start(ctx, name,
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(attrs...))
 }

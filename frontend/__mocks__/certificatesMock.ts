@@ -43,6 +43,7 @@ const DEFAULT_HOST_CERTIFICATES_RESPONSE_MOCK: IGetHostCertificatesResponse = {
     has_next_results: false,
     has_previous_results: false,
   },
+  count: 1,
 };
 
 export const createMockGetHostCertificatesResponse = (

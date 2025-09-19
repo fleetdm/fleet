@@ -3,7 +3,7 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
-import { HostPlatform, isAppleDevice } from "interfaces/platform";
+import { HostPlatform, isAndroid, isAppleDevice } from "interfaces/platform";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
@@ -50,7 +50,7 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = isAppleDevice(platform);
+  const showUsername = isAppleDevice(platform) || isAndroid(platform);
   const showFullName = showUsername && userNameDisplayValues.length > 0;
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;

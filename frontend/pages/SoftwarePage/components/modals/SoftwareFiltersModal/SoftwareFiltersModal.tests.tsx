@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import { noop } from "lodash";
 
@@ -99,9 +99,11 @@ describe("SoftwareFiltersModal component", () => {
     const applyButton = screen.getByRole("button", { name: /Apply/i });
 
     await user.hover(applyButton);
-    expect(
-      screen.getByText(/Minimum CVSS score cannot be greater/i)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Minimum CVSS score cannot be greater/i)
+      ).toBeInTheDocument();
+    });
     expect(screen.getByRole("button", { name: /Apply/i })).toBeDisabled();
   });
 

@@ -98,7 +98,12 @@ const Agents = ({
             <InfoBanner>
               These options are not applied to hosts on a team. To update agent
               options for hosts on a team, head to the&nbsp;
-              <a href={ADMIN_TEAMS}>Teams page</a>&nbsp;and select a team.
+              <CustomLink
+                url={ADMIN_TEAMS}
+                text="Teams page"
+                variant="banner-link"
+              />
+              &nbsp;and select a team.
             </InfoBanner>
           ) : (
             <InfoBanner>

@@ -1589,8 +1589,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1614,6 +1615,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -2300,8 +2304,9 @@ func TestDistributedQueryResults(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -2320,6 +2325,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -4300,7 +4308,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "non-ubuntu/debian installed python packages are NOT filtered out",
+			name: "non-ubuntu/debian installed python packages are filtered out",
 			host: &fleet.Host{ID: 1, Platform: "rhel"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
@@ -4337,12 +4345,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"source":  "rpm_packages",
 					},
 					{
-						"name":    "twisted", // duplicate of python3-twisted
-						"version": "20.3.0-2",
-						"source":  "python_packages",
-					},
-					{
-						"name":    "pillow",
+						"name":    "python3-pillow",
 						"version": "8.1.0",
 						"source":  "python_packages",
 					},

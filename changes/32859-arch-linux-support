@@ -1,0 +1,2 @@
+* Added support to fleetctl to generate fleetd installers for Arch Linux (`.pkg.tar.zst`).
+* Added initial support to Arch Linux to Fleet.

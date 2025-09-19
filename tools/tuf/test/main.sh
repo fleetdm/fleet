@@ -52,6 +52,14 @@ if [ -z "$SKIP_SERVER" ]; then
     ./tools/tuf/test/run_server.sh
 fi
 
-if [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ] || [ -n "$GENERATE_DEB_ARM64" ] || [ -n "$GENERATE_RPM_ARM64" ] || [ -n "$GENERATE_MSI_ARM64" ]; then
+if [ -n "$GENERATE_PKG" ] ||
+   [ -n "$GENERATE_DEB" ] ||
+   [ -n "$GENERATE_RPM" ] ||
+   [ -n "$GENERATE_MSI" ] ||
+   [ -n "$GENERATE_DEB_ARM64" ] ||
+   [ -n "$GENERATE_RPM_ARM64" ] ||
+   [ -n "$GENERATE_PKG_TAR_ZST" ] ||
+   [ -n "$GENERATE_PKG_TAR_ZST_ARM64" ] ||
+   [ -n "$GENERATE_MSI_ARM64" ]; then
     bash ./tools/tuf/test/gen_pkgs.sh
 fi

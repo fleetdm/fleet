@@ -1,0 +1,1 @@
+* Added filter for removing duplicate RPM python packages and renaming pip packages to match OVAL definitions (same as Ubuntu).

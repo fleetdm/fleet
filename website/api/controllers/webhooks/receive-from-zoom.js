@@ -31,6 +31,7 @@ module.exports = {
     callTranscriptNotFound: {description: 'No transcript for this call could be found in the Zoom API.', responseType: 'badRequest'},
     callHasNoTranscript: {description: 'The receive-from-zoom webhook received an event about a call with no transcript.', responseType: 'ok'},
     unexpectedEvent: {description: 'The receive-from-zoom webhook received an unsupported event.', responseType: 'badRequest'},
+    zoomApiError: {description: 'The Zoom API returned a non-200 response when retrieving information about a call.', responseType: 'badRequest'},
   },
 
 
@@ -96,8 +97,12 @@ module.exports = {
       .intercept({raw: {statusCode: 404}}, (err)=>{
         sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 404 response when a request was sent to get information about the call. Full payload from Zoom: ${require('util').inspect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
         return 'callInfoNotFound';
+      }).intercept({raw: {statusCode: 400}}, (err)=>{
+        sails.log.warn(`The receive-from-zoom webhook received an event (type: ${event}) about a Zoom call (id: ${idOfCallToGenerateTranscriptFor}), the Zoom API returned a 400 response when a request was sent to get information about the call. Full payload from Zoom: ${require('util').inspect(payload, {depth: null})} Full error: ${require('util').inspect(err, {depth: 3})}`);
+        return 'zoomApiError';
       }).intercept((err)=>{
-        return new Error(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
+        sails.log.warn(`When sending a request to get information about a Zoom recording, an error occured. Full error ${require('util').inspect(err, {depth: 3})}`);
+        return 'zoomApiError';
       });
 
 

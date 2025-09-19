@@ -1,0 +1,9 @@
+.labels-table {
+  .view-all-hosts-link,
+  .view-all-hosts-link * {
+    text-decoration: none;
+    color: initial;
+    font-weight: initial;
+    font-size: $x-small;
+  }
+}

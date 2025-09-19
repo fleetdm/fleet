@@ -31,6 +31,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
@@ -236,7 +237,8 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new" />
+            <IndexRedirect to="manage" />
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
               <Route path="dynamic" component={NewLabelPage} />
