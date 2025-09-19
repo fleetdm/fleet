@@ -190,6 +190,7 @@
   &__autofill-label {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     .autofill-tooltip-wrapper {
       display: flex; // Required for vertical centering
@@ -275,6 +276,6 @@
 
   &__sql-editor-label-actions {
     display: flex;
-    gap: $pad-medium;
+    gap: $pad-large;
   }
 }

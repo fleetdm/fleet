@@ -25,7 +25,7 @@
   .external-link {
     display: flex;
     font-size: $x-small;
-    color: $core-vibrant-blue;
+    color: $core-fleet-green;
     font-weight: $bold;
     text-decoration: none !important;
 
@@ -112,7 +112,7 @@
       &.refetch-spinner {
         color: $core-fleet-white;
         font-size: $x-small;
-        height: 38px;
+        height: 36px;
 
         .icon {
           margin-right: 6px;

@@ -521,7 +521,7 @@ const DeviceUserPage = ({
             summaryData={summaryData}
             showRefetchSpinner={showRefetchSpinner}
             onRefetchHost={onRefetchHost}
-            renderActionDropdown={renderActionButtons}
+            renderActionsDropdown={renderActionButtons}
             deviceUser
           />
           <TabNav className={`${baseClass}__tab-nav`}>

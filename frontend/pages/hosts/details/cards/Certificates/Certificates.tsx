@@ -79,7 +79,6 @@ const CertificatesCard = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader header="Certificates" />
       {renderContent()}

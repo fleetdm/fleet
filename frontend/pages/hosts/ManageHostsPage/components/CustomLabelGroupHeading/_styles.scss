@@ -10,7 +10,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 1rem;
+    padding-left: $pad-medium;
   }
 
   &__field {
@@ -26,7 +26,7 @@
   &__input {
     width: 100%;
     line-height: 1.5;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border: solid 1px $ui-fleet-black-10;
     border-radius: $border-radius;
     font-size: $small;
@@ -46,12 +46,12 @@
     &:focus,
     &:hover {
       outline: none;
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-75;
 
       + .icon {
         svg {
           path {
-            fill: $core-vibrant-blue;
+            fill: $ui-fleet-black-75;
           }
         }
       }
@@ -105,7 +105,7 @@
       color: $core-fleet-blue;
 
       code {
-        color: $core-vibrant-blue;
+        color: $ui-fleet-black-75;
         background-color: $ui-gray;
         padding: $pad-xxsmall;
         font-family: "SourceCodePro", $monospace;

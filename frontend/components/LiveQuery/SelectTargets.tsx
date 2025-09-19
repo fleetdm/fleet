@@ -590,19 +590,18 @@ const SelectTargets = ({
       <div className={`${baseClass}__targets-button-wrap`}>
         <Button
           className={`${baseClass}__btn`}
-          onClick={handleClickCancel}
-          variant="text-link"
-        >
-          Cancel
-        </Button>
-        <Button
-          className={`${baseClass}__btn`}
           type="button"
-          variant="success"
           disabled={isFetchingCounts || !counts?.targets_count} // TODO: confirm
           onClick={onClickRun}
         >
           Run
+        </Button>
+        <Button
+          className={`${baseClass}__btn`}
+          onClick={handleClickCancel}
+          variant="inverse"
+        >
+          Cancel
         </Button>
         <div className={`${baseClass}__targets-total-count`}>
           {renderTargetsCount()}

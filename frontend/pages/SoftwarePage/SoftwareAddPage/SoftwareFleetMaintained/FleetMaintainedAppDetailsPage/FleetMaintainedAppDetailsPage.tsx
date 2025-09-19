@@ -81,7 +81,6 @@ const FleetAppSummary = ({
     <Card
       className={`${baseClass}__fleet-app-summary`}
       borderRadiusSize="medium"
-      color="grey"
     >
       <div className={`${baseClass}__fleet-app-summary--left`}>
         <SoftwareIcon name={name} size="medium" />
@@ -103,7 +102,7 @@ const FleetAppSummary = ({
         </div>
       </div>
       <div className={`${baseClass}__fleet-app-summary--show-details`}>
-        <Button variant="text-icon" onClick={onClickShowAppDetails}>
+        <Button variant="inverse" onClick={onClickShowAppDetails}>
           <Icon name="info" /> Show details
         </Button>
       </div>

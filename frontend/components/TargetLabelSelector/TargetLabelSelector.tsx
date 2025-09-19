@@ -122,7 +122,7 @@ const LabelChooser = ({
     return (
       <div className={`${baseClass}__no-labels`}>
         <CustomLink url={PATHS.LABEL_NEW_DYNAMIC} text="Add label" /> to target
-        specific hosts.to target specific hosts.
+        specific hosts.
       </div>
     );
   }

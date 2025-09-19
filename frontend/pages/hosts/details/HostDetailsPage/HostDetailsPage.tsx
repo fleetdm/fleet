@@ -817,7 +817,7 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const renderActionDropdown = () => {
+  const renderActionsDropdown = () => {
     if (!host) {
       return null;
     }
@@ -975,12 +975,7 @@ const HostDetailsPage = ({
 
   const renderSoftwareCard = () => {
     return (
-      <Card
-        className={`${baseClass}__software-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={`${baseClass}__software-card`}>
         {isSoftwareLibrarySupported ? (
           <>
             <TabList>
@@ -1087,7 +1082,7 @@ const HostDetailsPage = ({
             )}
           </>
         )}
-      </Card>
+      </div>
     );
   };
 
@@ -1119,7 +1114,7 @@ const HostDetailsPage = ({
               summaryData={summaryData}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionDropdown}
+              renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
             />
           </div>

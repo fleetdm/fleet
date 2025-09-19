@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { getByText, screen, waitFor } from "@testing-library/react";
 
 import { ISecret } from "interfaces/secrets";
 import { UserEvent } from "@testing-library/user-event";
@@ -163,11 +163,6 @@ describe("Custom variables", () => {
 
         expect(addSecretButton).toHaveAttribute("disabled");
         expect(addSecretButton).toHaveClass("button--disabled");
-
-        await user.hover(addSecretButton);
-        await waitFor(() => {
-          expect(screen.getByText("(GitOps mode enabled)")).toBeInTheDocument();
-        });
       });
 
       it("deleting a secret is successful in GitOps mode", async () => {

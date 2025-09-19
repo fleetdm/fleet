@@ -10,6 +10,7 @@ import CardHeader from "components/CardHeader";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 import UserValue from "./components/UserValue";
 import {
@@ -65,17 +66,17 @@ const User = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
         {enableAddEndUser && (
           <Button
             className={`${baseClass}__add-user-btn`}
-            variant="text-link"
+            variant="inverse"
             onClick={onAddEndUser}
+            size="small"
           >
-            + Add user
+            <Icon name="plus" /> Add user
           </Button>
         )}
       </div>

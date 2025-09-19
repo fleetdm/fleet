@@ -113,7 +113,7 @@ const ApplePushCertSetup = ({
           }`}
           accept=".pem"
           buttonMessage={isUploading ? "Uploading..." : "Upload"}
-          buttonType="link"
+          buttonType="brand-inverse-icon"
           disabled={isUploading}
           graphicName="file-pem"
           message="APNs certificate (.pem)"

@@ -431,28 +431,30 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   return (
-    <MainContent>
-      <div className={`${baseClass}__wrapper`}>
+    <MainContent className={baseClass}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isPremiumTier && !isPrimoMode ? (
-                  <TeamsHeader
-                    isOnGlobalTeam={isOnGlobalTeam}
-                    currentTeamId={currentTeamId}
-                    userTeams={userTeams}
-                    onTeamChange={onTeamChange}
-                  />
-                ) : (
-                  <h1>Software</h1>
-                )}
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isPremiumTier && !isPrimoMode ? (
+                    <TeamsHeader
+                      isOnGlobalTeam={isOnGlobalTeam}
+                      currentTeamId={currentTeamId}
+                      userTeams={userTeams}
+                      onTeamChange={onTeamChange}
+                    />
+                  ) : (
+                    <h1>Software</h1>
+                  )}
+                </div>
               </div>
             </div>
+            {renderPageActions()}
           </div>
-          {renderPageActions()}
+          <PageDescription content={renderHeaderDescription()} />
         </div>
-        <PageDescription content={renderHeaderDescription()} />
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal
@@ -479,7 +481,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             isPremiumTier={isPremiumTier || false}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

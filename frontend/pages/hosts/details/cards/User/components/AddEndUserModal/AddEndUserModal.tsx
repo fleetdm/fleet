@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router";
 
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 
@@ -23,9 +23,10 @@ const AddEndUserModal = ({ onExit }: IAddEndUserModalProps) => {
           </p>
           <p>
             To add username when hosts enroll in the future, enable{" "}
-            <Link to={paths.CONTROLS_END_USER_AUTHENTICATION}>
-              end user authentication
-            </Link>
+            <CustomLink
+              url={paths.CONTROLS_END_USER_AUTHENTICATION}
+              text="end user authentication"
+            />
             .
           </p>
         </div>

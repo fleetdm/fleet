@@ -1,4 +1,6 @@
 .updates-card {
+  @include card;
+
   &__header {
     display: flex;
     align-items: center;

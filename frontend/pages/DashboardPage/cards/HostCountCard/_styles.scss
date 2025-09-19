@@ -20,13 +20,13 @@
     //done
 
     &:hover {
-      border-color: $core-vibrant-blue;
+      border-color: $ui-fleet-black-50;
     }
 
     &:focus-visible {
       outline: 0px;
       border-radius: $border-radius;
-      border-color: $core-vibrant-blue;
+      border-color: $core-focused-outline;
     }
   }
 

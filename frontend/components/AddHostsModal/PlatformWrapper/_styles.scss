@@ -1,18 +1,6 @@
 @import "../../../../../../../node_modules/react-tabs/style/react-tabs.scss";
 
 .platform-wrapper {
-  padding: 0; // different to pad sticky subnav properly
-
-  .tab-nav {
-    // negate problematic sticky positioning
-    position: initial;
-    .react-tabs {
-      &__tab-list {
-        margin: 0 0 $pad-large;
-      }
-    }
-  }
-
   h1 {
     margin-bottom: $pad-small;
   }
@@ -30,7 +18,7 @@
       font-family: "SourceCodePro", $monospace;
       font-weight: $bold;
       color: $core-fleet-blue;
-      line-height: 20px;
+      line-height: $line-height;
       line-break: anywhere;
       padding: 12px $pad-xlarge 12px $pad-medium;
     }

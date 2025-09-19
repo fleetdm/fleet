@@ -201,7 +201,6 @@ const About = ({ aboutData, munki, mdm, className }: IAboutProps) => {
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader header="About" />
       <div className={`${baseClass}__info-grid`}>

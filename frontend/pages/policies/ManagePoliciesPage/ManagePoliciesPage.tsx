@@ -1308,30 +1308,31 @@ const ManagePolicyPage = ({
   }
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
             <div className={`${baseClass}__text`}>
               <div className={`${baseClass}__title`}>{renderHeader()}</div>
             </div>
+
+            {showCtaButtons && (
+              <div className={`${baseClass} button-wrap`}>
+                {automationsDropdown}
+                {canAddOrDeletePolicies && (
+                  <div className={`${baseClass}__action-button-container`}>
+                    <Button
+                      className={`${baseClass}__select-policy-button`}
+                      onClick={onAddPolicyClick}
+                    >
+                      Add policy
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          {showCtaButtons && (
-            <div className={`${baseClass} button-wrap`}>
-              {automationsDropdown}
-              {canAddOrDeletePolicies && (
-                <div className={`${baseClass}__action-button-container`}>
-                  <Button
-                    className={`${baseClass}__select-policy-button`}
-                    onClick={onAddPolicyClick}
-                  >
-                    Add policy
-                  </Button>
-                </div>
-              )}
-            </div>
-          )}
+          <PageDescription content={teamsDropdownHelpText} />
         </div>
-        <PageDescription content={teamsDropdownHelpText} />
         {renderMainTable()}
         {automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
@@ -1397,7 +1398,7 @@ const ManagePolicyPage = ({
             teamId={currentTeamId ?? 0}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

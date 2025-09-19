@@ -9,15 +9,15 @@ Only variables should be updated unless there is a redesign of these pages
 
 $side-panel-width: 340px;
 $main-max-width: 1280px; // 1280px plus 64px left/right padding
-$main-padding: 32px; /* Container for layout */
-$main-max-width-including-padding: 1280px + 32px + 32px;
+$main-padding: 32px; // Container for layout $pad-page
+$main-max-width-including-padding: 1280px + 32px + 32px; // Cannot use variables in addition
 
 .side-panel-page {
   min-height: 100vh;
   position: relative;
   width: 100%;
 
-  /* Fixed side panel: always flush right, always 340px wide */
+  // Fixed side panel: always flush right, always 340px wide
   .side-panel-content {
     position: absolute;
     top: 0;
@@ -32,8 +32,7 @@ $main-max-width-including-padding: 1280px + 32px + 32px;
   .main-content {
     position: relative;
     box-sizing: border-box;
-    padding-left: $main-padding;
-    padding-right: $main-padding;
+    padding: $main-padding;
 
     /* Default: for < ($main-max-width-including-padding + $side-panel-width) */
     margin-right: $side-panel-width;

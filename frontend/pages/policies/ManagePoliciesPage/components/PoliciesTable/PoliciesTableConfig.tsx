@@ -126,7 +126,7 @@ const generateTableHeaders = (
                         className="critical-policy-icon"
                         name="policy"
                         size="small"
-                        color="core-fleet-blue"
+                        color="ui-fleet-black-75"
                       />
                     </span>
                     <ReactTooltip5

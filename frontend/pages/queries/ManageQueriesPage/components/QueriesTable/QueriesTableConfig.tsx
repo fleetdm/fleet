@@ -157,6 +157,7 @@ const generateColumnConfigs = ({
                     underline={false}
                     showArrow
                     position="top"
+                    delayInMs={300}
                   >
                     <Icon
                       className="observer-can-run-query-icon"

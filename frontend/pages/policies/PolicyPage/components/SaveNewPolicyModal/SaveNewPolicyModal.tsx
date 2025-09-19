@@ -180,7 +180,7 @@ const SaveNewPolicyModal = ({
             className="autofill-tooltip-wrapper"
           >
             <Button
-              variant="text-icon"
+              variant="inverse"
               disabled={aiFeaturesDisabled || disableForm}
               onClick={
                 labelName === "Description"
@@ -298,6 +298,7 @@ const SaveNewPolicyModal = ({
                 </span>
               }
               suppressTitle
+              disableOptions={disableForm}
             />
           )}
           {isPremiumTier && (

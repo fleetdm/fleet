@@ -1,5 +1,4 @@
 .dropdown-button {
-  padding: 8px 0;
   &__wrapper {
     display: flex;
     position: relative;
@@ -33,7 +32,7 @@
     display: block;
 
     .button {
-      color: $core-fleet-blue;
+      color: $core-fleet-black;
       text-transform: none;
       text-align: left;
       font-weight: $regular;
@@ -43,13 +42,13 @@
       white-space: nowrap;
       width: 100%;
       font-size: 15px;
-      height: 38px;
+      height: 32px;
       letter-spacing: -0.5px;
 
       &:hover,
       &:focus {
-        background-color: $ui-vibrant-blue-10;
-        color: $core-fleet-blue;
+        background-color: $ui-fleet-black-10;
+        color: $core-fleet-black;
       }
     }
   }

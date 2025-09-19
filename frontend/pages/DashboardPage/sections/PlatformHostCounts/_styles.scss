@@ -1,6 +1,6 @@
 .platform-host-counts {
   display: grid;
-  gap: $pad-smedium;
+  gap: $gap-page-component-inner;
 
   // >= 320px and < 480px
   @media (min-width: $break-mobile-xs) {

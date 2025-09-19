@@ -47,10 +47,12 @@
     margin-bottom: $pad-large;
 
     &:focus {
-      outline: 2px solid $ui-vibrant-blue-25;
+      outline: 2px solid $ui-fleet-black-75;
     }
 
-    &:hover, &:focus, &:focus-within {
+    &:hover,
+    &:focus,
+    &:focus-within {
       border-radius: $border-radius-large;
       background-color: $ui-off-white;
       cursor: pointer;
@@ -72,8 +74,6 @@
     }
 
     .button {
-      height: 16px;
-
       &--icon svg {
         padding: 0;
       }
@@ -89,7 +89,6 @@
     visibility: hidden;
   }
 
-
   &__close-icon {
     cursor: pointer;
     &:hover {
@@ -99,7 +98,7 @@
         }
       }
     }
-  };
+  }
 
   &__details-topline {
     font-size: $x-small;

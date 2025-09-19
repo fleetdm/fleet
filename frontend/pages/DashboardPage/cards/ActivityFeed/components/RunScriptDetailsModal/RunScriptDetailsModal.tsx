@@ -135,7 +135,7 @@ const ScriptOutput = ({
           <TooltipWrapper
             tipContent="Fleet records the last 10,000 characters to prevent downtime."
             tooltipClass={`${baseClass}__output-tooltip`}
-            isDelayed
+            delayInMs={500}
           >
             output recorded
           </TooltipWrapper>{" "}

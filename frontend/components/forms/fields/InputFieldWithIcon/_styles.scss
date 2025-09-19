@@ -5,15 +5,15 @@
     position: absolute;
     left: 12px;
     top: 0;
-    height: 40px;
+    height: 36px;
     width: 16px;
     flex-wrap: wrap;
     align-content: center;
     z-index: 1;
-    color: $core-fleet-blue;
+    color: $core-fleet-black;
 
     &--active {
-      color: $core-vibrant-blue-down;
+      color: $ui-fleet-black-75-down;
     }
 
     &--error {
@@ -26,14 +26,14 @@
   // Relative input wrapper with absolute icon corrects icon alignment on all browsers
   &__input-wrapper {
     position: relative;
-    height: 40px;
+    height: 36px;
     display: flex;
     align-items: center;
   }
 
   &__input {
     border: 1px solid $ui-fleet-black-10;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border-radius: $border-radius;
     padding: 9.5px 12px 9.5px $pad-medium;
     font-size: $x-small;
@@ -50,7 +50,7 @@
     }
 
     ::placeholder {
-      color: $core-fleet-blue;
+      color: $ui-fleet-black-50;
     }
 
     &:focus {
@@ -70,16 +70,20 @@
     }
   }
 
-  &__input-wrapper:not(&__input-wrapper--disabled):hover {
-    .input-icon-field__input {
-      border: 1px solid $core-vibrant-blue-over;
+  &__input-wrapper:not(&__input-wrapper--disabled) {
+    .input-icon-field__input:hover {
+      border: 1px solid $ui-fleet-black-50;
+
+      &:focus {
+        border: 1px solid $core-fleet-black;
+      }
     }
 
     // Icon color matches border color on hover
     .input-icon-field__icon {
       svg {
         path {
-          fill: $core-vibrant-blue-over;
+          fill: $ui-fleet-black-75-over;
         }
       }
     }
@@ -87,13 +91,13 @@
 
   &__input-wrapper {
     .input-icon-field__input:focus {
-      border: 1px solid $core-vibrant-blue-down;
+      border: 1px solid $core-fleet-black;
 
       // Icon color matches border color on focus
       + .input-icon-field__icon {
         svg {
           path {
-            fill: $core-vibrant-blue-down;
+            fill: $core-fleet-black;
           }
         }
       }
@@ -104,6 +108,7 @@
     display: block;
     font-size: $x-small;
     font-weight: $bold;
+    color: $core-fleet-black;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
@@ -142,7 +147,7 @@
     position: absolute;
     right: 12px;
     top: 0;
-    height: 40px;
+    height: 36px;
     width: 16px;
     flex-wrap: wrap;
     align-content: center;

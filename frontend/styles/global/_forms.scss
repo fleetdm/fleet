@@ -1,7 +1,9 @@
 .input-with-icon {
-  ::placeholder {
-    color: $core-fleet-blue;
-    opacity: 1;
+  &__input {
+    ::placeholder {
+      color: $ui-fleet-black-50;
+      opacity: 1;
+    }
   }
 }
 

@@ -1,10 +1,11 @@
 .profile-status-aggregate {
   display: flex;
-  height: 94px;
-  border-top: 1px solid #e2e4ea;
-  border-bottom: 1px solid #e2e4ea;
-  border-left: 1px solid #e2e4ea;
-  border-radius: $border-radius-medium;
+  width: 100%;
+  gap: $pad-small;
+
+  &:hover {
+    border-color: $ui-fleet-black-50;
+  }
 
   &__loading-spinner {
     margin: auto;
@@ -17,7 +18,6 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    border-right: 1px solid #e2e4ea;
 
     // but not the tooltip text
     .tooltip {
@@ -34,13 +34,12 @@
     }
   }
 
-  &__profile-status-count:last-child {
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
-  }
-
   &__status-indicator-value {
     font-weight: $bold;
+  }
+
+  &__host-count {
+    font-weight: $regular;
   }
 
   .icon {

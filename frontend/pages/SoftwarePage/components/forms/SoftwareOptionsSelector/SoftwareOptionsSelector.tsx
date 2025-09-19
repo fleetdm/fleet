@@ -49,7 +49,7 @@ const CategoriesSelector = ({
         })}
       </div>
       <Button
-        variant="text-link"
+        variant="inverse"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
