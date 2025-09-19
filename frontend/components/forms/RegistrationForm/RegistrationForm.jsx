@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import PropTypes from "prop-types";
 import classnames from "classnames";
 
+import Card from "components/Card";
 import AdminDetails from "components/forms/RegistrationForm/AdminDetails";
 import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage";
 import FleetDetails from "components/forms/RegistrationForm/FleetDetails";
@@ -120,7 +121,7 @@ class RegistrationForm extends Component {
     return (
       <div className={baseClass}>
         <div className={formSectionClasses}>
-          <div className={adminDetailsContainerClass}>
+          <Card paddingSize="xxlarge" className={adminDetailsContainerClass}>
             <h2>Set up user</h2>
             <AdminDetails
               formData={formData}
@@ -128,8 +129,8 @@ class RegistrationForm extends Component {
               className={adminDetailsClass}
               currentPage={isCurrentPage(1)}
             />
-          </div>
-          <div className={orgDetailsContainerClass}>
+          </Card>
+          <Card paddingSize="xxlarge" className={orgDetailsContainerClass}>
             <h2>Organization details</h2>
             <OrgDetails
               formData={formData}
@@ -137,8 +138,8 @@ class RegistrationForm extends Component {
               className={orgDetailsClass}
               currentPage={isCurrentPage(2)}
             />
-          </div>
-          <div className={fleetDetailsContainerClass}>
+          </Card>
+          <Card paddingSize="xxlarge" className={fleetDetailsContainerClass}>
             <h2>Set Fleet URL</h2>
             <FleetDetails
               formData={formData}
@@ -146,8 +147,8 @@ class RegistrationForm extends Component {
               className={fleetDetailsClass}
               currentPage={isCurrentPage(3)}
             />
-          </div>
-          <div className={confirmationContainerClass}>
+          </Card>
+          <Card paddingSize="xxlarge" className={confirmationContainerClass}>
             <h2>Confirm configuration</h2>
             <ConfirmationPage
               formData={formData}
@@ -156,7 +157,7 @@ class RegistrationForm extends Component {
               currentPage={isCurrentPage(4)}
               isLoading={isLoading}
             />
-          </div>
+          </Card>
         </div>
       </div>
     );

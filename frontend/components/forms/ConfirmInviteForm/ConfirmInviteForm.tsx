@@ -134,13 +134,15 @@ const ConfirmInviteForm = ({
         error={formErrors.password_confirmation}
         parseTarget
       />
-      <Button
-        type="submit"
-        disabled={Object.keys(formErrors).length > 0}
-        className="confirm-invite-button"
-      >
-        Submit
-      </Button>
+      <div className="button-wrap">
+        <Button
+          type="submit"
+          disabled={Object.keys(formErrors).length > 0}
+          className="confirm-invite-button"
+        >
+          Submit
+        </Button>
+      </div>
     </form>
   );
 };
