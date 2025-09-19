@@ -88,6 +88,10 @@ type CertificateAuthority struct {
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
 
+func (c *CertificateAuthority) AuthzType() string {
+	return "certificate_authority"
+}
+
 type CertificateAuthorityPayload struct {
 	DigiCert        *DigiCertCA           `json:"digicert,omitempty"`
 	NDESSCEPProxy   *NDESSCEPProxyCA      `json:"ndes_scep_proxy,omitempty"`
@@ -147,6 +151,11 @@ func (h *HydrantCA) NeedToVerify(other *HydrantCA) bool {
 		!(h.ClientSecret == "" || h.ClientSecret == MaskedPassword || h.ClientSecret == other.ClientSecret)
 }
 
+func (h *HydrantCA) Preprocess() {
+	h.Name = Preprocess(h.Name)
+	h.URL = Preprocess(h.URL)
+}
+
 // NDESSCEPProxyCA configures SCEP proxy for NDES SCEP server. Premium feature.
 type NDESSCEPProxyCA struct {
 	ID       uint   `json:"-"`
@@ -154,6 +163,12 @@ type NDESSCEPProxyCA struct {
 	AdminURL string `json:"admin_url"`
 	Username string `json:"username"`
 	Password string `json:"password"` // not stored here -- encrypted in DB
+}
+
+func (n *NDESSCEPProxyCA) Preprocess() {
+	n.URL = Preprocess(n.URL)
+	n.AdminURL = Preprocess(n.AdminURL)
+	n.Username = Preprocess(n.Username)
 }
 
 type SCEPConfigService interface {
@@ -177,8 +192,9 @@ func (s *CustomSCEPProxyCA) Equals(other *CustomSCEPProxyCA) bool {
 		(s.Challenge == "" || s.Challenge == MaskedPassword || s.Challenge == other.Challenge)
 }
 
-func (c *CertificateAuthority) AuthzType() string {
-	return "certificate_authority"
+func (s *CustomSCEPProxyCA) Preprocess() {
+	s.Name = Preprocess(s.Name)
+	s.URL = Preprocess(s.URL)
 }
 
 type CertificateAuthorityUpdatePayload struct {
@@ -353,7 +369,6 @@ func (hp *HydrantCAUpdatePayload) Preprocess() {
 	}
 }
 
-// TODO(sca): confirm validations/preprocess for smallstep update payload
 type SmallstepSCEPProxyCAUpdatePayload struct {
 	Name         *string `json:"name"`
 	URL          *string `json:"url"`
@@ -394,6 +409,9 @@ func (sscepp *SmallstepSCEPProxyCAUpdatePayload) Preprocess() {
 	}
 	if sscepp.ChallengeURL != nil {
 		*sscepp.ChallengeURL = Preprocess(*sscepp.ChallengeURL)
+	}
+	if sscepp.Username != nil {
+		*sscepp.Username = Preprocess(*sscepp.Username)
 	}
 }
 
@@ -600,6 +618,13 @@ type SmallstepSCEPProxyCA struct {
 	ChallengeURL string `json:"challenge_url,omitempty"`
 	Username     string `json:"username"`
 	Password     string `json:"password"` // not stored here -- encrypted in DB
+}
+
+func (s *SmallstepSCEPProxyCA) Preprocess() {
+	s.Name = Preprocess(s.Name)
+	s.URL = Preprocess(s.URL)
+	s.ChallengeURL = Preprocess(s.ChallengeURL)
+	s.Username = Preprocess(s.Username)
 }
 
 // SmallstepChallengeRequestBody represents the minimumrequest body for obtaining a challenge from a
