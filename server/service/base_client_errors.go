@@ -146,7 +146,7 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 
 		if isHTML {
 			// Generic HTML response
-			return "", "server returned HTML instead of JSON response"
+			return "", fmt.Sprintf("server returned HTML instead of JSON response, body: %s", truncatedBytes)
 		}
 
 		// Return cleaned up text for non-HTML responses

@@ -21,12 +21,17 @@ func TestExtractServerErrorText(t *testing.T) {
 		{
 			name:     "403 Forbidden HTML",
 			body:     `<!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1><p>You don't have permission to access this resource.</p></body></html>`,
-			expected: "server returned HTML instead of JSON response",
+			expected: "server returned HTML instead of JSON response, body: <!DOCTYPE html><html><head><title>403 Forbidden</title></head><body><h1>403 Forbidden</h1><p>You don't have permission to access this resource.</p></body></html>",
 		},
 		{
 			name:     "HTML with uppercase tags",
 			body:     `<HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY>Server Error</BODY></HTML>`,
-			expected: "server returned HTML instead of JSON response",
+			expected: "server returned HTML instead of JSON response, body: <HTML><HEAD><TITLE>Error</TITLE></HEAD><BODY>Server Error</BODY></HTML>",
+		},
+		{
+			name:     "long HTML gets truncated",
+			body:     `<!DOCTYPE html><html><head><title>Error Page</title></head><body>` + strings.Repeat("A", 200) + `</body></html>`,
+			expected: "server returned HTML instead of JSON response, body: <!DOCTYPE html><html><head><title>Error Page</title></head><body>" + strings.Repeat("A", 135) + "...",
 		},
 		{
 			name:     "plain text error",
