@@ -1,0 +1,1 @@
+* Fixed certificate ingest parser to no longer break on multiple equal signs in certificate key pair values

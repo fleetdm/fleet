@@ -7,17 +7,13 @@ import (
 )
 
 func TestExtractHostCertificateNameDetails(t *testing.T) {
-	expected := HostCertificateNameDetails{
-		Country:            "US",
-		Organization:       "Fleet Device Management Inc.",
-		OrganizationalUnit: "Fleet Device Management Inc.",
-		CommonName:         "FleetDM",
-	}
-	expectedWithSlash := HostCertificateNameDetails{
-		Country:            "US",
-		Organization:       "Fleet Device Management Inc.",
-		OrganizationalUnit: "Fleet Device Management Inc.",
-		CommonName:         "FleetDM/valid",
+	getExpectedHostCertificateDetails := func(commonName string) *HostCertificateNameDetails {
+		return &HostCertificateNameDetails{
+			Country:            "US",
+			Organization:       "Fleet Device Management Inc.",
+			OrganizationalUnit: "Fleet Device Management Inc.",
+			CommonName:         commonName,
+		}
 	}
 
 	cases := []struct {
@@ -29,12 +25,12 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 		{
 			name:     "valid",
 			input:    "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM",
-			expected: &expected,
+			expected: getExpectedHostCertificateDetails("FleetDM"),
 		},
 		{
 			name:     "valid with different order",
 			input:    "/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/C=US",
-			expected: &expected,
+			expected: getExpectedHostCertificateDetails("FleetDM"),
 		},
 		{
 			name:  "valid with missing key",
@@ -49,17 +45,22 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 		{
 			name:     "valid with additional keyr",
 			input:    "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/L=SomeCity",
-			expected: &expected,
+			expected: getExpectedHostCertificateDetails("FleetDM"),
 		},
 		{
 			name:     "valid format with extra slash",
 			input:    `/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM\/valid`,
-			expected: &expectedWithSlash,
+			expected: getExpectedHostCertificateDetails("FleetDM/valid"),
 		},
 		{
 			name:     "valid with safe escape sequence",
 			input:    `/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM<<SLASH>>valid`,
-			expected: &expectedWithSlash,
+			expected: getExpectedHostCertificateDetails("FleetDM/valid"),
+		},
+		{
+			name:     "valid format with equal signs in value",
+			input:    "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM=Company",
+			expected: getExpectedHostCertificateDetails("FleetDM=Company"),
 		},
 		{
 			name:  "invalid format with extra slash without escape",
@@ -67,14 +68,11 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 			err:   true,
 		},
 		{
-			name:  "invalid format with wrong separator",
+			name:  "format with wrong separator", // this will now just be treated as part of C
 			input: "C=US,O=Fleet Device Management Inc.,OU=Fleet Device Management Inc.,CN=FleetDM",
-			err:   true,
-		},
-		{
-			name:  "invalid format with extra equal",
-			input: "/C=US=/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM",
-			err:   true,
+			expected: &HostCertificateNameDetails{
+				Country: "US,O=Fleet Device Management Inc.,OU=Fleet Device Management Inc.,CN=FleetDM",
+			},
 		},
 		{
 			name:  "invalid format with malformed key values",
@@ -99,12 +97,12 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 		{
 			name:     "missing first slash",
 			input:    "C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM",
-			expected: &expected,
+			expected: getExpectedHostCertificateDetails("FleetDM"),
 		},
 		{
 			name:     "trailing slash",
 			input:    "/C=US/O=Fleet Device Management Inc./OU=Fleet Device Management Inc./CN=FleetDM/",
-			expected: &expected,
+			expected: getExpectedHostCertificateDetails("FleetDM"),
 		},
 		{
 			name:  "simple common name",
@@ -125,11 +123,6 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 				OrganizationalUnit: "",
 				CommonName:         "FleetDM",
 			},
-		},
-		{
-			name:  "invalid separator",
-			input: "/C=US,O=Fleet Device Management Inc.,OU=Fleet Device Management Inc.,CN=FleetDM",
-			err:   true,
 		},
 	}
 	for _, tc := range cases {
