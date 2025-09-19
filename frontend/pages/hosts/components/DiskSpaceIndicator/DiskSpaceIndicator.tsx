@@ -7,23 +7,24 @@ import { COLORS } from "styles/var/colors";
 import ProgressBar from "components/ProgressBar";
 import TooltipWrapper from "components/TooltipWrapper";
 
+const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
-  baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
   platform: string;
+  inTableCell?: boolean;
   tooltipPosition?: PlacesType;
 }
 
 const DiskSpaceIndicator = ({
-  baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
   platform,
+  inTableCell = false,
   tooltipPosition = "top",
 }: IDiskSpaceIndicatorProps): JSX.Element => {
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
-    return <span className={`${baseClass}__data`}>No data available</span>;
+    return <span className={`${baseClass}__empty`}>No data available</span>;
   }
 
   const getDiskSpaceIndicatorColor = (): string => {
@@ -63,7 +64,7 @@ const DiskSpaceIndicator = ({
   );
 
   return (
-    <span className="disk-space-indicator">
+    <span className={baseClass}>
       {diskSpaceTooltipText ? (
         <TooltipWrapper
           position={tooltipPosition}
@@ -77,7 +78,7 @@ const DiskSpaceIndicator = ({
       ) : (
         renderBar()
       )}
-      {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
+      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
     </span>
   );
 };

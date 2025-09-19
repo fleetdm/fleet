@@ -16,7 +16,6 @@ describe("Disk space Indicator", () => {
   it("renders warning tooltip for <32gB when hovering over the yellow disk space indicator for darwin or windows", async () => {
     const { user } = renderWithSetup(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={17}
         percentDiskSpaceAvailable={10}
         platform="darwin"
@@ -39,7 +38,6 @@ describe("Disk space Indicator", () => {
   it("renders severe warning tooltip for <16 gBwhen hovering over the red disk space indicator for darwin or windows", async () => {
     const { user } = renderWithSetup(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={5}
         percentDiskSpaceAvailable={2}
         platform="windows"
@@ -63,7 +61,6 @@ describe("Disk space Indicator", () => {
   it("renders tooltip when hovering over the green disk space indicator for darwin or windows", async () => {
     const { user } = renderWithSetup(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={33}
         percentDiskSpaceAvailable={15}
         platform="windows"
