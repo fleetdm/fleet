@@ -34,7 +34,7 @@ import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import InfoBanner from "components/InfoBanner";
 import EditQueryForm from "./components/EditQueryForm";
 
@@ -392,7 +392,7 @@ const EditQueryPage = ({
       <MainContent className={baseClass}>
         <>
           <div className={`${baseClass}__header-links`}>
-            <BackLink
+            <BackButton
               text={queryId ? "Back to report" : "Back to queries"}
               path={backToQueriesPath()}
             />

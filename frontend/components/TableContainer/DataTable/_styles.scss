@@ -266,7 +266,6 @@ $shadow-transition-width: 10px;
         .link-cell,
         .text-cell {
           display: block; // inline-block is not vertically centered
-          overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;
@@ -274,16 +273,48 @@ $shadow-transition-width: 10px;
             white-space: normal;
           }
         }
+
+        // Caution: LinkCell depends on this to have animation only under text and not icons etc
         .link-cell {
-          padding: $pad-small 0; // larger clickable area
+          display: inline-block; // Underline only words
+          overflow: visible;
+          @include link;
+
+          &:not(.link-cell--tooltip-truncate) {
+            @include animated-bottom-border;
+          }
+
+          &.link-cell--tooltip-truncate {
+            .data-table__tooltip-truncated-text-container {
+              position: relative;
+              @include bottom-border;
+            }
+
+            &:hover,
+            &:focus {
+              margin-bottom: 0; // Undo margin-bottom of animated bottom border
+
+              .data-table__tooltip-truncated-text::after,
+              .data-table__tooltip-truncated-text::after {
+                transform: scaleX(1);
+              }
+            }
+          }
 
           &:hover {
-            // Underlines only the text and not the suffix like badges
-            .tooltip-truncated-cell {
-              text-decoration: none;
-            }
-            .data-table__tooltip-truncated-text {
-              text-decoration: underline;
+            .data-table__tooltip-truncated-text-container {
+              // @include link;
+              @include animated-bottom-border;
+
+              &:hover {
+                margin-bottom: 0; // Undo margin-bottom of animated bottom border
+              }
+
+              &::after {
+                transform: scaleX(
+                  1
+                ); // This gets the animation on the text only when hovering over the whole link-cell
+              }
             }
           }
 

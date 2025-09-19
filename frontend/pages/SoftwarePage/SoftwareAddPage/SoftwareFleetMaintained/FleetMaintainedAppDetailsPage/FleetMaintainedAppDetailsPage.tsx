@@ -18,7 +18,7 @@ import { ILabelSummary } from "interfaces/label";
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
 import SidePanelPage from "components/SidePanelPage";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
@@ -278,7 +278,7 @@ const FleetMaintainedAppDetailsPage = ({
     if (fleetApp) {
       return (
         <>
-          <BackLink
+          <BackButton
             text="Back to add software"
             path={backToAddSoftwareUrl}
             className={`${baseClass}__back-to-add-software`}
