@@ -1322,8 +1322,8 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 	setupSoftwareBySoftwareTitle := make(map[uint]struct{})
 	setupSoftwareByVppApp := make(map[string]struct{})
 
-	for _, platform := range []string{"linux", "macos"} {
-		// See if the team has macOS or Linux setup software configured.
+	for _, platform := range []string{"macos", "windows", "linux"} {
+		// See if the team has setup software configured.
 		setupSoftware, err := cmd.Client.GetSetupExperienceSoftware(platform, teamID)
 		if err != nil {
 			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting setup software: %s\n", err)

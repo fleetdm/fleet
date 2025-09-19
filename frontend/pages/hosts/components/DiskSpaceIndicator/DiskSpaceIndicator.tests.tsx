@@ -1,12 +1,13 @@
 import React from "react";
 
-import { screen, render, fireEvent } from "@testing-library/react";
+import { screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import DiskSpaceIndicator from "./DiskSpaceIndicator";
 
 describe("Disk space Indicator", () => {
   it("renders warning tooltip for <32gB when hovering over the yellow disk space indicator for darwin or windows", async () => {
-    render(
+    const { user } = renderWithSetup(
       <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={17}
@@ -22,7 +23,7 @@ describe("Disk space Indicator", () => {
       "data-set__disk-space--yellow"
     );
 
-    await fireEvent.mouseOver(screen.getByTitle("disk space indicator"));
+    await user.hover(screen.getByTitle("disk space indicator"));
     const tooltip = screen.getByText(
       "Not enough disk space available to install most large operating systems updates."
     );
@@ -30,7 +31,7 @@ describe("Disk space Indicator", () => {
   });
 
   it("renders severe warning tooltip for <16 gBwhen hovering over the red disk space indicator for darwin or windows", async () => {
-    render(
+    const { user } = renderWithSetup(
       <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={5}
@@ -46,7 +47,7 @@ describe("Disk space Indicator", () => {
       "data-set__disk-space--red"
     );
 
-    await fireEvent.mouseOver(screen.getByTitle("disk space indicator"));
+    await user.hover(screen.getByTitle("disk space indicator"));
     const tooltip = screen.getByText(
       "Not enough disk space available to install most small operating systems updates."
     );
@@ -54,7 +55,7 @@ describe("Disk space Indicator", () => {
   });
 
   it("renders tooltip when hovering over the green disk space indicator for darwin or windows", async () => {
-    render(
+    const { user } = renderWithSetup(
       <DiskSpaceIndicator
         baseClass="data-set"
         gigsDiskSpaceAvailable={33}
@@ -70,7 +71,7 @@ describe("Disk space Indicator", () => {
       "data-set__disk-space--green"
     );
 
-    await fireEvent.mouseOver(screen.getByTitle("disk space indicator"));
+    await user.hover(screen.getByTitle("disk space indicator"));
     const tooltip = screen.getByText(
       "Enough disk space available to install most operating systems updates."
     );
