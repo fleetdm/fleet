@@ -992,8 +992,12 @@ const HostDetailsPage = ({
         {isSoftwareLibrarySupported ? (
           <>
             <TabList>
-              <Tab>Inventory</Tab>
-              <Tab>Library</Tab>
+              <Tab>
+                <TabText>Inventory</TabText>
+              </Tab>
+              <Tab>
+                <TabText>Library</TabText>
+              </Tab>
             </TabList>
             <TabPanel>
               <SoftwareInventoryCard
@@ -1263,7 +1267,7 @@ const HostDetailsPage = ({
                 )}
               </TabPanel>
               <TabPanel>
-                <TabNav className={`${baseClass}__software-tab-nav`}>
+                <TabNav className={`${baseClass}__software-tab-nav`} secondary>
                   <Tabs
                     selectedIndex={getSoftwareTabIndex(location.pathname)}
                     onSelect={(i) => navigateToSoftwareTab(i)}
