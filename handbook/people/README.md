@@ -268,7 +268,7 @@ First: Advisor agreements are sent through [DocuSign](https://www.docusign.com/)
 - Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
 - Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
 - Complete the first step of signing, which involves filling in the number of shares.
-- Then wait for the advisor to sign.  (Fleet's CEO will sign after that.)
+- Then wait for the advisor to sign. (Fleet's CEO will sign after that)
 
 Then, to finalize a new advisor after signing is complete:
 - Schedule quarterly recurring 1h meeting between the CEO and the advisor, with 30m of recurring prep scheduled back to back ahead of the meeting.
