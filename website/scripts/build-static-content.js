@@ -1179,7 +1179,7 @@ module.exports = {
         });
 
         let githubLabelsToCheck = {};
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually'];
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually', 'Quarterly'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
@@ -1229,6 +1229,9 @@ module.exports = {
               }
               if(!_.contains(['fleet', 'confidential'], ritual.autoIssue.repo)) {
                 throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The "autoIssue.repo" value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`);
+              }
+              if(ritual.autoIssue.issueDescription && typeof ritual.autoIssue.issueDescription !== 'string') {
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" has an 'autoIssue' value that has an invalid "issueDescription" value. Please change this value to be a string (currently ${typeof ritual.autoIssue.issueDescription}) that contains the issue description of this rituals GitHub issue and try running this script again.`);
               }
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
