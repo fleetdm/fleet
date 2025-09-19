@@ -35,7 +35,7 @@ done
 
 if [ -n "$UNINST_APP" ] && [ -d "$UNINST_APP" ]; then
   BIN="$(/usr/bin/find "$UNINST_APP/Contents/MacOS" -maxdepth 1 -type f -perm -111 -print -quit 2>/dev/null)"
-  [ -n "$BIN" ] && { "$BIN" --force >/dev/null 2>&1 || "$BIN" >/dev/null 2>&1 || true; }
+  [ -n "$BIN" ] && { "$BIN" -uninstall --force >/dev/null 2>&1 || "$BIN" >/dev/null 2>&1 || true; }
 fi
 
 # Remove app bundles
