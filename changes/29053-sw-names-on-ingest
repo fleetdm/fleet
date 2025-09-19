@@ -1,0 +1,1 @@
+* Re-added and optimized fix for macos software ingestion to prevent duplicate software due to end user renaming software on host.
