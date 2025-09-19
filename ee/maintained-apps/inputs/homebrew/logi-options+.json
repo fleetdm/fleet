@@ -1,0 +1,10 @@
+{
+  "name": "Logitech Options+",
+  "slug": "logi-options+/darwin",
+  "unique_identifier": "com.logi.optionsplus",
+  "token": "logi-options+",
+  "installer_format": "zip",
+  "default_categories": ["Productivity"],
+  "install_script_path": "ee/maintained-apps/inputs/homebrew/scripts/logi-options-install.sh",
+  "uninstall_script_path": "ee/maintained-apps/inputs/homebrew/scripts/logi-options-uninstall.sh"
+}
