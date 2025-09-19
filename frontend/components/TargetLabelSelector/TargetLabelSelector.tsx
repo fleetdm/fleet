@@ -1,5 +1,4 @@
 import React, { ReactNode } from "react";
-import { Link } from "react-router";
 import classnames from "classnames";
 
 import PATHS from "router/paths";

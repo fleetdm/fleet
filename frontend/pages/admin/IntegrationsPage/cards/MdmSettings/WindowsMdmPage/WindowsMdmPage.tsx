@@ -8,7 +8,7 @@ import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
 import Button from "components/buttons/Button";
-import BackButton from "components/BackButton/BackButton";
+import BackButton from "components/BackButton";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";

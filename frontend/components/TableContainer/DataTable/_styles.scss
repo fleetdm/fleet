@@ -292,8 +292,7 @@ $shadow-transition-width: 10px;
         }
         .link-cell,
         .text-cell {
-          display: block;
-
+          display: block; // inline-block is not vertically centered
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;
