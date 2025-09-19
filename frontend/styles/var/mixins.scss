@@ -154,12 +154,17 @@ $max-width: 2560px;
 }
 
 @mixin link {
-  color: $core-vibrant-blue;
+  color: $ui-fleet-black-75;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
+
+  &:hover {
+    color: $ui-fleet-black-75-over;
+  }
+
   &:focus-visible {
-    outline-color: #d9d9fe;
+    outline-color: $core-focused-outline;
     outline-offset: 3px;
     outline-style: solid;
     outline-width: 2px;
