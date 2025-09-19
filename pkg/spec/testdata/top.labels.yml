@@ -6,5 +6,5 @@
     description: A fly global label
     hosts: 
       - host1
-      - host2
+      - 2
     label_membership_type: manual
