@@ -37,8 +37,8 @@
     min-width: 100%;
   }
 
-  &__sso-btn {
-    min-width: 208px !important; // TODO: How to override form .button
+  &__sso-btn.button {
+    min-width: 208px; // Must override form's .button specificity
     width: max-content;
     border: 1px solid $core-fleet-black;
     white-space: nowrap;

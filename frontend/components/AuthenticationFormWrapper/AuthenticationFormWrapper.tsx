@@ -10,7 +10,7 @@ import FleetIcon from "../../../assets/images/fleet-avatar-24x24@2x.png";
 interface IAuthenticationFormWrapperProps {
   children: React.ReactNode;
   header?: string;
-  headerCta?: JSX.Element;
+  headerCta?: React.ReactNode;
   className?: string;
 }
 

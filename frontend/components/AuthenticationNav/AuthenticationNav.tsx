@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { InjectedRouter, browserHistory } from "react-router";
-import classnames from "classnames";
 
 import paths from "router/paths";
 
