@@ -304,6 +304,7 @@ func testInsertNewInstalledHostSoftwareDB(t *testing.T, ds *Datastore) {
 				require.Len(t, updated, 1)
 				require.NotNil(t, updated[0].BundleIdentifier)
 				require.Equal(t, "com.jetbrains.goland", *updated[0].BundleIdentifier)
+				// require.Equal(t, "GoLand2.app", updated[0].Name)
 			},
 		},
 		{
@@ -624,6 +625,9 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 
 	require.Len(t, existingBundleIDsToUpdate, 1)
+	got, ok := existingBundleIDsToUpdate[bundleIdentifier]
+	assert.True(t, ok)
+	assert.Equal(t, got.Name, "GoLand 2.app")
 	tx, err = ds.writer(ctx).Beginx()
 	require.NoError(t, err)
 	inserted, updated, err := ds.insertNewInstalledHostSoftwareDB(
@@ -632,6 +636,8 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.NoError(t, tx.Commit())
 
+	assert.Len(t, updated, 1)
+
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&software, `SELECT id, name, bundle_identifier, title_id FROM software`,
 	)
@@ -639,7 +645,7 @@ func testSoftwareDifferentNameSameBundleIdentifier(t *testing.T, ds *Datastore) 
 	require.NoError(t, err)
 	require.Len(t, software, 1)
 	require.NotEmpty(t, software[0].TitleID)
-	// hasn't updated yet because we haven't called updateExistingBundleIDs yet
+	// hasn't updated yet because we haven't called updateTargetedBundleIDs yet
 	require.Equal(t, "GoLand.app", software[0].Name)
 
 	var hs []hostSoftware
@@ -5889,7 +5895,7 @@ func testCreateIntermediateInstallFailureRecord(t *testing.T, ds *Datastore) {
 	originalCreatedAt := time.Now().Add(-1 * time.Hour).UTC().Truncate(time.Microsecond) // Set to 1 hour ago
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at) 
+			INSERT INTO host_software_installs (execution_id, host_id, software_installer_id, user_id, policy_id, self_service, created_at)
 			VALUES (?, ?, ?, ?, ?, ?, ?)`,
 			"original-uuid", host.ID, installerID, user.ID, nil, false, originalCreatedAt)
 		return err
