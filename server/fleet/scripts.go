@@ -433,6 +433,9 @@ type SoftwareInstallerPayload struct {
 	// This is to support FMAs
 	Slug          *string        `json:"slug"`
 	MaintainedApp *MaintainedApp `json:"-"`
+
+	IconPath string `json:"-"`
+	IconHash string `json:"-"`
 }
 
 type HostLockWipeStatus struct {

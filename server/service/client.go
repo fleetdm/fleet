@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
 
@@ -835,6 +838,11 @@ func (c *Client) ApplyGroup(
 					installDuringSetup = &app.InstallDuringSetup.Value
 				}
 
+				iconHash, err := getIconHashIfValid(app.Icon.Path)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
+				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -842,6 +850,8 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					IconPath:           app.Icon.Path,
+					IconHash:           iconHash,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -1133,6 +1143,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		iconHash, err := getIconHashIfValid(si.Icon.Path)
+		if err != nil {
+			return nil, fmt.Errorf("Couldn't edit software (%s). Invalid icon file %s: %w", si.URL, si.Icon.Path, err)
+		}
+
 		var ic []byte
 		if si.InstallScript.Path != "" {
 			installScriptFile := si.InstallScript.Path
@@ -1186,6 +1201,8 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			IconPath:           si.Icon.Path,
+			IconHash:           iconHash,
 		}
 
 		if si.Slug != nil {
@@ -1194,6 +1211,35 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	}
 
 	return softwarePayloads, nil
+}
+
+func getIconHashIfValid(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	// TODO cache hash for a given path so we don't have to duplicate reads for multiple references to the same icon
+	iconReader, err := os.OpenFile(path, os.O_RDONLY, 0o0755)
+	if err != nil {
+		return "", fmt.Errorf("reading icon file: %w", err)
+	}
+
+	defer iconReader.Close()
+	if err = ValidateIcon(iconReader); err != nil {
+		return "", err
+	}
+
+	// Reset file pointer to beginning before hashing
+	if _, err := iconReader.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("seeking icon file: %w", err)
+	}
+
+	h := sha256.New()
+	if _, err := io.Copy(h, iconReader); err != nil {
+		return "", fmt.Errorf("hashing icon file: %w", err)
+	}
+	hash := hex.EncodeToString(h.Sum(nil))
+	return hash, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -1683,6 +1729,7 @@ func (c *Client) DoGitOps(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	iconSettings *fleet.IconGitOpsSettings,
 ) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -2163,6 +2210,20 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	// apply icon changes from software installers and VPP apps
+	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
+		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
+		if dryRun {
+			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+		} else {
+			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
+				return nil, nil, err
+			}
+			logFn("[+] Set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
+		}
+	}
+
 	// We currently don't support queries for "No team" thus
 	// we just do GitOps for queries for global and team files.
 	if !incoming.IsNoTeam() {
@@ -2173,6 +2234,53 @@ func (c *Client) DoGitOps(
 	}
 
 	return teamAssumptions, postOps, nil
+}
+
+func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads int, concurrentUpdates int) error {
+	var uploads errgroup.Group
+	uploads.SetLimit(concurrentUploads)
+
+	for _, toUpload := range iconUpdates.IconsToUpload {
+		uploads.Go(func() error {
+			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755)
+			if err != nil {
+				return fmt.Errorf("failed to read software icon for upload %s: %w", toUpload.Path, err)
+			}
+
+			defer iconReader.Close()
+			if err = c.UploadIcon(iconUpdates.TeamID, toUpload.TitleID, filepath.Base(toUpload.Path), iconReader); err != nil {
+				return fmt.Errorf("failed to upload software icon %s: %w", toUpload.Path, err)
+			}
+
+			return nil
+		})
+	}
+	if uploadErr := uploads.Wait(); uploadErr != nil {
+		return uploadErr
+	}
+
+	var updates errgroup.Group
+	updates.SetLimit(concurrentUpdates)
+	for _, toUpdate := range iconUpdates.IconsToUpdate {
+		updates.Go(func() error {
+			if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+				return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
+			}
+
+			return nil
+		})
+	}
+	for _, titleToDelete := range iconUpdates.TitleIDsToRemoveIconsFrom {
+		updates.Go(func() error {
+			if err := c.DeleteIcon(iconUpdates.TeamID, titleToDelete); err != nil {
+				return fmt.Errorf("failed to delete software icon: %w", err)
+			}
+
+			return nil
+		})
+	}
+
+	return updates.Wait()
 }
 
 func (c *Client) doGitOpsNoTeamSetupAndSoftware(
@@ -2241,10 +2349,17 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				installDuringSetup = vppApp.InstallDuringSetup.Value
 			}
 
+			iconHash, err := getIconHashIfValid(vppApp.Icon.Path)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
+			}
+
 			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				IconPath:           vppApp.Icon.Path,
+				IconHash:           iconHash,
 			})
 		}
 	}
