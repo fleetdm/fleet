@@ -9,11 +9,6 @@ import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import ResetPasswordForm from "components/forms/ResetPasswordForm";
-<<<<<<< HEAD
-=======
-// @ts-ignore
-import StackedWhiteBoxes from "components/AuthenticationNav";
->>>>>>> 32c2027273 (First pass at login pages)
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import AuthenticationNav from "components/AuthenticationNav";
 
@@ -85,7 +80,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
   };
 
   return (
-<<<<<<< HEAD
     <AuthenticationFormWrapper className={baseClass}>
       <div className={`${baseClass}__description`}>
         <p>
@@ -94,13 +88,6 @@ const ResetPasswordPage = ({ location, router }: IResetPasswordPageProps) => {
           (e.g. &*#)
         </p>
       </div>
-=======
-    <AuthenticationFormWrapper>
-      <AuthenticationNav
-        router={router}
-        leadText="Create a new password. Your new password must include 12-48 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
-      />
->>>>>>> 32c2027273 (First pass at login pages)
       <ResetPasswordForm handleSubmit={onSubmit} serverErrors={errors} />
     </AuthenticationFormWrapper>
   );
