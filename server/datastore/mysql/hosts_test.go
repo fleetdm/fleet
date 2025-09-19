@@ -95,6 +95,7 @@ func TestHosts(t *testing.T) {
 		{"SearchLimit", testHostsSearchLimit},
 		{"GenerateStatusStatistics", testHostsGenerateStatusStatistics},
 		{"GenerateStatusStatisticsABMPendingExclusion", testHostsGenerateStatusStatisticsABMPendingExclusion},
+		{"LowDiskSpaceFilterExcludesSentinel", testHostsLowDiskSpaceFilterExcludesSentinel},
 		{"MarkSeen", testHostsMarkSeen},
 		{"MarkSeenMany", testHostsMarkSeenMany},
 		{"CleanupIncoming", testHostsCleanupIncoming},
@@ -2165,7 +2166,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// MIA
-	h, err = ds.NewHost(context.Background(), &fleet.Host{
+	_, err = ds.NewHost(context.Background(), &fleet.Host{
 		ID:              4,
 		OsqueryHostID:   ptr.String("4"),
 		NodeKey:         ptr.String("4"),
@@ -2177,38 +2178,54 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// Android host with unmeasurable storage (sentinel value -1)
+	h, err = ds.NewHost(context.Background(), &fleet.Host{
+		ID:              5,
+		OsqueryHostID:   ptr.String("5"),
+		NodeKey:         ptr.String("android/TEST-ENTERPRISE-5"),
+		DetailUpdatedAt: mockClock.Now().Add(-2 * time.Hour),
+		LabelUpdatedAt:  mockClock.Now().Add(-2 * time.Hour),
+		PolicyUpdatedAt: mockClock.Now().Add(-2 * time.Hour),
+		SeenTime:        mockClock.Now().Add(-2 * time.Hour),
+		Platform:        "android",
+	})
+	require.NoError(t, err)
+	// Set -1 sentinel values to indicate storage measurement not supported
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, -1, -1, 128.0))
+
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{h.ID})))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{4}))) // Add the rhel host (ID 4) to team1
 
 	wantPlatforms := []*fleet.HostSummaryPlatform{
 		{Platform: "debian", HostsCount: 1},
 		{Platform: "rhel", HostsCount: 1},
 		{Platform: "windows", HostsCount: 1},
 		{Platform: "darwin", HostsCount: 1},
+		{Platform: "android", HostsCount: 1},
 	}
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now(), nil, nil)
 	require.NoError(t, err)
-	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(5), summary.TotalsHostsCount)
 	assert.Equal(t, uint(2), summary.OnlineCount)
-	assert.Equal(t, uint(2), summary.OfflineCount)
+	assert.Equal(t, uint(3), summary.OfflineCount)
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(1), summary.Missing30DaysCount)
-	assert.Equal(t, uint(4), summary.NewCount)
+	assert.Equal(t, uint(5), summary.NewCount)
 	assert.Nil(t, summary.LowDiskSpaceCount)
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil, ptr.Int(10))
 	require.NoError(t, err)
-	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(5), summary.TotalsHostsCount)
 	assert.Equal(t, uint(0), summary.OnlineCount)
-	assert.Equal(t, uint(4), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
+	assert.Equal(t, uint(5), summary.OfflineCount) // offline count includes mia hosts as of Fleet 4.15
 	assert.Equal(t, uint(1), summary.MIACount)
 	assert.Equal(t, uint(1), summary.Missing30DaysCount)
-	assert.Equal(t, uint(4), summary.NewCount)
+	assert.Equal(t, uint(5), summary.NewCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
-	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
+	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount) // Only host 1 with 5 GB, not Android with -1
 	assert.ElementsMatch(t, summary.Platforms, wantPlatforms)
 
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(11*24*time.Hour), nil, nil)
@@ -2226,7 +2243,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	filter.IncludeObserver = true
 	summary, err = ds.GenerateHostStatusStatistics(context.Background(), filter, mockClock.Now().Add(1*time.Hour), nil, nil)
 	require.NoError(t, err)
-	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	assert.Equal(t, uint(5), summary.TotalsHostsCount) // Now includes Android host
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	filter = fleet.TeamFilter{User: userTeam1}
@@ -2252,6 +2269,101 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(1), summary.TotalsHostsCount)
 	require.NotNil(t, summary.LowDiskSpaceCount)
 	assert.Equal(t, uint(1), *summary.LowDiskSpaceCount)
+}
+
+func testHostsLowDiskSpaceFilterExcludesSentinel(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create hosts with various disk space values to test the sentinel exclusion
+
+	// Host 1: Android with -1 sentinel (should NOT be counted as low disk space)
+	h1, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              1,
+		OsqueryHostID:   ptr.String("android-1"),
+		NodeKey:         ptr.String("android/TEST-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		Platform:        "android",
+		Hostname:        "android-unmeasurable",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h1.ID, -1, -1, 128.0))
+
+	// Host 2: Regular host with 0 GB (should be counted - legitimate disk full)
+	h2, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              2,
+		OsqueryHostID:   ptr.String("mac-1"),
+		NodeKey:         ptr.String("mac-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		Platform:        "darwin",
+		Hostname:        "mac-disk-full",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h2.ID, 0, 0, 100.0))
+
+	// Host 3: Regular host with 5 GB (should be counted)
+	h3, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              3,
+		OsqueryHostID:   ptr.String("windows-1"),
+		NodeKey:         ptr.String("windows-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		Platform:        "windows",
+		Hostname:        "windows-low-space",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h3.ID, 5, 5, 100.0))
+
+	// Host 4: Regular host with 50 GB (should NOT be counted - above threshold)
+	h4, err := ds.NewHost(ctx, &fleet.Host{
+		ID:              4,
+		OsqueryHostID:   ptr.String("linux-1"),
+		NodeKey:         ptr.String("linux-1"),
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		Platform:        "ubuntu",
+		Hostname:        "linux-good-space",
+	})
+	require.NoError(t, err)
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(ctx, h4.ID, 50, 50, 100.0))
+
+	// Test with low disk space filter set to 32 GB (typical threshold)
+	opts := fleet.HostListOptions{
+		LowDiskSpaceFilter: ptr.Int(32),
+		ListOptions: fleet.ListOptions{
+			OrderKey: "id",
+		},
+	}
+
+	hosts, err := ds.ListHosts(ctx, fleet.TeamFilter{User: test.UserAdmin}, opts)
+	require.NoError(t, err)
+
+	// Should return only hosts 2 and 3 (0 GB and 5 GB)
+	// Should NOT return host 1 (Android with -1) or host 4 (50 GB)
+	assert.Len(t, hosts, 2)
+
+	hostIDs := make([]uint, len(hosts))
+	for i, h := range hosts {
+		hostIDs[i] = h.ID
+	}
+	assert.ElementsMatch(t, []uint{2, 3}, hostIDs)
+
+	// Test dashboard count
+	summary, err := ds.GenerateHostStatusStatistics(ctx, fleet.TeamFilter{User: test.UserAdmin}, time.Now(), nil, ptr.Int(32))
+	require.NoError(t, err)
+
+	assert.Equal(t, uint(4), summary.TotalsHostsCount)
+	require.NotNil(t, summary.LowDiskSpaceCount)
+	assert.Equal(t, uint(2), *summary.LowDiskSpaceCount) // Only hosts 2 and 3
 }
 
 func testHostsGenerateStatusStatisticsABMPendingExclusion(t *testing.T, ds *Datastore) {
