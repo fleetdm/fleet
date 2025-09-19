@@ -129,12 +129,13 @@ func TestCollectSantaRules_Success(t *testing.T) {
 	}, got)
 }
 
+// TestCollectSantaRules_DBMissing verifies that a missing DB file is handled without error.
 func TestCollectSantaRules_DBMissing(t *testing.T) {
 	dbPath := filepath.Join(t.TempDir(), "nope.db")
 
-	_, err := collectSantaRulesFromPath(context.Background(), dbPath, 100)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "not found")
+	entry, err := collectSantaRulesFromPath(context.Background(), dbPath, 100)
+	require.NoError(t, err)
+	require.Nil(t, entry)
 }
 
 func TestCollectSantaRules_ContextCancel(t *testing.T) {

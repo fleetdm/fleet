@@ -111,7 +111,8 @@ func collectSantaRulesFromPath(ctx context.Context, dbPath string, timeoutMS int
 	// Check if Santa database exists
 	if _, err := os.Stat(dbPath); err != nil {
 		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("Santa database not found at %s", dbPath)
+			log.Warn().Msg("Santa database not found")
+			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to stat Santa database: %w", err)
 	}
