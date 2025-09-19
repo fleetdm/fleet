@@ -23352,7 +23352,7 @@
         "name": "days_to_expiration",
         "type": "integer",
         "required": false,
-        "description": "How many days are left for the expiration of the current password."
+        "description": "Synonym for expires_every_n_days (not typically set in macOS 10.15+)."
       },
       {
         "name": "history_depth",
