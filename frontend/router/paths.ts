@@ -98,6 +98,7 @@ export default {
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
+  MANAGE_LABELS: `${URL_PREFIX}/labels/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   // deprecated - now handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,
