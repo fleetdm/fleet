@@ -26,7 +26,7 @@ import ActionButtons from "components/buttons/ActionButtons/ActionButtons";
 import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import TeamsDropdown from "components/TeamsDropdown";
 import MainContent from "components/MainContent";
 import DeleteTeamModal from "../components/DeleteTeamModal";
@@ -391,7 +391,7 @@ const TeamDetailsWrapper = ({
       <>
         {isGlobalAdmin ? (
           <div className={`${baseClass}__header-links`}>
-            <BackLink text="Back to teams" path={PATHS.ADMIN_TEAMS} />
+            <BackButton text="Back to teams" path={PATHS.ADMIN_TEAMS} />
           </div>
         ) : (
           <></>

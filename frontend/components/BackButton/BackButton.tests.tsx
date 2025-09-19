@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen } from "@testing-library/react";
-import BackLink from "./BackLink";
+import BackButton from "./BackButton";
 
-describe("BackLink - component", () => {
+describe("BackButton - component", () => {
   it("renders text and icon", () => {
-    render(<BackLink text="Back to software" />);
+    render(<BackButton text="Back to software" />);
 
     const text = screen.getByText("Back to software");
     const icon = screen.getByTestId("chevron-left-icon");

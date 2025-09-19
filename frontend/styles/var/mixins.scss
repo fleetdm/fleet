@@ -158,10 +158,11 @@ $max-width: 2560px;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
+
   &:hover {
     color: $ui-fleet-black-75-over;
-    // border-bottom: 1px solid transparent;
   }
+
   &:focus-visible {
     outline-color: $core-focused-outline;
     outline-offset: 3px;
