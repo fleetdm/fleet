@@ -1278,6 +1278,7 @@ This activity contains the following fields:
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "install_uuid": ID of the software installation.
+- "command_uuid": ID of the MDM command used to install in-house app (.ipa).
 - "self_service": Whether the installation was initiated by the end user.
 - "software_title": Name of the software.
 - "software_package": Filename of the installer.
