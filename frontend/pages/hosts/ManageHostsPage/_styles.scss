@@ -132,7 +132,6 @@
       .table-container__search {
         order: 1;
         width: 100%;
-        margin-bottom: $pad-small;
 
         .table-container__search-input {
           margin-left: 0;
@@ -159,7 +158,6 @@
 
         .controls {
           order: -2;
-          margin-bottom: $pad-small;
 
           .manage-hosts__filter-dropdowns {
             display: flex;

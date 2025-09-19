@@ -3,9 +3,9 @@
   // No background color as TabNav is often over a background gradient
 
   .react-tabs {
-    // Remove 8px top margin react-tab adds causing buggy 8px gap in all uses
+    // Remove 12px top margin react-tab adds causing buggy 12px gap in all uses
     // TODO: Find upstream fix
-    margin-top: -8px;
+    margin-top: -12px;
 
     &__tab-list {
       display: inline-flex;

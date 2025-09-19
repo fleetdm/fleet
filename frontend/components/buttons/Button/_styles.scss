@@ -10,13 +10,13 @@ $base-class: "button";
 // Buttons with background colors
 @mixin button-pad-8px-16px {
   padding: $pad-small $pad-medium;
-  height: 32px;
+  height: 36px;
 }
 
 // Buttons without background colors
 @mixin button-pad-8px-8px {
   padding: $pad-small $pad-small;
-  height: 32px;
+  height: 36px;
 }
 
 // Size small buttons (with and without background colors)

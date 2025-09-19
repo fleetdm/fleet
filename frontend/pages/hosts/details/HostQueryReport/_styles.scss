@@ -1,16 +1,13 @@
 .host-query-report {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-large;
+  @include page;
   @include color-contrasted-sections;
 
   h1 {
     font-weight: $bold;
   }
+
   &__header {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xlarge;
+    @include page;
 
     &__row2 {
       display: flex;

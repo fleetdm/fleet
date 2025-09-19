@@ -27,7 +27,7 @@ interface IActionsDropdownProps {
   className?: string;
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
-  variant?: "button" | "brand-button";
+  variant?: "button" | "brand-button" | "small-button";
 }
 
 const getOptionBackgroundColor = (state: any) => {
@@ -180,13 +180,16 @@ const ActionsDropdown = ({
     }
   };
 
+  console.log("variant", variant);
   const customStyles: StylesConfig<IDropdownOption, false> = {
     control: (provided, state) => ({
       ...provided,
       display: "flex",
       flexDirection: "row",
       width: "max-content",
-      padding: "8px", // Match button padding
+      // Need minHeight to override default
+      minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
+      padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
       backgroundColor: "initial",
       border: 0,
       boxShadow: "none",
@@ -208,6 +211,9 @@ const ActionsDropdown = ({
       // Currently only relying on &:focus styling for tabbing through app
       ...(state.menuIsOpen && {
         background: COLORS["ui-fleet-black-5"], // Match button hover
+        ".actions-dropdown-select__indicators": {
+          height: "20px",
+        },
         ".actions-dropdown-select__indicator svg": {
           transform: "rotate(180deg)",
           transition: "transform 0.25s ease",
@@ -290,7 +296,7 @@ const ActionsDropdown = ({
   };
 
   return (
-    <div className={baseClass} ref={wrapperRef}>
+    <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
       <Select<IDropdownOption, false>
         ref={selectRef}
         options={options}
