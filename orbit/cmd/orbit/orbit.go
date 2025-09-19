@@ -243,7 +243,7 @@ func main() {
 		},
 		&cli.BoolFlag{
 			Name:    "disable-setup-experience",
-			Usage:   "Disables checking for setup experience on Linux hosts",
+			Usage:   "Disables checking for setup experience on Linux or Windows hosts",
 			EnvVars: []string{"ORBIT_DISABLE_SETUP_EXPERIENCE"},
 		},
 	}
@@ -1550,11 +1550,11 @@ func main() {
 
 		go sigusrListener(c.String("root-dir"))
 
-		isLinux := runtime.GOOS == "linux"
+		setupExperienceOS := runtime.GOOS == "linux" || runtime.GOOS == "windows"
 		setupExperienceNotDisabled := !c.Bool("disable-setup-experience")
-		runSetupExperience := isLinux && setupExperienceNotDisabled
+		runSetupExperience := setupExperienceOS && setupExperienceNotDisabled
 		log.Debug().
-			Bool("isLinux", isLinux).
+			Bool("setupExperienceOS", setupExperienceOS).
 			Bool("notDisabled", setupExperienceNotDisabled).
 			Msg("checking setup experience preflight values")
 
@@ -1595,6 +1595,14 @@ func main() {
 				log.Debug().Str("browser", browserBin).Str("url", browserURL).Str("user", *loggedInUser).Msg("opening browser for setup experience")
 				if _, err := execuser.Run(browserBin, opts...); err != nil {
 					return fmt.Errorf("opening browser with %s: %w", browserBin, err)
+				}
+			case "windows":
+				cmdLine := fmt.Sprintf("/c start %s", browserURL)
+				opts := []execuser.Option{
+					execuser.WithArg(cmdLine, ""),
+				}
+				if _, err := execuser.Run("cmd.exe", opts...); err != nil {
+					return fmt.Errorf("opening windows browser: %w", err)
 				}
 			default:
 				log.Debug().Msg("could not open browser, unsupported OS: " + runtime.GOOS)
@@ -2250,7 +2258,6 @@ func (f *capabilitiesChecker) Execute() error {
 			}
 		case <-f.interruptCh:
 			return nil
-
 		}
 	}
 }
