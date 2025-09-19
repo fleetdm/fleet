@@ -15,6 +15,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// declare execCommandContext for testing
+var execCommandContext = exec.CommandContext
+
 type santaStatus struct {
 	WatchItems struct {
 		Enabled bool `json:"enabled"`
@@ -95,8 +98,8 @@ func StatusColumns() []table.ColumnDefinition {
 	}
 }
 
-func GenerateStatus(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	cmd := exec.CommandContext(ctx, "/usr/local/bin/santactl", "status", "--json")
+func GenerateStatus(ctx context.Context, _ table.QueryContext) ([]map[string]string, error) {
+	cmd := execCommandContext(ctx, "/usr/local/bin/santactl", "status", "--json")
 	output, err := cmd.Output()
 	if err != nil {
 		// Gracefully return an empty result if santactl fails
