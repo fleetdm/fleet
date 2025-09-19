@@ -9,22 +9,15 @@ import Icon from "components/Icon/Icon";
 
 const baseClass = "authentication-nav";
 
-interface IStackedWhiteBoxesProps {
-  headerText?: string;
-  headerCta?: JSX.Element;
-  className?: string;
-  leadText?: string;
+interface IAuthenticationNav {
   previousLocation?: string;
   router?: InjectedRouter;
 }
 
 const AuthenticationNav = ({
-  className,
   previousLocation,
   router,
-}: IStackedWhiteBoxesProps): JSX.Element => {
-  const classNames = classnames(baseClass, className);
-
+}: IAuthenticationNav): JSX.Element => {
   useEffect(() => {
     const closeWithEscapeKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && router) {

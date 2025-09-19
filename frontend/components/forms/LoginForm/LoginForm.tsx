@@ -5,7 +5,6 @@ import { ILoginUserData } from "interfaces/user";
 
 import CustomLink from "components/CustomLink";
 import Icon from "components/Icon";
-import StackedWhiteBoxes from "components/AuthenticationNav";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon";
