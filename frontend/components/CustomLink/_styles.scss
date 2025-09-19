@@ -1,4 +1,24 @@
 .custom-link {
+  @include link;
+  @include animated-bottom-border($core-fleet-black, $ui-fleet-black-25);
+
+  .external-link-icon__outline {
+    transition: fill 0.2s;
+  }
+  .external-link-icon__arrow {
+    transition: stroke 0.2s;
+  }
+
+  // Inverse hover over effect
+  &:hover {
+    .external-link-icon__outline {
+      fill: $ui-fleet-black-75-over;
+    }
+    .external-link-icon__arrow {
+      stroke: $core-fleet-white;
+    }
+  }
+
   // Changing display will break multiline links
   &:not(.custom-link--multiline) {
     display: inline-flex;
@@ -22,5 +42,23 @@
 
   &--tooltip-link {
     font-size: inherit; // Overrides link default font size with parent tooltip font size
+    @include animated-bottom-border($core-fleet-white, $ui-off-white);
+
+    .external-link-icon__outline {
+      stroke: $core-fleet-white;
+    }
+
+    // Inverse hover over effect
+    &:hover {
+      color: $ui-off-white;
+
+      .external-link-icon__outline {
+        fill: $ui-off-white;
+      }
+
+      .external-link-icon__arrow {
+        stroke: $tooltip-bg;
+      }
+    }
   }
 }

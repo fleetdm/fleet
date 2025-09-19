@@ -65,7 +65,7 @@ import Spinner from "components/Spinner";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
 import MainContent, { IMainContentConfig } from "components/MainContent";
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Card from "components/Card";
 import CustomLink from "components/CustomLink/CustomLink";
 import EmptyTable from "components/EmptyTable";
@@ -1117,7 +1117,7 @@ const HostDetailsPage = ({
             />
           )}
           <div className={`${baseClass}__header-links`}>
-            <BackLink
+            <BackButton
               text="Back to all hosts"
               path={filteredHostsPath || PATHS.MANAGE_HOSTS}
             />
