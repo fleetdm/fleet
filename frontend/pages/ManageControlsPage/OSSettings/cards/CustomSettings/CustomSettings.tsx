@@ -202,17 +202,25 @@ const CustomSettings = ({
     !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
+  const subTitle = (
+    <>
+      Create and upload configuration profiles to apply custom settings.{" "}
+      <CustomLink
+        newTab
+        text="Learn how"
+        url="https://fleetdm.com/learn-more-about/custom-os-settings"
+      />
+    </>
+  );
+
   return (
     <div className={baseClass}>
-      <SectionHeader title="Custom settings" />
-      <p className={`${baseClass}__description`}>
-        Create and upload configuration profiles to apply custom settings.{" "}
-        <CustomLink
-          newTab
-          text="Learn how"
-          url="https://fleetdm.com/learn-more-about/custom-os-settings"
-        />
-      </p>
+      <SectionHeader
+        title="Custom settings"
+        subTitle={subTitle}
+        alignLeftHeaderVertically
+        greySubtitle
+      />
       {!mdmEnabled ? (
         <TurnOnMdmMessage
           router={router}

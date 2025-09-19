@@ -940,6 +940,7 @@ module.exports.routes = {
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
+  'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
   'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
 
   // Sitemap
