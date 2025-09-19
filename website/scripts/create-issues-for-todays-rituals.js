@@ -117,8 +117,8 @@ module.exports = {
         if (!dry) {
           let owner = 'fleetdm';
           let bodyForThisAutoIssue;
-          if(ritual.autoIssue.body) {
-            bodyForThisAutoIssue = ritual.autoIssue.body + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : '');
+          if(ritual.autoIssue.issueDescription) {
+            bodyForThisAutoIssue = ritual.autoIssue.issueDescription + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : '');
           } else {
             bodyForThisAutoIssue = ritual.description + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : '');
           }
