@@ -2168,7 +2168,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, err
 	}
 
-	// Use batch query for better performance (700x+ improvement for large datasets).
+	// Use batch query for better performance.
 	// Note: The OSVersions API endpoint does not include kernels (ds.ListKernelsByOS).
 	if len(osVersions.OSVersions) > 0 {
 		vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, osVersions.OSVersions, includeCVSS, teamID)

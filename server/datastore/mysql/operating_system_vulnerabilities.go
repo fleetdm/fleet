@@ -333,7 +333,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 // ListVulnsByMultipleOSVersions - Optimized batch query to fetch vulnerabilities for multiple OS versions
-// This replaces the N+1 pattern with efficient batch queries, providing 700x+ performance improvement
+// This replaces the previous N+1 pattern with efficient batch queries, providing performance improvement
 // for large datasets.
 func (ds *Datastore) ListVulnsByMultipleOSVersions(
 	ctx context.Context,
