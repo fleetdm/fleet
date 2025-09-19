@@ -44,4 +44,7 @@
       @include help-text;
     }
   }
+  .back-link {
+    align-self: flex-start;
+  }
 }
