@@ -66,13 +66,16 @@ done
 # 3) Remove the app bundle (handle both names)
 rm -rf "/Applications/Logi Options+.app" \
        "/Applications/logioptionsplus.app" \
+       "/Applications/Utilities/Logi Options+ Driver Installer.bundle" \
+       "/Applications/Utilities/LogiPluginService.app" \
        "/Applications/Logi Options Plus.app" >/dev/null 2>&1 || true
 
 # 4) System support and receipts
 rm -rf "/Library/Application Support/Logitech/LogiOptionsPlus" \
        "/Library/Application Support/Logitech.localized/LogiOptionsPlus" \
        "/Library/Application Support/Logi Options+" >/dev/null 2>&1 || true
-rmdir  "/Library/Application Support/Logitech.localized" >/dev/null 2>&1 || true
+rmdir  "/Library/Application Support/Logitech.localized" \
+       "/Library/Application Support/Logi" >/dev/null 2>&1 || true
 
 pkgutil --forget "com.logitech.LogiRightSightForWebcams.pkg" >/dev/null 2>&1 || true
 for id in $(pkgutil --pkgs | grep -E '^com\.logi(\.|tech)' 2>/dev/null); do
