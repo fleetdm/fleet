@@ -669,10 +669,13 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={false}
-            hostId={host.id}
+            canResendProfiles={host.platform === "darwin"}
             platform={host.platform}
             hostMDMData={host.mdm}
+            resendRequest={(profileUUID: string) =>
+              deviceUserAPI.resendProfile(deviceAuthToken, profileUUID)
+            }
+            onProfileResent={refetchHostDetails}
             onClose={toggleOSSettingsModal}
           />
         )}

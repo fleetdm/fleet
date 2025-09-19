@@ -1338,10 +1338,12 @@ const HostDetailsPage = ({
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={host.platform === "darwin"}
-              hostId={host.id}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
+              resendRequest={(profileUUID: string) =>
+                hostAPI.resendProfile(host.id, profileUUID)
+              }
               onProfileResent={refetchHostDetails}
             />
           )}
