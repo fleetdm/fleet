@@ -1,4 +1,6 @@
 .local-user-accounts-card {
+  @include card;
+
   .data-table-block {
     .data-table__table {
       thead {

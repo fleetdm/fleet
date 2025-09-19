@@ -1,7 +1,6 @@
 .script-batch-details-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  @include page-tab-panel;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__header {
     margin-bottom: 0;
