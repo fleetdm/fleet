@@ -162,7 +162,7 @@ const InstallSoftware = ({
   return (
     <section className={baseClass}>
       <SectionHeader title="Install software" />
-      <TabNav>
+      <TabNav secondary>
         <Tabs
           selectedIndex={PLATFORM_BY_INDEX.indexOf(selectedPlatform)}
           onSelect={handleTabChange}
