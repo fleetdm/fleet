@@ -54,11 +54,11 @@ software:
     - slug: santa/darwin # Santa for macOS
       self_service: true
       install_script:
-        - path: ../lib/macos/scripts/refetch-host.sh
+        path: ../lib/macos/scripts/refetch-host.sh
       uninstall_script:
-        - path: ../lib/macos/scripts/refetch-host.sh
+        path: ../lib/macos/scripts/refetch-host.sh
       postinstall_script:
-        - path: ../lib/macos/scripts/refetch-host.sh
+        path: ../lib/macos/scripts/refetch-host.sh
     - slug: vnc-viewer/darwin # VNC Viewer for macOS
       self_service: true
     - slug: beyond-compare/darwin # Beyond Compare for macOS
