@@ -7,8 +7,6 @@ import PATHS from "router/paths";
 import { CONTACT_FLEET_LINK } from "utilities/constants";
 
 import Button from "components/buttons/Button/Button";
-// @ts-ignore
-import StackedWhiteBoxes from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import CustomLink from "components/CustomLink/CustomLink";
 import AuthenticationNav from "components/AuthenticationNav";

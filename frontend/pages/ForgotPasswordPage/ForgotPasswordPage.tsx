@@ -6,7 +6,6 @@ import formatErrorResponse from "utilities/format_error_response";
 
 // @ts-ignore
 import ForgotPasswordForm from "components/forms/ForgotPasswordForm";
-// @ts-ignore
 import AuthenticationNav from "components/AuthenticationNav";
 import AuthenticationFormWrapper from "components/AuthenticationFormWrapper";
 import CustomLink from "components/CustomLink";

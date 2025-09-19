@@ -1,6 +1,6 @@
 .policy-page {
   &__form {
-    @include flex-column-1rem-gap;
+    @include flex-column-16px-gap;
   }
 
   &__results {
