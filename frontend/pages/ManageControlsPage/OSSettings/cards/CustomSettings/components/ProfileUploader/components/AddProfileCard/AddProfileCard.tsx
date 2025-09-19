@@ -3,7 +3,7 @@ import React from "react";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Card from "components/Card";
 import Button from "components/buttons/Button";
-import ProfileGraphic from "../AddProfileGraphic";
+import ProfileGraphic from "../ProfileGraphic";
 
 const baseClass = "add-profile-card";
 
@@ -14,7 +14,16 @@ interface IAddProfileCardProps {
 const AddProfileCard = ({ setShowModal }: IAddProfileCardProps) => (
   <Card color="grey" className={baseClass}>
     <div className={`${baseClass}__card--content-wrap`}>
-      <ProfileGraphic baseClass={baseClass} showMessage />
+      <ProfileGraphic
+        baseClass={baseClass}
+        message={
+          <>
+            <b>Upload configuration profile</b>
+            <br />
+            For Apple (macOS, iOS, iPadOS), Windows, or Android hosts.
+          </>
+        }
+      />
       <GitOpsModeTooltipWrapper
         tipOffset={8}
         renderChildren={(disableChildren) => (

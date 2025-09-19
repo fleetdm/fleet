@@ -17,7 +17,9 @@ type SignupURLsCreateFunc func(ctx context.Context, serverURL string, callbackUR
 
 type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error)
 
-type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
+type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+
+type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
@@ -36,6 +38,9 @@ type Client struct {
 
 	EnterprisesPoliciesPatchFunc        EnterprisesPoliciesPatchFunc
 	EnterprisesPoliciesPatchFuncInvoked bool
+
+	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
+	EnterprisesDevicesPatchFuncInvoked bool
 
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
@@ -66,11 +71,18 @@ func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.Enterpri
 	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	p.mu.Lock()
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesPatchFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesPatchFunc(ctx, deviceName, device)
 }
 
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {

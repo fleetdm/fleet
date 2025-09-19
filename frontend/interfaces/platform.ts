@@ -195,15 +195,13 @@ const OS_SETTINGS_DISPLAY_PLATFORMS = [
   ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
   "ios",
   "ipados",
+  "android",
 ];
 
 export const isOsSettingsDisplayPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
-  if (isAndroid(platform)) {
-    return false;
-  }
   if (platform === "rhel") {
     return !!os_version && os_version.toLowerCase().includes("fedora");
   }

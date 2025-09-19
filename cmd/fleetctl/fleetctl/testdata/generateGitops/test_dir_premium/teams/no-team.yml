@@ -1,4 +1,5 @@
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
   ios_updates:
     deadline: "2025-12-31"

@@ -47,7 +47,7 @@ spec:
       deadline_days: 7
       grace_period_days: 3
     macos_settings:
-      custom_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package:
       enable_end_user_authentication: false
@@ -57,6 +57,8 @@ spec:
       script:
       software:
     windows_settings:
+      custom_settings: null
+    android_settings:
       custom_settings: null
     end_user_authentication:
       idp_name: ""

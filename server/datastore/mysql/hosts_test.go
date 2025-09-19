@@ -81,6 +81,7 @@ func TestHosts(t *testing.T) {
 		{"WithTeamPackStats", testHostsWithTeamPackStats},
 		{"Delete", testHostsDelete},
 		{"HostListOptionsTeamFilter", testHostListOptionsTeamFilter},
+		{"HostListOptionsAndroidOSSettings", testHostListAndroidHostsOSSettings},
 		{"ListFilterAdditional", testHostsListFilterAdditional},
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
@@ -836,6 +837,15 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 		nanoEnrollAndSetHostMDMData(t, ds, h, false)
 	}
 
+	// Add a couple of Android hosts(creation path is slightly different)
+	for i := 0; i < 2; i++ {
+		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		require.NoError(t, err)
+		require.NotNil(t, newHost)
+		hosts = append(hosts, newHost.Host)
+	}
+
 	userFilter := fleet.TeamFilter{User: test.UserAdmin}
 
 	// confirm initial state
@@ -853,13 +863,13 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 3)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 0)
 
-	// assign four hosts to team 2
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hosts[13].ID, hosts[14].ID, hosts[15].ID, hosts[16].ID})))
+	// assign five hosts, including one Android, to team 2
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team2.ID, []uint{hosts[13].ID, hosts[14].ID, hosts[15].ID, hosts[16].ID, hosts[20].ID})))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil}, len(hosts))
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts)-7)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero}, len(hosts)-8)
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID}, 3)
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 4)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID}, 5)
 
 	// test team filter in combination with macos settings filter
 	profUUID := "a" + uuid.NewString()
@@ -875,18 +885,24 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 			Scope:             fleet.PayloadScopeSystem,
 		},
 	}))
+
+	// Insert a "verifying" profile for Android host 20(team 2) and a failed profile for Android host 21(no team)
+	upsertAndroidHostProfileStatus(t, ds, hosts[20].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryVerifying)
+	upsertAndroidHostProfileStatus(t, ds, hosts[21].UUID, "g"+uuid.NewString(), &fleet.MDMDeliveryFailed)
+
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[0]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0) // wrong team
 	// macos settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0) // no team
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)  // no team
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsVerifying}, 0)                               // no team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{MacOSSettingsFilter: fleet.OSSettingsFailed}, 0)                                  // 0 because the failed host is Android
 
 	require.NoError(t, ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{
 			ProfileUUID:       profUUID,
 			ProfileIdentifier: "identifier",
-			HostUUID:          hosts[19].UUID, // hosts[19] is assgined to no team
+			HostUUID:          hosts[19].UUID, // hosts[19] is assigned to no team
 			CommandUUID:       "command-uuid-2",
 			OperationType:     fleet.MDMOperationTypeInstall,
 			Status:            &fleet.MDMDeliveryVerifying,
@@ -907,12 +923,13 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team1.ID, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[10]
 
 	// team 2
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsFilter: fleet.OSSettingsVerifying}, 0) // wrong team
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: &team2.ID, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // Android hosts[20]
 
 	// os settings filter does not support "all teams" so teamIDFilterNil acts the same as teamIDFilterZero
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerifying}, 1) // hosts[19]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterNil, OSSettingsFilter: fleet.OSSettingsVerifying}, 1)  // hosts[19]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsVerifying}, 1)                               // hosts[19]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsFailed}, 1)                                  // hosts[21]
 
 	// disk encryption for linux, must enable disk encryption for no team first
 	ac, err := ds.AppConfig(context.Background())
@@ -928,7 +945,7 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReportEscrowError(context.Background(), hosts[2].ID, "error")) // set host 2 to failed
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsVerified}, 1) // hosts[1]
-	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 1)   // hosts[2]
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsFailed}, 2)   // hosts[2], hosts[21]
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsFilter: fleet.OSSettingsPending}, 3)  // still-pending supported linux hosts
 
 	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterZero, OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionVerified}, 1)
@@ -981,6 +998,47 @@ func testHostListOptionsTeamFilter(t *testing.T, ds *Datastore) {
 	_, err = ds.ListHosts(context.Background(), userFilter, fleet.HostListOptions{TeamFilter: teamIDFilterBad})
 	require.Error(t, err)
 	require.True(t, strings.Contains(err.Error(), "team is invalid"), err)
+}
+
+func testHostListAndroidHostsOSSettings(t *testing.T, ds *Datastore) {
+	// Add a couple of Android hosts. One we will create profiles on, another as a control
+	hosts := []*fleet.Host{}
+	for i := 0; i < 2; i++ {
+		androidHost := createAndroidHost(fmt.Sprintf("enterprise-id-%d", i))
+		newHost, err := ds.NewAndroidHost(context.Background(), androidHost)
+		require.NoError(t, err)
+		require.NotNil(t, newHost)
+		hosts = append(hosts, newHost.Host)
+	}
+
+	profUUID := "gfleetie-was-here"
+	statuses := []*fleet.MDMDeliveryStatus{nil, &fleet.MDMDeliveryFailed, &fleet.MDMDeliveryPending, &fleet.MDMDeliveryVerified, &fleet.MDMDeliveryVerifying}
+
+	userFilter := fleet.TeamFilter{User: test.UserAdmin}
+	// confirm initial state
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{}, len(hosts))
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(fleet.MDMDeliveryFailed)}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(fleet.MDMDeliveryPending)}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(fleet.MDMDeliveryVerifying)}, 0)
+	listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(fleet.MDMDeliveryVerified)}, 0)
+
+	for _, v := range statuses {
+		upsertAndroidHostProfileStatus(t, ds, hosts[0].UUID, profUUID, v)
+		expectedStatus := fleet.MDMDeliveryPending
+		if v != nil {
+			expectedStatus = *v
+		}
+		for _, checkStatus := range statuses {
+			if checkStatus == nil {
+				continue
+			}
+			expected := 0
+			if *checkStatus == expectedStatus {
+				expected = 1
+			}
+			listHostsCheckCount(t, ds, userFilter, fleet.HostListOptions{OSSettingsFilter: fleet.OSSettingsStatus(*checkStatus)}, expected)
+		}
+	}
 }
 
 func testHostsListFilterAdditional(t *testing.T, ds *Datastore) {
@@ -7765,6 +7823,12 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(`
           INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
           VALUES (?, uuid(), uuid())
+	`, host.UUID)
+	require.NoError(t, err)
+
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_android_profiles (host_uuid, profile_uuid)
+          VALUES (?, uuid())
 	`, host.UUID)
 	require.NoError(t, err)
 

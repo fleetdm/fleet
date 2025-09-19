@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/tj/assert"
 )
 
 func TestDecodeCMS(t *testing.T) {
@@ -186,13 +187,23 @@ func TestGetRawProfilePlatform(t *testing.T) {
 		},
 		{
 			name:     "DDM JSON",
-			input:    []byte(`{"foo": "bar"}`),
+			input:    []byte(`{"Type": "bar", "Payload": "test"}`),
 			expected: "darwin",
 		},
 		{
 			name:     "DDM JSON with whitespace",
-			input:    []byte(`     {"foo": "bar"}`),
+			input:    []byte(`     {"Type": "bar", "Payload": "test"}`),
 			expected: "darwin",
+		},
+		{
+			name:     "Android JSON",
+			input:    []byte(`{"foo": "bar"}`),
+			expected: "android",
+		},
+		{
+			name:     "Android JSON with whitespace",
+			input:    []byte(`     {"foo": "bar"}`),
+			expected: "android",
 		},
 	}
 
@@ -256,6 +267,103 @@ func TestGuessProfileExtension(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := GuessProfileExtension(tc.profile)
 			require.Equal(t, tc.expected, result, "Expected result does not match actual result")
+		})
+	}
+}
+
+func TestDetermineJSONConfigType(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		profileJSON string
+		wantApple   bool
+		wantAndroid bool
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "Valid Apple declaration",
+			// Adding a bunch of nonsense keys because this function should return the right thing
+			// even in the presence of various value types and keys it does not know about
+			profileJSON: `{ "Type": "com.apple.configuration.passcode.settings", "Identifier": "com.fleetdm.config.passcode.settings", "Payload": { "RequireAlphanumericPasscode": true, "MinimumLength": 10, "MinimumComplexCharacters": 1, "MaximumFailedAttempts": 11, "MaximumGracePeriodInMinutes": 1, "MaximumInactivityInMinutes": 15 }, "AnotherKey": null, "ANumericKey": 1, "ADecimalKey": 1.23, "AList": ["1", "2"] }`,
+			wantApple:   true,
+		},
+		{
+			name: "Valid Android configuration profile",
+			// Similarly adding a bunch of nonsense here to make sure various value types don't
+			// somehow trip up the sniffing logic
+			profileJSON: `{"name": "jordan was here", "modifyAccountsDisabled": true, "maximumTimeToLock": "1234567", "something": {"else": true}, "anotherThing": null, "numeric": 12345, "decimal": 1.23, "aList": ["1", "2"]}`,
+			wantApple:   false,
+			wantAndroid: true,
+		},
+		{
+			name:        "Apple declaration minus Type",
+			profileJSON: `{ "Identifier": "com.fleetdm.config.passcode.settings", "Payload": { "RequireAlphanumericPasscode": true, "MinimumLength": 10, "MinimumComplexCharacters": 1, "MaximumFailedAttempts": 11, "MaximumGracePeriodInMinutes": 1, "MaximumInactivityInMinutes": 15 } }`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "apple declaration missing Type",
+		},
+		{
+			name:        "Apple declaration minus Payload",
+			profileJSON: `{ "Type": "com.apple.configuration.passcode.settings", "Identifier": "com.fleetdm.config.passcode.settings" }`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "apple declaration missing Payload",
+		},
+		{
+			name:        "Android profile but with invalid keys containing numbers",
+			profileJSON: `{"name": "jordan was here", "modifyAccountsDisabled": true, "maximumTimeToLock": "1234567", "fl33t": true}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "android configuration profile contains invalid keys",
+		},
+		{
+			name:        "invalid json",
+			profileJSON: `{"payload": "Yes"`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "unexpected end of JSON input",
+		},
+		{
+			name:        "empty json",
+			profileJSON: `{}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "JSON is empty",
+		},
+		{
+			name:        "nearly empty json",
+			profileJSON: `{"": "something"}`,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "empty string is not a valid JSON configuration key",
+		},
+		{
+			name:        "no json",
+			profileJSON: ``,
+			wantApple:   false,
+			wantAndroid: false,
+			wantErr:     true,
+			errContains: "unexpected end of JSON input",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			gotApple, gotAndroid, err := DetermineJSONConfigType([]byte(tt.profileJSON))
+			assert.Equal(t, tt.wantApple, gotApple)
+			assert.Equal(t, tt.wantAndroid, gotAndroid)
+			if tt.wantErr {
+				require.ErrorContains(t, err, tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

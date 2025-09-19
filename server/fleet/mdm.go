@@ -19,6 +19,7 @@ const (
 	MDMAppleDeclarationUUIDPrefix = "d"
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
+	MDMAndroidProfileUUIDPrefix   = "g"
 
 	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
 	// RefetchCriticalQueriesUntil field when migrating a device from a
@@ -461,7 +462,7 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
-	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
 	// Checksum is the following
@@ -557,6 +558,24 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		LabelsIncludeAll: decl.LabelsIncludeAll,
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
+	}
+}
+
+func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
+	var tid *uint
+	if cp.TeamID != nil && *cp.TeamID > 0 {
+		tid = cp.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Platform:         "android",
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
 

@@ -594,14 +594,20 @@ var isJSON = regexp.MustCompile(`^\s*\{`)
 // Generate a filename for a profile based on its name and contents.
 func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
 	fileName := generateFilename(profile.Name)
-	if profile.Platform == "darwin" {
+	switch profile.Platform {
+	case "darwin":
 		if isJSON.MatchString(profileContentsString) {
 			fileName += ".json"
 		} else {
 			fileName += ".mobileconfig"
 		}
-	} else {
+	case "windows":
 		fileName += ".xml"
+	case "android":
+		fileName += ".json"
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: unknown profile platform %s for profile %s, skipping\n", profile.Platform, profile.Name)
+		return ""
 	}
 	return fileName
 }
@@ -989,22 +995,30 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	if cmd.AppConfig.MDM.EnabledAndConfigured {
-		profiles, err := cmd.generateProfiles(teamId, teamName)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
-			return nil, err
-		}
-		if profiles != nil {
-			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					"custom_settings": profiles["apple_profiles"],
-				}
+	profiles, err := cmd.generateProfiles(teamId, teamName)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+		return nil, err
+	}
+
+	if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
+		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+				"custom_settings": profiles["apple_profiles"],
 			}
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					"custom_settings": profiles["windows_profiles"],
-				}
+		}
+	}
+	if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
+		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+				"custom_settings": profiles["windows_profiles"],
+			}
+		}
+	}
+	if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
+		if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+				"custom_settings": profiles["android_profiles"],
 			}
 		}
 	}
@@ -1028,6 +1042,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
@@ -1081,6 +1098,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	}
 	appleProfilesSlice := make([]map[string]interface{}, 0)
 	windowsProfilesSlice := make([]map[string]interface{}, 0)
+	androidProfilesSlice := make([]map[string]interface{}, 0)
 	for _, profile := range profiles {
 		profileSpec := map[string]interface{}{}
 		// Parse any labels.
@@ -1114,7 +1132,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 		profileContentsString := string(profileContents)
 
-		fileName := fmt.Sprintf("profiles/%s", generateProfileFilename(profile, profileContentsString))
+		generatedFilename := generateProfileFilename(profile, profileContentsString)
+		if generatedFilename == "" {
+			continue // Error logged inside generateProfileFilename
+		}
+
+		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
@@ -1131,16 +1154,22 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 
 		profileSpec["path"] = path
 
-		if profile.Platform == "darwin" {
+		switch profile.Platform {
+		case "darwin":
 			appleProfilesSlice = append(appleProfilesSlice, profileSpec)
-		} else {
+		case "windows":
 			windowsProfilesSlice = append(windowsProfilesSlice, profileSpec)
+		case "android":
+			androidProfilesSlice = append(androidProfilesSlice, profileSpec)
+		default:
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Warning: unknown profile platform %s for profile %s, skipping\n", profile.Platform, profile.Name)
 		}
 	}
 
 	return map[string]interface{}{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
+		"android_profiles": androidProfilesSlice,
 	}, nil
 }
 

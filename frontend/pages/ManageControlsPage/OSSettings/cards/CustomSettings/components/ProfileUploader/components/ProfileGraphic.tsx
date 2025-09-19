@@ -2,26 +2,22 @@ import React from "react";
 
 import Graphic from "components/Graphic";
 
-const ProfileGraphic = ({
-  baseClass,
-  showMessage,
-}: {
+interface IProfileGraphicProps {
   baseClass: string;
-  showMessage?: boolean;
-}) => (
+  /** Provide an optional message to be displayed below the graphic */
+  message?: React.ReactNode;
+}
+
+const ProfileGraphic = ({ baseClass, message }: IProfileGraphicProps) => (
   <div className={`${baseClass}__profile-graphic`}>
     <Graphic
       key="file-configuration-profile-graphic"
       className={`${baseClass}__graphic`}
       name="file-configuration-profile"
     />
-    {showMessage && (
+    {message && (
       <span className={`${baseClass}__profile-graphic--message`}>
-        <b>Upload configuration profile</b>
-        <br />
-        .mobileconfig and .json for macOS, iOS, and iPadOS.
-        <br />
-        .xml for Windows.
+        {message}
       </span>
     )}
   </div>

@@ -59,12 +59,7 @@ func NewService(
 	licenseKey string,
 	serverPrivateKey string,
 ) (android.Service, error) {
-	var client androidmgmt.Client
-	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
-		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
-	} else {
-		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
-	}
+	client := newAMAPIClient(ctx, logger, licenseKey)
 	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
 }
 
@@ -89,6 +84,16 @@ func NewServiceWithClient(
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
+}
+
+func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+	var client androidmgmt.Client
+	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	} else {
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+	}
+	return client
 }
 
 func newErrResponse(err error) android.DefaultResponse {
@@ -310,7 +315,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	}
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
-	err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -330,7 +335,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			ApplicationReportingSettings: nil,
 		},
 	})
-	if err != nil {
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 

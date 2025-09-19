@@ -226,7 +226,8 @@ type MDM struct {
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
 
 	// AndroidEnabledAndConfigured is set to true if Fleet successfully bound to an Android Management Enterprise
-	AndroidEnabledAndConfigured bool `json:"android_enabled_and_configured"`
+	AndroidEnabledAndConfigured bool            `json:"android_enabled_and_configured"`
+	AndroidSettings             AndroidSettings `json:"android_settings"`
 
 	/////////////////////////////////////////////////////////////////
 	// WARNING: If you add to this struct make sure it's taken into
@@ -251,12 +252,6 @@ func (c *AppConfig) MDMUrl() string {
 		return c.ServerSettings.ServerURL
 	}
 	return c.MDM.AppleServerURL
-}
-
-// AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
-// (macOS or Windows) has MDM enabled and configured.
-func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
-	return m.EnabledAndConfigured || m.WindowsEnabledAndConfigured
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -749,6 +744,14 @@ func (c *AppConfig) Copy() *AppConfig {
 			windowsSettings[i] = *mps.Copy()
 		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
+	}
+
+	if c.MDM.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(c.MDM.AndroidSettings.CustomSettings.Value))
+		for i, mps := range c.MDM.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.MDM.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
 	}
 
 	if c.MDM.AppleBusinessManager.Set {
@@ -1531,6 +1534,19 @@ func (ws WindowsSettings) GetMDMProfileSpecs() []MDMProfileSpec {
 
 // Compile-time interface check
 var _ WithMDMProfileSpecs = WindowsSettings{}
+
+type AndroidSettings struct {
+	// NOTE: These are only present here for informational purposes.
+	// (The source of truth for profiles is in MySQL.)
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
+}
+
+func (ws AndroidSettings) GetMDMProfileSpecs() []MDMProfileSpec {
+	return ws.CustomSettings.Value
+}
+
+// Compile-time interface check
+var _ WithMDMProfileSpecs = AndroidSettings{}
 
 type YaraRuleSpec struct {
 	Path string `json:"path"`
