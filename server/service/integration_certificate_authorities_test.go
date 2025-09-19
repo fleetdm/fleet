@@ -1067,7 +1067,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusBadRequest)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Invalid Challenge URL or credentials")
+			require.Contains(t, errMsg, "Invalid challenge URL or credentials")
 		})
 
 		t.Run("smallstep username not set", func(t *testing.T) {
@@ -1078,7 +1078,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Smallstep SCEP username cannot be empty")
+			require.Contains(t, errMsg, "Smallstep username cannot be empty")
 		})
 
 		t.Run("smallstep password not set", func(t *testing.T) {
@@ -1089,7 +1089,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Smallstep SCEP password cannot be empty")
+			require.Contains(t, errMsg, "Smallstep password cannot be empty")
 
 			// try with masked password, same as if it was not set
 			testCopy.Password = fleet.MaskedPassword
@@ -1098,7 +1098,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", req, http.StatusUnprocessableEntity)
 			errMsg = extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.smallstep")
-			require.Contains(t, errMsg, "Smallstep SCEP password cannot be empty")
+			require.Contains(t, errMsg, "Smallstep password cannot be empty")
 		})
 
 		t.Run("smallstep happy path with activities add then modify then delete", func(t *testing.T) {
