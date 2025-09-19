@@ -133,11 +133,11 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 	return ds.primary
 }
 
-// loadOrPrepareStmt will load a statement from the statements cache.
+// loadOrPrepareStmt will load a statement from the statement cache.
 // If not available, it will attempt to prepare (create) it.
 // Returns nil if it failed to prepare a statement.
 //
-// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// IMPORTANT: Adding prepare statements consumes MySQL server resources and is limited by the MySQL max_prepared_stmt_count
 // system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
 // to update their MySQL configurations when additional prepare statements are added.
 // For more detail, see: https://github.com/fleetdm/fleet/issues/15476
