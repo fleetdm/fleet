@@ -1128,6 +1128,22 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 		require.EqualError(t, err, "Couldn't edit certificate authority. A certificate authority must be specified")
 	})
 
+	t.Run("Errors on multiple payloads", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		payload := fleet.CertificateAuthorityUpdatePayload{
+			DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+				APIToken: ptr.String("updated-api-token"),
+			},
+			HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+				ClientSecret: ptr.String("updated-secret"),
+			},
+		}
+
+		err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+		require.EqualError(t, err, "Couldn't edit certificate authority. Only one certificate authority can be edited at a time")
+	})
+
 	t.Run("Errors if no certificate authority is found", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
 
