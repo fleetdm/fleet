@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -10,10 +11,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
-	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	queries "github.com/fleetdm/fleet/v4/server/service/osquery_utils"
 	kitlog "github.com/go-kit/log"
@@ -161,27 +162,82 @@ func appExists(ctx context.Context, logger kitlog.Logger, appName, uniqueAppIden
 	return false, nil
 }
 
+// executeScript writes `scriptContents` to a temp file and runs it with a timeout.
+// It kills the entire process group on timeout and returns clear diagnostics.
 func executeScript(cfg *Config, scriptContents string) (string, error) {
-	scriptExtension := ".sh"
-	scriptPath := filepath.Join(cfg.tmpDir, "script"+scriptExtension)
+	// 1) Write the script file
+	scriptPath := filepath.Join(cfg.tmpDir, "script.sh")
 	if err := os.WriteFile(scriptPath, []byte(scriptContents), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing script: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	// 2) Set timeout
+	to := 10 * time.Minute
+
+	ctx, cancel := context.WithTimeout(context.Background(), to)
 	defer cancel()
 
-	output, exitCode, err := scripts.ExecCmd(ctx, scriptPath, cfg.env)
+	// 3) Prepare the command
+	// Use /bin/sh to avoid relying on a shebang in the contents.
+	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
+
+	// Ensure we can terminate the whole subtree (Adobe uninstallers spawn children).
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+
+	// Pass environment if provided.
+	if len(cfg.env) > 0 {
+		cmd.Env = append(os.Environ(), cfg.env...)
+	}
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	start := time.Now()
+	if err := cmd.Start(); err != nil {
+		// Start failures don't have pid or wait status.
+		return "", fmt.Errorf("starting script: %w", err)
+	}
+	pid := cmd.Process.Pid
+
+	err := cmd.Wait()
+	dur := time.Since(start)
+
+	// Build the result body (what you already log)
+	outStr := stdout.String() + stderr.String()
 	result := fmt.Sprintf(`
 --------------------
 %s
---------------------`, string(output))
+--------------------`, outStr)
 
+	// 4) Timeout: kill the entire process group and return a clear error
+	if ctx.Err() == context.DeadlineExceeded {
+		// Negative pid targets the process group created by Setpgid.
+		_ = syscall.Kill(-pid, syscall.SIGKILL)
+		return result, fmt.Errorf("script timed out after %s (pid=%d)", dur, pid)
+	}
+
+	// 5) Non-zero exit or killed by a signal: surface cause + output
 	if err != nil {
-		return result, err
+		// Try to extract wait status details.
+		if ee, ok := err.(*exec.ExitError); ok {
+			if ws, ok := ee.Sys().(syscall.WaitStatus); ok {
+				if ws.Signaled() {
+					return result, fmt.Errorf(
+						"script killed by %s after %s (pid=%d)",
+						ws.Signal(), dur, pid,
+					)
+				}
+				return result, fmt.Errorf(
+					"script failed with exit code %d after %s (pid=%d)",
+					ws.ExitStatus(), dur, pid,
+				)
+			}
+		}
+		// Fallback if we can't decode status
+		return result, fmt.Errorf("script failed after %s (pid=%d): %w", dur, pid, err)
 	}
-	if exitCode != 0 {
-		return result, fmt.Errorf("script execution failed with exit code %d: %s", exitCode, string(output))
-	}
+
+	// 6) Success
 	return result, nil
 }
