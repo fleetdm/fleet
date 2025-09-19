@@ -838,6 +838,11 @@ func (c *Client) ApplyGroup(
 					installDuringSetup = &app.InstallDuringSetup.Value
 				}
 
+				iconHash, err := getIconHashIfValid(app.Icon.Path)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
+				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -845,6 +850,8 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					IconPath:           app.Icon.Path,
+					IconHash:           iconHash,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {

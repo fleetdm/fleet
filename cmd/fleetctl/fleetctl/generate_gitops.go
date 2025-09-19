@@ -1456,6 +1456,7 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 		}
 
 		if softwareTitle.AppStoreApp != nil {
+			filenamePrefix := generateFilename(sw.Name) + "-" + sw.AppStoreApp.Platform
 			if softwareTitle.AppStoreApp.SelfService {
 				softwareSpec["self_service"] = softwareTitle.AppStoreApp.SelfService
 			}
@@ -1464,7 +1465,21 @@ func (cmd *GenerateGitopsCommand) generateSoftware(filePath string, teamID uint,
 				softwareSpec["categories"] = softwareTitle.AppStoreApp.Categories
 			}
 
-			// TODO handle icons
+			if downloadIcons && softwareTitle.IconUrl != nil && strings.HasPrefix(*softwareTitle.IconUrl, "/api") {
+				fileName := fmt.Sprintf("lib/%s/icons/%s", teamFilename, filenamePrefix+"-icon.png")
+				path := fmt.Sprintf("../%s", fileName)
+				softwareSpec["icon"] = map[string]interface{}{
+					"path": path,
+				}
+				icon, err := cmd.Client.GetSoftwareTitleIcon(softwareTitle.ID, teamID)
+				if err != nil {
+					fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error getting software icon %s: %s\n", sw.Name, err)
+					return nil, err
+				}
+
+				// TODO write files immediately rather than queueing them up
+				cmd.FilesToWrite[fileName] = icon
+			}
 		}
 
 		var labels []fleet.SoftwareScopeLabel

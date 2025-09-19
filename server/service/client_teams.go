@@ -140,7 +140,8 @@ func matchAppStoreAppCustomIcons(request []fleet.VPPBatchPayload, response []fle
 		byAdamID[clientSide.AppStoreID] = clientSide
 	}
 
-	for _, serverSide := range response {
+	for i := range response {
+		serverSide := &response[i]
 		if clientSide, ok := byAdamID[serverSide.AppStoreID]; ok {
 			serverSide.LocalIconHash = clientSide.IconHash
 			serverSide.LocalIconPath = clientSide.IconPath

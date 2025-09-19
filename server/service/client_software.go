@@ -136,9 +136,10 @@ func matchPackageIcons(request []fleet.SoftwareInstallerPayload, response []flee
 	}
 
 	for i := range response {
-		if clientSide, ok := byLookup[lookup{Hash: response[i].HashSHA256, URL: response[i].URL}]; ok {
-			response[i].LocalIconHash = clientSide.IconHash
-			response[i].LocalIconPath = clientSide.IconPath
+		serverSide := &response[i]
+		if clientSide, ok := byLookup[lookup{Hash: serverSide.HashSHA256, URL: serverSide.URL}]; ok {
+			serverSide.LocalIconHash = clientSide.IconHash
+			serverSide.LocalIconPath = clientSide.IconPath
 		}
 	}
 
