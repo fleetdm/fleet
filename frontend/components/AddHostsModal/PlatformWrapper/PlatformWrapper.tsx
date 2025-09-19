@@ -274,6 +274,7 @@ const PlatformWrapper = ({
       packageTypeHelpText = (
         <>
           For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For Arch Linux, use <code>--type=pkg.tar.zst</code>.<br />
           For ARM, use <code>--arch=arm64</code>
         </>
       );
