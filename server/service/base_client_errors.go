@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -107,13 +108,21 @@ type serverError struct {
 
 // truncateAndDetectHTML truncates a response body to a reasonable length and
 // detects if it's HTML content. Returns the truncated body and whether it's HTML.
-func truncateAndDetectHTML(body string, maxLen int) (truncated string, isHTML bool) {
-	truncated = body
-	if len(truncated) > maxLen {
-		truncated = truncated[:maxLen] + "..."
+func truncateAndDetectHTML(body []byte, maxLen int) (truncated []byte, isHTML bool) {
+	// Check for HTML markers in the byte slice directly
+	isHTML = bytes.Contains(body, []byte("<html")) || bytes.Contains(body, []byte("<!DOCTYPE"))
+
+	// Return truncated byte slice
+	if len(body) > maxLen {
+		// Use append which is more idiomatic and efficient
+		truncated = append([]byte(nil), body[:maxLen]...)
+		truncated = append(truncated, "..."...)
+	} else {
+		// For small bodies, we can return the slice directly since it will be
+		// converted to string soon anyway and won't hold a large underlying array
+		truncated = body
 	}
 
-	isHTML = strings.Contains(truncated, "<html") || strings.Contains(truncated, "<!DOCTYPE")
 	return truncated, isHTML
 }
 
@@ -133,11 +142,8 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 	var serverErr serverError
 	if err := json.Unmarshal(bodyBytes, &serverErr); err != nil {
 		// If it's not JSON, it might be HTML or plain text error from a proxy/load balancer
-		bodyStr := string(bodyBytes)
-
-		// Truncate and detect HTML
 		const maxLen = 200
-		truncated, isHTML := truncateAndDetectHTML(bodyStr, maxLen)
+		truncatedBytes, isHTML := truncateAndDetectHTML(bodyBytes, maxLen)
 
 		if isHTML {
 			// Generic HTML response
@@ -145,7 +151,7 @@ func extractServerErrorNameReason(body io.Reader) (string, string) {
 		}
 
 		// Return cleaned up text for non-HTML responses
-		truncated = strings.TrimSpace(truncated)
+		truncated := strings.TrimSpace(string(truncatedBytes))
 		if truncated == "" {
 			return "", "empty response body"
 		}
