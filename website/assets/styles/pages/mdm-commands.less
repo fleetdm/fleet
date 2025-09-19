@@ -1,4 +1,4 @@
-#os-settings {
+#mdm-commands {
   min-height: 800px;
   p, strong {
     color: #515774;
@@ -33,6 +33,12 @@
       font-weight: 400;
       line-height: 24px; /* 160% */
     }
+    [purpose='linux-empty-state'] {
+      padding-bottom: 350px;
+    }
+  }
+  .header-hidden {
+    transform: translateY(-81px);
   }
   [purpose='platform-filters'] {
     &.detected-windows {
@@ -41,6 +47,13 @@
     flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 33.33%;
       display: flex;
@@ -50,6 +63,7 @@
       cursor: pointer;
       img {
         height: 20px;
+        margin-right: 10px;
       }
       h1 {
         color: #192147;
@@ -68,9 +82,6 @@
           font-weight: 700;
         }
       }
-      span {
-        margin-left: 10px;
-      }
     }
   }
 
@@ -83,6 +94,7 @@
     margin-right: 64px;
     display: flex;
     flex-direction: column;
+    min-width: 220px;
     width: 220px;
     [purpose='sidebar-link'] {
       display: flex;
@@ -169,6 +181,74 @@
       box-shadow: 0px 0px 0px 2px rgba(25, 33, 71, 0.05);
     }
   }
+
+  [purpose='command-category'] {
+    color: var(--text-text-brand, #192147);
+
+    /* Title M (FKA h3) */
+    font-family: Inter;
+    font-size: 24px;
+    font-style: normal;
+    font-weight: 800;
+    line-height: 28.8px; /* 120% */
+    padding: var(--spacing-3, 24px) 0 var(--spacing-2, 16px) 0;
+    gap: 10px;
+    align-self: stretch;
+  }
+  [purpose='category'] {
+    [purpose='command']:last-child {
+      border-bottom: none;
+    }
+  }
+  [purpose='command'] {
+    padding: 32px 0px;
+    border-bottom: 1px solid #E2E4EA;
+  }
+  [purpose='read-more-link'] {
+    // margin-bottom: 16px;
+    span {
+      font-size: 14px;
+      color: ;
+      font-weight: 600;
+    }
+  }
+  [purpose='command-link'] {
+    color: unset;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+  [purpose='command-name-and-description'] {
+    max-width: 663px;
+  }
+  [purpose='command-name'] {
+    a {
+      text-decoration: none;
+      color: #192147;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 24px;
+      margin-bottom: 8px;
+    }
+  }
+  [purpose='command-description'] {
+    margin-top: 16px;
+    p {
+      color: #515774;
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+    }
+    // max-width: 663px;
+  }
+
+
   [purpose='table-of-contents-modal'] {
     .modal.fade .modal-dialog {
       transition: transform 0.2s ease-out;
@@ -269,6 +349,8 @@
       }
     }
   }
+
+
   @media(max-width: 991px) {
     min-height: unset;
     [purpose='page-container'] {

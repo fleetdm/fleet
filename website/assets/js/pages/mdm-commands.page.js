@@ -1,9 +1,9 @@
-parasails.registerPage('os-settings', {
+parasails.registerPage('mdm-commands', {
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    selectedPlatform: 'apple', // Initially set to 'macos'
+    selectedPlatform: 'apple',
     modal: undefined,
   },
 
@@ -27,6 +27,7 @@ parasails.registerPage('os-settings', {
       }
       window.location.hash = '';
     }
+
     this.handleScrollingPlatformFilters();
     window.addEventListener('scroll', this.handleScrollingPlatformFilters);
   },
@@ -37,6 +38,11 @@ parasails.registerPage('os-settings', {
   methods: {
     clickSelectPlatform: function(platform) {
       this.selectedPlatform = platform;
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth',
+      });
     },
     handleScrollingPlatformFilters: function () {
       let platformFilters = document.querySelector('div[purpose="platform-filters"]');

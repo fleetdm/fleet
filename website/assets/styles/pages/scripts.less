@@ -1,4 +1,4 @@
-#os-settings {
+#scripts {
   min-height: 800px;
   p, strong {
     color: #515774;
@@ -34,6 +34,9 @@
       line-height: 24px; /* 160% */
     }
   }
+  .header-hidden {
+    transform: translateY(-81px);
+  }
   [purpose='platform-filters'] {
     &.detected-windows {
       flex-direction: row-reverse;
@@ -41,6 +44,13 @@
     flex-direction: row;
     border-bottom: 1px solid #E2E4EA;
     margin-bottom: 48px;
+    position: sticky;
+    top: 81px;
+    background: #FFF;
+    z-index: 4;
+    transition-property: all;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
     [purpose='platform-filter'] {
       width: 33.33%;
       display: flex;
@@ -50,6 +60,7 @@
       cursor: pointer;
       img {
         height: 20px;
+        margin-right: 10px;
       }
       h1 {
         color: #192147;
@@ -67,9 +78,6 @@
         h1 {
           font-weight: 700;
         }
-      }
-      span {
-        margin-left: 10px;
       }
     }
   }
@@ -103,6 +111,7 @@
       }
     }
   }
+
   [purpose='mobile-custom-select'] {
     display: flex;
     cursor: pointer;
@@ -168,6 +177,54 @@
       background: #FFF;
       box-shadow: 0px 0px 0px 2px rgba(25, 33, 71, 0.05);
     }
+  }
+
+  [purpose='script'] {
+    padding: 32px 0px;
+    border-bottom: 1px solid #E2E4EA;
+  }
+  [purpose='read-more-link'] {
+    // margin-bottom: 16px;
+    span {
+      font-size: 14px;
+      color: ;
+      font-weight: 600;
+    }
+  }
+  [purpose='script-link'] {
+    color: unset;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: none;
+    }
+  }
+  [purpose='script-name-and-description'] {
+    max-width: 663px;
+  }
+  [purpose='script-name'] {
+    a {
+      text-decoration: none;
+      color: #192147;
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 24px;
+      margin-bottom: 8px;
+    }
+  }
+  [purpose='script-description'] {
+    margin-top: 16px;
+    p {
+      color: #515774;
+
+      /* Body SM (FKA Card text) */
+      font-family: Inter;
+      font-size: 14px;
+      font-style: normal;
+      font-weight: 400;
+      line-height: 21px; /* 150% */
+    }
+    // max-width: 663px;
   }
   [purpose='table-of-contents-modal'] {
     .modal.fade .modal-dialog {
@@ -269,10 +326,17 @@
       }
     }
   }
+
   @media(max-width: 991px) {
     min-height: unset;
     [purpose='page-container'] {
       padding: 32px;
+    }
+    [purpose='script-name-and-description'] {
+      max-width: unset;
+    }
+    [purpose='read-more-link'] {
+      margin-bottom: 16px;
     }
     [purpose='sidebar-and-content'] {
       display: flex;
