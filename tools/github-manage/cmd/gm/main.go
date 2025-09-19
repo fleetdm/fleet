@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
-	"os"
-	"strings"
 
 	"fleetdm/gm/pkg/ghapi"
 	"fleetdm/gm/pkg/logger"
@@ -13,19 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
-
-// promptToContinue asks the user if they want to continue or quit
-func promptToContinue() bool {
-	fmt.Printf("\nPress Enter to continue, or type 'q' to quit: ")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	input := strings.TrimSpace(scanner.Text())
-	if strings.ToLower(input) == "q" || strings.ToLower(input) == "quit" {
-		fmt.Println("Exiting test...")
-		return false
-	}
-	return true
-}
 
 func main() {
 	// Initialize logger

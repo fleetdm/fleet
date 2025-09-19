@@ -5,6 +5,7 @@ import "fleetdm/gm/pkg/logger"
 // ActionType represents the type of action to be performed on an issue.
 type ActionType string
 
+// newworkflow new actions added must have a new actiontype
 const (
 	ATAddLabel               ActionType = "add_label"
 	ATRemoveLabel            ActionType = "remove_label"
@@ -32,6 +33,7 @@ type Status struct {
 	State string `json:"state"`
 }
 
+// newworkflow new workflow 'action builder' functions are here
 // CreateBulkAddLableAction creates actions to add a label to multiple issues.
 func CreateBulkAddLableAction(issues []Issue, label string) []Action {
 	var actions []Action
@@ -177,6 +179,7 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 		logger.Infof("Processing action %d/%d: %s for issue #%d", i+1, len(actions), action.Type, action.Issue.Number)
 
 		switch action.Type {
+		// newworkflow new actions must be supported in this switch
 		case ATAddLabel:
 			err := AddLabelToIssue(action.Issue.Number, action.Label)
 			if err != nil {
@@ -254,6 +257,11 @@ func AsyncManager(actions []Action, statusChan chan<- Status) {
 	logger.Info("AsyncManager completed all actions")
 }
 
+//
+// IMPORTANT: TUI workflows should use the Async methods above instead of the synchronous methods below
+//
+
+// These methods are more for testing individual steps w/o tui.
 // BulkAddLabel adds a label to multiple issues.
 func BulkAddLabel(issues []Issue, label string) error {
 	logger.Infof("Adding label '%s' to %d issues", label, len(issues))
