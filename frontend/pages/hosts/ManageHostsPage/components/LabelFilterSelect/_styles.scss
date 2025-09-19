@@ -9,22 +9,22 @@
     // no access to hover state from react-select in JS so this is done here.
     .custom-dropdown-indicator {
       & path {
-        stroke: $core-vibrant-blue;
+        stroke: $ui-fleet-black-75;
       }
     }
 
     .filter-icon {
       & path {
-        fill: $core-vibrant-blue;
+        fill: $ui-fleet-black-75;
       }
     }
   }
 
   .label-filter-select__control {
     border: 1px solid $ui-fleet-black-10;
-    background-color: $ui-light-grey;
+    background-color: $core-fleet-white;
     border-radius: $border-radius;
-    height: 40px;
+    height: 36px;
 
     :hover {
       cursor: pointer;
@@ -34,7 +34,7 @@
     &--menu-is-open,
     &:hover {
       box-shadow: none;
-      border: 1px solid $core-vibrant-blue;
+      border: 1px solid $core-fleet-black;
     }
     &--menu-is-open {
       .custom-dropdown-indicator {
@@ -45,7 +45,7 @@
       }
       .filter-icon {
         & path {
-          fill: $core-vibrant-blue;
+          fill: $ui-fleet-black-75;
         }
       }
     }
