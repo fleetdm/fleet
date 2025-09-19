@@ -178,7 +178,6 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 	defer cancel()
 
 	// 3) Prepare the command
-	// Use /bin/sh to avoid relying on a shebang in the contents.
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
 
 	// Ensure we can terminate the whole subtree (Adobe uninstallers spawn children).
@@ -195,7 +194,6 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 
 	start := time.Now()
 	if err := cmd.Start(); err != nil {
-		// Start failures don't have pid or wait status.
 		return "", fmt.Errorf("starting script: %w", err)
 	}
 	pid := cmd.Process.Pid
@@ -210,31 +208,30 @@ func executeScript(cfg *Config, scriptContents string) (string, error) {
 %s
 --------------------`, outStr)
 
+	// >>> NEW: append the script's logfile if present
+	logFile := fmt.Sprintf("/var/tmp/appcmd-uninstall-%d.log", pid)
+	if b, readErr := os.ReadFile(logFile); readErr == nil {
+		result += "\n==== Script Log ====\n" + string(b) + "\n===================="
+	}
+	// <<<
+
 	// 4) Timeout: kill the entire process group and return a clear error
 	if ctx.Err() == context.DeadlineExceeded {
-		// Negative pid targets the process group created by Setpgid.
 		_ = syscall.Kill(-pid, syscall.SIGKILL)
 		return result, fmt.Errorf("script timed out after %s (pid=%d)", dur, pid)
 	}
 
 	// 5) Non-zero exit or killed by a signal: surface cause + output
 	if err != nil {
-		// Try to extract wait status details.
 		if ee, ok := err.(*exec.ExitError); ok {
 			if ws, ok := ee.Sys().(syscall.WaitStatus); ok {
 				if ws.Signaled() {
-					return result, fmt.Errorf(
-						"script killed by %s after %s (pid=%d)",
-						ws.Signal(), dur, pid,
-					)
+					return result, fmt.Errorf("script killed by %s after %s (pid=%d)", ws.Signal(), dur, pid)
 				}
-				return result, fmt.Errorf(
-					"script failed with exit code %d after %s (pid=%d)",
-					ws.ExitStatus(), dur, pid,
-				)
+				return result, fmt.Errorf("script failed with exit code %d after %s (pid=%d)",
+					ws.ExitStatus(), dur, pid)
 			}
 		}
-		// Fallback if we can't decode status
 		return result, fmt.Errorf("script failed after %s (pid=%d): %w", dur, pid, err)
 	}
 
