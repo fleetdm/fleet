@@ -14,6 +14,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
+	"github.com/goreleaser/nfpm/v2/arch"
 	"github.com/goreleaser/nfpm/v2/files"
 	"github.com/goreleaser/nfpm/v2/rpm"
 	"github.com/rs/zerolog/log"
@@ -140,7 +141,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		return "", fmt.Errorf("write postinstall script: %w", err)
 	}
 	preRemovePath := filepath.Join(tmpDir, "preremove.sh")
-	if err := writePreRemove(opt, preRemovePath); err != nil {
+	if err := writePreRemove(pkger, preRemovePath); err != nil {
 		return "", fmt.Errorf("write preremove script: %w", err)
 	}
 	postRemovePath := filepath.Join(tmpDir, "postremove.sh")
@@ -240,6 +241,17 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		rpmInfo.Scripts.PostTrans = postTransPath
 	}
 
+	archLinuxInfo := nfpm.ArchLinux{}
+	if _, ok := pkger.(arch.ArchLinux); ok {
+		archLinuxInfo.Packager = "Fleet"
+		preUpgradePath := filepath.Join(tmpDir, "preupgrade.sh")
+		if err := writeArchLinuxPreUpgrade(preUpgradePath); err != nil {
+			return "", fmt.Errorf("write preupgrade script: %w", err)
+		}
+		archLinuxInfo.Scripts.PreUpgrade = preUpgradePath
+		archLinuxInfo.Scripts.PostUpgrade = postInstallPath
+	}
+
 	// Build package
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
@@ -257,7 +269,8 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 				PreRemove:   preRemovePath,
 				PostRemove:  postRemovePath,
 			},
-			RPM: rpmInfo,
+			RPM:       rpmInfo,
+			ArchLinux: archLinuxInfo,
 		},
 	}
 	filename := pkger.ConventionalFileName(info)
@@ -406,7 +419,7 @@ func writePostInstall(opt Options, path string) error {
 	return nil
 }
 
-func writePreRemove(opt Options, path string) error {
+func writePreRemove(pkger nfpm.Packager, path string) error {
 	// We add `|| true` in case the service is not running
 	// or has been manually disabled already. Otherwise,
 	// uninstallation fails.
@@ -431,7 +444,7 @@ func writePreRemove(opt Options, path string) error {
 	// "pkill fleet-desktop" is required because the application
 	// runs as user (separate from sudo command that launched it),
 	// so on some systems it's not killed properly.
-	if err := os.WriteFile(path, []byte(`#!/bin/sh
+	preRemoveScript := `#!/bin/sh
 
 case "${1:-}" in
   1|remove|deconfigure)
@@ -442,7 +455,18 @@ case "${1:-}" in
     ;;
 esac
 
-`), constant.DefaultFileMode); err != nil {
+`
+	// pre_remove script on Arch Linux receives the old version as argument.
+	_, isArchLinux := pkger.(arch.ArchLinux)
+	if isArchLinux {
+		preRemoveScript = `#!/bin/sh
+
+systemctl disable --now orbit.service || true
+pkill fleet-desktop || true
+
+`
+	}
+	if err := os.WriteFile(path, []byte(preRemoveScript), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 
@@ -497,5 +521,25 @@ func writeRPMPostTrans(opt Options, path string) error {
 	if err := os.WriteFile(path, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
+	return nil
+}
+
+func writeArchLinuxPreUpgrade(path string) error {
+	// Currently the pre-upgrade script for ArchLinux just cleanly
+	// brings the service down.
+	//
+	// We add `|| true` in case the service is not running
+	// or has been manually disabled already. Otherwise,
+	// script might return non-zero exit code.
+	const preUpgradeScript = `#!/bin/sh
+
+systemctl disable --now orbit.service || true
+pkill fleet-desktop || true
+
+`
+	if err := os.WriteFile(path, []byte(preUpgradeScript), constant.DefaultFileMode); err != nil {
+		return fmt.Errorf("write file: %w", err)
+	}
+
 	return nil
 }

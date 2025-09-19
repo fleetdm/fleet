@@ -71,6 +71,7 @@ controls:
       - path: ../lib/macos/configuration-profiles/1password-managed-settings.mobileconfig
         labels_include_any:
           - "Macs with 1Password installed"
+      - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true
@@ -106,6 +107,7 @@ controls:
     - path: ../lib/windows/scripts/create-admin-user.ps1
     - path: ../lib/linux/scripts/uninstall-fleetd-linux.sh
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
+    - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
   # macOS policies
@@ -119,6 +121,7 @@ policies:
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
   - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
+  - path: ../lib/macos/policies/install-nudge.yml
   # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
@@ -139,6 +142,8 @@ software:
     - path: ../lib/macos/software/santa.yml # Santa for macOS
     - path: ../lib/macos/software/zoom.yml # Zoom for macOS
     - path: ../lib/macos/software/fleet-keynote-theme.yml # Fleet Keynote theme for macOS
+    - path: ../lib/macos/software/nudge.yml # Nudge for macOS 
+    - path: ../lib/macos/software/nudge-assets.yml # Nudge assets for macOS
     - path: ../lib/linux/software/zoom-deb.yml # Zoom for Ubuntu
     - path: ../lib/linux/software/zoom-rpm.yml # Zoom for RedHat
     - path: ../lib/linux/software/slack-deb.yml # Slack for Ubuntu
