@@ -1350,6 +1350,9 @@ const HostDetailsPage = ({
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
+              isBYODEnrollment={isPersonalEnrollmentInMdm(
+                host.mdm.enrollment_status
+              )}
               onClose={toggleUnenrollMdmModal}
             />
           )}

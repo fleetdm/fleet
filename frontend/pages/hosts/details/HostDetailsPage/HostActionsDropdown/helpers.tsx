@@ -66,7 +66,6 @@ const DEFAULT_OPTIONS = [
   },
 ] as const;
 
-// eslint-disable-next-line import/prefer-default-export
 interface IHostActionConfigOptions {
   hostPlatform: string;
   isPremiumTier: boolean;
@@ -81,6 +80,7 @@ interface IHostActionConfigOptions {
   isConnectedToFleetMdm?: boolean;
   isMacMdmEnabledAndConfigured: boolean;
   isWindowsMdmEnabledAndConfigured: boolean;
+  isAndroidMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   hostScriptsEnabled: boolean | null;
@@ -108,14 +108,12 @@ const canTurnOffMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm,
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
-    hostMdmEnrollmentStatus,
+    isAndroidMdmEnabledAndConfigured,
   } = config;
   return (
-    !isAndroid(hostPlatform) && // TODO(android): confirm can't turn off MDM for windows, iOS, iPadOS?
-    isAppleDevice(hostPlatform) &&
-    isMacMdmEnabledAndConfigured &&
+    ((isAndroid(hostPlatform) && isAndroidMdmEnabledAndConfigured) ||
+      (isAppleDevice(hostPlatform) && isMacMdmEnabledAndConfigured)) &&
     isEnrolledInMdm &&
-    hostMdmEnrollmentStatus !== "On (personal)" && // can't turn off MDM for personally enrolled hosts
     isConnectedToFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
@@ -336,6 +334,19 @@ export const getDropdownOptionTooltipContent = (
   return undefined;
 };
 
+/** for ios, ipad, and android we want to display different text for mdmOff.
+ * The functionality is the same, but the action is called unenroll on those platforms.
+ */
+const formatTurnOffOptionLabel = (
+  options: IDropdownOption[],
+  hostPlatform: string
+) => {
+  const option = options.find((opt) => opt.value === "mdmOff");
+  if (option && (isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform))) {
+    option.label = "Unenroll";
+  }
+};
+
 const modifyOptions = (
   options: IDropdownOption[],
   {
@@ -396,6 +407,7 @@ const modifyOptions = (
     }
   }
   disableOptions(optionsToDisable);
+  formatTurnOffOptionLabel(options, hostPlatform);
   return options;
 };
 

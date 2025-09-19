@@ -4,6 +4,8 @@ import React from "react";
 import { ActivityType, IActivity } from "interfaces/activity";
 import {
   AppleDisplayPlatform,
+  isAndroid,
+  isIPadOrIPhone,
   PLATFORM_DISPLAY_NAMES,
 } from "interfaces/platform";
 import { getInstallStatusPredicate } from "interfaces/software";
@@ -272,12 +274,24 @@ const TAGGED_TEMPLATES = {
     );
     return <>{hostDisplayName} enrolled in Fleet.</>;
   },
+
   mdmEnrolled: (activity: IActivity) => {
-    if (activity.details?.mdm_platform === "microsoft") {
+    const { mdm_platform, platform = "", host_display_name, host_serial } =
+      activity.details || {};
+
+    if (mdm_platform === "microsoft") {
       return (
         <>
-          Mobile device management (MDM) was turned on for{" "}
-          <b>{activity.details?.host_display_name} (manual)</b>.
+          <b>{activity.actor_full_name} </b>Mobile device management (MDM) was
+          turned on for <b>{activity.details?.host_display_name} (manual)</b>.
+        </>
+      );
+    }
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return (
+        <>
+          <b>{host_display_name}</b> enrolled to Fleet.
         </>
       );
     }
@@ -285,24 +299,21 @@ const TAGGED_TEMPLATES = {
     // note: if mdm_platform is missing, we assume this is Apple MDM for backwards
     // compatibility
     let enrollmentTypeText = "";
-    if (activity.details?.enrollment_id) {
-      enrollmentTypeText = "personal";
-    } else if (activity.details?.installed_from_dep) {
+    if (activity.details?.installed_from_dep) {
       enrollmentTypeText = "automatic";
     } else {
       enrollmentTypeText = "manual";
     }
 
-    const hostDisplayText =
-      activity.details?.host_display_name || activity.details?.host_serial;
-
-    const hostDisplayPrefixText = activity.details?.host_display_name
+    const hostDisplayText = host_display_name || host_serial;
+    const hostDisplayPrefixText = host_display_name
       ? ""
       : "a host with serial number ";
 
     return (
       <>
-        An end user turned on MDM features for {hostDisplayPrefixText}
+        <b>{activity.actor_full_name} </b>An end user turned on MDM features for{" "}
+        {hostDisplayPrefixText}
         <b>
           {hostDisplayText} ({enrollmentTypeText})
         </b>
@@ -310,16 +321,39 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+
   mdmUnenrolled: (activity: IActivity) => {
+    const { actor_full_name } = activity;
+    const { platform = "", host_display_name } = activity.details || {};
+
+    if (isAndroid(platform) || isIPadOrIPhone(platform)) {
+      return actor_full_name ? (
+        <>
+          <b>{actor_full_name}</b> told Fleet to unenroll{" "}
+          <b>{host_display_name}.</b>
+        </>
+      ) : (
+        <>
+          <b>{host_display_name}</b> is unenrolled from Fleet.
+        </>
+      );
+    }
+
     return (
       <>
-        {activity.actor_full_name
-          ? " told Fleet to turn off mobile device management (MDM) for"
-          : "Mobile device management (MDM) was turned off for"}{" "}
-        <b>{activity.details?.host_display_name}</b>.
+        {actor_full_name ? (
+          <>
+            <b>{actor_full_name}</b> told Fleet to turn off mobile device
+            management (MDM) for
+          </>
+        ) : (
+          "Mobile device management (MDM) was turned off for"
+        )}{" "}
+        <b>{host_display_name}</b>.
       </>
     );
   },
+
   editedAppleosMinVersion: (
     applePlatform: AppleDisplayPlatform,
     activity: IActivity
@@ -1823,7 +1857,12 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-
+      // MdmEnrolled and MdmUnenroll activities have more complicated logic to
+      // determine if we display the actor name so we will handle that in the
+      // template function
+      case ActivityType.MdmUnenrolled:
+      case ActivityType.MdmEnrolled:
+        return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;
     }
