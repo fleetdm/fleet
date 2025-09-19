@@ -455,18 +455,20 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 
 	const batchSize = 100
 	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
-		updateArgs := make([]interface{}, 0, len(batch)*3)
 		updateCases := make([]string, 0, len(batch))
+		updateCaseArgs := make([]any, 0, len(batch))
+		updateWhereArgs := make([]any, 0, len(batch))
 		updateIDs := make([]string, 0, len(batch))
 
-		insertArgs := make([]interface{}, 0, len(batch)*3)
+		insertArgs := make([]any, 0, len(batch)*3)
 		insertValues := make([]string, 0, len(batch))
 
 		for _, id := range batch {
 			software := softwareIDToUpdate[id]
 
 			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateArgs = append(updateArgs, id, software.Name, id)
+			updateCaseArgs = append(updateCaseArgs, id, software.Name)
+			updateWhereArgs = append(updateWhereArgs, id)
 			updateIDs = append(updateIDs, "?")
 
 			insertValues = append(insertValues, "(?, ?, ?)")
@@ -479,7 +481,7 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 			strings.Join(updateIDs, ","),
 		)
 
-		if _, err := tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
+		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch update software names")
 		}
 
@@ -4482,7 +4484,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
-		SELECT 
+		SELECT
 			hsi.software_installer_id,
 			hsi.user_id,
 			hsi.policy_id,
