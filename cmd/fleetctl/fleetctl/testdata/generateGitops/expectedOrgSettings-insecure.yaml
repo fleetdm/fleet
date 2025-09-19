@@ -23,6 +23,12 @@ certificate_authorities:
     password: some-ndes-password
     url: https://some-ndes-scep-proxy-url.com
     username: some-ndes-username
+  smallstep:
+    - challenge_url: https://some-smallstep-challenge-url.com
+      name: some-smallstep-name
+      password: some-smallstep-password
+      url: https://some-smallstep-url.com
+      username: some-smallstep-username
 features:
   enable_host_users: true
   enable_software_inventory: true

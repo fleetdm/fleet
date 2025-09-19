@@ -813,7 +813,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.digicert.api_token",
+					Key:      "certificate_authorities.digicert.api_token",
 				})
 			}
 		}
@@ -821,7 +821,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "integrations.ndes_scep_proxy.password",
+				Key:      "certificate_authorities.ndes_scep_proxy.password",
 			})
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
@@ -829,7 +829,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.custom_scep_proxy.challenge",
+					Key:      "certificate_authorities.custom_scep_proxy.challenge",
 				})
 			}
 		}
@@ -838,7 +838,16 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.hydrant.client_secret",
+					Key:      "certificate_authorities.hydrant.client_secret",
+				})
+			}
+		}
+		if smallstep, ok := result["smallstep"]; ok && smallstep != nil {
+			for _, intg := range smallstep.([]interface{}) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your Smallstep password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.smallstep.password",
 				})
 			}
 		}

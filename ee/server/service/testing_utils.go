@@ -4,6 +4,7 @@ import (
 	"crypto/x509"
 	_ "embed"
 	"encoding/binary"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -131,6 +132,20 @@ func NewTestNDESAdminServer(t *testing.T, responseTemplate string, responseStatu
 	}
 
 	return ndesAdminServer
+}
+
+func NewTestDynamicChallengeServer(t *testing.T) *httptest.Server {
+	t.Helper()
+
+	dynamicChallengeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Println(r.URL.Path)
+		_, err := w.Write([]byte("dynamic challenge"))
+		require.NoError(t, err)
+	}))
+	t.Cleanup(dynamicChallengeServer.Close)
+
+	return dynamicChallengeServer
 }
 
 // utf16FromString returns the UTF-16 encoding of the UTF-8 string s, with a terminating NUL added.
