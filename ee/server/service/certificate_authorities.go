@@ -59,9 +59,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	caDisplayType := "Unknown"
 
 	if p.DigiCert != nil {
-		p.DigiCert.Name = fleet.Preprocess(p.DigiCert.Name)
-		p.DigiCert.URL = fleet.Preprocess(p.DigiCert.URL)
-		p.DigiCert.ProfileID = fleet.Preprocess(p.DigiCert.ProfileID)
+		p.DigiCert.Preprocess()
 		if err := svc.validateDigicert(ctx, p.DigiCert, errPrefix); err != nil {
 			return nil, err
 		}
@@ -78,8 +76,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.Hydrant != nil {
-		p.Hydrant.Name = fleet.Preprocess(p.Hydrant.Name)
-		p.Hydrant.URL = fleet.Preprocess(p.Hydrant.URL)
+		p.Hydrant.Preprocess()
+
 		if err := svc.validateHydrant(ctx, p.Hydrant, errPrefix); err != nil {
 			return nil, err
 		}
@@ -94,9 +92,8 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.NDESSCEPProxy != nil {
-		p.NDESSCEPProxy.URL = fleet.Preprocess(p.NDESSCEPProxy.URL)
-		p.NDESSCEPProxy.AdminURL = fleet.Preprocess(p.NDESSCEPProxy.AdminURL)
-		p.NDESSCEPProxy.Username = fleet.Preprocess(p.NDESSCEPProxy.Username)
+		p.NDESSCEPProxy.Preprocess()
+
 		if err := svc.validateNDESSCEPProxy(ctx, p.NDESSCEPProxy, errPrefix); err != nil {
 			return nil, err
 		}
@@ -112,8 +109,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.CustomSCEPProxy != nil {
-		p.CustomSCEPProxy.Name = fleet.Preprocess(p.CustomSCEPProxy.Name)
-		p.CustomSCEPProxy.URL = fleet.Preprocess(p.CustomSCEPProxy.URL)
+		p.CustomSCEPProxy.Preprocess()
 
 		if err := svc.validateCustomSCEPProxy(ctx, p.CustomSCEPProxy, errPrefix); err != nil {
 			return nil, err
@@ -128,10 +124,7 @@ func (svc *Service) NewCertificateAuthority(ctx context.Context, p fleet.Certifi
 	}
 
 	if p.Smallstep != nil {
-		p.Smallstep.Name = fleet.Preprocess(p.Smallstep.Name)
-		p.Smallstep.URL = fleet.Preprocess(p.Smallstep.URL)
-		p.Smallstep.ChallengeURL = fleet.Preprocess(p.Smallstep.ChallengeURL)
-		p.Smallstep.Username = fleet.Preprocess(p.Smallstep.Username)
+		p.Smallstep.Preprocess()
 
 		if err := svc.validateSmallstepSCEPProxy(ctx, p.Smallstep, errPrefix); err != nil {
 			return nil, err
@@ -379,10 +372,10 @@ func (svc *Service) validateSmallstepSCEPProxy(ctx context.Context, smallstepSCE
 	if err := validateURL(smallstepSCEP.URL, "Smallstep SCEP", errPrefix); err != nil {
 		return err
 	}
-	if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
+	/* if err := svc.scepConfigService.ValidateSCEPURL(ctx, smallstepSCEP.URL); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
-	}
+	} */
 	if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, *smallstepSCEP); err != nil {
 		level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP admin URL", "err", err)
 		return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
@@ -1330,10 +1323,10 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 		if err := validateURL(*smallstep.URL, "SCEP", errPrefix); err != nil {
 			return err
 		}
-		if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
+		/* if err := svc.scepConfigService.ValidateSCEPURL(ctx, *smallstep.URL); err != nil {
 			level.Error(svc.logger).Log("msg", "Failed to validate Smallstep SCEP URL", "err", err)
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
-		}
+		} */
 	}
 	if smallstep.ChallengeURL != nil {
 		if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
