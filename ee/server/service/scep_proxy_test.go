@@ -97,7 +97,7 @@ func TestValidateNDESSCEPAdminURL(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestValidateNDESSCEPURL(t *testing.T) {
+func TestValidateSCEPURL(t *testing.T) {
 	t.Parallel()
 	srv := NewTestSCEPServer(t)
 
