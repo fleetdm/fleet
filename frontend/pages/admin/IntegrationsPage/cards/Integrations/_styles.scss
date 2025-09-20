@@ -1,9 +1,12 @@
 .integrations-management {
+  &__description {
+    p {
+      margin: 0;
+    }
+  }
+
   .no-integrations {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    margin-top: $pad-xxxlarge;
+    @include card;
 
     ul {
       margin: 0;

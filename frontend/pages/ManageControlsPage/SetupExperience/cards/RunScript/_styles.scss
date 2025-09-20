@@ -1,10 +1,12 @@
 .run-script {
+  @include card;
+
   &__description {
     margin: 0;
   }
 
   &__learn-how-link {
-  margin-bottom: $pad-large;
+    margin-bottom: $pad-large;
   }
 
   &__run-message {

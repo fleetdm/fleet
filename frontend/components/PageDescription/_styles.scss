@@ -5,4 +5,12 @@
     font-size: $x-small;
     font-style: italic;
   }
+
+  &__card,
+  &__right-panel,
+  &__tab-panel {
+    p {
+      font-style: normal;
+    }
+  }
 }

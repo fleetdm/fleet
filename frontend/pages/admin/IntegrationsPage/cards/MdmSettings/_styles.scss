@@ -1,7 +1,6 @@
 .mdm-settings {
-  display: flex;
-  flex-direction: column;
-  gap: $pad-xxxlarge;
+  @include card;
+
   .disabled-by-gitops-mode {
     @include disabled;
   }

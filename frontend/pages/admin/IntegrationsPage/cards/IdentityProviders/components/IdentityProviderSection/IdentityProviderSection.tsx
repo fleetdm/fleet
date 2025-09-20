@@ -7,7 +7,7 @@ import { internationalTimeFormat } from "utilities/helpers";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import idpAPI from "services/entities/idp";
 
-import SectionHeader from "components/SectionHeader";
+import SettingsSection from "pages/admin/components/SettingsSection";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
@@ -158,10 +158,9 @@ const IdentityProviderSection = () => {
     return null;
   };
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Identity provider (IdP)" />
+    <SettingsSection title="Identity provider (IdP)">
       {renderContent()}
-    </div>
+    </SettingsSection>
   );
 };
 

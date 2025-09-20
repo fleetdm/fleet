@@ -1,4 +1,6 @@
 .os-updates-current-version-section {
+  @include page;
+
   &__title {
     display: flex;
     align-items: center;

@@ -18,6 +18,7 @@
 
     .app-config-form {
       &__section {
+        @include card;
         @include clearfix;
         animation: fade-in 200ms ease-out;
 
