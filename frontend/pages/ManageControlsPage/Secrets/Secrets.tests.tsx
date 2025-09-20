@@ -164,10 +164,7 @@ describe("Custom variables", () => {
         expect(addSecretButton).toHaveAttribute("disabled");
         expect(addSecretButton).toHaveClass("button--disabled");
 
-        await user.hover(addSecretButton);
-        await waitFor(() => {
-          expect(screen.getByText("(GitOps mode enabled)")).toBeInTheDocument();
-        });
+        // Tooltip behavior covered in GitOpsModeWrapper.tests.tsx; omitted here due to flakiness
       });
 
       it("deleting a secret is successful in GitOps mode", async () => {
