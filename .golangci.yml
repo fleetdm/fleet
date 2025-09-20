@@ -10,6 +10,7 @@ formatters:
   exclusions:
     paths:
       - node_modules
+      - server/fleet/agent_options_generated.go # generated file
 
 issues:
   max-issues-per-linter: 0 # show all issues
