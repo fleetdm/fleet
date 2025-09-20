@@ -148,5 +148,5 @@ func (l *rawLogWriter) Close() error {
 }
 
 func openFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
+	return os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644) // nolint:gosec // G302
 }

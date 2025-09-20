@@ -29,7 +29,7 @@ func pemCert(derBytes []byte) []byte {
 }
 
 func loadOrSign(path string, priv *rsa.PrivateKey, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666) // nolint:gosec // G302
 	if err != nil {
 		if os.IsExist(err) {
 			return loadPEMCertFromFile(path)

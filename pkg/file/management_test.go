@@ -72,7 +72,7 @@ func assertGoldenMatches(t *testing.T, goldenFile string, actual string, update 
 
 	goldenPath := filepath.Join("testdata", goldenFile+".golden")
 
-	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644)
+	f, err := os.OpenFile(goldenPath, os.O_RDWR|os.O_CREATE, 0o644) // nolint:gosec // G302
 	require.NoError(t, err)
 	defer f.Close()
 
