@@ -209,7 +209,7 @@ type Datastore interface {
 	// based on its host vitals criteria.
 	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
-	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
+	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
 	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
