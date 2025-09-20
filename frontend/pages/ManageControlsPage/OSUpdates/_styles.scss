@@ -13,4 +13,8 @@
   &__premium-feature-message {
     margin-top: 80px;
   }
+
+  &__target-container {
+    @include page;
+  }
 }
