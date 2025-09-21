@@ -16,10 +16,9 @@ import configAPI from "services/entities/config";
 
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
 import SettingsSection from "pages/admin/components/SettingsSection";
-
+import PageDescription from "components/PageDescription";
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
 import EmptyIntegrationsTable from "./components/EmptyIntegrationsTable";
@@ -28,7 +27,6 @@ import {
   generateTableHeaders,
   combineDataSets,
 } from "./IntegrationsTableConfig";
-import PageDescription from "components/PageDescription";
 
 const baseClass = "integrations-management";
 const noIntegrationsClass = "no-integrations";
@@ -306,7 +304,7 @@ const Integrations = (): JSX.Element => {
   };
 
   return (
-    <SettingsSection title="Ticket destinations">
+    <SettingsSection title="Ticket destinations" className={baseClass}>
       <PageDescription
         content="Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities."
