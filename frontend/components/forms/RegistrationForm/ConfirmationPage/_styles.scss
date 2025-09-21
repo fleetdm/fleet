@@ -3,15 +3,8 @@
   flex-direction: column;
   align-items: center;
 
-  h2 {
-    text-align: center;
-  }
   .help-text {
     @include help-text;
-  }
-
-  &__wrapper {
-    width: auto;
   }
 
   &__icon {
