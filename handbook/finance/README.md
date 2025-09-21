@@ -35,7 +35,7 @@ Fleet must register as an employer in any state where we hire new teammates. To 
 1. After a new teammate completes their Gusto profile, the Finance department will be prompted to approve it for payroll. Sign in to your Gusto admin account and begin the approval process.
 2. Select "yes" when prompted to file a new hire report and complete the approval process.
 3. Once the profile is approved, navigate to Tax setup and select the state you’d like to register Fleet in.
-4. Select “Have us register for you” and then “Start registration.”
+4. Log into CorpNet's payroll tax registration [page](https://www.corpnet.com/register-payroll-taxes/), and follow the instructions to register a new state. 
 5. Verify, add, and amend any company information to ensure accuracy.
 6. Select “Send registration” and authorize payment for the specified amount. CorpNet will then send an email with next steps, which vary by state.
 7. Update the [list of states that Fleet is currently registered with as an employer](https://fleetdm.com/handbook/finance#review-state-employment-tax-filings-for-the-previous-quarter).
@@ -75,8 +75,10 @@ States checked:
 - [ ] Hawaii
 - [ ] Illinois
 - [ ] Kansas
+- [ ] Maine
 - [ ] Maryland
 - [ ] Massachusetts
+- [ ] New Jersey
 - [ ] New York
 - [ ] Ohio
 - [ ] Oregon
@@ -101,10 +103,6 @@ States checked:
 ### Update Finance department KPIs
 
 Use the following steps to update the [💸Finance department KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0&range=BS:BS) by 5pm US central time every Friday.
-
-**Runway**: 
-- Add sum of Brex cash account + SVB accounts. All Finance teammates should have personalized logins for each bank to view amounts.
-- Send the CEO a Slack DM with the balance of each of Fleet's two bank accounts.
 
 **Days to invoice customer**: 
 - Check the [invoice sent and payment received report](https://fleetdm.lightning.force.com/lightning/r/Report/00O4x000007chpzEAA/view?queryScope=userFolders) in Salesforce.
@@ -267,7 +265,7 @@ Thanks,
 
 ### Obtain a copy of Fleet's W-9
 
-A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1ugXazEBk1oVm_LqGbYNsIFECcv5jXLA9/view?usp=drivesdk).
+A recent signed copy of Fleet's W-9 form can be found in [this confidential PDF in Google Drive](https://drive.google.com/file/d/1bqGEl5w3En5wsgYotFD8RSYYjP6P1FDK/view?usp=sharing).
 
 
 ### Run US commission payroll

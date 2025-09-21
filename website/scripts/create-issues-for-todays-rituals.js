@@ -48,6 +48,8 @@ module.exports = {
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 7 * 3;
         } else if (ritual.frequency === 'Annually') {
           ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 365;
+        } else if (ritual.frequency === 'Quarterly') {
+          ritualsFrequencyInMs = 1000 * 60 * 60 * 24 * 365 / 4;
         } else if (ritual.frequency === 'Monthly') {
           // For monthly rituals, we will create issues on the day of the month that the ritual was started on, or the last day of the month if the ritual was started on a day that doesn't exist in the current month
           // (e.g, the next issue for a monthly ritual started on 2024-01-31 would be created for on 2024-02-29)
@@ -106,17 +108,24 @@ module.exports = {
 
         // Skip to the next ritual if it isn't time yet.
         if(!isItTimeToCreateANewIssue) {
-          sails.log.verbose(`Next issue for ${ritual.task} (${ritual.autoIssue.labels.join(',')}) will be created on ${new Date(nextIssueShouldBeCreatedAt)} (Started on: ${ritual.startedOn}, frequency: ${ritual.frequency})`);
+          let lastIssueShouldHaveBeenCreatedAt = nextIssueShouldBeCreatedAt - ritualsFrequencyInMs;
+          sails.log(`Next issue for ${ritual.task} (${ritual.autoIssue.labels.join(',')}) will be created on ${new Date(nextIssueShouldBeCreatedAt)} (Started on: ${ritual.startedOn}, frequency: ${ritual.frequency}). Last issue for this ritual should have been created on ${new Date(lastIssueShouldHaveBeenCreatedAt)}`);
           continue;
         }
 
         // Create an issue with right labels and assignee, in the right repo.
         if (!dry) {
           let owner = 'fleetdm';
+          let bodyForThisAutoIssue;
+          if(ritual.autoIssue.issueDescription) {
+            bodyForThisAutoIssue = ritual.autoIssue.issueDescription + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : '');
+          } else {
+            bodyForThisAutoIssue = ritual.description + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : '');
+          }
           // [?] https://docs.github.com/en/rest/issues/issues#create-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${ritual.autoIssue.repo}/issues`, {
             title: ritual.task,
-            body: ritual.description + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : ''),
+            body: bodyForThisAutoIssue,
             labels: ritual.autoIssue.labels,
             assignees: [ ritual.dri ]
           }, baseHeaders);

@@ -964,6 +964,7 @@ const HostDetailsPage = ({
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
+    isAndroidHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
