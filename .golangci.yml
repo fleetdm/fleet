@@ -125,6 +125,12 @@ linters:
         - "(*github.com/gosuri/uilive.Writer).Flush"
         # Security hardware interface
         - "(github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw.SecureHW).Close"
+        - "(github.com/fleetdm/fleet/v4/ee/orbit/pkg/securehw.Key).Close"
+        # Containerd
+        - "(*github.com/containerd/containerd.Client).Close"
+        # Windows-specific
+        - "(golang.org/x/sys/windows.Token).Close"
+        - "(golang.org/x/sys/windows/registry.Key).Close"
         # Color package
         - "(*github.com/fatih/color.Color).Fprint"
         - "(*github.com/fatih/color.Color).Fprintf"
@@ -330,6 +336,3 @@ linters:
       - path: tools/dbutils/schema_generator.go
         linters:
           - gosec
-      - path: orbit/pkg/keystore/keystore_darwin.go
-        linters:
-          - govet # unsafe.Pointer used in CGO calls
