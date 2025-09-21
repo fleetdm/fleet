@@ -10,6 +10,7 @@ import { getCustomDropdownOptions } from "utilities/helpers";
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
 import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -20,7 +21,6 @@ import validUrl from "components/forms/validators/valid_url";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
-import PageDescription from "components/PageDescription";
 
 interface IGlobalHostStatusWebhookFormData {
   enableHostStatusWebhook: boolean;
