@@ -230,7 +230,7 @@ func (svc *Service) AppConfigObfuscated(ctx context.Context) (*fleet.AppConfig, 
 		}
 	}
 
-	ac, err := svc.ds.AppConfig(ctx)
+	ac, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
 	if err != nil {
 		return nil, err
 	}
