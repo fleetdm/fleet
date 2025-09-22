@@ -1087,7 +1087,7 @@ WHERE
 	sqlStmt := `
 SELECT
     h.id,
-    h.hostname as display_name,
+    h.computer_name as display_name,
     ? as status,
 	-- pending hosts will have "updated_at" set in the db, but since 
 	-- we're using it to mean "executed at" we'll return it as empty.
