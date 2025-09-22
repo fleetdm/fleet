@@ -1912,7 +1912,21 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). |
-| create_local_user_account    | boolean | If set to true, local user account on macOS hosts will be automatically created using IdP credentials. `enable_end_user_authentication` must be set to true. |
+| create_local_user_account         | object   | See [`mdm.macos_setup.create_local_user_account`](#mdm-macos-setup-create-local-user-account). `enable_end_user_authentication` must be true |
+
+##### mdm.macos_setup.create_local_user_account
+
+_Available in Fleet Premium._
+
+Specify Platform SSO configuration profile and SSO extension software.
+
+`mdm.macos_setup.create_local_user_account` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| configuration_profile_id          | integer | The ID of the Platform SSO configuration profile [added to the team](#list-custom-os-settings-configuration-profiles). |
+| software_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
+
 
 <br/>
 
