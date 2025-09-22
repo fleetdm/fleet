@@ -5406,8 +5406,8 @@ func TestValidateConfigProfileFleetVariables(t *testing.T) {
 			newMockCustomSCEPProxyCA("https://example.com", "scepName2"),
 		},
 		Smallstep: []fleet.SmallstepSCEPProxyCA{
-			newMockSmallstepSCEPProxyCA("https://example.com", "smallstepName"),
-			newMockSmallstepSCEPProxyCA("https://example.com", "smallstepName2"),
+			newMockSmallstepSCEPProxyCA("https://example.com", "https://example.com/challenge", "smallstepName"),
+			newMockSmallstepSCEPProxyCA("https://example.com", "https://example.com/challenge", "smallstepName2"),
 		},
 	}
 
