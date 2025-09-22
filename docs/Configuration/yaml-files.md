@@ -349,6 +349,9 @@ controls:
   macos_setup: # Available in Fleet Premium
     bootstrap_package: https://example.org/bootstrap_package.pkg
     enable_end_user_authentication: true
+    create_local_user_account:
+      configuration_profile_id: 24
+      software_id: 3765
     enable_release_device_manually: true
     macos_setup_assistant: ../lib/dep-profile.json
     script: ../lib/macos-setup-script.sh
@@ -422,6 +425,7 @@ The `macos_setup` section lets you control the out-of-the-box macOS [setup exper
 - `bootstrap_package` is the URL to a bootstrap package. Fleet will download the bootstrap package (default: `""`).
 - `manual_agent_install` specifies whether Fleet's agent (fleetd) will be installed as part of setup experience. (default: `false`)
 - `enable_end_user_authentication` specifies whether or not to require end user authentication when the user first sets up their macOS host. 
+- `create_local_user_account` is the object that specify Platform SSO configuration profile and SSO extension software used to automatically create local user accountwhen the user first sets up their macOS host.
 - `macos_setup_assistant` is a path to a custom automatic enrollment (ADE) profile (.json).
 - `script` is the path to a custom setup script to run after the host is first set up.
 - `software` is a list of references to either a `package_path` matching a package in the `software` section below or an `app_store_id` to install when the host is first set up.
