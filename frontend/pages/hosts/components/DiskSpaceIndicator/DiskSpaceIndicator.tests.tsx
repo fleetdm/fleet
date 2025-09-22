@@ -1,15 +1,17 @@
 import React from "react";
 
 import { screen, render, fireEvent } from "@testing-library/react";
-
+import { renderWithSetup } from "test/test-utils";
 import DiskSpaceIndicator from "./DiskSpaceIndicator";
 
 describe("Disk space Indicator", () => {
   it("renders 'Not supported' text when disk space is sentinel value -1", () => {
     const { container } = renderWithSetup(
       <DiskSpaceIndicator
+        baseClass="disk-space-indicator"
         gigsDiskSpaceAvailable={-1}
         percentDiskSpaceAvailable={0}
+        id="test-disk-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
@@ -24,18 +26,21 @@ describe("Disk space Indicator", () => {
     // Case 1: Zero storage should show "No data available"
     const { container: zeroContainer, rerender } = renderWithSetup(
       <DiskSpaceIndicator
+        baseClass="disk-space-indicator"
         gigsDiskSpaceAvailable={0}
         percentDiskSpaceAvailable={0}
+        id="test-disk-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
     );
 
-    const emptyElement = zeroContainer.querySelector(
-      ".disk-space-indicator__empty"
+    // Look for the span with the "No data available" text
+    const dataElement = zeroContainer.querySelector(
+      ".disk-space-indicator__data"
     );
-    expect(emptyElement).toBeInTheDocument();
-    expect(emptyElement).toHaveTextContent("No data available");
+    expect(dataElement).toBeInTheDocument();
+    expect(dataElement).toHaveTextContent("No data available");
 
     const notSupportedElement = zeroContainer.querySelector(".not-supported");
     expect(notSupportedElement).not.toBeInTheDocument();
@@ -43,8 +48,10 @@ describe("Disk space Indicator", () => {
     // Case 2: Sentinel value -1 should show "Not supported"
     rerender(
       <DiskSpaceIndicator
+        baseClass="disk-space-indicator"
         gigsDiskSpaceAvailable={-1}
         percentDiskSpaceAvailable={0}
+        id="test-disk-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
@@ -60,8 +67,10 @@ describe("Disk space Indicator", () => {
     negativeValues.forEach((value) => {
       const { container } = renderWithSetup(
         <DiskSpaceIndicator
+          baseClass="disk-space-indicator"
           gigsDiskSpaceAvailable={value}
           percentDiskSpaceAvailable={0}
+          id="test-disk-indicator"
           platform="android"
           tooltipPosition="bottom"
         />
