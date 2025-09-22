@@ -1,5 +1,7 @@
 .user-card {
-  @include vertical-card-layout &__header {
+  @include vertical-card-layout;
+
+  &__header {
     display: flex;
     align-items: baseline;
     justify-content: space-between;

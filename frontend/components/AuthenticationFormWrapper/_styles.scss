@@ -9,7 +9,8 @@
   @include gradient-background;
 
   &__card {
-    @include vertical-card-layout width: 470px;
+    @include vertical-card-layout;
+    width: 470px;
   }
 
   &__header-container {

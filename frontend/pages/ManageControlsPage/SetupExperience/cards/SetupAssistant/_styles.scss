@@ -1,5 +1,7 @@
 .setup-assistant {
-  @include vertical-card-layout &__upload-container {
+  @include vertical-card-layout;
+
+  &__upload-container {
     display: flex;
     flex-direction: column;
     gap: $pad-large;
