@@ -70,9 +70,11 @@ class AdminDetails extends Component {
           tabIndex={tabIndex}
           label="Confirm password"
         />
-        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
-          Next
-        </Button>
+        <div className="button-wrap">
+          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+            Next
+          </Button>
+        </div>
       </form>
     );
   }
