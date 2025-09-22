@@ -10,6 +10,7 @@ services:
       [
         "mysqld",
         "--datadir=/tmp/mysqldata-replica-main",
+        "--default-authentication-plugin=mysql_native_password",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
@@ -51,6 +52,24 @@ services:
     ports:
       - "3309:3306"
 
+  minio:
+    image: quay.io/minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123!
+    volumes:
+      - data-minio:/data
+
+  redis:
+    image: redis:5
+    ports:
+      - "6379:6379"
+
 volumes:
   mysql-persistent-volume-replica-main:
   mysql-persistent-volume-replica-read:
+  data-minio:

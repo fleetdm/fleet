@@ -36,7 +36,7 @@ func (ds *Datastore) GetCurrentTime(ctx context.Context) (time.Time, error) {
 }
 
 func (ds *Datastore) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
-	return appConfigDB(ctx, ds.reader(ctx))
+	return appConfigDB(ctx, ds.writer(ctx))
 }
 
 func appConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.AppConfig, error) {
