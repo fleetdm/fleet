@@ -846,7 +846,7 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 OR
 
-`POST /api/v1/fleet/desktop/:token/certificate_authorities/:id/request_certificate`
+`POST /api/v1/fleet/device/:token/certificate_authorities/:id/request_certificate`
 
 #### Parameters
 
