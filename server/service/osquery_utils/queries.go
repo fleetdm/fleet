@@ -1001,6 +1001,25 @@ var scheduledQueryStats = DetailQuery{
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 }
 
+var softwareLinuxPacman = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS browser,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages`,
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
 var softwareLinux = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
@@ -1039,18 +1058,6 @@ SELECT
   arch AS arch,
   '' AS installed_path
 FROM rpm_packages
-UNION
-SELECT
-  name AS name,
-  version AS version,
-  '' AS extension_id,
-  '' AS browser,
-  'fleetd_pacman_packages' AS source,
-  '' AS release,
-  '' AS vendor,
-  arch AS arch,
-  '' AS installed_path
-FROM fleetd_pacman_packages
 UNION
 SELECT
   name AS name,
@@ -2699,6 +2706,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+		generatedMap["software_linux_pacman"] = softwareLinuxPacman
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
