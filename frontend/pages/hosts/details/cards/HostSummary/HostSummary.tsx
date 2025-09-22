@@ -168,6 +168,14 @@ const HostSummary = ({
   );
 
   const renderDiskSpaceSummary = () => {
+    // Hide disk space field if storage measurement is not supported (sentinel value -1)
+    if (
+      typeof summaryData.gigs_disk_space_available === "number" &&
+      summaryData.gigs_disk_space_available < 0
+    ) {
+      return null;
+    }
+
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
         Disk space
