@@ -105,14 +105,22 @@ func (u *UserHandler) createUserFromAttributes(attributes scim.ResourceAttribute
 	if err != nil {
 		return nil, err
 	}
-	user.FamilyName, err = getOptionalResource[string](name, familyNameAttr)
+	familyName, err := getRequiredResource[string](name, familyNameAttr)
 	if err != nil {
 		return nil, err
 	}
-	user.GivenName, err = getOptionalResource[string](name, givenNameAttr)
+	if len(familyName) == 0 {
+		return nil, errors.ScimErrorInvalidValue
+	}
+	user.FamilyName = &familyName
+	givenName, err := getRequiredResource[string](name, givenNameAttr)
 	if err != nil {
 		return nil, err
 	}
+	if len(givenName) == 0 {
+		return nil, errors.ScimErrorInvalidValue
+	}
+	user.GivenName = &givenName
 	emails, err := getComplexResourceSlice(attributes, emailsAttr)
 	if err != nil {
 		return nil, err
