@@ -92,9 +92,9 @@
   &__copy-wrapper {
     display: flex;
     align-items: center;
-    position: relative;
+    gap: $pad-xxsmall;
     position: absolute;
-    top: 0;
+    top: 6px; // vertically center
     right: 0;
     margin: 1px 4px;
     background-color: $core-fleet-white;
@@ -113,7 +113,7 @@
   }
 
   &__copied-confirmation-outside {
-    margin-left: -81px;
+    margin-left: -88px;
   }
 }
 

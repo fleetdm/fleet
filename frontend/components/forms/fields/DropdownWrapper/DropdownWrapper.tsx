@@ -393,7 +393,7 @@ const DropdownWrapper = ({
       zIndex: 6,
       overflow: "hidden",
       border: 0,
-      marginTop: variant === "button" ? "3px" : 0,
+      marginTop: "3px",
       left: 0,
       maxHeight: "none",
       position: "absolute",
