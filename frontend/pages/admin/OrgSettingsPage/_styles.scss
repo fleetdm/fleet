@@ -17,13 +17,43 @@
     }
 
     .app-config-form {
-      .upcaret::after {
-        content: url("../assets/images/icon-collapse-black-16x16@2x.png");
-        transform: scale(0.5);
-        border-radius: 0px;
-        position: relative;
-        top: 8px;
-        margin: $pad-xsmall;
+      &__section {
+        @include vertical-card-layout;
+        @include clearfix;
+        animation: fade-in 200ms ease-out;
+
+        .upcaret::after {
+          content: url("../assets/images/icon-collapse-black-16x16@2x.png");
+          transform: scale(0.5);
+          border-radius: 0px;
+          position: relative;
+          top: 8px;
+          margin: $pad-xsmall;
+        }
+
+        .downcaret::after {
+          content: url("../assets/images/icon-chevron-black-16x16@2x.png");
+          transform: scale(0.5);
+          border-radius: 0px;
+          position: relative;
+          top: 8px;
+          margin: $pad-xsmall;
+          margin-right: 18px;
+        }
+
+        .empty-table__container {
+          margin: 96px 0 1.5rem;
+        }
+
+        .smtp-options {
+          font-size: 15px;
+          font-weight: $bold;
+          color: $core-fleet-black;
+
+          em {
+            font-style: normal;
+          }
+        }
       }
 
       .downcaret::after {

@@ -1,6 +1,5 @@
 .script-batch-details-page {
-  @include page-tab-panel;
-  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+  @include vertical-page-tab-panel-layout margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__header {
     margin-bottom: 0;

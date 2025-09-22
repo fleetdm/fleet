@@ -1,6 +1,5 @@
 .os-updates {
-  @include page-tab-panel;
-  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
+  @include vertical-page-tab-panel-layout margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__description {
     margin: 0;
@@ -15,6 +14,6 @@
   }
 
   &__target-container {
-    @include page;
+    @include vertical-page-layout;
   }
 }

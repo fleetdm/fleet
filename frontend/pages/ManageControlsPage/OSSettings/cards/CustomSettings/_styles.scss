@@ -1,7 +1,5 @@
 .custom-settings {
-  @include card;
-
-  &__description {
+  @include vertical-card-layout &__description {
     margin: 0;
   }
 

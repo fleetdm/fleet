@@ -1,7 +1,5 @@
 .software-version-details-page {
-  @include page;
-
-  .team-dropdown-wrapper {
+  @include vertical-page-layout .team-dropdown-wrapper {
     @include normalize-team-header;
   }
 

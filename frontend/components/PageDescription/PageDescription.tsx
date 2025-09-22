@@ -5,14 +5,17 @@ const baseClass = "page-description";
 
 interface IPageDescription {
   content: React.ReactNode;
-  variant?: "default" | "card" | "tab-panel" | "right-panel";
+  /** Section descriptions styles different from page level descriptions */
+  variant?: "card" | "tab-panel" | "right-panel";
+  className?: string;
 }
 
-const PageDescription = ({ content, variant }: IPageDescription) => {
-  const classNames = classnames(baseClass, {
-    [`${baseClass}__card`]: variant === "card",
-    [`${baseClass}__tab-panel`]: variant === "tab-panel",
-    [`${baseClass}__right-panel`]: variant === "right-panel",
+const sectionVariants = ["card", "tab-panel", "right-panel"];
+
+const PageDescription = ({ content, variant, className }: IPageDescription) => {
+  const classNames = classnames(baseClass, className, {
+    [`${baseClass}__section-description`]:
+      variant && sectionVariants.includes(variant),
   });
 
   return (

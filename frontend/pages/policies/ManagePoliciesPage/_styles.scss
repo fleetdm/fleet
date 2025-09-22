@@ -1,7 +1,5 @@
 .manage-policies-page {
-  @include page;
-
-  &__header-wrap {
+  @include vertical-page-layout &__header-wrap {
     display: flex;
     flex-direction: column;
     gap: $pad-xsmall;

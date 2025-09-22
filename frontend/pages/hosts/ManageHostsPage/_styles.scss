@@ -1,7 +1,5 @@
 .manage-hosts {
-  @include page;
-
-  &__header-wrap {
+  @include vertical-page-layout &__header-wrap {
     @include normalize-team-header;
   }
 

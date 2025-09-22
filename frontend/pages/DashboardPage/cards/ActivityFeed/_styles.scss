@@ -1,7 +1,5 @@
 .activity-feed {
-  @include card;
-
-  position: relative;
+  @include vertical-card-layout position: relative;
   min-height: 500px;
 
   &__header-wrap {

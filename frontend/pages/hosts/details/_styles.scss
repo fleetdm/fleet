@@ -1,7 +1,6 @@
 .host-details,
 .device-user {
-  @include page;
-  @include color-contrasted-sections;
+  @include vertical-page-layout @include color-contrasted-sections;
 
   .header {
     display: flex;

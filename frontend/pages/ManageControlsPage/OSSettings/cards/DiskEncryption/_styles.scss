@@ -1,7 +1,5 @@
 .disk-encryption {
-  @include card;
-
-  .premium-feature-message-container {
+  @include vertical-card-layout .premium-feature-message-container {
     justify-content: initial;
     align-items: initial;
   }
