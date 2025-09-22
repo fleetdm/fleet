@@ -40,7 +40,9 @@ describe("Disk space Indicator", () => {
       />
     );
 
-    const emptyElement = zeroContainer.querySelector(".disk-space-indicator__empty");
+    const emptyElement = zeroContainer.querySelector(
+      ".disk-space-indicator__empty"
+    );
     expect(emptyElement).toBeInTheDocument();
     expect(emptyElement).toHaveTextContent("No data available");
 
