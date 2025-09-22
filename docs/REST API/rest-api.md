@@ -49,12 +49,6 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 Authorization: Bearer <your token>
 ```
 
-Fleet Desktop tokens are located locally in `/opt/orbit/identifier` on macOS and Linux hosts and `C:\Program Files\Orbit\identifier` on Windows hosts. You can use the token to authenticate API requests by attatching it to the end of the URL:
-
-```
-`POST /api/v1/fleet/certificate_authorities/:id/request_certificate/:fleet_desktop_token`
-```
-
 > For SSO and MFA users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
 
 ### Log in
