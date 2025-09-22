@@ -399,6 +399,28 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, 35.0, createdHost.Host.GigsDiskSpaceAvailable, "should calculate total available storage (10GB + 25GB)")
 		require.InDelta(t, 27.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage (35/128*100=27.34%)")
 	})
+
+	t.Run("storage not supported when missing MEASURED events", func(t *testing.T) {
+		createdHost = nil // Reset
+
+		enrollmentMessage := createEnrollmentMessageWithoutMeasuredEvents(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("work-profile-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, createdHost)
+		require.NotNil(t, createdHost.Host)
+
+		// Total storage is calculated from DETECTED events
+		require.Equal(t, 128.0, createdHost.Host.GigsTotalDiskSpace, "should calculate total storage from DETECTED events")
+
+		// Available storage and percentage should be -1 (not supported) when only DETECTED events are present
+		require.Equal(t, float64(-1), createdHost.Host.GigsDiskSpaceAvailable, "should set available storage to -1 when MEASURED events are missing")
+		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
+	})
 }
 
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
@@ -434,6 +456,47 @@ func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) 
 			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
 			CreateTime: "2024-01-15T10:00:00Z",
 		},
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
+}
+
+func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+	}
+
+	// Only DETECTED events, not MEASURED events
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		// No INTERNAL_STORAGE_MEASURED or EXTERNAL_STORAGE_MEASURED events
+		// This simulates Work Profile/BYOD device behavior
 	}
 
 	data, err := json.Marshal(deviceInfo)

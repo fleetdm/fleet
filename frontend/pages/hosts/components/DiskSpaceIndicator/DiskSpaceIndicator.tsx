@@ -1,6 +1,8 @@
 import React from "react";
 
+import ReactTooltip from "react-tooltip";
 import { PlacesType } from "react-tooltip-5";
+import NotSupported from "components/NotSupported";
 
 import { COLORS } from "styles/var/colors";
 
@@ -23,6 +25,14 @@ const DiskSpaceIndicator = ({
   inTableCell = false,
   tooltipPosition = "top",
 }: IDiskSpaceIndicatorProps): JSX.Element => {
+  // Check if storage measurement is not supported (sentinel value -1)
+  if (
+    typeof gigsDiskSpaceAvailable === "number" &&
+    gigsDiskSpaceAvailable < 0
+  ) {
+    return NotSupported;
+  }
+
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
     return <span className={`${baseClass}__empty`}>No data available</span>;
   }

@@ -13,6 +13,74 @@ describe("Disk space Indicator", () => {
     `background-color: ${COLORS["ui-warning"]}`,
     `background-color: ${COLORS["status-success"]}`,
   ];
+
+  it("renders 'Not supported' text when disk space is sentinel value -1", () => {
+    const { container } = renderWithSetup(
+      <DiskSpaceIndicator
+        gigsDiskSpaceAvailable={-1}
+        percentDiskSpaceAvailable={0}
+        platform="android"
+        tooltipPosition="bottom"
+      />
+    );
+
+    const notSupportedElement = container.querySelector(".not-supported");
+    expect(notSupportedElement).toBeInTheDocument();
+    expect(notSupportedElement).toHaveTextContent("Not supported");
+  });
+
+  it("distinguishes between zero storage (disk full) and unsupported storage", () => {
+    // Case 1: Zero storage should show "No data available"
+    const { container: zeroContainer, rerender } = renderWithSetup(
+      <DiskSpaceIndicator
+        gigsDiskSpaceAvailable={0}
+        percentDiskSpaceAvailable={0}
+        platform="android"
+        tooltipPosition="bottom"
+      />
+    );
+
+    const emptyElement = zeroContainer.querySelector(
+      ".disk-space-indicator__empty"
+    );
+    expect(emptyElement).toBeInTheDocument();
+    expect(emptyElement).toHaveTextContent("No data available");
+
+    const notSupportedElement = zeroContainer.querySelector(".not-supported");
+    expect(notSupportedElement).not.toBeInTheDocument();
+
+    // Case 2: Sentinel value -1 should show "Not supported"
+    rerender(
+      <DiskSpaceIndicator
+        gigsDiskSpaceAvailable={-1}
+        percentDiskSpaceAvailable={0}
+        platform="android"
+        tooltipPosition="bottom"
+      />
+    );
+
+    expect(screen.getByText("Not supported")).toBeInTheDocument();
+    expect(screen.queryByText("No data available")).not.toBeInTheDocument();
+  });
+
+  it("handles negative values other than -1 as unsupported", () => {
+    const negativeValues = [-2, -10, -100];
+
+    negativeValues.forEach((value) => {
+      const { container } = renderWithSetup(
+        <DiskSpaceIndicator
+          gigsDiskSpaceAvailable={value}
+          percentDiskSpaceAvailable={0}
+          platform="android"
+          tooltipPosition="bottom"
+        />
+      );
+
+      const notSupportedElement = container.querySelector(".not-supported");
+      expect(notSupportedElement).toBeInTheDocument();
+      expect(notSupportedElement).toHaveTextContent("Not supported");
+    });
+  });
   it("renders warning tooltip for <32gB when hovering over the yellow disk space indicator for darwin or windows", async () => {
     const { user } = renderWithSetup(
       <DiskSpaceIndicator
