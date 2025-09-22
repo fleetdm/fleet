@@ -80,6 +80,7 @@ interface IDataTableProps {
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
+  suppressClearSelection?: boolean;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -126,6 +127,7 @@ const DataTable = ({
   renderPagination,
   setExportRows,
   onClearSelection = noop,
+  suppressClearSelection,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -556,9 +558,14 @@ const DataTable = ({
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button onClick={onClearSelectionClick} variant="text-link">
-                      Clear selection
-                    </Button>
+                    {!suppressClearSelection && (
+                      <Button
+                        onClick={onClearSelectionClick}
+                        variant="text-link"
+                      >
+                        Clear selection
+                      </Button>
+                    )}
                   </div>
                 </th>
               </tr>
