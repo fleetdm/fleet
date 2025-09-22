@@ -80,7 +80,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teamviewer: TeamViewer,
   "windows defender": WindowsDefender,
   postman: Postman,
-  "p4v": P4V,
+  p4v: P4V,
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
   "company portal": IntuneCompanyPortal,
