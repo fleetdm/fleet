@@ -40,12 +40,10 @@ var countHostSoftwareBatchSize = uint64(100000)
 // The maximum number of software items we can insert at one time is governed by max_allowed_packet, which already be set to a high value for MDM bootstrap packages,
 // and by the maximum number of placeholders in a prepared statement, which is 65,536. These are already fairly large limits.
 // This is a variable, so it can be adjusted during unit testing.
-// softwareInsertBatchSize is used for the legacy code path that hasn't been refactored yet.
-// We're reducing this to minimize lock contention issues.
-var softwareInsertBatchSize = 200
+var softwareInsertBatchSize = 1000
 
 // softwareInventoryInsertBatchSize is used for pre-inserting software inventory entries
-// outside the main transaction. Smaller batches reduce lock contention.
+// outside the main software ingestion transaction. Smaller batches reduce lock contention.
 var softwareInventoryInsertBatchSize = 100
 
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
@@ -418,7 +416,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				r.Inserted = append(r.Inserted, bundleInserted...)
 			}
 
-			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
+			// Use r.Inserted which contains all inserted items (including bundle ID matches)
+			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, r.Inserted, hostID); err != nil {
 				return err
 			}
 
@@ -757,23 +756,6 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
-func getSoftwareIDsByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareIDChecksum, error) {
-	if len(checksums) == 0 {
-		return []softwareIDChecksum{}, nil
-	}
-
-	// get existing software ids for checksums
-	stmt, args, err := sqlx.In("SELECT name, id, checksum, title_id, bundle_identifier, source FROM software WHERE checksum IN (?)", checksums)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "build select software query")
-	}
-	var existingSoftware []softwareIDChecksum
-	if err = sqlx.SelectContext(ctx, tx, &existingSoftware, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get existing software")
-	}
-	return existingSoftware, nil
-}
-
 // preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
 // to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
 func (ds *Datastore) preInsertSoftwareInventory(
@@ -1033,6 +1015,23 @@ func (ds *Datastore) linkSoftwareToHost(
 	}
 
 	return insertedSoftware, nil
+}
+
+func getSoftwareIDsByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareIDChecksum, error) {
+	if len(checksums) == 0 {
+		return []softwareIDChecksum{}, nil
+	}
+
+	// get existing software ids for checksums
+	stmt, args, err := sqlx.In("SELECT name, id, checksum, title_id, bundle_identifier, source FROM software WHERE checksum IN (?)", checksums)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build select software query")
+	}
+	var existingSoftware []softwareIDChecksum
+	if err = sqlx.SelectContext(ctx, tx, &existingSoftware, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get existing software")
+	}
+	return existingSoftware, nil
 }
 
 // update host_software when incoming software has a significantly more recent
