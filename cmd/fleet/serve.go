@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/cbreaker"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	licensectx "github.com/fleetdm/fleet/v4/server/contexts/license"
@@ -1337,6 +1338,8 @@ the way that the Fleet server works.
 					level.Info(logger).Log("msg", "metrics endpoint disabled (http basic auth credentials not set)")
 				}
 			}
+
+			cbreaker.Init(logger)
 
 			// We must wrap the Handler here to set special per-endpoint Read/Write
 			// timeouts, so that we have access to the raw http.ResponseWriter.

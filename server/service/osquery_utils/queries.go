@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/cbreaker"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -1892,12 +1893,18 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 		}
 	}
 
-	result, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	resAny, err := cbreaker.DB.Execute(func() (any, error) {
+		return ds.UpdateHostSoftware(ctx, host.ID, software)
+	})
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update host software")
 	}
+	result, _ := resAny.(*fleet.UpdateHostSoftwareDBResult)
 
-	if err := ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result); err != nil {
+	_, err = cbreaker.DB.Execute(func() (any, error) {
+		return nil, ds.UpdateHostSoftwareInstalledPaths(ctx, host.ID, sPaths, result)
+	})
+	if err != nil {
 		return ctxerr.Wrap(ctx, err, "update software installed path")
 	}
 

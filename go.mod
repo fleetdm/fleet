@@ -126,6 +126,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/smallstep/pkcs7 v0.0.0-20240723090913-5e2c6a136dfa
 	github.com/smallstep/scep v0.0.0-20240214080410-892e41795b99
+	github.com/sony/gobreaker/v2 v2.2.1
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
