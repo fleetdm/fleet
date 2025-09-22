@@ -27,11 +27,11 @@ func newMockCustomSCEPProxyCA(url string, name string) fleet.CustomSCEPProxyCA {
 	}
 }
 
-func newMockSmallstepSCEPProxyCA(url string, name string) fleet.SmallstepSCEPProxyCA {
+func newMockSmallstepSCEPProxyCA(url, challengeURL, name string) fleet.SmallstepSCEPProxyCA {
 	return fleet.SmallstepSCEPProxyCA{
 		Name:         name,
 		URL:          url,
-		ChallengeURL: url + "/challenge",
+		ChallengeURL: challengeURL,
 		Username:     "username",
 		Password:     "password",
 	}

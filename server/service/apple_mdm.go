@@ -5101,7 +5101,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			default:
