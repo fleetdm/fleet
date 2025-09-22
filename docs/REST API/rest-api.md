@@ -890,7 +890,11 @@ None.
     },
     "macos_setup": {
       "bootstrap_package": "",
-      "": false,
+      "enable_end_user_authentication": false,
+      "create_local_user_account": {
+        "configuration_profile_id": 24,
+        "software_id": 3876
+      }
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false
@@ -1912,21 +1916,6 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). |
-| create_local_user_account         | object   | See [`mdm.macos_setup.create_local_user_account`](#mdm-macos-setup-create-local-user-account). `enable_end_user_authentication` must be true |
-
-##### mdm.macos_setup.create_local_user_account
-
-_Available in Fleet Premium._
-
-Specify Platform SSO configuration profile and SSO extension software.
-
-`mdm.macos_setup.create_local_user_account` is an object with the following structure:
-
-| Name                              | Type    | Description   |
-| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| configuration_profile_id          | integer | The ID of the Platform SSO configuration profile [added to the team](#list-custom-os-settings-configuration-profiles). |
-| software_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
-
 
 <br/>
 
@@ -6202,6 +6191,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
+| create_local_user_account         | object   | See [`create_local_user_account`](#create-local-user-account). `enable_end_user_authentication` must be true |
 | enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the DeviceConfigured command.|
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
@@ -6215,6 +6205,10 @@ _Available in Fleet Premium_
 {
   "team_id": 1,
   "enable_end_user_authentication": true,
+  "create_local_user_account": {
+    "configuration_profile_id": 24,
+    "software_id": 3876,
+  },
   "enable_release_device_manually": true
 }
 ```
@@ -6222,6 +6216,19 @@ _Available in Fleet Premium_
 ##### Default response
 
 `Status: 204`
+
+##### create_local_user_account
+
+_Available in Fleet Premium._
+
+Specify Platform SSO configuration profile and SSO extension software.
+
+`create_local_user_account` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| configuration_profile_id          | integer | The ID of the Platform SSO configuration profile [added to the team](#list-custom-os-settings-configuration-profiles). |
+| software_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
 
 
 ### Upload an EULA file
@@ -11713,6 +11720,20 @@ _Available in Fleet Premium_
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication  | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
+| create_local_user_account         | object   | See [`mdm.macos_setup.create_local_user_account`](#mdm-macos-setup-create-local-user-account). `enable_end_user_authentication` must be true |
+
+##### mdm.macos_setup.create_local_user_account
+
+_Available in Fleet Premium._
+
+Specify Platform SSO configuration profile and SSO extension software.
+
+`mdm.macos_setup.create_local_user_account` is an object with the following structure:
+
+| Name                              | Type    | Description   |
+| ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| configuration_profile_id          | integer | The ID of the Platform SSO configuration profile [added to the team](#list-custom-os-settings-configuration-profiles). |
+| software_id                       | integer | The ID of the SSO extension software [added to the team](#list-software) that's available for install. |
 
 <br/>
 
@@ -11755,7 +11776,8 @@ _Available in Fleet Premium_
       ]
     },
     "macos_setup": {
-      "enable_end_user_authentication": false
+      "enable_end_user_authentication": false,
+      ""
     }
   }
 }
