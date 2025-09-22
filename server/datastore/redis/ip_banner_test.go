@@ -21,10 +21,11 @@ func TestIPBanner(t *testing.T) {
 				conn.Close()
 			})
 
-			allowedConsecutiveFailures := 5
+			allowedConsecutiveFailuresCount := 5
+			allowedConsecutiveFailuresTimeWindow := 1 * time.Hour
 			banDuration := 5 * time.Second
 
-			ipBan := redis.NewIPBanner(pool, prefix, allowedConsecutiveFailures, banDuration)
+			ipBan := redis.NewIPBanner(pool, prefix, allowedConsecutiveFailuresCount, allowedConsecutiveFailuresTimeWindow, banDuration)
 
 			// Initially the IP should not be banned.
 			banned, err := ipBan.CheckBanned(ip)
@@ -40,7 +41,7 @@ func TestIPBanner(t *testing.T) {
 			// Running one failure request decrements the counter (but still not banned).
 			err = ipBan.RunRequest(ip, false)
 			require.NoError(t, err)
-			currentAllowedConsecutiveFailures := allowedConsecutiveFailures - 1
+			currentAllowedConsecutiveFailures := allowedConsecutiveFailuresCount - 1
 			v, err := redigo.Int(conn.Do("GET", prefix+ip+"::count"))
 			require.NoError(t, err)
 			require.Equal(t, v, currentAllowedConsecutiveFailures)
@@ -66,7 +67,7 @@ func TestIPBanner(t *testing.T) {
 			// Check count has been reset.
 			v, err = redigo.Int(conn.Do("GET", prefix+ip+"::count"))
 			require.NoError(t, err)
-			require.Equal(t, v, allowedConsecutiveFailures) // count is reset
+			require.Equal(t, v, allowedConsecutiveFailuresCount) // count is reset
 
 			// Sleep for the duration of the ban (and a bit more).
 			time.Sleep(5*time.Second + 100*time.Millisecond)
@@ -76,7 +77,7 @@ func TestIPBanner(t *testing.T) {
 			require.False(t, banned)
 
 			// Run all but one consecutive failing requests, still not banned.
-			currentAllowedConsecutiveFailures = allowedConsecutiveFailures
+			currentAllowedConsecutiveFailures = allowedConsecutiveFailuresCount
 			for range currentAllowedConsecutiveFailures - 1 {
 				err = ipBan.RunRequest(ip, false)
 				require.NoError(t, err)
@@ -90,7 +91,7 @@ func TestIPBanner(t *testing.T) {
 			// Check count has been reset.
 			v, err = redigo.Int(conn.Do("GET", prefix+ip+"::count"))
 			require.NoError(t, err)
-			require.Equal(t, allowedConsecutiveFailures, v) // count is reset
+			require.Equal(t, allowedConsecutiveFailuresCount, v) // count is reset
 			// Confirm an extra failing request does not ban.
 			err = ipBan.RunRequest(ip, false)
 			require.NoError(t, err)
@@ -123,10 +124,11 @@ func TestIPBanner(t *testing.T) {
 				conn.Close()
 			})
 
-			allowedConsecutiveFailures := 5
+			allowedConsecutiveFailuresCount := 5
+			allowedConsecutiveFailuresTimeWindow := 1 * time.Hour
 			banDuration := 5 * time.Second
 
-			ipBan := redis.NewIPBanner(pool, prefix, allowedConsecutiveFailures, banDuration)
+			ipBan := redis.NewIPBanner(pool, prefix, allowedConsecutiveFailuresCount, allowedConsecutiveFailuresTimeWindow, banDuration)
 
 			ip1 := "127.0.0.2"
 			ip2 := "::1"
@@ -139,7 +141,7 @@ func TestIPBanner(t *testing.T) {
 			require.False(t, banned)
 			v, err := redigo.Int(conn.Do("GET", prefix+ip1+"::count"))
 			require.NoError(t, err)
-			require.Equal(t, allowedConsecutiveFailures-1, v)
+			require.Equal(t, allowedConsecutiveFailuresCount-1, v)
 
 			// ip2 is not affected.
 			banned, err = ipBan.CheckBanned(ip2)

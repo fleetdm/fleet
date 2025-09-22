@@ -830,9 +830,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesEndpoint, batchApplyCertificateAuthoritiesRequest{})
 	ue.GET("/api/_version_/fleet/spec/certificate_authorities", getCertificateAuthoritiesSpecEndpoint, getCertificateAuthoritiesSpecRequest{})
 
-	// Allow up to 1000 consecutive failing requests; if the limit of 1_000 is reached for an IP,
+	// Allow up to 1000 consecutive failing requests in 1 minute; if the limit of 1_000 is reached for an IP,
 	// ban requests from such IP for a duration of 1 minute.
-	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::", 1_000, 1*time.Minute)
+	ipBanner := redis.NewIPBanner(redisPool, "ipbanner::", 1_000, 1*time.Minute, 1*time.Minute)
 	errorLimiter := ratelimit.NewErrorMiddleware(ipBanner).Limit(logger)
 
 	// device-authenticated endpoints

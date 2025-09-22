@@ -9,8 +9,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/go-kit/kit/endpoint"
-	"github.com/go-kit/kit/log/level"
 	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/throttled/throttled/v2"
 )
 
