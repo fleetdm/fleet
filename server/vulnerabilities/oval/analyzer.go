@@ -113,9 +113,8 @@ func Analyze(
 			updatedBatch := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
 			// fmt.Println("updatedBatch: ", updatedBatch)
 			for _, v := range foundInBatch[hostID] {
-				sName := softwareIDs[v.SoftwareID].Name
-				sVer := softwareIDs[v.SoftwareID].Version
-				skip := rules.MatchesAny(sName, sVer, v.CVE)
+				software := softwareIDs[v.SoftwareID]
+				skip := rules.MatchesAny(software, v.CVE)
 				if !skip {
 					updatedBatch = append(updatedBatch, v)
 				}

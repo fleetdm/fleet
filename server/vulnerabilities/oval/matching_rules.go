@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 )
 
@@ -13,9 +14,9 @@ type SoftwareMatchingRule struct {
 	// TODO: OSVersion or FleetSoftware.Release
 	// rpm packages specify a release but ubuntu dont
 	// Maybe add release for rpm packages but make it nullable
-	CVEs      map[string]struct{} // Maybe just a slice?
-	IgnoreAll bool
+	CVEs map[string]struct{} // Maybe just a slice?
 	// TODO: IgnoreIf func(FleetSoftware ) bool
+	MatchIf func(software fleet.Software) bool
 }
 
 type SoftwareMatchingRules []SoftwareMatchingRule
@@ -28,6 +29,18 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 			Name:       "microcode_ctl",
 			VersionEnd: "2.1",
 			CVEs: map[string]struct{}{
+				"CVE-2022-21216": {}, // release: 53.1.fc37
+				"CVE-2022-33196": {}, // release: 53.1.fc37
+				"CVE-2022-41804": {}, // release: 55.1.fc38
+				"CVE-2023-22655": {},
+				"CVE-2023-28746": {},
+				"CVE-2023-34440": {},
+				"CVE-2023-38575": {},
+				"CVE-2023-39368": {},
+				"CVE-2023-43490": {},
+				"CVE-2023-43758": {},
+				"CVE-2023-45733": {},
+				"CVE-2023-46103": {},
 				"CVE-2024-24582": {},
 				"CVE-2024-28047": {},
 				"CVE-2024-28127": {},
@@ -39,8 +52,8 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 				"CVE-2024-45332": {},
 				"CVE-2025-20012": {},
 				"CVE-2025-20623": {},
+				"CVE-2025-24495": {},
 			},
-			IgnoreAll: true,
 		},
 		{
 			Name:       "shim-x64",
@@ -53,7 +66,6 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 				"CVE-2023-40550": {},
 				"CVE-2023-40551": {},
 			},
-			IgnoreAll: true,
 		},
 	}
 
@@ -67,24 +79,29 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 }
 
 // Returns true if the software and cve have a matching ignore rule
-func (rules SoftwareMatchingRules) MatchesAny(name string, version string, cve string) bool { //version string release string
-	if strings.TrimSpace(name) == "" {
+func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool { //version string release string
+	if strings.TrimSpace(s.Name) == "" {
 		return false
 	}
-	if strings.TrimSpace(version) == "" {
+	if strings.TrimSpace(s.Version) == "" {
 		// TODO: maybe log this
 		return false
 	}
 
+	// MatchIf
+
 	for _, r := range rules {
-		if name != r.Name {
+		if s.Name != r.Name {
 			continue
 		}
 		// REMOVE COMMENT: if the version is >= VersionEnd
 		// the CVEs have been fixed and it is false positive
 		// so we want to return true
 		// fmt.Println("Version compare: ", version, " , ", r.VersionEnd, " cve: ", cve)
-		if nvd.SmartVerCmp(version, r.VersionEnd) < 0 {
+		if r.MatchIf != nil && r.MatchIf(s) == false {
+			continue
+		}
+		if nvd.SmartVerCmp(s.Version, r.VersionEnd) < 0 {
 			continue // true positive
 		}
 		if _, found := r.CVEs[cve]; found {
