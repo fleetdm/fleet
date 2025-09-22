@@ -890,7 +890,7 @@ None.
     },
     "macos_setup": {
       "bootstrap_package": "",
-      "enable_end_user_authentication": false,
+      "": false,
       "macos_setup_assistant": "path/to/config.json",
       "enable_release_device_manually": false,
       "manual_agent_install": false
@@ -1912,6 +1912,7 @@ _Available in Fleet Premium._
 | Name                              | Type    | Description   |
 | ---------------------             | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | enable_end_user_authentication    | boolean | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). |
+| create_local_user_account    | boolean | If set to true, local user account on macOS hosts will be automatically created using IdP credentials. `enable_end_user_authentication` must be set to true. |
 
 <br/>
 
