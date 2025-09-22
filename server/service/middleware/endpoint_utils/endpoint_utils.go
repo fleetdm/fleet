@@ -629,6 +629,12 @@ func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *
 	return &ae
 }
 
+func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddleware = append(ae.CustomMiddleware, mws...)
+	return &ae
+}
+
 func (e *CommonEndpointer[H]) WithCustomMiddlewareAfterAuth(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddlewareAfterAuth = mws
