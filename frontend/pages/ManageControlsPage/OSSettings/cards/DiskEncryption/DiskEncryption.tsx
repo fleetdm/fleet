@@ -18,6 +18,7 @@ import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import TooltipWrapper from "components/TooltipWrapper";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import RevealButton from "components/buttons/RevealButton";
@@ -169,27 +170,28 @@ const DiskEncryption = ({
     );
   };
 
-  const subTitle = (
-    <>
-      Disk encryption is available on{" "}
-      <TooltipWrapper tipContent={getTipContent("macOS")}>macOS</TooltipWrapper>
-      ,{" "}
-      <TooltipWrapper tipContent={getTipContent("windows")}>
-        Windows
-      </TooltipWrapper>
-      , and{" "}
-      <TooltipWrapper tipContent={getTipContent("linux")}>Linux</TooltipWrapper>{" "}
-      hosts.
-    </>
-  );
-
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Disk encryption"
-        subTitle={subTitle}
-        alignLeftHeaderVertically
-        greySubtitle
+      <SectionHeader title="Disk encryption" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Disk encryption is available on{" "}
+            <TooltipWrapper tipContent={getTipContent("macOS")}>
+              macOS
+            </TooltipWrapper>
+            ,{" "}
+            <TooltipWrapper tipContent={getTipContent("windows")}>
+              Windows
+            </TooltipWrapper>
+            , and{" "}
+            <TooltipWrapper tipContent={getTipContent("linux")}>
+              Linux
+            </TooltipWrapper>{" "}
+            hosts.
+          </>
+        }
       />
       {!isPremiumTier ? (
         <PremiumFeatureMessage

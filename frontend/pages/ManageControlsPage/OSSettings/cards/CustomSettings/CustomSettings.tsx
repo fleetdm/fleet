@@ -12,6 +12,7 @@ import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
@@ -197,17 +198,6 @@ const CustomSettings = ({
     );
   };
 
-  const subTitle = (
-    <p className={`${baseClass}__description`}>
-      Create and upload configuration profiles to apply custom settings.{" "}
-      <CustomLink
-        newTab
-        text="Learn how"
-        url="https://fleetdm.com/learn-more-about/custom-os-settings"
-      />
-    </p>
-  );
-
   const hasLabels =
     !!profileLabelsModalData?.labels_include_all?.length ||
     !!profileLabelsModalData?.labels_include_any?.length ||
@@ -215,10 +205,19 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader
-        title="Custom settings"
-        subTitle={subTitle}
-        alignLeftHeaderVertically
+      <SectionHeader title="Custom settings" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Create and upload configuration profiles to apply custom settings.{" "}
+            <CustomLink
+              newTab
+              text="Learn how"
+              url="https://fleetdm.com/learn-more-about/custom-os-settings"
+            />
+          </>
+        }
       />
       {!mdmEnabled ? (
         <TurnOnMdmMessage
