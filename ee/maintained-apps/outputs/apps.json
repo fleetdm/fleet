@@ -128,13 +128,6 @@
       "description": ""
     },
     {
-      "name": "Logitech Options+",
-      "slug": "logi-options+/darwin",
-      "platform": "darwin",
-      "unique_identifier": "com.logi.optionsplus",
-      "description": "Logitech Options+ is an app for customizing Logitech devices such as mice and keyboards."
-    },
-    {
       "name": "Microsoft Edge",
       "slug": "microsoft-edge/darwin",
       "platform": "darwin",
