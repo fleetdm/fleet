@@ -1,0 +1,8 @@
+{
+  "name": "P4V",
+  "slug": "p4v/darwin",
+  "unique_identifier": "com.perforce.p4v",
+  "token": "p4v",
+  "installer_format": "dmg",
+  "default_categories": ["Developer tools"]
+} 

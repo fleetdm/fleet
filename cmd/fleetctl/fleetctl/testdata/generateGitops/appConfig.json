@@ -69,7 +69,10 @@
     "server_url": "https://dogfood.fleetdm.com",
     "live_query_disabled": false,
     "enable_analytics": true,
-    "debug_host_ids": [1, 3],
+    "debug_host_ids": [
+      1,
+      3
+    ],
     "deferred_save_host": false,
     "query_reports_disabled": false,
     "scripts_disabled": false,
@@ -268,7 +271,10 @@
         ]
       }
     ],
-    "android_enabled_and_configured": true
+    "android_enabled_and_configured": true,
+    "android_settings": {
+      "custom_settings": []
+    }
   },
   "gitops": {
     "gitops_mode_enabled": false,

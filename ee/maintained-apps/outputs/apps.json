@@ -163,6 +163,13 @@
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
     },
     {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": ""
+    },
+    {
       "name": "Postman",
       "slug": "postman/darwin",
       "platform": "darwin",
