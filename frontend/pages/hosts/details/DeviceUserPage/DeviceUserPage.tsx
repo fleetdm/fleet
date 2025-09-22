@@ -427,6 +427,13 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const resendProfile = (profileUUID: string): Promise<void> => {
+    if (!host) {
+      return new Promise(() => undefined);
+    }
+    return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -672,9 +679,7 @@ const DeviceUserPage = ({
             canResendProfiles={host.platform === "darwin"}
             platform={host.platform}
             hostMDMData={host.mdm}
-            resendRequest={(profileUUID: string) =>
-              deviceUserAPI.resendProfile(deviceAuthToken, profileUUID)
-            }
+            resendRequest={resendProfile}
             onProfileResent={refetchHostDetails}
             onClose={toggleOSSettingsModal}
           />

@@ -659,6 +659,13 @@ const HostDetailsPage = ({
     }
   };
 
+  const resendProfile = (profileUUID: string): Promise<void> => {
+    if (!host) {
+      return new Promise(() => undefined);
+    }
+    return hostAPI.resendProfile(host.id, profileUUID);
+  };
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -1341,9 +1348,7 @@ const HostDetailsPage = ({
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
-              resendRequest={(profileUUID: string) =>
-                hostAPI.resendProfile(host.id, profileUUID)
-              }
+              resendRequest={resendProfile}
               onProfileResent={refetchHostDetails}
             />
           )}
