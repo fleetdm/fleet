@@ -1116,6 +1116,9 @@ type Datastore interface {
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
 	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
+	// ListVulnsByMultipleOSVersions is an optimized batch query that fetches vulnerabilities for multiple OS versions
+	// in a single efficient operation.
+	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint) (map[string]Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -2174,6 +2177,10 @@ type Datastore interface {
 	// set of slugs.
 	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
 
+	// GetSetupExperienceCount returns the number of installers, vpp apps, and scritps available for
+	// a team and platform
+	GetSetupExperienceCount(ctx context.Context, platform string, teamID *uint) (*SetupExperienceCount, error)
+
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
@@ -2387,6 +2394,7 @@ type AndroidDatastore interface {
 type MDMAppleStore interface {
 	storage.AllStorage
 	MDMAssetRetriever
+	GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }

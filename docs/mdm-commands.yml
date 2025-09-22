@@ -1,0 +1,3367 @@
+#
+#   █████╗ ██████╗ ██████╗ ██╗     ███████╗
+#  ██╔══██╗██╔══██╗██╔══██╗██║     ██╔════╝
+#  ███████║██████╔╝██████╔╝██║     █████╗
+#  ██╔══██║██╔═══╝ ██╔═══╝ ██║     ██╔══╝
+#  ██║  ██║██║     ██║     ███████╗███████╗
+#  ╚═╝  ╚═╝╚═╝     ╚═╝     ╚══════╝╚══════╝
+#
+- name: Install profile
+  platform: apple
+  category: Profile managment
+  description: Install a configuration profile on a device.
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/install-profile-command
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Payload</key>
+            <data>
+            PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBs
+            aXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3
+            dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJz
+            aW9uPSIxLjAiPgo8ZGljdD4KCTxrZXk+UGF5bG9hZENvbnRlbnQ8L2tleT4KCTxhcnJh
+            eT4KCQk8ZGljdD4KCQkJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4KCQkJPHN0
+            cmluZz5Db25maWd1cmVzIHJlc3RyaWN0aW9uczwvc3RyaW5nPgoJCQk8a2V5PlBheWxv
+            YWREaXNwbGF5TmFtZTwva2V5PgoJCQk8c3RyaW5nPlJlc3RyaWN0aW9uczwvc3RyaW5n
+            PgoJCQk8a2V5PlBheWxvYWRJZGVudGlmaWVyPC9rZXk+CgkJCTxzdHJpbmc+Y29tLmFw
+            cGxlLmFwcGxpY2F0aW9uYWNjZXNzLkVENzE2QUU5LUFFODktNENFQy1BNzE3LUYyMTU2
+            N0UwRjUxMjwvc3RyaW5nPgoJCQk8a2V5PlBheWxvYWRUeXBlPC9rZXk+CgkJCTxzdHJp
+            bmc+Y29tLmFwcGxlLmFwcGxpY2F0aW9uYWNjZXNzPC9zdHJpbmc+CgkJCTxrZXk+UGF5
+            bG9hZFVVSUQ8L2tleT4KCQkJPHN0dmluZz5FRDcxNkFFOS1BRTg5LTRDRUMtQTcxNy1G
+            MjE1NjdFMEY1MTI8L3N0cmluZz4KCQkJPGtleT5QYXlsb2FtVmVyc2lvbjwva2V5PgoJ
+            CQk8aW50ZWdlcj4xPC9pbnRlZ2VyPgoJCQk8a2V5PmFsbG93TG9ja1NjcmVlblRvZGF5
+            Vmlldzwva2V5PgoJCQk8ZmFsc2UvPgoJCQk8a2V5PnJhdGluZ1JlZ2lvbjwva2V5PgoJ
+            CQk8c3RyaW5nPnVzPC9zdHJpbmc+CgkJPC9kaWN0PgoJPC9hcnJheT4KCTxrZXk+UGF5
+            bG9hZERpc3BsYXlOYW1lPC9rZXk+Cgk8c3RyaW5nPihVKSBhbGxvd0xvY2tTY3JlZW5U
+            b2RheVZpZXc8L3N0cmluZz4KCTxrZXk+UGF5bG9hZElkZW50aWZpZXI8L2tleT4KCTxz
+            dHJpbmc+Y29tLmFwcGxlLmRtcy5yZXN0cmljdGlvbnMuYWxsb3dMb2NrU2NyZWVuVG9k
+            YXlWaWV3PC9zdHJpbmc+Cgk8a2V5PlBheWxwYWRSZW1vdmFsRGlzYWxsb3dlZDwva2V5
+            PgoJPGZhbHNlLz4KCTxrZXk+UGF5bG9hZFR5cGU8L2tleT4KCTxzdHJpbmc+Q29uZmln
+            dXJhdGlvbjwvc3RyaW5nPgoJPGtleT5QYXlsb2FkVVVJRDwva2V5PgoJPHN0cmluZz42
+            OUE0RTVGRS03NUQxLTQyOTctQkQzMi01NDA3MTBFRDYzNjA8L3N0cmluZz4KCTxrZXk+
+            UGF5bG9hZFZlcnNpb248L2tleT4KCTxpbnRlZ2VyPjE8L2ludGVnZXI+CjwvZGljdD4K
+            PC9wbGlzdD4K
+            </data>
+            <key>RequestType</key>
+            <string>InstallProfile</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstallProfile</string>
+    </dict>
+    </plist>
+
+- name: Profile list
+  platform: apple
+  category: Profile managment
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/profile-list-command
+  description: Get a list of installed profiles on a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagedOnly</key>
+            <false/>
+            <key>RequestType</key>
+            <string>ProfileList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ProfileList</string>
+    </dict>
+    </plist>
+
+- name: Remove profile
+  platform: apple
+  category: Profile managment
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/remove-profile-command
+  description: Remove a previously installed profile from the device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Identifier</key>
+            <string>com.acme.myprofile</string>
+            <key>RequestType</key>
+            <string>RemoveProfile</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RemoveProfile</string>
+    </dict>
+    </plist>
+
+- name: Install provisioning profile
+  platform: apple
+  category: Profile managment
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/install-provisioning-profile-command
+  description: Install a provisioning profile on a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ProvisioningProfile</key>
+            <data>
+            TG9yZW0gaXBzdW0gZG9sb3Igc2l0IGFtZXQsIGNvbnNlY3RldHVyIGFkaXBpc2Npbmcg
+            ZWxpdC4gTWF1cmlzIGlwc3VtIGVyYXQsIHNlbXBlciBxdWlzIG1hc3NhIG5lYywgcHVs
+            dmluYXIgcHVsdmluYXIgbWF1cmlzLiBBbGlxdWFtIGNvbW1vZG8gaWQgdXJuYSBzZWQg
+            Y29uc2VxdWF0LiBEb25lYyBlZ2V0IGFsaXF1ZXQgYXVndWUuIEZ1c2NlIHF1aXMgdG9y
+            dG9yIHZlbGl0LiBFdGlhbSBhdWN0b3IgdmVsIG1hc3NhIHNpdCBhbWV0IG1vbGxpcy4g
+            TmFtIGVsZW1lbnR1bSB2aXRhZSBuZXF1ZSBhYyBhY2N1bXNhbi4gVml2YW11cyBpZCBs
+            ZW8gYXVndWUuIFByb2luIGlhY3VsaXMgdWxsYW1jb3JwZXIgc2VtLCB2ZWwgZGFwaWJ1
+            cyBvcmNpIGNvbnNlcXVhdCBzaXQgYW1ldC4gQ3JhcyBhYyBtb2xlc3RpZSBleC4KCklu
+            IG1vbGVzdGllIGJpYmVuZHVtIG1hZ25hIGlkIHVsdHJpY2VzLiBOYW0gZmF1Y2lidXMg
+            anVzdG8gbmVjIGZlbGlzIHB1bHZpbmFyIGZhY2lsaXNpcy4gQ3JhcyBjb21tb2RvLCBk
+            aWFtIGluIHRpbmNpZHVudCB1bHRyaWNlcywgcXVhbSBlbmltIHNvbGxpY2l0dWRpbiB0
+            dXJwaXMsIGV1IHRpbmNpZHVudCBuaXNpIGxvcmVtIGV0IGxpZ3VsYS4gU3VzcGVuZGlz
+            c2UgcG90ZW50aS4gVmVzdGlidWx1bSBuZWMgbWFnbmEgZXUgbWV0dXMgbWF4aW11cyB1
+            bHRyaWNlcyBhIGNvbnZhbGxpcyBvcmNpLiBDcmFzIHF1aXMgdHVycGlzIHNvZGFsZXMs
+            IHZhcml1cyBmZWxpcyBzZWQsIHNhZ2l0dGlzIG1hc3NhLiBQcmFlc2VudCBmZXJtZW50
+            dW0gbnVsbGEgZXUgbnVsbGEgcGhhcmV0cmEgY29tbW9kby4gSW50ZWdlciB1dCBkYXBp
+            YnVzIG5pc2kuIE51bGxhIHZlaGljdWxhIHV0IGVsaXQgc2VkIHZlbmVuYXRpcy4gRG9u
+            ZWMgZXQgZWdlc3RhcyBhbnRlLiBJbnRlcmR1bSBldCBtYWxlc3VhZGEgZmFtZXMgYWMg
+            YW50ZSBpcHN1bSBwcmltaXMgaW4gZmF1Y2lidXMuIE1hZWNlbmFzIHJob25jdXMgbmlz
+            aSByaXN1cywgZXQgc29kYWxlcyB2ZWxpdCB2b2x1dHBhdCBhdC4KClF1aXNxdWUgdmVo
+            aWN1bGEgZXJvcyBlZmZpY2l0dXIgc2FwaWVuIGx1Y3R1cywgYSByaG9uY3VzIG51bGxh
+            IHZlc3RpYnVsdW0uIFNlZCBzZW1wZXIganVzdG8gbm9uIHRyaXN0aXF1ZSBsb2JvcnRp
+            cy4gUGhhc2VsbHVzIGV0IGVyYXQgZXQgbmliaCB2aXZlcnJhIHZvbHV0cGF0IGlkIHZl
+            bCBtYXNzYS4gUGhhc2VsbHVzIHNlZCBhdWd1ZSBhIGVzdCBydXRydW0gZWZmaWNpdHVy
+            LiBWaXZhbXVzIHZ1bHB1dGF0ZSBzY2VsZXJpc3F1ZSBydXRydW0uIE1hdXJpcyBwb3J0
+            YSBzYXBpZW4gdmVsIHNlbXBlciBzZW1wZXIuIEluIGhhYyBoYWJpdGFzc2UgcGxhdGVh
+            IGRpY3R1bXN0LgoKQWxpcXVhbSBwb3J0dGl0b3Igbm9uIG1hc3NhIGVnZXQgY29uc2Vj
+            dGV0dXIuIER1aXMgZWxlbWVudHVtIGxhY2luaWEgdG9ydG9yLCBhYyBwdWx2aW5hciBz
+            ZW0gcGhhcmV0cmEgc2VkLiBJbnRlZ2VyIHJ1dHJ1bSBhdWd1ZSBlc3QsIGEgcmhvbmN1
+            cyBuaXNpIGNvbnZhbGxpcyBlZ2V0LiBDcmFzIGFjY3Vtc2FuIGZlbGlzIGlwc3VtLCBu
+            ZWMgdml2ZXJyYSBuaXNpIGZpbmlidXMgbmVjLiBGdXNjZSBhdCBsdWN0dXMgc2FwaWVu
+            LCBzZWQgdGluY2lkdW50IGVzdC4gUGVsbGVudGVzcXVlIGFsaXF1ZXQgYXVjdG9yIGRh
+            cGlidXMuIE1hZWNlbmFzIGVnZXQgZHVpIHRlbXB1cywgbW9sbGlzIGxvcmVtIGVnZXQs
+            IHZ1bHB1dGF0ZSBkdWkuIEluIGV1IGxpYmVybyBhcmN1LiBDcmFzIG1hdHRpcyBldWlz
+            bW9kIG5pYmgsIGF0IHNlbXBlciBvZGlvIGRhcGlidXMgaW4uCgpEb25lYyB2ZWwgc29k
+            YWxlcyBkb2xvci4gTWFlY2VuYXMgbWFsZXN1YWRhIGhlbmRyZXJpdCBuaXNpIHF1aXMg
+            ZmVybWVudHVtLiBDcmFzIG5vbiBjb25kaW1lbnR1bSBsZWN0dXMuIFV0IGZhY2lsaXNp
+            cyBmZWxpcyB2YXJpdXMgZXJhdCBhY2N1bXNhbiB2ZWhpY3VsYS4gTW9yYmkgbHVjdHVz
+            IHRvcnRvciB2ZWwgYW50ZSBwb3N1ZXJlLCBldCBwb3J0YSBhdWd1ZSBwb3N1ZXJlLiBT
+            dXNwZW5kaXNzZSBlZ2VzdGFzIGVmZmljaXR1ciB2ZW5lbmF0aXMuIE51bmMgZnJpbmdp
+            bGxhIGVyb3MgdXQgb2RpbyB2dWxwdXRhdGUgcG9zdWVyZS4gTmFtIGVzdCBkaWFtLCBz
+            Y2VsZXJpc3F1ZSBtb2xlc3RpZSBvZGlvIHNlZCwgbHVjdHVzIG1vbGVzdGllIHRvcnRv
+            ci4gTWF1cmlzIG9ybmFyZSBuZXF1ZSBpZCBpbnRlcmR1bSB0cmlzdGlxdWUuIFZpdmFt
+            dXMgdXQgcHVydXMgdmFyaXVzLCBwb3J0dGl0b3IgbG9yZW0gZXQsIGZhdWNpYnVzIGFu
+            dGUuIE51bGxhbSBub24gZGljdHVtIGFudGUuIFBlbGxlbnRlc3F1ZSB2dWxwdXRhdGUg
+            dHVycGlzIGF0IGFjY3Vtc2FuIHZvbHV0cGF0LiBEb25lYyBub24gbGliZXJvIGF0IGVu
+            aW0gdWxsYW1jb3JwZXIgYWxpcXVldC4gTmFtIGRpY3R1bSBkb2xvciBub24gZHVpIHRp
+            bmNpZHVudCBtYWxlc3VhZGEuIFV0IGNvbnZhbGxpcyBlbGl0IGF0IG1pIGRpZ25pc3Np
+            bSwgYWMgdWxsYW1jb3JwZXIgZmVsaXMgaW1wZXJkaWV0LiBOYW0gbm9uIHRyaXN0aXF1
+            ZSBsZWN0dXMu
+            </data>
+            <key>RequestType</key>
+            <string>InstallProvisioningProfile</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstallProvisioningProfile</string>
+    </dict>
+    </plist>
+
+- name: Provisioning profile list
+  platform: apple
+  category: Profile managment
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/provisioning-profile-list-command
+  description: Get a list of installed provisioning profiles on a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagedOnly</key>
+            <false/>
+            <key>RequestType</key>
+            <string>ProvisioningProfileList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ProvisioningProfileList</string>
+    </dict>
+    </plist>
+
+- name: Remove provisioning profile
+  platform: apple
+  category: Profile managment
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/remove-provisioning-profile-command
+  description: Remove a previously installed provisioning profile from a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>RemoveProvisioningProfile</string>
+            <key>UUID</key>
+            <string>493d9dc8-e4c0-4fd8-bd8e-8fd4c0dc7b0c</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RemoveProvisioningProfile</string>
+    </dict>
+    </plist>
+
+- name: Device information
+  platform: apple
+  category: Device details
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/device-information-command
+  description: Get detailed information about a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Queries</key>
+            <array>
+                <string>UDID</string>
+                <string>Languages</string>
+                <string>Locales</string>
+                <string>DeviceID</string>
+                <string>OrganizationInfo</string>
+                <string>LastCloudBackupDate</string>
+                <string>AwaitingConfiguration</string>
+                <string>MDMOptions</string>
+                <string>iTunesStoreAccountIsActive</string>
+                <string>iTunesStoreAccountHash</string>
+                <string>DeviceName</string>
+                <string>OSVersion</string>
+                <string>BuildVersion</string>
+                <string>ModelName</string>
+                <string>Model</string>
+                <string>ProductName</string>
+                <string>SerialNumber</string>
+                <string>DeviceCapacity</string>
+                <string>AvailableDeviceCapacity</string>
+                <string>BatteryLevel</string>
+                <string>CellularTechnology</string>
+                <string>ICCID</string>
+                <string>BluetoothMAC</string>
+                <string>WiFiMAC</string>
+                <string>EthernetMACs</string>
+                <string>CurrentCarrierNetwork</string>
+                <string>SubscriberCarrierNetwork</string>
+                <string>CurrentMCC</string>
+                <string>CurrentMNC</string>
+                <string>SubscriberMCC</string>
+                <string>SubscriberMNC</string>
+                <string>SIMMCC</string>
+                <string>SIMMNC</string>
+                <string>SIMCarrierNetwork</string>
+                <string>CarrierSettingsVersion</string>
+                <string>PhoneNumber</string>
+                <string>DataRoamingEnabled</string>
+                <string>VoiceRoamingEnabled</string>
+                <string>PersonalHotspotEnabled</string>
+                <string>IsRoaming</string>
+                <string>IMEI</string>
+                <string>MEID</string>
+                <string>ModemFirmwareVersion</string>
+                <string>IsSupervised</string>
+                <string>IsDeviceLocatorServiceEnabled</string>
+                <string>IsActivationLockEnabled</string>
+                <string>IsDoNotDisturbInEffect</string>
+                <string>EASDeviceIdentifier</string>
+                <string>IsCloudBackupEnabled</string>
+                <string>OSUpdateSettings</string>
+                <string>LocalHostName</string>
+                <string>HostName</string>
+                <string>CatalogURL</string>
+                <string>IsDefaultCatalog</string>
+                <string>PreviousScanDate</string>
+                <string>PreviousScanResult</string>
+                <string>PerformPeriodicCheck</string>
+                <string>AutomaticCheckEnabled</string>
+                <string>BackgroundDownloadEnabled</string>
+                <string>AutomaticAppInstallationEnabled</string>
+                <string>AutomaticOSInstallationEnabled</string>
+                <string>AutomaticSecurityUpdatesEnabled</string>
+                <string>OSUpdateSettings</string>
+                <string>LocalHostName</string>
+                <string>HostName</string>
+                <string>IsMultiUser</string>
+                <string>IsMDMLostModeEnabled</string>
+                <string>MaximumResidentUsers</string>
+                <string>PushToken</string>
+                <string>DiagnosticSubmissionEnabled</string>
+                <string>AppAnalyticsEnabled</string>
+                <string>IsNetworkTethered</string>
+                <string>ServiceSubscriptions</string>
+            </array>
+            <key>RequestType</key>
+            <string>DeviceInformation</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DeviceInformation</string>
+    </dict>
+    </plist>
+
+- name: Device configured
+  platform: apple
+  category: Device details
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/device-configured-command
+  description: Inform the device that it can allow the user to continue in Setup Assistant.
+  supportedDeviceTypes:
+    - iOS 9.0+
+    - iPadOS 9.0+
+    - macOS 10.11+
+    - tvOS 10.2+
+    - visionOS 2.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>DeviceConfigured</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DeviceConfigured</string>
+    </dict>
+    </plist>
+
+- name: User configured
+  platform: apple
+  category: Device details
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/user-configured-command
+  description: Inform the device that it can allow the user to continue in Setup Assistant.
+  supportedDeviceTypes:
+    - iOS 9.0+
+    - iPadOS 9.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>UserConfigured</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_UserConfigured</string>
+    </dict>
+    </plist>
+
+- name: Restrictions
+  platform: apple
+  category: Device details
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/restrictions-command
+  description: Get a list of restrictions on the device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ProfileRestrictions</key>
+            <false/>
+            <key>RequestType</key>
+            <string>Restrictions</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_Restrictions</string>
+    </dict>
+    </plist>
+
+- name: Erase device
+  platform: apple
+  category: Device state
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/erase-device-command
+  description: Remotely and immediately erase a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>DisallowProximitySetup</key>
+            <false/>
+            <key>PreserveDataPlan</key>
+            <true/>
+            <key>RequestType</key>
+            <string>EraseDevice</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_EraseDevice</string>
+    </dict>
+    </plist>
+
+- name: Device lock
+  platform: apple
+  category: Device state
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/device-lock-command
+  description: Remotely and immediately lock a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - visionOS 2.0+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Message</key>
+            <string>Lock Message</string>
+            <key>PhoneNumber</key>
+            <string>408-555-5555</string>
+            <key>RequestType</key>
+            <string>DeviceLock</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DeviceLock</string>
+    </dict>
+    </plist>
+
+- name: Restart device
+  platform: apple
+  category: Device state
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/restart-device-command
+  description: Remotely and immediately restart a device.
+  supportedDeviceTypes:
+    - iOS 10.3+
+    - iPadOS 10.3+
+    - macOS 10.13+
+    - tvOS 10.2+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>RestartDevice</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RestartDevice</string>
+    </dict>
+    </plist>
+
+- name: Shut down device
+  platform: apple
+  category: Device state
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/shut-down-device-command
+  description: Remotely and immediately shut down a device.
+  supportedDeviceTypes:
+    - iOS 10.3+
+    - iPadOS 10.3+
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ShutDownDevice</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ShutDownDevice</string>
+    </dict>
+    </plist>
+
+- name: Install application
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/install-application-command
+  description: Install a third-party app on a device.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+    - macOS 10.9+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagementFlags</key>
+            <integer>0</integer>
+            <key>ManifestURL</key>
+            <string>https://yourmdmhost.example.com/files/myenterpriseapp.plist</string>
+            <key>RequestType</key>
+            <string>InstallApplication</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstallApplication</string>
+    </dict>
+    </plist>
+
+- name: Install enterprise application
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/install-enterprise-application-command
+  description: Install an enterprise app on a device.
+  supportedDeviceTypes:
+    - macOS 10.13.6+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManifestURL</key>
+            <string>https://yourmdmhost.example.com/files/myenterpriseapp.plist</string>
+            <key>PinningRevocationCheckRequired</key>
+            <false/>
+            <key>RequestType</key>
+            <string>InstallEnterpriseApplication</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstallEnterpriseApplication</string>
+    </dict>
+    </plist>
+
+- name: Installed application list
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/installed-application-list-command
+  description: Get a list of the installed apps on a device.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+    - macOS 10.7+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagedAppsOnly</key>
+            <true/>
+            <key>RequestType</key>
+            <string>InstalledApplicationList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstalledApplicationList</string>
+    </dict>
+    </plist>
+
+- name: Managed application list
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-list-command
+  description: Get the status of all managed apps on a device.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ManagedApplicationList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ManagedApplicationList</string>
+    </dict>
+    </plist>
+
+- name: Remove application
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/remove-application-command
+  description: Remove an app.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Identifier</key>
+            <string>com.acme.myenterpriseapp</string>
+            <key>RequestType</key>
+            <string>RemoveApplication</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RemoveApplication</string>
+    </dict>
+    </plist>
+
+- name: Apply redemption code
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/apply-redemption-code-command
+  description: Remove an app.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Identifier</key>
+            <string>com.example.app</string>
+            <key>RedemptionCode</key>
+            <string>SB56LT7YX8RH</string>
+            <key>RequestType</key>
+            <string>ApplyRedemptionCode</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ApplyRedemptionCode</string>
+    </dict>
+    </plist>
+
+- name: Validate applications
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/validate-applications-command
+  description: Force validation of developer and universal provisioning profiles for enterprise apps.
+  supportedDeviceTypes:
+    - iOS 9.2+
+    - iPadOS 9.2+
+    - tvOS 10.2+
+    - visionOS 1.1+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ValidateApplications</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ValidateApplications</string>
+    </dict>
+    </plist>
+
+- name: Managed application attributes
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-attributes-command
+  description: Query attributes in managed apps on a device.
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - iPadOS 7.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Identifiers</key>
+            <array>
+                <string>com.acme.myenterpriseapp</string>
+            </array>
+            <key>RequestType</key>
+            <string>ManagedApplicationAttributes</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ManagedApplicationAttributes</string>
+    </dict>
+    </plist>
+
+- name: Managed application configuration
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-attributes-command
+  description: Get app configurations from managed apps on a device.
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - iPadOS 7.0+
+    - macOS 10.15+
+    - tvOS 10.2+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Identifiers</key>
+            <array>
+                <string>com.acme.myenterpriseapp</string>
+            </array>
+            <key>RequestType</key>
+            <string>ManagedApplicationConfiguration</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ManagedApplicationConfiguration</string>
+    </dict>
+    </plist>
+
+- name: Managed application feedback
+  platform: apple
+  category: Managed apps
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-application-attributes-command
+  description: Get app feedback from a managed app on the device.
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - iPadOS 7.0+
+    - macOS 11.0+
+    - tvOS 10.2+
+    - visionOS 1.1+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>DeleteFeedback</key>
+            <false/>
+            <key>Identifiers</key>
+            <array>
+                <string>com.acme.myenterpriseapp</string>
+            </array>
+            <key>RequestType</key>
+            <string>ManagedApplicationFeedback</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ManagedApplicationFeedback</string>
+    </dict>
+    </plist>
+
+
+- name: Install media
+  platform: apple
+  category: Managed media
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/install-media-command
+  description: Install a book on a device.
+  supportedDeviceTypes:
+    - iOS 8.0+
+    - iPadOS 8.0+
+    - macOS 10.19+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Author</key>
+            <string>Acme, Inc.</string>
+            <key>Kind</key>
+            <string>pdf</string>
+            <key>MediaType</key>
+            <string>Book</string>
+            <key>MediaURL</key>
+            <string>https://yourmdmhost.example.com/files/myenterprisebook.pdf</string>
+            <key>PersistentID</key>
+            <string>com.acme.pdf.myenterprisebook</string>
+            <key>RequestType</key>
+            <string>InstallMedia</string>
+            <key>Title</key>
+            <string>My Enterprise Book</string>
+            <key>Version</key>
+            <string>1.0</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InstallMedia</string>
+    </dict>
+    </plist>
+
+- name: List managed media
+  platform: apple
+  category: Managed media
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-media-list-command
+  description: Get a list of the managed books on a device.
+  supportedDeviceTypes:
+    - iOS 8.0+
+    - iPadOS 8.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ManagedMediaList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ManagedMediaList</string>
+    </dict>
+    </plist>
+
+- name: Remove media
+  platform: apple
+  category: Managed media
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/managed-media-list-command
+  description: Remove a previously installed book from a device.
+  supportedDeviceTypes:
+    - iOS 8.0+
+    - iPadOS 8.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>MediaType</key>
+        <string>Book</string>
+        <key>PersistentID</key>
+        <string>com.acme.pdf.myenterprisebook</string>
+        <key>RequestType</key>
+        <string>RemoveMedia</string>
+    </dict>
+    </plist>
+
+- name: Account configuration
+  platform: apple
+  category: Accounts
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/account-configuration-command
+  description: Create and configure a local administrator account on a device.
+  supportedDeviceTypes:
+    - macOS 10.11+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>AutoSetupAdminAccounts</key>
+            <array>
+                <dict>
+                    <key>fullName</key>
+                    <string>Administrator</string>
+                    <key>hidden</key>
+                    <false/>
+                    <key>shortName</key>
+                    <string>admin</string>
+                    <key>passwordHash</key>
+                    <data>
+                        PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4K
+                        PCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQ
+                        TElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFRE
+                        cy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9u
+                        PSIxLjAiPgo8ZGljdD4KCTxrZXk+U0FMVEVELVNIQTUxMi1QQktE
+                        RjI8L2tleT4KCTxkaWN0PgoJCTxrZXk+ZW50cm9weTwva2V5PgoJ
+                        CTxkYXRhPgoJCXJiSXZtVGlQQlJ3cWZ6dmFQQnhPT1VLRHVnTnRM
+                        YVVQZ2lIVnpBUWNsNDNjSmUzaGZ6ZW05TDVhczAyRQoJCXp2TEFl
+                        aTJFT0tqMFNaOENpKzNXV0tQN2orMklSdWU0T1ZyTzBsYnhGOHR5
+                        K3pZb0hTMTVRU3hGcUplagoJCU5qdkk1NTk1N1JjZUVLaXFSRjZ1
+                        UEpQUTYvbUxEc0xnSTR4dko3NVpEa0JlYW51QkI0TT0KCQk8L2Rh
+                        dGE+CgkJPGtleT5zYWx0PC9rZXk+CgkJPGRhdGE+CgkJTXVpS2g1
+                        MjR3QkJMV0ZoQ3lzRFIzRnJPOGM0WlFIUGZTRE5JbDZvQjlCST0K
+                        CQk8L2RhdGE+CgkJPGtleT5pdGVyYXRpb25zPC9rZXk+CgkJPGlu
+                        dGVnZXI+NDAwMDA8L2ludGVnZXI+Cgk8L2RpY3Q+CjwvZGljdD4K
+                        PC9wbGlzdD4K
+                    </data>
+                </dict>
+            </array>
+            <key>DontAutoPopulatePrimaryAccountInfo</key>
+            <false/>
+            <key>LockPrimaryAccountInfo</key>
+            <true/>
+            <key>PrimaryAccountFullName</key>
+            <string>User</string>
+            <key>PrimaryAccountUserName</key>
+            <string>user</string>
+            <key>RequestType</key>
+            <string>AccountConfiguration</string>
+            <key>SetPrimarySetupAccountAsRegularUser</key>
+            <true/>
+            <key>SkipPrimarySetupAccountCreation</key>
+            <false/>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_AccountConfiguration</string>
+    </dict>
+    </plist>
+
+- name: Invite to program
+  platform: apple
+  category: Accounts
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/account-configuration-command
+  description: Invite a user to join the Volume Purchase Program (VPP).
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - iPadOS 7.0+
+    - macOS 10.11+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>InvitationURL</key>
+            <string>https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/associateVPPUserWithITSAccount?cc=us&amp;inviteCode=7770596534cf46b58fb0254e7112a5e5&amp;mt=8</string>
+            <key>ProgramID</key>
+            <string>com.apple.cloudvpp</string>
+            <key>RequestType</key>
+            <string>InviteToProgram</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_InviteToProgram</string>
+    </dict>
+    </plist>
+
+- name: Clear passcode
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/clear-passcode-command
+  description: Remove the passcode from a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - visionOS 1.1+
+    - macOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ClearPasscode</string>
+            <key>UnlockToken</key>
+            <data>
+            REFUQQAABPRWRVJTAAAABAAAAAVUWVBFAAAABAAAAAJVVUlEAAAAEGHX7XgO5UNZsRiL
+            9Kq3hSdITUNLAAAAKLUR5mc5hBzI4bEsbWacE/gmhdJS6rl3978V3DY9ylBbEBGgJ/fA
+            Ac9XUkFQAAAABAAAAAFTQUxUAAAAFIHju7P8BPFTz0JA8MDo+PsvcAAmSVRFUgAAAAQA
+            AEEaVVVJRAAAABC70Oy5TtZCGocX/i7orO/pQ0xBUwAAAAQAAAABV1JBUAAAAAQAAAAD
+            S1RZUAAAAAQAAAAAV1BLWQAAACjH8wUEvSkfgrEPSSQUazAz1eCuTXET3CkqgkNQZkjS
+            jZEHtWmXpC4IVVVJRAAAABBW4TUxIb1L7aNAmbmGkxiIQ0xBUwAAAAQAAAACV1JBUAAA
+            AAQAAAADS1RZUAAAAAQAAAABV1BLWQAAAChaDERvmDXtk9mikMCT30uDQ4XwrT9ifdmf
+            3Hjz/6atBPq/1uNpm5TtUEJLWQAAACCypmyEJV4x4wV6CKfZFEmkYHf8kOXh5ONM1A6B
+            R26KM1VVSUQAAAAQH5Ol3/mLSM2dLvFxGTlf5kNMQVMAAAAEAAAAA1dSQVAAAAAEAAAA
+            A0tUWVAAAAAEAAAAAFdQS1kAAAAoxNNjRWfqvgqXMVyiqDH2LXJdpafgsm+8ovRQuzL4
+            tp3Bs5y25bmRelVVSUQAAAAQB7drprzaR5aePknqFUjyWENMQVMAAAAEAAAABVdSQVAA
+            AAAEAAAAA0tUWVAAAAAEAAAAAFdQS1kAAAAoMCe2S7psda5AHw99a+DKV8m0hR6aKUKP
+            VG5oURKAJZSXJKYRRO2xKlVVSUQAAAAQMpEnWAWOS0qnOwWRdtSAlUNMQVMAAAAEAAAA
+            BldSQVAAAAAEAAAAA0tUWVAAAAAEAAAAAFdQS1kAAAAoyhn4O/EIo5Q1NLt0/wL1UZGA
+            EqTE45DEcNstAQZLk+1U/FSKOWtqrlVVSUQAAAAQFuJUehe6TC+3TImCkemk6kNMQVMA
+            AAAEAAAAB1dSQVAAAAAEAAAAA0tUWVAAAAAEAAAAAFdQS1kAAAAoMcyPJI8vNBh7j6je
+            VPu3zgDYTXAuoo68jqZU4kCubSGyRvIpa/O4n1VVSUQAAAAQF2v1dlxfRMqYs7swzn9s
+            nENMQVMAAAAEAAAACFdSQVAAAAAEAAAAA0tUWVAAAAAEAAAAAFdQS1kAAAAoSx2pMsvH
+            K2HNg9IIbrVEzX7T3Rw0vLEmwMJ3ignooj+3GMHeaJ0aplVVSUQAAAAQ8Qif3NCoTjiK
+            WRjgOIHG6ENMQVMAAAAEAAAACVdSQVAAAAAEAAAAA0tUWVAAAAAEAAAAAFdQS1kAAAAo
+            n2icCfaIRPbE7mzGqO7rOnuPhgUbYkcpAqf6RnAXljcpSxZqBiJtGlVVSUQAAAAQt9a3
+            ThB7SwaGw50i9Hhfu0NMQVMAAAAEAAAACldSQVAAAAAEAAAAA0tUWVAAAAAEAAAAAFdQ
+            S1kAAAAoEW1/yC+YYXLVzyRxZwghOADACnWvOnHdBPhJ/z7VEkyHcObDPI9w41VVSUQA
+            AAAQ4vImTUp5S7qmyMDZ82nM70NMQVMAAAAEAAAAC1dSQVAAAAAEAAAAA0tUWVAAAAAE
+            AAAAAFdQS1kAAAAo8vkvhYNP7rTLdfXRifh+dcTIbj3EEJKyYXeCL9J9trYAo7B5mV5u
+            41NJR04AAAAUtFVbS3MM33WvBsEis1imzvs069A=
+            </data>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ClearPasscode</string>
+    </dict>
+    </plist>
+
+- name: Clear restrictions password
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/clear-restrictions-password-command
+  description: Remove the passcode from a device.
+  supportedDeviceTypes:
+    - iOS 8.0+
+    - iPadOS 8.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ClearRestrictionsPassword</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ClearRestrictionsPassword</string>
+    </dict>
+    </plist>
+
+- name: Unlock user account
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/unlock-user-account-command
+  description: Unlock a user account that the system locked because of too many failed password attempts.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>UnlockUserAccount</string>
+            <key>UserName</key>
+            <string>graham</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_UnlockUserAccount</string>
+    </dict>
+    </plist>
+
+- name: Set local admin password
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/set-auto-admin-password-command
+  description: Update the local administrator account password.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>GUID</key>
+            <string>F7C60A02-E0AB-4C87-8356-E0CC11568043</string>
+            <key>RequestType</key>
+            <string>SetAutoAdminPassword</string>
+            <key>passwordHash</key>
+            <data>
+                PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4K
+                PCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQ
+                TElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFRE
+                cy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI+CjxwbGlzdCB2ZXJzaW9u
+                PSIxLjAiPgo8ZGljdD4KCTxrZXk+U0FMVEVELVNIQTUxMi1QQktE
+                RjI8L2tleT4KCTxkaWN0PgoJCTxrZXk+ZW50cm9weTwva2V5PgoJ
+                CTxkYXRhPgoJCVpxcWVkTU5Ya3BtVjhEbU5iRFdUYjBHTDNSNjAz
+                RHNVSllkb1BvV0NlK2gwRDNubC9mWCsxTlpKSUxPdgoJCTBxQTVC
+                Q0FBSEZCZ3REQzVqeEF3a2NyZ1puZVd4eWpGZGpvT0hsV2RoYWVF
+                T0MyaFBwVktIaC9WUk9uUQoJCXM2cWUvRGtaZ1djVDBQdk9VQ3NM
+                ZVhTd2dOTU9UNGFwMnJWR0IxOVFwSFBpdnJrNmp2dz0KCQk8L2Rh
+                dGE+CgkJPGtleT5pdGVyYXRpb25zPC9rZXk+CgkJPGludGVnZXI+
+                NDAwMDA8L2ludGVnZXI+CgkJPGtleT5zYWx0PC9rZXk+CgkJPGRh
+                dGE+CgkJZUl3Q3hxUk1NVm0wWGZ3VmpvbERCNEFUc2I0K3ZWMjdL
+                Z1hDdU5ZMkNlOD0KCQk8L2RhdGE+Cgk8L2RpY3Q+CjwvZGljdD4K
+                PC9wbGlzdD4K
+            </data>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_SetAutoAdminPassword</string>
+    </dict>
+    </plist>
+
+- name: Set firmware password
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/set-firmware-password-command
+  description: Change or clear the firmware password on a device.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>AllowOroms</key>
+            <false/>
+            <key>CurrentPassword</key>
+            <string>oldpassword</string>
+            <key>NewPassword</key>
+            <string>newpassword</string>
+            <key>RequestType</key>
+            <string>SetFirmwarePassword</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_SetFirmwarePassword</string>
+    </dict>
+    </plist>
+
+- name: Verify firmware password
+  platform: apple
+  category: Passwords
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/verify-firmware-password-command
+  description: Verify the firmware password on a device.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>AllowOroms</key>
+            <false/>
+            <key>CurrentPassword</key>
+            <string>oldpassword</string>
+            <key>NewPassword</key>
+            <string>newpassword</string>
+            <key>RequestType</key>
+            <string>SetFirmwarePassword</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_SetFirmwarePassword</string>
+    </dict>
+    </plist>
+
+- name: Enable lost mode
+  platform: apple
+  category: Lost device
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/enable-lost-mode-command
+  description: Verify the firmware password on a device.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>Footnote</key>
+            <string>Return to Acme, Inc.</string>
+            <key>Message</key>
+            <string>Lock Message</string>
+            <key>PhoneNumber</key>
+            <string>408-555-555</string>
+            <key>RequestType</key>
+            <string>EnableLostMode</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_EnableLostMode</string>
+    </dict>
+    </plist>
+
+- name: Device location
+  platform: apple
+  category: Lost device
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/device-location-command
+  description: Request the location of a device when in Lost Mode.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>DeviceLocation</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DeviceLocation</string>
+    </dict>
+    </plist>
+
+- name: Play lost mode sound
+  platform: apple
+  category: Lost device
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/play-lost-mode-sound-command
+  description: Play the Lost Mode sound on a device that’s in Lost Mode.
+  supportedDeviceTypes:
+    - iOS 10.3+
+    - ipadOS 10.3+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>PlayLostModeSound</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_PlayLostModeSound</string>
+    </dict>
+    </plist>
+
+- name: Disable lost mode
+  platform: apple
+  category: Lost device
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/disable-lost-mode-command
+  description: Take the device out of Lost Mode.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>DisableLostMode</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DisableLostMode</string>
+    </dict>
+    </plist>
+
+- name: Set Recovery Lock
+  platform: apple
+  category: Recovery lock
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/set-recovery-lock-command
+  description: Set or clear the Recovery Lock password.
+  supportedDeviceTypes:
+    - macOS 11.5+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>SetRecoveryLock</string>
+            <key>NewPassword</key>
+            <string>Apple</string>
+        </dict>
+    </dict>
+    </plist>
+
+- name: Verify Recovery Lock
+  platform: apple
+  category: Recovery lock
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/verify-recovery-lock-command
+  description: Verify the device’s Recovery Lock password.
+  supportedDeviceTypes:
+    - macOS 11.5+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>VerifyRecoveryLock</string>
+            <key>Password</key>
+            <string>Apple</string>
+        </dict>
+    </dict>
+    </plist>
+
+- name: Content caching information
+  platform: apple
+  category: Content caching
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/content-caching-information-command
+  description: Get the status of the content caches on a device.
+  supportedDeviceTypes:
+    - macOS 10.15.4+
+  command: |
+    TODO
+
+- name: Request AirPlay mirroring
+  platform: apple
+  category: Airplay mirroring
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/request-mirroring-command
+  description: Prompt the user to share their screen using AirPlay Mirroring.
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - ipadOS 7.0+
+    - macOS 10.10+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>DestinationName</key>
+            <string>Apple TV</string>
+            <key>Password</key>
+            <string>password</string>
+            <key>RequestType</key>
+            <string>RequestMirroring</string>
+            <key>ScanTime</key>
+            <integer>30</integer>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RequestMirroring</string>
+    </dict>
+    </plist>
+
+- name: Stop AirPlay mirroring
+  platform: apple
+  category: Airplay mirroring
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/stop-mirroring-command
+  description: Stop mirroring the display to another device.
+  supportedDeviceTypes:
+    - iOS 7.0+
+    - ipadOS 7.0+
+    - macOS 10.10+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>StopMirroring</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_StopMirroring</string>
+    </dict>
+    </plist>
+
+- name: Refresh cellular plans
+  platform: apple
+  category: eSim management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/refresh-cellular-plans-command
+  description: Query a carrier URL for active eSIM cellular-plan profiles on a device.
+  supportedDeviceTypes:
+    - iOS 13.0+
+    - ipadOS 13.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>RefreshCellularPlans</string>
+            <key>eSIMServerURL</key>
+            <string>http://example.server.com</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RefreshCellularPlans</string>
+    </dict>
+    </plist>
+
+- name: Disable remote desktop
+  platform: apple
+  category: Managed settings
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/disable-remote-desktop-command
+  description: Disable Remote Desktop on a device.
+  supportedDeviceTypes:
+    - macOS 10.14.4+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>DisableRemoteDesktop</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_DisableRemoteDesktop</string>
+    </dict>
+    </plist>
+
+- name: Enable remote desktop
+  platform: apple
+  category: Managed settings
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/enable-remote-desktop-command
+  description: Enable Remote Desktop on a device.
+  supportedDeviceTypes:
+    - macOS 10.14.4+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>EnableRemoteDesktop</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_EnableRemoteDesktop</string>
+    </dict>
+    </plist>
+
+- name: Configure settings
+  platform: apple
+  category: Managed settings
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/settings-command
+  description: Configure settings on a device.
+  supportedDeviceTypes:
+    - iOS 5.0+
+    - iPadOS 5.0+
+    - macOS 10.9+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>Settings</string>
+            <key>Settings</key>
+            <array>
+                <dict>
+                    <key>DeviceName</key>
+                    <string>NewName</string>
+                    <key>Item</key>
+                    <string>DeviceName</string>
+                </dict>
+            </array>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_Settings</string>
+    </dict>
+    </plist>
+
+- name: LOM Device Request
+  platform: apple
+  category: Lights-Out management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/lom-device-request-command
+  description: Send requests to a device using lights-out management (LOM).
+  supportedDeviceTypes:
+    - macOS 11.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestList</key>
+        <array>
+            <dict>
+                <key>DeviceDNSName</key>
+                <string>lomdevice.com</string>
+                <key>DeviceRequestType</key>
+                <string>Reset</string>
+                <key>DeviceRequestUUID</key>
+                <string>0001</string>
+                <key>PrimaryIPv6AddressList</key>
+                <array>
+                    <string>fe80::94f6:d6ff:fef3:c05b</string>
+                    <string>fe80::94f6:d6ff:fef3:c1a4</string>
+                </array>
+                <key>SecondaryIPv6AddressList</key>
+                <array/>
+            </dict>
+        </array>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_LOMDeviceRequest</string>
+    </dict>
+    </plist>
+
+- name: LOM setup Request
+  platform: apple
+  category: Lights-Out management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/lom-setup-request-command
+  description: Get information from a device to set up lights-out management (LOM).
+  supportedDeviceTypes:
+    - macOS 11.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>LOMSetupRequest</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_LOMSetupRequest</string>
+    </dict>
+    </plist>
+
+- name: Security info
+  platform: apple
+  category: Security
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/security-info-command
+  description: Get security-related information about a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>SecurityInfo</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_SecurityInfo</string>
+    </dict>
+    </plist>
+
+- name: List certificate
+  platform: apple
+  category: Security
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/certificate-list-command
+  description: Get a list of installed certificates on a device.
+  supportedDeviceTypes:
+    - iOS 4.0+
+    - iPadOS 4.0+
+    - macOS 10.7+
+    - tvOS 9.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>ManagedOnly</key>
+            <false/>
+            <key>RequestType</key>
+            <string>CertificateList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_CertificateList</string>
+    </dict>
+    </plist>
+
+- name: Activation Lock bypass code
+  platform: apple
+  category: Security
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/activation-lock-bypass-code-command
+  description: Get the code to bypass Activation Lock on a device.
+  supportedDeviceTypes:
+    - iOS 7.1+
+    - iPadOS 7.1+
+    - macOS 10.15+
+    - visionOS 2.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ActivationLockBypassCode</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ActivationLockBypassCode</string>
+    </dict>
+    </plist>
+
+- name: Clear Activation Lock bypass code
+  platform: apple
+  category: Security
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/activation-lock-bypass-code-command
+  description: Clear the Activation Lock bypass code on a device.
+  supportedDeviceTypes:
+    - iOS 7.1+
+    - iPadOS 7.1+
+    - macOS 10.15+
+    - visionOS 2.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>ClearActivationLockBypassCode</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ClearActivationLockBypassCode</string>
+    </dict>
+    </plist>
+
+- name: Rotate FileVault key
+  platform: apple
+  category: Security
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/rotate-filevault-key-command
+  description: Clear the Activation Lock bypass code on a device.
+  supportedDeviceTypes:
+    - macOS 10.9+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+        <key>FileVaultUnlock</key>
+        <dict>
+            <key>Password</key>
+            <string>mypassword</string>
+        </dict>
+        <key>KeyType</key>
+        <string>personal</string>
+        <key>ReplyEncryptionCertificate</key>
+        <data>
+        MIIDKTCCAhGgAwIBAgIFAKGAf9cwDQYJKoZIhvcNAQELBQAwRTEfMB0GA1UEAwwWRmls
+        ZVZhdWx0IFJlY292ZXJ5IEtleTEiMCAGA1UEDQwZR3JhaGFtcy1NYWNCb29rLVByby5s
+        b2NhbDAeFw0yMDA2MTEyMzIwMjNaFw0yMTA2MTEyMzIwMjNaMEUxHzAdBgNVBAMMFkZp
+        bGVWYXVsdCBSZWNvdmVyeSBLZXkxIjAgBgNVBA0MHNdyYWhhbXMtTWFjQm9vay1Qcm8u
+        bG9jYWwwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDSNk47J9l7Amit4JPf
+        YEj6PvqZ5nH4kPsRmoAO1FfACpzskN7gA1qui7N+O0NNjtleUI2pX8X9NvINxfPX/KTy
+        eP0VXlhixvYgKMiEUkrVFBrxRtQ+7Ow80MQUAKlDBe5FVj4GyN9sAPuAu7WaJtvDAWAW
+        rBSRJNqdOYpKEkgK8N9a52BmuDEBtmpaq5o5JgR2Vc+OmjcogknZi++11dKI7sDCzF3e
+        jO28e9E8XNBFRO716XdyEd/VU6rE8SQmpYqrfun1pRNtiiv3dTKKn9Gl42kg7RQHjMjx
+        OjmBjzWLdFrO51crcJqbT/IQ0pjWqjDcwOz9Z2gWqbtxTrrWyuJZAgMBAAGjIDAeMAsG
+        A1UdDwQEAwICtDAPBgNVHRMBAf8EBTADAQEAMA0GCSqGSIb3DQEBCwUAA4IBAQCcA999
+        lIN+t6u/DrTXhWlLKj8HXTmVVl8gkhxm42aZo/QsJr+gPsXF0yOWqkPpnhkrq6GVXgPx
+        T7xmNv5+nDIcHX/mKRXBAUdWi/HDa3Wiytk4g9wO4xYsnBIhL5y2PHid9bSA1peKZsLL
+        CX1v8vuA66trSp2fKYxW54VkLXR6xMqUcxTjp0qlfNRL6IHA6G/ogyjRkd0kt0+BwbYy
+        81dDKJHVxsYOUtQlmfa8dUl20SmLwZ/bujPFetfuvWmSHrnM//J5OT4HLoGRzqXhuC/m
+        XEildp3HTCm6epem3cP6Sx99aGIi08xddDzmH/5XoPmuG4uw2+ry+qbhD/UYbJbX
+        </data>
+        <key>RequestType</key>
+        <string>RotateFileVaultKey</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_RotateFileVaultKey</string>
+    </dict>
+    </plist>
+
+- name: Active NSExtensions
+  platform: apple
+  category: Extensions
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/active-nsextensions-command
+  description: Get a list of active extensions for a user on a device.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>FilterExtensionPoints</key>
+            <array>
+                <string>com.apple.share-services</string>
+            </array>
+            <key>RequestType</key>
+            <string>ActiveNSExtensions</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_ActiveNSExtensions</string>
+    </dict>
+    </plist>
+
+- name: NSExtensions mappings
+  platform: apple
+  category: Extensions
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/nsextension-mappings-command
+  description: Get a list of the installed extensions for a user on a device.
+  supportedDeviceTypes:
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>NSExtensionMappings</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_NSExtensionMappings</string>
+    </dict>
+    </plist>
+
+- name: List users
+  platform: apple
+  category: User management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/user-list-command
+  description: Get a list of users with active accounts on a device.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>UserList</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_UserList</string>
+    </dict>
+    </plist>
+
+- name: Log out user
+  platform: apple
+  category: User management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/log-out-user-command
+  description: Force the current user to log out of a device.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>LogOutUser</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_LogOutUser</string>
+    </dict>
+    </plist>
+
+- name: Delete user
+  platform: apple
+  category: User management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/log-out-user-command
+  description: Delete a user’s account from a device.
+  supportedDeviceTypes:
+    - iOS 9.3+
+    - ipadOS 9.3+
+    - macOS 10.13+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>RequestType</key>
+            <string>LogOutUser</string>
+        </dict>
+        <key>CommandUUID</key>
+        <string>0001_LogOutUser</string>
+    </dict>
+    </plist>
+
+- name: Declarative management
+  platform: apple
+  category: Declarative management
+  externalDocumentationUrl: https://developer.apple.com/documentation/devicemanagement/declarative-management-command
+  description: Enable your server to support declarative management or trigger a declarative management synchronization operation on the device.
+  supportedDeviceTypes:
+    - iOS 15.0+
+    - iPadOS 15.0+
+    - macOS 13.0+
+    - tvOS 16.0+
+    - visionOS 1.1+
+    - watchOS 10.0+
+  command: |
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+    <plist version="1.0">
+    <dict>
+        <key>Command</key>
+        <dict>
+            <key>CommandUUID</key>
+            <string>0001_DeclarativeManagement</string>
+            <key>Command</key>
+            <dict>
+                <key>RequestType</key>
+                <string>DeclarativeManagement</string>
+                <key>Data</key>
+                <data>
+                eyJTeW5jVG9rZW5zIjogeyJUaW1lc3RhbXAiOiAiMjAyMS0wNi0wMlQwMToy
+                ODowMFoiLCAiRGVjbGFyYXRpb25zVG9rZW4iOiAiYjY1NDQwMjdhMzE1Y2Qw
+                MDg1ZDRjZjA4MTc0NjI0YzJkMTQyNDQ0ODA0MzBhODdiMTc2YTI3MjdlNzM2
+                NjEzOCJ9fQ==
+                </data>
+            </dict>
+        </dict>
+    </dict>
+    </plist>
+
+
+#
+#  ██╗    ██╗██╗███╗   ██╗██████╗  ██████╗ ██╗    ██╗███████╗
+#  ██║    ██║██║████╗  ██║██╔══██╗██╔═══██╗██║    ██║██╔════╝
+#  ██║ █╗ ██║██║██╔██╗ ██║██║  ██║██║   ██║██║ █╗ ██║███████╗
+#  ██║███╗██║██║██║╚██╗██║██║  ██║██║   ██║██║███╗██║╚════██║
+#  ╚███╔███╔╝██║██║ ╚████║██████╔╝╚██████╔╝╚███╔███╔╝███████║
+#   ╚══╝╚══╝ ╚═╝╚═╝  ╚═══╝╚═════╝  ╚═════╝  ╚══╝╚══╝ ╚══════╝
+#
+
+- name: RotateRecoveryPasswords
+  platform: windows
+  category: BitLocker
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/bitlocker-csp#rotaterecoverypasswords
+  description: Triggers a one-time rotation of all numeric BitLocker recovery passwords for OS and fixed drives on Entra ID or hybrid-joined devices. Requires Active Directory backup of recovery passwords to be set to "required" before execution.
+  supportedDeviceTypes:
+    - Windows 10.0.18363
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>5f0096d1-c2aa-4934-b67a-0ed35d20d322</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/BitLocker/RotateRecoveryPasswords</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Enroll (Personal scope)
+  platform: windows
+  category: CertificateStore
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/certificatestore-csp#myscepuniqueidinstallenroll
+  description: Initiates SCEP certificate enrollment in the personal certificate store on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>1a3a3666-2df6-4dcf-a785-46b2f28d2fbf</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/SCEP/{UniqueID}/Install/Enroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RenewNow
+  platform: windows
+  category: CertificateStore
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/certificatestore-csp#mywsteprenewrenewnow
+  description: Triggers an immediate renewal of an existing certificate in the personal certificate store on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.14393
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>cdd76df2-d665-4045-9503-7954cc491bf2</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/CertificateStore/MY/WSTEP/Renew/RenewNow</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Enroll (Device context)
+  platform: windows
+  category: ClientCertificateInstall
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescepuniqueidinstallenroll
+  description: Triggers the device to start SCEP certificate enrollment at the device scope. The device will not notify MDM server after cert enrollment is done. The MDM server could later query the device to find out whether new cert is added.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>96821528-e7c2-41ce-b4a8-6a20c61df80b</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Enroll (User context)
+  platform: windows
+  category: ClientCertificateInstall
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/clientcertificateinstall-csp#devicescepuniqueidinstallenroll
+  description: Triggers the user context to start SCEP certificate enrollment. The device will not notify MDM server after cert enrollment is done. The MDM server could later query the device to find out whether new cert is added.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>a901c1bc-3970-461d-9c92-932645cab9b3</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/ClientCertificateInstall/SCEP/{UniqueID}/Install/Enroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Enroll
+  platform: windows
+  category: DMClient
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridlinkedenrollmentenroll
+  description: Silently unenrolls the device from a Linked Enrollment without user interaction. All settings and resources applied by the Declared Configuration are rolled back automatically.
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+    - Windows 10.0.22000.918
+    - Windows 10.0.19044.2193
+    - Windows 10.0.19043.2193
+    - Windows 10.0.19042.2193
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>307799ee-7535-472d-a06e-a846d8e6f214</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Enroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Unenroll (linked enrollment)
+  platform: windows
+  category: DMClient
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridlinkedenrollmentunenroll
+  description: Triggers the device to unenroll from its linked MDM enrollment
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+    - Windows 10.0.22000.918
+    - Windows 10.0.19044.2193
+    - Windows 10.0.19043.2193
+    - Windows 10.0.19042.2193
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>48e557bd-c055-4239-bb13-d24fb5e0c526</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/LinkedEnrollment/Unenroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: InitiateRecovery
+  platform: windows
+  category: DMClient
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridrecoveryinitiaterecovery
+  description: Initiates a device recovery action. The server can specify prerequisites that must be met before the recovery action proceeds.
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+    - Windows 10.0.22000.1165
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>cc6ccbd3-3679-44c0-976a-581e8946a96a</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}/Recovery/InitiateRecovery</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">int</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data>0</Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Unenroll (provider)
+  platform: windows
+  category: DMClient
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridunenroll
+  description: Triggers the device to unenroll from a specific MDM provider. The Provider ID of the management server must be specified in the <Data> element of the command.
+  supportedDeviceTypes:
+    - Windows 10.0.10240
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>e43a2271-7661-4587-b452-df8880005fd8</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Provider/{ProviderID}//Unenroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Unenroll (device)
+  platform: windows
+  category: DMClient
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceunenroll
+  description: Triggers the device to permanently unenroll from its current MDM management server. The Provider ID of the management server must be specified in the <Data> element of the command.
+  supportedDeviceTypes:
+    - Windows 10.0.10240
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>b1eae449-50af-4cb1-a680-a7ef8f583646</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/DMClient/Unenroll</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: OfflineScan
+  platform: windows
+  category: Defender
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#offlinescan
+  description: Starts a Microsoft Defender Offline scan on the device. After the next reboot, the device will start in Microsoft Defender Offline mode to perform a scan before Windows loads, helping detect and remove persistent or hard-to-find malware.
+  supportedDeviceTypes:
+    - Windows 10.0.17134
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>0370d798-9a85-4dee-a870-176146513415</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Defender/OfflineScan</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RollbackEngine
+  platform: windows
+  category: Defender
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#rollbackengine
+  description: Rolls back the Microsoft Defender antimalware engine to its last known good version on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.17134
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>d8d49362-a2df-46b6-b42b-dab967f822f8</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Defender/RollbackEngine</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RollbackPlatform
+  platform: windows
+  category: Defender
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#rollbackplatform
+  description: Rolls back Microsoft Defender to its last known good installation location on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.17134
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>25b353ea-3b5a-4da8-a9a0-3aa602cf08a3</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Defender/RollbackPlatform</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Scan
+  platform: windows
+  category: Defender
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#scan
+  description: Starts a Windows Defender scan on the device
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>9326cc3a-8960-4e7a-b46f-c414e871ca5b</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Defender/Scan</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: UpdateSignature
+  platform: windows
+  category: Defender
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/defender-csp#updatesignature
+  description: Performs a Windows Defender signature update on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>034c6f94-db50-4ec1-87f5-71900cb730a2</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Defender/UpdateSignature</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: MdmConfiguration
+  platform: windows
+  category: DiagnosticLog
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#devicestatedatamdmconfiguration
+  description: Triggers a snapshot of the device’s management state data, capturing the current MDM configuration for diagnostic purposes.
+  supportedDeviceTypes:
+    - Windows 10.0.14393
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>86e88d1e-9474-4098-91af-ec28d066b072</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/DiagnosticLog/DeviceStateData/MdmConfiguration</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data>SNAP</Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ArchiveDefinition
+  platform: windows
+  category: DiagnosticLog
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#diagnosticarchivearchivedefinition
+  description: Definition and collection point for diagnostic archives on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.18362
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>91bde209-058a-4d1a-9805-702aeab4976a</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/DiagnosticLog/DiagnosticArchive/ArchiveDefinition</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Export
+  platform: windows
+  category: DiagnosticLog
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#etwlogchannelschannelnameexport
+  description: Triggers exporting events from the associated Windows event channel into a log file with the standard .evtx extension.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>22ba5bc3-70cf-4742-94e4-c7c7658a64a2</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Channels/Export</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: TraceControl
+  platform: windows
+  category: DiagnosticLog
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/diagnosticlog-csp#etwlogcollectorscollectornametracecontrol
+  description: Triggers the start or stop of the associated trace session.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>a563bffc-2c4c-4f2f-a5e5-6545bab6ad95</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/DiagnosticLog/EtwLog/Collectors/{CollectorName}/TraceControl</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: DownloadInstall (Device context)
+  platform: windows
+  category: EnterpriseDesktopAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisedesktopappmanagement-csp#devicemsiproductiddownloadinstall
+  description: Executes the download and installation of an application. An optional <DownloadFromAad> tag in the <Enforcement> section of the XML (default 0) can be set to 1 to include the AAD user token when retrieving the download URL.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>02802f7e-1266-494a-b4b0-9878a122fafa</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: DownloadInstall (User context)
+  platform: windows
+  category: EnterpriseDesktopAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisedesktopappmanagement-csp#usermsiproductiddownloadinstall
+  description: Executes the download and installation of an application. An optional <DownloadFromAad> tag in the <Enforcement> XML section (default 0) can be set to 1 to include the AAD user token when retrieving the download URL.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>bbb7ee46-9032-4020-b1f5-0252104ab3a8</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/{ProductID}/DownloadInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: HostedInstall (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappinstallationpackagefamilynamehostedinstall
+  description: Installs an app package from a hosted location, such as a local drive, UNC path, or HTTPS source.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>ba628a02-12d5-48c4-9586-34fa039a4a00</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/HostedInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: StoreInstall (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappinstallationpackagefamilynamestoreinstall
+  description: Installs an app along with its license from the Microsoft Store under the device context.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>19e07f1f-bce0-43a1-a364-477c1cd500ab</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/{PackageFamilyName}/StoreInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: AddLicense (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceapplicensesstorelicenseslicenseidaddlicense
+  description: Adds a specified app license to the device using the provided license ID.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>2a7e4bc2-5b0d-4cf1-b66d-05f828177582</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: GetLicenseFromStore (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceapplicensesstorelicenseslicenseidgetlicensefromstore
+  description: Retrieves a specified app license from the Microsoft Store using the provided license ID.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>aba692b8-bd1b-4bd1-90b6-eef510b03562</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ResetPackage (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappmanagementresetpackage
+  description: Restores a specified Windows app to its initial state by resetting all configurations and data associated with the package.
+  supportedDeviceTypes:
+    - Windows 10.0.22000
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>5f301e26-48ec-4a40-bad5-9c8b4e438ca2</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: UpdateScan (Device context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#deviceappmanagementupdatescan
+  description: Starts a Windows Update scan on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>44702317-0b9b-4dc0-945f-e5303a967e8c</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: HostedInstall (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappinstallationpackagefamilynamehostedinstall
+  description: Installs an app package from a hosted location, such as a local drive, UNC path, or HTTPS source.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>ab117216-9adc-49cf-b3b1-3a1a7d9b43d0</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/HostedInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: StoreInstall (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappinstallationpackagefamilynamestoreinstall
+  description: Command to perform an install of an app and a license from the Microsoft Store.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>48a53564-56b8-4ddf-b27f-8e0fa0d0f513</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppInstallation/StoreInstall</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: AddLicense (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userapplicensesstorelicenseslicenseidaddlicense
+  description: Adds a specified app license to the device using the provided license ID.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>9b0b3d42-e244-4359-8471-46f8cf62558e</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/AddLicense</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: GetLicenseFromStore (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userapplicensesstorelicenseslicenseidgetlicensefromstore
+  description: Retrieves a specified app license from the Microsoft Store using the provided license ID.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>f4796a1e-5bf9-4828-a602-d3a0ac9f5930</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppLicenses/StoreLicenses/{LicenseID}/GetLicenseFromStore</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RemovePackage (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementremovepackage
+  description: Removes a specified Windows app package from the device.
+  supportedDeviceTypes:
+    - Windows 10.0.15063
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>70fe3f35-ce6f-484d-a14f-1f8ceb9edda3</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/RemovePackage</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data>
+              <Package Name="{PackageFullName}" RemoveForAllUsers="1" />
+            </Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ResetPackage (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementresetpackage
+  description: Restores a specified Windows app to its initial state by resetting all configurations and data associated with the package.
+  supportedDeviceTypes:
+    - Windows 10.0.22000
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>ceeeeabd-f3d0-4c15-bdf2-07326cf27bbd</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/ResetPackage</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: UpdateScan (User context)
+  platform: windows
+  category: EnterpriseModernAppManagement
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/enterprisemodernappmanagement-csp#userappmanagementupdatescan
+  description: Starts a Windows Update scan under the user context to check for available app updates.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>f4a37fe3-e8f4-4961-a80e-e4d33550d496</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/EnterpriseModernAppManagement/AppManagement/UpdateScan</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: TriggerAttestation
+  platform: windows
+  category: HealthAttestation
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/healthattestation-csp#triggerattestation
+  description: Triggers an asynchronous device health attestation session, prompting the device to collect and submit its current health status for verification.
+  supportedDeviceTypes:
+    - Windows 10.0.22000
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>47b2a850-2c56-4044-b2de-98e49d9cfcb9</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/HealthAttestation/TriggerAttestation</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: VerifyHealth
+  platform: windows
+  category: HealthAttestation
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/healthattestation-csp#verifyhealth
+  description: Notifies the device to prepare a device health verification request.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>b442558e-a685-48c4-9fa1-71e5c6c9338f</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/HealthAttestation/VerifyHealth</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ResetPassword
+  platform: windows
+  category: Local Administrator Password Solution (LAPS)
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/laps-csp#actionsresetpassword
+  description: Immediately generates and securely stores a new random password for the managed local administrator account on the device using Local Administrator Password Solution (LAPS).
+  supportedDeviceTypes:
+    - Windows 10.0.25145
+    - Windows 10.0.22621.1480
+    - Windows 10.0.22000.1754
+    - Windows 10.0.20348.1663
+    - Windows 10.0.19041.2784
+    - Windows 10.0.17763.4244
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>fa8a8f93-b3ed-48ef-940f-6232e74c087a</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/LAPS/Actions/ResetPassword</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Install (User context)
+  platform: windows
+  category: Office
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#deviceinstallationidinstall
+  description: Installs Microsoft Office for the user based on the provided XML configuration.
+  supportedDeviceTypes:
+    - Windows 10.0.15063
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>b06743fc-3682-4aba-9f65-90a134b3dd6d</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Install (Device context)
+  platform: windows
+  category: Office
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/office-csp#userinstallationidinstall
+  description: Installs Microsoft Office on the device using the provided XML configuration data.
+  supportedDeviceTypes:
+    - Windows 10.0.15063
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>2e9f2aba-db2e-44a4-9c78-6d05fd5ef4a4</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/Office/Installation/{id}/Install</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: Install
+  platform: windows
+  category: PrinterProvisioning
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/printerprovisioning-csp#upprinterinstallsprintersharedidinstall
+  description: Installs a Universal Print printer for the user asynchronously.
+  supportedDeviceTypes:
+    - Windows 10.0.22000
+    - Windows 10.0.19044.1806
+    - Windows 10.0.19043.1806
+    - Windows 10.0.19042.1806
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>0d2f967d-2c8b-45a6-9a5e-6969cb58b10a</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./User/Vendor/MSFT/PrinterProvisioning/UPPrinterInstalls/{PrinterSharedID}/Install</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RebootNow
+  platform: windows
+  category: Reboot
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/reboot-csp#rebootnow
+  description: Triggers an immediate device reboot, typically within 5 minutes to allow the user to finish active work. If executed during a sync session, the device will reboot at the end of the session.
+  supportedDeviceTypes:
+    - Windows 10.0.14393
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>d21ff8f2-a1ae-43c9-8763-26d7554f4a94</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/Reboot/RebootNow</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doAutomaticRedeployment
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#automaticredeploymentdoautomaticredeployment
+  description: Triggers an Autopilot reset on the device. Unlike a standard reset, the device remains enrolled in Azure AD and MDM, and preserves Wi-Fi profiles, region, language, keyboard settings, and other key configurations.
+  supportedDeviceTypes:
+    - Windows 10.0.17763
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>1259012e-3aa2-4f65-a191-eee74d7208c1</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/AutomaticRedeployment/doAutomaticRedeployment</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipe
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
+  description: Performs a remote wipe on the device. The return status indicates whether the device accepted the command. When used with OMA Client Provisioning, include a dummy value of "1" for this element.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>d85af4e3-ed77-4b4e-8a6f-d50ae80d35e4</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipe</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipeCloud
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipecloud
+  description: Performs a cloud-based remote wipe on the device. The return status indicates whether the device accepted the command.
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>f1b40cb3-d964-4378-bdd8-132305dcc879</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloud</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipeCloudPersistProvisionedData
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipecloudpersistprovisioneddata
+  description: Performs a cloud-based remote wipe while preserving provisioning data by backing it up to a persistent location. The backed-up data is restored and applied when the device resumes. The return status indicates whether the device accepted the command.
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>d07f227f-74c1-4a0d-8e79-f0a9bcf1ffe2</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistProvisionedData</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipeCloudPersistUserData
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipecloudpersistuserdata
+  description: Performs a cloud-based remote reset while preserving user accounts and data. The return status indicates whether the device accepted the command.
+  supportedDeviceTypes:
+    - Windows 10.0.22621
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>ef6fd567-f6ac-43c9-854d-c8df66684f0d</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeCloudPersistUserData</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipePersistProvisionedData
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipepersistprovisioneddata
+  description: Performs a remote wipe while preserving provisioning data by backing it up to a persistent location. The backed-up data is restored and applied when the device resumes. The return status indicates whether the device accepted the command. When using OMA Client Provisioning, include a dummy value of "1" for this element.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>505af1a0-407c-4971-a193-1a25a94abb2b</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistProvisionedData</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipePersistUserData
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipepersistuserdata
+  description: Performs a remote reset of the device while preserving user accounts and data. The return status indicates whether the device accepted the command.
+  supportedDeviceTypes:
+    - Windows 10.0.16299
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>faa34fe4-7ab5-4815-ac4d-3e99b4f79ad3</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipePersistUserData</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: doWipeProtected
+  platform: windows
+  category: RemoteWipe
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipeprotected
+  description: Performs a remote wipe that fully cleans the internal drive and continues retrying until complete, even after power cycles. Unlike doWipe, which can be interrupted by a simple power cycle, doWipeProtected ensures the wipe finishes. May render the device unbootable on some configurations.
+  supportedDeviceTypes:
+    - Windows 10.0.15063
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>0d0f7e7b-82b7-4fff-a4d1-101c9edb795d</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: InstallWindowsDefenderApplicationGuard
+  platform: windows
+  category: WindowsDefenderApplicationGuard
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowsdefenderapplicationguard-csp#installwindowsdefenderapplicationguard
+  description: Remotely installs the Windows Defender Application Guard feature on the device.
+  supportedDeviceTypes:
+    - Windows 10.0.16299
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>be527684-1679-449f-b4f1-7d2f6fe48ce7</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/WindowsDefenderApplicationGuard/InstallWindowsDefenderApplicationGuard</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ChangeProductKey
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#changeproductkey
+  description: Installs a new Windows product key on the device without requiring a reboot.
+  supportedDeviceTypes:
+    - Windows 10.0.15063
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>e416bea9-8407-4a72-a7db-415cd4dcf622</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/ChangeProductKey</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: CheckApplicability
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#checkapplicability
+  description: Checks if the provided product key is valid for upgrading the Windows edition on the device, returning TRUE if applicable.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>e3f7b84a-1984-4511-843f-c33001392d14</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/CheckApplicability</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: SwitchFromSMode
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#smodeswitchfromsmode
+  description: Switches the device from Windows 10/11 S mode to a standard edition, if eligible. No reboot is required.
+  supportedDeviceTypes:
+    - Windows 10.0.17763
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>848dc97d-0d6d-489e-bb32-9a90fa2e3afb</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/SMode/SwitchFromSMode</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: RemoveSubscription
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#subscriptionsremovesubscription
+  description: Removes the subscription license from the device and resets the subscription type to a user-based subscription.
+  supportedDeviceTypes:
+    - Windows 99.9.99999
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>da9c456a-2f0e-4d8a-9748-0fbde572ee76</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/Subscriptions/RemoveSubscription</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">null</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data></Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: UpgradeEditionWithLicense
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#upgradeeditionwithlicense
+  description: Upgrades the Windows edition on the device by applying a provided license. No reboot is required to complete the upgrade.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>472afd03-6963-4c7b-aebb-99d561724086</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithLicense</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">xml</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: UpgradeEditionWithProductKey
+  platform: windows
+  category: WindowsLicensing
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/windowslicensing-csp#upgradeeditionwithproductkey
+  description: Upgrades the Windows edition on the device by applying a specified product key. A reboot is required to complete the upgrade.
+  supportedDeviceTypes:
+    - Windows 10.0.10586
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>3d13b6f6-5e79-4a28-b8f5-062f884a1de1</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Vendor/MSFT/WindowsLicensing/UpgradeEditionWithProductKey</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+            <Data>XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</Data>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
+
+- name: ResetToFactoryState
+  platform: windows
+  category: eUICCs
+  externalDocumentationUrl: https://learn.microsoft.com/en-us/windows/client-management/mdm/euiccs-csp#euiccactionsresettofactorystate
+  description: Triggers an eUICC (embedded Universal Integrated Circuit Card) factory reset, permanently deleting all eSIM (embedded Subscriber Identity Module) profiles stored on the eUICC.
+  supportedDeviceTypes:
+    - Windows 10.0.16299
+  command: |
+     <syncml xmlns="SYNCML:SYNCML1.2">
+       <syncbody>
+         <Exec>
+          <CmdID>ebb2aec5-4865-4419-9fa1-3458d32fcab6</CmdID>
+          <Item>
+            <Target>
+              <LocURI>./Device/Vendor/MSFT/eUICCs/{eUICC}/Actions/ResetToFactoryState</LocURI>
+            </Target>
+            <Meta>
+              <Format xmlns="syncml:metinf">chr</Format>
+              <Type>text/plain</Type>
+            </Meta>
+          </Item>
+        </Exec>
+       </syncbody>
+     </syncml>
