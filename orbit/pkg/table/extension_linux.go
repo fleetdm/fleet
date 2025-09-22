@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptsetup_luks_salt"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dconf_read"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/fleetd_pacman_packages"
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
@@ -23,6 +24,7 @@ func PlatformTables(_ PluginOpts) ([]osquery.OsqueryPlugin, error) {
 		dataflattentable.TablePluginExec(log.Logger, "nftables", dataflattentable.JsonType, []string{"nft", "-jat", "list", "ruleset"}, dataflattentable.WithBinDirs("/usr/bin", "/usr/sbin")), // -j (json) -a (show object handles) -t (terse, omit set contents)
 		table.NewPlugin("dconf_read", dconf_read.Columns(), dconf_read.Generate),
 		table.NewPlugin("containerd_containers", containerd_containers.Columns(), containerd_containers.Generate),
+		table.NewPlugin(fleetd_pacman_packages.TableName, fleetd_pacman_packages.Columns(), fleetd_pacman_packages.Generate),
 
 		dataflattentable.TablePluginExec(
 			log.Logger,

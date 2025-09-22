@@ -15,9 +15,22 @@ import (
 func (svc *Service) GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*fleet.SetupExperienceStatusPayload, error) {
 	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
-	host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, orbitNodeKey)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "loading host by orbit node key")
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return nil, err
+	}
+
+	if fleet.IsLinux(host.Platform) || host.Platform == "windows" {
+		// Windows and Linux setup experience only have software.
+		status, err := svc.getHostSetupExperienceStatus(ctx, host)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get host setup experience status")
+		}
+		return &fleet.SetupExperienceStatusPayload{
+			Software: status.Software,
+		}, nil
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)

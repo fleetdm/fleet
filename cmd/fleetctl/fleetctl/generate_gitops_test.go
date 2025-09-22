@@ -133,10 +133,14 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
 				Platform:    "windows",
-				Identifier:  "com.example.global-windows-profile",
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},
+			},
+			{
+				ProfileUUID: "global-android-profile-uuid",
+				Name:        "Global Android Profile",
+				Platform:    "android",
 			},
 		}, nil
 	}
@@ -150,7 +154,7 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
-	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 {
+	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
@@ -174,6 +178,8 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte(`{"profile": "global macos json profile"}`), nil
 	case "global-windows-profile-uuid":
 		return []byte("<xml>global windows profile</xml>"), nil
+	case "global-android-profile-uuid":
+		return []byte(`{"name": "Global Android Profile", "cameraDisabled": true}`), nil
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	}
@@ -885,6 +891,12 @@ func TestGenerateControls(t *testing.T) {
 
 	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-windows-profile.xml"]; ok {
 		require.Equal(t, "<xml>global windows profile</xml>", fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-android-profile.json"]; ok {
+		require.Equal(t, `{"name": "Global Android Profile", "cameraDisabled": true}`, fileContents)
 	} else {
 		t.Fatalf("Expected file not found")
 	}
