@@ -408,6 +408,16 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Inserted = inserted
 
+			// Also link existing software that matches by bundle ID
+			// This handles the case where software has the same bundle ID but different name
+			if len(existingBundleIDsToUpdate) > 0 {
+				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
+				if err != nil {
+					return err
+				}
+				r.Inserted = append(r.Inserted, bundleInserted...)
+			}
+
 			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
 				return err
 			}
@@ -576,7 +586,10 @@ func (ds *Datastore) getExistingSoftware(
 			if s.BundleIdentifier != nil && s.Source == "apps" {
 				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
 					// Then this is a software whose name has changed, so we should update the name
-					existingBundleIDsToUpdate[*s.BundleIdentifier] = sw
+					// Copy the incoming software but with the existing software's ID
+					swWithID := sw
+					swWithID.ID = s.ID
+					existingBundleIDsToUpdate[*s.BundleIdentifier] = swWithID
 					continue
 				}
 			}
@@ -923,6 +936,41 @@ func (ds *Datastore) preInsertSoftwareInventory(
 	})
 
 	return err
+}
+
+// linkExistingBundleIDSoftware links existing software entries that match by bundle ID to the host.
+// This handles the case where incoming software has the same bundle ID as existing software but a different name.
+func (ds *Datastore) linkExistingBundleIDSoftware(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	existingBundleIDsToUpdate map[string]fleet.Software,
+) ([]fleet.Software, error) {
+	if len(existingBundleIDsToUpdate) == 0 {
+		return nil, nil
+	}
+
+	var insertsHostSoftware []interface{}
+	var insertedSoftware []fleet.Software
+
+	for _, software := range existingBundleIDsToUpdate {
+		// The software.ID should already be set from getExistingSoftware
+		if software.ID == 0 {
+			return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+		}
+		insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+		insertedSoftware = append(insertedSoftware, software)
+	}
+
+	if len(insertsHostSoftware) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
+		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
+		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "link existing bundle ID software")
+		}
+	}
+
+	return insertedSoftware, nil
 }
 
 // linkSoftwareToHost links pre-inserted software to a host. This replaces insertNewInstalledHostSoftwareDB

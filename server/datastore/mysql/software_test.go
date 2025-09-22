@@ -1834,10 +1834,9 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ds.logger = oldLogger
 
 	// Test edge case: Software with same bundle identifier but different names
-	// SKIP: This test is skipped due to complex bundle ID matching behavior that needs
-	// further investigation. The refactored code maintains the same behavior as before.
+	// When software with the same bundle ID but different name is added, the system
+	// reuses the existing software entry (matched by bundle ID) and links it to the host
 	t.Run("SameBundleIDDifferentNames", func(t *testing.T) {
-		t.Skip("Skipping bundle ID matching test - needs investigation of matching logic")
 		host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
 
 		// First, add software with a bundle ID
