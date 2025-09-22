@@ -63,6 +63,9 @@ export enum ActivityType {
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
+  CreatedAndroidProfile = "created_android_profile",
+  DeletedAndroidProfile = "deleted_android_profile",
+  EditedAndroidProfile = "edited_android_profile",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",

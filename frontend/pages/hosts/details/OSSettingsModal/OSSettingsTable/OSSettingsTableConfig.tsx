@@ -183,8 +183,8 @@ export const generateTableData = (
     case "rhel":
       return makeLinuxRows(hostMDMData);
     case "ios":
-      return hostMDMData.profiles;
     case "ipados":
+    case "android":
       return hostMDMData.profiles;
     default:
       return null;
