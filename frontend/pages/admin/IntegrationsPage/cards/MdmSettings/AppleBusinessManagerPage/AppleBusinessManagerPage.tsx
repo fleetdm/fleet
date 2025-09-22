@@ -171,8 +171,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
         <>
           <p>
             Add your ABM to enable automatic enrollment for company-owned hosts
-            and manual enrollment, via a Managed Apple Account, for personal (BYOD)
-            hosts.
+            and enrollment, via a Managed Apple Account, for personal (BYOD) hosts.
           </p>
           <AppleBusinessManagerTable
             abmTokens={abmTokens}
