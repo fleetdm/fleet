@@ -1,8 +1,8 @@
 .custom-settings {
+  @include vertical-card-layout;
+
   &__description {
-    font-size: $x-small;
-    margin-bottom: $pad-large;
-    @include grey-text;
+    margin: 0;
   }
 
   .upload-list {

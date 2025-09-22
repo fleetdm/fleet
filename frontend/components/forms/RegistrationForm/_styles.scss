@@ -1,5 +1,5 @@
 .user-registration {
-  @include card;
+  @include vertical-card-layout;
 
   &__container {
     transition: left 300ms ease, opacity 300ms ease;

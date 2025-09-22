@@ -1,7 +1,5 @@
 .activity-feed {
-  margin-top: $pad-large;
-  display: flex;
-  flex-direction: column;
+  @include vertical-card-layout;
   position: relative;
   min-height: 500px;
 

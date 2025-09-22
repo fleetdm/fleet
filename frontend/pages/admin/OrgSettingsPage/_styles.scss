@@ -18,6 +18,7 @@
 
     .app-config-form {
       &__section {
+        @include vertical-card-layout;
         @include clearfix;
         animation: fade-in 200ms ease-out;
 

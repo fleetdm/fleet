@@ -107,6 +107,7 @@ const OSVersionTable = ({
         pageSize={queryParams.per_page}
         onQueryChange={onQueryChange}
         disableNextPage={!hasNextPage}
+        hideFooter={!hasNextPage && queryParams.page === 0}
       />
     </div>
   );

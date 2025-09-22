@@ -1,9 +1,18 @@
 .manage-policies-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__header {
     @include normalize-team-header;
 
     .button-wrap {
       display: flex;
+      flex-direction: row;
       justify-content: flex-end;
       align-items: center;
       gap: 8px;
