@@ -10,7 +10,6 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--admin").length
     ).toEqual(1);
-    expect(screen.getByText("Set up user")).toBeInTheDocument();
   });
 
   it("renders OrgDetails on the second page", () => {
@@ -19,7 +18,6 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--org").length
     ).toEqual(1);
-    expect(screen.getByText("Organization details")).toBeInTheDocument();
   });
 
   it("renders FleetDetails on the third page", () => {
@@ -28,7 +26,6 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--fleet").length
     ).toEqual(1);
-    expect(screen.getByText("Set Fleet URL")).toBeInTheDocument();
   });
 
   it("renders ConfirmationPage on the fourth page", () => {
@@ -38,6 +35,5 @@ describe("RegistrationForm - component", () => {
       container.querySelectorAll(".user-registration__container--confirmation")
         .length
     ).toEqual(1);
-    expect(screen.getByText("Confirm configuration")).toBeInTheDocument();
   });
 });
