@@ -9,15 +9,28 @@ import (
 	"github.com/gomodule/redigo/redis"
 )
 
+// IPBanner implements an IP banning mechanism with Redis as backend.
+//
+// It allows a configurable number of consecutive failures (allowedConsecutiveFailuresCount)
+// on a configurable time window (allowedConsecutiveFailuresTimeWindow) and after hitting
+// such threshold it will ban the IP for a configurable amout of time (banDuration).
+//
+// - The CheckBanned operation is to be used to check whether an IP is banned.
+// - The RunRequest operation is to be executed with the result of every request (success or failure).
 type IPBanner struct {
 	pool      fleet.RedisPool
 	keyPrefix string
 
-	allowedConsecutiveFailuresCount      int
+	// allowedConsecutiveFailuresCount is the allowed number of failed requests for an IP.
+	allowedConsecutiveFailuresCount int
+	// allowedConsecutiveFailuresTimeWindow is the time window to allow up to
+	// allowedConsecutiveFailuresCount request failures.
 	allowedConsecutiveFailuresTimeWindow time.Duration
-	banDuration                          time.Duration
+	// banDuration is the duration an IP will be banned after hitting the threshold.
+	banDuration time.Duration
 }
 
+// NewIPBanner creates an IPBanner backed by Redis.
 func NewIPBanner(
 	pool fleet.RedisPool,
 	keyPrefix string,
@@ -72,6 +85,7 @@ else
 end
 `
 
+// CheckBanned returns true if the IP is currently banned.
 func (s *IPBanner) CheckBanned(ip string) (bool, error) {
 	key := s.keyPrefix + ip + "::banned"
 
@@ -94,6 +108,7 @@ func (s *IPBanner) CheckBanned(ip string) (bool, error) {
 	return true, nil
 }
 
+// RunRequest will update the status of the given IP with the result of a request.
 func (s *IPBanner) RunRequest(ip string, success bool) error {
 	ipCountKey := s.keyPrefix + ip + "::count"
 	ipBannedKey := s.keyPrefix + ip + "::banned"
@@ -107,20 +122,18 @@ func (s *IPBanner) RunRequest(ip string, success bool) error {
 	conn = ConfigureDoer(s.pool, conn)
 
 	allowedConsecutiveFailuresTimeWindowTTLSeconds := max(
-		int(s.allowedConsecutiveFailuresTimeWindow.Seconds()),
 		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-		1,
+		int(s.allowedConsecutiveFailuresTimeWindow.Seconds()), 1,
 	)
 	banTTLSeconds := max(
-		int(s.banDuration.Seconds()),
 		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-		1,
+		int(s.banDuration.Seconds()), 1,
 	)
 	script := redis.NewScript(2, updateCountScript)
 
-	action := "0"
+	action := "0" // failure
 	if success {
-		action = "1"
+		action = "1" // success
 	}
 
 	if _, err := script.Do(conn,

@@ -112,14 +112,13 @@ func (m *ErrorMiddleware) Limit(logger kitlog.Logger) endpoint.Middleware {
 					"ip", publicIP,
 					"msg", "limit exceeded",
 				)
-				return nil, ctxerr.Wrap(ctx, &rateLimitError{result: throttled.RateLimitResult{}})
+				return nil, ctxerr.Wrap(ctx, &rateLimitError{})
 
 			}
 
 			resp, err := next(ctx, req)
 
-			success := err == nil
-			if rateErr := m.ipBanner.RunRequest(publicIP, success); rateErr != nil {
+			if rateErr := m.ipBanner.RunRequest(publicIP, err == nil); rateErr != nil {
 				level.Warn(logger).Log(
 					"ip", publicIP,
 					"msg", "fail to run request on IP banner",
@@ -143,9 +142,6 @@ type rateLimitError struct {
 }
 
 func (r rateLimitError) Error() string {
-	// github.com/throttled/throttled has a bug where "peeking" with RateLimit(key, 0)
-	// always returns a RetryAfter=-1. So we just return "limit exceeded" to prevent confusing
-	// errors with "limit exceeded, retry after: 0s".
 	ra := int(r.result.RetryAfter.Seconds())
 	if ra > 0 {
 		return fmt.Sprintf("limit exceeded, retry after: %ds", ra)
