@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250909165154, Down_20250909165154)
+	MigrationClient.AddMigration(Up_20250922083056, Down_20250922083056)
 }
 
-func Up_20250909165154(tx *sql.Tx) error {
+func Up_20250922083056(tx *sql.Tx) error {
 	// The AUTO_INCREMENT columns are used to determine if a row was updated by
 	// an INSERT ... ON DUPLICATE KEY UPDATE statement. This is needed because we
 	// are currently using CLIENT_FOUND_ROWS option to determine if a row was
@@ -180,6 +180,6 @@ UPDATE hosts
 	return nil
 }
 
-func Down_20250909165154(tx *sql.Tx) error {
+func Down_20250922083056(tx *sql.Tx) error {
 	return nil
 }

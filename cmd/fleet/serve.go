@@ -203,6 +203,7 @@ the way that the Fleet server works.
 				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
 					context.Background(),
 					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretRegion,
 					config.Server.PrivateKeySecretSTSAssumeRoleArn,
 					config.Server.PrivateKeySecretSTSExternalID,
 				)
