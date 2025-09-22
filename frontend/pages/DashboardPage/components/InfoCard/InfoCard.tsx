@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 
 import Card from "components/Card";
 import Button from "components/buttons/Button";
@@ -10,7 +10,7 @@ interface IInfoCardProps {
   titleDetail?: JSX.Element | string | null;
   description?: JSX.Element | string;
   actionUrl?: string;
-  children: React.ReactChild | React.ReactChild[];
+  children: React.ReactNode;
   action?:
     | {
         type: "link";
@@ -60,7 +60,8 @@ const useInfoCard = ({
         return (
           <Button
             className={`${baseClass}__action-button`}
-            variant="text-link"
+            variant="inverse"
+            size="small"
             onClick={action.onClick}
           >
             <>
@@ -74,13 +75,22 @@ const useInfoCard = ({
 
       const linkTo = actionLink || action.to;
       if (linkTo) {
+        const onClick = (): void => {
+          browserHistory.push(linkTo);
+        };
+
         return (
-          <Link to={linkTo} className={`${baseClass}__action-button`}>
+          <Button
+            variant="inverse"
+            onClick={onClick}
+            className={`${baseClass}__action-button`}
+            size="small"
+          >
             <span className={`${baseClass}__action-button-text`}>
               {action.text}
             </span>
-            <Icon name="arrow-internal-link" color="core-fleet-blue" />
-          </Link>
+            <Icon name="arrow-internal-link" color="ui-fleet-black-75" />
+          </Button>
         );
       }
     }
@@ -119,9 +129,11 @@ const useInfoCard = ({
             </div>
             {renderAction()}
           </div>
-          <div className={`${baseClass}__section-description`}>
-            {description}
-          </div>
+          {description && (
+            <div className={`${baseClass}__section-description`}>
+              {description}
+            </div>
+          )}
         </div>
       )}
       {clonedChildren}

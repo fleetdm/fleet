@@ -79,10 +79,6 @@
     align-items: center;
     gap: $gap-table-elements;
 
-    .input-icon-field {
-      height: 40px; // Height 40px on table headers
-    }
-
     &.stack-table-controls {
       align-items: start;
 
@@ -112,7 +108,7 @@
     // filter and search bar height
     .dropdown__select,
     .input-with-icon {
-      height: 40px;
+      height: 36px;
     }
   }
 
@@ -227,7 +223,7 @@
     .children-wrapper {
       overflow: hidden;
       white-space: nowrap;
-      display: block;
+      display: flex;
       text-overflow: ellipsis;
     }
 
@@ -239,16 +235,16 @@
     width: 120px;
   }
 
-  // This hides View all host link unless the row is hovered
+  // This hides View all host button unless the row is hovered
   tr {
-    .row-hover-link {
+    .row-hover-button {
       opacity: 0;
       transition: 250ms;
       text-overflow: none;
     }
     &:hover,
     &:focus-visible {
-      .row-hover-link {
+      .row-hover-button {
         opacity: 1;
       }
     }

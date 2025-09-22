@@ -86,13 +86,13 @@
   .path {
     stroke-dasharray: 1, 200;
     stroke-dashoffset: 0;
-    stroke: $core-vibrant-blue;
+    stroke: $core-fleet-green;
     animation: dash 1.5s ease-in-out infinite;
     stroke-linecap: round;
   }
 
   .background {
-    stroke: $ui-vibrant-blue-25;
+    stroke: $ui-fleet-black-25;
   }
 
   @keyframes rotate {
