@@ -1,5 +1,5 @@
 resource "aws_security_group" "internal" {
-  name = "${local.prefix}-internal"
+  name   = "${local.prefix}-internal"
   vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
   ingress {
     from_port        = 0
@@ -18,9 +18,9 @@ resource "aws_security_group" "internal" {
 }
 
 resource "aws_lb" "internal" {
-  name                       = "${local.prefix}-internal"
-  internal                   = true
-  security_groups            = [
+  name     = "${local.prefix}-internal"
+  internal = true
+  security_groups = [
     resource.aws_security_group.internal.id,
   ]
   subnets                    = data.terraform_remote_state.shared.outputs.vpc.private_subnets

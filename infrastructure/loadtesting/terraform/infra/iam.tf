@@ -1,5 +1,3 @@
-
-
 data "aws_iam_policy_document" "license" {
   statement {
     effect  = "Allow"

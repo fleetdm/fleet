@@ -1,9 +1,9 @@
 output "server_url" {
-  value     = "https://${aws_route53_record.main.fqdn}"
+  value = "https://${aws_route53_record.main.fqdn}"
 }
 
 output "internal_alb_dns_name" {
-  value     = resource.aws_lb.internal.dns_name
+  value = resource.aws_lb.internal.dns_name
 }
 
 output "ecs_cluster" {

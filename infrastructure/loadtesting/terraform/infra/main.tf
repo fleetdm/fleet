@@ -40,7 +40,8 @@ module "loadtest" {
   }
   rds_config = {
     name                         = local.customer
-    instance_class               = "db.t4g.medium"
+    instance_class               = var.database_instance_size
+    replicas                     = var.database_instance_count
     engine_version               = "8.0.mysql_aurora.3.08.2"
     snapshot_identifier          = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned-8-0-teams-fixes-v4-55-0-minimum"
     preferred_maintenance_window = "fri:04:00-fri:05:00"
@@ -54,7 +55,8 @@ module "loadtest" {
   }
   redis_config = {
     name                          = local.customer
-    instance_type                 = "cache.t4g.micro"
+    instance_type                 = var.redis_instance_size
+    cluster_size                  = var.redis_instance_count
     subnets                       = data.terraform_remote_state.shared.outputs.vpc.private_subnets
     elasticache_subnet_group_name = data.terraform_remote_state.shared.outputs.vpc.elasticache_subnet_group_name
     allowed_cidrs                 = concat(data.terraform_remote_state.shared.outputs.vpc.private_subnets_cidr_blocks, local.vpn_cidr_blocks)
@@ -75,7 +77,7 @@ module "loadtest" {
     cpu                 = var.fleet_task_cpu
     security_group_name = local.customer
     networking = {
-      ingress_sources     = {
+      ingress_sources = {
         security_groups = [
           resource.aws_security_group.internal.id,
         ]
@@ -198,9 +200,9 @@ module "migrations" {
   ecs_service              = module.loadtest.byo-db.byo-ecs.service.name
   desired_count            = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
   min_capacity             = module.loadtest.byo-db.byo-ecs.appautoscaling_target.min_capacity
-  
+
   depends_on = [
-    module.loadtest, 
+    module.loadtest,
     module.vuln-processing
   ]
 }
@@ -247,7 +249,7 @@ module "logging_alb" {
 
 module "logging_firehose" {
   source = "github.com/fleetdm/fleet-terraform//addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.2.4"
-  prefix = "${local.customer}"
+  prefix = local.customer
   osquery_results_s3_bucket = {
     name         = "${local.customer}-osquery-results-firehose-policy"
     expires_days = 1
