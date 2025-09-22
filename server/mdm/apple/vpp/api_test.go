@@ -221,7 +221,7 @@ func TestGetAssets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setupFakeServer(t, tt.handler)
 
-			assets, err := GetAssets(tt.token, tt.filter)
+			assets, err := GetAssets(t.Context(), tt.token, tt.filter)
 			if tt.expectedErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tt.expectedErrMsg)
