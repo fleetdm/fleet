@@ -11,6 +11,8 @@ interface IAuthenticationFormWrapperProps {
   children: React.ReactNode;
   header?: string;
   headerCta?: React.ReactNode;
+  /** Only used on the registration page */
+  breadcrumbs?: React.ReactNode;
   className?: string;
 }
 
@@ -20,6 +22,7 @@ const AuthenticationFormWrapper = ({
   children,
   header,
   headerCta,
+  breadcrumbs,
   className,
 }: IAuthenticationFormWrapperProps) => {
   const classNames = classnames(baseClass, className);
@@ -39,6 +42,7 @@ const AuthenticationFormWrapper = ({
           </ul>
         </div>
       </nav>
+      {breadcrumbs}
       <div className={classNames}>
         <Card className={`${baseClass}__card`} paddingSize="xxlarge">
           {(header || headerCta) && (

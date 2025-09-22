@@ -3,15 +3,9 @@
   flex-direction: column;
   align-items: center;
 
-  h2 {
-    text-align: center;
-  }
-  .help-text {
+  &__help-text {
     @include help-text;
-  }
-
-  &__wrapper {
-    width: auto;
+    color: $ui-fleet-black-75; // Undo grey in help text
   }
 
   &__icon {
@@ -36,9 +30,11 @@
 
   &__table {
     width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 $gap-form; /* 0px horizontal, 16px vertical gap between rows */
 
     caption {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $bold;
       margin-bottom: $pad-large;
       text-align: left;
@@ -49,14 +45,14 @@
     }
 
     th {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $bold;
       text-align: left;
       padding-right: 20px;
     }
 
     td {
-      font-size: $small;
+      font-size: $x-small;
       font-weight: $regular;
     }
   }
@@ -106,6 +102,5 @@
 
   .button {
     width: 160px;
-    margin-top: $pad-xxlarge;
   }
 }
