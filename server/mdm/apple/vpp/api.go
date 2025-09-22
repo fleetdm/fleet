@@ -160,7 +160,7 @@ func GetAssets(ctx context.Context, token string, filter *AssetFilter) ([]Asset,
 	var assets []Asset
 	var returnErr error
 
-	retry.Do(func() error {
+	_ = retry.Do(func() error {
 		var err error
 		assets, err = getAssetsOnce(ctx, token, filter)
 		returnErr = err
