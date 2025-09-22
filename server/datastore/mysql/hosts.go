@@ -1395,7 +1395,7 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			//                        with this script run.
 			batchScriptExecutionFilter += ` AND ((hsr.host_id AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)) OR (hsr.host_id is NULL AND ba.canceled = 0 AND bsehr.error IS NULL))`
 		case fleet.BatchScriptExecutionErrored:
-			batchScriptExecutionFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
+			batchScriptExecutionFilter += ` AND hsr.exit_code <> 0 AND hsr.canceled = 0`
 		case fleet.BatchScriptExecutionIncompatible:
 			batchScriptExecutionFilter += ` AND bsehr.error IS NOT NULL`
 		case fleet.BatchScriptExecutionCanceled:
