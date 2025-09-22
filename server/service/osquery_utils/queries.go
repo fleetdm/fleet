@@ -2706,7 +2706,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
-		generatedMap["software_linux_pacman"] = softwareLinuxPacman
+		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
