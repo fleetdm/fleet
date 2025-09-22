@@ -59,11 +59,14 @@ const DeleteScriptModal = ({
     >
       <>
         <p>
-          The script{" "}
-          <span className={`${baseClass}__script-name`}>{scriptName}</span> will
-          run on pending hosts. After the script runs, its output and exit code
-          will appear in the activity feed.
+          This action will cancel any pending script execution for{" "}
+          <span className={`${baseClass}__script-name`}>{scriptName}</span>
         </p>
+        <p>
+          If the script is currently running on a host it will still complete,
+          but results won&apos;t appear in Fleet.
+        </p>
+        <p>You cannot undo this action.</p>
         <div className="modal-cta-wrap">
           <Button
             type="button"
