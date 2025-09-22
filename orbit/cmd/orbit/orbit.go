@@ -75,6 +75,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		versionCommand,
 		shellCommand,
+		uuidCommand,
 	}
 	app.Flags = []cli.Flag{
 		&cli.StringFlag{
@@ -1937,6 +1938,51 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 	return &info[0], nil
 }
 
+// getHostUUID retrieves only the host UUID by shelling out to `osqueryd -S` and performing a simple SELECT query.
+func getHostUUID(osqueryPath string, osqueryDBPath string) (string, error) {
+	// Make sure parent directory exists (`osqueryd -S` doesn't create the parent directories).
+	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
+		return "", err
+	}
+	const uuidQuery = `SELECT uuid FROM system_info`
+	args := []string{
+		"-S",
+		"--database_path", osqueryDBPath,
+		"--json", uuidQuery,
+	}
+	cmd := exec.Command(osqueryPath, args...)
+	var (
+		osquerydStdout bytes.Buffer
+		osquerydStderr bytes.Buffer
+	)
+	cmd.Stdout = &osquerydStdout
+	cmd.Stderr = &osquerydStderr
+	
+	var result []map[string]interface{}
+	if err := cmd.Run(); err != nil {
+		// Try to unmarshal the result even if there's an error (osquery exit status 78 issue)
+		unmarshalErr := json.Unmarshal(osquerydStdout.Bytes(), &result)
+		if unmarshalErr != nil {
+			return "", fmt.Errorf("osqueryd failed: %w, output: %s, stderr: %s", err, osquerydStdout.String(), osquerydStderr.String())
+		}
+	} else {
+		if err := json.Unmarshal(osquerydStdout.Bytes(), &result); err != nil {
+			return "", fmt.Errorf("failed to parse osqueryd output: %w", err)
+		}
+	}
+	
+	if len(result) != 1 {
+		return "", fmt.Errorf("expected 1 row from UUID query, got %d", len(result))
+	}
+	
+	uuid, ok := result[0]["uuid"].(string)
+	if !ok {
+		return "", fmt.Errorf("UUID field not found or not a string")
+	}
+	
+	return uuid, nil
+}
+
 var versionCommand = &cli.Command{
 	Name:  "version",
 	Usage: "Get the orbit version",
@@ -1945,6 +1991,63 @@ var versionCommand = &cli.Command{
 		fmt.Println("orbit " + build.Version)
 		fmt.Println("commit - " + build.Commit)
 		fmt.Println("date - " + build.Date)
+		return nil
+	},
+}
+
+var uuidCommand = &cli.Command{
+	Name:  "uuid",
+	Usage: "Get the host hardware UUID",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "json",
+			Usage: "Output UUID in JSON format",
+		},
+	},
+	Action: func(c *cli.Context) error {
+		// Set up root directory
+		rootDir := c.String("root-dir")
+		if rootDir == "" {
+			rootDir = update.DefaultOptions.RootDirectory
+			executable, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get orbit executable: %w", err)
+			}
+			if strings.HasPrefix(executable, "/var/lib/orbit") {
+				rootDir = "/var/lib/orbit"
+			}
+		}
+
+		// Initialize updater to get osqueryd path
+		localStore, err := filestore.New(filepath.Join(rootDir, update.MetadataFileName))
+		if err != nil {
+			return fmt.Errorf("failed to create local metadata store: %w", err)
+		}
+
+		opt := update.DefaultOptions
+		opt.RootDirectory = rootDir
+		opt.LocalStore = localStore
+		
+		updater := update.NewDisabled(opt)
+		osquerydPath, err := updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+		if err != nil {
+			return fmt.Errorf("failed to locate osqueryd: %w", err)
+		}
+
+		// Use temporary database for UUID query
+		tmpDBPath := filepath.Join(os.TempDir(), fmt.Sprintf("orbit-uuid-%s", uuid.NewString()))
+		defer os.RemoveAll(tmpDBPath)
+
+		hostUUID, err := getHostUUID(osquerydPath, tmpDBPath)
+		if err != nil {
+			return fmt.Errorf("failed to get host UUID: %w", err)
+		}
+
+		if c.Bool("json") {
+			fmt.Printf("{\"uuid\":\"%s\"}\n", hostUUID)
+		} else {
+			fmt.Println(hostUUID)
+		}
 		return nil
 	},
 }
