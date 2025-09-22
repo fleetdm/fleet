@@ -855,6 +855,12 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 					Filename: "default.yml",
 					Key:      "certificate_authorities.smallstep.password",
 				})
+
+				intg.(map[string]interface{})["username"] = cmd.AddComment(filePath, "TODO: Add your Smallstep username here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.smallstep.username",
+				})
 			}
 		}
 	}

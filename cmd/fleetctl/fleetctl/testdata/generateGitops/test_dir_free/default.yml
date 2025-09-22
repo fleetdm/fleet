@@ -79,7 +79,7 @@ org_settings:
       name: some-smallstep-name
       password: # TODO: Add your Smallstep password here
       url: https://some-smallstep-url.com
-      username: some-smallstep-username
+      username: # TODO: Add your Smallstep username here
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details
@@ -178,7 +178,7 @@ policies:
   critical: false
   description: This is a global policy
   install_software:
-    hash_sha256: ___GITOPS_COMMENT_13___
+    hash_sha256: ___GITOPS_COMMENT_14___
   labels_include_any:
   - Label A
   - Label B

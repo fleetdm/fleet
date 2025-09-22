@@ -61,7 +61,7 @@ org_settings:
       name: some-smallstep-name
       password: # TODO: Add your Smallstep password here
       url: https://some-smallstep-url.com
-      username: some-smallstep-username
+      username: # TODO: Add your Smallstep username here
   features:
     additional_queries:
       macs: SELECT mac FROM interface_details
