@@ -4927,6 +4927,7 @@ func preprocessProfileContents(
 			}
 		}
 
+	initialFleetVarLoop:
 		for fleetVar := range fleetVars {
 			switch {
 			case fleetVar == string(fleet.FleetVarNDESSCEPChallenge) || fleetVar == string(fleet.FleetVarNDESSCEPProxyURL):
@@ -4936,7 +4937,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			case fleetVar == string(fleet.FleetVarHostEndUserEmailIDP) || fleetVar == string(fleet.FleetVarHostHardwareSerial) ||
@@ -4961,7 +4962,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			case strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPChallengePrefix)) || strings.HasPrefix(fleetVar, string(fleet.FleetVarCustomSCEPProxyURLPrefix)):
@@ -4981,7 +4982,7 @@ func preprocessProfileContents(
 				}
 				if !configured {
 					valid = false
-					break
+					break initialFleetVarLoop
 				}
 
 			default:

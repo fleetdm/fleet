@@ -353,3 +353,13 @@ tool (
 	github.com/kevinburke/go-bindata
 	github.com/quasilyte/go-ruleguard/dsl
 )
+
+ignore (
+	./articles
+	./assets
+	./docs
+	./frontend
+	./handbook
+	./it-and-security
+	./node_modules
+)

@@ -18,7 +18,7 @@ import (
 func TestFilesystemLogger(t *testing.T) {
 	ctx := context.Background()
 	tempPath := t.TempDir()
-	require.NoError(t, os.Chmod(tempPath, 0o755))
+	require.NoError(t, os.Chmod(tempPath, 0o755)) // nolint:gosec // G302
 	fileName := filepath.Join(tempPath, "filesystemLogWriter")
 	lgr, err := NewFilesystemLogWriter(fileName, log.NewNopLogger(), false, false, 500, 28, 3)
 	require.Nil(t, err)
