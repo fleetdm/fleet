@@ -356,6 +356,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				URL:               "https://example.com/download/my-software.pkg",
 				Categories:        []string{"Browsers"},
 			},
+			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	case 2:
 		if *teamID != 1 {
@@ -372,6 +373,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				Categories:  []string{"Productivity", "Utilities"},
 				SelfService: true,
 			},
+			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
