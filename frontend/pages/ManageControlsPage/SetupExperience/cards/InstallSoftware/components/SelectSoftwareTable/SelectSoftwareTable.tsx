@@ -80,7 +80,7 @@ const SelectSoftwareTable = ({
           experience.
         </p>
       )}
-      suppressClearSelection
+      suppressHeaderActions
     />
   );
 };

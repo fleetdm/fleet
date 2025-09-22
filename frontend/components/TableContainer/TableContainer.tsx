@@ -123,11 +123,8 @@ interface ITableContainerProps<T = any> {
   hideFooter?: boolean;
   /** handler called when the  `clear selection` button is called */
   onClearSelection?: () => void;
-  /** don't show the Clear selection button when items are selected. Since clicking this button is
-   * currently associated with behavior even when no explicit `onClearSelection` is passed in,
-   * simply depending rendering this button on presence/absence of that handler would break many
-   * data tables across the UI */
-  suppressClearSelection?: boolean;
+  /** don't show the Clear selection button and selected item count when items are selected */
+  suppressHeaderActions?: boolean;
 }
 
 const baseClass = "table-container";
@@ -189,7 +186,7 @@ const TableContainer = <T,>({
   disableTableHeader,
   persistSelectedRows,
   onClearSelection = noop,
-  suppressClearSelection,
+  suppressHeaderActions,
 }: ITableContainerProps<T>) => {
   const isControlledSearchQuery = controlledSearchQuery !== undefined;
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
@@ -580,7 +577,7 @@ const TableContainer = <T,>({
                 }
                 setExportRows={setExportRows}
                 onClearSelection={onClearSelection}
-                suppressClearSelection={suppressClearSelection}
+                suppressHeaderActions={suppressHeaderActions}
                 persistSelectedRows={persistSelectedRows}
                 hideFooter={hideFooter}
               />
