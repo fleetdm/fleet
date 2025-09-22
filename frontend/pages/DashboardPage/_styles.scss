@@ -1,6 +1,8 @@
 .dashboard-page {
   overflow: initial; // auto causes double scroll bar  but still needed for other pages .main-content div
-  @include vertical-page-layout h2 {
+  @include vertical-page-layout;
+
+  h2 {
     font-size: $small;
     font-weight: $regular;
     margin: 0;

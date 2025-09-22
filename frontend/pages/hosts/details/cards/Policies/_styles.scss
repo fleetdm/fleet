@@ -1,5 +1,7 @@
 .host-policies-card {
-  @include vertical-page-tab-panel-layout .table-container__header {
+  @include vertical-page-tab-panel-layout;
+
+  .table-container__header {
     display: none;
   }
   .data-table-block {

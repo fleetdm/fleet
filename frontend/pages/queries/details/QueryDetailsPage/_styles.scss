@@ -1,5 +1,7 @@
 .query-details-page {
-  @include vertical-page-layout &__title-bar {
+  @include vertical-page-layout;
+
+  &__title-bar {
     display: flex;
     justify-content: space-between;
     margin-top: $pad-small;

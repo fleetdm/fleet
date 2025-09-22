@@ -1,5 +1,7 @@
 .run-script {
-  @include vertical-card-layout &__description {
+  @include vertical-card-layout;
+
+  &__description {
     margin: 0;
   }
 

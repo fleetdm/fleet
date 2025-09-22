@@ -6,7 +6,9 @@
   }
 
   .no-integrations {
-    @include vertical-card-layout ul {
+    @include vertical-card-layout;
+
+    ul {
       margin: 0;
       padding: 0;
       color: $core-fleet-black;

@@ -1,5 +1,7 @@
 .mdm-settings {
-  @include vertical-card-layout .disabled-by-gitops-mode {
+  @include vertical-card-layout;
+
+  .disabled-by-gitops-mode {
     @include disabled;
   }
 }

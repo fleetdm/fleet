@@ -1,5 +1,7 @@
 .os-updates-current-version-section {
-  @include vertical-page-layout &__title {
+  @include vertical-page-layout;
+
+  &__title {
     display: flex;
     align-items: center;
     gap: $pad-small;

@@ -1,5 +1,7 @@
 .host-software-library-card {
-  @include vertical-page-tab-panel-layout &__header {
+  @include vertical-page-tab-panel-layout;
+
+  &__header {
     display: flex;
     align-items: center;
     justify-content: space-between;
