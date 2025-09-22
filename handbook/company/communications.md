@@ -882,24 +882,72 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 
 ### Writing style
 
-  - Infuse the core [values](https://fleetdm.com/handbook/company#values) into everything you write. 
-  - Read and reread, then rewrite to make it shorter. Use links rather than explanations, and favor short sentences. 
-  - Get to where you feel like it’s really good, short, simple, and clear, hack away at any word that’s too confusing. 
-  - Don’t sound formal, sound welcoming so that anyone can understand. Translate "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)" into "ease of use" or "readability".
-    - Disarm puffery for engineers by replacing puffery with real data.
-    - Disarm puffery for the business by replacing puffery with ROI/RTO  (how much time and/or money is it going save the business?  Forget the details.  When will it pay itself back?)
-  - Apply the advice about writing linked from the company values (the [Paul Graham](http://www.paulgraham.com/simply.html) essays). 
-  - Avoid unnecessary changes, and don’t change headings lightly (it breaks handbook links people might have put in an external article or have in their email inbox somewhere). 
-  - Read your PRs, check it carefully with each change and edit until the diff looks good.
-  - Check preview mode in GitHub to make sure the format renders correctly. If you look at your diff and notice unintentional changes, remove them.
+Fleet’s writing style is clear, simple, and welcoming. We use short sentences, plain English, and an active voice so anyone can follow along. Instead of sounding formal, we aim for approachable and easy to read.
 
-#### Use links in your writing
+We infuse the company’s [values](https://fleetdm.com/handbook/company#values) into everything we write. That means being transparent, straightforward, and respectful of the reader’s time.
 
-Don’t duplicate content. Link to existing places like the [values](https://fleetdm.com/handbook/company#values) or [“why this way”](https://fleetdm.com/handbook/company/why-this-way#why-this-way), but don’t make it awkward. Linking to existing material when something comes up is a gentle way to remind and train using the foundation we've already built.
+We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3FtrackingId=SBVWxzqXTBm9qlO7Rw3ddw%253D%253D/?trackingId=SBVWxzqXTBm9qlO7Rw3ddw%3D%3D)". For engineers, replace hype with real data. For business readers, translate it into clear outcomes such as time saved or return on investment. Links are better than long explanations, since they keep content short and point people to more detail when they need it.
 
-Create headings that make good permalinks, use links and add missing links. Don't anchor links with "here" or "click here"; [linking relevant words is better for accessibility](https://granicus.com/blog/why-click-here-links-are-bad/) and better for SEO. We run `grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' .` in CI to make sure those link anchors don't slip in.
+When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
-### What would Mister Rogers say?
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say).
+
+Link instead of repeating. If something’s already covered elsewhere in the handbook, point to it to keep pages short and accurate.
+
+
+### Writing types
+
+Different types of writing at Fleet have slightly different expectations. Keep the shared principles in mind (plain English, brevity, clarity), but adjust for the format.
+
+#### Guides and tutorials
+
+- Write in short sentences, imperative mood, and active voice.
+  - Example: “Click Save.” not “The button should then be clicked.”
+- Format as directional, step-by-step instructions, not narrative prose.
+- Use **bold** text when referencing UI elements.
+  - Example: “Navigate to **Hosts** and click **Add a host**.”
+- Keep it practical, avoid marketing fluff, superlatives, and unnecessary adjectives.
+
+
+#### Announcements
+
+- Lead with the news. Put the key point in the first sentence.
+- Keep it brief (two to four sentences).
+- Use plain, factual language without fluff.
+- Include a clear link or call to action if readers need to follow up.
+
+#### Articles
+
+- Keep the tone conversational and approachable, while still representing Fleet.
+- Provide context or insight (the “why”), not just the “what.”
+- Avoid jargon unless you explain it.
+- Stay aligned with Fleet’s values and overall voice.
+
+#### Website copy
+
+- Keep it simple: short sentences, plain English, imperative mood.
+- Avoid fluff, filler, or jargon.
+- Emphasize reader outcomes. Show what someone can do with Fleet, not just what Fleet is.
+  - Example: _“Manage all your devices in one place”_ instead of _“Fleet is the leading platform for device management.”_
+- Use headings and subheadings to make scanning easy.
+- Keep calls to action direct and specific 
+  - Example: _“Try Fleet”_ instead of _“Learn more about our amazing platform.”_
+
+### Editing and publishing
+
+Follow these steps before merging a change:
+
+- Avoid unnecessary changes to headings, since this can break handbook links shared in other places.
+- Link instead of duplicating content. If a concept exists elsewhere, link to it rather than restating it.
+- Review your pull request carefully. Read the diff line by line until it looks intentional.
+- Check preview mode in GitHub to make sure formatting renders correctly.
+- Look for and remove any unintentional changes in your diff.
+
+### Further inspiration
+
+To see how tone can shift from formal or negative to simple and optimistic, The "The Mister Rogersing" example below is a practical illustration of how reframing can make complex or difficult ideas more approachable.
+
+#### What would Mister Rogers say?
 
 [*Mister Rogers’ Neighborhood*](https://en.wikipedia.org/wiki/Mister_Rogers%27_Neighborhood) was one of the longest-running children’s T.V. series. That’s thanks to [Fred Rogers](https://en.wikipedia.org/wiki/Fred_Rogers)’ communication skills. He knew kids heard things differently than adults. So, he checked every line to avoid confusion and encourage positivity.
 
@@ -922,19 +970,51 @@ What would Mister Rogers say? The tweet could look something like this...
 
 By Mister Rogersing our writing, we can encourage our readers to succeed by emphasizing optimism. You might not be able to apply all of these steps every time. That’s fine. Think of these as guidelines to help you simplify complex topics.
 
+### Writing assistance
 
-### Grammarly
+#### Grammarly
 
 All of our writers and editors have access to Grammarly, which comes with a handy set of tools, including:
 - **Style guide**, which helps us write consistently in the style of Fleet.
 - **Brand tones** to keep the tone of our messaging consistent with just the right amount of confidence, optimism, and joy.
 - **Snippets** to turn commonly used phrases, sentences, and paragraphs (such as calls to action, thank you messages, etc.) into consistent, reusable snippets to save time.
 
+#### Generative AI
 
-### Using sentence case and capitalization
+Collaborating with AI can be helpful for outlines, rewrites, and drafts. But it’s not a substitute for judgment. You (a human) are responsible for accuracy, tone, and format.
 
+Don’t paste sensitive data. Always fact-check names, versions, dates, and links. Question everything you don't understand and strip out anything fabricated.
 
-#### Sentence case
+Make sure the tone sounds like Fleet (plain English, short sentences, active voice) and watch for common AI habits like em dashes, over-bolding, clichés, or passive voice.
+
+Finally, check the format that you are writing for. Guides should be step-by-step instructions, announcements should be short and factual, and articles can be more conversational but still simple and professional.
+
+#### Prompt template
+
+```
+Act as a Fleet editor. Audience: IT and security practitioners.
+Goal: <what you need>.
+Tone: simple, plain English; short sentences; imperative mood; active voice.
+Format: <guide | announcement | article>.
+Constraints:
+- No marketing fluff, superlatives, or filler adjectives.
+- Use sentence case for headings.
+- For guides: numbered, step-by-step instructions; no narrative prose.
+- Bold UI elements only (e.g., **Hosts**, **Add a host**).
+- Prefer commas over em dashes; use colons sparingly.
+Output: valid Markdown.
+
+```
+
+### Writing mechanics
+
+Writing mechanics cover everything from capitalization and punctuation to list formatting and SQL examples. Following them keeps our content consistent and easy to read.
+
+For Markdown-specific rules, see [Writing in Fleet-flavored Markdown](#writing-in-fleet-flavored-markdown).
+
+#### Sentence case and capitalization
+
+##### Sentence case
 
 Fleet uses sentence case capitalization for all headings, subheadings, button text in the Fleet product, fleetdm.com, the documentation, the handbook, marketing material, direct emails, in Slack, and in every other conceivable situation.
 
@@ -946,7 +1026,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 
 - Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
   - "Yeah, we use Nudge."
-  - "Introducing our friend Skimbleshanks."
+  - "Introducing our friend, Skimbleshanks."
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
   - "MDM commands in Fleet are available over a REST API that returns JSON."
@@ -960,7 +1040,7 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 <img width="384" alt="image" src="https://github.com/fleetdm/fleet/assets/618009/cca980db-24e1-4303-a120-ecdb7419aac4">
 
 
-#### Capitalization and proper nouns
+##### Capitalization and proper nouns
 
 - **Fleet:** When talking about Fleet the company, we stylize our name as either "Fleet" or "Fleet Device Management".
 - **Fleet the product:** We always say “Fleet”.  We _NEVER_ say "fleetDM" or "FleetDM" or "fleetdm".
@@ -970,13 +1050,20 @@ As we use sentence case, only the first word is capitalized. But, if a word woul
 - **Fleetd:** Fleetd should always be written in lowercase unless used to start a sentence or heading.
 - **Fleetctl:** Fleetctl should always be written in lowercase unless used to start a sentence or heading. Fleetctl should always be in plain text and not inside codeblocks text unless used in a command (ex. `fleetctl -help`).
 
+##### Links and anchors
+- Make links meaningful (avoid “here” / “click here”); link descriptive words.
+- Link to existing pages instead of duplicating content.
+- Favor permalinks and headings that make good anchors (people link to sections).
 
-#### Device vs endpoint
+> > **Note:** We run grep -Eir --exclude-dir=node_modules --include=\*.md '\[(click )?here\]' . in CI to make sure those link anchors don't slip in.
+
+
+##### Device vs endpoint
 
 - When talking about a users' computer, we prefer to use "device" over _endpoint._ Devices in this context can be a physical device or virtual instance that connect to and exchange information with a computer network. Examples of devices include mobile devices, desktop computers, laptop computers, virtual machines, and servers.
 
 
-### Headings and titles
+#### Headings and titles
 
 Headings and titles should:
 
@@ -984,15 +1071,15 @@ Headings and titles should:
 - Help guide readers through your writing so they can quickly find what they need.
 - [Make good permalinks](https://fleetdm.com/handbook/company/communications#use-links-in-your-writing).
 
-#### Static headings
+##### Static headings
 
 Use static headings (a `noun` or `noun phrase`) e.g., “Log destinations,” for concept or reference topics. Be as short and specific as possible.
 
-#### Task-based headings
+##### Task-based headings
 
 Use task-based headings (`verb` + `topic`) e.g., _“Configure a log destination”_ for guides and tutorials where the heading should reveal the task that the reader is trying to achieve. 
 
-#### Avoid _-ing_ verb forms in headings
+##### Avoid _-ing_ verb forms in headings
 
 Avoid starting a heading with _-ing_ verb form, if possible.
 
@@ -1002,7 +1089,7 @@ _-ing_ verb forms are more difficult for non-native English readers to understan
 | ---------------- | -------------------- |
 | “Configure a log destination” | “Configuring a log destination” |
 
-#### Avoid vague verbs in headings
+##### Avoid vague verbs in headings
 
 Were possible, avoid starting a heading with a vague verb, like “understand,” “learn,” or “Use.” Headings that start with a vague verb can mislead readers by making a topic appear to be task-oriented (a guide) when it is actually reference or conceptual information. 
 
@@ -1011,11 +1098,11 @@ Were possible, avoid starting a heading with a vague verb, like “understand,�
 | “Log destinations” | “Understand log destinations.” |
 
 
-#### Avoid code in headings
+##### Avoid code in headings
 
 While our readers are more tech-savvy than most, we can’t expect them to recognize queries by SQL alone.  Avoid using code for headings. Instead, say what the code does and include code examples in the body of your document. That aside, it doesn't render well on the website.
 
-#### Heading hierarchy 
+##### Heading hierarchy 
 
 Use heading tags to structure your content hierarchically. Try to stay within three or four heading levels. Detailed documents may use more, but pages with a simpler structure are easier to read.
 
@@ -1024,7 +1111,7 @@ Use heading tags to structure your content hierarchically. Try to stay within th
 - H3: Subheadings
 - H4: Sub-subheadings
 
-#### Punctuation in headings
+##### Punctuation in headings
 
 Fleet headings do not use end punctuation unless the heading is a question:
 
@@ -1032,19 +1119,13 @@ Fleet headings do not use end punctuation unless the heading is a question:
 
 If the heading is a question, end the heading with a question mark.
 
-
-### Grammar mechanics
-
-
 #### Contractions 
 
 They’re great! Don’t be afraid to use them. They’ll help your writing sound more approachable
 
-
 #### Ampersands 
 
 (&) Only use ampersands if they appear in a brand name, or if you’re quoting the title of an article from another source. Otherwise, write out “and”.
-
 
 #### Commas 
 
@@ -1055,7 +1136,6 @@ When listing three or more things, use commas to separate the words. This is cal
 ❌ **Don’t:** Fleet is for IT professionals, client platform engineers and security practitioners.
 
 Aside from the serial comma, use commas, as usual, to break up your sentences. If you’re unsure whether you need a comma, saying the sentence aloud can give you a clue. If you pause or take a breath, that’s when you probably need a comma.
-
 
 #### Hyphens
 
@@ -1070,7 +1150,6 @@ Aside from the serial comma, use commas, as usual, to break up your sentences. I
 - Fleet is released every three weeks.
 - Osquery is open source.
 
-
 #### Colons 
 
 Colons introduce one or more elements that add detail to the idea before the colon. 
@@ -1081,11 +1160,9 @@ Colons introduce one or more elements that add detail to the idea before the col
 ✅ **Do** use a colon to introduce a phrase (Only capitalize the first word following a colon if it’s a proper noun):
 - Introducing Sandbox: the fastest way to play with Fleet.
 
-
 #### Exclamation points 
 
 They’re fun! But too many can undermine your credibility!!!1! Please use them sparingly. Take context into consideration. And only use one at a time.
-
 
 #### Abbreviations and acronyms
 
@@ -1096,11 +1173,9 @@ Then use the short version for all other references.
 - The Fleet CLI is called fleetctl.
 If the abbreviation or acronym is well known, like API or HTML, use it instead (and don’t worry about spelling it out).
 
+#### Numbers and times
 
-### Numbers and times
-
-
-#### Numbers
+##### Numbers
 
 Spell out a number when it begins a sentence. Otherwise, use the numeral. 
 
@@ -1114,8 +1189,7 @@ Numbers over 3 digits get commas:
 - 1,000
 - 150,000
 
-
-#### Times
+##### Times
 
 Use numerals and am or pm without a space in between:
 - 7am
@@ -1136,30 +1210,27 @@ Spell out international time zones:
 - Central European Time
 - Japan Standard Time
 
-
-### Emphasis
+#### Emphasis
 
 - **Bold:** Use bold text to emphasize words or phrases. Just don’t overdo it. Too much bold text may make it hard to see what’s really important.
 
 - _Italics:_ Use italics when referencing UI elements (e.g., buttons and navigation labels):
   - On the settings page, go to *Organization Settings* and select *Fleet Desktop*.
 
-
-### Lists
+#### Lists
 
 Lists help readers scan content for essential information. They should be as concise and symmetrical as possible.
 If you find your list running long, or if each item contains several sentences, you may want to reconsider whether a list is the best approach.
 Use a numbered list if it follows a specific order or includes a set number of items. Otherwise, use bullet points.
 
-
-#### How to introduce a list 
+##### How to introduce a list 
 
 ✅ **Do** use a colon if you introduce a list with a complete sentence.
 
 ❌ **Don’t** use a colon if you start a list right after a heading.
 
 
-#### How to use end punctuation with list items
+##### How to use end punctuation with list items
 
 End punctuation refers to punctuation marks that are used to end sentences, such as periods, question marks, and exclamation points.
 
@@ -1178,13 +1249,9 @@ End punctuation refers to punctuation marks that are used to end sentences, such
 ❌ **Don’t** use commas or semicolons to end bullet points.
 
 
-#### How to capitalize list items
+##### How to capitalize list items
 
 ✅ **Do** use a capital letter at the beginning of every bullet point. The only exceptions are words that follow specific style guides (e.g., macOS).
-
-
-### Web elements
-
 
 #### SQL statements
 
@@ -1195,7 +1262,9 @@ When adding SQL statements, all SQL reserved words should be uppercase, and all 
 
 ### Writing in Fleet-flavored Markdown
 
-Markdown is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
+Writing in Fleet-flavored Markdown ensures that content on fleetdm.com, the docs, and the handbook looks consistent. These rules are specific to publishing on the website.
+
+Markdown itself is a simple formatting syntax used to write content on the web. In order to publish content like [docs](https://fleetdm.com/docs), [handbook entries](https://fleetdm.com/handbook), and [articles](https://fleetdm.com/articles), you must format your content in Markdown. 
 
 
 #### Headings
@@ -1342,7 +1411,7 @@ Add angle brackets "< >" around a URL to turn it into a link.
 - **Rendered output:** <https://fleetdm.com>
 
 
-#### Emails
+##### Emails
 
 To create a mailto link... oh wait, I'm not going to tell you.
 - ***Important: To avoid spam, we **NEVER** use mailto links.***
@@ -1444,7 +1513,7 @@ You can use a large quote blockquote to reduce the font size and line height of 
 </blockquote>
 
 
-##### Mermaid diagrams
+#### Mermaid diagrams
 
 The Fleet Docs support diagrams that are written in mermaid.js syntax. Take a look at the [Mermaid docs](https://mermaid-js.github.io/mermaid/#/README) to learn about the syntax language and what types of diagrams you can display.
 
