@@ -6,7 +6,6 @@ import AdminDetails from "components/forms/RegistrationForm/AdminDetails";
 import ConfirmationPage from "components/forms/RegistrationForm/ConfirmationPage";
 import FleetDetails from "components/forms/RegistrationForm/FleetDetails";
 import OrgDetails from "components/forms/RegistrationForm/OrgDetails";
-import { Decipheriv } from "crypto";
 
 const baseClass = "user-registration";
 
@@ -130,7 +129,7 @@ class RegistrationForm extends Component {
         </div>
       ),
       2: (
-        <div paddingSize="xxlarge" className={orgDetailsContainerClass}>
+        <div className={orgDetailsContainerClass}>
           <OrgDetails
             formData={formData}
             handleSubmit={onPageFormSubmit}
@@ -140,7 +139,7 @@ class RegistrationForm extends Component {
         </div>
       ),
       3: (
-        <div paddingSize="xxlarge" className={fleetDetailsContainerClass}>
+        <div className={fleetDetailsContainerClass}>
           <FleetDetails
             formData={formData}
             handleSubmit={onPageFormSubmit}
@@ -150,7 +149,7 @@ class RegistrationForm extends Component {
         </div>
       ),
       4: (
-        <div paddingSize="xxlarge" className={confirmationContainerClass}>
+        <div className={confirmationContainerClass}>
           <ConfirmationPage
             formData={formData}
             handleSubmit={onSubmitConfirmation}
