@@ -492,6 +492,7 @@ const PolicyForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingName ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -543,6 +544,7 @@ const PolicyForm = ({
                   name="pencil"
                   className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
                   size="small-medium"
+                  color="core-fleet-green"
                 />
               </div>
             );
@@ -590,6 +592,7 @@ const PolicyForm = ({
                     name="pencil"
                     className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
                     size="small-medium"
+                    color="core-fleet-green"
                   />
                 </div>
               );

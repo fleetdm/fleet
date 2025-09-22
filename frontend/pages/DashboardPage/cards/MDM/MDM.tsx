@@ -191,6 +191,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   pageSize={PAGE_SIZE}
                 />
               )}

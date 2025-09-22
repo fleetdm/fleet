@@ -78,7 +78,6 @@
     justify-content: space-between;
     align-items: center;
     gap: $gap-table-elements;
-    margin-top: 3px; // Fits button highlight during tabbing
 
     &.stack-table-controls {
       align-items: start;

@@ -96,8 +96,6 @@
   }
 
   .table-container {
-    padding-top: $pad-small;
-
     &__header-left {
       .controls {
         display: flex;
@@ -116,7 +114,7 @@
               height: 33px;
             }
             .Select-value {
-              line-height: 40px;
+              line-height: 36px;
             }
           }
         }
