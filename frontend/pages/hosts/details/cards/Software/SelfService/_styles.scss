@@ -1,13 +1,12 @@
 .software-self-service {
-  @include page-tab-panel;
-
-  // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
-  .empty-table__container {
+  @include vertical-page-tab-panel-layout
+    // TODO: empty table styling differs slightly from figma (font size, color, spacing), why?
+    .empty-table__container {
     margin: 64px 0;
   }
 
   &__self-service-card {
-    @include card;
+    @include vertical-card-layout;
   }
 
   &__header-filters {

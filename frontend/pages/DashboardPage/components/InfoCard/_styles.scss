@@ -1,7 +1,5 @@
 .dashboard-info-card {
-  @include card;
-
-  &__section-title-cta {
+  @include vertical-card-layout &__section-title-cta {
     display: flex;
     justify-content: space-between;
     align-items: center;

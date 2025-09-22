@@ -18,8 +18,7 @@
 
     .app-config-form {
       &__section {
-        @include card;
-        @include clearfix;
+        @include vertical-card-layout @include clearfix;
         animation: fade-in 200ms ease-out;
 
         .upcaret::after {

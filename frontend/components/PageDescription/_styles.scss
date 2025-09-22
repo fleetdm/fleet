@@ -5,14 +5,12 @@
     color: $ui-fleet-black-75;
     margin: 0;
     font-size: $x-small;
-    font-style: italic;
+    font-style: italic; // Page level is italicized
   }
 
-  &__card,
-  &__right-panel,
-  &__tab-panel {
+  &__section-description {
     p {
-      font-style: normal;
+      font-style: normal; // Sub-page component descriptions are not italicized
     }
   }
 }

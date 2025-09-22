@@ -1,7 +1,5 @@
 .calendars-integration {
-  @include card;
-
-  &__description {
+  @include vertical-card-layout &__description {
     p {
       margin: 0;
     }

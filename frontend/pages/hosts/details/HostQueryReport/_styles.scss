@@ -1,15 +1,12 @@
 .host-query-report {
-  @include page;
-  @include color-contrasted-sections;
+  @include vertical-page-layout @include color-contrasted-sections;
 
   h1 {
     font-weight: $bold;
   }
 
   &__header {
-    @include page;
-
-    &__row2 {
+    @include vertical-page-layout &__row2 {
       display: flex;
       align-items: center;
       justify-content: space-between;

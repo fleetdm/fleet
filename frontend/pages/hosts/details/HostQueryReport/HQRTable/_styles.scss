@@ -1,7 +1,5 @@
 .hqr-table {
-  @include card;
-
-  .last-fetched {
+  @include vertical-card-layout .last-fetched {
     font-weight: initial;
     @include grey-text;
   }

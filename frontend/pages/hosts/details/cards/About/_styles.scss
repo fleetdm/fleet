@@ -1,7 +1,5 @@
 .about-card {
-  @include card;
-
-  .truncated-tooltip {
+  @include vertical-card-layout .truncated-tooltip {
     .about-card__device-mapping__source {
       color: inherit;
     }
