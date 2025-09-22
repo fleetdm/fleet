@@ -63,6 +63,9 @@ export enum ActivityType {
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
+  CreatedAndroidProfile = "created_android_profile",
+  DeletedAndroidProfile = "deleted_android_profile",
+  EditedAndroidProfile = "edited_android_profile",
   // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
   // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
   EnabledDiskEncryption = "enabled_disk_encryption",
@@ -207,12 +210,12 @@ export interface IActivityDetails {
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
   location?: string; // name of location associated with VPP token
-  mdm_platform?: "microsoft" | "apple";
+  mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  platform?: Platform; // software platform
+  platform?: Platform; // OS platform
   policy_id?: number;
   policy_name?: string;
   profile_identifier?: string;

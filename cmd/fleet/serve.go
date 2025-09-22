@@ -1046,6 +1046,18 @@ the way that the Fleet server works.
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMProfileManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_profile_manager schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
 					instanceID,
