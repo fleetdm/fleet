@@ -905,7 +905,7 @@ This activity contains the following fields:
 ```json
 {
   "team_id": 123,
-  "team_name": "Workstations",
+  "team_name": "Workstations"
 }
 ```
 
