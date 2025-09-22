@@ -104,7 +104,9 @@ const SoftwareDetailsSummary = ({
         <dl className={`${baseClass}__info`}>
           <h1>
             {title === "Arch Linux rolling" ||
-            title === "Arch Linux ARM rolling" ? (
+            title === "Arch Linux ARM rolling" ||
+            title === "Manjaro Linux rolling" ||
+            title === "Manjaro Linux ARM rolling" ? (
               <span>
                 {title.slice(0, -7 /* removing lowercase rolling suffix */)}
                 <TooltipWrapperArchLinuxRolling />

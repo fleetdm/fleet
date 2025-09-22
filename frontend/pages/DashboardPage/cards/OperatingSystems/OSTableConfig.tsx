@@ -101,7 +101,9 @@ const generateDefaultTableHeaders = (
       const value = cellProps.cell.value;
       if (
         (cellProps.row.values.name_only === "Arch Linux" ||
-          cellProps.row.values.name_only === "Arch Linux ARM") &&
+          cellProps.row.values.name_only === "Arch Linux ARM" ||
+          cellProps.row.values.name_only === "Manjaro Linux" ||
+          cellProps.row.values.name_only === "Manjaro Linux ARM") &&
         value === "rolling"
       ) {
         return <TextCell value={<TooltipWrapperArchLinuxRolling />} />;
