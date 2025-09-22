@@ -133,6 +133,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-05-06 07:47:31
 
+### [CVE-2025-41249](https://nvd.nist.gov/vuln/detail/CVE-2025-41249)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Vulnerability affects web servers, not fleetctl.
+- **Products:**: `fleetctl`,`pkg:maven/org.springframework/spring-core`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-09-22 10:27:40
+
 ### [CVE-2025-31115](https://nvd.nist.gov/vuln/detail/CVE-2025-31115)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
