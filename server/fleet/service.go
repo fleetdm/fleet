@@ -20,7 +20,7 @@ type EnterpriseOverrides struct {
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
 	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
 	// a team ID is provided to the UpdateMDMDiskEncryption method.
-	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool) error
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool, requireBitLockerPIN *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -35,13 +35,13 @@ type EnterpriseOverrides struct {
 	MDMWindowsEnableOSUpdates         func(ctx context.Context, teamID *uint, updates WindowsUpdates) error
 	MDMWindowsDisableOSUpdates        func(ctx context.Context, teamID *uint) error
 	MDMAppleEditedAppleOSUpdates      func(ctx context.Context, teamID *uint, appleDevice AppleDevice, updates AppleOSUpdateSettings) error
-	SetupExperienceNextStep           func(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep           func(ctx context.Context, host *Host) (bool, error)
 	GetVPPTokenIfCanInstallVPPApps    func(ctx context.Context, appleDevice bool, host *Host) (string, error)
 	InstallVPPAppPostValidation       func(ctx context.Context, host *Host, vppApp *VPPApp, token string, opts HostSoftwareInstallOptions) (string, error)
 }
 
 type OsqueryService interface {
-	EnrollAgent(
+	EnrollOsquery(
 		ctx context.Context, enrollSecret, hostIdentifier string, hostDetails map[string](map[string]string),
 	) (nodeKey string, err error)
 	// AuthenticateHost loads host identified by nodeKey. Returns an error if the nodeKey doesn't exist.
@@ -177,20 +177,23 @@ type Service interface {
 	// prompted to log in.
 	InitiateSSO(ctx context.Context, redirectURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
-	// InitiateMDMAppleSSO initiates SSO for MDM flows, this method is
+	// InitiateMDMSSO initiates SSO for MDM flows, this method is
 	// different from InitiateSSO because it receives a different
 	// configuration and only supports a subset of the features (eg: we
 	// don't want to allow IdP initiated authentications)
-	InitiateMDMAppleSSO(ctx context.Context) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
+	InitiateMDMSSO(ctx context.Context, initiator, customOriginalURL string) (sessionID string, sessionDurationSeconds int, idpURL string, err error)
 
 	// InitSSOCallback handles the IdP SAMLResponse and ensures the credentials are valid.
 	// The sessionID is used to identify the SSO session and samlResponse is the raw SAMLResponse.
 	InitSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (auth Auth, redirectURL string, err error)
 
-	// MDMAppleSSOCallback handles the IdP SAMLResponse and ensures the
+	// MDMSSOCallback handles the IdP SAMLResponse and ensures the
 	// credentials are valid, then responds with a URL to the Fleet UI to
 	// handle next steps based on the query parameters provided.
-	MDMAppleSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) string
+	MDMSSOCallback(ctx context.Context, sessionID string, samlResponse []byte) (redirectURL, byodCookieValue string)
+
+	// GetMDMAccountDrivenEnrollmentSSOURL returns the URL to redirect to for MDM Account Driven Enrollment SSO Authentication
+	GetMDMAccountDrivenEnrollmentSSOURL(ctx context.Context) (string, error)
 
 	// GetSSOUser handles retrieval of an user that is trying to authenticate
 	// via SSO
@@ -397,6 +400,8 @@ type Service interface {
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
+
+	GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
 
 	// DisableAuthForPing is used by the /orbit/ping and /device/ping endpoints
 	// to bypass authentication, as they are public
@@ -727,10 +732,10 @@ type Service interface {
 	// number and hardware uuid to perform operations before the host even
 	// enrolls in MDM. Currently, this method creates a host records and
 	// assigns a pre-defined team (based on the enrollSecret provided) to
-	// the host.
+	// the host, and associates the host if byod idp was enabled.
 	//
 	// [1]: https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/Introduction/Introduction.html#//apple_ref/doc/uid/TP40009505-CH1-SW1
-	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
+	MDMAppleProcessOTAEnrollment(ctx context.Context, certificates []*x509.Certificate, rootSigner *x509.Certificate, enrollSecret, idpUUID string, deviceInfo MDMAppleMachineInfo) ([]byte, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
@@ -833,6 +838,10 @@ type Service interface {
 
 	// GetMDMAppleEnrollmentProfileByToken returns the Apple enrollment from its secret token.
 	GetMDMAppleEnrollmentProfileByToken(ctx context.Context, enrollmentToken string, enrollmentRef string) (profile []byte, err error)
+
+	// GetMDMAppleEnrollmentProfileByToken returns the Apple account-driven user enrollment profile for a given enrollment reference.
+	GetMDMAppleAccountEnrollmentProfile(ctx context.Context, enrollReference string) (profile []byte, err error)
+	SkipAuth(ctx context.Context)
 
 	// ReconcileMDMAppleEnrollRef reconciles the enrollment reference for the
 	// specified device. It performs several related tasks:
@@ -948,7 +957,7 @@ type Service interface {
 
 	// UpdateMDMDiskEncryption updates the disk encryption setting for a
 	// specified team or for hosts with no team.
-	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
@@ -1017,7 +1026,7 @@ type Service interface {
 	CheckMDMAppleEnrollmentWithMinimumOSVersion(ctx context.Context, m *MDMAppleMachineInfo) (*MDMAppleSoftwareUpdateRequired, error)
 
 	// GetOTAProfile gets the OTA (over-the-air) profile for a given team based on the enroll secret provided.
-	GetOTAProfile(ctx context.Context, enrollSecret string) ([]byte, error)
+	GetOTAProfile(ctx context.Context, enrollSecret, idpUUID string) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
@@ -1031,6 +1040,9 @@ type Service interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Windows MDM
+
+	// ProcessMDMMicrosoftDiscovery handles the Discovery message validation and response
+	ProcessMDMMicrosoftDiscovery(ctx context.Context, req *SoapRequest) (*SoapResponse, error)
 
 	// GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
 	GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEmail string) (*DiscoverResponse, error)
@@ -1121,6 +1133,9 @@ type Service interface {
 	// ResendHostMDMProfile resends the MDM profile to the host.
 	ResendHostMDMProfile(ctx context.Context, hostID uint, profileUUID string) error
 
+	// ResendDeviceHostMDMProfile resends the MDM profile to the device host that requested it.
+	ResendDeviceHostMDMProfile(ctx context.Context, host *Host, profileUUID string) error
+
 	// BatchResendMDMProfileToHosts resends an MDM profile to the hosts that
 	// satisfy the specified filters.
 	BatchResendMDMProfileToHosts(ctx context.Context, profileUUID string, filters BatchResendMDMProfileFilters) error
@@ -1179,9 +1194,18 @@ type Service interface {
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) ([]ScriptResponse, error)
 
 	// BatchScriptExecute runs a script on many hosts. It creates and returns a batch execution ID
-	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error)
+	BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error)
 
-	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchExecutionSummary, error)
+	BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
+
+	BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*BatchActivity, error)
+
+	BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status BatchScriptExecutionStatus, opt ListOptions) ([]BatchScriptHost, *PaginationMetadata, uint, error)
+
+	BatchScriptExecutionList(ctx context.Context, filter BatchExecutionStatusFilter) ([]BatchActivity, int64, error)
+
+	// BatchScriptCancel cancels a batch script execution
+	BatchScriptCancel(ctx context.Context, batchExecutionID string) error
 
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint, viewPIN bool) (unlockPIN string, err error)
@@ -1202,11 +1226,18 @@ type Service interface {
 		teamID *uint) (*DownloadSoftwareInstallerPayload, error)
 	OrbitDownloadSoftwareInstaller(ctx context.Context, installerID uint) (*DownloadSoftwareInstallerPayload, error)
 
+	/////////////////////////////////////////////////////////////////////////////////
+	// Software title icons
+	//
+	GetSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error)
+	UploadSoftwareTitleIcon(ctx context.Context, payload *UploadSoftwareTitleIconPayload) (SoftwareTitleIcon, error)
+	DeleteSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) error
+
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup Experience
 
-	SetSetupExperienceSoftware(ctx context.Context, teamID uint, titleIDs []uint) error
-	ListSetupExperienceSoftware(ctx context.Context, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
+	SetSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, titleIDs []uint) error
+	ListSetupExperienceSoftware(ctx context.Context, platform string, teamID uint, opts ListOptions) ([]SoftwareTitleListResult, int, *PaginationMetadata, error)
 	// GetOrbitSetupExperienceStatus gets the current status of a macOS setup experience for the given host.
 	GetOrbitSetupExperienceStatus(ctx context.Context, orbitNodeKey string, forceRelease bool) (*SetupExperienceStatusPayload, error)
 	// GetSetupExperienceScript gets the current setup experience script for the given team.
@@ -1218,7 +1249,13 @@ type Service interface {
 	// SetupExperienceNextStep is a callback that processes the
 	// setup experience status results table and enqueues the next
 	// step. It returns true when there is nothing left to do (setup finished)
-	SetupExperienceNextStep(ctx context.Context, hostUUID string) (bool, error)
+	SetupExperienceNextStep(ctx context.Context, host *Host) (bool, error)
+
+	// SetupExperienceInit initializes the "Setup experience" for a device (by queueing items like software installation, etc.).
+	// This is used for the "Setup experience" on non-darwin devices.
+	SetupExperienceInit(ctx context.Context) (*SetupExperienceInitResult, error)
+	// GetDeviceSetupExperienceStatus returns the "Setup experience" status for a "Fleet Desktop" device.
+	GetDeviceSetupExperienceStatus(ctx context.Context) (*DeviceSetupExperienceStatusPayload, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Fleet-maintained apps
@@ -1241,6 +1278,17 @@ type Service interface {
 
 	// CreateSecretVariables creates secret variables for scripts and profiles.
 	CreateSecretVariables(ctx context.Context, secretVariables []SecretVariable, dryRun bool) error
+	// CreateSecretVariable creates a secret variable and returns its ID.
+	// Returns an AlreadyExistsError error if there's already a secret variable with the same name.
+	CreateSecretVariable(ctx context.Context, name string, value string) (id uint, err error)
+	// ListSecretVariables returns a list of secret variable identifiers filtered with the pagination options.
+	// Currently only Page and PerPage in opts are supported/used.
+	// Default value fo the other options is MatchQuery="", After="", IncludeMetadata=true, OrderKey="name", OrderDirection=fleet.OrderAscending.
+	// Returns a count of total secret variable identifiers on all (filtered) pages.
+	ListSecretVariables(ctx context.Context, opts ListOptions) (secretVariables []SecretVariableIdentifier, meta *PaginationMetadata, count int, err error)
+	// DeleteSecretVariable deletes a secret variable by ID.
+	// Returns a NotFoundError error if there's no secret variable with such ID.
+	DeleteSecretVariable(ctx context.Context, id uint) error
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -1260,6 +1308,26 @@ type Service interface {
 	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
+
+	//////////////////////////////////////////////////////////////////////////////
+	// Certificate Authorities
+
+	// ListCertificateAuthorities lists all certificate authorities.
+	ListCertificateAuthorities(ctx context.Context) ([]*CertificateAuthoritySummary, error)
+	// GetCertificateAuthority returns a CertificateAuthority by ID. Secrets are masked
+	GetCertificateAuthority(ctx context.Context, id uint) (*CertificateAuthority, error)
+	// NewCertificateAuthority creates a new certificate authority and returns the created object
+	// with its ID set. Secrets must be provided
+	NewCertificateAuthority(ctx context.Context, p CertificateAuthorityPayload) (*CertificateAuthority, error)
+	// DeleteCertificateAuthority deletes the certificate authority of the given id, returns nil if successful or not found error
+	DeleteCertificateAuthority(ctx context.Context, certificateAuthorityID uint) error
+	// UpdateCertificateAuthority updates the certificate authority of the given id
+	UpdateCertificateAuthority(ctx context.Context, id uint, p CertificateAuthorityUpdatePayload) error
+	RequestCertificate(ctx context.Context, p RequestCertificatePayload) (*string, error)
+	// BatchApplyCertificateAuthorities applies the given certificate authorities spec
+	BatchApplyCertificateAuthorities(ctx context.Context, groupedCAs GroupedCertificateAuthorities, dryRun bool, viaGitOps bool) error
+	// GetGroupedCertificateAuthorities retrieves the grouped certificate authorities
+	GetGroupedCertificateAuthorities(ctx context.Context, includeSecrets bool) (*GroupedCertificateAuthorities, error)
 }
 
 type KeyValueStore interface {

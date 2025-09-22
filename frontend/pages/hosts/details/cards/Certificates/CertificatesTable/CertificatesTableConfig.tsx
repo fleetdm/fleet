@@ -12,8 +12,10 @@ import StatusIndicator from "components/StatusIndicator";
 import { IIndicatorValue } from "components/StatusIndicator/StatusIndicator";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import { IStringCellProps } from "interfaces/datatable_config";
 
 type IHostCertificatesTableConfig = Column<IHostCertificate>;
+type IIssuerCellProps = IStringCellProps<IHostCertificate>;
 
 const generateTableConfig = (): IHostCertificatesTableConfig[] => {
   return [
@@ -23,6 +25,18 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         <HeaderCell value="Name" isSortedDesc={cellProps.column.isSortedDesc} />
       ),
       Cell: (cellProps) => <TextCell value={cellProps.cell.value} />,
+    },
+    {
+      accessor: (data) => data.issuer.common_name,
+      id: "issuer",
+      disableSortBy: true,
+      Header: "Issuer",
+      Cell: (cellProps: IIssuerCellProps) => (
+        <TooltipTruncatedTextCell
+          value={cellProps.cell.value}
+          tooltip={cellProps.cell.value}
+        />
+      ),
     },
     {
       accessor: "source",
@@ -38,6 +52,19 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
           >
             User
           </TooltipWrapper>
+        );
+      },
+    },
+    {
+      accessor: "not_valid_before",
+      disableSortBy: true,
+      Header: "Issued",
+      Cell: (cellProps) => {
+        return (
+          <TextCell
+            value={monthDayYearFormat(cellProps.value)}
+            className="text-nowrap"
+          />
         );
       },
     },
@@ -58,6 +85,7 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
         }
         return (
           <StatusIndicator
+            className="cert-table__status-indicator"
             value={monthDayYearFormat(cellProps.value)}
             indicator={status}
           />
@@ -75,7 +103,7 @@ const generateTableConfig = (): IHostCertificatesTableConfig[] => {
             noLink
             rowHover
             excludeChevron
-            customText="View details"
+            customContent="View details"
           />
         );
       },

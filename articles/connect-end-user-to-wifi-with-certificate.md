@@ -10,7 +10,7 @@ Fleet will automatically renew certificates 30 days before expiration. If an end
 
 ## DigiCert
 
-To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with DigiCert certificates, we'll do the following steps:
 
 - [Create service user in DigiCert](#step-1-create-service-user-in-digicert)
 - [Create certificate profile in DigiCert](#step-2-create-certificate-profile-in-digicert)
@@ -19,10 +19,10 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 
 ### Step 1: Create service user in DigiCert
 
-1. Head to [DigiCert One](https://one.digicert.com/)
-2. Follow [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html) and save the service user's API token.
-> Make sure to assign **User and certificate manager** and **Certificate profile manager** roles
-> when creating service user.
+1. Log in to [DigiCert One](https://one.digicert.com/).
+2. Create a [new service user](https://one.digicert.com/account/access/service-user/role-service-user-create), under the "DigiCert ONE Manager access" dropdown, select "Trust Lifecycle."
+3. On the next page, assign the **User and certificate manager** and **Certificate profile manager** roles.
+> For further information, see [DigiCert's instructions for creating a service user](https://docs.digicert.com/en/platform-overview/manage-your-accounts/account-manager/users-and-access/service-users/create-a-service-user.html).
 
 ### Step 2: Create certificate profile in DigiCert
 
@@ -31,7 +31,7 @@ To connect end users to W-Fi or VPN with DigiCert certificates, we'll do the fol
 3. Select your **Business unit** and **Issuing CA**.
 4. Select **REST API** from **Enrollment method**. Then select **3rd party app** from the **Authentication method** dropdown and select **Next**.
 5. Configure the certificate expiration. At most organizations, this is set to 90 days.
-6. In the **Flow options** section, make sure that **Allow dupliate certificates** is checked.
+6. In the **Flow options** section, make sure that **Allow duplicate certificates** is checked.
 7. In the **Subject DN and SAN fields** section, make sure to add **Common name**. **Other name (UPN)** is optional. For **Common name**, select **REST request** from **Source for the field's value** dropdown and check **Required**. If you use **Other name (UPN)**, select **REST Request** and check both **Required** and **Multiple**. Organizations usually use device's serial number or user's email, you can use Fleet variables in the next section, and Fleet will replace these variables with the actual values before certificate is delivered to a device.
 8. Click **Next** and leave all default options. We'll come back to this later.
 
@@ -58,7 +58,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 More DigiCert details:
 - Each DigiCert device type seat (license) can have multiple certificates only if they have the same CN and seat ID. If a new certificate has a different CN, a new DigiCert license is required.
-- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means, if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://demo.one.digicert.com/mpki/account/seats) and remove the seat.
+- If the value for any variable used in step 3 above changes, Fleet will resend the profile. This means, if you use a variable like `$FLEET_VAR_HOST_END_USER_IDP_USERNAME` for CN or seat ID, and the variable's value changes, Fleet will get a new certificate and create a new seat in DigiCert. This will add a new DigiCert license. If you want to revoke a license in DigiCert, head to [**Trust Lifcycle Manager > Account > Seats**](https://one.digicert.com/mpki/account/seats) and remove the seat.
 - DigiCert seats aren't automatically revoked when hosts are deleted in Fleet. To revoke a license, ask the team that owns DigiCert to follow the instructions above.
 
 
@@ -130,7 +130,7 @@ When saving the configuration, Fleet will attempt to connect to the SCEP server 
 
 When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
 
-![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile.png)
+![NDES SCEP failed profile](../website/assets/images/articles/ndes-scep-failed-profile-405x215@2x.png)
 
 #### Example configuration profile
 
@@ -157,7 +157,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
                         <array>
                           <array>
                             <string>CN</string>
-                            <string>%SerialNumber% $WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
                           </array>
                         </array>
                         <array>
@@ -218,7 +218,7 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 
 2. Replace the `<CA_NAME>`, with name you created in step 3. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_CUSTOM_SCEP_PASSWORD_WIFI_AUTHENTICATION` and `FLEET_VAR_CUSTOM_SCEP_DIGICERT_DATA_WIFI_AUTHENTICATION`.
 
-3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication]((https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping)) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
 
 4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
 

@@ -194,12 +194,6 @@ jobs:
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows.yml # v2.4.4
 
-      - name: Attest binary
-        continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
-        with:
-          subject-path: "dist/orbit_windows_amd64_v1/orbit.exe"
-
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -209,7 +203,12 @@ jobs:
   code-sign-windows:
     needs: goreleaser-windows
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     with:
+      attest: true
       filename: orbit.exe
       upload_name: orbit-windows
     secrets:
@@ -249,12 +248,6 @@ jobs:
       - name: Run GoReleaser
         run: go run github.com/goreleaser/goreleaser/v2@606c0e724fe9b980cd01090d08cbebff63cd0f72 release --verbose --clean --skip=publish -f orbit/goreleaser-windows-arm64.yml # v2.4.4
 
-      - name: Attest binary
-        continue-on-error: true
-        uses: actions/attest-build-provenance@619dbb2e03e0189af0c55118e7d3c5e129e99726 # v2.0
-        with:
-          subject-path: "dist/orbit_windows_arm64_v8.0/orbit.exe"
-
       - name: Upload
         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # 4.3.3
         with:
@@ -264,7 +257,12 @@ jobs:
   code-sign-windows-arm64:
     needs: goreleaser-windows-arm64
     uses: ./.github/workflows/code-sign-windows.yml
+    permissions:
+      contents: read
+      id-token: write # required for attestations
+      attestations: write # required for attestations
     with:
+      attest: true
       filename: orbit.exe
       upload_name: orbit-windows-arm64
       download_name: unsigned-windows-arm64

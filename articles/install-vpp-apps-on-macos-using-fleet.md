@@ -67,15 +67,17 @@ To add apps to Fleet, you must first purchase them through Apple Business Manage
 
 2. **Go to the host's detail page**: Click the "Hosts" tab in the main navigation menu. Filter the hosts by the team, and click the host's name to see its details page.
 
-3. **Find the app**: Click the "Software" tab on the host details page. Search for the software you added in the software table's search bar. Instead of searching, you can also filter software by clicking the **All software** dropdown and selecting **Available for install.**
+3. **Find the app**: Click the **Software** > **Library** tab on the host details page. Search for the software you added in the software table's search bar. Instead of searching, you can also filter software by clicking the **All software** dropdown and selecting **Available for install.**
 
 4. **Install the app**: Click the "Actions" dropdown on the far right of the app's entry in the
    table. Click "Install" to trigger an install. This action will send an MDM command to the host
    instructing it to install the app. If the host is offline, the upcoming install will show up in
-   the **Details** -> **Activity** -> **Upcoming** tab of this page. After the app is installed and
-   the host details are refetched, the app will show up as **Installed** in the **Software** tab.
+   the **Details** > **Activity** > **Upcoming** tab of this page. Once Fleet has verified
+   that the app is on the host, the app will show up as **Installed** in the **Software** > **Library** tab.
+   After the app is installed, Fleet will automatically refetch the host's vitals, which will update the
+   software inventory.
 
-> Currently, VPP apps are installed as unmanaged, and can't be uninstalled from devices via Fleet. Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729).
+> Currently, VPP apps can't be uninstalled from devices via Fleet. Please see: [Uninstall App Store apps #20729](https://github.com/fleetdm/fleet/issues/20729).
 
 ## Install an app via self-service
 
@@ -98,7 +100,7 @@ banner at the top of page reminding you to renew your token. You can do this wit
 
 To remove VPP tokens from Fleet:
 
-1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"** Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit". 
+1. **Navigate to the MDM integration settings page**: Click your avatar on the far right of the main navigation menu, and then **Settings > Integrations > "Mobile device management (MDM)"**. Scroll to the "Volume Purchasing Program (VPP)" section, and click "Edit".
 
 2. **Delete the token**: Find the VPP token that you want to delete in the table. Click the "Actions" dropdown for that token, and then click "Delete". Click "Delete" in the confirmation modal to finish deleting the token.
 

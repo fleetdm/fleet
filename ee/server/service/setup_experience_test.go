@@ -1,11 +1,16 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -73,14 +78,12 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		}, nil
 	}
 
-	// No host exists
-	_, err := svc.SetupExperienceNextStep(ctx, host1UUID)
-	require.Error(t, err)
-
-	// Host exists, nothing to do
 	mockListHostsLite = append(mockListHostsLite, &fleet.Host{UUID: host1UUID, ID: host1ID})
 
-	finished, err := svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err := svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 	assert.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -98,7 +101,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		},
 	}
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -110,7 +116,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Equal(t, "install-uuid", *requestedUpdateSetupExperience[0].HostSoftwareInstallsExecutionID)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 
@@ -129,7 +138,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 		},
 	}
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.False(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -141,7 +153,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	assert.Equal(t, "script-uuid", *requestedUpdateSetupExperience[0].ScriptExecutionID)
 
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
 
@@ -163,7 +178,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	}
 
 	// Only installer is queued
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -177,7 +195,10 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	// install finished, call it again. This time script is queued
 	mockListSetupExperience[0].Status = fleet.SetupExperienceStatusSuccess
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.False(t, finished)
 	assert.True(t, ds.InsertSoftwareInstallRequestFuncInvoked)
@@ -191,7 +212,89 @@ func TestSetupExperienceNextStep(t *testing.T) {
 	// both finished, now we're done
 	mockListSetupExperience[1].Status = fleet.SetupExperienceStatusFailure
 
-	finished, err = svc.SetupExperienceNextStep(ctx, host1UUID)
+	finished, err = svc.SetupExperienceNextStep(ctx, &fleet.Host{
+		UUID:     host1UUID,
+		Platform: "darwin",
+	})
 	require.NoError(t, err)
 	assert.True(t, finished)
+}
+
+func TestSetupExperienceSetWithManualAgentInstall(t *testing.T) {
+	ctx := test.UserContext(context.Background(), test.UserAdmin)
+	ds := new(mock.Store)
+	svc, baseSvc := newTestServiceWithMock(t, ds)
+
+	appConfig := fleet.AppConfig{}
+	team := fleet.Team{}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &appConfig, nil
+	}
+
+	ds.TeamFunc = func(ctx context.Context, tid uint) (*fleet.Team, error) {
+		return &team, nil
+	}
+
+	ds.SetSetupExperienceSoftwareTitlesFunc = func(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
+		return nil
+	}
+
+	ds.ValidateEmbeddedSecretsFunc = func(ctx context.Context, documents []string) error {
+		return nil
+	}
+
+	ds.SetSetupExperienceScriptFunc = func(ctx context.Context, script *fleet.Script) error {
+		return nil
+	}
+
+	baseSvc.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+
+	// No manual agent install, we good
+	// No team
+	err := svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{1, 2})
+	require.NoError(t, err)
+
+	scriptReader := bytes.NewReader([]byte("hello"))
+	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
+	require.NoError(t, err)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
+
+	// Team
+	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
+	require.NoError(t, err)
+
+	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
+	require.NoError(t, err)
+	_, _ = scriptReader.Seek(0, io.SeekStart)
+
+	// Manual agent install
+	appConfig.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(true)
+	team.Config.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(true)
+
+	// No team
+	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{1, 2})
+	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
+
+	err = svc.SetSetupExperienceScript(ctx, nil, "potato.sh", scriptReader)
+	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
+	_, _ = scriptReader.Seek(0, io.SeekStart)
+
+	// Team
+	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{1, 2})
+	require.ErrorContains(t, err, "Couldn’t add setup experience software. To add software, first disable manual_agent_install.")
+
+	err = svc.SetSetupExperienceScript(ctx, ptr.Uint(1), "potato.sh", scriptReader)
+	require.ErrorContains(t, err, "Couldn’t add setup experience script. To add script, first disable manual_agent_install.")
+	_, _ = scriptReader.Seek(0, io.SeekStart)
+
+	// We can still set software to none though
+	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 0, []uint{})
+	require.NoError(t, err)
+
+	err = svc.SetSetupExperienceSoftware(ctx, "darwin", 1, []uint{})
+	require.NoError(t, err)
+
 }

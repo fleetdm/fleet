@@ -57,6 +57,9 @@ export enum ActivityType {
   AddedCustomScepProxy = "added_custom_scep_proxy",
   DeletedCustomScepProxy = "deleted_custom_scep_proxy",
   EditedCustomScepProxy = "edited_custom_scep_proxy",
+  AddedHydrant = "added_hydrant",
+  DeletedHydrant = "deleted_hydrant",
+  EditedHydrant = "edited_hydrant",
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
@@ -83,6 +86,8 @@ export enum ActivityType {
   DisabledWindowsMdmMigration = "disabled_windows_mdm_migration",
   RanScript = "ran_script",
   RanScriptBatch = "ran_script_batch",
+  ScheduledScriptBatch = "scheduled_script_batch",
+  CanceledScriptBatch = "canceled_script_batch",
   AddedScript = "added_script",
   UpdatedScript = "updated_script",
   DeletedScript = "deleted_script",
@@ -121,6 +126,10 @@ export enum ActivityType {
   // enable/disable above feature for a team
   EnabledConditionalAccessAutomations = "enabled_conditional_access_automations",
   DisabledConditionalAccessAutomations = "disabled_conditional_access_automations",
+  EscrowedDiskEncryptionKey = "escrowed_disk_encryption_key",
+  CreatedCustomVariable = "created_custom_variable",
+  DeletedCustomVariable = "deleted_custom_variable",
+  EditedSetupExperienceSoftware = "edited_setup_experience_software",
 }
 
 /** This is a subset of ActivityType that are shown only for the host past activities */
@@ -182,6 +191,7 @@ export interface IActivityDetails {
   deadline_days?: number;
   deadline?: string;
   email?: string;
+  enrollment_id?: string | null; // unique identifier for MDM BYOD enrollments; null for other enrollments
   global?: boolean;
   grace_period_days?: number;
   host_display_name?: string;
@@ -189,6 +199,7 @@ export interface IActivityDetails {
   host_id?: number;
   host_ids?: number[];
   host_count?: number;
+  canceled_count?: number;
   host_platform?: string;
   host_serial?: string;
   install_uuid?: string;
@@ -228,4 +239,5 @@ export interface IActivityDetails {
   user_email?: string;
   user_id?: number;
   webhook_url?: string;
+  custom_variable_name?: string;
 }

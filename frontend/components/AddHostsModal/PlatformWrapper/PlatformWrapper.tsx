@@ -274,6 +274,7 @@ const PlatformWrapper = ({
       packageTypeHelpText = (
         <>
           For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For Arch Linux, use <code>--type=pkg.tar.zst</code>.<br />
           For ARM, use <code>--arch=arm64</code>
         </>
       );
@@ -307,6 +308,7 @@ const PlatformWrapper = ({
                 text="adding hosts"
                 newTab
                 multiline
+                variant="banner-link"
               />
             </InfoBanner>
           </div>
@@ -368,7 +370,7 @@ const PlatformWrapper = ({
               This works for macOS, Windows, and Linux hosts. To add
               Chromebooks,{" "}
               <Button
-                variant="text-link"
+                variant="text-link-dark"
                 onClick={() => setSelectedTabIndex(4)}
               >
                 click here

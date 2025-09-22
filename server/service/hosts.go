@@ -572,7 +572,7 @@ func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailO
 		return nil, ctxerr.Wrap(ctx, err, "checking host's host_issues last updated:")
 	}
 	if time.Since(lastUpdated) > time.Minute {
-		if err := svc.ds.UpdateHostIssuesFailingPolicies(ctx, []uint{id}); err != nil {
+		if err := svc.ds.UpdateHostIssuesFailingPoliciesForSingleHost(ctx, id); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "recalculate host failing policies count:")
 		}
 	}
@@ -862,7 +862,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return err
 	}
 
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if !skipBulkPending {
@@ -999,7 +999,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, fi
 	}
 
 	// Apply the team to the selected hosts.
-	if err := svc.ds.AddHostsToTeam(ctx, teamID, hostIDs); err != nil {
+	if err := svc.ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(teamID, hostIDs)); err != nil {
 		return err
 	}
 	if _, err := svc.ds.BulkSetPendingMDMHostProfiles(ctx, hostIDs, nil, nil, nil); err != nil {
@@ -1170,6 +1170,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		}
 	}
 
+	if host.HostSoftware.Software == nil {
+		host.HostSoftware.Software = []fleet.HostSoftwareEntry{}
+	}
+
 	labels, err := svc.ds.ListLabelsForHost(ctx, host.ID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get labels for host")
@@ -1211,13 +1215,23 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get policies for host")
 		}
-
 		if hp == nil {
 			hp = []*fleet.HostPolicy{}
 		}
-
 		policies = &hp
 	}
+
+	// Calculate the number of failing policies for the host based on the returned policies to
+	// avoid discrepancies due to read replica delay.
+	var failingPolicies uint64
+	if policies != nil {
+		for _, p := range *policies {
+			if p != nil && p.Response == "fail" {
+				failingPolicies++
+			}
+		}
+	}
+	host.HostIssues.FailingPoliciesCount = failingPolicies
 
 	// If Fleet MDM is enabled and configured, we want to include MDM profiles,
 	// disk encryption status, and macOS setup details for non-linux hosts.
@@ -1302,14 +1316,20 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.Profiles = &profiles
 
+	isHDEKArchived, err := svc.ds.IsHostDiskEncryptionKeyArchived(ctx, host.ID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "check if host disk encryption key is archived")
+	}
+	host.MDM.EncryptionKeyArchived = &isHDEKArchived
+
 	if host.IsLUKSSupported() {
 		// since Linux hosts don't require MDM to be enabled & configured, explicitly check that disk encryption is
 		// enabled for the host's team
-		eDE, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+		diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "get host disk encryption enabled setting")
 		}
-		if eDE {
+		if diskEncryptionConfig.Enabled {
 			status, err := svc.LinuxHostDiskEncryptionStatus(ctx, *host)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get host disk encryption status")
@@ -2148,9 +2168,38 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, err
 	}
 
-	for i := range osVersions.OSVersions {
-		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
-			return nil, count, nil, err
+	// Use batch query for better performance.
+	// Note: The OSVersions API endpoint does not include kernels (ds.ListKernelsByOS).
+	if len(osVersions.OSVersions) > 0 {
+		vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, osVersions.OSVersions, includeCVSS, teamID)
+		if err != nil {
+			return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions")
+		}
+
+		// Populate each OS version with its vulnerabilities
+		for i := range osVersions.OSVersions {
+			osV := &osVersions.OSVersions[i]
+			key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
+
+			// Populate GeneratedCPEs for Darwin
+			if osV.Platform == "darwin" {
+				osV.GeneratedCPEs = []string{
+					fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
+					fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
+				}
+			}
+
+			// Populate Vulnerabilities from batch result
+			osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+			if vulns, ok := vulnsMap[key]; ok {
+				for _, vuln := range vulns {
+					vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+					osV.Vulnerabilities = append(osV.Vulnerabilities, vuln)
+				}
+			}
+
+			// Initialize Kernels array to avoid null in JSON
+			osV.Kernels = make([]*fleet.Kernel, 0)
 		}
 	}
 
@@ -2263,7 +2312,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if osVersion != nil {
-		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS, teamID, true); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -2272,7 +2321,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 }
 
 // PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
-func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool, teamID *uint, includeKernels bool) error {
 	// Populate GeneratedCPEs
 	if osVersion.Platform == "darwin" {
 		osVersion.GeneratedCPEs = []string{
@@ -2282,16 +2331,30 @@ func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fle
 	}
 
 	// Populate Vulnerabilities
-	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS, teamID)
 	if err != nil {
 		return err
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	osVersion.Kernels = make([]*fleet.Kernel, 0)               // avoid null in JSON
 	for _, vuln := range vulns {
 		vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+
 	}
+
+	if fleet.IsLinux(osVersion.Platform) && includeKernels {
+		kernels, err := svc.ds.ListKernelsByOS(ctx, osVersion.OSVersionID, teamID)
+		if err != nil {
+			return err
+		}
+
+		if len(kernels) > 0 {
+			osVersion.Kernels = kernels
+		}
+	}
+
 	return nil
 }
 
@@ -2408,26 +2471,41 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key is not set")
 	}
 
-	// Try to decrypt the current key.
 	var decrypted string
 	var decryptErrs []error
 	if key != nil && key.Base64Encrypted != "" {
-		// try to decrypt the key, early return if success
+		// Assume the current key is not decryptable.
+		key.Decryptable = ptr.Bool(false)
+		key.DecryptedValue = ""
+
+		// Try to decrypt the current key.
 		decrypted, err = decryptFn(key.Base64Encrypted)
-		if err != nil {
+		switch {
+		case err != nil:
 			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting host disk encryption key: %w", err))
+		case decrypted == "":
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypted host disk encryption key is empty for host %d", host.ID))
+		default:
+			level.Info(svc.logger).Log("msg", "decrypted current host disk encryption key", "host_id", host.ID)
+			key.Decryptable = ptr.Bool(true)
+			key.DecryptedValue = decrypted
+
+			return key, nil // Return the decrypted key immediately if successful.
 		}
-		key.DecryptedValue = decrypted
-		key.Decryptable = ptr.Bool(true)
 	}
 
-	// If we couldn't decrypt the current key, try the archived key.
-	if decrypted == "" && archivedKey != nil && archivedKey.Base64Encrypted != "" {
+	// If we have an archived key, try to decrypt it.
+	if archivedKey != nil && archivedKey.Base64Encrypted != "" {
 		decrypted, err = decryptFn(archivedKey.Base64Encrypted)
-		if err != nil {
+		switch {
+		case err != nil:
 			decryptErrs = append(decryptErrs, fmt.Errorf("decrypting archived disk encryption key: %w", err))
-		} else {
-			// If we successfully decrypted the archived key, use it for the return value.
+		case decrypted == "":
+			decryptErrs = append(decryptErrs, fmt.Errorf("decrypted archived disk encryption key is empty for host %d", host.ID))
+		default:
+			level.Info(svc.logger).Log("msg", "decrypted archived host disk encryption key", "host_id", host.ID)
+
+			// We successfully decrypted the archived key so we'll use it in place of the current key.
 			key = &fleet.HostDiskEncryptionKey{
 				HostID:              host.ID,
 				Base64Encrypted:     archivedKey.Base64Encrypted,
@@ -2449,8 +2527,6 @@ func (svc *Service) getHostDiskEncryptionKey(ctx context.Context, host *fleet.Ho
 		// If we couldn't decrypt any key, return an error.
 		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "host encryption key")
 	}
-
-	level.Info(svc.logger).Log("msg", "retrieved host disk encryption key", "host_id", host.ID, "decrypted", key.DecryptedValue)
 
 	return key, nil
 }
@@ -2925,6 +3001,7 @@ func (r *listHostCertificatesRequest) ValidateRequest() error {
 type listHostCertificatesResponse struct {
 	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
 	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Count        uint                            `json:"count"`
 	Err          error                           `json:"error,omitempty"`
 }
 
@@ -2939,7 +3016,7 @@ func listHostCertificatesEndpoint(ctx context.Context, request interface{}, svc 
 	if res == nil {
 		res = []*fleet.HostCertificatePayload{}
 	}
-	return listHostCertificatesResponse{Certificates: res, Meta: meta}, nil
+	return listHostCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
 }
 
 func (svc *Service) ListHostCertificates(ctx context.Context, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificatePayload, *fleet.PaginationMetadata, error) {

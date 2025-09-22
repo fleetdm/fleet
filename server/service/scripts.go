@@ -951,16 +951,64 @@ type batchSetScriptsResponse struct {
 	Err     error                  `json:"error,omitempty"`
 }
 
-type batchScriptExecutionSummaryRequest struct {
+func (r batchSetScriptsResponse) Error() error { return r.Err }
+
+type batchScriptExecutionStatusRequest struct {
 	BatchExecutionID string `url:"batch_execution_id"`
 }
 
-type batchScriptExecutionSummaryResponse struct {
-	fleet.BatchExecutionSummary
+type batchScriptExecutionListRequest struct {
+	TeamID  uint    `query:"team_id,required"`
+	Status  *string `query:"status,optional"`
+	Page    *uint   `query:"page,optional"`
+	PerPage *uint   `query:"per_page,optional"`
+}
+
+type batchScriptExecutionStatusResponse struct {
+	fleet.BatchActivity
 	Err error `json:"error,omitempty"`
 }
 
-func (r batchSetScriptsResponse) Error() error { return r.Err }
+// TODO - remove these once we retire batch script summary endpoint and code.
+type (
+	batchScriptExecutionSummaryRequest  batchScriptExecutionStatusRequest
+	batchScriptExecutionSummaryResponse struct {
+		ScriptID    uint      `json:"script_id" db:"script_id"`
+		ScriptName  string    `json:"script_name" db:"script_name"`
+		TeamID      *uint     `json:"team_id" db:"team_id"`
+		CreatedAt   time.Time `json:"created_at" db:"created_at"`
+		NumTargeted *uint     `json:"targeted" db:"num_targeted"`
+		NumPending  *uint     `json:"pending" db:"num_pending"`
+		NumRan      *uint     `json:"ran" db:"num_ran"`
+		NumErrored  *uint     `json:"errored" db:"num_errored"`
+		NumCanceled *uint     `json:"canceled" db:"num_canceled"`
+		Err         error     `json:"error,omitempty"`
+	}
+)
+
+type batchScriptExecutionListResponse struct {
+	BatchScriptExecutions []fleet.BatchActivity    `json:"batch_executions"`
+	Count                 uint                     `json:"count"`
+	Err                   error                    `json:"error,omitempty"`
+	Meta                  fleet.PaginationMetadata `json:"meta"`
+}
+
+func (r batchScriptExecutionListResponse) Error() error { return r.Err }
+
+type batchScriptExecutionHostResultsRequest struct {
+	BatchExecutionID     string                           `url:"batch_execution_id"`
+	BatchExecutionStatus fleet.BatchScriptExecutionStatus `query:"status"`
+	ListOptions          fleet.ListOptions                `url:"list_options"`
+}
+
+type batchScriptExecutionHostResultsResponse struct {
+	Hosts []fleet.BatchScriptHost  `json:"hosts"`
+	Count uint                     `json:"count"`
+	Err   error                    `json:"error,omitempty"`
+	Meta  fleet.PaginationMetadata `json:"meta"`
+}
+
+func (r batchScriptExecutionHostResultsResponse) Error() error { return r.Err }
 
 func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchSetScriptsRequest)
@@ -1047,17 +1095,89 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 }
 
 func (r batchScriptExecutionSummaryResponse) Error() error { return r.Err }
+func (r batchScriptExecutionStatusResponse) Error() error  { return r.Err }
 
+// Deprecated summary endpoint, to be removed in favor of the status endpoint
+// once the batch script details page is ready.
 func batchScriptExecutionSummaryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptExecutionSummaryRequest)
 	summary, err := svc.BatchScriptExecutionSummary(ctx, req.BatchExecutionID)
 	if err != nil {
 		return batchScriptExecutionSummaryResponse{Err: err}, nil
 	}
-	return batchScriptExecutionSummaryResponse{BatchExecutionSummary: *summary}, nil
+	return batchScriptExecutionSummaryResponse{
+		ScriptID:    *summary.ScriptID,
+		ScriptName:  summary.ScriptName,
+		TeamID:      summary.TeamID,
+		CreatedAt:   summary.CreatedAt,
+		NumTargeted: summary.NumTargeted,
+		NumPending:  summary.NumPending,
+		NumRan:      summary.NumRan,
+		NumErrored:  summary.NumErrored,
+		NumCanceled: summary.NumCanceled,
+	}, nil
 }
 
-func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchExecutionSummary, error) {
+func batchScriptExecutionHostResultsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionHostResultsRequest)
+	hosts, meta, count, err := svc.BatchScriptExecutionHostResults(ctx, req.BatchExecutionID, req.BatchExecutionStatus, req.ListOptions)
+	if err != nil {
+		return batchScriptExecutionHostResultsResponse{Err: err}, nil
+	}
+	return batchScriptExecutionHostResultsResponse{Hosts: hosts, Meta: *meta, Count: count}, nil
+}
+
+func batchScriptExecutionStatusEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionStatusRequest)
+	status, err := svc.BatchScriptExecutionStatus(ctx, req.BatchExecutionID)
+	if err != nil {
+		return batchScriptExecutionStatusResponse{Err: err}, nil
+	}
+	return batchScriptExecutionStatusResponse{BatchActivity: *status}, nil
+}
+
+func batchScriptExecutionListEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptExecutionListRequest)
+
+	page := 0
+	pageSize := 0
+	if req.Page != nil {
+		page = int(*req.Page) //nolint:gosec // dismiss G115
+	}
+	if req.PerPage != nil {
+		pageSize = int(*req.PerPage) //nolint:gosec // dismiss G115
+	}
+	// Set query offset based on the specified page and page size.
+	offset := uint(page * pageSize) //nolint:gosec // dismiss G115
+	filter := fleet.BatchExecutionStatusFilter{
+		TeamID: &req.TeamID,
+		Status: req.Status,
+		Offset: &offset,
+		Limit:  req.PerPage,
+	}
+	list, count, err := svc.BatchScriptExecutionList(ctx, filter)
+	if err != nil {
+		return batchScriptExecutionStatusResponse{Err: err}, nil
+	}
+	// Get the # of results returned by this query.
+	listSize := len(list)
+	// We have previous results if we're not on the first page.
+	hasPreviousResults := req.Page != nil && *req.Page > 0
+	// Calculate the number of results on this page + all previous pages.
+	resultsSeen := (page * pageSize) + listSize
+	// If it's less than the total count, we have more results.
+	hasNextResults := resultsSeen < int(count)
+	return batchScriptExecutionListResponse{
+		BatchScriptExecutions: list,
+		Count:                 uint(count), //nolint:gosec // dismiss G115
+		Meta: fleet.PaginationMetadata{
+			HasNextResults:     hasNextResults,
+			HasPreviousResults: hasPreviousResults,
+		},
+	}, nil
+}
+
+func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
 	summary, err := svc.ds.BatchExecuteSummary(ctx, batchExecutionID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
@@ -1068,6 +1188,186 @@ func (svc *Service) BatchScriptExecutionSummary(ctx context.Context, batchExecut
 	}
 
 	return summary, nil
+}
+
+type batchScriptCancelRequest struct {
+	BatchExecutionID string `url:"batch_execution_id"`
+}
+
+type batchScriptCancelResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchScriptCancelResponse) Error() error { return r.Err }
+
+func batchScriptCancelEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchScriptCancelRequest)
+	if err := svc.BatchScriptCancel(ctx, req.BatchExecutionID); err != nil {
+		return batchScriptCancelResponse{Err: err}, nil
+	}
+
+	return batchScriptCancelResponse{}, nil
+}
+
+func (svc *Service) BatchScriptCancel(ctx context.Context, batchExecutionID string) error {
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &batchExecutionID,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	// If the list is empty, it means the batch execution does not exist.
+	if len(summaryList) == 0 {
+		// If the user can see a no-team script, we can return a 404 because they have global access.
+		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return err
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return ctxerr.Wrap(ctx, err, "get batch script status")
+	}
+
+	if len(summaryList) > 1 {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
+	}
+
+	summary := (summaryList)[0]
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if err := svc.ds.CancelBatchScript(ctx, batchExecutionID); err != nil {
+		return ctxerr.Wrap(ctx, err, "canceling batch script")
+	}
+
+	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting canceled activity stats")
+	}
+
+	ctxUser := authz.UserFromContext(ctx)
+
+	targeted := uint(0)
+	if batchActivity.NumTargeted != nil {
+		// No nil dereference in case this is not set for some reason
+		targeted = *batchActivity.NumTargeted
+	}
+
+	canceled := uint(0)
+	if batchActivity.NumCanceled != nil {
+		canceled = *batchActivity.NumCanceled
+	}
+
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptCanceled{
+		BatchExecutionID: batchExecutionID,
+		ScriptName:       batchActivity.ScriptName,
+		HostCount:        targeted,
+		CanceledCount:    canceled,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "creating activity for cancel batch script")
+	}
+
+	return nil
+}
+
+func (svc *Service) BatchScriptExecutionStatus(ctx context.Context, batchExecutionID string) (*fleet.BatchActivity, error) {
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &batchExecutionID,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get batch script summary")
+	}
+
+	// If the list is empty, it means the batch execution does not exist.
+	if len(summaryList) == 0 {
+		// If the user can see a no-team script, we can return a 404 because they have global access.
+		// Otherwise, we return a 403 to avoid leaking info about which IDs exist.
+		if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+			return nil, err
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get batch script status")
+	}
+
+	if len(summaryList) > 1 {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("batch_execution_id", "expected a single batch execution status, got multiple"))
+	}
+
+	summary := (summaryList)[0]
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: summary.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return &summary, nil
+}
+
+func (svc *Service) BatchScriptExecutionHostResults(ctx context.Context, batchExecutionID string, status fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) (hosts []fleet.BatchScriptHost, meta *fleet.PaginationMetadata, count uint, err error) {
+	// Get the batch activity.
+	batchActivity, err := svc.ds.GetBatchActivity(ctx, batchExecutionID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting batch activity")
+	}
+	if batchActivity.ScriptID == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "batch activity has no script ID")
+	}
+
+	// Get the script referred to by the batch activity.
+	script, err := svc.ds.Script(ctx, *batchActivity.ScriptID)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "getting script")
+	}
+	if script == nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "script not found")
+	}
+
+	// Authorize based on the script's team ID.
+	if err = svc.authz.Authorize(ctx, &fleet.Script{TeamID: script.TeamID}, fleet.ActionRead); err != nil {
+		return nil, nil, 0, err
+	}
+
+	// Validate the supplied batch execution status.
+	if !status.IsValid() {
+		return nil, nil, 0, fleet.NewInvalidArgumentError("batch_execution_status", "invalid batch execution status")
+	}
+
+	// Always include pagination info.
+	opt.IncludeMetadata = true
+	// Default sort order is name ascending.
+	if opt.OrderKey == "" {
+		opt.OrderKey = "display_name"
+		opt.OrderDirection = fleet.OrderAscending
+	}
+
+	hosts, meta, count, err = svc.ds.ListBatchScriptHosts(ctx, batchExecutionID, status, opt)
+	if err != nil {
+		return nil, nil, 0, ctxerr.Wrap(ctx, err, "list batch script hosts")
+	}
+
+	return hosts, meta, count, nil
+}
+
+func (svc *Service) BatchScriptExecutionList(ctx context.Context, filter fleet.BatchExecutionStatusFilter) ([]fleet.BatchActivity, int64, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: filter.TeamID}, fleet.ActionRead); err != nil {
+		return nil, 0, err
+	}
+	// Get the count first.
+	count, err := svc.ds.CountBatchScriptExecutions(ctx, filter)
+	if err != nil {
+		return nil, 0, nil
+	}
+
+	summaryList, err := svc.ds.ListBatchScriptExecutions(ctx, filter)
+	if err != nil {
+		return nil, 0, ctxerr.Wrap(ctx, err, "get batch script list")
+	}
+
+	return summaryList, count, nil
 }
 
 func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
@@ -1099,9 +1399,10 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchScriptRunRequest struct {
-	ScriptID uint                    `json:"script_id"`
-	HostIDs  []uint                  `json:"host_ids"`
-	Filters  *map[string]interface{} `json:"filters"`
+	ScriptID  uint            `json:"script_id"`
+	HostIDs   []uint          `json:"host_ids"`
+	Filters   *map[string]any `json:"filters"`
+	NotBefore *time.Time      `json:"not_before"`
 }
 type batchScriptRunResponse struct {
 	BatchExecutionID string `json:"batch_execution_id"`
@@ -1112,7 +1413,7 @@ func (r batchScriptRunResponse) Error() error { return r.Err }
 
 func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*batchScriptRunRequest)
-	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters)
+	batchID, err := svc.BatchScriptExecute(ctx, req.ScriptID, req.HostIDs, req.Filters, req.NotBefore)
 	if err != nil {
 		return batchScriptRunResponse{Err: err}, nil
 	}
@@ -1121,7 +1422,7 @@ func batchScriptRunEndpoint(ctx context.Context, request any, svc fleet.Service)
 
 const MAX_BATCH_EXECUTION_HOSTS = 5000
 
-func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]interface{}) (string, error) {
+func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostIDs []uint, filters *map[string]any, notBefore *time.Time) (string, error) {
 	// If we are given both host IDs and filters, return an error
 	if len(hostIDs) > 0 && filters != nil {
 		return "", fleet.NewInvalidArgumentError("filters", "cannot specify both host_ids and filters")
@@ -1207,18 +1508,38 @@ func (svc *Service) BatchScriptExecute(ctx context.Context, scriptID uint, hostI
 		}
 	}
 
-	batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+	if notBefore == nil || notBefore.Before(time.Now()) {
+		batchID, err := svc.ds.BatchExecuteScript(ctx, userId, scriptID, hostIDsToExecute)
+		if err != nil {
+			return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
+		}
+
+		if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
+			ScriptName:       script.Name,
+			BatchExecutionID: batchID,
+			HostCount:        uint(len(hostIDsToExecute)),
+			TeamID:           script.TeamID,
+		}); err != nil {
+			return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+		}
+
+		return batchID, nil
+	}
+
+	notBeforeUTC := notBefore.UTC()
+	batchID, err := svc.ds.BatchScheduleScript(ctx, userId, scriptID, hostIDsToExecute, notBeforeUTC)
 	if err != nil {
 		return "", fleet.NewUserMessageError(err, http.StatusBadRequest)
 	}
 
-	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeRanScriptBatch{
-		ScriptName:       script.Name,
-		BatchExeuctionID: batchID,
+	if err := svc.NewActivity(ctx, ctxUser, fleet.ActivityTypeBatchScriptScheduled{
+		ScriptName:       &script.Name,
+		BatchExecutionID: batchID,
 		HostCount:        uint(len(hostIDsToExecute)),
 		TeamID:           script.TeamID,
+		NotBefore:        &notBeforeUTC,
 	}); err != nil {
-		return "", ctxerr.Wrap(ctx, err, "creating activity for batch run scripts")
+		return "", ctxerr.Wrap(ctx, err, "creating activity for scheduled batch run scripts")
 	}
 
 	return batchID, nil

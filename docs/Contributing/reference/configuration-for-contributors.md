@@ -159,7 +159,7 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
 
-The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users setup their Macs simultaneously).
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
 
 - Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`
@@ -193,6 +193,20 @@ Whether to send anonymous usage statistics. Overrides the value set by `enable_a
   ```yaml
   license:
     enable_analytics: false
+  ```
+
+### microsoft_compliance_partner.proxy_api_key
+
+For managed cloud customers only. The Fleet team sets this key.
+
+Key that allows the Fleet server to communicate to the Microsoft compliance partner proxy on fleetdm.com.
+
+- Default value: ""
+- Environment variable: `FLEET_MICROSOFT_COMPLIANCE_PARTNER_PROXY_API_KEY`
+- Config file format:
+  ```yaml
+  microsoft_compliance_partner:
+    proxy_api_key: foobar
   ```
 
 ### FLEET_ENABLE_POST_CLIENT_DEBUG_ERRORS

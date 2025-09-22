@@ -78,6 +78,10 @@ type SSOSettings struct {
 	// EnableJITRoleSync sets whether the roles of existing accounts will be updated
 	// every time SSO users log in (does not have effect if EnableJITProvisioning is false).
 	EnableJITRoleSync bool `json:"enable_jit_role_sync"`
+	// SSOServerURL is an optional URL to use for SSO authentication.
+	// When set, SSO will only work from this URL, not from the server URL.
+	// This is useful for organizations with separate URLs for admin access vs agent/API access.
+	SSOServerURL string `json:"sso_server_url"`
 }
 
 // ConditionalAccessSettings holds the global settings for the "Conditional access" feature.
@@ -215,6 +219,8 @@ type MDM struct {
 
 	EnableDiskEncryption optjson.Bool `json:"enable_disk_encryption"`
 
+	RequireBitLockerPIN optjson.Bool `json:"windows_require_bitlocker_pin"`
+
 	WindowsSettings WindowsSettings `json:"windows_settings"`
 
 	VolumePurchasingProgram optjson.Slice[MDMAppleVolumePurchasingProgramInfo] `json:"volume_purchasing_program"`
@@ -226,6 +232,13 @@ type MDM struct {
 	// WARNING: If you add to this struct make sure it's taken into
 	// account in the AppConfig Clone implementation!
 	/////////////////////////////////////////////////////////////////
+}
+
+type DiskEncryptionConfig struct {
+	// Enabled indicates if disk encryption is enabled.
+	Enabled bool
+	// BitLockerPINRequired indicates if a PIN is required for BitLocker disk encryption.
+	BitLockerPINRequired bool
 }
 
 type UIGitOpsModeConfig struct {
@@ -611,9 +624,10 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-	if c.Integrations.NDESSCEPProxy.Valid {
-		c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
-	}
+	// // TODO(hca): confirm that we're properly masking credentials in the new endpoints
+	// if c.Integrations.NDESSCEPProxy.Valid {
+	// 	c.Integrations.NDESSCEPProxy.Value.Password = MaskedPassword
+	// }
 }
 
 // Clone implements cloner.
@@ -700,16 +714,17 @@ func (c *AppConfig) Copy() *AppConfig {
 			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
-	if len(c.Integrations.DigiCert.Value) > 0 {
-		digicert := make([]DigiCertIntegration, len(c.Integrations.DigiCert.Value))
-		copy(digicert, c.Integrations.DigiCert.Value)
-		clone.Integrations.DigiCert = optjson.SetSlice(digicert)
-	}
-	if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
-		customSCEP := make([]CustomSCEPProxyIntegration, len(c.Integrations.CustomSCEPProxy.Value))
-		copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
-		clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
-	}
+	// // TODO(hca): do we want to cache the new grouped CAs datastore method?
+	// if len(c.Integrations.DigiCert.Value) > 0 {
+	// 	digicert := make([]DigiCertCA, len(c.Integrations.DigiCert.Value))
+	// 	copy(digicert, c.Integrations.DigiCert.Value)
+	// 	clone.Integrations.DigiCert = optjson.SetSlice(digicert)
+	// }
+	// if len(c.Integrations.CustomSCEPProxy.Value) > 0 {
+	// 	customSCEP := make([]CustomSCEPProxyCA, len(c.Integrations.CustomSCEPProxy.Value))
+	// 	copy(customSCEP, c.Integrations.CustomSCEPProxy.Value)
+	// 	clone.Integrations.CustomSCEPProxy = optjson.SetSlice(customSCEP)
+	// }
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
@@ -1177,7 +1192,7 @@ type ListOptions struct {
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`
-	// Used to request the metadata of a query
+	// Used to request the pagination metadata in the response.
 	IncludeMetadata bool
 
 	// The following fields are for tests, to ensure a deterministic sort order
@@ -1524,4 +1539,11 @@ type YaraRuleSpec struct {
 type YaraRule struct {
 	Name     string `json:"name"`
 	Contents string `json:"contents"`
+}
+
+func (r *YaraRule) Clone() (Cloner, error) {
+	return &YaraRule{
+		Name:     r.Name,
+		Contents: r.Contents,
+	}, nil
 }

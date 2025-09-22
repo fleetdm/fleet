@@ -84,11 +84,21 @@ WHERE
 	}
 	app.Categories = categories
 
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, teamID)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+	if teamID != nil {
+		policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{titleID}, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
+		}
+		app.AutomaticInstallPolicies = policies
+
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			app.IconURL = ptr.String(icon.IconUrl())
+		}
 	}
-	app.AutomaticInstallPolicies = policies
 
 	return &app, nil
 }
@@ -276,7 +286,7 @@ func vppAppHostStatusNamedQuery(hvsiAlias, ncrAlias, colAlias string) string {
 		WHEN %sstatus = :mdm_status_error OR %sstatus = :mdm_status_format_error THEN
 			:software_status_failed
 		ELSE
-		    :software_status_pending	
+		    :software_status_pending
 	END %s
 	`, hvsiAlias, hvsiAlias, ncrAlias, ncrAlias, colAlias)
 }
@@ -1646,21 +1656,18 @@ TEAMLOOP:
 
 func checkVPPNullTeam(ctx context.Context, tx sqlx.ExtContext, currentID *uint, nullTeam fleet.NullTeamType) error {
 	nullTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = ?`
-	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL`
+	anyTeamStmt := `SELECT vpp_token_id FROM vpp_token_teams WHERE (null_team_type = 'allteams' OR null_team_type = 'noteam' OR team_id IS NOT NULL) AND vpp_token_id != ?`
 
 	if nullTeam == fleet.NullTeamAllTeams {
 		var ids []uint
-		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt); err != nil {
+		if err := sqlx.SelectContext(ctx, tx, &ids, anyTeamStmt, *currentID); err != nil {
 			return ctxerr.Wrap(ctx, err, "scanning row in check vpp token null team")
 		}
 
+		// Only blocks assignment if another token is already assigned to one or more teams.
+		// Allows the current token to switch from teams to "all teams" freely
 		if len(ids) > 0 {
-			if len(ids) > 1 {
-				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-			}
-			if currentID == nil || ids[0] != *currentID {
-				return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
-			}
+			return ctxerr.Wrap(ctx, errors.New("Cannot assign token to All teams, other teams have tokens"))
 		}
 	}
 
@@ -1726,7 +1733,7 @@ FROM vpp_apps`
 	return apps, nil
 }
 
-func (ds *Datastore) GetVPPInstallsByVerificationUUID(ctx context.Context, verificationUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
+func (ds *Datastore) GetUnverifiedVPPInstallsForHost(ctx context.Context, hostUUID string) ([]*fleet.HostVPPSoftwareInstall, error) {
 	stmt := `
 SELECT
 	hvsi.host_id AS host_id,
@@ -1738,15 +1745,15 @@ SELECT
 FROM nano_command_results ncr
 JOIN host_vpp_software_installs hvsi ON hvsi.command_uuid = ncr.command_uuid
 JOIN vpp_apps va ON va.adam_id = hvsi.adam_id AND va.platform = hvsi.platform
-WHERE hvsi.verification_command_uuid = ?
+WHERE ncr.id = ?
+AND ncr.status = 'Acknowledged'
+AND hvsi.verification_at IS NULL
+AND hvsi.verification_failed_at IS NULL
 	`
 
 	var result []*fleet.HostVPPSoftwareInstall
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, verificationUUID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, notFound("HostVPPSoftwareInstall")
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get vpp install ack time by verification uuid")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &result, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get unverified VPP installs for host")
 	}
 
 	return result, nil
@@ -1755,7 +1762,7 @@ WHERE hvsi.verification_command_uuid = ?
 func (ds *Datastore) AssociateVPPInstallToVerificationUUID(ctx context.Context, installUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_command_uuid = ? 
+SET verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
@@ -1781,7 +1788,7 @@ VALUES ((SELECT host_id FROM host_vpp_software_installs WHERE command_uuid = ?),
 func (ds *Datastore) ReplaceVPPInstallVerificationUUID(ctx context.Context, oldVerifyUUID, verifyCommandUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_command_uuid = ? 
+SET verification_command_uuid = ?
 WHERE verification_command_uuid = ?
 	`
 
@@ -1792,15 +1799,16 @@ WHERE verification_command_uuid = ?
 	return nil
 }
 
-func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID string) error {
+func (ds *Datastore) SetVPPInstallAsVerified(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_at = CURRENT_TIMESTAMP(6)
+SET verification_at = CURRENT_TIMESTAMP(6),
+verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, installUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "set vpp install as verified")
 		}
 
@@ -1812,15 +1820,16 @@ WHERE command_uuid = ?
 	})
 }
 
-func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID string) error {
+func (ds *Datastore) SetVPPInstallAsFailed(ctx context.Context, hostID uint, installUUID, verificationUUID string) error {
 	stmt := `
 UPDATE host_vpp_software_installs
-SET verification_failed_at = CURRENT_TIMESTAMP(6)
+SET verification_failed_at = CURRENT_TIMESTAMP(6),
+verification_command_uuid = ?
 WHERE command_uuid = ?
 	`
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		if _, err := tx.ExecContext(ctx, stmt, installUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, verificationUUID, installUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "set vpp install as failed")
 		}
 
@@ -1880,8 +1889,15 @@ WHERE
 	AND host_id = ?
 	`
 
+	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
+	deleteHostMDMCommandStmt := `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
+
 	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
 		return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
+
+	if _, err := tx.ExecContext(ctx, deleteHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
 	}
 
 	return nil

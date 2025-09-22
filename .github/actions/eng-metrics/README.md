@@ -298,6 +298,152 @@ npm test
 npm run lint
 ```
 
+## Grafana queries
+
+Snapshot of Grafana query for Time to First Review (2025/07/08). Replace `engineering-metrics-XXXXXX` with the right project.
+
+```sql
+-- Process user/group variables
+WITH parameters AS (
+  SELECT
+    ARRAY(
+      SELECT
+        TRIM(u)
+      FROM
+        UNNEST(SPLIT('${user:csv}', ',')) u
+      WHERE
+        u NOT IN ('', '__all')
+    ) AS users,
+    ARRAY(
+      SELECT
+        TRIM(g)
+      FROM
+        UNNEST(SPLIT('${user_group:value}', ';')) g
+      WHERE
+        g NOT IN ('', '__all')
+    ) AS `groups`
+),
+-- Centralized time/pr_creator filter
+filtered_pr AS (
+  SELECT
+    first_review_time,
+    pr_creator,
+    pickup_time_seconds,
+    pr_number
+  FROM
+    `engineering-metrics-XXXXXX.github_metrics.pr_first_review`
+    CROSS JOIN parameters p
+  WHERE
+    first_review_time BETWEEN TIMESTAMP_SUB(TIMESTAMP_MILLIS($__from), INTERVAL 7 DAY) -- added 6+1 day just in case to be safe
+    AND TIMESTAMP_MILLIS($__to)
+    AND (
+      -- No filters selected → show all
+      (
+        ARRAY_LENGTH(p.users) = 0
+        AND ARRAY_LENGTH(p.groups) = 0
+      )
+      OR (
+        -- Only user filter
+        ARRAY_LENGTH(p.users) > 0
+        AND ARRAY_LENGTH(p.groups) = 0
+        AND pr_creator IN UNNEST(p.users)
+      )
+      OR (
+        -- Only group filter
+        ARRAY_LENGTH(p.groups) > 0
+        AND ARRAY_LENGTH(p.users) = 0
+        AND pr_creator IN UNNEST(p.groups)
+      )
+      OR (
+        -- Both filters → intersection
+        ARRAY_LENGTH(p.users) > 0
+        AND ARRAY_LENGTH(p.groups) > 0
+        AND pr_creator IN (
+          SELECT
+            u
+          FROM
+            UNNEST(p.users) AS u
+          INTERSECT
+          DISTINCT
+          SELECT
+            g
+          FROM
+            UNNEST(p.groups) AS g
+        )
+      )
+    )
+),
+-- daily roll-up
+daily AS (
+  SELECT
+    DATE(first_review_time, "America/Chicago") AS day,
+    COUNT(*) AS pr_count,
+    SUM(pickup_time_seconds) AS total_seconds
+  FROM
+    filtered_pr
+  WHERE
+    first_review_time BETWEEN TIMESTAMP_SUB(TIMESTAMP_MILLIS($__from), INTERVAL 6 DAY)
+    AND TIMESTAMP_MILLIS($__to)
+  GROUP BY
+    day
+),
+calendar AS (
+  SELECT
+    day
+  FROM
+    UNNEST(
+      GENERATE_DATE_ARRAY(
+        DATE(TIMESTAMP_MILLIS($__from)),
+        DATE(TIMESTAMP_MILLIS($__to))
+      )
+    ) AS day
+),
+-- 7-day weighted moving average
+rolling_avg AS (
+  SELECT
+    c.day,
+    TIMESTAMP(CONCAT(CAST(c.day AS STRING), ' 12:00:00')) AS time,
+    SAFE_DIVIDE(
+      (
+        SELECT
+          SUM(d.total_seconds)
+        FROM
+          daily d
+        WHERE
+          d.day BETWEEN DATE_SUB(c.day, INTERVAL 6 DAY)
+          AND c.day
+      ),
+      (
+        SELECT
+          SUM(d.pr_count)
+        FROM
+          daily d
+        WHERE
+          d.day BETWEEN DATE_SUB(c.day, INTERVAL 6 DAY)
+          AND c.day
+      )
+    ) / 3600 AS moving_avg_hours
+  FROM
+    calendar c
+) -- final result
+SELECT
+  r.time,
+  r.moving_avg_hours,
+  (
+    SELECT
+      ARRAY_AGG(DISTINCT pr_number)
+    FROM
+      filtered_pr p
+    WHERE
+      DATE(p.first_review_time, "America/Chicago") BETWEEN DATE(DATE_SUB(r.time, INTERVAL 6 DAY))
+      AND DATE(r.time)
+  ) AS pr_numbers_window
+FROM
+  rolling_avg r
+ORDER BY
+  r.time;
+```
+
 ## Contributing
 
 When contributing to this project, please:

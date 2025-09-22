@@ -10,7 +10,6 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"github.com/google/uuid"
 )
 
 const AppleSoftwareJobName = "apple_software"
@@ -53,7 +52,7 @@ func (v *AppleSoftware) Run(ctx context.Context, argsJSON json.RawMessage) error
 
 func (v *AppleSoftware) verifyVPPInstalls(ctx context.Context, hostUUID, verificationCommandUUID string) error {
 	level.Debug(v.Log).Log("msg", "verifying VPP installs", "host_uuid", hostUUID, "verification_command_uuid", verificationCommandUUID)
-	newListCmdUUID := fleet.VerifySoftwareInstallVPPPrefix + uuid.NewString()
+	newListCmdUUID := fleet.VerifySoftwareInstallCommandUUID()
 	err := v.Commander.InstalledApplicationList(ctx, []string{hostUUID}, newListCmdUUID, true)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "sending installed application list command in verify")

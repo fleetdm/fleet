@@ -12,6 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -91,6 +94,18 @@ func (t *Task) RecordScheduledQueryStats(ctx context.Context, teamID *uint, host
 }
 
 func (t *Task) collectScheduledQueryStats(ctx context.Context, ds fleet.Datastore, pool fleet.RedisPool, stats *collectorExecStats) error {
+	// Create a root span for this async collection task if OTEL is enabled
+	if t.otelEnabled {
+		tracer := otel.Tracer("async")
+		var span trace.Span
+		ctx, span = tracer.Start(ctx, "async.collect_scheduled_query_stats",
+			trace.WithAttributes(
+				attribute.String("async.task", "scheduled_query_stats"),
+			),
+		)
+		defer span.End()
+	}
+
 	cfg := t.taskConfigs[config.AsyncTaskScheduledQueryStats]
 
 	hosts, err := loadActiveHostIDs(pool, scheduledQueryStatsHostIDsKey, cfg.RedisScanKeysCount)

@@ -18,6 +18,7 @@ module.exports = {
   exits: {
     success: { description: 'A signup URL has been sent to the requesting Fleet server.'},
     enterpriseAlreadyExists: { description: 'An Android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    invalidCallbackUrl: { description: 'The provided callbackUrl could not be used to create an Android enterprise signup URL.', responseType: 'badRequest'}
   },
 
 
@@ -33,7 +34,59 @@ module.exports = {
     // Check the database for an existing record for this Fleet server.
     let connectionforThisInstanceExists = await AndroidEnterprise.findOne({fleetServerUrl: fleetServerUrl});
     if(connectionforThisInstanceExists){
-      throw 'enterpriseAlreadyExists';
+      // Before throwing conflict, verify the enterprise still exists in Google
+      // If it doesn't exist, clean up the stale proxy record and continue with signup
+      try {
+        let { google } = require('googleapis');
+        let androidmanagement = google.androidmanagement('v1');
+        let googleAuth = new google.auth.GoogleAuth({
+          scopes: ['https://www.googleapis.com/auth/androidmanagement'],
+          credentials: {
+            client_email: sails.config.custom.androidEnterpriseServiceAccountEmailAddress,// eslint-disable-line camelcase
+            private_key: sails.config.custom.androidEnterpriseServiceAccountPrivateKey,// eslint-disable-line camelcase
+          },
+        });
+        let authClient = await googleAuth.getClient();
+        google.options({auth: authClient});
+
+        // Use Google's LIST call to check if enterprise exists
+        let enterprises = [];
+        let tokenForNextPageOfEnterprises;
+        await sails.helpers.flow.until(async ()=>{
+          let listEnterprisesResponse = await androidmanagement.enterprises.list({
+            projectId: sails.config.custom.androidEnterpriseProjectId,
+            pageSize: 100,
+            pageToken: tokenForNextPageOfEnterprises,
+          });
+          tokenForNextPageOfEnterprises = listEnterprisesResponse.data.nextPageToken;
+          enterprises = enterprises.concat(listEnterprisesResponse.data.enterprises);
+
+          if(!listEnterprisesResponse.data.nextPageToken){
+            return true;
+          }
+        });
+        let enterpriseExists = enterprises.some(enterprise => {
+          let enterpriseId = connectionforThisInstanceExists.androidEnterpriseId;
+          return enterprise.name === `enterprises/${enterpriseId}` || enterprise.name === enterpriseId;
+        });
+
+        if (enterpriseExists) {
+          // Enterprise still exists in Google - throw conflict
+          throw 'enterpriseAlreadyExists';
+        } else {
+          // Enterprise not found in LIST - clean up stale proxy record
+          await AndroidEnterprise.destroyOne({ id: connectionforThisInstanceExists.id });
+          // Continue with signup process (don't throw conflict)
+        }
+
+      } catch (err) {
+        // Handle our own enterpriseAlreadyExists throw
+        if (err === 'enterpriseAlreadyExists') {
+          throw err; // Re-throw to trigger the proper exit
+        }
+        // For all other errors (API, network, auth, etc), re-throw to let them bubble up
+        throw err;
+      }
     }
 
 
@@ -60,6 +113,8 @@ module.exports = {
         projectId: sails.config.custom.androidEnterpriseProjectId,
       });
       return createSignupUrlResponse.data;
+    }).intercept({status: 400}, (unusedErr)=>{
+      return {'invalidCallbackUrl': 'The provided Callback Url could not be used to create an Android enterprise signup URL.'};
     }).intercept((err)=>{
       return new Error(`When attempting to create a singup url for a new Android enterprise, an error occurred. Error: ${err}`);
     });

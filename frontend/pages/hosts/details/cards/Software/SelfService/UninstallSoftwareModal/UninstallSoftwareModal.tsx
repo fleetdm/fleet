@@ -2,19 +2,15 @@ import React, { useCallback, useContext, useState } from "react";
 
 import deviceUserAPI from "services/entities/device_user";
 import { NotificationContext } from "context/notification";
-import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import CustomLink from "components/CustomLink";
 
 const baseClass = "uninstall-software-modal";
 
 interface IUninstallSoftwareModalProps {
   softwareId: number;
   softwareName?: string;
-  softwareInstallerType?: string;
-  version?: string;
   token: string;
   onExit: () => void;
   onSuccess: () => void;
@@ -23,8 +19,6 @@ interface IUninstallSoftwareModalProps {
 const UninstallSoftwareModal = ({
   softwareId,
   softwareName,
-  softwareInstallerType,
-  version,
   token,
   onExit,
   onSuccess,
@@ -46,7 +40,6 @@ const UninstallSoftwareModal = ({
   }, [softwareId, renderFlash, onSuccess, onExit]);
 
   const displaySoftwareName = softwareName || "software";
-  const msiInstaller = softwareInstallerType === "msi";
 
   return (
     <Modal
@@ -61,17 +54,6 @@ const UninstallSoftwareModal = ({
           {softwareName} data from your device. You can always reinstall it
           again later.
         </p>
-        {msiInstaller && (
-          <p>
-            By default, this will only uninstall version {version}. To learn how
-            to uninstall other versions,{" "}
-            <CustomLink
-              url={`${LEARN_MORE_ABOUT_BASE_LINK}/uninstalling-windows-software`}
-              text="click here"
-              newTab
-            />
-          </p>
-        )}
         <div className="modal-cta-wrap">
           <Button
             variant="alert"

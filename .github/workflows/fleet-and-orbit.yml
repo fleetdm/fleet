@@ -13,10 +13,12 @@ on:
     paths:
       - "orbit/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
+      - "Dockerfile-desktop-linux"
   pull_request:
     paths:
       - "orbit/**.go"
       - ".github/workflows/fleet-and-orbit.yml"
+      - "Dockerfile-desktop-linux"
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs

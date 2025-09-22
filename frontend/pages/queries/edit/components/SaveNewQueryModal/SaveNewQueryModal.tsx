@@ -278,6 +278,7 @@ const SaveNewQueryModal = ({
                   filesystemDestination={
                     config?.logging.result.config?.result_log_file
                   }
+                  webhookDestination={config?.logging.result.config?.result_url}
                   excludeTooltip
                 />
               </b>

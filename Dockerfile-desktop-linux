@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.24.4-bullseye@sha256:dfd72198d14bc22f270c9e000c304a2ffd19f5a5f693fad82643311afdc6b568
+FROM --platform=linux/amd64 golang:1.25.1-bookworm@sha256:c4bc0741e3c79c0e2d47ca2505a06f5f2a44682ada94e1dba251a3854e60c2bd
 LABEL maintainer="Fleet Developers"
 
 RUN mkdir -p /usr/src/fleet
@@ -10,6 +10,7 @@ COPY orbit ./orbit
 COPY server ./server
 COPY ee ./ee
 COPY pkg ./pkg
+COPY ./third_party ./third_party
 COPY go.mod go.sum ./
 
 CMD /bin/bash

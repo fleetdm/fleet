@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"maps"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -21,6 +20,7 @@ import (
 
 	"github.com/VividCortex/mysqlerr"
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -41,6 +41,7 @@ import (
 	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
+	"github.com/fleetdm/fleet/v4/server/variables"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/go-kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -209,9 +210,9 @@ func (svc *Service) RequestMDMAppleCSR(ctx context.Context, email, org string) (
 	}
 
 	// PEM-encode the cert and keys
-	scepCACertPEM := apple_mdm.EncodeCertPEM(scepCACert)
-	scepCAKeyPEM := apple_mdm.EncodePrivateKeyPEM(scepCAKey)
-	apnsKeyPEM := apple_mdm.EncodePrivateKeyPEM(apnsKey)
+	scepCACertPEM := certificate.EncodeCertPEM(scepCACert)
+	scepCAKeyPEM := certificate.EncodePrivateKeyPEM(scepCAKey)
+	apnsKeyPEM := certificate.EncodePrivateKeyPEM(apnsKey)
 
 	return &fleet.AppleCSR{
 		APNsKey:  apnsKeyPEM,
@@ -367,8 +368,13 @@ func (r getMDMEULAMetadataResponse) Error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	eula, err := svc.MDMGetEULAMetadata(ctx)
-	if err != nil {
+	if err != nil && !fleet.IsNotFound(err) {
 		return getMDMEULAMetadataResponse{Err: err}, nil
+	}
+
+	if eula == nil {
+		// We return the error here not as part of the response object, to signal an error to the server, but avoid logging it as an error.
+		return nil, newNotFoundError()
 	}
 
 	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
@@ -1471,12 +1477,24 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
 	}
 
-	err = validateWindowsProfileFleetVariables(string(cp.SyncML))
+	// Get license for validation
+	lic, err := svc.License(ctx)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", err.Error()))
+		return nil, ctxerr.Wrap(ctx, err, "checking license")
 	}
 
-	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
+	foundVars, err := validateWindowsProfileFleetVariables(string(cp.SyncML), lic)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// Collect Fleet variables used in the profile
+	var usesFleetVars []fleet.FleetVarName
+	for varName := range foundVars {
+		usesFleetVars = append(usesFleetVars, fleet.FleetVarName(varName))
+	}
+
+	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp, usesFleetVars)
 	if err != nil {
 		var existsErr endpoint_utils.ExistsErrorInterface
 		if errors.As(err, &existsErr) {
@@ -1510,11 +1528,30 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-func validateWindowsProfileFleetVariables(contents string) error {
-	if len(findFleetVariables(contents)) > 0 {
-		return &fleet.BadRequestError{Message: "Fleet variables ($FLEET_VAR_*) are not currently supported in Windows profiles"}
+// fleetVarsSupportedInWindowsProfiles lists the Fleet variables that are
+// supported in Windows configuration profiles.
+var fleetVarsSupportedInWindowsProfiles = []fleet.FleetVarName{
+	fleet.FleetVarHostUUID,
+}
+
+func validateWindowsProfileFleetVariables(contents string, lic *fleet.LicenseInfo) (map[string]struct{}, error) {
+	foundVars := variables.Find(contents)
+	if len(foundVars) == 0 {
+		return nil, nil
 	}
-	return nil
+
+	// Check for premium license if the profile contains Fleet variables
+	if lic == nil || !lic.IsPremium() {
+		return nil, fleet.ErrMissingLicense
+	}
+
+	// Check if all found variables are supported
+	for varName := range foundVars {
+		if !slices.Contains(fleetVarsSupportedInWindowsProfiles, fleet.FleetVarName(varName)) {
+			return nil, fleet.NewInvalidArgumentError("profile", fmt.Sprintf("Fleet variable $FLEET_VAR_%s is not supported in Windows profiles.", varName))
+		}
+	}
+	return foundVars, nil
 }
 
 func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
@@ -1562,6 +1599,42 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 		profLabels = append(profLabels, label)
 	}
 	return profLabels, nil
+}
+
+type batchModifyMDMConfigProfilesRequest struct {
+	TeamID                *uint                                      `json:"-" query:"team_id,optional"`
+	TeamName              *string                                    `json:"-" query:"team_name,optional"`
+	DryRun                bool                                       `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	ConfigurationProfiles []fleet.BatchModifyMDMConfigProfilePayload `json:"configuration_profiles"`
+}
+
+type batchModifyMDMConfigProfilesResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r batchModifyMDMConfigProfilesResponse) Error() error { return r.Err }
+func (r batchModifyMDMConfigProfilesResponse) Status() int  { return http.StatusNoContent }
+
+// this is the handler for the public endpoint for batch modifying MDM profiles.
+func batchModifyMDMConfigProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	req := request.(*batchModifyMDMConfigProfilesRequest)
+
+	// We want to still use the existing BatchSetMDMProfiles method, so we convert
+	// the payload to the expected type.
+	profiles := make([]fleet.MDMProfileBatchPayload, len(req.ConfigurationProfiles))
+	for i, p := range req.ConfigurationProfiles {
+		profiles[i] = fleet.MDMProfileBatchPayload{
+			Name:             p.DisplayName,
+			Contents:         p.Profile,
+			LabelsIncludeAll: p.LabelsIncludeAll,
+			LabelsIncludeAny: p.LabelsIncludeAny,
+			LabelsExcludeAny: p.LabelsExcludeAny,
+		}
+	}
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, profiles, req.DryRun, false, nil, false); err != nil {
+		return batchSetMDMProfilesResponse{Err: err}, nil
+	}
+	return batchModifyMDMConfigProfilesResponse{}, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1723,15 +1796,26 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, appCfg, appleProfiles, windowsProfiles, appleDecls)
+	// Get license for validation
+	lic, err := svc.License(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking license")
+	}
+
+	profilesVariablesByIdentifierMap, err := validateFleetVariables(ctx, svc.ds, appCfg, lic, appleProfiles, windowsProfiles, appleDecls)
 	if err != nil {
 		return err
 	}
+
 	profilesVariablesByIdentifier := make([]fleet.MDMProfileIdentifierFleetVariables, 0, len(profilesVariablesByIdentifierMap))
 	for identifier, variables := range profilesVariablesByIdentifierMap {
+		varNames := make([]fleet.FleetVarName, 0, len(variables))
+		for varName := range variables {
+			varNames = append(varNames, fleet.FleetVarName(varName))
+		}
 		profilesVariablesByIdentifier = append(profilesVariablesByIdentifier, fleet.MDMProfileIdentifierFleetVariables{
 			Identifier:     identifier,
-			FleetVariables: slices.Collect(maps.Keys(variables)),
+			FleetVariables: varNames,
 		})
 	}
 
@@ -1814,23 +1898,32 @@ func (svc *Service) BatchSetMDMProfiles(
 	return nil
 }
 
-func validateFleetVariables(ctx context.Context, appConfig *fleet.AppConfig, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
+func validateFleetVariables(ctx context.Context, ds fleet.Datastore, appConfig *fleet.AppConfig, lic *fleet.LicenseInfo, appleProfiles map[int]*fleet.MDMAppleConfigProfile,
 	windowsProfiles map[int]*fleet.MDMWindowsConfigProfile, appleDecls map[int]*fleet.MDMAppleDeclaration,
 ) (map[string]map[string]struct{}, error) {
 	var err error
 
+	groupedCAs, err := ds.GetGroupedCertificateAuthorities(ctx, true)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting grouped certificate authorities")
+	}
+
 	profileVarsByProfIdentifier := make(map[string]map[string]struct{})
 	for _, p := range appleProfiles {
-		profileVars, err := validateConfigProfileFleetVariables(appConfig, string(p.Mobileconfig))
+		profileVars, err := validateConfigProfileFleetVariables(string(p.Mobileconfig), lic, groupedCAs)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating config profile Fleet variables")
 		}
 		profileVarsByProfIdentifier[p.Identifier] = profileVars
 	}
 	for _, p := range windowsProfiles {
-		err = validateWindowsProfileFleetVariables(string(p.SyncML))
+		windowsVars, err := validateWindowsProfileFleetVariables(string(p.SyncML), lic)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "validating Windows profile Fleet variables")
+		}
+		// Collect Fleet variables for Windows profiles (use unique Name as identifier for Windows)
+		if len(windowsVars) > 0 {
+			profileVarsByProfIdentifier[p.Name] = windowsVars
 		}
 	}
 	for _, p := range appleDecls {
@@ -2086,7 +2179,7 @@ func getAppleProfiles(
 			return nil, nil, nil
 		}
 
-		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrMDMNotConfigured.Error()))
 	}
 
 	return profs, decls, nil
@@ -2163,7 +2256,7 @@ func getWindowsProfiles(
 			return nil, nil
 		}
 
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: "+fleet.ErrWindowsMDMNotConfigured.Error()))
 	}
 
 	return profs, nil
@@ -2275,6 +2368,7 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 type updateDiskEncryptionRequest struct {
 	TeamID               *uint `json:"team_id"`
 	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
+	RequireBitLockerPIN  bool  `json:"windows_require_bitlocker_pin"`
 }
 
 type updateMDMDiskEncryptionResponse struct {
@@ -2287,13 +2381,13 @@ func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoCont
 
 func updateDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*updateDiskEncryptionRequest)
-	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption, &req.RequireBitLockerPIN); err != nil {
 		return updateMDMDiskEncryptionResponse{Err: err}, nil
 	}
 	return updateMDMDiskEncryptionResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error {
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool, requireBitLockerPIN *bool) error {
 	// TODO(mna): this should all move to the ee package when we remove the
 	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
 	// leave here so both endpoints can reuse the same logic.
@@ -2316,7 +2410,7 @@ func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, e
 		if err != nil {
 			return err
 		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption)
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption, requireBitLockerPIN)
 	}
 	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }
@@ -2364,53 +2458,9 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err)
 	}
 
-	var profileTeamID *uint
-	var profileName string
-	switch {
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
-		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting apple config profile")
-		}
-		profileTeamID = prof.TeamID
-		profileName = prof.Name
-
-	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
-		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
-		}
-		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		decl, err := svc.ds.GetMDMAppleDeclaration(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting apple declaration")
-		}
-		profileTeamID = decl.TeamID
-		profileName = decl.Name
-
-	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
-		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check windows mdm enabled")
-		}
-		if host.Platform != "windows" {
-			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
-		}
-		prof, err := svc.ds.GetMDMWindowsConfigProfile(ctx, profileUUID)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting windows config profile")
-		}
-		profileTeamID = prof.TeamID
-		profileName = prof.Name
-
-	default:
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
+	profileTeamID, profileName, err := getProfileToResendDetails(ctx, profileUUID, svc, host)
+	if err != nil {
+		return err
 	}
 
 	// check again based on team id of profile before we proceeding
@@ -2418,6 +2468,29 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		return ctxerr.Wrap(ctx, err, "authorizing profile team")
 	}
 
+	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (svc *Service) ResendDeviceHostMDMProfile(ctx context.Context, host *fleet.Host, profileUUID string) error {
+	_, profileName, err := getProfileToResendDetails(ctx, profileUUID, svc, host)
+	if err != nil {
+		return err
+	}
+
+	err = checkAndResendHostMDMProfile(ctx, svc, host, profileUUID, profileName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func checkAndResendHostMDMProfile(ctx context.Context, svc *Service, host *fleet.Host, profileUUID string, profileName string) error {
 	status, err := svc.ds.GetHostMDMProfileInstallStatus(ctx, host.UUID, profileUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -2445,8 +2518,36 @@ func (svc *Service) ResendHostMDMProfile(ctx context.Context, hostID uint, profi
 		}); err != nil {
 		return ctxerr.Wrap(ctx, err, "logging activity for resend config profile")
 	}
-
 	return nil
+}
+
+// getPRofileToResendDetails returns the team ID and name of the profile to be resent.
+func getProfileToResendDetails(ctx context.Context, profileUUID string, svc *Service, host *fleet.Host) (*uint, string, error) {
+	var profileTeamID *uint
+	var profileName string
+	switch {
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleProfileUUIDPrefix):
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest), "check apple mdm enabled")
+		}
+		if host.Platform != "darwin" && host.Platform != "ios" && host.Platform != "ipados" {
+			return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Profile is not compatible with host platform."), "check host platform")
+		}
+		prof, err := svc.ds.GetMDMAppleConfigProfile(ctx, profileUUID)
+		if err != nil {
+			return nil, "", ctxerr.Wrap(ctx, err, "getting apple config profile")
+		}
+		profileTeamID = prof.TeamID
+		profileName = prof.Name
+
+	case strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix):
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendAppleDeclarationProfilesMessage).WithStatus(http.StatusBadRequest), "check apple declaration resend")
+	case strings.HasPrefix(profileUUID, fleet.MDMWindowsProfileUUIDPrefix):
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", fleet.CantResendWindowsProfilesMessage).WithStatus(http.StatusBadRequest), "check windows profile resend")
+	default:
+		return nil, "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("HostMDMProfile", "Invalid profile UUID prefix.").WithStatus(http.StatusNotFound), "check profile UUID prefix")
+	}
+	return profileTeamID, profileName, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2525,9 +2626,9 @@ func (svc *Service) GetMDMAppleCSR(ctx context.Context) ([]byte, error) {
 		// Store our config assets encrypted
 		var assets []fleet.MDMConfigAsset
 		for k, v := range map[fleet.MDMAssetName][]byte{
-			fleet.MDMAssetCACert:  apple_mdm.EncodeCertPEM(scepCert),
-			fleet.MDMAssetCAKey:   apple_mdm.EncodePrivateKeyPEM(scepKey),
-			fleet.MDMAssetAPNSKey: apple_mdm.EncodePrivateKeyPEM(apnsRSAKey),
+			fleet.MDMAssetCACert:  certificate.EncodeCertPEM(scepCert),
+			fleet.MDMAssetCAKey:   certificate.EncodePrivateKeyPEM(scepKey),
+			fleet.MDMAssetAPNSKey: certificate.EncodePrivateKeyPEM(apnsRSAKey),
 		} {
 			assets = append(assets, fleet.MDMConfigAsset{
 				Name:  k,
@@ -2744,11 +2845,11 @@ func (svc *Service) UploadMDMAppleAPNSCert(ctx context.Context, cert io.ReadSeek
 		return ctxerr.Wrap(ctx, err, "listing teams")
 	}
 	for _, team := range teams {
-		isEncryptionEnforced, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
+		diskEncryptionConfig, err := svc.ds.GetConfigEnableDiskEncryption(ctx, &team.ID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "retrieving encryption enforcement status for team")
 		}
-		if isEncryptionEnforced {
+		if diskEncryptionConfig.Enabled {
 			if err := svc.EnterpriseOverrides.MDMAppleEnableFileVaultAndEscrow(ctx, &team.ID); err != nil {
 				return ctxerr.Wrap(ctx, err, "enable FileVault escrow for team")
 			}

@@ -86,6 +86,7 @@ function PoliciesPaginatedList(
       }
       return [];
     },
+    reload: () => Promise.resolve(), // not used, but required for the interface
   }));
 
   // When "save" is clicked, call the parent's `onSubmit` with the set of changed items.

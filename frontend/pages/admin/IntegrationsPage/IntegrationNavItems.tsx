@@ -8,8 +8,8 @@ import ChangeManagement from "./cards/ChangeManagement";
 import CertificateAuthorities from "./cards/CertificateAuthorities";
 import ConditionalAccess from "./cards/ConditionalAccess";
 import IdentityProviders from "./cards/IdentityProviders";
-import Sso from "../OrgSettingsPage/cards/Sso";
-import GlobalHostStatusWebhook from "../OrgSettingsPage/cards/GlobalHostStatusWebhook";
+import Sso from "./cards/Sso";
+import GlobalHostStatusWebhook from "../IntegrationsPage/cards/GlobalHostStatusWebhook";
 
 const getIntegrationSettingsNavItems = (
   isManagedCloud: boolean

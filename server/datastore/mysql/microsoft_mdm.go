@@ -31,7 +31,6 @@ func isWindowsHostConnectedToFleetMDM(ctx context.Context, q sqlx.QueryerContext
 	    AND mwe.device_state = '`+microsoft_mdm.MDMDeviceStateEnrolled+`'
 	    AND hm.enrolled = 1 LIMIT 1
 	`, h.ID))
-
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -469,7 +468,11 @@ func updateMDMWindowsHostProfileStatusFromResponseDB(
 		sb.WriteString("(?, ?, ?, ?, ?, command_uuid, ?),")
 	}
 
-	stmt = fmt.Sprintf(updateHostProfilesStmt, strings.TrimSuffix(sb.String(), ","))
+	values := strings.TrimSuffix(sb.String(), ",")
+	if len(values) == 0 {
+		return nil
+	}
+	stmt = fmt.Sprintf(updateHostProfilesStmt, values)
 	_, err = tx.ExecContext(ctx, stmt, args...)
 	return ctxerr.Wrap(ctx, err, "updating host profiles")
 }
@@ -532,7 +535,7 @@ func (ds *Datastore) UpdateMDMWindowsEnrollmentsHostUUID(ctx context.Context, ho
 // - host_disk_encryption_keys: hdek
 // - host_mdm: hmdm
 // - host_disks: hd
-func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) string {
+func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus, bitLockerPINRequired bool) string {
 	const (
 		whereNotServer        = `(hmdm.is_server IS NOT NULL AND hmdm.is_server = 0)`
 		whereKeyAvailable     = `(hdek.base64_encrypted IS NOT NULL AND hdek.base64_encrypted != '' AND hdek.decryptable IS NOT NULL AND hdek.decryptable = 1)`
@@ -541,6 +544,11 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 		whereClientError      = `(hdek.client_error IS NOT NULL AND hdek.client_error != '')`
 		withinGracePeriod     = `(hdek.updated_at IS NOT NULL AND hdek.updated_at >= DATE_SUB(NOW(6), INTERVAL 1 HOUR))`
 	)
+
+	whereBitLockerPINSet := `TRUE`
+	if bitLockerPINRequired {
+		whereBitLockerPINSet = `(hd.tpm_pin_set = true)`
+	}
 
 	// TODO: what if windows sends us a key for an already encrypted volumne? could it get stuck
 	// in pending or verifying? should we modify SetOrUpdateHostDiskEncryption to ensure that we
@@ -553,7 +561,8 @@ func (ds *Datastore) whereBitLockerStatus(status fleet.DiskEncryptionStatus) str
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND ` + whereEncrypted + `
-AND ` + whereHostDisksUpdated
+AND ` + whereHostDisksUpdated + `
+AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionVerifying:
 		// Possible verifying scenarios:
@@ -565,7 +574,20 @@ AND ` + whereKeyAvailable + `
 AND (
     (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
-)`
+) 
+AND ` + whereBitLockerPINSet
+
+	case fleet.DiskEncryptionActionRequired:
+		// Action required means we _would_ be in verified / verifying,
+		// but we require a PIN to be set and it's not.
+		return whereNotServer + `
+AND NOT ` + whereClientError + `
+AND ` + whereKeyAvailable + `
+AND (
+	` + whereEncrypted + ` 
+	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
+)
+AND NOT ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionEnforcing:
 		// Possible enforcing scenarios:
@@ -592,11 +614,11 @@ AND (
 }
 
 func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *uint) (*fleet.MDMWindowsBitLockerSummary, error) {
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
-	if !enabled {
+	if !diskEncryptionConfig.Enabled {
 		return &fleet.MDMWindowsBitLockerSummary{}, nil
 	}
 
@@ -605,7 +627,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerSummary(ctx context.Context, teamID *
 SELECT
     COUNT(if((%s), 1, NULL)) AS verified,
     COUNT(if((%s), 1, NULL)) AS verifying,
-    0 AS action_required,
+    COUNT(if((%s), 1, NULL)) AS action_required,
     COUNT(if((%s), 1, NULL)) AS enforcing,
     COUNT(if((%s), 1, NULL)) AS failed,
     0 AS removing_enforcement
@@ -632,10 +654,11 @@ WHERE
 	var res fleet.MDMWindowsBitLockerSummary
 	stmt := fmt.Sprintf(
 		sqlFmt,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		microsoft_mdm.MDMDeviceStateEnrolled,
 		teamFilter,
 	)
@@ -668,11 +691,11 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 		return nil, nil
 	}
 
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, host.TeamID)
 	if err != nil {
 		return nil, err
 	}
-	if !enabled {
+	if !diskEncryptionConfig.Enabled {
 		return nil, nil
 	}
 
@@ -680,6 +703,7 @@ func (ds *Datastore) GetMDMWindowsBitLockerStatus(ctx context.Context, host *fle
 	stmt := fmt.Sprintf(`
 SELECT
 	CASE
+		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
@@ -693,13 +717,15 @@ FROM
 	LEFT JOIN host_disks hd ON hmdm.host_id = hd.host_id
 WHERE
 	hmdm.host_id = ?`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, diskEncryptionConfig.BitLockerPINRequired),
+		fleet.DiskEncryptionActionRequired,
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerified,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionVerifying,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionEnforcing,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, diskEncryptionConfig.BitLockerPINRequired),
 		fleet.DiskEncryptionFailed,
 	)
 
@@ -940,32 +966,35 @@ func subqueryHostsMDMWindowsOSSettingsStatusVerified() (string, []interface{}, e
 }
 
 func (ds *Datastore) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
-	includeBitLocker, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, teamID)
 	if err != nil {
 		return nil, err
 	}
 
 	var counts []statusCounts
-	if !includeBitLocker {
+	if !diskEncryptionConfig.Enabled {
 		counts, err = getMDMWindowsStatusCountsProfilesOnlyDB(ctx, ds, teamID)
 	} else {
-		counts, err = getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx, ds, teamID)
+		counts, err = getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx, ds, teamID, diskEncryptionConfig.BitLockerPINRequired)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	var res fleet.MDMProfilesSummary
+	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, c := range counts {
 		switch c.Status {
 		case "failed":
 			res.Failed = c.Count
 		case "pending":
-			res.Pending = c.Count
+			res.Pending += c.Count
 		case "verifying":
 			res.Verifying = c.Count
 		case "verified":
 			res.Verified = c.Count
+		case "action_required":
+			res.Pending += c.Count
 		case "":
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("counted %d windows hosts on team %v with mdm turned on but no profiles or bitlocker status", c.Count, teamID))
 		default:
@@ -1053,7 +1082,7 @@ GROUP BY
 	return counts, nil
 }
 
-func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint) ([]statusCounts, error) {
+func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Datastore, teamID *uint, bitLockerPINRequired bool) ([]statusCounts, error) {
 	var args []interface{}
 	subqueryFailed, subqueryFailedArgs, err := subqueryHostsMDMWindowsOSSettingsStatusFailed()
 	if err != nil {
@@ -1109,16 +1138,19 @@ func getMDMWindowsStatusCountsProfilesAndBitLockerDB(ctx context.Context, ds *Da
             WHEN (%s) THEN
                 'bitlocker_verifying'
             WHEN (%s) THEN
+                'bitlocker_action_required'
+            WHEN (%s) THEN
                 'bitlocker_pending'
             WHEN (%s) THEN
                 'bitlocker_failed'
             ELSE
                 ''
             END`,
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing),
-		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerified, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionVerifying, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionActionRequired, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionEnforcing, bitLockerPINRequired),
+		ds.whereBitLockerStatus(fleet.DiskEncryptionFailed, bitLockerPINRequired),
 	)
 
 	stmt := fmt.Sprintf(`
@@ -1735,7 +1767,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 	return nil
 }
 
-func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
+func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile, usesFleetVars []fleet.FleetVarName) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
@@ -1802,6 +1834,19 @@ INSERT INTO
 		}
 		if _, err := batchSetProfileLabelAssociationsDB(ctx, tx, labels, profsWithoutLabel, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+		}
+
+		// Save Fleet variables associated with this Windows profile
+		if len(usesFleetVars) > 0 {
+			profilesVarsToUpsert := []fleet.MDMProfileUUIDFleetVariables{
+				{
+					ProfileUUID:    profileUUID,
+					FleetVariables: usesFleetVars,
+				},
+			}
+			if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
+			}
 		}
 
 		return nil
@@ -1872,6 +1917,7 @@ func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	tx sqlx.ExtContext,
 	tmID *uint,
 	profiles []*fleet.MDMWindowsConfigProfile,
+	profilesVariablesByIdentifier []fleet.MDMProfileIdentifierFleetVariables,
 ) (updatedDB bool, err error) {
 	const loadExistingProfiles = `
 SELECT
@@ -2056,9 +2102,9 @@ ON DUPLICATE KEY UPDATE
 	// implementation we're under tight time constraints.
 	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	var profsWithoutLabel []string
+	var currentProfiles []*fleet.MDMWindowsConfigProfile
 	if len(incomingNames) > 0 {
-		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
-		// load current profiles (again) that match the incoming profiles by name to grab their uuids
+		// load current profiles (both new and updated) that match the incoming profiles by name to grab their uuids
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
 		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inreselect") {
 			if err == nil {
@@ -2066,43 +2112,43 @@ ON DUPLICATE KEY UPDATE
 			}
 			return false, ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
+		if err := sqlx.SelectContext(ctx, tx, &currentProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return false, ctxerr.Wrap(ctx, err, "load newly inserted profiles")
 		}
 
-		for _, newlyInsertedProf := range newlyInsertedProfs {
-			incomingProf, ok := incomingProfs[newlyInsertedProf.Name]
+		for _, currentProfile := range currentProfiles {
+			incomingProf, ok := incomingProfs[currentProfile.Name]
 			if !ok {
-				return false, ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
+				return false, ctxerr.Errorf(ctx, "profile %q is in the database but was not incoming", currentProfile.Name)
 			}
 
 			var profHasLabel bool
 			for _, label := range incomingProf.LabelsIncludeAll {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = true
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsIncludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = false
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			for _, label := range incomingProf.LabelsExcludeAny {
-				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				label.ProfileUUID = currentProfile.ProfileUUID
 				label.Exclude = true
 				label.RequireAll = false
 				incomingLabels = append(incomingLabels, label)
 				profHasLabel = true
 			}
 			if !profHasLabel {
-				profsWithoutLabel = append(profsWithoutLabel, newlyInsertedProf.ProfileUUID)
+				profsWithoutLabel = append(profsWithoutLabel, currentProfile.ProfileUUID)
 			}
 		}
 	}
@@ -2115,6 +2161,35 @@ ON DUPLICATE KEY UPDATE
 			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 		}
 		return false, ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+	}
+
+	// save fleet variables associated with Windows profiles (both new and updated)
+	// Note: currentProfiles contains all incoming profiles (new AND updated), not just new ones
+	// Process ALL profiles to ensure stale variable associations are cleared for profiles that no longer have variables
+	if len(currentProfiles) > 0 {
+		// build a lookup map for variables by profile name (Windows profiles use Name as identifier)
+		lookupVariablesByName := make(map[string][]fleet.FleetVarName, len(profilesVariablesByIdentifier))
+		for _, pv := range profilesVariablesByIdentifier {
+			// Windows profiles use Name as the identifier in the validateFleetVariables function
+			lookupVariablesByName[pv.Identifier] = pv.FleetVariables
+		}
+
+		// collect ALL profile UUIDs, including those without variables (to clear stale associations)
+		var profilesVarsToUpsert []fleet.MDMProfileUUIDFleetVariables
+		for _, p := range currentProfiles {
+			vars := lookupVariablesByName[p.Name] // defaults to nil/empty slice if not found
+			// Include every profile, even those without variables, so the helper can clear old associations
+			profilesVarsToUpsert = append(profilesVarsToUpsert, fleet.MDMProfileUUIDFleetVariables{
+				ProfileUUID:    p.ProfileUUID,
+				FleetVariables: vars, // may be empty/nil, which will clear associations
+			})
+		}
+
+		if len(profilesVarsToUpsert) > 0 {
+			if err := batchSetProfileVariableAssociationsDB(ctx, tx, profilesVarsToUpsert, "windows"); err != nil {
+				return false, ctxerr.Wrap(ctx, err, "inserting windows profile variable associations")
+			}
+		}
 	}
 
 	return updatedDB || updatedLabels, nil

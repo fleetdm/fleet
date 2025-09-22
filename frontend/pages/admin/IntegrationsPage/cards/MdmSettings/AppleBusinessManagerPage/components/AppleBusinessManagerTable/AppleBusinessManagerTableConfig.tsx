@@ -9,6 +9,7 @@ import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ActionsDropdown from "components/ActionsDropdown";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import RenewDateCell from "../../../components/RenewDateCell";
 import OrgNameCell from "./OrgNameCell";
@@ -163,12 +164,20 @@ export const generateTableConfig = (
       // but we don't use it.
       accessor: "id",
       Cell: (cellProps) => (
-        <ActionsDropdown
-          options={generateActions()}
-          onChange={(value: string) =>
-            actionSelectHandler(value, cellProps.row.original)
-          }
-          placeholder="Actions"
+        <GitOpsModeTooltipWrapper
+          position="left"
+          renderChildren={(disableChildren) => (
+            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+              <ActionsDropdown
+                options={generateActions()}
+                onChange={(value: string) =>
+                  actionSelectHandler(value, cellProps.row.original)
+                }
+                placeholder="Actions"
+                disabled={disableChildren}
+              />
+            </div>
+          )}
         />
       ),
     },

@@ -54,7 +54,11 @@ export const isScheduledQueryablePlatform = (
   );
 
 // TODO - add "iOS" and "iPadOS" once we support them
-export const VULN_SUPPORTED_PLATFORMS: Platform[] = ["darwin", "windows"];
+export const VULN_SUPPORTED_PLATFORMS: Platform[] = [
+  "darwin",
+  "windows",
+  "linux", // Added 4.73
+];
 
 export type SelectedPlatform = QueryablePlatform | "all";
 
@@ -83,8 +87,7 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, QueryablePlatform[]> = {
 
 /**
  * Host Linux OSs as defined by the Fleet server.
- *
- * @see https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L780
+ * IMPORTANT: When updating this, also make sure to update fleet.HostLinuxOSs in backend code.
  */
 export const HOST_LINUX_PLATFORMS = [
   "linux",
@@ -97,7 +100,7 @@ export const HOST_LINUX_PLATFORMS = [
   "gentoo",
   "amzn",
   "pop",
-  "arch",
+  "arch", // Arch Linux
   "linuxmint",
   "void",
   "nixos",
@@ -107,6 +110,7 @@ export const HOST_LINUX_PLATFORMS = [
   "opensuse-tumbleweed",
   "tuxedo",
   "neon",
+  "archarm", // Arch Linux ARM
 ] as const;
 
 export const HOST_APPLE_PLATFORMS = ["darwin", "ios", "ipados"] as const;
@@ -149,6 +153,8 @@ export const isMobilePlatform = (platform: string | HostPlatform) =>
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
+  "arch", // Arch Linux
+  "archarm", // Arch Linux ARM
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (
@@ -203,3 +209,11 @@ export const isOsSettingsDisplayPlatform = (
   }
   return OS_SETTINGS_DISPLAY_PLATFORMS.includes(platform);
 };
+
+export const SETUP_EXPERIENCE_PLATFORMS = [
+  "macos",
+  "windows",
+  "linux",
+] as const;
+
+export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/ghodss/yaml"
@@ -20,7 +21,8 @@ import (
 )
 
 type MockClient struct {
-	IsFree bool
+	IsFree           bool
+	TeamNameOverride string
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -52,19 +54,19 @@ func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 	return spec, nil
 }
 
-func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
+func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
+	var config fleet.TeamConfig
 	b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	if err != nil {
 		return nil, err
 	}
-	var config fleet.TeamConfig
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 	teams := []fleet.Team{
 		{
 			ID:     1,
-			Name:   "Team A",
+			Name:   "Team A 👍",
 			Config: config,
 			Secrets: []*fleet.EnrollSecret{
 				{
@@ -72,6 +74,9 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 				},
 			},
 		},
+	}
+	if c.TeamNameOverride != "" {
+		teams[0].Name = c.TeamNameOverride
 	}
 	return teams, nil
 }
@@ -93,6 +98,8 @@ func (MockClient) ListScripts(query string) ([]*fleet.Script, error) {
 			ScriptContentID: 3,
 		}}, nil
 	case "team_id=2", "team_id=3", "team_id=4", "team_id=5":
+		return nil, nil
+	case "team_id=6":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unexpected query: %s", query)
@@ -174,6 +181,23 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 }
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
+	if teamID == 0 {
+		// Return "No Team" configuration with webhook settings
+		return &fleet.Team{
+			ID:   0,
+			Name: "No team",
+			Config: fleet.TeamConfig{
+				WebhookSettings: fleet.TeamWebhookSettings{
+					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-webhook",
+						PolicyIDs:      []uint{1, 2, 3},
+						HostBatchSize:  100,
+					},
+				},
+			},
+		}, nil
+	}
 	if teamID == 1 {
 		b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 		if err != nil {
@@ -330,6 +354,7 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:       true,
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
+				Categories:        []string{"Browsers"},
 			},
 		}, nil
 	case 2:
@@ -344,6 +369,8 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label D",
 				}},
+				Categories:  []string{"Productivity", "Utilities"},
+				SelfService: true,
 			},
 		}, nil
 	default:
@@ -391,7 +418,7 @@ func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
 }
 
-func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	if teamID == 1 {
 		return []fleet.SoftwareTitleListResult{
 			{
@@ -467,6 +494,55 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	res := fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                  "some-digicert-name",
+				URL:                   "https://some-digicert-url.com",
+				APIToken:              maskSecret("some-digicert-api-token", includeSecrets),
+				ProfileID:             "some-digicert-profile-id",
+				CertificateCommonName: "some-digicert-certificate-common-name",
+				CertificateUserPrincipalNames: []string{
+					"some-digicert-certificate-user-principal-name",
+					"some-other-digicert-certificate-user-principal-name",
+				},
+				CertificateSeatID: "some-digicert-certificate-seat-id",
+			},
+		},
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://some-ndes-scep-proxy-url.com",
+			AdminURL: "https://some-ndes-admin-url.com",
+			Username: "some-ndes-username",
+			Password: maskSecret("some-ndes-password", includeSecrets),
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			{
+				Name:      "some-custom-scep-proxy-name",
+				URL:       "https://some-custom-scep-proxy-url.com",
+				Challenge: maskSecret("some-custom-scep-proxy-challenge", includeSecrets),
+			},
+		},
+		Hydrant: []fleet.HydrantCA{
+			{
+				Name:         "some-hydrant-name",
+				URL:          "https://some-hydrant-url.com",
+				ClientID:     "some-hydrant-client-id",
+				ClientSecret: maskSecret("some-hydrant-client-secret", includeSecrets),
+			},
+		},
+	}
+
+	return &res, nil
+}
+
+func maskSecret(value string, shouldShowSecret bool) string {
+	if shouldShowSecret {
+		return value
+	}
+	return "********"
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
@@ -589,6 +665,36 @@ func TestGenerateOrgSettings(t *testing.T) {
 
 	// Compare.
 	require.Equal(t, expectedAppConfig, orgSettings)
+}
+
+func TestGeneratedOrgSettingsNoSSO(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+
+	appConfig.SSOSettings = nil
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(&cli.App{}, nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+	}
+
+	// Generate the org settings.
+	// Note that nested keys here may be strings,
+	// so we'll JSON marshal and unmarshal to a map for comparison.
+	orgSettingsRaw, err := cmd.generateOrgSettings()
+	require.NoError(t, err)
+	require.NotNil(t, orgSettingsRaw)
+	var orgSettings map[string]any
+	b, err := yaml.Marshal(orgSettingsRaw)
+	require.NoError(t, err)
+	err = yaml.Unmarshal(b, &orgSettings)
+	require.NoError(t, err)
 }
 
 func TestGenerateOrgSettingsInsecure(t *testing.T) {
@@ -1090,4 +1196,96 @@ func verifyControlsHasMacosSetup(t *testing.T, controlsRaw map[string]interface{
 	macosSetup, ok := controlsRaw["macos_setup"].(string)
 	require.True(t, ok, "Expected macos_setup section to be a string")
 	require.Equal(t, macosSetup, "TODO: update with your macos_setup configuration")
+}
+
+func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
+	// Get the test app config.
+	fleetClient := &MockClient{}
+	appConfig, err := fleetClient.GetAppConfig()
+	require.NoError(t, err)
+	appConfig.MDM.EnabledAndConfigured = false
+	appConfig.MDM.WindowsEnabledAndConfigured = false
+	appConfig.MDM.AppleBusinessManager = optjson.Slice[fleet.MDMAppleABMAssignmentInfo]{}
+	appConfig.MDM.AppleServerURL = ""
+	appConfig.MDM.EndUserAuthentication = fleet.MDMEndUserAuthentication{}
+	appConfig.MDM.VolumePurchasingProgram = optjson.Slice[fleet.MDMAppleVolumePurchasingProgramInfo]{}
+
+	// Create the command.
+	cmd := &GenerateGitopsCommand{
+		Client:       fleetClient,
+		CLI:          cli.NewContext(cli.NewApp(), nil, nil),
+		Messages:     Messages{},
+		FilesToWrite: make(map[string]interface{}),
+		AppConfig:    appConfig,
+		ScriptList:   make(map[uint]string),
+	}
+	// teamId=6 is unhandled for MDM APIs to make sure the APIs to get MDM stuff
+	// aren't called if MDM is not enabled and configured.
+	controlsRaw, err := cmd.generateControls(ptr.Uint(6), "some_team", nil)
+	require.NoError(t, err)
+	require.Contains(t, controlsRaw, "scripts") // Uploading scripts does not require MDM turned on.
+	require.Empty(t, controlsRaw["scripts"])
+
+	// teamId=6 is unhandled for MDM APIs to make sure the APIs to get MDM stuff
+	// aren't called if MDM is not enabled and configured.
+	mdmRaw, err := cmd.generateMDM(&appConfig.MDM)
+	require.NoError(t, err)
+	// Verify all keys are set to empty.
+	for _, key := range []string{
+		"apple_business_manager",
+		"apple_server_url",
+		"end_user_authentication",
+		"end_user_license_agreement",
+		"volume_purchasing_program",
+	} {
+		require.Contains(t, mdmRaw, key)
+		require.Empty(t, mdmRaw[key])
+	}
+}
+
+func TestSillyTeamNames(t *testing.T) {
+	sillyTeamNames := map[string]string{
+		"🫆": "🫆.yml",
+		"🪾": "🪾.yml",
+		"🫜": "🫜.yml",
+		"🪉": "🪉.yml",
+		"🪏": "🪏.yml",
+		"🫟": "🫟.yml",
+		"👍": "👍.yml",
+		"a/team\\with:all*the?footguns\"in<it>omg|": "aateambwithcalldtheefootgunsfingithomgi.yml",
+	}
+
+	fleetClient := &MockClient{}
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+
+	for name, expectedFilename := range sillyTeamNames {
+		t.Run(name, func(t *testing.T) {
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			flagSet.String("dir", tempDir, "")
+			flagSet.Bool("force", true, "")
+			fleetClient.TeamNameOverride = name
+			action := createGenerateGitopsAction(fleetClient)
+			buf := new(bytes.Buffer)
+			cliContext := cli.NewContext(&cli.App{
+				Name:      "test",
+				Usage:     "test",
+				Writer:    buf,
+				ErrWriter: buf,
+			}, flagSet, nil)
+			// Get the test app config.
+			err := action(cliContext)
+			require.NoError(t, err, buf.String())
+
+			// Expect a correctly-named .yaml
+			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			_, err = os.Stat(tgtPath)
+			require.NoError(t, err)
+		})
+	}
 }

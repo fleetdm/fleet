@@ -2,12 +2,23 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 
+	ma "github.com/fleetdm/fleet/v4/ee/maintained-apps"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +41,7 @@ ${PACKAGE_ID}`
 		PackageIDs:      []string{"com.foo"},
 	}
 
-	preProcessUninstallScript(&payload)
+	require.NoError(t, preProcessUninstallScript(&payload))
 	expected := `
 blah$PACKAGE_IDS
 pkgids="com.foo"
@@ -46,7 +57,7 @@ quotes and braces for "com.foo"
 		UninstallScript: input,
 		PackageIDs:      []string{"com.foo", "com.bar"},
 	}
-	preProcessUninstallScript(&payload)
+	require.NoError(t, preProcessUninstallScript(&payload))
 	expected = `
 blah$PACKAGE_IDS
 pkgids=(
@@ -74,6 +85,13 @@ quotes and braces for (
   "com.bar"
 )`
 	assert.Equal(t, expected, payload.UninstallScript)
+
+	payload.UninstallScript = "$UPGRADE_CODE"
+	require.Error(t, preProcessUninstallScript(&payload))
+
+	payload.UpgradeCode = "foo"
+	require.NoError(t, preProcessUninstallScript(&payload))
+	assert.Equal(t, `"foo"`, payload.UninstallScript)
 }
 
 func TestInstallUninstallAuth(t *testing.T) {
@@ -196,10 +214,85 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
+// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits is placed to hit some edge cases.
+func TestInstallSoftwareTitle(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	host := &fleet.Host{
+		UUID:         "personal-ios",
+		OrbitNodeKey: ptr.String("orbit_key"),
+		Platform:     "ios",
+		TeamID:       ptr.Uint(1),
+	}
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{
+			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
+		}, nil
+	}
+
+	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
+}
+
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
 	svc := newTestService(t, ds)
+
+	installerBytes := []byte("1password")
+	h := sha256.New()
+	_, err := h.Write(installerBytes)
+	require.NoError(t, err)
+	onePasswordSHA := hex.EncodeToString(h.Sum(nil))
+
+	manifestServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		slug := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, ".json"), "/")
+
+		var versions []*ma.FMAManifestApp
+		versions = append(versions, &ma.FMAManifestApp{
+			Version: "1",
+			Queries: ma.FMAQueries{
+				Exists: "SELECT 1 FROM osquery_info;",
+			},
+			InstallerURL:       fmt.Sprintf("/installer-%s.zip", slug),
+			InstallScriptRef:   "installscript",
+			UninstallScriptRef: "uninstallscript",
+			DefaultCategories:  []string{"Productivity"},
+		})
+
+		manifest := ma.FMAManifestFile{
+			Versions: versions,
+			Refs: map[string]string{
+				"installscript":   "echo 'installing'",
+				"uninstallscript": "echo 'uninstalling'",
+			},
+		}
+
+		switch slug {
+		case "":
+			w.WriteHeader(http.StatusNotFound)
+			return
+
+		case "1password/darwin":
+			manifest.Versions[0].SHA256 = onePasswordSHA
+
+		case "google-chrome/darwin":
+			manifest.Versions[0].SHA256 = "no_check"
+		}
+
+		err := json.NewEncoder(w).Encode(manifest)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(manifestServer.Close)
+	os.Setenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL", manifestServer.URL)
+	defer os.Unsetenv("FLEET_DEV_MAINTAINED_APPS_BASE_URL")
 
 	ds.GetMaintainedAppBySlugFunc = func(ctx context.Context, slug string, teamID *uint) (*fleet.MaintainedApp, error) {
 		return &fleet.MaintainedApp{
@@ -211,10 +304,10 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 		}, nil
 	}
 	payload := fleet.SoftwareInstallerPayload{Slug: ptr.String("1password/darwin")}
-	err := svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
+	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
-	assert.Contains(t, payload.URL, "1password")
-	assert.NotEmpty(t, payload.SHA256)
+	assert.NotEmpty(t, payload.URL)
+	assert.Equal(t, onePasswordSHA, payload.SHA256)
 	assert.NotEmpty(t, payload.InstallScript)
 	assert.NotEmpty(t, payload.UninstallScript)
 	assert.True(t, payload.FleetMaintained)
@@ -232,7 +325,7 @@ func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	payload = fleet.SoftwareInstallerPayload{Slug: ptr.String("google-chrome/darwin")}
 	err = svc.softwareInstallerPayloadFromSlug(context.Background(), &payload, nil)
 	require.NoError(t, err)
-	assert.Contains(t, payload.URL, "google.com")
+	assert.NotEmpty(t, payload.URL)
 	assert.Empty(t, payload.SHA256)
 	assert.NotEmpty(t, payload.InstallScript)
 	assert.NotEmpty(t, payload.UninstallScript)
@@ -270,4 +363,17 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 		ds:    ds,
 	}
 	return svc
+}
+
+func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmock.Service) {
+	t.Helper()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	baseSvc := new(svcmock.Service)
+	svc := &Service{
+		Service: baseSvc,
+		authz:   authorizer,
+		ds:      ds,
+	}
+	return svc, baseSvc
 }

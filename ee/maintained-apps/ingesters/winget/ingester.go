@@ -2,12 +2,12 @@ package winget
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -250,6 +250,25 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	}
 
 	if (input.InstallerType == installerTypeMSI || input.UninstallType == installerTypeMSI) && input.InstallerScope == machineScope {
+		var upgradeCode string
+		for _, fe := range m.AppsAndFeaturesEntries {
+			if fe.UpgradeCode != "" {
+				upgradeCode = fe.UpgradeCode
+				break
+			}
+		}
+		if upgradeCode == "" {
+			for _, fe := range selectedInstaller.AppsAndFeaturesEntries {
+				if fe.UpgradeCode != "" {
+					upgradeCode = fe.UpgradeCode
+					break
+				}
+			}
+		}
+		if uninstallScript == "" && upgradeCode != "" {
+			uninstallScript = buildUpgradeCodeBasedUninstallScript(upgradeCode)
+		}
+
 		if uninstallScript == "" {
 			uninstallScript = file.GetUninstallScript(installerTypeMSI)
 		}
@@ -266,7 +285,6 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	if productCode == "" {
 		productCode = selectedInstaller.ProductCode
 	}
-
 	productCode = strings.Split(productCode, ".")[0]
 
 	out.Name = input.Name
@@ -303,11 +321,13 @@ func (i *wingetIngester) ingestOne(ctx context.Context, input inputApp) (*mainta
 	return &out, nil
 }
 
-var packageIDRegex = regexp.MustCompile(`((("\$PACKAGE_ID")|(\$PACKAGE_ID))(?P<suffix>\W|$))|(("\${PACKAGE_ID}")|(\${PACKAGE_ID}))`)
+func buildUpgradeCodeBasedUninstallScript(upgradeCode string) string {
+	return file.UpgradeCodeRegex.ReplaceAllString(file.UninstallMsiWithUpgradeCodeScript, fmt.Sprintf("\"%s\"${suffix}", upgradeCode))
+}
 
 func preProcessUninstallScript(uninstallScript, productCode string) string {
 	code := fmt.Sprintf("\"%s\"", productCode)
-	return packageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
+	return file.PackageIDRegex.ReplaceAllString(uninstallScript, fmt.Sprintf("%s${suffix}", code))
 }
 
 // these are installer types that correspond to software vendors, not the actual installer type

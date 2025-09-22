@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
+
 import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
@@ -28,24 +28,20 @@ import ProfileListItem from "./components/ProfileListItem";
 import ProfileListHeading from "./components/ProfileListHeading";
 import ConfigProfileStatusModal from "./components/ConfigProfileStatusModal";
 import ResendConfigProfileModal from "./components/ResendConfigProfileModal";
+import { IOSSettingsCommonProps } from "../../OSSettingsNavItems";
 
 const PROFILES_PER_PAGE = 10;
 
 const baseClass = "custom-settings";
 
-interface ICustomSettingsProps {
-  currentTeamId: number;
-  router: InjectedRouter; // v3
-  currentPage: number;
-  /** handler that fires when a change occures on the section (e.g. disk encryption
-   * enabled, profile uploaded) */
-  onMutation: () => void;
-}
+export type ICustomSettingsProps = IOSSettingsCommonProps & {
+  currentPage?: number;
+};
 
 const CustomSettings = ({
   currentTeamId,
   router,
-  currentPage,
+  currentPage = 0,
   onMutation,
 }: ICustomSettingsProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -206,17 +202,25 @@ const CustomSettings = ({
     !!profileLabelsModalData?.labels_include_any?.length ||
     !!profileLabelsModalData?.labels_exclude_any?.length;
 
+  const subTitle = (
+    <>
+      Create and upload configuration profiles to apply custom settings.{" "}
+      <CustomLink
+        newTab
+        text="Learn how"
+        url="https://fleetdm.com/learn-more-about/custom-os-settings"
+      />
+    </>
+  );
+
   return (
     <div className={baseClass}>
-      <SectionHeader title="Custom settings" />
-      <p className={`${baseClass}__description`}>
-        Create and upload configuration profiles to apply custom settings.{" "}
-        <CustomLink
-          newTab
-          text="Learn how"
-          url="https://fleetdm.com/learn-more-about/custom-os-settings"
-        />
-      </p>
+      <SectionHeader
+        title="Custom settings"
+        subTitle={subTitle}
+        alignLeftHeaderVertically
+        greySubtitle
+      />
       {!mdmEnabled ? (
         <TurnOnMdmMessage
           router={router}

@@ -2,6 +2,7 @@ import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
@@ -43,11 +44,6 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-calendar-events%40fleet-in-your-calendar.iam.gserviceaccount.com",
   "universe_domain": "googleapis.com"
 }`;
-
-interface IFormField {
-  name: string;
-  value: string | boolean | number;
-}
 
 interface ICalendarsFormErrors {
   domain?: string | null;
@@ -133,7 +129,7 @@ const Calendars = (): JSX.Element => {
   };
 
   const onInputChange = useCallback(
-    ({ name, value }: IFormField) => {
+    ({ name, value }: IInputFieldParseTarget) => {
       const newFormData = { ...formData, [name]: value };
       setFormData(newFormData);
       setFormErrors(validateForm(newFormData));

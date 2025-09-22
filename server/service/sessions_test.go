@@ -8,6 +8,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -15,6 +16,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testSSOMetadata returns a valid SAML metadata XML for testing
+func testSSOMetadata() string {
+	return `<?xml version="1.0"?>
+<md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="test-idp">
+  <md:IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <md:KeyDescriptor use="signing">
+      <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+        <ds:X509Data>
+          <ds:X509Certificate>MIIDXTCCAkWgAwIBAgIJALmVVuDWu4NYMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNVBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQwHhcNMTYxMjMxMTQzNDQ3WhcNNDgwNjI1MTQzNDQ3WjBFMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50ZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzUCFozgNb1h1M0jzNRSCjhOBnR+uVbVpaWfXYIR+AhWDdEe5ryY+CgavOg8bfLybyzFdehlYdDRgkedEB/GjG8aJw06l0qF4jDOAw0kEygWCu2mcH7XOxRt+YAH3TVHa/Hu1W3WjzkobqqqLQ8gkKWWM27fOgAZ6GieaJBN6VBSMMcPey3HWLBmc+TYJmv1dbaO2jHhKh8pfKw0W12VM8P1PIO8gv4Phu/uuJYieBWKixBEyy0lHjyixYFCR12xdh4CA47q958ZRGnnDUGFVE1QhgRacJCOZ9bd5t9mr8KLaVBYTCJo5ERE8jymab5dPqe5qKfJsCZiqWglbjUo9twIDAQABo1AwTjAdBgNVHQ4EFgQUxpuwcs/CYQOyui+r1G+3KxBNhxkwHwYDVR0jBBgwFoAUxpuwcs/CYQOyui+r1G+3KxBNhxkwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0BAQsFAAOCAQEAAiWUKs/2x/viNCKi3Y6blEuCtAGhzOOZ9EjrvJ8+COH3Rag3tVBWrcBZ3/uhhPq5gy9lqw4OkvEws99/5jFsX1FJ6MKBgqfuy7yh5s1YfM0ANHYczMmYpZeAcQf2CGAaVfwTTfSlzNLsF2lW/ly7yapFzlYSJLGoVE+OHEu8g5SlNACUEfkXw+5Eghh+KzlIN7R6Q7r2ixWNFBC/jWf7NKUfJyX8qIG5md1YUeT6GBW9Bm2/1/RiO24JTaYlfLdKK9TYb8sG5B+OLab2DImG99CJ25RkAcSobWNF5zD0O6lgOo3cEdB/ksCq3hmtlC/DlLZ/D8CJ+7VuZnS1rR2naQ==</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </md:KeyDescriptor>
+    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.example.com/sso"/>
+  </md:IDPSSODescriptor>
+</md:EntityDescriptor>`
+}
 
 func TestSessionAuth(t *testing.T) {
 	ds := new(mock.Store)
@@ -435,4 +453,141 @@ func TestGetSSOUser(t *testing.T) {
 
 	_, err = svc.GetSSOUser(ctx, auth)
 	require.Error(t, err)
+}
+
+func TestInitiateSSOWithSSOServerURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	// Mock app config with SSO server URL
+	appConfig := &fleet.AppConfig{
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "https://fleet.example.com",
+		},
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO:    true,
+			SSOServerURL: "https://admin.fleet.example.com",
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID: "fleet",
+				IDPName:  "TestIDP",
+				Metadata: testSSOMetadata(),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	// Test that ACS URL uses SSO URL
+	sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+	require.NoError(t, err)
+	require.NotEmpty(t, sessionID)
+	require.NotEmpty(t, idpURL)
+
+	// The ACS URL should use the SSO server URL
+	// We can't directly test the ACS URL in the SAML request here since it's embedded in the XML,
+	// but the integration test verifies this works correctly
+}
+
+func TestInitiateSSOWithTrailingSlash(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	testCases := []struct {
+		name         string
+		serverURL    string
+		ssoServerURL string
+	}{
+		{
+			name:         "server URL with trailing slash",
+			serverURL:    "https://fleet.example.com/",
+			ssoServerURL: "",
+		},
+		{
+			name:         "SSO server URL with trailing slash",
+			serverURL:    "https://fleet.example.com",
+			ssoServerURL: "https://admin.fleet.example.com/",
+		},
+		{
+			name:         "both URLs with trailing slash",
+			serverURL:    "https://fleet.example.com/",
+			ssoServerURL: "https://admin.fleet.example.com/",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Mock app config
+			appConfig := &fleet.AppConfig{
+				ServerSettings: fleet.ServerSettings{
+					ServerURL: tc.serverURL,
+				},
+				SSOSettings: &fleet.SSOSettings{
+					EnableSSO:    true,
+					SSOServerURL: tc.ssoServerURL,
+					SSOProviderSettings: fleet.SSOProviderSettings{
+						EntityID: "fleet",
+						IDPName:  "TestIDP",
+						Metadata: testSSOMetadata(),
+					},
+				},
+			}
+
+			ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+				return appConfig, nil
+			}
+
+			// Test that InitiateSSO works
+			sessionID, _, idpURL, err := svc.InitiateSSO(ctx, "/dashboard")
+			require.NoError(t, err)
+			require.NotEmpty(t, sessionID)
+			require.NotEmpty(t, idpURL)
+		})
+	}
+}
+
+func TestInitiateSSOWithInvalidURL(t *testing.T) {
+	ds := new(mock.Store)
+	pool := redistest.NopRedis()
+
+	svc, ctx := newTestServiceWithConfig(t, ds, config.TestConfig(), nil, nil, &TestServerOpts{
+		Pool: pool,
+	})
+
+	// Mock app config with invalid URL
+	appConfig := &fleet.AppConfig{
+		ServerSettings: fleet.ServerSettings{
+			ServerURL: "not-a-valid-url://%%%",
+		},
+		SSOSettings: &fleet.SSOSettings{
+			EnableSSO: true,
+			SSOProviderSettings: fleet.SSOProviderSettings{
+				EntityID: "fleet",
+				IDPName:  "TestIDP",
+				Metadata: testSSOMetadata(),
+			},
+		},
+	}
+
+	ds.AppConfigFunc = func(_ context.Context) (*fleet.AppConfig, error) {
+		return appConfig, nil
+	}
+
+	// Test that invalid URL returns bad request error
+	_, _, _, err := svc.InitiateSSO(ctx, "/dashboard")
+	require.Error(t, err)
+
+	// Verify it's a bad request error
+	var badReqErr *fleet.BadRequestError
+	require.ErrorAs(t, err, &badReqErr)
+	require.Contains(t, badReqErr.Message, "invalid SSO URL")
 }

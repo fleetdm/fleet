@@ -40,7 +40,7 @@ import {
   LabelMembershipType,
 } from "interfaces/label";
 import { IHost } from "interfaces/host";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
@@ -266,7 +266,10 @@ const NewLabelPage = ({
 
   // form handlers
 
-  const onInputChange = ({ name: fieldName, value }: IFormField) => {
+  const onInputChange = ({
+    name: fieldName,
+    value,
+  }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [fieldName]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
@@ -316,8 +319,8 @@ const NewLabelPage = ({
     }
     setIsUpdating(true);
     try {
-      const res = await labelsAPI.create(formData);
-      router.push(PATHS.MANAGE_HOSTS_LABEL(res.label.id));
+      await labelsAPI.create(formData);
+      router.push(PATHS.MANAGE_LABELS);
       renderFlash("success", "Label added successfully.");
     } catch {
       renderFlash("error", "Couldn't add label. Please try again.");
@@ -423,31 +426,38 @@ const NewLabelPage = ({
       case "host_vitals":
         return (
           <div className={`${baseClass}__host_vitals-fields`}>
-            <Dropdown
-              label="Label criteria"
-              name="vital"
-              onChange={onInputChange}
-              parseTarget
-              value={vital}
-              error={formErrors.criteria}
-              options={availableCriteria}
-              classname={`${baseClass}__criteria-dropdown`}
-              wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
-              helpText="Currently, label criteria can be IdP group or department."
-            />
-            <p>is equal to</p>
-            <InputField
-              error={formErrors.criteria}
-              name="vitalValue"
-              onChange={onInputChange}
-              onBlur={onInputBlur}
-              value={vitalValue}
-              inputClassName={`${baseClass}__vital-value`}
-              placeholder={
-                vital === "end_user_idp_group" ? "IT admins" : "Engineering"
-              }
-              parseTarget
-            />
+            <label className="form-field__label" htmlFor="criterion-and-value">
+              Label criteria
+            </label>
+            <span id="criterion-and-value">
+              <Dropdown
+                name="vital"
+                onChange={onInputChange}
+                parseTarget
+                value={vital}
+                error={formErrors.criteria}
+                options={availableCriteria}
+                classname={`${baseClass}__criteria-dropdown`}
+                wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--criteria`}
+              />
+              <p>is equal to</p>
+              <InputField
+                error={formErrors.criteria}
+                name="vitalValue"
+                onChange={onInputChange}
+                onBlur={onInputBlur}
+                value={vitalValue}
+                inputClassName={`${baseClass}__vital-value`}
+                placeholder={
+                  vital === "end_user_idp_group" ? "IT admins" : "Engineering"
+                }
+                parseTarget
+              />
+            </span>
+            <span className="form-field__help-text">
+              Currently, label criteria can be IdP group or department on macOS
+              hosts.
+            </span>
           </div>
         );
 

@@ -521,11 +521,23 @@ func testPoliciesMembershipView(deferred bool, t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create hosts in each team
-	host3, err := ds.EnrollHost(ctx, false, "3", "", "", "3", &team1.ID, 0)
+	host3, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("3"),
+		fleet.WithEnrollOsqueryNodeKey("3"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
-	host4, err := ds.EnrollHost(ctx, false, "4", "", "", "4", &team2.ID, 0)
+	host4, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("4"),
+		fleet.WithEnrollOsqueryNodeKey("4"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
-	host5, err := ds.EnrollHost(ctx, false, "5", "", "", "5", &team2.ID, 0)
+	host5, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("5"),
+		fleet.WithEnrollOsqueryNodeKey("5"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
 
 	// create some policy results
@@ -1073,7 +1085,7 @@ func testListMergedTeamPolicies(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), merged[1].FailingHostCount)
 
 	// move host to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host.ID}))
 	require.NoError(t, err)
 
 	err = ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{team1policy.ID: ptr.Bool(true)}, time.Now(), false)
@@ -1127,7 +1139,7 @@ func newTestHostWithPlatform(t *testing.T, ds *Datastore, hostname, platform str
 	})
 	require.NoError(t, err)
 	if teamID != nil {
-		err := ds.AddHostsToTeam(context.Background(), teamID, []uint{host.ID})
+		err := ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(teamID, []uint{host.ID}))
 		require.NoError(t, err)
 		host, err = ds.Host(context.Background(), host.ID)
 		require.NoError(t, err)
@@ -1366,7 +1378,7 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	host1, err = ds.Host(context.Background(), host1.ID)
 	require.NoError(t, err)
 
@@ -1570,10 +1582,14 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 		Hostname:        "foo.local",
 	})
 	require.NoError(t, err)
-	host2, err := ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
+	host2, err := ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
 
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host1.ID})))
 	host1, err = ds.Host(ctx, host1.ID)
 	require.NoError(t, err)
 
@@ -1636,17 +1652,25 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(2, 2, 0, 2)
 
 	// team policies are removed when AddHostsToTeam is called
-	require.NoError(t, ds.AddHostsToTeam(ctx, ptr.Uint(team2.ID), []uint{host1.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(ptr.Uint(team2.ID), []uint{host1.ID})))
 	// host2 passes tm1 and the global (so team1's inherited too), host1 passes the team2's inherited and the global
 	checkPassingCount(1, 1, 1, 2)
 
 	// all host policies are removed when a host is enrolled in the same team
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team1.ID, 0)
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team1.ID),
+	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 
 	// team policies are removed if the host is enrolled in a different team
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", &team2.ID, 0)
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+		fleet.WithEnrollOsqueryTeamID(&team2.ID),
+	)
 	require.NoError(t, err)
 	// both hosts are now in team2
 	checkPassingCount(0, 0, 1, 1)
@@ -1656,7 +1680,10 @@ func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	checkPassingCount(1, 0, 2, 2)
 
 	// all host policies are removed when a host is re-enrolled
-	_, err = ds.EnrollHost(ctx, false, "2", "", "", "2", nil, 0)
+	_, err = ds.EnrollOsquery(ctx,
+		fleet.WithEnrollOsqueryHostID("2"),
+		fleet.WithEnrollOsqueryNodeKey("2"),
+	)
 	require.NoError(t, err)
 	checkPassingCount(0, 0, 1, 1)
 }
@@ -2427,7 +2454,7 @@ func testCachedPolicyCountDeletesOnPolicyChange(t *testing.T, ds *Datastore) {
 		Platform:        "windows",
 	})
 	require.NoError(t, err)
-	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{teamHost.ID}))
+	require.NoError(t, ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{teamHost.ID})))
 
 	globalHost, err := ds.NewHost(ctx, &fleet.Host{
 		OsqueryHostID:   ptr.String("test-2"),
@@ -3263,7 +3290,7 @@ func testDeleteAllPolicyMemberships(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.writer(ctx).Get(&count, "select COUNT(*) from host_issues WHERE total_issues_count > 0"))
 	assert.Equal(t, 1, count)
 
-	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), []uint{host.ID})
+	err = deleteAllPolicyMemberships(ctx, ds.writer(ctx), host.ID)
 	require.NoError(t, err)
 
 	err = ds.writer(ctx).Get(&count, "select COUNT(*) from policy_membership")
@@ -4109,7 +4136,7 @@ func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
 	// Move host 4 to team1 and have it fail all team1 policies.
 	//
 
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host4.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{host4.ID}))
 	require.NoError(t, err)
 	err = ds.RecordPolicyQueryExecutions(ctx, host4, map[uint]*bool{
 		team1Policy1.ID: ptr.Bool(false),
@@ -4591,7 +4618,7 @@ func testTeamPoliciesWithVPP(t *testing.T, ds *Datastore) {
 	}, &team1.ID)
 	require.NoError(t, err)
 
-	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, &team1.ID)
+	automaticPolicies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{team1App3.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, automaticPolicies, 1)
 
@@ -5701,7 +5728,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	policy2 := newTestPolicy(t, ds, user1, "policy 2", "darwin", &team2.ID)
 
 	// Get policies for an invalid title ID
-	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{999}, &team1.ID)
+	policies, err := ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{999}, team1.ID)
 	require.NoError(t, err)
 	require.Empty(t, policies)
 
@@ -5757,31 +5784,31 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NotNil(t, installer2.TitleID)
 
 	// software title 1 should have policy 1 when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, &team1.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, policy1.ID, policies[0].ID)
 	require.Equal(t, policy1.Name, policies[0].Name)
 
 	// software title 1 should not have any policies when filtering by team 2
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, &team2.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer1.TitleID}, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
 	// software title 2 should have policy 2 when filtering by team 2
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, &team2.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team2.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 	require.Equal(t, policy2.ID, policies[0].ID)
 	require.Equal(t, policy2.Name, policies[0].Name)
 
 	// software title 2 should not have any policies when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, &team1.ID)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, team1.ID)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
 	// software title 2 should not have any policies when filtering by no team
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer2.TitleID}, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 
@@ -5836,7 +5863,7 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotNil(t, installer3.TitleID)
 
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 	expected := map[uint]fleet.AutomaticInstallPolicy{
@@ -5855,12 +5882,12 @@ func testPoliciesBySoftwareTitleID(t *testing.T, ds *Datastore) {
 		megaTitleIDs = append(megaTitleIDs, *installer4.TitleID+i+1)
 	}
 	megaTitleIDs = append(megaTitleIDs, *installer4.TitleID)
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, nil)
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, megaTitleIDs, 0)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
 	// "No team" titles should not have any policies when filtering by team 1
-	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, ptr.Uint(1))
+	policies, err = ds.getPoliciesBySoftwareTitleIDs(ctx, []uint{*installer3.TitleID, *installer4.TitleID}, 1)
 	require.NoError(t, err)
 	require.Len(t, policies, 0)
 }
@@ -6140,7 +6167,7 @@ func testDeletePolicyWithSoftwareActivatesNextActivity(t *testing.T, ds *Datasto
 	hostTm := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	hostNoTm := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	// move hostTm to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTm.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hostTm.ID}))
 	require.NoError(t, err)
 
 	// Create a couple policies with an associated installer, one for team1 and
@@ -6251,7 +6278,7 @@ func testDeletePolicyWithScriptActivatesNextActivity(t *testing.T, ds *Datastore
 	hostTm := test.NewHost(t, ds, "host1", "1", "host1key", "host1uuid", time.Now())
 	hostNoTm := test.NewHost(t, ds, "host2", "2", "host2key", "host2uuid", time.Now())
 	// move hostTm to team1
-	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{hostTm.ID})
+	err = ds.AddHostsToTeam(ctx, fleet.NewAddHostsToTeamParams(&team1.ID, []uint{hostTm.ID}))
 	require.NoError(t, err)
 
 	// Create a couple policies with an associated script, one for team1 and

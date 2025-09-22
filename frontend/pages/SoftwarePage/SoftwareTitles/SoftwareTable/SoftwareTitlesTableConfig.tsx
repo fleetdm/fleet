@@ -20,6 +20,7 @@ import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCe
 
 import VersionCell from "../../components/tables/VersionCell";
 import VulnerabilitiesCell from "../../components/tables/VulnerabilitiesCell";
+import { getVulnerabilities } from "./helpers";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -35,26 +36,6 @@ type IHostCountCellProps = CellProps<
 type IViewAllHostsLinkProps = CellProps<ISoftwareTitle>;
 
 type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
-
-export const getVulnerabilities = <
-  T extends { vulnerabilities: string[] | null }
->(
-  versions: T[]
-) => {
-  if (!versions) {
-    return [];
-  }
-  const vulnerabilities = versions.reduce((acc: string[], currentVersion) => {
-    if (
-      currentVersion.vulnerabilities &&
-      currentVersion.vulnerabilities.length !== 0
-    ) {
-      acc.push(...currentVersion.vulnerabilities);
-    }
-    return acc;
-  }, []);
-  return vulnerabilities;
-};
 
 /**
  * Gets the data needed to render the software name cell.
@@ -90,6 +71,9 @@ const getSoftwareNameCellData = (
       app_store_app.automatic_install_policies.length > 0
         ? "automatic"
         : "manual";
+  }
+  if (softwareTitle.icon_url) {
+    iconUrl = softwareTitle.icon_url;
   }
 
   const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(

@@ -13,6 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/go-cmp/cmp"
 	"github.com/jmoiron/sqlx"
@@ -92,14 +93,206 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
+	if listOpts != nil && listOpts.Filters.HostIdentifier != "" {
+		// separate codepath for more performant query by host identifier
+		return ds.listMDMCommandsByHostIdentifier(ctx, tmFilter, listOpts)
+	}
+
 	jointStmt, params := getCombinedMDMCommandsQuery(ds, listOpts.Filters.HostIdentifier)
-	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "h")
+	jointStmt += ds.whereFilterHostsByTeams(tmFilter, "combined_commands")
 	jointStmt, params = addRequestTypeFilter(jointStmt, &listOpts.Filters, params)
 	jointStmt, params = appendListOptionsWithCursorToSQL(jointStmt, params, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
+	return results, nil
+}
+
+// listMDMCommandsByHostIdentifier retrieves MDM commands by host identifier. It is implemented as a
+// distinct code path to optimize the query for use cases where a client may be polling for the
+// status of commands for a specific host.
+//
+// TODO: Additional optimizations not implemented yet:
+//   - restrict ordering by date to a new sorted index (probably `nano_enrollment_queue (id,
+//     created_at DESC)` would be a good candidate)
+//   - only search by hostname as a fallback if no results are found for UUID or hardware serial
+func (ds *Datastore) listMDMCommandsByHostIdentifier(
+	ctx context.Context,
+	teamFilter fleet.TeamFilter,
+	listOpts *fleet.MDMCommandListOptions,
+) ([]*fleet.MDMCommand, error) {
+	if listOpts == nil || listOpts.Filters.HostIdentifier == "" {
+		return nil, ctxerr.Wrap(ctx, errors.New("listMDMCommandsByHostIdentifier requires non-empty listOpts.Filters.HostIdentifier"))
+	}
+
+	// First, search for host by identifier (hostname, uuid, or hardware_serial).
+	//
+	// NOTE: We're not using existing methods like ds.whereFilterHostsByIdentifier,
+	// ds.HostIDsByIdentifier, ds.HostLiteByIdentifier because those methods are poorly
+	// optimized for the indexes we currently have on the hosts table.
+	// They filter with disjunctive conditions like `hostname = ? OR uuid = ?` as well as
+	// `? IN(hostname, uuid)`. These existing queries aren't really suited for either composite
+	// indexes or indexes on individual columns, and the optimizer ends up with executions that
+	// resort full table scans or minimally filtered results (when the optimizer is using
+	// indexes on team id and the like. Full-text indexes might be an option, but we've had
+	// difficulties managing those for the hosts table in the past.
+	//
+	// So we're writing a custom query here that uses a UNION with three subqueries, each targeting
+	// a specific column index: hostname, uuid, and hardware_serial.
+
+	identifier := listOpts.Filters.HostIdentifier
+	whereTeam := ds.whereFilterHostsByTeams(teamFilter, "h")
+	columns := "id, uuid, hardware_serial, hostname, platform, team_id"
+
+	// TODO: Add index for `hostname` or remove query? If removing, we'd need to update API
+	// documentation? Breaking change? For now, adding a secondary team filter inside hostname part
+	// of the union subquery to narrow the scope somewhat
+	stmt := `
+SELECT ` + columns + ` FROM (
+	SELECT ` + columns + ` FROM hosts h WHERE hostname = ? AND ` + whereTeam + `
+	UNION SELECT ` + columns + ` FROM hosts WHERE uuid = ?
+	UNION SELECT ` + columns + ` FROM hosts WHERE hardware_serial = ? ) h
+WHERE ` + whereTeam
+
+	var dest []fleet.Host // NOTE: we're using the hosts struct for convenience, but it will not be fully populated
+	args := []any{identifier, identifier, identifier}
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, args...)
+	switch {
+	case err != nil:
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier for mdm")
+	case len(dest) == 0:
+		// TODO: should we return an empty slice or an error?
+		return []*fleet.MDMCommand{}, nil
+	case len(dest) > 1:
+		// TODO: how should we handle this unexpected case?
+		level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
+			"identifier", identifier, "count", len(dest),
+		)
+	}
+
+	// Next, build the query to list MDM commands. If the found host(s) are on the same platform,
+	// we can optimize the query by skipping the UNION ALL and using a single query targeted to the
+	// platform.
+
+	var appleStmt, winStmt string
+	var appleParams, winParams []any
+	var appleUUIDs, winUUIDs []string
+	byUUID := make(map[string]fleet.Host, len(dest)) // map UUID to host so that we can loop over command results to add hostname and team info and avoid joining hosts to commands in DB
+	for _, h := range dest {
+		if prev, ok := byUUID[h.UUID]; ok {
+			// TODO: how should we handle this unexpected case?
+			level.Debug(ds.logger).Log("msg", "list mdm commands: multiple hosts found for identifier",
+				"keeping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", h.ID, h.UUID, h.HardwareSerial, h.Hostname, h.Platform, h.TeamID),
+				"skipping", fmt.Sprintf("id: %d uuid: %s serial: %s hostname: %s platform: %s team: %+v", prev.ID, prev.UUID, prev.HardwareSerial, prev.Hostname, prev.Platform, prev.TeamID),
+			)
+		}
+		byUUID[h.UUID] = h
+		switch fleet.MDMPlatform(h.Platform) {
+		case "darwin":
+			appleUUIDs = append(appleUUIDs, h.UUID)
+		case "windows":
+			winUUIDs = append(winUUIDs, h.UUID)
+		}
+	}
+
+	if len(appleUUIDs) > 0 {
+		appleParams = []any{appleUUIDs}
+		appleStmt = `
+SELECT
+	nq.id AS host_uuid,
+	nc.command_uuid,
+	COALESCE(ncr.updated_at, nc.created_at) AS updated_at,
+	COALESCE(NULLIF(ncr.status, ''), 'Pending') AS status,
+	request_type
+FROM
+	nano_enrollment_queue nq
+	JOIN nano_commands nc ON nq.command_uuid = nc.command_uuid
+	LEFT JOIN nano_command_results ncr ON nq.id = ncr.id
+		AND nc.command_uuid = ncr.command_uuid
+WHERE
+	nq.id IN(?) AND nq.active = 1`
+
+		appleStmt, appleParams = addRequestTypeFilter(appleStmt, &listOpts.Filters, appleParams)
+		appleStmt, appleParams, err = sqlx.In(appleStmt, appleParams...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Apple devices")
+		}
+	}
+
+	if len(winUUIDs) > 0 {
+		winParams = []any{winUUIDs}
+		winStmt = `
+SELECT
+	mwe.host_uuid,
+	wq.command_uuid,
+	COALESCE(wcr.updated_at, wc.created_at) AS updated_at,
+	COALESCE(NULLIF(wcr.status_code, ''), 'Pending') AS status,
+	wc.target_loc_uri AS request_type
+FROM
+	windows_mdm_command_queue wq
+	JOIN mdm_windows_enrollments mwe ON mwe.id = wq.enrollment_id
+	JOIN windows_mdm_commands wc ON wc.command_uuid = wq.command_uuid
+	LEFT JOIN windows_mdm_command_results wcr ON wcr.command_uuid = wq.command_uuid
+		AND wcr.enrollment_id = wq.enrollment_id
+WHERE
+	mwe.host_uuid IN (?)`
+
+		winStmt, winParams = addRequestTypeFilter(winStmt, &listOpts.Filters, winParams)
+		winStmt, winParams, err = sqlx.In(winStmt, winParams...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "prepare query to list MDM commands for Windows devices")
+		}
+	}
+
+	var listStmt string
+	var params []any
+	switch {
+	case len(appleUUIDs) > 0 && len(winUUIDs) > 0:
+		listStmt = fmt.Sprintf(`SELECT * FROM ((%s) UNION ALL (%s)) u`,
+			appleStmt, winStmt)
+		params = append(params, appleParams...)
+		params = append(params, winParams...)
+	case len(appleUUIDs) > 0:
+		listStmt = appleStmt
+		params = appleParams
+	case len(winUUIDs) > 0:
+		listStmt = winStmt
+		params = winParams
+	}
+
+	// TODO: Maybe move this to the service method? What about pagination metadata?
+	if listOpts.OrderKey == "" {
+		listOpts.OrderKey = "updated_at"
+	}
+	// // FIXME: We probably ought to modify how listOptionsFromRequest in transport.go applies the
+	// // default order direction. Defaulting to ascending doesn't make sense for date fields like
+	// // updated_at. List options are decoded by transport before the specific gets the request
+	// // struct so there's no way apply a different default because at that point we can't tell if
+	// // the direction was set by the user or not. One approach would be to have listOptionsFromRequest
+	// // check if the order key is a date field (i.e. it ends with "_at") and default to descending
+	// // in those cases.
+	// if listOpts.OrderDirection == "" {
+	// 	listOpts.OrderDirection = fleet.OrderDescending
+	// }
+	if listOpts.PerPage == 0 {
+		listOpts.PerPage = 10
+	}
+	listStmt, params = appendListOptionsWithCursorToSQL(listStmt, params, &listOpts.ListOptions)
+
+	var results []*fleet.MDMCommand
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, params...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list commands")
+	}
+
+	// Add hostname and team info to the results based on the host UUIDs.
+	for i := range results {
+		if host, ok := byUUID[results[i].HostUUID]; ok {
+			results[i].Hostname = host.Hostname
+			results[i].TeamID = host.TeamID
+		}
+	}
+
 	return results, nil
 }
 
@@ -128,11 +321,12 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 ) (updates fleet.MDMProfilesUpdates, err error) {
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
+		// Pass profilesVariablesByIdentifier to Windows profiles to save variable associations
+		if updates.WindowsConfigProfile, err = ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
 
-		// for now, only apple profiles support Fleet variables
+		// Apple profiles also support Fleet variables
 		if updates.AppleConfigProfile, err = ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles, profilesVariablesByIdentifier); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
 		}
@@ -1342,7 +1536,8 @@ SELECT
     h.uuid AS host_uuid,
     ncaa.sha256 AS sha256,
     COALESCE(MAX(hm.fleet_enroll_ref), '') AS enroll_reference,
-    ne.enrolled_from_migration
+    ne.enrolled_from_migration,
+    ne.type
 FROM (
     -- grab only the latest certificate associated with this device
     SELECT
@@ -1564,7 +1759,7 @@ func (ds *Datastore) AreHostsConnectedToFleetMDM(ctx context.Context, hosts []*f
 	    JOIN host_mdm hm ON hm.host_id = h.id
 	  WHERE ne.id IN (?)
 	    AND ne.enabled = 1
-	    AND ne.type = 'Device'
+	    AND ne.type IN ('Device', 'User Enrollment (Device)')
 	    AND hm.enrolled = 1
 	`
 	if err := setConnectedUUIDs(appleStmt, appleUUIDs, res); err != nil {
@@ -1671,13 +1866,13 @@ func batchSetProfileVariableAssociationsDB(
 		for _, v := range pv.FleetVariables {
 			// variables received here do not have the FLEET_VAR_ prefix, but variables
 			// in the fleet_variables table do.
-			v = "FLEET_VAR_" + v
+			varWithPrefix := "FLEET_VAR_" + string(v)
 			for _, def := range varDefs {
-				if !def.IsPrefix && def.Name == v {
+				if !def.IsPrefix && def.Name == varWithPrefix {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
-				if def.IsPrefix && strings.HasPrefix(v, def.Name) {
+				if def.IsPrefix && strings.HasPrefix(varWithPrefix, def.Name) {
 					profVars = append(profVars, profVarTuple{pv.ProfileUUID, def.ID})
 					break
 				}
@@ -1798,12 +1993,13 @@ GROUP BY
 		return counts, err
 	}
 
+	// Note that hosts with "BitLocker action required" are counted as pending.
 	for _, row := range rows {
 		switch row.Status {
 		case "failed":
 			counts.Failed = row.Count
 		case "pending":
-			counts.Pending = row.Count
+			counts.Pending += row.Count
 		case "verifying":
 			counts.Verifying = row.Count
 		case "verified":
@@ -1916,7 +2112,7 @@ FROM
 	JOIN host_mdm_apple_declarations hmad ON h.uuid = hmad.host_uuid
 WHERE
 	h.platform IN ('darwin', 'ios', 'ipados') AND
-	hmad.operation_type = :operation_install AND
+	( hmad.status NOT IN (:status_verified, :status_verifying) OR hmad.operation_type = :operation_install ) AND
 	hmad.declaration_uuid = :declaration_uuid
 GROUP BY
 	final_status HAVING final_status IS NOT NULL`
@@ -1984,4 +2180,144 @@ SELECT EXISTS (
 		return false, ctxerr.Wrap(ctx, err, "check for acknowledged mdm command by host")
 	}
 	return exists, nil
+}
+
+func reconcileHostEmailsFromMdmIdpAccountsDB(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+	idp, err := getMDMIdPAccountByHostID(ctx, tx, logger, hostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account email")
+	}
+
+	var hostEmails []fleet.HostDeviceMapping
+	selectStmt := `SELECT id, host_id, email, source FROM host_emails WHERE host_id = ? AND source = ?`
+	if err := sqlx.SelectContext(ctx, tx, &hostEmails, selectStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host_emails")
+	}
+
+	// TODO: discuss email vs. username with Victor
+	var idpEmail, idpAccountUUID string
+	if idp != nil {
+		idpEmail = idp.Email
+		idpAccountUUID = idp.UUID
+	}
+
+	// if we don't have idp info, we can just delete any prior host mdm idp account emails
+	if idpEmail == "" {
+		if len(hostEmails) == 0 {
+			// nothing to do
+			level.Info(logger).Log("msg", "reconcile host emails: no mdm idp account and no host emails", "host_id", hostID, "account_uuid", idpAccountUUID)
+			return nil, nil
+		}
+		// delete any prior host mdm idp account emails
+		delStmt := "DELETE FROM host_emails WHERE host_id = ? AND source = ?"
+		if _, err := tx.ExecContext(ctx, delStmt, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
+		}
+		return idp, nil
+	}
+
+	// analyze existing host emails to see if we have a match; we also want to handle potential
+	// duplicates because we don't have good constraints on the host_emails table
+	hits, misses := []fleet.HostDeviceMapping{}, []fleet.HostDeviceMapping{}
+	for _, he := range hostEmails {
+		if he.Email == idp.Email {
+			hits = append(hits, he)
+		} else {
+			misses = append(misses, he)
+		}
+	}
+
+	maxCapacity := len(misses)
+	if len(hits) > 1 {
+		maxCapacity += len(hits) - 1
+	}
+	idsToDelete := make([]uint, 0, maxCapacity)
+	if len(misses) > 0 {
+		// log the emails we'll be deleting
+		msg := "reconcile host emails: deleting emails"
+		for _, m := range misses {
+			idsToDelete = append(idsToDelete, m.ID)
+			msg += fmt.Sprintf(" %s", m.Email)
+		}
+		level.Info(logger).Log("msg", msg, "host_id", hostID)
+	}
+
+	var idToUpdate uint
+	if len(hits) > 0 {
+		// if we have more than one hit, we'll just update the first one
+		idToUpdate = hits[0].ID
+	}
+	if len(hits) > 1 {
+		// this should not happen, but if it does we want to know about it
+		level.Info(logger).Log("msg", "reconcile host emails: found duplicate mdm idp account host email", "host_id", hostID, "email", idp.Email, "account_uuid", idp.UUID)
+		for _, h := range hits[1:] {
+			idsToDelete = append(idsToDelete, h.ID) // we'll delete all but the first
+		}
+	}
+
+	if len(idsToDelete) > 0 {
+		// perform the delete
+		stmt, args, err := sqlx.In("DELETE FROM host_emails WHERE id IN (?)", idsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "prepare delete host_emails arguments")
+		}
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "delete host_emails")
+		}
+	}
+
+	if idToUpdate != 0 {
+		// perform the update
+		level.Info(logger).Log("msg", "reconcile host emails: update host mdm idp account email", "host_id", hostID, "email", idpEmail)
+		updateStmt := "UPDATE host_emails SET email = ? WHERE id = ?"
+		if _, err := tx.ExecContext(ctx, updateStmt, idpEmail, idToUpdate); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "update host_emails")
+		}
+		return idp, nil
+	}
+
+	// insert new email
+	level.Info(logger).Log("msg", "reconcile host emails: insert host mdm idp account email", "host_id", hostID, "email", idpEmail, "account_uuid", idp.UUID)
+	insStmt := "INSERT INTO host_emails (email, host_id, source) VALUES (?, ?, ?)"
+	if _, err := tx.ExecContext(ctx, insStmt, idpEmail, hostID, fleet.DeviceMappingMDMIdpAccounts); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "insert host_emails")
+	}
+
+	return idp, nil
+}
+
+func getMDMIdPAccountByHostID(ctx context.Context, q sqlx.QueryerContext, logger log.Logger, hostID uint) (*fleet.MDMIdPAccount, error) {
+	stmt := `SELECT account_uuid FROM host_mdm_idp_accounts WHERE host_uuid = (SELECT uuid FROM hosts WHERE id = ?)`
+	var dest []string
+	if err := sqlx.SelectContext(ctx, q, &dest, stmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select host_mdm_idp_accounts")
+	}
+
+	var acctUUID string
+	switch {
+	case len(dest) == 0:
+		// TODO: consider falling back to the legacy enroll ref
+		level.Info(logger).Log("msg", "get host mdm idp accounts: no account found", "host_id", hostID)
+	default:
+		if len(dest) > 1 {
+			// this should not happen, but if it does we want to know about it
+			level.Info(logger).Log("msg", "get host mdm idp accounts: found multiple accounts", "host_id", hostID, "acct_uuids", fmt.Sprintf("%+v", dest))
+		}
+		acctUUID = dest[0]
+	}
+
+	if acctUUID == "" {
+		return nil, nil
+	}
+
+	var idp fleet.MDMIdPAccount
+	stmt = `SELECT uuid, username, fullname, email FROM mdm_idp_accounts WHERE uuid = ?`
+	if err := sqlx.GetContext(ctx, q, &idp, stmt, acctUUID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // TODO: maybe return a not found error?
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm idp account")
+	}
+
+	return &idp, nil
 }

@@ -18,32 +18,65 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// run uses sudo to run the given path as login user.
-func run(path string, opts eopts) (lastLogs string, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+// base command to setup an exec.Cmd using `runuser`
+func baserun(path string, opts eopts) (cmd *exec.Cmd, err error) {
+	args, env, err := getConfigForCommand(path)
 	if err != nil {
-		return "", fmt.Errorf("get args: %w", err)
+		return nil, fmt.Errorf("get args: %w", err)
 	}
 
-	args = append(args,
+	env = append(env,
 		// Append the packaged libayatana-appindicator3 libraries path to LD_LIBRARY_PATH.
 		//
 		// Fleet Desktop doesn't use libayatana-appindicator3 since 1.18.3, but we need to
 		// keep this to support older versions of Fleet Desktop.
 		fmt.Sprintf("LD_LIBRARY_PATH=%s:%s", filepath.Dir(path), os.ExpandEnv("$LD_LIBRARY_PATH")),
-		path,
 	)
 
+	for _, nv := range opts.env {
+		env = append(env, fmt.Sprintf("%s=%s", nv[0], nv[1]))
+	}
+
+	// Hold any command line arguments to pass to the command.
+	cmdArgs := make([]string, 0, len(opts.args)*2)
 	if len(opts.args) > 0 {
 		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
+			cmdArgs = append(cmdArgs, arg[0])
+			if arg[1] != "" {
+				cmdArgs = append(cmdArgs, arg[1])
+			}
 		}
 	}
 
-	cmd := exec.Command("sudo", args...)
+	// Run `env` to setup the environment.
+	args = append(args, "env")
+	args = append(args, env...)
+	// Pass the command and its arguments.
+	args = append(args, path)
+	args = append(args, cmdArgs...)
+
+	// Use sudo to run the command as the login user.
+	args = append([]string{"sudo"}, args...)
+
+	// If a timeout is set, prefix the command with "timeout".
+	if opts.timeout > 0 {
+		args = append([]string{"timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds()))}, args...)
+	}
+
+	cmd = exec.Command(args[0], args[1:]...) // #nosec G204
+	return
+}
+
+// run a command, passing its output to stdout and stderr.
+func run(path string, opts eopts) (lastLogs string, err error) {
+	cmd, err := baserun(path, opts)
+	if err != nil {
+		return "", err
+	}
+
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
-	log.Printf("cmd=%s", cmd.String())
+	log.Info().Str("cmd", cmd.String()).Msg("running command")
 
 	if err := cmd.Start(); err != nil {
 		return "", fmt.Errorf("open path %q: %w", path, err)
@@ -51,32 +84,12 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	return "", nil
 }
 
-// run uses sudo to run the given path as login user and waits for the process to finish.
+// run a command and return its output and exit code.
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, -1, fmt.Errorf("get args: %w", err)
+		return nil, -1, err
 	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	// Prefix with "timeout" and "sudo" if applicable
-	var cmdArgs []string
-	if opts.timeout > 0 {
-		cmdArgs = append(cmdArgs, "timeout", fmt.Sprintf("%ds", int(opts.timeout.Seconds())))
-	}
-	cmdArgs = append(cmdArgs, "sudo")
-	cmdArgs = append(cmdArgs, args...)
-
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...) // #nosec G204
-
-	log.Printf("cmd=%s", cmd.String())
 
 	output, err = cmd.Output()
 	if err != nil {
@@ -90,22 +103,12 @@ func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err er
 	return output, exitCode, nil
 }
 
+// run a command that requires stdin input, returning a pipe to write to stdin.
 func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
-	args, err := getUserAndDisplayArgs(path, opts)
+	cmd, err := baserun(path, opts)
 	if err != nil {
-		return nil, fmt.Errorf("get args: %w", err)
+		return nil, err
 	}
-
-	args = append(args, path)
-
-	if len(opts.args) > 0 {
-		for _, arg := range opts.args {
-			args = append(args, arg[0], arg[1])
-		}
-	}
-
-	cmd := exec.Command("sudo", args...)
-	log.Printf("cmd=%s", cmd.String())
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -119,10 +122,10 @@ func runWithStdin(path string, opts eopts) (io.WriteCloser, error) {
 	return stdin, nil
 }
 
-func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
+func getConfigForCommand(path string) (args []string, env []string, err error) {
 	user, err := userpkg.GetLoginUser()
 	if err != nil {
-		return nil, fmt.Errorf("get user: %w", err)
+		return nil, nil, fmt.Errorf("get user: %w", err)
 	}
 
 	log.Info().Str("user", user.Name).Int64("id", user.ID).Msg("attempting to get user session type and display")
@@ -131,7 +134,7 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 	uid := strconv.FormatInt(user.ID, 10)
 	userDisplaySessionType, err := userpkg.GetUserDisplaySessionType(uid)
 	if userDisplaySessionType == userpkg.GuiSessionTypeTty {
-		return nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
+		return nil, nil, fmt.Errorf("user %q (%d) is not running a GUI session", user.Name, user.ID)
 	}
 	if err != nil {
 		// Wayland is the default for most distributions, thus we assume
@@ -175,18 +178,19 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 		Str("session_type", userDisplaySessionType.String()).
 		Msg("running sudo")
 
-	args := argsForSudo(user, opts)
+	args = []string{"-n", "-i", "-u", user.Name, "-H"}
+	env = make([]string, 0)
 
 	if userDisplaySessionType == userpkg.GuiSessionTypeWayland {
-		args = append(args, "WAYLAND_DISPLAY="+display)
+		env = append(env, "WAYLAND_DISPLAY="+display)
 		// For xdg-open to work on a Wayland session we still need to set the DISPLAY variable.
 		x11Display := ":" + strings.TrimPrefix(display, "wayland-")
-		args = append(args, "DISPLAY="+x11Display)
+		env = append(env, "DISPLAY="+x11Display)
 	} else {
-		args = append(args, "DISPLAY="+display)
+		env = append(env, "DISPLAY="+display)
 	}
 
-	args = append(args,
+	env = append(env,
 		// DBUS_SESSION_BUS_ADDRESS sets the location of the user login session bus.
 		// Required by the libayatana-appindicator3 library to display a tray icon
 		// on the desktop session.
@@ -196,19 +200,7 @@ func getUserAndDisplayArgs(path string, opts eopts) ([]string, error) {
 		fmt.Sprintf("DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%d/bus", user.ID),
 	)
 
-	return args, nil
-}
-
-func argsForSudo(u *userpkg.User, opts eopts) []string {
-	// -H: "[...] to set HOME environment to what's specified in the target's user password database entry."
-	// -i: needed to run the command with the user's context, from `man sudo`:
-	// "The command is run with an environment similar to the one a user would receive at log in"
-	// -u: "[..]Run the command as a user other than the default target user (usually root)."
-	args := []string{"-i", "-u", u.Name, "-H"}
-	for _, nv := range opts.env {
-		args = append(args, fmt.Sprintf("%s=%s", nv[0], nv[1]))
-	}
-	return args
+	return args, env, nil
 }
 
 var whoLineRegexp = regexp.MustCompile(`(\w+)\s+(:\d+)\s+`)

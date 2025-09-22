@@ -216,6 +216,8 @@ type MDMAppleErrorChainItem struct {
 func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNameDetails, error) {
 	str = strings.TrimSpace(str)
 	str = strings.Trim(str, "/")
+
+	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
 	parts := strings.Split(str, "/")
 
 	var details HostCertificateNameDetails
@@ -225,15 +227,17 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
 		}
 
+		value := strings.ReplaceAll(strings.Trim(kv[1], " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
+
 		switch strings.ToUpper(kv[0]) {
 		case "C":
-			details.Country = strings.Trim(kv[1], " ")
+			details.Country = strings.Trim(value, " ")
 		case "O":
-			details.Organization = strings.Trim(kv[1], " ")
+			details.Organization = strings.Trim(value, " ")
 		case "OU":
-			details.OrganizationalUnit = strings.Trim(kv[1], " ")
+			details.OrganizationalUnit = strings.Trim(value, " ")
 		case "CN":
-			details.CommonName = strings.Trim(kv[1], " ")
+			details.CommonName = strings.Trim(value, " ")
 		}
 	}
 

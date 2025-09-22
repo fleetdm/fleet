@@ -147,7 +147,7 @@
   <body>
     <!-- unsupported platform content -->
     <template id="unsupported-template">
-      <h1>Enroll your device to Fleet</h1>
+      <h1>Enroll your device in Fleet</h1>
       <p class="page-description">
         To enroll your iPhone, iPad, or Android device, please open this page on
         your mobile device.
@@ -156,11 +156,9 @@
 
     <!-- android content -->
     <template id="android-template">
-      <h1>Enroll your Android device to Fleet</h1>
+      <h1>Enroll your Android device in Fleet</h1>
       <div class="android-content">
-        <p>
-          Select <b>Enroll</b> and follow the steps.
-        </p>
+        <p>Select <b>Enroll</b> and follow the steps.</p>
         <a class="enroll-link" href="" target="_blank">Enroll</a>
       </div>
     </template>
@@ -169,7 +167,7 @@
     <template id="ios-ipad-template">
       <h1>
         Enroll your
-        <span data-attribute="dynamic-device-type">iPhone or iPad</span> to
+        <span data-attribute="dynamic-device-type">iPhone or iPad</span> in
         Fleet
       </h1>
       <p class="page-description">
@@ -260,6 +258,7 @@
       // using string comparison to satisfy the linter.
       const ANDROID_MDM_ENABLED = "{{.AndroidMDMEnabled}}" === "true";
       const MAC_MDM_ENABLED = "{{.MacMDMEnabled}}" == "true";
+      const ERROR_MESSAGE = "{{.ErrorMessage}}";
 
       const getPlatform = () => {
         const userAgent = navigator.userAgent;
@@ -373,10 +372,16 @@
         const platform = getPlatform();
 
         // quick exit if platform is unsupported
-        if (
-          platform === "unsupported"
-        ) {
+        if (platform === "unsupported") {
           renderContent("unsupported-template");
+          return;
+        }
+
+        // if there is an error message, render it
+        if (ERROR_MESSAGE) {
+          // format of error message is expected to use colon as separator character, e.g., "An error occurred. : Failed to parse original URL."
+          const [title, description] = ERROR_MESSAGE.split(":");
+          renderError(title.trim(), description.trim());
           return;
         }
 

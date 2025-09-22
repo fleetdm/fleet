@@ -125,10 +125,11 @@ export class MetricsCollector {
             pr.number
           );
 
-          // Filter bot reviews if configured
+          // Filter bot reviews and PR creator reviews if configured
           const reviewEvents = this.githubClient.filterBotReviews(
             rawReviewEvents,
-            this.config.excludeBotReviews
+            this.config.excludeBotReviews,
+            pr.user
           );
 
           // Collect enabled metrics for this PR
