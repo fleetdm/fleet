@@ -3,9 +3,7 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import hostAPI from "services/entities/hosts";
 import { NotificationContext } from "context/notification";
-
 import { IHostMdmProfile } from "interfaces/mdm";
 
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -235,15 +233,15 @@ const generateErrorTooltip = (
 
 interface IOSSettingsErrorCellProps {
   canResendProfiles: boolean;
-  hostId: number;
   profile: IHostMdmProfileWithAddedStatus;
+  resendRequest: (profileUUID: string) => Promise<void>;
   onProfileResent?: () => void;
 }
 
 const OSSettingsErrorCell = ({
   canResendProfiles,
-  hostId,
   profile,
+  resendRequest,
   onProfileResent = noop,
 }: IOSSettingsErrorCellProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -252,7 +250,7 @@ const OSSettingsErrorCell = ({
   const onResendProfile = async () => {
     setIsLoading(true);
     try {
-      await hostAPI.resendProfile(hostId, profile.profile_uuid);
+      await resendRequest(profile.profile_uuid);
       onProfileResent();
     } catch (e) {
       renderFlash("error", "Couldn't resend. Please try again.");

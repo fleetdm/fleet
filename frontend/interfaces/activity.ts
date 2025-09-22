@@ -210,12 +210,12 @@ export interface IActivityDetails {
   labels_exclude_any?: ILabelSoftwareTitle[];
   labels_include_any?: ILabelSoftwareTitle[];
   location?: string; // name of location associated with VPP token
-  mdm_platform?: "microsoft" | "apple";
+  mdm_platform?: "microsoft" | "apple" | "android" | "ios" | "ipados";
   minimum_version?: string;
   name?: string;
   pack_id?: number;
   pack_name?: string;
-  platform?: Platform; // software platform
+  platform?: Platform; // OS platform
   policy_id?: number;
   policy_name?: string;
   profile_identifier?: string;
