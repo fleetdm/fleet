@@ -72,7 +72,7 @@ if ARGV[1] == "0" then
   -- failure: increment consecutive-failure counter
   local current = redis.call("INCR", KEYS[1])
   if current == 1 then
-  	redis.call("EXPIRE", KEYS[1], counter_ttl)
+    redis.call("EXPIRE", KEYS[1], counter_ttl)
   elseif current >= threshold then
     -- set ban key with expiry
     redis.call("SET", KEYS[2], 1, "EX", ban_ttl)
