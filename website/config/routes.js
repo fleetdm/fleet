@@ -940,6 +940,8 @@ module.exports.routes = {
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
+  'GET /learn-more-about/managed-lost-mode': 'https://it-training.apple.com/tutorials/deployment/dm255/',
+
 
   // Sitemap
   // =============================================================================================================

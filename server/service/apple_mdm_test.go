@@ -1365,6 +1365,53 @@ func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
 	require.True(t, ds.MDMResetEnrollmentFuncInvoked)
 }
 
+func TestMDMUnenrollment(t *testing.T) {
+	svc, ctx, ds := setupAppleMDMService(t, &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		switch hostID {
+		case 1:
+			return &fleet.Host{UUID: "test-host-no-team-2"}, nil
+		default:
+			return &fleet.Host{UUID: "test-host-no-team"}, nil
+		}
+	}
+
+	ds.GetHostMDMCheckinInfoFunc = func(ctx context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		return &fleet.HostMDMCheckinInfo{Platform: "darwin"}, nil
+	}
+
+	ds.NewActivityFunc = func(context.Context, *fleet.User, fleet.ActivityDetails, []byte, time.Time) error {
+		return nil
+	}
+	ds.MDMTurnOffFunc = func(ctx context.Context, uuid string) error {
+		return nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, hostUUID string) (*fleet.NanoEnrollment, error) {
+		enrollmentType := mdm.EnrollType(mdm.Device).String()
+		if hostUUID == "test-host-no-team-2" {
+			enrollmentType = mdm.EnrollType(mdm.UserEnrollmentDevice).String()
+		}
+		enroll := fleet.NanoEnrollment{
+			Enabled: true,
+			Type:    enrollmentType,
+		}
+		return &enroll, nil
+	}
+
+	t.Run("Unenrolls macos device", func(t *testing.T) {
+		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 42) // global host
+		require.NoError(t, err)
+	})
+
+	t.Run("Unenrolls personal ios device", func(t *testing.T) {
+		err := svc.EnqueueMDMAppleCommandRemoveEnrollmentProfile(ctx, 1) // personal host
+		require.NoError(t, err)
+	})
+}
+
 func TestMDMTokenUpdate(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
