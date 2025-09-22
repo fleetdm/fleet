@@ -9,7 +9,6 @@ formatters:
       simplify: false
   exclusions:
     paths:
-      - node_modules
       - server/fleet/agent_options_generated.go # generated file
 
 issues:
@@ -195,8 +194,6 @@ linters:
         - "-QF1011" # Omit redundant type from variable declaration.
         - "-QF1012" # Use 'fmt.Fprintf(x, ...)' instead of 'x.Write(fmt.Sprintf(...))'.
   exclusions:
-    paths:
-      - node_modules
     generated: strict
     # Before excluding files from gosec linter - an issue must be created and referenced in a comment.
     rules:
