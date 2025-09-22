@@ -20,20 +20,20 @@ func TestSoftwareMatchingRules(t *testing.T) {
 
 	badRules := SoftwareMatchingRules{
 		{
-			Name:       "",
-			VersionEnd: "",
-			CVEs:       map[string]struct{}{},
+			Name:            "",
+			VersionResolved: "",
+			CVEs:            map[string]struct{}{},
 		},
 		{
-			Name:       "  ",
-			VersionEnd: "   ",
+			Name:            "  ",
+			VersionResolved: "   ",
 			CVEs: map[string]struct{}{
 				"CVE-2024-42582": {},
 			},
 		},
 		{
-			Name:       "",
-			VersionEnd: "1.0",
+			Name:            "",
+			VersionResolved: "1.0",
 			CVEs: map[string]struct{}{
 				"CVE-2024-42582": {},
 			},
@@ -78,8 +78,8 @@ func TestSoftwareMatchingRules(t *testing.T) {
 	require.False(t, match)
 
 	rules = append(rules, SoftwareMatchingRule{
-		Name:       "example",
-		VersionEnd: "1.0",
+		Name:            "example",
+		VersionResolved: "1.0",
 		CVEs: map[string]struct{}{
 			"CVE-1111-22222": {},
 		},
@@ -97,22 +97,22 @@ func TestSoftwareMatchingRules(t *testing.T) {
 	// so we need to make rules for software that is there...
 	otherRules := SoftwareMatchingRules{
 		{
-			Name:       "rsyslog-udpspoof",
-			VersionEnd: "8.2102.0",
+			Name:            "rsyslog-udpspoof",
+			VersionResolved: "8.2102.0",
 			CVEs: map[string]struct{}{
 				"CVE-2022-24903": {},
 			},
 		},
 		{
-			Name:       "java-11-openjdk-static-libs-slowdebug",
-			VersionEnd: "11.0.15.0.10",
+			Name:            "java-11-openjdk-static-libs-slowdebug",
+			VersionResolved: "11.0.15.0.10",
 			CVEs: map[string]struct{}{
 				"CVE-2022-21426": {},
 			},
 		},
 		{
-			Name:       "thunderbird",
-			VersionEnd: "91.9.0",
+			Name:            "thunderbird",
+			VersionResolved: "91.9.0",
 			CVEs: map[string]struct{}{
 				"CVE-2022-29917": {},
 			},

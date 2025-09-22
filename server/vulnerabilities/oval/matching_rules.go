@@ -9,14 +9,10 @@ import (
 )
 
 type SoftwareMatchingRule struct {
-	Name       string
-	VersionEnd string // Version where CVEs were resolved
-	// TODO: OSVersion or FleetSoftware.Release
-	// rpm packages specify a release but ubuntu dont
-	// Maybe add release for rpm packages but make it nullable
-	CVEs map[string]struct{} // Maybe just a slice?
-	// TODO: IgnoreIf func(FleetSoftware ) bool
-	MatchIf func(software fleet.Software) bool
+	Name            string
+	VersionResolved string
+	CVEs            map[string]struct{}
+	MatchIf         func(software fleet.Software) bool
 }
 
 type SoftwareMatchingRules []SoftwareMatchingRule
@@ -26,8 +22,8 @@ type SoftwareMatchingRules []SoftwareMatchingRule
 func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 	rules := SoftwareMatchingRules{ // Would it be more efficient to use a map? It's a very small list of things
 		{
-			Name:       "microcode_ctl",
-			VersionEnd: "2.1",
+			Name:            "microcode_ctl",
+			VersionResolved: "2.1",
 			CVEs: map[string]struct{}{
 				"CVE-2022-21216": {}, // release: 53.1.fc37
 				"CVE-2022-33196": {}, // release: 53.1.fc37
@@ -56,8 +52,8 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 			},
 		},
 		{
-			Name:       "shim-x64",
-			VersionEnd: "15.8",
+			Name:            "shim-x64",
+			VersionResolved: "15.8",
 			CVEs: map[string]struct{}{
 				"CVE-2023-40546": {},
 				"CVE-2023-40547": {},
@@ -94,14 +90,10 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 		if s.Name != r.Name {
 			continue
 		}
-		// REMOVE COMMENT: if the version is >= VersionEnd
-		// the CVEs have been fixed and it is false positive
-		// so we want to return true
-		// fmt.Println("Version compare: ", version, " , ", r.VersionEnd, " cve: ", cve)
 		if r.MatchIf != nil && r.MatchIf(s) == false {
 			continue
 		}
-		if nvd.SmartVerCmp(s.Version, r.VersionEnd) < 0 {
+		if nvd.SmartVerCmp(s.Version, r.VersionResolved) < 0 {
 			continue // true positive
 		}
 		if _, found := r.CVEs[cve]; found {
@@ -116,7 +108,7 @@ func (rule SoftwareMatchingRule) Validate() error {
 	if strings.TrimSpace(rule.Name) == "" {
 		return fmt.Errorf("Name can't be empty")
 	}
-	if strings.TrimSpace(rule.VersionEnd) == "" {
+	if strings.TrimSpace(rule.VersionResolved) == "" {
 		return fmt.Errorf("Version can't be empty")
 	}
 	for cve := range rule.CVEs {

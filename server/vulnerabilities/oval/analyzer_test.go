@@ -151,6 +151,7 @@ func assertVulns(
 	p Platform,
 	source fleet.VulnerabilitySource,
 ) {
+	fmt.Println("huh...........................................................................")
 	ctx := context.Background()
 
 	fPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
@@ -191,6 +192,7 @@ func assertVulns(
 	}
 	actual := make([]string, 0, len(uniq))
 	for k := range uniq {
+		fmt.Println(k)
 		actual = append(actual, k)
 	}
 
@@ -283,6 +285,7 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 
 func TestOvalAnalyzer(t *testing.T) {
 	t.Run("analyzing RHEL software", func(t *testing.T) {
+		fmt.Println("rhel........")
 		ds := mysql.CreateMySQLDS(t)
 		defer mysql.TruncateTables(t, ds)
 
@@ -336,6 +339,7 @@ func TestOvalAnalyzer(t *testing.T) {
 	// does not work with Docker) and extracted all installed software vulnerabilities, then I had
 	// the VMs join my local dev env, and extracted the installed software from the database.
 	t.Run("analyzing Ubuntu software", func(t *testing.T) {
+		fmt.Println("ubuntu.........")
 		ds := mysql.CreateMySQLDS(t)
 		defer mysql.TruncateTables(t, ds)
 
@@ -356,6 +360,7 @@ func TestOvalAnalyzer(t *testing.T) {
 		softwareFixtureDir := filepath.Join("ubuntu", "software")
 		for _, v := range systems {
 			withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
+				fmt.Println("with test fixture")
 				_, err := Analyze(ctx, ds, v, vulnPath, true)
 				require.NoError(t, err)
 
