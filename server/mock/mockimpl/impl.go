@@ -276,7 +276,7 @@ const stub = "func ({{.Recv}}) {{.Name}}" +
 	"{\n" + "{{.RecvShort}}.mu.Lock()" + "\n" +
 	"{{.RecvShort}}.{{.Name}}FuncInvoked = true" + "\n" +
 	"{{.RecvShort}}.mu.Unlock()" + "\n" +
-	"return {{.RecvShort}}.{{.Name}}Func({{range .Params}}{{.CalledArgument}}, {{end}})" +
+	"{{if .Res}}return {{end}}{{.RecvShort}}.{{.Name}}Func({{range .Params}}{{.CalledArgument}}, {{end}})" +
 	"\n" + "}\n\n"
 
 var tmpl = template.Must(template.New("test").Parse(stub))
