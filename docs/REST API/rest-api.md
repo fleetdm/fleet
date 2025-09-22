@@ -844,10 +844,15 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
+OR
+
+`POST /api/v1/fleet/desktop/:token/certificate_authorities/:id/request_certificate`
+
 #### Parameters
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
+| token   | string | path | A host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). If specified, [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) isn't required. |
 | id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth URL from your identity provier (IdP). Required if `idp_token` is specified. |
