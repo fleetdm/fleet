@@ -1,6 +1,6 @@
 name: system_profiler
 description: |-
-  The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It can generate detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on "data types". 
+  The system_profiler osquery table collects data from the macOS system_profiler binary.  
 examples: |- 
   
   Collect Mac Activation Lock Status:
@@ -28,9 +28,10 @@ examples: |-
   ```
   
 notes: |-
-
-  The system_profiler binary is a rich source of macOS data which can be used in many ways to enhance Mac management.
+  The macOS system_profiler binary reports on the hardware and software configuration of a Mac. It generates detailed, plain text, XML or json reports which can be exported from the Terminal or generated as .spx files and read by the macOS System Information.app based on "data types". 
   
+  The system_profiler output is a rich source of data containing unique, per device hardware and software attributes which have many uses for enhancing Mac management.
+
   Not all System Profiler data types are available via the system_profiler osquery table. Some data types are legacy & others are OS version-specific. 
   
   The following data types are available from the system_profiler binary as of macOS 26:

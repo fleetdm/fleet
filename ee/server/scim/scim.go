@@ -253,10 +253,6 @@ func scimOTELMiddleware(next http.Handler, prefix string, cfg config.FleetConfig
 		scimPath = strings.TrimPrefix(scimPath, "/")
 
 		var route string
-
-		// Debug: Log the actual path we're processing
-		// fmt.Printf("DEBUG: SCIM OTEL fullPath=%q, scimPath=%q\n", fullPath, scimPath)
-
 		// Normalize the path to create a route pattern without exposing IDs
 		switch {
 		case strings.HasPrefix(scimPath, "Users"):
