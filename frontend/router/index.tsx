@@ -294,6 +294,13 @@ const routes = (
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Secrets} />
+                <Route path="setup-experience/install-software">
+                  <IndexRedirect to="macos" />
+                  <Route
+                    path="setup-experience/install-software/:platform"
+                    component={SetupExperience}
+                  />
+                </Route>
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}

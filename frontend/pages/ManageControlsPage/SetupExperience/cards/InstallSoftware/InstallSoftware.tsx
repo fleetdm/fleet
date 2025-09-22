@@ -3,13 +3,17 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
+import { InjectedRouter } from "react-router";
+
+import PATHS from "router/paths";
+
 import mdmAPI, {
   IGetSetupExperienceSoftwareResponse,
 } from "services/entities/mdm";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareTitle } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { SetupExperiencePlatform } from "interfaces/platform";
@@ -34,23 +38,29 @@ const baseClass = "install-software";
 // available for install so we can correctly display the selected count.
 const PER_PAGE_SIZE = 3000;
 
-const DEFAULT_PLATFORM: SetupExperiencePlatform = "macos";
-
 export const PLATFORM_BY_INDEX: SetupExperiencePlatform[] = [
   "macos",
   "windows",
   "linux",
 ];
+export interface InstallSoftwareLocation {
+  search: string;
+  pathname: string;
+  query: {
+    team_id?: string;
+  };
+}
 
 const InstallSoftware = ({
   currentTeamId,
   router,
 }: ISetupExperienceCardProps) => {
   const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
-  const [
-    selectedPlatform,
-    setSelectedPlatform,
-  ] = useState<SetupExperiencePlatform>(DEFAULT_PLATFORM);
+
+  const selectedPlatform: SetupExperiencePlatform =
+    PLATFORM_BY_INDEX.find((platform) =>
+      (location?.pathname ?? "").endsWith(platform)
+    ) ?? "macos";
 
   const {
     data: softwareTitles,
@@ -92,14 +102,28 @@ const InstallSoftware = ({
     select: (res) => res.team,
   });
 
+  const handleTabChange = useCallback(
+    (index: number) => {
+      const newPlatform = PLATFORM_BY_INDEX[index];
+      router.push(
+        PATHS.CONTROLS_INSTALL_SOFTWARE(newPlatform).concat(
+          location?.search ?? ""
+        )
+      );
+    },
+    [router]
+  );
+
+  if (!selectedPlatform) {
+    router.push(
+      PATHS.CONTROLS_INSTALL_SOFTWARE("macos").concat(location?.search ?? "")
+    );
+  }
+
   const onSave = async () => {
     setShowSelectSoftwareModal(false);
     refetchSoftwareTitles();
   };
-
-  const handleTabChange = useCallback((index: number) => {
-    setSelectedPlatform(PLATFORM_BY_INDEX[index]);
-  }, []);
 
   const hasManualAgentInstall = getManualAgentInstallSetting(
     currentTeamId,
