@@ -17,10 +17,8 @@ describe("Disk space Indicator", () => {
   it("renders 'Not supported' text when disk space is sentinel value -1", () => {
     const { container } = renderWithSetup(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={-1}
         percentDiskSpaceAvailable={0}
-        id="disk-space-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
@@ -35,29 +33,25 @@ describe("Disk space Indicator", () => {
     // Case 1: Zero storage should show "No data available"
     const { container: zeroContainer, rerender } = renderWithSetup(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={0}
         percentDiskSpaceAvailable={0}
-        id="disk-space-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
     );
 
-    expect(zeroContainer.querySelector(".data-set__data")).toHaveTextContent(
-      "No data available"
-    );
-    expect(
-      zeroContainer.querySelector(".not-supported")
-    ).not.toBeInTheDocument();
+    const emptyElement = zeroContainer.querySelector(".disk-space-indicator__empty");
+    expect(emptyElement).toBeInTheDocument();
+    expect(emptyElement).toHaveTextContent("No data available");
+
+    const notSupportedElement = zeroContainer.querySelector(".not-supported");
+    expect(notSupportedElement).not.toBeInTheDocument();
 
     // Case 2: Sentinel value -1 should show "Not supported"
     rerender(
       <DiskSpaceIndicator
-        baseClass="data-set"
         gigsDiskSpaceAvailable={-1}
         percentDiskSpaceAvailable={0}
-        id="disk-space-indicator"
         platform="android"
         tooltipPosition="bottom"
       />
@@ -73,10 +67,8 @@ describe("Disk space Indicator", () => {
     negativeValues.forEach((value) => {
       const { container } = renderWithSetup(
         <DiskSpaceIndicator
-          baseClass="data-set"
           gigsDiskSpaceAvailable={value}
           percentDiskSpaceAvailable={0}
-          id="disk-space-indicator"
           platform="android"
           tooltipPosition="bottom"
         />
