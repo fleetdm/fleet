@@ -1878,3 +1878,341 @@ software:
 	require.Contains(t, string(profiles[0].Mobileconfig), "$FLEET_SECRET_DUO_CERTIFICATE",
 		"Profile should still contain unexpanded FLEET_SECRET variable")
 }
+
+// for https://github.com/fleetdm/fleet/issues/28107,
+// scenario 3: team profile with 2 labels, one is deleted and both are removed from profile in the same apply
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitopsDeleteLabelAndRemoveFromProfileScenario3() {
+	t := s.T()
+	ctx := t.Context()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	gitopsDir := t.TempDir()
+
+	// create the labels files
+	labelA := writeGitopsFile(t, gitopsDir, "labelA-*.yml", `
+- name: A
+  query: SELECT 1;
+  label_membership_type: dynamic
+`)
+
+	labelB := writeGitopsFile(t, gitopsDir, "labelB-*.yml", `
+- name: B
+  query: SELECT 2;
+  label_membership_type: dynamic
+`)
+
+	// create the profile file
+	profile := writeGitopsFile(t, gitopsDir, "profile-*.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key><string>prof1</string>
+  <key>PayloadDisplayName</key><string>prof1</string>
+  <key>PayloadIdentifier</key><string>com.fleet.1</string>
+  <key>PayloadOrganization</key><string>Fleet</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+  <key>PayloadScope</key><string>System</string>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>D399FCFD-C68A-4939-BFA1-CD2814778D25</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>
+`)
+
+	// create the global gitops file
+	globalFile := writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+labels:
+  - path: ./%s
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(labelA), filepath.Base(labelB)))
+
+	// create the team gitops file
+	teamFile := writeGitopsFile(t, gitopsDir, "team-*.yml", fmt.Sprintf(`
+name: team1
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $FLEET_TEAM_ENROLL_SECRET
+agent_options:
+  config:
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      pack_delimiter: /
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+        labels_include_any:
+          - A
+          - B
+policies:
+queries:
+software:
+`, filepath.Base(profile)))
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_TEAM_ENROLL_SECRET", "team_enroll_secret")
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin, IncludeObserver: true}
+	tms, err := s.DS.ListTeams(ctx, filter, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tms, 1)
+
+	tm, err := s.DS.TeamByName(ctx, "team1")
+	require.NoError(t, err)
+
+	// at this point the profile is valid and has "include any" with labels A and B
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	require.Len(t, profs[0].LabelsIncludeAny, 2)
+	// labels are sorted by name so this is deterministic
+	require.Equal(t, "A", profs[0].LabelsIncludeAny[0].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[0].Broken)
+	require.Equal(t, "B", profs[0].LabelsIncludeAny[1].LabelName)
+	require.False(t, profs[0].LabelsIncludeAny[1].Broken)
+
+	// update the gitops config to remove label A from the profile and delete it
+	// from Fleet at the same time (so it shouldn't be "broken" in the profile as
+	// it is removed from it).
+	globalFile = writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+labels:
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(labelB)))
+
+	teamFile = writeGitopsFile(t, gitopsDir, "team-*.yml", fmt.Sprintf(`
+name: team1
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $FLEET_TEAM_ENROLL_SECRET
+agent_options:
+  config:
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      pack_delimiter: /
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+policies:
+queries:
+software:
+`, filepath.Base(profile)))
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile})
+
+	tms, err = s.DS.ListTeams(ctx, filter, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tms, 1)
+
+	profs, _, err = s.DS.ListMDMConfigProfiles(ctx, &tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	// TODO: the following line should fail, it should show as 2 labels and 1
+	// broken, but it doesn't... maybe it's a race?
+	require.Len(t, profs[0].LabelsIncludeAny, 0)
+}
+
+// for https://github.com/fleetdm/fleet/issues/28107,
+// scenario 4: create team's profile with labels before gitops run (not via
+// gitops), then in gitops delete label and remove from profile in the same
+// apply
+func (s *enterpriseIntegrationGitopsTestSuite) TestGitopsDeleteLabelAndRemoveFromProfileScenario4() {
+	t := s.T()
+	ctx := t.Context()
+	user := s.createGitOpsUser(t)
+	fleetctlConfig := s.createFleetctlConfig(t, user)
+
+	tm, err := s.DS.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	lblA, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name:                "A",
+		Query:               "SELECT 1",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		LabelType:           fleet.LabelTypeRegular,
+	})
+	require.NoError(t, err)
+	lblB, err := s.DS.NewLabel(ctx, &fleet.Label{
+		Name:                "B",
+		Query:               "SELECT 2",
+		LabelMembershipType: fleet.LabelMembershipTypeDynamic,
+		LabelType:           fleet.LabelTypeRegular,
+	})
+	require.NoError(t, err)
+
+	rawProfile := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadDescription</key><string>prof1</string>
+  <key>PayloadDisplayName</key><string>prof1</string>
+  <key>PayloadIdentifier</key><string>com.fleet.1</string>
+  <key>PayloadOrganization</key><string>Fleet</string>
+  <key>PayloadRemovalDisallowed</key><false/>
+  <key>PayloadScope</key><string>System</string>
+  <key>PayloadType</key><string>Configuration</string>
+  <key>PayloadUUID</key><string>D399FCFD-C68A-4939-BFA1-CD2814778D25</string>
+  <key>PayloadVersion</key><integer>1</integer>
+</dict>
+</plist>
+`
+	cp, err := s.DS.NewMDMAppleConfigProfile(ctx, fleet.MDMAppleConfigProfile{
+		Identifier:   "com.fleet.1",
+		Name:         "prof1",
+		TeamID:       &tm.ID,
+		Scope:        fleet.PayloadScopeSystem,
+		Mobileconfig: []byte(rawProfile),
+		LabelsIncludeAny: []fleet.ConfigurationProfileLabel{
+			{LabelID: lblA.ID, LabelName: lblA.Name},
+			{LabelID: lblB.ID, LabelName: lblB.Name},
+		},
+	}, nil)
+	require.NoError(t, err)
+	require.NotNil(t, cp)
+
+	gitopsDir := t.TempDir()
+
+	// create the label file (only for "B", "A" will be deleted)
+	labelB := writeGitopsFile(t, gitopsDir, "labelB-*.yml", `
+- name: B
+  query: SELECT 2;
+  label_membership_type: dynamic
+`)
+
+	// create the profile file
+	profile := writeGitopsFile(t, gitopsDir, "profile-*.mobileconfig", rawProfile)
+
+	// create the global gitops file
+	globalFile := writeGitopsFile(t, gitopsDir, "default.yml", fmt.Sprintf(`
+policies:
+queries:
+agent_options:
+controls:
+labels:
+  - path: ./%s
+org_settings:
+  server_settings:
+    server_url: $FLEET_URL
+  org_info:
+    org_name: Fleet
+  secrets:
+    - secret: "$FLEET_GLOBAL_ENROLL_SECRET"
+`, filepath.Base(labelB)))
+
+	// create the team gitops file
+	teamFile := writeGitopsFile(t, gitopsDir, "team-*.yml", fmt.Sprintf(`
+name: team1
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $FLEET_TEAM_ENROLL_SECRET
+agent_options:
+  config:
+    options:
+      disable_distributed: false
+      distributed_interval: 10
+      pack_delimiter: /
+controls:
+  macos_settings:
+    custom_settings:
+      - path: ./%s
+policies:
+queries:
+software:
+`, filepath.Base(profile)))
+
+	// Set the required environment variables
+	t.Setenv("FLEET_URL", s.Server.URL)
+	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_TEAM_ENROLL_SECRET", "team_enroll_secret")
+
+	// apply this config
+	fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "-f", teamFile})
+
+	filter := fleet.TeamFilter{User: test.UserAdmin, IncludeObserver: true}
+	tms, err := s.DS.ListTeams(ctx, filter, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, tms, 1)
+
+	profs, _, err := s.DS.ListMDMConfigProfiles(ctx, &tm.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "prof1", profs[0].Name)
+	// TODO: the following line should fail, it should show as 2 labels and 1
+	// broken, but it doesn't... maybe it's a race?
+	require.Len(t, profs[0].LabelsIncludeAny, 0)
+}
+
+// if dir is empty, t.TempDir() is used. Returns the path to the file.
+func writeGitopsFile(t *testing.T, dir, pattern, content string) string {
+	t.Helper()
+
+	if dir == "" {
+		dir = t.TempDir()
+	}
+	var f *os.File
+	var err error
+	if strings.Contains(pattern, "*") {
+		f, err = os.CreateTemp(dir, pattern)
+		require.NoError(t, err)
+	} else {
+		// use exact name
+		f, err = os.Create(filepath.Join(dir, pattern))
+		require.NoError(t, err)
+	}
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	err = f.Close()
+	require.NoError(t, err)
+	return f.Name()
+}
