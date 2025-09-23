@@ -215,3 +215,9 @@ export const SETUP_EXPERIENCE_PLATFORMS = [
 ] as const;
 
 export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];
+
+export const isSetupExperiencePlatform = (
+  s: string | undefined
+): s is SetupExperiencePlatform => {
+  return SETUP_EXPERIENCE_PLATFORMS.includes(s as SetupExperiencePlatform);
+};
