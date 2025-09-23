@@ -220,6 +220,11 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
 	parts := strings.Split(str, "/")
 
+	if len(parts) == 1 {
+		// Try to split into parts based on +
+		parts = strings.Split(str, "+")
+	}
+
 	var details HostCertificateNameDetails
 	for _, part := range parts {
 		kv := strings.Split(part, "=")

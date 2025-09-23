@@ -124,6 +124,26 @@ func TestExtractHostCertificateNameDetails(t *testing.T) {
 				CommonName:         "FleetDM",
 			},
 		},
+		{
+			name:  "with plusses as separator",
+			input: "DN=something+CN=FleetDM+OU=Org",
+			expected: &HostCertificateNameDetails{
+				Country:            "",
+				Organization:       "",
+				OrganizationalUnit: "Org",
+				CommonName:         "FleetDM",
+			},
+		},
+		{
+			name:  "with plusses inside values and slash as separator",
+			input: "DN=something/CN=FleetDM+valid/OU=Org",
+			expected: &HostCertificateNameDetails{
+				Country:            "",
+				Organization:       "",
+				OrganizationalUnit: "Org",
+				CommonName:         "FleetDM+valid",
+			},
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
