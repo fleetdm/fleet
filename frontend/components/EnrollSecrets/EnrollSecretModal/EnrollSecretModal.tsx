@@ -94,7 +94,7 @@ const EnrollSecretModal = ({
             />
           </>
         ) : (
-          <Card color="grey" paddingSize="none">
+          <Card color="grey" paddingSize="small">
             <EmptyTable
               header="You have no enroll secrets."
               info={

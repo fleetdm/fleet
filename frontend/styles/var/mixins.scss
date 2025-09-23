@@ -272,11 +272,6 @@ $max-width: 2560px;
   @include flex-column-24px-gap;
 }
 
-@mixin form-button-extra-clickable-area-compensation {
-  // compensate in layout for extra clickable area button height
-  margin: -8px 0;
-}
-
 @mixin button-dropdown {
   .form-field {
     margin: 0;

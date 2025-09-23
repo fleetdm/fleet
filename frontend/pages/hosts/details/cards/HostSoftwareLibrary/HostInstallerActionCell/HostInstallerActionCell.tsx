@@ -177,6 +177,7 @@ export const HostInstallerActionButton = ({
         className={`${baseClass}__item-action-button`}
         onClick={onClick}
         disabled={disabled}
+        size="small"
       >
         <Icon name={icon} color="ui-fleet-black-75" size="small" />
         <span data-testid={testId}>{text}</span>
@@ -327,7 +328,7 @@ export const HostInstallerActionCell = ({
               uninstallTooltip,
               buttonDisplayConfig.uninstall.text
             )}
-            variant="button"
+            variant="small-button"
             disabled={moreDisabled}
           />
         </div>
