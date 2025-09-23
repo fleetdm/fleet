@@ -774,15 +774,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 ) error {
 	// Collect all software that needs to be inserted
 	needsInsert := make(map[string]fleet.Software)
+	existingSet := make(map[string]struct{}, len(existingSoftware))
+	for _, es := range existingSoftware {
+		existingSet[es.Checksum] = struct{}{}
+	}
 	for checksum, sw := range softwareChecksums {
-		found := false
-		for _, existing := range existingSoftware {
-			if existing.Checksum == checksum {
-				found = true
-				break
-			}
-		}
-		if !found {
+		if _, ok := existingSet[checksum]; !ok {
 			needsInsert[checksum] = sw
 		}
 	}
@@ -1007,10 +1004,13 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 		insertedSoftware = append(insertedSoftware, software)
 	}
 
+	// NOTE: There's no foreign key constraint on software_id, so if software
+	// was deleted between pre-insertion and now, we'd create orphaned references.
+	// This is unlikely due to the small time between pre-insertion and now (milliseconds).
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
-		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
-		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
+		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
+		if _, err := tx.ExecContext(ctx, stmt, insertsHostSoftware...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "link existing bundle ID software")
 		}
 	}

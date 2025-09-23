@@ -3,6 +3,7 @@ package mysql
 import (
 	"bytes"
 	"context"
+	crand "crypto/rand"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -1865,6 +1866,7 @@ func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
 	require.Equal(t, "GoLand.app", host.Software[0].Name)
+	originalSoftwareID := host.Software[0].ID
 
 	// Now update with the same bundle ID but different name
 	// The behavior depends on how the system handles bundle ID matching
@@ -1881,6 +1883,7 @@ func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastor
 	require.Len(t, host.Software, 1)
 	// The existing software entry is reused (matched by bundle ID)
 	require.Equal(t, "GoLand.app", host.Software[0].Name)
+	require.Equal(t, originalSoftwareID, host.Software[0].ID, "Should reuse the same software row")
 
 	// Verify only one software title exists
 	var titleCount int
@@ -8938,7 +8941,7 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 	softwareChecksums := make(map[string]fleet.Software)
 	for i := 0; i < 10; i++ {
 		checksum := make([]byte, 32)
-		rand.Read(checksum)
+		_, _ = crand.Read(checksum)
 		checksumStr := hex.EncodeToString(checksum)
 		softwareChecksums[checksumStr] = fleet.Software{
 			Name:     fmt.Sprintf("idempotent-test-%d", i),
