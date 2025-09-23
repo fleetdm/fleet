@@ -44,14 +44,15 @@ func main() {
 			endpoint = endpoints[i%len(endpoints)]
 		}
 		req, err := http.NewRequest(endpoint[0], *fleetURL+fmt.Sprintf(endpoint[1], token), nil)
-		req.Header.Add("X-Forwarded-For", "127.0.0.1")
 		if err != nil {
 			panic(err)
 		}
+		req.Header.Add("X-Forwarded-For", "127.0.0.1")
 		res, err := c.Do(req)
 		if err != nil {
 			panic(err)
 		}
+		_ = res.Body.Close()
 		log.Printf("%d: %s %s: %d\n", i, req.Method, req.URL.Path, res.StatusCode)
 		if res.StatusCode == http.StatusTooManyRequests {
 			log.Printf("Rate limited: %s\n", time.Since(start))
