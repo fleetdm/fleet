@@ -35,6 +35,10 @@ type softwareIDChecksum struct {
 	Source           string  `db:"source"`
 }
 
+// tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
+// If provider is set later (with otel.SetTracerProvider), the tracer will start using the new provider.
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
+
 // Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
@@ -59,7 +63,6 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
 	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
-	tracer := otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
 	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(
