@@ -5,12 +5,12 @@ const baseClass = "page-description";
 
 interface IPageDescription {
   content: React.ReactNode;
-  /** Section descriptions styles different from page level descriptions */
-  variant?: "card" | "tab-panel" | "right-panel";
+  /** Section descriptions styles differ from page level descriptions */
+  variant?: "card" | "tab-panel" | "right-panel" | "modal";
   className?: string;
 }
 
-const sectionVariants = ["card", "tab-panel", "right-panel"];
+const sectionVariants = ["card", "tab-panel", "right-panel", "modal"];
 
 const PageDescription = ({ content, variant, className }: IPageDescription) => {
   const classNames = classnames(baseClass, className, {

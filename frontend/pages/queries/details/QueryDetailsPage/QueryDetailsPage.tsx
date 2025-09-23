@@ -37,6 +37,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -263,16 +264,13 @@ const QueryDetailsPage = ({
         <div className={`${baseClass}__header-links`}>
           <BackButton text="Back to queries" path={backToQueriesPath()} />
         </div>
-        <div className={`${baseClass}__header-details`}>
-          {!isLoading && !isApiError && (
+        {!isLoading && !isApiError && (
+          <>
             <div className={`${baseClass}__title-bar`}>
               <div className="name-description">
                 <h1 className={`${baseClass}__query-name`}>
                   {lastEditedQueryName}
                 </h1>
-                <p className={`${baseClass}__query-description`}>
-                  {lastEditedQueryDescription}
-                </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
@@ -341,41 +339,45 @@ const QueryDetailsPage = ({
                 )}
               </div>
             </div>
-          )}
-          {!isLoading && !isApiError && (
-            <div className={`${baseClass}__settings`}>
-              <div className={`${baseClass}__automations`}>
-                <TooltipWrapper
-                  tipContent={
-                    <>
-                      Query automations let you send data to your log <br />
-                      destination on a schedule. When automations are <b>
-                        on
-                      </b>, <br />
-                      data is sent according to a query&apos;s interval.
-                    </>
-                  }
-                >
-                  Automations:
-                </TooltipWrapper>
-                <QueryAutomationsStatusIndicator
-                  automationsEnabled={storedQuery?.automations_enabled || false}
-                  interval={storedQuery?.interval || 0}
-                />
-              </div>
-              <div className={`${baseClass}__log-destination`}>
-                <strong>Log destination:</strong>{" "}
-                <LogDestinationIndicator
-                  logDestination={config?.logging.result.plugin || ""}
-                  filesystemDestination={
-                    config?.logging.result.config?.result_log_file
-                  }
-                  webhookDestination={config?.logging.result.config?.result_url}
-                />
-              </div>
+            <PageDescription
+              className={`${baseClass}__query-description`}
+              content={lastEditedQueryDescription}
+            />
+          </>
+        )}
+        {!isLoading && !isApiError && (
+          <div className={`${baseClass}__settings`}>
+            <div className={`${baseClass}__automations`}>
+              <TooltipWrapper
+                tipContent={
+                  <>
+                    Query automations let you send data to your log <br />
+                    destination on a schedule. When automations are <b>
+                      on
+                    </b>, <br />
+                    data is sent according to a query&apos;s interval.
+                  </>
+                }
+              >
+                Automations:
+              </TooltipWrapper>
+              <QueryAutomationsStatusIndicator
+                automationsEnabled={storedQuery?.automations_enabled || false}
+                interval={storedQuery?.interval || 0}
+              />
             </div>
-          )}
-        </div>
+            <div className={`${baseClass}__log-destination`}>
+              <strong>Log destination:</strong>{" "}
+              <LogDestinationIndicator
+                logDestination={config?.logging.result.plugin || ""}
+                filesystemDestination={
+                  config?.logging.result.config?.result_log_file
+                }
+                webhookDestination={config?.logging.result.config?.result_url}
+              />
+            </div>
+          </div>
+        )}
       </>
     );
   };

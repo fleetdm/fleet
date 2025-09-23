@@ -246,16 +246,14 @@ $max-width: 2560px;
   }
 }
 
-@mixin flex-column-16px-gap {
-  display: flex;
-  flex-direction: column;
-  gap: $gap-form;
-}
-
 @mixin flex-column-24px-gap {
   display: flex;
   flex-direction: column;
   gap: $gap-page-component;
+}
+
+@mixin vertical-form-layout {
+  @include flex-column-24px-gap;
 }
 
 @mixin vertical-page-layout {
