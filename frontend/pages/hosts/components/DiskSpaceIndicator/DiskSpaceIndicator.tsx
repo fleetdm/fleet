@@ -1,6 +1,5 @@
 import React from "react";
 
-import ReactTooltip from "react-tooltip";
 import { PlacesType } from "react-tooltip-5";
 import NotSupported from "components/NotSupported";
 
@@ -13,6 +12,8 @@ const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
+  gigsTotalDiskSpace?: number;
+  gigsAllDiskSpace?: number;
   platform: string;
   inTableCell?: boolean;
   tooltipPosition?: PlacesType;
@@ -21,6 +22,8 @@ interface IDiskSpaceIndicatorProps {
 const DiskSpaceIndicator = ({
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
+  gigsTotalDiskSpace,
+  gigsAllDiskSpace,
   platform,
   inTableCell = false,
   tooltipPosition = "top",
