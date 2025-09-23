@@ -1,5 +1,5 @@
 <!-- Enable Real-Time Protection -->
-<Add>
+<Replace>
   <CmdID>1</CmdID>
   <Item>
     <Target>
@@ -10,39 +10,11 @@
     </Meta>
     <Data>1</Data>
   </Item>
-</Add>
+</Replace>
 
-<!-- Ensure Anti-Virus Protection is NOT Disabled -->
-<Add>
+<!-- Enable Cloud Protection (MAPS) -->
+<Replace>
   <CmdID>2</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/DisableAntiVirus</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>0</Data>
-  </Item>
-</Add>
-
-<!-- Ensure Anti-Spyware Protection is NOT Disabled -->
-<Add>
-  <CmdID>3</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/DisableAntiSpyware</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>0</Data>
-  </Item>
-</Add>
-
-<!-- Enable Cloud Protection (enhances real-time protection) -->
-<Add>
-  <CmdID>4</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowCloudProtection</LocURI>
@@ -52,11 +24,11 @@
     </Meta>
     <Data>1</Data>
   </Item>
-</Add>
+</Replace>
 
 <!-- Enable Behavior Monitoring -->
-<Add>
-  <CmdID>5</CmdID>
+<Replace>
+  <CmdID>3</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowBehaviorMonitoring</LocURI>
@@ -66,67 +38,11 @@
     </Meta>
     <Data>1</Data>
   </Item>
-</Add>
-
-<!-- Enable IOAV Protection (scanning of downloaded files) -->
-<Add>
-  <CmdID>6</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowIOAVProtection</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>1</Data>
-  </Item>
-</Add>
-
-<!-- Enable On Access Protection -->
-<Add>
-  <CmdID>7</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowOnAccessProtection</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>1</Data>
-  </Item>
-</Add>
-
-<!-- Ensure Defender Service Auto-Start (via registry) -->
-<Add>
-  <CmdID>8</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/ADMX_MSSecurityGuide/WinDefender_EnableOnOffSwitch</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
-    <Data>&lt;enabled/&gt;</Data>
-  </Item>
-</Add>
-
-<!-- Configure Sample Submission (enhances protection) -->
-<Add>
-  <CmdID>9</CmdID>
-  <Item>
-    <Target>
-      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/SubmitSamplesConsent</LocURI>
-    </Target>
-    <Meta>
-      <Format xmlns="syncml:metinf">int</Format>
-    </Meta>
-    <Data>1</Data>
-  </Item>
-</Add>
+</Replace>
 
 <!-- Enable Script Scanning -->
-<Add>
-  <CmdID>10</CmdID>
+<Replace>
+  <CmdID>4</CmdID>
   <Item>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/AllowScriptScanning</LocURI>
@@ -136,4 +52,18 @@
     </Meta>
     <Data>1</Data>
   </Item>
-</Add>
+</Replace>
+
+<!-- Configure Sample Submission -->
+<Replace>
+  <CmdID>5</CmdID>
+  <Item>
+    <Target>
+      <LocURI>./Device/Vendor/MSFT/Policy/Config/Defender/SubmitSamplesConsent</LocURI>
+    </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">int</Format>
+    </Meta>
+    <Data>1</Data>
+  </Item>
+</Replace>
