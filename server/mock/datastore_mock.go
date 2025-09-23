@@ -795,6 +795,8 @@ type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet
 
 type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
 
+type ListVulnsByMultipleOSVersionsFunc func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint) (map[string]fleet.Vulnerabilities, error)
+
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
 type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
@@ -2669,6 +2671,9 @@ type DataStore struct {
 
 	ListVulnsByOsNameAndVersionFunc        ListVulnsByOsNameAndVersionFunc
 	ListVulnsByOsNameAndVersionFuncInvoked bool
+
+	ListVulnsByMultipleOSVersionsFunc        ListVulnsByMultipleOSVersionsFunc
+	ListVulnsByMultipleOSVersionsFuncInvoked bool
 
 	InsertOSVulnerabilitiesFunc        InsertOSVulnerabilitiesFunc
 	InsertOSVulnerabilitiesFuncInvoked bool
@@ -6447,6 +6452,13 @@ func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string
 	s.ListVulnsByOsNameAndVersionFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
+}
+
+func (s *DataStore) ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint) (map[string]fleet.Vulnerabilities, error) {
+	s.mu.Lock()
+	s.ListVulnsByMultipleOSVersionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVulnsByMultipleOSVersionsFunc(ctx, osVersions, includeCVSS, teamID)
 }
 
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
