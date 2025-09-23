@@ -453,7 +453,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			testCopy.Name = goodHydrantCA.Name
 			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
 				},
@@ -774,7 +774,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			}
 			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 
-			// try to create custom scep with same name as the Hydrant. Should not error
+			// try to create custom scep with same name as the Hydrant CA. Should not error
 			testCopy = goodCustomSCEPCA
 			testCopy.Name = goodHydrantCA.Name
 			duplicateReq = batchApplyCertificateAuthoritiesRequest{
