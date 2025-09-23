@@ -151,7 +151,6 @@ const CertificateAuthorities = () => {
         selectedCertAuthority &&
         certAuthorities && (
           <EditCertAuthorityModal
-            certAuthorities={certAuthorities}
             certAuthority={selectedCertAuthority}
             onExit={onEditedCertAuthority}
           />
