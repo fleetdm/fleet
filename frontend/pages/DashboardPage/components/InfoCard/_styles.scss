@@ -17,7 +17,7 @@
     span {
       display: flex;
       align-items: center;
-      background-color: $core-vibrant-blue;
+      background-color: $ui-fleet-black-75;
       color: $core-fleet-white;
       font-size: $xx-small;
       font-weight: $bold;
@@ -45,22 +45,5 @@
     p {
       margin: 8px 0 0 0;
     }
-  }
-
-  &__action-button {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none !important;
-    gap: $pad-small;
-
-    &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
-    }
-  }
-  &__action-button-text {
-    text-align: right;
   }
 }
