@@ -9983,6 +9983,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.  Also supports `.ps1` and `.sh` for adding a custom scripts as packages. |
+| platform             | string | form | The intended platform for a  custom script package to run on, if `.sh` file. Either `"macos"` or `"linux"`. Ignored if `software` is not a `.sh` file. |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Will be ignored for `.ps1` and `.sh` (custom script) packages. |
 | uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Will be ignored for `.ps1` and `.sh` (custom script) packages. |
