@@ -633,7 +633,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		incomingChecksumToTitle     = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
 		argsWithoutBundleIdentifier []any
 		argsWithBundleIdentifier    []any
-		uniqueTitleStrToChecksum    = make(map[string]string)
+		uniqueTitleStrToChecksums   = make(map[string][]string)
 	)
 	bundleIDsToIncomingNames := make(map[string]string)
 	for checksum := range newSoftwareChecksums {
@@ -645,9 +645,11 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(
+		// Note: Multiple checksums can map to the same title (e.g., when names are truncated)
+		titleStr := UniqueSoftwareTitleStr(
 			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.Browser,
-		)] = checksum
+		)
+		uniqueTitleStrToChecksums[titleStr] = append(uniqueTitleStrToChecksums[titleStr], checksum)
 	}
 
 	// Get titles for software without bundle_identifier.
@@ -674,9 +676,12 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			checksums, ok := uniqueTitleStrToChecksums[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
 			if ok {
-				incomingChecksumToTitle[checksum] = title
+				// Map all checksums that correspond to this title
+				for _, checksum := range checksums {
+					incomingChecksumToTitle[checksum] = title
+				}
 			}
 		}
 	}
@@ -698,10 +703,13 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
 			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)
-			withoutNameCS, withoutName := uniqueTitleStrToChecksum[uniqueStrWithoutName]
+			checksums, withoutName := uniqueTitleStrToChecksums[uniqueStrWithoutName]
 
 			if withoutName {
-				incomingChecksumToTitle[withoutNameCS] = title
+				// Map all checksums that correspond to this title
+				for _, checksum := range checksums {
+					incomingChecksumToTitle[checksum] = title
+				}
 			}
 		}
 	}
@@ -814,19 +822,98 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				}
 			}
 
+			// Map to store title IDs for all titles (both existing and new)
+			titleIDsByChecksum := make(map[string]uint)
+
+			// First, add existing titles to the map
+			for checksum, title := range existingTitlesForNewSoftware {
+				titleIDsByChecksum[checksum] = title.ID
+			}
+
 			if len(newTitlesNeeded) > 0 {
+				// Deduplicate titles before insertion to avoid unnecessary duplicate INSERTs
+				type titleKey struct {
+					name     string
+					source   string
+					browser  string
+					bundleID string
+					isKernel bool
+				}
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
+				for _, title := range newTitlesNeeded {
+					bundleID := ""
+					if title.BundleIdentifier != nil {
+						bundleID = *title.BundleIdentifier
+					}
+					key := titleKey{
+						name:     title.Name,
+						source:   title.Source,
+						browser:  title.Browser,
+						bundleID: bundleID,
+						isKernel: title.IsKernel,
+					}
+					uniqueTitlesToInsert[key] = title
+				}
+
 				// Insert software titles
 				const numberOfArgsPerSoftwareTitles = 5
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(newTitlesNeeded)), ",")
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
-				titlesArgs := make([]interface{}, 0, len(newTitlesNeeded)*numberOfArgsPerSoftwareTitles)
+				titlesArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
 
-				for _, title := range newTitlesNeeded {
+				for _, title := range uniqueTitlesToInsert {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
 				}
 
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
+				}
+
+				// Retrieve the IDs for the titles we just inserted (or that already existed)
+				var titlesData []struct {
+					ID               uint    `db:"id"`
+					Name             string  `db:"name"`
+					Source           string  `db:"source"`
+					Browser          string  `db:"browser"`
+					BundleIdentifier *string `db:"bundle_identifier"`
+				}
+
+				// Build query to retrieve title IDs using the same unique titles we inserted
+				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
+				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				for tk := range uniqueTitlesToInsert {
+					bundleID := ""
+					if uniqueTitlesToInsert[tk].BundleIdentifier != nil {
+						bundleID = *uniqueTitlesToInsert[tk].BundleIdentifier
+					}
+					queryArgs = append(queryArgs, tk.name, tk.source, tk.browser, bundleID)
+				}
+
+				queryTitles := fmt.Sprintf(`SELECT id, name, source, browser, bundle_identifier
+					FROM software_titles
+					WHERE (name, source, browser, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+
+				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "select software titles")
+				}
+
+				// Map the titles back to their checksums
+				for _, td := range titlesData {
+					var bundleID string
+					if td.BundleIdentifier != nil {
+						bundleID = *td.BundleIdentifier
+					}
+					for checksum, title := range newTitlesNeeded {
+						var titleBundleID string
+						if title.BundleIdentifier != nil {
+							titleBundleID = *title.BundleIdentifier
+						}
+						if td.Name == title.Name && td.Source == title.Source && td.Browser == title.Browser && bundleID == titleBundleID {
+							titleIDsByChecksum[checksum] = td.ID
+							// Don't break here - multiple checksums can map to the same title
+							// (e.g., when software has same truncated name but different versions)
+						}
+					}
 				}
 			}
 
@@ -853,11 +940,17 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			)
 
 			args := make([]interface{}, 0, len(batchKeys)*numberOfArgsPerSoftware)
+			var missingSoftwareTitles []string
 			for _, checksum := range batchKeys {
 				sw := batchSoftware[checksum]
 				var titleID *uint
-				if title, ok := existingTitlesForNewSoftware[checksum]; ok {
-					titleID = &title.ID
+				// Get the title ID from our combined map
+				if id, ok := titleIDsByChecksum[checksum]; ok {
+					titleID = &id
+				} else {
+					// Track software missing title IDs for debugging
+					missingSoftwareTitles = append(missingSoftwareTitles,
+						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
@@ -865,52 +958,22 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				)
 			}
 
-			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "pre-insert software")
+			// Log an error if we have software without title IDs
+			// This shouldn't happen in normal operation. And this code is here to catch bugs.
+			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
+				exampleCount := 3
+				if len(missingSoftwareTitles) < exampleCount {
+					exampleCount = len(missingSoftwareTitles)
+				}
+				level.Error(ds.logger).Log(
+					"msg", "inserting software without title_id",
+					"count", len(missingSoftwareTitles),
+					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
+				)
 			}
 
-			// Update title_id links if needed
-			if len(newTitlesNeeded) > 0 {
-				titleChecksums := make([]string, 0, len(newTitlesNeeded))
-				for checksum := range newTitlesNeeded {
-					titleChecksums = append(titleChecksums, checksum)
-				}
-
-				// Update software without identifier
-				updateStmt := `
-					UPDATE software s
-					JOIN software_titles st
-					ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
-					SET s.title_id = st.id
-					WHERE (s.title_id IS NULL OR s.title_id != st.id)
-					AND COALESCE(s.bundle_identifier, '') = ''
-					AND s.checksum IN (?)
-				`
-				updateStmt, updateArgs, err := sqlx.In(updateStmt, titleChecksums)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build update software title_id")
-				}
-				if _, err = tx.ExecContext(ctx, updateStmt, updateArgs...); err != nil {
-					return ctxerr.Wrap(ctx, err, "update software title_id")
-				}
-
-				// Update software with bundle identifier
-				updateStmt2 := `
-					UPDATE software s
-					JOIN software_titles st
-					ON s.bundle_identifier = st.bundle_identifier AND
-						IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-					SET s.title_id = st.id
-					WHERE (s.title_id IS NULL OR s.title_id != st.id)
-					AND s.checksum IN (?)
-				`
-				updateStmt2, updateArgs2, err := sqlx.In(updateStmt2, titleChecksums)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
-				}
-				if _, err = tx.ExecContext(ctx, updateStmt2, updateArgs2...); err != nil {
-					return ctxerr.Wrap(ctx, err, "update software title_id with identifier")
-				}
+			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "pre-insert software")
 			}
 
 			return nil
@@ -992,7 +1055,7 @@ func (ds *Datastore) linkSoftwareToHost(
 			insertedSoftware = append(insertedSoftware, sw)
 		} else {
 			// Log missing software but continue
-			level.Debug(ds.logger).Log(
+			level.Warn(ds.logger).Log(
 				"msg", "software not found after pre-insertion",
 				"checksum", checksum,
 				"name", sw.Name,

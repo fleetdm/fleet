@@ -1695,6 +1695,15 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(expectedSoftware, software)
 }
 
+// truncateString truncates a string to a maximum length.
+// This mimics the behavior of fleet.NewSoftware() for testing.
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen]
+}
+
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	softwareInsertBatchSizeOrig := softwareInsertBatchSize
@@ -1743,15 +1752,15 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			want := expect[i]
 			require.Equal(t, want.name, sw.Name)
 
-			var titleID uint
-			require.NoError(
-				t, ds.writer(ctx).GetContext(
-					ctx, &titleID,
-					`SELECT s.title_id FROM software s INNER JOIN software_titles st ON (s.name = st.name AND s.source = st.source AND s.browser = st.browser) WHERE st.id = ?`,
-					sw.ID,
-				),
+			var titleID *uint
+			err := ds.writer(ctx).GetContext(
+				ctx, &titleID,
+				`SELECT s.title_id FROM software s WHERE s.id = ?`,
+				sw.ID,
 			)
-			assert.NotZero(t, titleID)
+			require.NoError(t, err)
+			require.NotNil(t, titleID, "Software should have a title_id")
+			assert.NotZero(t, *titleID, "Title ID should not be zero")
 
 			if want.ts.IsZero() {
 				require.Nil(t, sw.LastOpenedAt)
@@ -1928,10 +1937,12 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 		longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+10)
 		expectedTruncatedName := strings.Repeat("a", fleet.SoftwareNameMaxLength)
 
-		// Add software with an excessively long name
+		// Add software with excessively long names
+		// Note: In production, fleet.NewSoftware() truncates names, but we're testing
+		// the database layer directly, so we need to truncate here to match production behavior
 		sw := []fleet.Software{
-			{Name: longName + "suffix1", Version: "1.0", Source: "chrome_extensions"},
-			{Name: longName + "suffix2", Version: "2.0", Source: "chrome_extensions"},
+			{Name: truncateString(longName+"suffix1", fleet.SoftwareNameMaxLength), Version: "1.0", Source: "chrome_extensions"},
+			{Name: truncateString(longName+"suffix2", fleet.SoftwareNameMaxLength), Version: "2.0", Source: "chrome_extensions"},
 		}
 		_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
 		require.NoError(t, err)
@@ -1945,9 +1956,32 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 		require.Equal(t, expectedTruncatedName, host.Software[0].Name)
 		require.Equal(t, expectedTruncatedName, host.Software[1].Name)
 
+		// IMPORTANT: Verify both software entries have title_ids
+		// This validates our fix for the mapping issue
+		var softwareWithTitles []struct {
+			ID      uint   `db:"id"`
+			Version string `db:"version"`
+			TitleID *uint  `db:"title_id"`
+		}
+		err = ds.writer(ctx).SelectContext(ctx, &softwareWithTitles,
+			`SELECT s.id, s.version, s.title_id
+			 FROM software s
+			 JOIN host_software hs ON hs.software_id = s.id
+			 WHERE hs.host_id = ? AND s.name = ?
+			 ORDER BY s.version`,
+			host.ID, expectedTruncatedName)
+		require.NoError(t, err)
+		require.Len(t, softwareWithTitles, 2)
+
+		// Both should have the same title_id (not NULL)
+		require.NotNil(t, softwareWithTitles[0].TitleID, "First software should have title_id")
+		require.NotNil(t, softwareWithTitles[1].TitleID, "Second software should have title_id")
+		require.Equal(t, *softwareWithTitles[0].TitleID, *softwareWithTitles[1].TitleID,
+			"Both software entries should have the same title_id")
+
 		// Try adding another software with a different long name that truncates to the same value
 		sw = []fleet.Software{
-			{Name: longName + "differentsuffix", Version: "3.0", Source: "chrome_extensions"},
+			{Name: truncateString(longName+"differentsuffix", fleet.SoftwareNameMaxLength), Version: "3.0", Source: "chrome_extensions"},
 		}
 		_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
 		require.NoError(t, err)
@@ -1958,6 +1992,24 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 		require.Len(t, host.Software, 1)
 		require.Equal(t, expectedTruncatedName, host.Software[0].Name)
 		require.Equal(t, "3.0", host.Software[0].Version)
+
+		// Verify the new software also has the same title_id
+		var newSoftwareWithTitle struct {
+			ID      uint   `db:"id"`
+			Version string `db:"version"`
+			TitleID *uint  `db:"title_id"`
+		}
+		err = ds.writer(ctx).GetContext(ctx, &newSoftwareWithTitle,
+			`SELECT s.id, s.version, s.title_id
+			 FROM software s
+			 JOIN host_software hs ON hs.software_id = s.id
+			 WHERE hs.host_id = ? AND s.name = ? AND s.version = ?`,
+			host.ID, expectedTruncatedName, "3.0")
+		require.NoError(t, err)
+		require.NotNil(t, newSoftwareWithTitle.TitleID, "New software should have title_id")
+		// Should reuse the same title as before
+		require.Equal(t, *softwareWithTitles[0].TitleID, *newSoftwareWithTitle.TitleID,
+			"New software should have the same title_id as previous software")
 	})
 }
 
