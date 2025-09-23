@@ -69,8 +69,11 @@ type ErrorMiddleware struct {
 	ipBanner IPBanner
 }
 
+// IPBanner is an interface to perform rate limiting based on the request's IP.
 type IPBanner interface {
+	// CheckBanned returns true if the IP is currently banned.
 	CheckBanned(ip string) (bool, error)
+	// RunRequest will update the status of the given IP with the result of a request.
 	RunRequest(ip string, success bool) error
 }
 

@@ -15,7 +15,7 @@ import (
 // on a configurable time window (allowedConsecutiveFailuresTimeWindow) and after hitting
 // such threshold it will ban the IP for a configurable amout of time (banDuration).
 //
-// - The CheckBanned operation is to be used to check whether an IP is banned.
+// - The CheckBanned operation can be used before running a request to check whether an IP is banned.
 // - The RunRequest operation is to be executed with the result of every request (success or failure).
 type IPBanner struct {
 	pool      fleet.RedisPool
