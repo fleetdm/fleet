@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import Select, {
-  StylesConfig,
+  components,
   DropdownIndicatorProps,
   OptionProps,
-  components,
+  SelectInstance,
+  StylesConfig,
 } from "react-select-5";
 
 import { PADDING } from "styles/var/padding";
@@ -123,7 +124,7 @@ const ActionsDropdown = ({
 
   // Used for brand Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
-  const selectRef = useRef<any>(null);
+  const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
@@ -163,7 +164,7 @@ const ActionsDropdown = ({
       <Button
         type="button"
         onClick={handleButtonClick}
-        className="my-dropdown-button"
+        className={`${baseClass}__button`}
         disabled={selectProps.isDisabled}
         aria-haspopup="listbox"
         aria-expanded={selectProps.menuIsOpen}

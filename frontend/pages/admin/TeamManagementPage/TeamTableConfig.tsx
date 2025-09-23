@@ -104,6 +104,7 @@ const generateTableHeaders = (
                 }
                 placeholder="Actions"
                 disabled={disableChildren}
+                variant="small-button"
               />
             </div>
           )}

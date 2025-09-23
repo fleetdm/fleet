@@ -101,9 +101,6 @@ form,
 
   .button {
     width: auto;
-    &--text-icon {
-      @include form-button-extra-clickable-area-compensation;
-    }
   }
 
   p {
@@ -125,6 +122,7 @@ form,
     font-size: $x-small;
     font-weight: $bold;
     color: $core-fleet-black;
+    line-height: $line-height;
 
     // compensate for height added by tooltip wrapper underline
     .component__tooltip-wrapper__underline {
@@ -134,11 +132,6 @@ form,
 
     &--error {
       color: $core-vibrant-red;
-    }
-
-    // New padded buttons are within label and shouldn't push label height
-    .button {
-      margin: -$pad-small;
     }
 
     .custom-link {

@@ -43,7 +43,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     <ProfileGraphic baseClass={baseClass} showMessage />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="inverse"
+      variant="brand-inverse-icon"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">
