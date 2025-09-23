@@ -605,6 +605,11 @@ func (ds *Datastore) getExistingSoftware(
 					swWithID := sw
 					swWithID.ID = s.ID
 					existingBundleIDsToUpdate[*s.BundleIdentifier] = swWithID
+
+					// Remove from incomingChecksumToSoftware to prevent it being treated as new software
+					if cs, ok := bundleIDsToChecksum[*s.BundleIdentifier]; ok {
+						delete(incomingChecksumToSoftware, cs)
+					}
 					continue
 				}
 			}
@@ -620,15 +625,6 @@ func (ds *Datastore) getExistingSoftware(
 	incomingChecksumToTitle, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
 	if err != nil {
 		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
-	}
-
-	for bid := range existingBundleIDsToUpdate {
-		if cs, ok := bundleIDsToChecksum[bid]; ok {
-			// we don't want this to be treated as a new software title, because then a new software
-			// entry will be created. Instead, we want to update the existing entries with the new
-			// names.
-			delete(incomingChecksumToSoftware, cs)
-		}
 	}
 
 	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil

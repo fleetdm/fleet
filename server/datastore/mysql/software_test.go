@@ -92,6 +92,7 @@ func TestSoftware(t *testing.T) {
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
+		{"BundleIDRenameOnlyNoNewSoftware", testBundleIDRenameOnlyNoNewSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -8972,4 +8973,60 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, 10, count)
 
+}
+
+// testBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
+// (same bundle ID, different name) with NO new software
+func testBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "rename-test-host", "", "renamekey", "renameuuid", time.Now())
+
+	// Initial software with bundle ID
+	initialSoftware := []fleet.Software{
+		{Name: "Original.app", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.app"},
+		{Name: "Another.app", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.another"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, initialSoftware)
+	require.NoError(t, err)
+
+	// Verify initial state
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 2)
+	originalIDs := map[string]uint{}
+	for _, s := range host.Software {
+		originalIDs[s.BundleIdentifier] = s.ID
+	}
+
+	// Report ONLY renamed software (same bundle IDs, different names)
+	// This is the edge case: NO new software, ONLY renames
+	renamedSoftware := []fleet.Software{
+		{Name: "Renamed.app", Version: "1.0", Source: "apps", BundleIdentifier: "com.example.app"},
+		{Name: "AlsoRenamed.app", Version: "2.0", Source: "apps", BundleIdentifier: "com.example.another"},
+	}
+
+	// Complete the update and verify the software was linked correctly
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, renamedSoftware)
+	require.NoError(t, err)
+
+	// Verify the software entries were reused (not duplicated)
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 2, "Should still have exactly 2 software entries")
+
+	// Verify the IDs are the same (software was reused, not recreated)
+	for _, s := range host.Software {
+		originalID, ok := originalIDs[s.BundleIdentifier]
+		require.True(t, ok, "Bundle ID %s should exist", s.BundleIdentifier)
+		require.Equal(t, originalID, s.ID,
+			"Software ID should be reused for bundle ID %s", s.BundleIdentifier)
+	}
+
+	// Verify no duplicate software entries were created
+	var softwareCount int
+	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
+		`SELECT COUNT(DISTINCT id) FROM software
+		WHERE bundle_identifier IN ('com.example.app', 'com.example.another')`)
+	require.NoError(t, err)
+	require.Equal(t, 2, softwareCount, "Should have exactly 2 software entries, not duplicates")
 }
