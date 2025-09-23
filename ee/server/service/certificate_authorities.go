@@ -439,9 +439,8 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 
-	// collect all CA names for duplicate name checking across both incoming and existing
+	// track processed CA names for duplicate name checking
 	allNames := make(map[string][]string)
-	// check for duplicate names across all CA types
 	checkAllNames := func(name, caType, displayCAType string) error {
 		for i := 0; i < len(allNames[name]); i++ {
 			if allNames[name][i] == caType {
