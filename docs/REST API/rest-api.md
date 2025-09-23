@@ -9391,7 +9391,7 @@ Deletes the session specified by ID. When the user associated with the session n
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
 - [Add package](#add-package)
-- [Modify package](#modify-package)
+- [](#modify-package)
 - [List App Store apps](#list-app-store-apps)
 - [Add App Store app](#add-app-store-app)
 - [Modify App Store app](#modify-app-store-app)
@@ -9982,7 +9982,7 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.  Also supports `.ps1` and `.sh` for adding a custom scripts as packages. |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.  Also supports `.ps1` and `.sh` for custom script packages. |
 | platform             | string | form | The intended platform for a  custom script package to run on, if `.sh` file. Either `"macos"` or `"linux"`. Ignored if `software` is not a `.sh` file. |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
 | install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Will be ignored for `.ps1` and `.sh` (custom script) packages. |
@@ -10081,7 +10081,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.  Also supports `.ps1` and `.sh` for custom script packages.  |
+| platform             | string | form | The intended platform for a  custom script package to run on, if `.sh` file. Either `"macos"` or `"linux"`. Ignored if `software` is not a `.sh` file. |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
@@ -10151,7 +10152,6 @@ Content-Type: application/octet-stream
     "pre_install_query": "SELECT 1 FROM macos_profiles WHERE uuid='c9f4f0d5-8426-4eb8-b61b-27c543c9d3db';",
     "post_install_script": "sudo /Applications/Falcon.app/Contents/Resources/falconctl license 0123456789ABCDEFGHIJKLMNOPQRSTUV-WX",
     "self_service": true,
-    "custom_script": false,
     "status": {
       "installed": 0,
       "pending": 0,
