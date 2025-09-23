@@ -433,7 +433,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "name is already used by another DigiCert certificate authority")
 
 			// try to create digicert with same name as another custom scep
 			testCopy = goodDigiCertCA
@@ -446,26 +446,20 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 
 			// try to create digicert with same name as another hydrant
 			testCopy = goodDigiCertCA
 			testCopy.Name = goodHydrantCA.Name
 			duplicateReq = batchApplyCertificateAuthoritiesRequest{
 				CertificateAuthorities: fleet.GroupedCertificateAuthorities{
-					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA, testCopy},
+					DigiCert:        []fleet.DigiCertCA{goodDigiCertCA},
 					CustomScepProxy: []fleet.CustomSCEPProxyCA{goodCustomSCEPCA},
 					Hydrant:         []fleet.HydrantCA{goodHydrantCA},
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.digicert")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 
 		t.Run("digicert more than 1 user principal name", func(t *testing.T) {
@@ -765,9 +759,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "name is already used by another Custom SCEP Proxy certificate authority")
 
-			// try to create custom scep with same name as another digicert
+			// try to create custom scep with same name as the digicert. Should not error
 			testCopy = goodCustomSCEPCA
 			testCopy.Name = goodDigiCertCA.Name
 			duplicateReq = batchApplyCertificateAuthoritiesRequest{
@@ -778,12 +772,9 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 
-			// try to create custom scep with same name as another hydrant
+			// try to create custom scep with same name as the Hydrant. Should not error
 			testCopy = goodCustomSCEPCA
 			testCopy.Name = goodHydrantCA.Name
 			duplicateReq = batchApplyCertificateAuthoritiesRequest{
@@ -794,10 +785,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.custom_scep_proxy")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 
 		t.Run("custom_scep challenge not set", func(t *testing.T) {
@@ -974,7 +962,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 			res := s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
 			errMsg := extractServerErrorText(res.Body)
 			require.Contains(t, errMsg, "certificate_authorities.hydrant")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			require.Contains(t, errMsg, "name is already used by another Hydrant certificate authority")
 
 			// try to create hydrant with same name as another digicert
 			testCopy = goodHydrantCA
@@ -987,10 +975,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.hydrant")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 
 			// try to create hydrant with same name as another custom scep
 			testCopy = goodHydrantCA
@@ -1003,10 +988,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusUnprocessableEntity)
-			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "certificate_authorities.hydrant")
-			require.Contains(t, errMsg, "name is already used by another certificate authority")
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 
 		// TODO(hca): hydrant happy path and other specific tests
