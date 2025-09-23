@@ -1,6 +1,7 @@
 package oval
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -88,7 +89,7 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 		if s.Name != r.Name {
 			continue
 		}
-		if r.MatchIf != nil && r.MatchIf(s) == false {
+		if r.MatchIf != nil && !r.MatchIf(s) {
 			continue
 		}
 		if nvd.SmartVerCmp(s.Version, r.VersionResolved) < 0 {
@@ -103,14 +104,14 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 
 func (rule SoftwareMatchingRule) Validate() error {
 	if strings.TrimSpace(rule.Name) == "" {
-		return fmt.Errorf("Name can't be empty")
+		return errors.New("Name can't be empty")
 	}
 	if strings.TrimSpace(rule.VersionResolved) == "" {
-		return fmt.Errorf("Version can't be empty")
+		return errors.New("Version can't be empty")
 	}
 	for cve := range rule.CVEs {
 		if strings.TrimSpace(cve) == "" {
-			return fmt.Errorf("CVE can't be empty")
+			return errors.New("CVE can't be empty")
 		}
 	}
 	return nil
