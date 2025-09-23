@@ -439,26 +439,15 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		return nil, err
 	}
 
-	// collect existing CA names for duplicate name checking
-	existingNames := make(map[string]string)
-	for _, ca := range existing.DigiCert {
-		existingNames[ca.Name] = "digicert"
-	}
-	for _, ca := range existing.CustomScepProxy {
-		existingNames[ca.Name] = "custom_scep_proxy"
-	}
-	for _, ca := range existing.Hydrant {
-		existingNames[ca.Name] = "hydrant"
-	}
-
-	// collect all CA names for duplicate name checking across both incoming and existing
-	allNames := make(map[string]struct{})
-	// check for duplicate names across all CA types
-	checkAllNames := func(name, caType string) error {
-		if _, ok := allNames[name]; ok {
-			return fmtDuplicateCANameError(name, caType)
+	// track processed CA names for duplicate name checking
+	allNames := make(map[string][]string)
+	checkAllNames := func(name, caType, displayCAType string) error {
+		for i := 0; i < len(allNames[name]); i++ {
+			if allNames[name][i] == caType {
+				return fmtDuplicateCANameError(name, caType, displayCAType)
+			}
 		}
-		allNames[name] = struct{}{}
+		allNames[name] = append(allNames[name], caType)
 		return nil
 	}
 
@@ -470,13 +459,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		ca.Name = fleet.Preprocess(ca.Name)
 		ca.URL = fleet.Preprocess(ca.URL)
 		ca.ProfileID = fleet.Preprocess(ca.ProfileID)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "digicert" {
-				return nil, fmtDuplicateCANameError(ca.Name, "digicert")
-			}
-		}
-		if err := checkAllNames(ca.Name, "digicert"); err != nil {
+		if err := checkAllNames(ca.Name, "digicert", "DigiCert"); err != nil {
 			return nil, err
 		}
 	}
@@ -486,13 +469,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 			return nil, fleet.NewInvalidArgumentError("name", "certificate_authorities.custom_scep_proxy: CA name cannot be empty.")
 		}
 		ca.Name = fleet.Preprocess(ca.Name)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "custom_scep_proxy" {
-				return nil, fmtDuplicateCANameError(ca.Name, "custom_scep_proxy")
-			}
-		}
-		if err := checkAllNames(ca.Name, "custom_scep_proxy"); err != nil {
+		if err := checkAllNames(ca.Name, "custom_scep_proxy", "Custom SCEP Proxy"); err != nil {
 			return nil, err
 		}
 	}
@@ -503,13 +480,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 		}
 		ca.Name = fleet.Preprocess(ca.Name)
 		ca.URL = fleet.Preprocess(ca.URL)
-		// check against existing names, excluding self if updating
-		if existing, ok := existingNames[ca.Name]; ok {
-			if existing != "hydrant" {
-				return nil, fmtDuplicateCANameError(ca.Name, "hydrant")
-			}
-		}
-		if err := checkAllNames(ca.Name, "hydrant"); err != nil {
+		if err := checkAllNames(ca.Name, "hydrant", "Hydrant"); err != nil {
 			return nil, err
 		}
 	}
@@ -1175,7 +1146,7 @@ func (svc *Service) validateCustomSCEPProxyUpdate(ctx context.Context, customSCE
 	return nil
 }
 
-func fmtDuplicateCANameError(name, caType string) error {
+func fmtDuplicateCANameError(name, caType, displayCAType string) error {
 	return fleet.NewInvalidArgumentError("name", fmt.Sprintf("certificate_authorities.%s.name: Couldn’t edit certificate authority. "+
-		"\"%s\" name is already used by another certificate authority. Please choose a different name and try again.", caType, name))
+		"\"%s\" name is already used by another %s certificate authority. Please choose a different name and try again.", caType, name, displayCAType))
 }
