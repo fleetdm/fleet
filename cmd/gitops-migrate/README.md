@@ -31,6 +31,8 @@ The `4.74` release moves GitOps YAML keys: `self_service`, `categories`, `labels
 
 6. Verify the installation was successful by running `./gitops-migrate usage` which should display the help text.
 
+> If you're on macOS Tahoe (26) and you see a warning that Apple could not verify "gitops-migrate" is free of malware, select the Apple icon in the top left corner of the screen and select **Settings > Privacy & Security**. Then, next to "gitops-migrate" select **Allow Anyway** and run the migration tool again.
+
 # Running the migration
 
 When manipulating YAML files with this tool, the output will always alphabetize the keys and remove all comments.
