@@ -10084,7 +10084,8 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | id | integer | path | ID of the software title being updated. |
 | software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
-| custom_script   | file    | form | Custom script (.sh or .ps1) file for a no-op package. |
+| custom_script   | file      | form | Custom script (.sh or .ps1) file for a no-op package. |
+| platform             | string | form | The intended platform for a `custom_script` package to run on, if `.sh` file. Either `"macos"` or `"linux"`. Ignored if `custom_script` is not a `.sh` file. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
 | install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
 | pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
