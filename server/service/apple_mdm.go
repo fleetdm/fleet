@@ -7071,10 +7071,7 @@ func (svc *Service) MDMAppleProcessOTAEnrollment(
 // EnsureMDMAppleServiceDiscovery checks if the service discovery URL is set up correctly with Apple
 // and assigns it if necessary.
 func EnsureMDMAppleServiceDiscovery(ctx context.Context, ds fleet.Datastore, depStorage storage.AllDEPStorage, logger kitlog.Logger, urlPrefix string) error {
-	var depSvc *apple_mdm.DEPService
-	if depSvc == nil {
-		depSvc = apple_mdm.NewDEPService(ds, depStorage, logger)
-	}
+	depSvc := apple_mdm.NewDEPService(ds, depStorage, logger)
 
 	ac, err := ds.AppConfig(ctx)
 	if err != nil {
