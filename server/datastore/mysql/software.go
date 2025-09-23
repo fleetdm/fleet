@@ -21,6 +21,9 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type softwareIDChecksum struct {
@@ -55,6 +58,16 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
+	tracer := otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
+	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			attribute.Int("host_id", int(hostID)), //nolint:gosec
+			attribute.Int("software_count", len(software)),
+		))
+	defer span.End()
+
 	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 }
 
@@ -820,7 +833,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			}
 
 			// Map to store title IDs for all titles (both existing and new)
-			titleIDsByChecksum := make(map[string]uint)
+			titleIDsByChecksum := make(map[string]uint, len(existingTitlesForNewSoftware))
 
 			// First, add existing titles to the map
 			for checksum, title := range existingTitlesForNewSoftware {
@@ -992,21 +1005,54 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 		return nil, nil
 	}
 
-	var insertsHostSoftware []interface{}
-	var insertedSoftware []fleet.Software
-
+	// Collect all software IDs to verify they still exist
+	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
 	for _, software := range existingBundleIDsToUpdate {
 		// The software.ID should already be set from getExistingSoftware
 		if software.ID == 0 {
 			return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
 		}
-		insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-		insertedSoftware = append(insertedSoftware, software)
+		softwareIDs = append(softwareIDs, software.ID)
 	}
 
-	// NOTE: There's no foreign key constraint on software_id, so if software
-	// was deleted between pre-insertion and now, we'd create orphaned references.
-	// This is unlikely due to the small time between pre-insertion and now (milliseconds).
+	// Verify software still exists (just like we do in linkSoftwareToHost)
+	// This prevents creating orphaned references if software was deleted between pre-insertion and now
+	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
+	stmt, args, err := sqlx.In(`SELECT id FROM software WHERE id IN (?)`, softwareIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build query for existing software verification")
+	}
+
+	var existingIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &existingIDs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify existing bundle ID software")
+	}
+
+	// Build a set of existing IDs for quick lookup
+	existingIDSet := make(map[uint]struct{}, len(existingIDs))
+	for _, id := range existingIDs {
+		existingIDSet[id] = struct{}{}
+	}
+
+	var insertsHostSoftware []any
+	var insertedSoftware []fleet.Software
+
+	for _, software := range existingBundleIDsToUpdate {
+		// Only link if software still exists
+		if _, ok := existingIDSet[software.ID]; ok {
+			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+			insertedSoftware = append(insertedSoftware, software)
+		} else {
+			// Log missing software but continue
+			level.Warn(ds.logger).Log(
+				"msg", "bundle ID software not found after pre-insertion",
+				"software_id", software.ID,
+				"name", software.Name,
+				"bundle_id", software.BundleIdentifier,
+			)
+		}
+	}
+
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
 		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
@@ -1035,7 +1081,9 @@ func (ds *Datastore) linkSoftwareToHost(
 		allChecksums = append(allChecksums, checksum)
 	}
 
-	// Get all software IDs (they should exist from pre-insertion)
+	// Get all software IDs (they should exist from pre-insertion).
+	// This ensures that we're not creating orphaned references (where software was deleted between pre-insertion and now).
+	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
 	allSoftware, err := getSoftwareIDsByChecksums(ctx, tx, allChecksums)
 	if err != nil {
 		return nil, err
@@ -1066,9 +1114,6 @@ func (ds *Datastore) linkSoftwareToHost(
 
 	// Insert host_software links
 	// INSERT IGNORE handles duplicate key errors for idempotency.
-	// NOTE: There's no foreign key constraint on software_id, so if software
-	// was deleted between pre-insertion and now, we'd create orphaned references.
-	// This is unlikely due to the small time between pre-insertion and now (milliseconds).
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
 		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
