@@ -241,7 +241,8 @@
   &__sql-editor-label-actions {
     display: flex;
     gap: $pad-large;
-    
+  }
+
   &__critical-checkbox-wrapper {
     // override form child width: 100%
     width: auto;
