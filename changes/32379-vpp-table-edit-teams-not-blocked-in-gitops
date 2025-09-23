@@ -1,0 +1,1 @@
+* Correctly block edit teams action in VPP table dropdown when Fleet is in GitOps mode.
