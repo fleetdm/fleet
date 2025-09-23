@@ -8665,6 +8665,12 @@ func (s *integrationTestSuite) TestChangePassword() {
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	s.clearRedisKey("ratelimit::forgot_password")
+	s.T().Cleanup(func() {
+		s.clearRedisKey("ratelimit::forgot_password")
+	})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
