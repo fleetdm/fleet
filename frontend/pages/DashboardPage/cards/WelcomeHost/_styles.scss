@@ -22,10 +22,12 @@
     }
   }
 
+  // Future iteration: New styling as this is a weird internal link with an arrow
+  // Either convert to button or use CustomLink and its styling
   .external-link {
     display: flex;
     font-size: $x-small;
-    color: $core-fleet-green;
+    color: $ui-fleet-black-75;
     font-weight: $bold;
     text-decoration: none !important;
 
