@@ -1,3 +1,6 @@
+<!-- Add the related story/sub-task/bug number, like Resolves #123, or remove if NA -->
+**Related issue:** Resolves #
+
 # Checklist for submitter
 
 If some of the following don't apply, delete the relevant line.

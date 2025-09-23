@@ -22,8 +22,8 @@ func (p *Client) InitCommonMocks() {
 			FleetServerSecret: "fleetServerSecret",
 		}, nil
 	}
-	p.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy) error {
-		return nil
+	p.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+		return &androidmanagement.Policy{}, nil
 	}
 	p.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 		// Default implementation returns a single enterprise with a standard name

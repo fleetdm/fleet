@@ -17,7 +17,8 @@ Ritual DRI: EM or assigned team member.
 - Read the issue title, and ask if there are any questions or concerns.
 - After any discussions of the issue, the issue is updated to include any additional context. 
 - Add the issue to the sprint project, add the `:release` label, copy over the estimate story points, remove the `:product` label, and remove from the drafting board
-  - Note: you can use our [GitHub Management Tool](https://github.com/fleetdm/fleet/tree/main/tools/github-manage) to do this in bulk at the end with `gm estimated <product group>` -> select all relevant issues and run 'bulk sprint kickoff' workflow. 
+  - Note: you can use our [GitHub Management Tool](https://github.com/fleetdm/fleet/tree/main/tools/github-manage) to do this in bulk at the end with `gm estimated <product group>` -> select all relevant issues and run 'bulk sprint kickoff' workflow.
+- [Search](https://github.com/fleetdm/fleet/issues) for any remaining TODO's with a query `is:open is:issue label:<team label eg: #g-mdm> todo in:body label::release ` and address them immediately.
 
 ### Notes
 - See [sprint kickoff definition](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies) in the handbook.

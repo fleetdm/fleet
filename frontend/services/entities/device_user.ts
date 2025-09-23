@@ -11,8 +11,6 @@ import {
 
 import { IMdmCommandResult } from "interfaces/mdm";
 
-import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
-
 import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "macadmins";
@@ -180,6 +178,12 @@ export default {
   }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
     const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+    return sendRequest("POST", path);
+  },
+
+  resendProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_RESEND_PROFILE } = endpoints;
+    const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
     return sendRequest("POST", path);
   },
 };
