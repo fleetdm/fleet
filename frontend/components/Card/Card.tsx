@@ -10,7 +10,6 @@ const baseClass = "card";
 type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 type CardColor = "white" | "grey" | "purple" | "yellow";
 type PaddingSize =
-  | "none"
   | "small"
   | "medium"
   | "large"
