@@ -28,6 +28,7 @@ func (r RhelResult) Eval(ver fleet.OSVersion, software []fleet.Software) ([]flee
 		}
 		pkgTstResults[i] = rEval
 	}
+
 	// Evaluate RpmVerifyFileTests, which are used to make assertions against the installed OS
 	OSTstResults := make(map[int]bool)
 	for i, t := range r.RpmVerifyFileTests {

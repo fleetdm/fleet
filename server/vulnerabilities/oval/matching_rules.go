@@ -74,8 +74,8 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 	return rules, nil
 }
 
-// Returns true if the software and cve have a matching ignore rule
-func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool { //version string release string
+// Returns true if the software, cve pair have a matching ignore rule
+func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool {
 	if strings.TrimSpace(s.Name) == "" {
 		return false
 	}
@@ -83,8 +83,6 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 		// TODO: maybe log this
 		return false
 	}
-
-	// MatchIf
 
 	for _, r := range rules {
 		if s.Name != r.Name {
@@ -103,7 +101,6 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 	return false
 }
 
-// Use in testing not runtime
 func (rule SoftwareMatchingRule) Validate() error {
 	if strings.TrimSpace(rule.Name) == "" {
 		return fmt.Errorf("Name can't be empty")

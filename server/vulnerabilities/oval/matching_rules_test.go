@@ -1,23 +1,14 @@
 package oval
 
 import (
-	"fmt"
 	"testing"
 
-	// "github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/tools/cvefeed/nvd"
 	"github.com/stretchr/testify/require"
 )
 
-// - All version variations (smaller, equal, larger, different looking)
-// - All name variations (empty, lowercase/uppercase)
-// - Bad rules (no name, no version, no cve's)
-// - Benchmark (high num. of hosts)
-
 func TestSoftwareMatchingRules(t *testing.T) {
-	fmt.Println("Hello world")
-
 	badRules := SoftwareMatchingRules{
 		{
 			Name:            "",
@@ -92,41 +83,4 @@ func TestSoftwareMatchingRules(t *testing.T) {
 	require.True(t, match)
 	match = rules.MatchesAny(fleet.Software{Name: "example", Version: "1.0", Release: "53.fc42"}, "CVE-1111-22222")
 	require.False(t, match)
-
-	// Test with ../rhel/software
-	// so we need to make rules for software that is there...
-	otherRules := SoftwareMatchingRules{
-		{
-			Name:            "rsyslog-udpspoof",
-			VersionResolved: "8.2102.0",
-			CVEs: map[string]struct{}{
-				"CVE-2022-24903": {},
-			},
-		},
-		{
-			Name:            "java-11-openjdk-static-libs-slowdebug",
-			VersionResolved: "11.0.15.0.10",
-			CVEs: map[string]struct{}{
-				"CVE-2022-21426": {},
-			},
-		},
-		{
-			Name:            "thunderbird",
-			VersionResolved: "91.9.0",
-			CVEs: map[string]struct{}{
-				"CVE-2022-29917": {},
-			},
-		},
-	}
-
-	for _, r := range otherRules {
-		err := r.Validate()
-		require.NoError(t, err)
-	}
-
-	// rsyslog-udpspoof CVE-2022-24903          less than|0:8.2102.0-101.el9_0.1
-	// java-11-openjdk-static-libs-slowdebug CVE-2022-21426 less than|1:11.0.15.0.10-1.el9_0
-	// thunderbird CVE-2022-29917               less than|0:91.9.0-3.el9_0
-
-	// Need some ubuntu programs
 }

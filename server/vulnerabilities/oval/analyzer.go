@@ -74,8 +74,6 @@ func Analyze(
 		for _, hostID := range hostIDs {
 			hostID := hostID
 			software, err := ds.ListSoftwareForVulnDetection(ctx, fleet.VulnSoftwareFilter{HostID: &hostID})
-			// we have id, name, version, cpe available for us
-			// release should be populated as well
 			if err != nil {
 				return nil, err
 			}
@@ -92,38 +90,23 @@ func Analyze(
 			}
 			foundInBatch[hostID] = append(foundInBatch[hostID], evalU...)
 
-			// We only know about software in this scope
-			// fmt.Println("------------------------- oval batch -------------------------")
-			// fmt.Println(foundInBatch[hostID])
-			// fmt.Println()
-			// we can filter by os version as well or rpm release
-			// we probably need at least name and version range (SemVerConstraint)
-
-			// How the heck do we optimize this?
-
-			// Create a map of all software listed
-			// For each pair (id, cve) in foundInBatch for this host
-			// Find if it matches any false positive rule
-
+			// Create a map of id: software for each
+			// pair (id, cve) in foundInBatch for this host
 			softwareIDs := make(map[uint]fleet.Software)
 			for _, s := range software {
 				softwareIDs[s.ID] = s
 			}
 
-			updatedBatch := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
-			// fmt.Println("updatedBatch: ", updatedBatch)
+			filteredBatch := make([]fleet.SoftwareVulnerability, 0, len(foundInBatch[hostID]))
 			for _, v := range foundInBatch[hostID] {
 				software := softwareIDs[v.SoftwareID]
 				skip := rules.MatchesAny(software, v.CVE)
 				if !skip {
-					updatedBatch = append(updatedBatch, v)
+					filteredBatch = append(filteredBatch, v)
 				}
 			}
 
-			foundInBatch[hostID] = updatedBatch
-			// fmt.Println("------------------------- modified -------------------------")
-			// fmt.Println(foundInBatch[hostID])
-			// fmt.Println()
+			foundInBatch[hostID] = filteredBatch
 		}
 
 		existingInBatch, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, hostIDs, source)

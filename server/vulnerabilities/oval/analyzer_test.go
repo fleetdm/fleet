@@ -151,7 +151,6 @@ func assertVulns(
 	p Platform,
 	source fleet.VulnerabilitySource,
 ) {
-	fmt.Println("huh...........................................................................")
 	ctx := context.Background()
 
 	fPath := filepath.Join(vulnPath, fmt.Sprintf("%s-software_cves.csv", p))
@@ -192,7 +191,6 @@ func assertVulns(
 	}
 	actual := make([]string, 0, len(uniq))
 	for k := range uniq {
-		fmt.Println(k)
 		actual = append(actual, k)
 	}
 
@@ -267,6 +265,11 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 				softwareFixtureDir: filepath.Join("rhel", "software", "0900"),
 				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
 			},
+			{
+				ovalFixtureDir:     filepath.Join("rhel", "fp_test"), // false-positive filtering test
+				softwareFixtureDir: filepath.Join("rhel", "fp_test", "software", "0900"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
+			},
 		}
 
 		for _, v := range systems {
@@ -285,7 +288,6 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 
 func TestOvalAnalyzer(t *testing.T) {
 	t.Run("analyzing RHEL software", func(t *testing.T) {
-		fmt.Println("rhel........")
 		ds := mysql.CreateMySQLDS(t)
 		defer mysql.TruncateTables(t, ds)
 
@@ -339,7 +341,6 @@ func TestOvalAnalyzer(t *testing.T) {
 	// does not work with Docker) and extracted all installed software vulnerabilities, then I had
 	// the VMs join my local dev env, and extracted the installed software from the database.
 	t.Run("analyzing Ubuntu software", func(t *testing.T) {
-		fmt.Println("ubuntu.........")
 		ds := mysql.CreateMySQLDS(t)
 		defer mysql.TruncateTables(t, ds)
 
@@ -360,7 +361,6 @@ func TestOvalAnalyzer(t *testing.T) {
 		softwareFixtureDir := filepath.Join("ubuntu", "software")
 		for _, v := range systems {
 			withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
-				fmt.Println("with test fixture")
 				_, err := Analyze(ctx, ds, v, vulnPath, true)
 				require.NoError(t, err)
 
@@ -378,56 +378,3 @@ func TestOvalAnalyzer(t *testing.T) {
 		})
 	})
 }
-
-//
-// func BenchmarkTestOvalAnalyzerWithHosts(b *testing.B) {
-// 	b.Run("Ubuntu", func(b *testing.B) {
-// 		ctx := context.Background()
-// 		ds := mysql.CreateMySQLDS(b)
-// 		defer mysql.TruncateTables(b, ds)
-//
-// 		vulnPath := b.TempDir()
-//
-// 		systems := []fleet.OSVersion{
-// 			{Platform: "ubuntu", Name: "Ubuntu 16.4.0", ID: 1},
-// 			{Platform: "ubuntu", Name: "Ubuntu 18.4.0", ID: 2},
-// 			{Platform: "ubuntu", Name: "Ubuntu 20.4.0", ID: 3},
-// 			{Platform: "ubuntu", Name: "Ubuntu 21.4.0", ID: 4},
-// 			{Platform: "ubuntu", Name: "Ubuntu 21.10.0", ID: 5},
-// 			{Platform: "ubuntu", Name: "Ubuntu 22.4.0", ID: 6},
-// 		}
-//
-// 		ovalFixtureDir := "ubuntu"
-// 		softwareFixtureDir := filepath.Join("ubuntu", "software")
-//
-// 		for _, sys := range systems {
-// 			var mySoftware []fleet.Software
-// 			withTestFixture(sys, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
-// 				mySoftware, _, _ = ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
-// 			}, b)
-//
-// 			for i := range 10000 {
-// 				var opts []test.NewHostOption
-// 				opts = append(opts, test.WithOSVersion(sys.Name))
-// 				host := test.NewHost(b, ds, "host"+strconv.Itoa(i), "", "host_key_"+strconv.Itoa(int(sys.ID))+strconv.Itoa(i), "host_uuid_"+strconv.Itoa(i), time.Now(), opts[0])
-// 				host.OSVersion = sys.Name
-// 				ds.UpdateHostSoftware(ctx, host.ID, mySoftware)
-// 			}
-//
-// 			ds.SyncHostsSoftwareTitles(ctx, time.Now())
-// 			ds.SyncHostsSoftware(ctx, time.Now())
-// 		}
-//
-// 		for _, v := range systems {
-// 			b.Run(fmt.Sprintf("for %s %s", v.Platform, v.Name), func(b *testing.B) {
-// 				withTestFixture(v, ovalFixtureDir, softwareFixtureDir, vulnPath, ds, func(h *fleet.Host) {
-// 					b.ResetTimer()
-// 					for i := 0; i < b.N; i++ {
-// 						_, err := Analyze(context.Background(), ds, v, vulnPath, true)
-// 						require.NoError(b, err)
-// 					}
-// 				}, b)
-// 			})
-// 		}
-// 	})
-// }
