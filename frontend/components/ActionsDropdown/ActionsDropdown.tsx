@@ -200,7 +200,7 @@ const ActionsDropdown = ({
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
-        background: COLORS["ui-fleet-black-10"], // Match button hover
+        background: COLORS["ui-fleet-black-5"], // Match button hover
         boxShadow: "none",
         ".actions-dropdown-select__placeholder": {
           color: COLORS["ui-fleet-black-75-over"],
