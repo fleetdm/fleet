@@ -164,7 +164,7 @@ const UserMenu = ({
       marginRight: "8px",
       backgroundColor: "initial",
       border: "2px solid transparent", // So tabbing doesn't shift dropdown
-      borderRadius: "6px",
+      borderRadius: "3px", // Match other nav border after their focused offset
       boxShadow: "none",
       cursor: "pointer",
       "&:hover": {
@@ -172,7 +172,8 @@ const UserMenu = ({
       },
       ...(state.isFocused &&
         isKeyboardFocus && {
-          border: `2px solid ${COLORS["ui-fleet-black-5"]}`,
+          outline: `1px solid ${COLORS["core-fleet-black"]}`,
+          outlineOffset: "1px",
         }),
       ...(state.menuIsOpen && {
         ".user-menu-select__indicator svg": {
