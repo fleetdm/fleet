@@ -501,6 +501,10 @@ tag() {
         git tag $next_tag
         git push origin $next_tag
 
+        # The v4.XX.YY tag is used for publishing Fleet's Go module (https://go.dev/doc/modules/publishing).
+        git tag $next_ver
+        git push origin $next_ver
+
         # This lets us wait for github actions to trigger
         # we are specifically waiting for goreleaser to start
         # off the `tag` branch ie: fleet-v4.47.2 to watch until it completes

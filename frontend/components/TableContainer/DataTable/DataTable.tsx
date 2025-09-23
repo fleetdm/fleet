@@ -80,6 +80,7 @@ interface IDataTableProps {
   renderPagination?: () => JSX.Element | null;
   setExportRows?: (rows: Row[]) => void;
   onClearSelection?: () => void;
+  suppressHeaderActions?: boolean;
 }
 
 interface IHeaderGroup extends HeaderGroup {
@@ -126,6 +127,7 @@ const DataTable = ({
   renderPagination,
   setExportRows,
   onClearSelection = noop,
+  suppressHeaderActions,
 }: IDataTableProps): JSX.Element => {
   // used to track the initial mount of the component.
   const isInitialRender = useRef(true);
@@ -515,6 +517,47 @@ const DataTable = ({
     "is-observer": isOnlyObserver,
   });
 
+  const renderHeaderWithActions = () => (
+    <thead className="active-selection">
+      <tr {...headerGroups[0].getHeaderGroupProps()}>
+        <th
+          className="active-selection__checkbox"
+          {...headerGroups[0].headers[0].getHeaderProps(
+            headerGroups[0].headers[0].getSortByToggleProps({
+              title: null,
+            })
+          )}
+        >
+          {headerGroups[0].headers[0].render("Header")}
+        </th>
+        <th className="active-selection__container">
+          <div className="active-selection__inner">
+            {renderSelectedCount()}
+            <div className="active-selection__inner-left">
+              {secondarySelectActions && renderSecondarySelectActions()}
+            </div>
+            <div className="active-selection__inner-right">
+              {primarySelectAction && renderPrimarySelectAction()}
+            </div>
+            {toggleAllPagesSelected && renderAreAllSelected()}
+            {shouldRenderToggleAllPages && (
+              <Button
+                onClick={onToggleAllPagesClick}
+                variant="text-link"
+                className="light-text"
+              >
+                <>Select all matching {resultsTitle}</>
+              </Button>
+            )}
+            <Button onClick={onClearSelectionClick} variant="text-link">
+              Clear selection
+            </Button>
+          </div>
+        </th>
+      </tr>
+    </thead>
+  );
+
   return (
     <div className={baseClass}>
       {isLoading && (
@@ -524,46 +567,9 @@ const DataTable = ({
       )}
       <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
-          {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className="active-selection">
-              <tr {...headerGroups[0].getHeaderGroupProps()}>
-                <th
-                  className="active-selection__checkbox"
-                  {...headerGroups[0].headers[0].getHeaderProps(
-                    headerGroups[0].headers[0].getSortByToggleProps({
-                      title: null,
-                    })
-                  )}
-                >
-                  {headerGroups[0].headers[0].render("Header")}
-                </th>
-                <th className="active-selection__container">
-                  <div className="active-selection__inner">
-                    {renderSelectedCount()}
-                    <div className="active-selection__inner-left">
-                      {secondarySelectActions && renderSecondarySelectActions()}
-                    </div>
-                    <div className="active-selection__inner-right">
-                      {primarySelectAction && renderPrimarySelectAction()}
-                    </div>
-                    {toggleAllPagesSelected && renderAreAllSelected()}
-                    {shouldRenderToggleAllPages && (
-                      <Button
-                        onClick={onToggleAllPagesClick}
-                        variant="text-link"
-                        className="light-text"
-                      >
-                        <>Select all matching {resultsTitle}</>
-                      </Button>
-                    )}
-                    <Button onClick={onClearSelectionClick} variant="text-link">
-                      Clear selection
-                    </Button>
-                  </div>
-                </th>
-              </tr>
-            </thead>
-          )}
+          {!suppressHeaderActions &&
+            Object.keys(selectedRowIds).length !== 0 &&
+            renderHeaderWithActions()}
           <thead>
             {headerGroups.map((headerGroup) => (
               <tr {...headerGroup.getHeaderGroupProps()}>

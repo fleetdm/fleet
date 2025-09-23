@@ -334,4 +334,98 @@ describe("Host Summary section", () => {
       expect(screen.getByText("Bootstrap package")).toBeInTheDocument();
     });
   });
+
+  describe("Disk space field visibility", () => {
+    it("hides disk space field when storage measurement is not supported (sentinel value -1)", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: -1,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should not be rendered at all
+      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    });
+
+    it("shows disk space field for zero storage (disk full)", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: 0,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should be rendered
+      expect(screen.getByText("Disk space")).toBeInTheDocument();
+    });
+
+    it("renders disk space normally for positive values", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: 25.5,
+        percent_disk_space_available: 50,
+        platform: "darwin",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should be rendered with the value
+      expect(screen.getByText("Disk space")).toBeInTheDocument();
+    });
+
+    it("handles other negative values as not supported", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: -10,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should not be rendered for any negative value
+      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    });
+  });
 });

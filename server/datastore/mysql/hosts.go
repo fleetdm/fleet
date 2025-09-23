@@ -1258,7 +1258,7 @@ func (ds *Datastore) applyHostFilters(
 
 	lowDiskSpaceFilter := "TRUE"
 	if opt.LowDiskSpaceFilter != nil {
-		lowDiskSpaceFilter = `hd.gigs_disk_space_available < ?`
+		lowDiskSpaceFilter = `(hd.gigs_disk_space_available >= 0 AND hd.gigs_disk_space_available < ?)`
 		whereParams = append(whereParams, *opt.LowDiskSpaceFilter)
 	}
 
@@ -1404,7 +1404,7 @@ func (*Datastore) getBatchExecutionFilters(whereParams []interface{}, opt fleet.
 			//                        with this script run.
 			batchScriptExecutionFilter += ` AND ((hsr.host_id AND (hsr.exit_code IS NULL AND (hsr.canceled IS NULL OR hsr.canceled = 0) AND bsehr.error IS NULL)) OR (hsr.host_id is NULL AND ba.canceled = 0 AND bsehr.error IS NULL))`
 		case fleet.BatchScriptExecutionErrored:
-			batchScriptExecutionFilter += ` AND hsr.exit_code > 0 AND hsr.canceled = 0`
+			batchScriptExecutionFilter += ` AND hsr.exit_code <> 0 AND hsr.canceled = 0`
 		case fleet.BatchScriptExecutionIncompatible:
 			batchScriptExecutionFilter += ` AND bsehr.error IS NOT NULL`
 		case fleet.BatchScriptExecutionCanceled:
@@ -1995,7 +1995,7 @@ func (ds *Datastore) GenerateHostStatusStatistics(ctx context.Context, filter fl
 	lowDiskSelect := `0 low_disk_space`
 	if lowDiskSpace != nil {
 		hostDisksJoin = `LEFT JOIN host_disks hd ON (h.id = hd.host_id)`
-		lowDiskSelect = `COALESCE(SUM(CASE WHEN hd.gigs_disk_space_available < ? THEN 1 ELSE 0 END), 0) low_disk_space`
+		lowDiskSelect = `COALESCE(SUM(CASE WHEN hd.gigs_disk_space_available >= 0 AND hd.gigs_disk_space_available < ? THEN 1 ELSE 0 END), 0) low_disk_space`
 		args = append(args, *lowDiskSpace)
 	}
 

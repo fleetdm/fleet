@@ -43,7 +43,20 @@ func Columns() []table.ColumnDefinition {
 //
 // Constraints for generating can be retrieved from the queryContext.
 func Generate(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
-	out, err := exec.Command("/usr/bin/pacman", "-Qi").Output()
+	var softwareTitles []string
+
+	if software, ok := queryContext.Constraints["name"]; ok {
+		for _, c := range software.Constraints {
+			if c.Operator == table.OperatorEquals {
+				softwareTitles = append(softwareTitles, c.Expression)
+			}
+		}
+	}
+
+	args := []string{"-Qi"}
+	args = append(args, softwareTitles...)
+
+	out, err := exec.Command("/usr/bin/pacman", args...).Output()
 	if os.IsNotExist(err) {
 		// If no package manager, return nothing but don't fail
 		return nil, nil

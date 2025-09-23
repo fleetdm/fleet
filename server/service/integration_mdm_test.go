@@ -11119,10 +11119,7 @@ func (s *integrationMDMTestSuite) TestAPNsPushWithNotNow() {
 	// Flush any existing profiles.
 	cmd, err := macDevice.Idle()
 	require.NoError(t, err)
-	for {
-		if cmd == nil {
-			break
-		}
+	for cmd != nil {
 		t.Logf("Received: %s %s", cmd.CommandUUID, cmd.Command.RequestType)
 		cmd, err = macDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)

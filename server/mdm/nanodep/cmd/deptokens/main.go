@@ -50,7 +50,7 @@ func main() {
 		var jsonBytes []byte
 		jsonBytes, err = decryptTokens(*flTokens, *flCert, *flKey, *flPassword)
 		if err == nil {
-			os.Stdout.Write(jsonBytes)
+			_, _ = os.Stdout.Write(jsonBytes)
 		}
 	}
 	if err != nil {
