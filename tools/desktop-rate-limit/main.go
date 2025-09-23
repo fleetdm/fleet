@@ -27,14 +27,23 @@ func main() {
 		InsecureSkipVerify: true, //nolint:gosec
 	}))
 
+	endpoints := [][2]string{
+		{"GET", "/api/latest/fleet/device/%s/desktop"},
+		{"GET", "/api/latest/fleet/device/%s/transparency"},
+		{"POST", "/api/latest/fleet/device/%s/refetch"},
+	}
+
 	start := time.Now()
 	for i := 1; ; i++ {
 		token := uuid.NewString()
+		endpoint := endpoints[0]
 		if *fleetDesktopToken != "" && (i%500 == 0) {
 			log.Print("Attempting good token")
 			token = *fleetDesktopToken
+		} else {
+			endpoint = endpoints[i%len(endpoints)]
 		}
-		req, err := http.NewRequest("GET", *fleetURL+fmt.Sprintf("/api/latest/fleet/device/%s/desktop", token), nil)
+		req, err := http.NewRequest(endpoint[0], *fleetURL+fmt.Sprintf(endpoint[1], token), nil)
 		req.Header.Add("X-Forwarded-For", "127.0.0.1")
 		if err != nil {
 			panic(err)
@@ -43,7 +52,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		log.Printf(": %d: %d\n", i, res.StatusCode)
+		log.Printf("%d: %s %s: %d\n", i, req.Method, req.URL.Path, res.StatusCode)
 		if res.StatusCode == http.StatusTooManyRequests {
 			log.Printf("Rate limited: %s\n", time.Since(start))
 			break
