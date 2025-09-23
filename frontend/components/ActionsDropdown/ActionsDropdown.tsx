@@ -124,11 +124,7 @@ const ActionsDropdown = ({
 
   // Used for brand Action button
   const [menuIsOpen, setMenuIsOpen] = useState(false);
-<<<<<<< HEAD
-  const selectRef = useRef<any>(null);
-=======
   const selectRef = useRef<SelectInstance<IDropdownOption, false>>(null);
->>>>>>> feat-ui-reskin
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
