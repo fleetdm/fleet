@@ -13,6 +13,7 @@ import RunScript from "./cards/RunScript";
 export interface ISetupExperienceCardProps {
   currentTeamId: number;
   router: InjectedRouter;
+  urlPlatformParam?: string; // not yet guaranteed to be a valid platform
 }
 
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [

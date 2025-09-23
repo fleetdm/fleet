@@ -23,7 +23,7 @@ const SetupExperience = ({
   router,
   teamIdForApi,
 }: ISetupExperienceProps) => {
-  const { section } = params;
+  const { section, platform: urlPlatformParam } = params;
   const { isPremiumTier } = useContext(AppContext);
 
   // Not premium shows premium message
@@ -58,6 +58,7 @@ const SetupExperience = ({
             key={teamIdForApi}
             currentTeamId={teamIdForApi}
             router={router}
+            urlPlatformParam={urlPlatformParam}
           />
         }
       />

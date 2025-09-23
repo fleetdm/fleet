@@ -3,8 +3,6 @@ import { useQuery } from "react-query";
 import { AxiosError } from "axios";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import { InjectedRouter } from "react-router";
-
 import PATHS from "router/paths";
 
 import mdmAPI, {
@@ -16,7 +14,10 @@ import { ISoftwareTitle } from "interfaces/software";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
-import { SetupExperiencePlatform } from "interfaces/platform";
+import {
+  isSetupExperiencePlatform,
+  SetupExperiencePlatform,
+} from "interfaces/platform";
 
 import SectionHeader from "components/SectionHeader";
 import DataError from "components/DataError";
@@ -54,13 +55,14 @@ export interface InstallSoftwareLocation {
 const InstallSoftware = ({
   currentTeamId,
   router,
+  urlPlatformParam,
 }: ISetupExperienceCardProps) => {
-  const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
+  const isValidPlatform = isSetupExperiencePlatform(urlPlatformParam);
 
-  const selectedPlatform: SetupExperiencePlatform =
-    PLATFORM_BY_INDEX.find((platform) =>
-      (location?.pathname ?? "").endsWith(platform)
-    ) ?? "macos";
+  // all uses of selectedPlatform are gated by above boolean
+  const selectedPlatform = urlPlatformParam as SetupExperiencePlatform;
+
+  const [showSelectSoftwareModal, setShowSelectSoftwareModal] = useState(false);
 
   const {
     data: softwareTitles,
@@ -82,6 +84,7 @@ const InstallSoftware = ({
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
+      enabled: isValidPlatform,
     }
   );
 
@@ -90,6 +93,7 @@ const InstallSoftware = ({
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
     ...DEFAULT_USE_QUERY_OPTIONS,
+    enabled: isValidPlatform,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
@@ -98,7 +102,7 @@ const InstallSoftware = ({
     ITeamConfig
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
     ...DEFAULT_USE_QUERY_OPTIONS,
-    enabled: currentTeamId !== API_NO_TEAM_ID,
+    enabled: isValidPlatform && currentTeamId !== API_NO_TEAM_ID,
     select: (res) => res.team,
   });
 
@@ -114,8 +118,8 @@ const InstallSoftware = ({
     [router]
   );
 
-  if (!selectedPlatform) {
-    router.push(
+  if (!isValidPlatform) {
+    router.replace(
       PATHS.CONTROLS_INSTALL_SOFTWARE("macos").concat(location?.search ?? "")
     );
   }
