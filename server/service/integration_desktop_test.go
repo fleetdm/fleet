@@ -465,14 +465,6 @@ func (s *integrationTestSuite) TestErrorReporting() {
 	require.Len(t, errors, 2)
 }
 
-func (s *integrationMDMTestSuite) clearRedisKey(key string) {
-	conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
-	defer conn.Close()
-
-	_, err := conn.Do("DEL", key)
-	require.NoError(s.T(), err)
-}
-
 func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	createHostAndDeviceToken(s.T(), s.ds, "valid_token")
 
