@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -418,7 +419,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher
 	}
-	limitStore, _ := memstore.New(0)
 	rootMux := http.NewServeMux()
 
 	if len(opts) > 0 {
@@ -462,6 +462,15 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				&cfg,
 			)
 			require.NoError(t, err)
+		}
+	}
+
+	memLimitStore, _ := memstore.New(0)
+	var limitStore throttled.GCRAStore = memLimitStore
+	if len(opts) > 0 && opts[0].Pool != nil {
+		limitStore = &redis.ThrottledStore{
+			Pool:      opts[0].Pool,
+			KeyPrefix: "ratelimit::",
 		}
 	}
 

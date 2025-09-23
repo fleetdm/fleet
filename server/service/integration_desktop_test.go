@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -239,7 +240,7 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 }
 
 func (s *integrationTestSuite) clearRedisKey(key string) {
-	conn := s.redisPool.Get()
+	conn := redis.ConfigureDoer(s.redisPool, s.redisPool.Get())
 	defer conn.Close()
 
 	_, err := conn.Do("DEL", key)
@@ -253,6 +254,9 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 
 	// Clear any previous usage of forgot_password in the test suite to start from scatch.
 	s.clearRedisKey("ratelimit::forgot_password")
+	s.T().Cleanup(func() {
+		s.clearRedisKey("ratelimit::forgot_password")
+	})
 
 	testCases := []struct {
 		endpoint string
