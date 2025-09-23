@@ -39,7 +39,7 @@ $base-class: "button";
       background-color: rgba($core-fleet-black, 0.05);
 
       &:active {
-        background-color: $ui-fleet-black-10;
+        background-color: $ui-fleet-black-5;
       }
     }
 
@@ -494,7 +494,7 @@ $base-class: "button";
 
     &:hover,
     &:focus {
-      background-color: $ui-fleet-black-10;
+      background-color: $ui-fleet-black-5;
       box-shadow: none;
     }
 
