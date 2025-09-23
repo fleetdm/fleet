@@ -99,9 +99,24 @@
     }
   }
 
-  &__query-name {
-    margin-top: 0;
+  // Future iteration: move size="large" into AutoSizeInputField isntead of styling here
+  &__query-name-wrapper {
+    color: $core-fleet-black;
     font-size: $large;
+    line-height: $line-height-large;
+
+    .no-value {
+      min-width: 168px;
+    }
+    .edit-query-form__query-name,
+    .input-sizer::after {
+      font-size: $large;
+      line-height: $line-height-large;
+    }
+    .component__auto-size-input-field {
+      font-size: $large;
+      line-height: $line-height-large;
+    }
 
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
@@ -109,8 +124,7 @@
   }
 
   &__query-description {
-    margin-top: 0;
-    font-size: $x-small;
+    color: $ui-fleet-black-75;
   }
 
   &__button-wrap {

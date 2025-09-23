@@ -26,6 +26,19 @@
   &__policy-name {
     color: $core-fleet-black;
     font-size: $large;
+    line-height: $line-height-large;
+
+    // Future iteration: move size="large" into AutoSizeInputField isntead of styling here
+    .policy-form__policy-name,
+    .input-sizer::after {
+      font-size: $large;
+      line-height: $line-height-large;
+    }
+
+    .component__auto-size-input-field {
+      font-size: $large;
+      line-height: $line-height-large;
+    }
   }
 
   &__author {
@@ -133,20 +146,10 @@
     overflow: hidden;
   }
 
-  &__policy-resolution {
-    margin-top: $pad-small;
-  }
-
   &__policy-name {
     &.input-field--error {
       border: 1px solid $core-vibrant-red;
     }
-  }
-
-  &__policy-description,
-  &__policy-resolution {
-    margin-top: 0;
-    font-size: $x-small;
   }
 
   &__autofill-label {
