@@ -8,7 +8,7 @@
             "InstallOSUpdates": "Allowed",
             "InstallSecurityUpdate": "AlwaysOn"
         },
-        "Notifications": true,
+        "Notifications": false,
         "RapidSecurityResponse": {
             "Enabled": true
         }

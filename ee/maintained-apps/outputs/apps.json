@@ -16,6 +16,13 @@
       "description": "Adobe Acrobat Reader is the industry-standard tool for viewing, printing, and commenting on PDF documents."
     },
     {
+      "name": "Adobe Creative Cloud",
+      "slug": "adobe-creative-cloud/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.adobe.acc.AdobeCreativeCloud",
+      "description": "Adobe Creative Cloud is a platform for creative software management and installation, including access to Adobe’s suite of tools like Photoshop, Illustrator, and Premiere Pro."
+    },
+    {
       "name": "Beyond Compare",
       "slug": "beyond-compare/darwin",
       "platform": "darwin",
@@ -161,6 +168,13 @@
       "platform": "darwin",
       "unique_identifier": "com.omnissa.horizon.client.mac",
       "description": "Omnissa Horizon Client is a tool end users use to access remote virtual desktops."
+    },
+    {
+      "name": "P4V",
+      "slug": "p4v/darwin",
+      "platform": "darwin",
+      "unique_identifier": "com.perforce.p4v",
+      "description": "P4V is an app for accessing and managing Perforce version control repositories via a graphical interface."
     },
     {
       "name": "Postman",

@@ -659,6 +659,13 @@ const HostDetailsPage = ({
     }
   };
 
+  const resendProfile = (profileUUID: string): Promise<void> => {
+    if (!host) {
+      return new Promise(() => undefined);
+    }
+    return hostAPI.resendProfile(host.id, profileUUID);
+  };
+
   const onChangeActivityTab = (tabIndex: number) => {
     setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
     setActivityPage(0);
@@ -964,6 +971,7 @@ const HostDetailsPage = ({
 
   const showUsersCard =
     isAppleDevice(host.platform) ||
+    isAndroidHost ||
     generateChromeProfilesValues(host.end_users ?? []).length > 0 ||
     generateOtherEmailsValues(host.end_users ?? []).length > 0;
   const showActivityCard = !isAndroidHost;
@@ -1337,10 +1345,10 @@ const HostDetailsPage = ({
           {showOSSettingsModal && (
             <OSSettingsModal
               canResendProfiles={host.platform === "darwin"}
-              hostId={host.id}
               platform={host.platform}
               hostMDMData={host.mdm}
               onClose={toggleOSSettingsModal}
+              resendRequest={resendProfile}
               onProfileResent={refetchHostDetails}
             />
           )}
@@ -1349,6 +1357,9 @@ const HostDetailsPage = ({
               hostId={host.id}
               hostPlatform={host.platform}
               hostName={host.display_name}
+              isBYODEnrollment={isPersonalEnrollmentInMdm(
+                host.mdm.enrollment_status
+              )}
               onClose={toggleUnenrollMdmModal}
             />
           )}

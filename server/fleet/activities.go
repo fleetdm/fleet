@@ -174,6 +174,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDeletedDeclarationProfile{},
 	ActivityTypeEditedDeclarationProfile{},
 
+	ActivityTypeCreatedAndroidProfile{},
+	ActivityTypeDeletedAndroidProfile{},
+	ActivityTypeEditedAndroidProfile{},
+
 	ActivityTypeResentConfigurationProfile{},
 	ActivityTypeResentConfigurationProfileBatch{},
 
@@ -2832,11 +2836,74 @@ func (a ActivityEditedSetupExperienceSoftware) ActivityName() string {
 func (a ActivityEditedSetupExperienceSoftware) Documentation() (activity string, details string, detailsExample string) {
 	return `Generated when a user edits setup experience software.`,
 		`This activity contains the following fields:
-- "platform": the platform of the host ("linux", "darwin").
+- "platform": the platform of the host ("darwin", "windows", or "linux").
 - "team_id": the ID of the team associated with the setup experience (0 for "No team").
 - "team_name": the name of the team associated with the setup experience (empty for "No team").`, `{
 	"platform": "darwin",
 	"team_id": 1,
 	"team_name": "Workstations"
+}`
+}
+
+type ActivityTypeCreatedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedAndroidProfile) ActivityName() string {
+	return "created_android_profile"
+}
+
+func (a ActivityTypeCreatedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new Android profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedAndroidProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedAndroidProfile) ActivityName() string {
+	return "deleted_android_profile"
+}
+
+func (a ActivityTypeDeletedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes an Android profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedAndroidProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedAndroidProfile) ActivityName() string {
+	return "edited_android_profile"
+}
+
+func (a ActivityTypeEditedAndroidProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
 }`
 }

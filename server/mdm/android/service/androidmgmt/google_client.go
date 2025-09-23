@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -48,7 +50,11 @@ func NewGoogleClient(ctx context.Context, logger kitlog.Logger, getenv func(stri
 		return nil
 	}
 
-	mgmt, err := androidmanagement.NewService(ctx, option.WithCredentialsJSON([]byte(androidServiceCredentials)))
+	slogLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+	mgmt, err := androidmanagement.NewService(ctx,
+		option.WithCredentialsJSON([]byte(androidServiceCredentials)),
+		option.WithLogger(slogLogger),
+	)
 	if err != nil {
 		level.Error(logger).Log("msg", "creating android management service", "err", err)
 		return nil
@@ -156,15 +162,28 @@ func (g *GoogleClient) createPubSub(ctx context.Context, pushURL string) (string
 	return topic.String(), nil
 }
 
-func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
-	_, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
+func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	ret, err := g.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx).Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		g.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		return nil, err
 	case err != nil:
-		return fmt.Errorf("patching policy %s: %w", policyName, err)
+		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
 	}
-	return nil
+	return ret, nil
+}
+
+func (g *GoogleClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	ret, err := g.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
+	}
+	return ret, nil
 }
 
 func (g *GoogleClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken,

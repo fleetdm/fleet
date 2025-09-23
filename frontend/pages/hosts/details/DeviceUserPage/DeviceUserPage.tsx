@@ -427,6 +427,13 @@ const DeviceUserPage = ({
     setSelectedCertificate(certificate);
   };
 
+  const resendProfile = (profileUUID: string): Promise<void> => {
+    if (!host) {
+      return new Promise(() => undefined);
+    }
+    return deviceUserAPI.resendProfile(deviceAuthToken, profileUUID);
+  };
+
   const renderDeviceUserPage = () => {
     const failingPoliciesCount = host?.issues?.failing_policies_count || 0;
 
@@ -469,6 +476,7 @@ const DeviceUserPage = ({
 
     const showUsersCard =
       host?.platform === "darwin" ||
+      host?.platform === "android" ||
       generateChromeProfilesValues(host?.end_users ?? []).length > 0 ||
       generateOtherEmailsValues(host?.end_users ?? []).length > 0;
 
@@ -668,10 +676,11 @@ const DeviceUserPage = ({
         )}
         {!!host && showOSSettingsModal && (
           <OSSettingsModal
-            canResendProfiles={false}
-            hostId={host.id}
+            canResendProfiles={host.platform === "darwin"}
             platform={host.platform}
             hostMDMData={host.mdm}
+            resendRequest={resendProfile}
+            onProfileResent={refetchHostDetails}
             onClose={toggleOSSettingsModal}
           />
         )}

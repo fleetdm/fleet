@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -1130,6 +1131,7 @@ func (svc *Service) createTeamFromSpec(
 	}
 	validateTeamCustomSettings(invalid, "macos", macOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", spec.MDM.WindowsSettings.CustomSettings.Value)
+	validateTeamCustomSettings(invalid, "android", spec.MDM.AndroidSettings.CustomSettings.Value)
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
@@ -1201,6 +1203,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 				WindowsSettings:      spec.MDM.WindowsSettings,
+				AndroidSettings:      spec.MDM.AndroidSettings,
 			},
 			HostExpirySettings: hostExpirySettings,
 			WebhookSettings: fleet.TeamWebhookSettings{
@@ -1383,10 +1386,25 @@ func (svc *Service) editTeamFromSpec(
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
 			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
-				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+				`Couldn’t edit windows_settings.custom_settings. `+fleet.ErrWindowsMDMNotConfigured.Error()))
 		}
 
 		team.Config.MDM.WindowsSettings.CustomSettings = spec.MDM.WindowsSettings.CustomSettings
+	}
+
+	androidEnabledAndConfigured := appCfg.MDM.AndroidEnabledAndConfigured
+	if opts.DryRunAssumptions != nil && opts.DryRunAssumptions.AndroidEnabledAndConfigured.Valid {
+		androidEnabledAndConfigured = opts.DryRunAssumptions.AndroidEnabledAndConfigured.Value
+	}
+	if spec.MDM.AndroidSettings.CustomSettings.Set {
+		if !androidEnabledAndConfigured &&
+			len(spec.MDM.AndroidSettings.CustomSettings.Value) > 0 &&
+			!fleet.MDMProfileSpecsMatch(team.Config.MDM.AndroidSettings.CustomSettings.Value, spec.MDM.AndroidSettings.CustomSettings.Value) {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("android_settings.custom_settings",
+				`Couldn’t edit android_settings.custom_settings. `+fleet.ErrAndroidMDMNotConfigured.Error()))
+		}
+
+		team.Config.MDM.AndroidSettings.CustomSettings = spec.MDM.AndroidSettings.CustomSettings
 	}
 
 	if spec.Scripts.Set {
@@ -1424,6 +1442,7 @@ func (svc *Service) editTeamFromSpec(
 
 	validateTeamCustomSettings(invalid, "macos", team.Config.MDM.MacOSSettings.CustomSettings)
 	validateTeamCustomSettings(invalid, "windows", team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	validateTeamCustomSettings(invalid, "android", team.Config.MDM.AndroidSettings.CustomSettings.Value)
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
@@ -1757,6 +1776,19 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 
 	if payload.ManualAgentInstall != nil {
 		if tm.Config.MDM.MacOSSetup.ManualAgentInstall.Value != *payload.ManualAgentInstall {
+			if *payload.ManualAgentInstall && (!tm.Config.MDM.MacOSSetup.BootstrapPackage.Set || tm.Config.MDM.MacOSSetup.BootstrapPackage.Value == "") {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first specify a bootstrap_package."), http.StatusUnprocessableEntity)
+			}
+			sec, err := svc.ds.GetSetupExperienceCount(ctx, string(fleet.MacOSPlatform), &tm.ID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "getting setup experience information")
+			}
+			if sec.Installers != 0 || sec.VPP != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first disable setup experience software."), http.StatusUnprocessableEntity)
+			}
+			if sec.Scripts != 0 {
+				return fleet.NewUserMessageError(errors.New("Couldn’t enable manual_agent_install. To use this option, first remove your setup experience script."), http.StatusUnprocessableEntity)
+			}
 			tm.Config.MDM.MacOSSetup.ManualAgentInstall = optjson.SetBool(*payload.ManualAgentInstall)
 			didUpdate = true
 		}

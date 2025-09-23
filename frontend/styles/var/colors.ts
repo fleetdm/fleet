@@ -23,6 +23,8 @@ export const COLORS = {
   "ui-blue-10": "#F1F0FF",
   "tooltip-bg": "#3E4771",
   "ui-light-grey": "#FAFAFA",
+  "ui-error": "#d66c7b",
+  "ui-warning": "#ebbc43",
 
   // Notifications & status
   "status-success": "#3DB67B",

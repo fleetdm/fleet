@@ -203,6 +203,7 @@ the way that the Fleet server works.
 				privateKey, err := configpkg.RetrieveSecretsManagerSecret(
 					context.Background(),
 					config.Server.PrivateKeySecretArn,
+					config.Server.PrivateKeySecretRegion,
 					config.Server.PrivateKeySecretSTSAssumeRoleArn,
 					config.Server.PrivateKeySecretSTSExternalID,
 				)
@@ -1042,6 +1043,18 @@ the way that the Fleet server works.
 				)
 			}); err != nil {
 				initFatal(err, "failed to register mdm_windows_profile_manager schedule")
+			}
+
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMProfileManagerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key, // NOTE: this requires the license key, not the parsed *LicenseInfo available in the ctx
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_profile_manager schedule")
 			}
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
