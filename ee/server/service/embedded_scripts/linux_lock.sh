@@ -111,6 +111,24 @@ echo "All non-root users have been logged out and their accounts locked."
 
 # Reboot if we switched Ubuntu+GDM to text mode
 if [ "$NEEDS_REBOOT" = "1" ]; then
-    echo "Rebooting to complete lock process..."
-    reboot
+    echo "System needs to reboot to complete lock process..."
+
+    # Schedule reboot instead of immediate to ensure script reports success to Fleet
+
+    # Try systemd-run first if available (most reliable for short delays)
+    if command -v systemd-run >/dev/null 2>&1; then
+        echo "Scheduling system reboot in 10 seconds to complete lock process..."
+        systemd-run --on-active=10s --timer-property=AccuracySec=100ms /sbin/reboot 2>/dev/null && exit 0
+    fi
+
+    # Try shutdown command (use 1 minute minimum as many distros don't support fractional minutes)
+    if command -v shutdown >/dev/null 2>&1; then
+        echo "Scheduling system reboot in 1 minute to complete lock process..."
+        shutdown -r +1 "Fleet lock process complete - rebooting" 2>/dev/null && exit 0
+    fi
+
+    # Last resort: background sleep and reboot
+    echo "Scheduling system reboot in 10 seconds to complete lock process..."
+    (sleep 10 && reboot) &
+    exit 0
 fi
