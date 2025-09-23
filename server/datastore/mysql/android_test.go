@@ -248,7 +248,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 4}, statusStats)
+	// 3 Android hosts with UUID are counted as personal enrollment, 1 macOS host as manual
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, EnrolledPersonalHostsCount: 3}, statusStats)
 	require.Len(t, solutionsStats, 2)
 
 	// both solutions are Fleet
@@ -272,7 +273,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledManualHostsCount: 3}, statusStats)
+	// All 3 Android hosts with UUID are counted as personal enrollment
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledPersonalHostsCount: 3}, statusStats)
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 3, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
@@ -317,7 +319,8 @@ func testAndroidMDMStats(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
 	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledManualHostsCount: 1}, statusStats)
+	// After re-enrollment, 1 Android host with UUID is counted as personal enrollment
+	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledPersonalHostsCount: 1}, statusStats)
 	require.Len(t, solutionsStats, 1)
 	require.Equal(t, 1, solutionsStats[0].HostsCount)
 	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
