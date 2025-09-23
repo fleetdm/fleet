@@ -459,7 +459,7 @@ func (s *integrationMDMTestSuite) TestBatchApplyCertificateAuthorities() {
 				},
 				DryRun: false,
 			}
-			res = s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
+			s.Do("POST", "/api/v1/fleet/spec/certificate_authorities", duplicateReq, http.StatusOK)
 		})
 
 		t.Run("digicert more than 1 user principal name", func(t *testing.T) {
