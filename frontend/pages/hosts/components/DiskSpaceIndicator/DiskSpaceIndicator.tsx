@@ -7,6 +7,7 @@ import { COLORS } from "styles/var/colors";
 
 import ProgressBar from "components/ProgressBar";
 import TooltipWrapper from "components/TooltipWrapper";
+import { isLinuxLike } from "interfaces/platform";
 
 const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
@@ -76,6 +77,31 @@ const DiskSpaceIndicator = ({
     />
   );
 
+  // get disk space tooltip content for Linux hosts
+  const totalDiskSpaceContent = gigsTotalDiskSpace ? (
+    <>
+      System disk space: {gigsTotalDiskSpace} GB
+      <br />
+    </>
+  ) : null;
+  const allPartitionsContent = gigsAllDiskSpace ? (
+    <>All partitions: {gigsAllDiskSpace} GB</>
+  ) : null;
+
+  const copyTootltipContent =
+    totalDiskSpaceContent || allPartitionsContent ? (
+      <>
+        {totalDiskSpaceContent}
+        {allPartitionsContent}
+      </>
+    ) : null;
+
+  const renderCopy = () => (
+    <>
+      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
+    </>
+  );
+
   return (
     <span className={baseClass}>
       {diskSpaceTooltipText ? (
@@ -91,7 +117,16 @@ const DiskSpaceIndicator = ({
       ) : (
         renderBar()
       )}
-      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
+      {copyTootltipContent && isLinuxLike(platform) ? (
+        <TooltipWrapper
+          tooltipClass="copy-tooltip-content"
+          tipContent={copyTootltipContent}
+        >
+          {renderCopy()}
+        </TooltipWrapper>
+      ) : (
+        renderCopy()
+      )}
     </span>
   );
 };
