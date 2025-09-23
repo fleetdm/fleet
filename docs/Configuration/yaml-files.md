@@ -535,6 +535,7 @@ You can view the hash for existing software in the software detail page in the F
 ```yaml
 custom_script:
   path: ../lib/software/custom-script.sh
+platform: macos
 self_service: true
 ```
 
