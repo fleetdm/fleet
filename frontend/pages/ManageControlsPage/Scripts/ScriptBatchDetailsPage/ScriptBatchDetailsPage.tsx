@@ -106,7 +106,12 @@ const ScriptBatchDetailsPage = ({
 
   const { renderFlash } = useContext(NotificationContext);
 
-  const { data: batchDetails, isLoading, isError } = useQuery<
+  const {
+    data: batchDetails,
+    isLoading,
+    isError,
+    refetch: refetchBatchDetails,
+  } = useQuery<
     IScriptBatchSummaryV2,
     AxiosError,
     IScriptBatchSummaryV2,
@@ -155,8 +160,10 @@ const ScriptBatchDetailsPage = ({
           .CONTROLS_SCRIPTS_BATCH_DETAILS(batchExecutionId)
           .concat(newQuery ? `?${newQuery}` : "")
       );
+      // update page's summary data (e.g. pct hosts responded) whenever changing tabs
+      refetchBatchDetails();
     },
-    [batchExecutionId, location?.search, router]
+    [batchExecutionId, location?.search, refetchBatchDetails, router]
   );
 
   useEffect(() => {
