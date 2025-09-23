@@ -2600,16 +2600,17 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for i, prof := range profiles {
-		err := CheckProfileIsNotSigned(prof)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err)
-		}
-
 		if len(prof) > 1024*1024 {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
+
+		err := CheckProfileIsNotSigned(prof)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+
 		// Check for secrets in profile name before expansion
 		if err := fleet.ValidateNoSecretsInProfileName(prof); err != nil {
 			return ctxerr.Wrap(ctx,

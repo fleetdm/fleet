@@ -84,6 +84,10 @@ type Parsed struct {
 }
 
 func (mc Mobileconfig) IsSignedProfile() bool {
+	trimmed := bytes.TrimSpace(mc)
+	if bytes.HasPrefix(trimmed, []byte("${FLEET_")) || bytes.HasPrefix(trimmed, []byte("$FLEET_")) {
+		return false // Not a signed profile since it only contains secret variable.
+	}
 	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
 }
 
