@@ -46,7 +46,7 @@ $shadow-transition-width: 10px;
       position: relative;
       width: 100%;
       border-collapse: collapse;
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       font-size: $x-small;
     }
 
@@ -217,7 +217,7 @@ $shadow-transition-width: 10px;
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-focused-outline;
           background: $ui-off-white;
         }
       }

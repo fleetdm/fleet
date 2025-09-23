@@ -137,9 +137,9 @@
     cursor: pointer;
 
     @include button-variant(
-      $core-vibrant-blue,
-      $core-vibrant-blue-over,
-      $core-vibrant-blue-down
+      $ui-fleet-black-75,
+      $ui-fleet-black-75-over,
+      $ui-fleet-black-75-down
     );
   }
 
