@@ -41,6 +41,14 @@ const SetupExperience = ({
     SETUP_EXPERIENCE_NAV_ITEMS.find((item) => item.urlSection === section) ??
     DEFAULT_SETTINGS_SECTION;
 
+  if (
+    currentFormSection.urlSection !== "install-software" &&
+    urlPlatformParam
+  ) {
+    router.replace(
+      currentFormSection.path + queryString // current card doesn't support platforms yet
+    );
+  }
   const CurrentCard = currentFormSection.Card;
 
   return (
