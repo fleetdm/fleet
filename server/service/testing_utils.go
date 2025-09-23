@@ -467,7 +467,9 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 
 	memLimitStore, _ := memstore.New(0)
 	var limitStore throttled.GCRAStore = memLimitStore
+	var redisPool fleet.RedisPool
 	if len(opts) > 0 && opts[0].Pool != nil {
+		redisPool = opts[0].Pool
 		limitStore = &redis.ThrottledStore{
 			Pool:      opts[0].Pool,
 			KeyPrefix: "ratelimit::",
@@ -496,7 +498,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, opts[0].Pool, featureRoutes, extra...)
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
