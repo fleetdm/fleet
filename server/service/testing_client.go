@@ -77,6 +77,8 @@ type withServer struct {
 	cachedTokens   map[string]string // email -> auth token
 
 	lq *live_query_mock.MockLiveQuery
+
+	redisPool fleet.RedisPool
 }
 
 func (ts *withServer) SetupSuite(dbName string) {
@@ -85,11 +87,12 @@ func (ts *withServer) SetupSuite(dbName string) {
 	rs := pubsub.NewInmemQueryResults()
 	cfg := config.TestConfig()
 	cfg.Osquery.EnrollCooldown = 0
+	redisPool := redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false)
 	opts := &TestServerOpts{
 		Rs:          rs,
 		Lq:          ts.lq,
 		FleetConfig: &cfg,
-		Pool:        redistest.SetupRedis(ts.s.T(), "integration_core", false, false, false),
+		Pool:        redisPool,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
 		opts.Logger = kitlog.NewNopLogger()
@@ -99,6 +102,7 @@ func (ts *withServer) SetupSuite(dbName string) {
 	ts.users = users
 	ts.token = ts.getTestAdminToken()
 	ts.cachedAdminToken = ts.token
+	ts.redisPool = redisPool
 }
 
 func (ts *withServer) TearDownSuite() {

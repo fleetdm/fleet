@@ -238,10 +238,21 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
+func (s *integrationTestSuite) clearRedisKey(key string) {
+	conn := s.redisPool.Get()
+	defer conn.Close()
+
+	_, err := conn.Do("DEL", key)
+	require.NoError(s.T(), err)
+}
+
 func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	headers := map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
 	}
+
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	s.clearRedisKey("ratelimit::forgot_password")
 
 	testCases := []struct {
 		endpoint string
