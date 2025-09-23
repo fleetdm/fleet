@@ -1,0 +1,1 @@
+* Added retries with backoff when Apple's assets API fails with a timeout error.

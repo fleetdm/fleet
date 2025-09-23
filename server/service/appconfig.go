@@ -751,7 +751,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedAppConfig, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
