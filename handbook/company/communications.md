@@ -892,7 +892,6 @@ When in doubt, simplify. Read your draft, cut unnecessary words, and make it sho
 
 Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say).
 
-Link instead of repeating. If something’s already covered elsewhere in the handbook, point to it to keep pages short and accurate.
 
 
 ### Writing types
