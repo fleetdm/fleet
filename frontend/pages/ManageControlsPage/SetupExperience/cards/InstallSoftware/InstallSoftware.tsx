@@ -11,7 +11,7 @@ import mdmAPI, {
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { ISoftwareTitle } from "interfaces/software";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { DEFAULT_USE_QUERY_OPTIONS, SUPPORT_LINK } from "utilities/constants";
 import { IConfig } from "interfaces/config";
 import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import {
@@ -83,10 +83,9 @@ const InstallSoftware = ({
         per_page: PER_PAGE_SIZE,
       }),
     {
-      enabled: selectedPlatform !== "windows", // remove next iteration
+      enabled: isValidPlatform && selectedPlatform !== "windows", // remove next iteration
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.software_titles,
-      enabled: isValidPlatform,
     }
   );
 
