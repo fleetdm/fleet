@@ -286,27 +286,19 @@ const ScriptBatchDetailsPage = ({
           >
             <TabList>
               <Tab>
-                <TabText count={ran}>Ran</TabText>
+                <TabText>Ran</TabText>
               </Tab>
               <Tab>
-                <TabText count={errored} countVariant="alert">
-                  Errored
-                </TabText>
+                <TabText>Errored</TabText>
               </Tab>
               <Tab>
-                <TabText count={pending} countVariant="pending">
-                  Pending
-                </TabText>
+                <TabText>Pending</TabText>
               </Tab>
               <Tab>
-                <TabText count={incompatible} countVariant="pending">
-                  Incompatible
-                </TabText>
+                <TabText>Incompatible</TabText>
               </Tab>
               <Tab>
-                <TabText count={canceled} countVariant="pending">
-                  Canceled
-                </TabText>
+                <TabText>Canceled</TabText>
               </Tab>
             </TabList>
             <TabPanel>
