@@ -35,14 +35,14 @@ func TestIPBanner(t *testing.T) {
 			// Running a successful request initially should not create any entries.
 			err = ipBan.RunRequest(ip, true)
 			require.NoError(t, err)
-			_, err = redigo.Int(conn.Do("GET", prefix+ip+"::count"))
+			_, err = redigo.Int(conn.Do("GET", prefix+"{"+ip+"}::count"))
 			require.ErrorIs(t, err, redigo.ErrNil)
 
 			// Running one failure request decrements the counter (but still not banned).
 			err = ipBan.RunRequest(ip, false)
 			require.NoError(t, err)
 			currentAllowedConsecutiveFailures := allowedConsecutiveFailuresCount - 1
-			v, err := redigo.Int(conn.Do("GET", prefix+ip+"::count"))
+			v, err := redigo.Int(conn.Do("GET", prefix+"{"+ip+"}::count"))
 			require.NoError(t, err)
 			require.Equal(t, 1, v)
 			banned, err = ipBan.CheckBanned(ip)
@@ -65,7 +65,7 @@ func TestIPBanner(t *testing.T) {
 			require.NoError(t, err)
 			require.True(t, banned)
 			// Check count has been reset.
-			_, err = redigo.Int(conn.Do("GET", prefix+ip+"::count"))
+			_, err = redigo.Int(conn.Do("GET", prefix+"{"+ip+"}::count"))
 			require.ErrorIs(t, err, redigo.ErrNil)
 
 			// Sleep for the duration of the ban (and a bit more).
@@ -88,7 +88,7 @@ func TestIPBanner(t *testing.T) {
 			err = ipBan.RunRequest(ip, true)
 			require.NoError(t, err)
 			// Check count has been reset.
-			_, err = redigo.Int(conn.Do("GET", prefix+ip+"::count"))
+			_, err = redigo.Int(conn.Do("GET", prefix+"{"+ip+"}::count"))
 			require.ErrorIs(t, err, redigo.ErrNil)
 			// Confirm an extra failing request does not ban.
 			err = ipBan.RunRequest(ip, false)
@@ -110,7 +110,7 @@ func TestIPBanner(t *testing.T) {
 			// Wait for the time window to be over, which should clear the counts.
 			time.Sleep(allowedConsecutiveFailuresTimeWindow + 100*time.Millisecond)
 			// Check count has been reset.
-			_, err = redigo.Int(conn.Do("GET", prefix+ip2+"::count"))
+			_, err = redigo.Int(conn.Do("GET", prefix+"{"+ip2+"}::count"))
 			require.ErrorIs(t, err, redigo.ErrNil)
 			// Confirm an extra failing request does not ban.
 			err = ipBan.RunRequest(ip2, false)
@@ -159,7 +159,7 @@ func TestIPBanner(t *testing.T) {
 			banned, err := ipBan.CheckBanned(ip1)
 			require.NoError(t, err)
 			require.False(t, banned)
-			v, err := redigo.Int(conn.Do("GET", prefix+ip1+"::count"))
+			v, err := redigo.Int(conn.Do("GET", prefix+"{"+ip1+"}::count"))
 			require.NoError(t, err)
 			require.Equal(t, 1, v)
 
@@ -167,7 +167,7 @@ func TestIPBanner(t *testing.T) {
 			banned, err = ipBan.CheckBanned(ip2)
 			require.NoError(t, err)
 			require.False(t, banned)
-			_, err = redigo.Int(conn.Do("GET", prefix+ip2+"::count"))
+			_, err = redigo.Int(conn.Do("GET", prefix+"{"+ip2+"}::count"))
 			require.ErrorIs(t, err, redigo.ErrNil)
 		})
 	}

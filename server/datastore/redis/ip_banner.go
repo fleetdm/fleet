@@ -50,8 +50,8 @@ func NewIPBanner(
 
 // updateCountScript is the Redis script to run on every request.
 //
-// KEYS[1]: $keyPrefix::$ip::count (value integer)
-// KEYS[2]: $keyPrefix::$ip::banned (value boolean)
+// KEYS[1]: $keyPrefix::{$ip}::count (value integer)
+// KEYS[2]: $keyPrefix::{$ip}::banned (value boolean)
 // ARGV[1]: "0" for failure, "1" for success
 // ARGV[2]: threshold of consecutive failures (e.g. "1000")
 // ARGV[3]: counter TTL in seconds (window for consecutive failures, e.g. "60")
@@ -87,7 +87,8 @@ end
 
 // CheckBanned returns true if the IP is currently banned.
 func (s *IPBanner) CheckBanned(ip string) (bool, error) {
-	key := s.keyPrefix + ip + "::banned"
+	// enclosing in {} to support Redis cluster.
+	key := s.keyPrefix + "{" + ip + "}::banned"
 
 	conn := s.pool.Get()
 	defer conn.Close()
@@ -110,8 +111,9 @@ func (s *IPBanner) CheckBanned(ip string) (bool, error) {
 
 // RunRequest will update the status of the given IP with the result of a request.
 func (s *IPBanner) RunRequest(ip string, success bool) error {
-	ipCountKey := s.keyPrefix + ip + "::count"
-	ipBannedKey := s.keyPrefix + ip + "::banned"
+	// enclosing in {} to support Redis cluster.
+	ipCountKey := s.keyPrefix + "{" + ip + "}::count"
+	ipBannedKey := s.keyPrefix + "{" + ip + "}::banned"
 
 	conn := s.pool.Get()
 	defer conn.Close()

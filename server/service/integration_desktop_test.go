@@ -478,8 +478,8 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 
 	// Clear any previous usage of forgot_password in the test suite to start from scatch.
 	clearKeys := func() {
-		clearRedisKey(s.T(), s.redisPool, "ipbanner::127.0.0.1::banned")
-		clearRedisKey(s.T(), s.redisPool, "ipbanner::127.0.0.1::count")
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::banned")
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::count")
 	}
 	clearKeys()
 	s.T().Cleanup(clearKeys)
