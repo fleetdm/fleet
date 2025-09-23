@@ -87,6 +87,8 @@ end
 
 // CheckBanned returns true if the IP is currently banned.
 func (s *IPBanner) CheckBanned(ip string) (bool, error) {
+	ip = SetNullIfEmptyIP(ip)
+
 	// enclosing in {} to support Redis cluster.
 	key := s.keyPrefix + "{" + ip + "}::banned"
 
@@ -111,12 +113,15 @@ func (s *IPBanner) CheckBanned(ip string) (bool, error) {
 
 // RunRequest will update the status of the given IP with the result of a request.
 func (s *IPBanner) RunRequest(ip string, success bool) error {
+	ip = SetNullIfEmptyIP(ip)
+
 	// enclosing in {} to support Redis cluster.
 	ipCountKey := s.keyPrefix + "{" + ip + "}::count"
 	ipBannedKey := s.keyPrefix + "{" + ip + "}::banned"
 
 	conn := s.pool.Get()
 	defer conn.Close()
+
 	if err := BindConn(s.pool, conn, ipBannedKey, ipCountKey); err != nil {
 		return fmt.Errorf("bind conn: %w", err)
 	}
@@ -150,4 +155,14 @@ func (s *IPBanner) RunRequest(ip string, success bool) error {
 		return err
 	}
 	return nil
+}
+
+// SetNullIfEmptyIP sets the string "null" if the input IP is empty.
+//
+// Exported for tests.
+func SetNullIfEmptyIP(ip string) string {
+	if ip == "" {
+		return "null"
+	}
+	return ip
 }
