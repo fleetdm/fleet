@@ -116,7 +116,7 @@ form,
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: $pad-small;
+  gap: $gap-form-component;
 
   &__label {
     font-size: $x-small;

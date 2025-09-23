@@ -60,6 +60,7 @@ import RevealButton from "components/buttons/RevealButton";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import DataSet from "components/DataSet";
 import Slider from "components/forms/fields/Slider";
 import TooltipWrapper from "components/TooltipWrapper";
 import Spinner from "components/Spinner";
@@ -68,6 +69,7 @@ import AutoSizeInputField from "components/forms/fields/AutoSizeInputField";
 import LogDestinationIndicator from "components/LogDestinationIndicator";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import TargetLabelSelector from "components/TargetLabelSelector";
+import PageDescription from "components/PageDescription";
 
 import SaveNewQueryModal from "../SaveNewQueryModal";
 import ConfirmSaveChangesModal from "../ConfirmSaveChangesModal";
@@ -394,22 +396,24 @@ const EditQueryForm = ({
 
   const renderAuthor = (): JSX.Element | null => {
     return storedQuery ? (
-      <>
-        <b>Author</b>
-        <div>
-          <Avatar
-            user={addGravatarUrlToResource({
-              email: storedQuery.author_email,
-            })}
-            size="xsmall"
-          />
-          <span>
-            {storedQuery.author_name === currentUser?.name
-              ? "You"
-              : storedQuery.author_name}
-          </span>
-        </div>
-      </>
+      <DataSet
+        title="Author"
+        value={
+          <>
+            <Avatar
+              user={addGravatarUrlToResource({
+                email: storedQuery.author_email,
+              })}
+              size="xsmall"
+            />
+            <span>
+              {storedQuery.author_name === currentUser?.name
+                ? "You"
+                : storedQuery.author_name}
+            </span>
+          </>
+        }
+      />
     ) : null;
   };
 
@@ -442,12 +446,12 @@ const EditQueryForm = ({
     }
   };
 
-  const queryNameWrapperClass = "query-name-wrapper";
+  const queryNameWrapperClass = `${baseClass}__query-name-wrapper`;
   const queryNameWrapperClasses = classnames(queryNameWrapperClass, {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const queryDescriptionWrapperClass = "query-description-wrapper";
+  const queryDescriptionWrapperClass = `${baseClass}__query-description-wrapper`;
   const queryDescriptionWrapperClasses = classnames(
     queryDescriptionWrapperClass,
     {
@@ -560,16 +564,15 @@ const EditQueryForm = ({
   const renderNonEditableForm = (
     <form className={`${baseClass}`}>
       <div className={`${baseClass}__title-bar`}>
-        <div className="name-description">
-          <h1 className={`${baseClass}__query-name no-hover`}>
-            {lastEditedQueryName}
-          </h1>
-          <p className={`${baseClass}__query-description no-hover`}>
-            {lastEditedQueryDescription}
-          </p>
-        </div>
-        <div className="author">{renderAuthor()}</div>
+        <h1 className={`${baseClass}__query-name no-hover`}>
+          {lastEditedQueryName}
+        </h1>
+        {renderAuthor()}
       </div>
+      <PageDescription
+        className={`${baseClass}__query-description no-hover`}
+        content={lastEditedQueryDescription}
+      />
       {((!isObserverPlus && isGlobalObserver) || !isAnyTeamObserverPlus) && (
         <RevealButton
           isShowing={showQueryEditor}
@@ -686,14 +689,13 @@ const EditQueryForm = ({
 
     return (
       <>
-        <form className={`${baseClass}`} autoComplete="off">
+        <form className={baseClass} autoComplete="off">
           <div className={`${baseClass}__title-bar`}>
-            <div className="name-description">
-              {renderName()}
-              {renderDescription()}
-            </div>
-            <div className="author">{savedQueryMode && renderAuthor()}</div>
+            {renderName()}
+
+            {savedQueryMode && renderAuthor()}
           </div>
+          {renderDescription()}
           <SQLEditor
             value={lastEditedQueryBody}
             error={errors.query}

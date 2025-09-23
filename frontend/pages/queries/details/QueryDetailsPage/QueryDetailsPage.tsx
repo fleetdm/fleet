@@ -37,6 +37,7 @@ import LogDestinationIndicator from "components/LogDestinationIndicator/LogDesti
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
 import ShowQueryModal from "components/modals/ShowQueryModal";
+import PageDescription from "components/PageDescription";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -263,16 +264,13 @@ const QueryDetailsPage = ({
         <div className={`${baseClass}__header-links`}>
           <BackButton text="Back to queries" path={backToQueriesPath()} />
         </div>
-        <div className={`${baseClass}__header-details`}>
-          {!isLoading && !isApiError && (
+        {!isLoading && !isApiError && (
+          <>
             <div className={`${baseClass}__title-bar`}>
               <div className="name-description">
                 <h1 className={`${baseClass}__query-name`}>
                   {lastEditedQueryName}
                 </h1>
-                <p className={`${baseClass}__query-description`}>
-                  {lastEditedQueryDescription}
-                </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
                 <Button
@@ -341,8 +339,10 @@ const QueryDetailsPage = ({
                 )}
               </div>
             </div>
-          )}
-          {!isLoading && !isApiError && (
+            <PageDescription
+              className={`${baseClass}__query-description`}
+              content={lastEditedQueryDescription}
+            />
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
@@ -374,8 +374,8 @@ const QueryDetailsPage = ({
                 />
               </div>
             </div>
-          )}
-        </div>
+          </>
+        )}
       </>
     );
   };

@@ -1,10 +1,6 @@
 .custom-settings {
   @include vertical-card-layout;
 
-  &__description {
-    margin: 0;
-  }
-
   .upload-list {
     &__list {
       .list-item__label-count {
