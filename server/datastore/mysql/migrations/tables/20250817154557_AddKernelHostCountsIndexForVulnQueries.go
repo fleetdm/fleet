@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250918154557, Down_20250918154557)
+	MigrationClient.AddMigration(Up_20250817154557, Down_20250817154557)
 }
 
-func Up_20250918154557(tx *sql.Tx) error {
+func Up_20250817154557(tx *sql.Tx) error {
 	// Add index to optimize kernel vulnerability queries
 	// This index supports efficient joins between software_cve and kernel_host_counts
 	// when filtering by os_version_id and hosts_count > 0
@@ -26,6 +26,6 @@ func Up_20250918154557(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250918154557(_ *sql.Tx) error {
+func Down_20250817154557(_ *sql.Tx) error {
 	return nil
 }
