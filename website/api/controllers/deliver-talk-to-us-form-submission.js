@@ -135,8 +135,6 @@ module.exports = {
         // FUTURE: create POV here
       }
     }
-
-    return;
   }
 
 
