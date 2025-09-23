@@ -155,11 +155,12 @@ const Secrets = () => {
               {getTokenFromSecretName(secret.name)}
             </span>
             <Button
-              variant="unstyled"
+              variant="icon"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
+              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -173,14 +174,14 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="text-icon"
+          variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
           }}
         >
           <>
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </>
         </Button>
       )}
@@ -220,14 +221,33 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <p className={`${baseClass}__description`}>
-        Manage custom variables that will be available in scripts and profiles.{" "}
-        <CustomLink
-          text="Learn more"
-          url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
-          newTab
-        />
-      </p>
+      <div className={`${baseClass}__page-header`}>
+        <p className={`${baseClass}__description`}>
+          Manage custom variables that will be available in scripts and
+          profiles.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+            newTab
+          />
+        </p>
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <span>
+                <Button
+                  variant="brand-inverse-icon"
+                  onClick={onClickAddSecret}
+                  disabled={disableChildren}
+                >
+                  <Icon name="plus" color="core-fleet-green" />
+                  <span>Add custom variable</span>
+                </Button>
+              </span>
+            )}
+          />
+        )}
+      </div>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
@@ -235,27 +255,7 @@ const Secrets = () => {
         count={count || 0}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
-        heading={
-          <div className={`${baseClass}__header`}>
-            <span>Custom variables</span>
-            {canEdit && (
-              <GitOpsModeTooltipWrapper
-                renderChildren={(disableChildren) => (
-                  <span>
-                    <Button
-                      variant="text-icon"
-                      onClick={onClickAddSecret}
-                      disabled={disableChildren}
-                    >
-                      <Icon name="plus" />
-                      <span>Add custom variable</span>
-                    </Button>
-                  </span>
-                )}
-              />
-            )}
-          </div>
-        }
+        heading={<div className={`${baseClass}__header`}>Custom variables</div>}
         helpText={
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}

@@ -25,6 +25,7 @@ import { DOCUMENT_TITLE_SUFFIX, SUPPORT_LINK } from "utilities/constants";
 import { getPathWithQueryParams } from "utilities/url";
 import useTeamIdParam from "hooks/useTeamIdParam";
 
+import Icon from "components/Icon";
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
@@ -277,25 +278,10 @@ const QueryDetailsPage = ({
                 <Button
                   className={`${baseClass}__show-query-btn`}
                   onClick={onShowQueryModal}
-                  variant="text-icon"
+                  variant="inverse"
                 >
                   Show query
                 </Button>
-                {canEditQuery && (
-                  <Button
-                    onClick={() => {
-                      queryId &&
-                        router.push(
-                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
-                            team_id: currentTeamId,
-                          })
-                        );
-                    }}
-                    className={`${baseClass}__manage-automations button`}
-                  >
-                    Edit query
-                  </Button>
-                )}
                 {canLiveQuery && (
                   <div
                     className={`button-wrap ${baseClass}__button-wrap--new-query`}
@@ -308,7 +294,7 @@ const QueryDetailsPage = ({
                     >
                       <Button
                         className={`${baseClass}__run`}
-                        variant="success"
+                        variant="inverse"
                         onClick={() => {
                           queryId &&
                             router.push(
@@ -323,7 +309,7 @@ const QueryDetailsPage = ({
                         }}
                         disabled={isLiveQueryDisabled}
                       >
-                        Live query
+                        Live query <Icon name="run" />
                       </Button>
                     </div>
                     <ReactTooltip
@@ -337,6 +323,21 @@ const QueryDetailsPage = ({
                       Live queries are disabled in organization settings
                     </ReactTooltip>
                   </div>
+                )}
+                {canEditQuery && (
+                  <Button
+                    onClick={() => {
+                      queryId &&
+                        router.push(
+                          getPathWithQueryParams(PATHS.EDIT_QUERY(queryId), {
+                            team_id: currentTeamId,
+                          })
+                        );
+                    }}
+                    className={`${baseClass}__manage-automations button`}
+                  >
+                    Edit query
+                  </Button>
                 )}
               </div>
             </div>
@@ -431,7 +432,7 @@ const QueryDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
@@ -441,7 +442,7 @@ const QueryDetailsPage = ({
             onCancel={onShowQueryModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

@@ -187,6 +187,7 @@ const SaveNewPolicyModal = ({
                   ? onClickAutofillDescription
                   : onClickAutofillResolution
               }
+              size="small"
             >
               {isFetchingButton ? (
                 "Thinking..."

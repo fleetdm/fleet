@@ -2,6 +2,7 @@
   display: inline-flex;
   align-items: center;
   padding: $pad-small $pad-xxsmall; // larger clickable area
+  min-width: max-content;
 
   svg {
     path {
@@ -12,12 +13,12 @@
   &:hover,
   &:focus {
     .component__tooltip-wrapper__element {
-      color: $core-vibrant-blue-over;
+      color: $ui-fleet-black-75-over;
     }
 
     svg {
       path {
-        stroke: $core-vibrant-blue-over;
+        stroke: $ui-fleet-black-75-over;
       }
     }
   }
