@@ -86,8 +86,10 @@ const generateUserChannelLearnMoreErrMsg = (errMsg: string) => {
   );
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
 const generateGenericLearnMoreErrMsg = (errMsg: string) => {
-  // Extract error message before learn more, and then extract only the link
   if (errMsg.includes(" Learn more: https://")) {
     const message = errMsg.substring(
       0,
