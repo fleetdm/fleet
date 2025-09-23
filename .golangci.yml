@@ -21,6 +21,7 @@ linters:
     - depguard
     - gosec
     - gocritic
+    - nilnesserr
     - govet
     - ineffassign
     - revive
@@ -37,6 +38,9 @@ linters:
           deny:
             - pkg: github.com/pkg/errors
               desc: "use ctxerr if a context.Context is available or stdlib errors.New / fmt.Errorf with the %w verb"
+    govet:
+      enable:
+        - nilness
 
     errcheck:
       check-type-assertions: false
