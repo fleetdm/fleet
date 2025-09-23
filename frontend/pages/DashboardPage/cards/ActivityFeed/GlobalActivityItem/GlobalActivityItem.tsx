@@ -1061,11 +1061,13 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
+    const actor = activity.actor_full_name
+      ? activity.actor_full_name
+      : "An end user";
     return (
       <>
-        {" "}
-        resent {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_display_name}.
+        <b>{actor}</b> resent {activity.details?.profile_name} configuration
+        profile to {activity.details?.host_display_name}.
       </>
     );
   },
@@ -1941,11 +1943,12 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-      // MdmEnrolled and MdmUnenroll activities have more complicated logic to
+      // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function
       case ActivityType.MdmUnenrolled:
       case ActivityType.MdmEnrolled:
+      case ActivityType.ResentConfigurationProfile:
         return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;
