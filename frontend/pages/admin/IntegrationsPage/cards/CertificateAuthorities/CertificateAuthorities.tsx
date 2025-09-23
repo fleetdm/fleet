@@ -147,12 +147,15 @@ const CertificateAuthorities = () => {
           onExit={onAddedNewCertAuthority}
         />
       )}
-      {showEditCertAuthorityModal && selectedCertAuthority && (
-        <EditCertAuthorityModal
-          certAuthority={selectedCertAuthority}
-          onExit={onEditedCertAuthority}
-        />
-      )}
+      {showEditCertAuthorityModal &&
+        selectedCertAuthority &&
+        certAuthorities && (
+          <EditCertAuthorityModal
+            certAuthorities={certAuthorities}
+            certAuthority={selectedCertAuthority}
+            onExit={onEditedCertAuthority}
+          />
+        )}
       {showDeleteCertAuthorityModal && selectedCertAuthority && (
         <DeleteCertificateAuthorityModal
           certAuthority={selectedCertAuthority}
