@@ -254,14 +254,8 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 2,
+			burst:    forgotPasswordRateLimitMaxBurst + 1,
 			status:   http.StatusAccepted,
-		},
-		{
-			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
-			verb:     "GET",
-			burst:    desktopRateLimitMaxBurst + 1,
-			status:   http.StatusUnauthorized,
 		},
 	}
 

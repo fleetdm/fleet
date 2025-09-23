@@ -239,8 +239,7 @@ func addMetrics(r *mux.Router) {
 
 // These are defined as const so that they can be used in tests.
 const (
-	desktopRateLimitMaxBurst        = 100 // Max burst used for device request rate limiting.
-	forgotPasswordRateLimitMaxBurst = 9   // Max burst used for rate limiting on the the forgot_password endpoint.
+	forgotPasswordRateLimitMaxBurst = 9 // Max burst used for rate limiting on the the forgot_password endpoint.
 )
 
 func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetConfig,
