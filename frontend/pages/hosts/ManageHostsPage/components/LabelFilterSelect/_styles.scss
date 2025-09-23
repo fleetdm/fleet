@@ -26,16 +26,17 @@
     border-radius: $border-radius;
     height: 36px;
 
-    :hover {
+    &:hover {
       cursor: pointer;
+      border: 1px solid $ui-fleet-black-50;
     }
 
     &--is-focused,
-    &--menu-is-open,
-    &:hover {
+    &--menu-is-open {
       box-shadow: none;
       border: 1px solid $core-fleet-black;
     }
+
     &--menu-is-open {
       .custom-dropdown-indicator {
         svg {
@@ -120,10 +121,10 @@
     }
 
     &--is-focused {
-      background-color: $ui-vibrant-blue-10;
+      background-color: $ui-fleet-black-5;
 
       &:active {
-        background-color: $ui-vibrant-blue-25;
+        background-color: $ui-fleet-black-10;
       }
     }
 
@@ -135,6 +136,9 @@
   }
 
   .label-filter-select__group-heading {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-small;
     padding: 0;
   }
 

@@ -14,6 +14,7 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 
+import Button from "components/buttons/Button";
 import BackButton from "components/BackButton";
 import Icon from "components/Icon";
 import MainContent from "components/MainContent";
@@ -122,19 +123,18 @@ const HostQueryReport = ({
         </div>
         <div className={`${baseClass}__header__row2`}>
           {!hqrError && <h1 className="host-name">{hostName}</h1>}
-          <Link
-            // to and onClick seem redundant
-            to={fullReportPath}
+          <Button
+            variant="brand-inverse-icon"
             onClick={() => {
               browserHistory.push(fullReportPath);
             }}
-            className={`${baseClass}__direction-link`}
+            iconStroke
           >
             <>
-              <span>View full query report</span>
-              <Icon name="chevron-right" color="core-fleet-blue" />
+              View full query report
+              <Icon name="chevron-right" color="core-fleet-green" />
             </>
-          </Link>
+          </Button>
         </div>
       </div>
     );
