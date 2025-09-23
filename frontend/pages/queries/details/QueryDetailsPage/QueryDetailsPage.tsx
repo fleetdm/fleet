@@ -343,40 +343,38 @@ const QueryDetailsPage = ({
               className={`${baseClass}__query-description`}
               content={lastEditedQueryDescription}
             />
+            <div className={`${baseClass}__settings`}>
+              <div className={`${baseClass}__automations`}>
+                <TooltipWrapper
+                  tipContent={
+                    <>
+                      Query automations let you send data to your log <br />
+                      destination on a schedule. When automations are <b>
+                        on
+                      </b>, <br />
+                      data is sent according to a query&apos;s interval.
+                    </>
+                  }
+                >
+                  Automations:
+                </TooltipWrapper>
+                <QueryAutomationsStatusIndicator
+                  automationsEnabled={storedQuery?.automations_enabled || false}
+                  interval={storedQuery?.interval || 0}
+                />
+              </div>
+              <div className={`${baseClass}__log-destination`}>
+                <strong>Log destination:</strong>{" "}
+                <LogDestinationIndicator
+                  logDestination={config?.logging.result.plugin || ""}
+                  filesystemDestination={
+                    config?.logging.result.config?.result_log_file
+                  }
+                  webhookDestination={config?.logging.result.config?.result_url}
+                />
+              </div>
+            </div>
           </>
-        )}
-        {!isLoading && !isApiError && (
-          <div className={`${baseClass}__settings`}>
-            <div className={`${baseClass}__automations`}>
-              <TooltipWrapper
-                tipContent={
-                  <>
-                    Query automations let you send data to your log <br />
-                    destination on a schedule. When automations are <b>
-                      on
-                    </b>, <br />
-                    data is sent according to a query&apos;s interval.
-                  </>
-                }
-              >
-                Automations:
-              </TooltipWrapper>
-              <QueryAutomationsStatusIndicator
-                automationsEnabled={storedQuery?.automations_enabled || false}
-                interval={storedQuery?.interval || 0}
-              />
-            </div>
-            <div className={`${baseClass}__log-destination`}>
-              <strong>Log destination:</strong>{" "}
-              <LogDestinationIndicator
-                logDestination={config?.logging.result.plugin || ""}
-                filesystemDestination={
-                  config?.logging.result.config?.result_log_file
-                }
-                webhookDestination={config?.logging.result.config?.result_url}
-              />
-            </div>
-          </div>
         )}
       </>
     );
