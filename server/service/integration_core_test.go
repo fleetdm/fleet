@@ -8666,9 +8666,12 @@ func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
 	// Clear any previous usage of forgot_password in the test suite to start from scatch.
-	s.clearRedisKey("ratelimit::forgot_password")
+	clearKeys := func() {
+		clearRedisKey(t, s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
 	s.T().Cleanup(func() {
-		s.clearRedisKey("ratelimit::forgot_password")
+		clearKeys()
 	})
 
 	// create a new user
