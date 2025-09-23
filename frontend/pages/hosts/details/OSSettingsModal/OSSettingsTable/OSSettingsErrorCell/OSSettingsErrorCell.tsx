@@ -37,6 +37,7 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
       onClick={onClick}
       variant="inverse"
       className={classNames}
+      size="small"
     >
       <Icon name="refresh" size="small" />
       {buttonText}

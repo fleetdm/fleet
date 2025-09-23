@@ -539,11 +539,7 @@ const HostSoftwareLibrary = ({
       <div className={`${baseClass}__header`}>
         <CardHeader subheader="Software available to be installed on this host" />
         {userHasSWWritePermission && (
-          <Button
-            variant="inverse"
-            onClick={onAddSoftware}
-            size="small" // Require to not push subheader
-          >
+          <Button variant="inverse" onClick={onAddSoftware}>
             <Icon name="plus" />
             <span>Add software</span>
           </Button>

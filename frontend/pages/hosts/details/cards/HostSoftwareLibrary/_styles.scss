@@ -5,6 +5,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    .button {
+      margin: -$pad-medium 0; // Remove verticle width causing description height to be different on Library v. Inventory
+    }
   }
 
   .table-container {
