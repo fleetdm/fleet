@@ -368,9 +368,7 @@ const PolicyPage = ({
   return (
     <SidePanelPage>
       <>
-        <MainContent className={baseClass}>
-          <div className={`${baseClass}__wrapper`}>{renderScreen()}</div>
-        </MainContent>
+        <MainContent className={baseClass}>{renderScreen()}</MainContent>
         {showSidebar && (
           <SidePanelContent>
             <QuerySidePanel
