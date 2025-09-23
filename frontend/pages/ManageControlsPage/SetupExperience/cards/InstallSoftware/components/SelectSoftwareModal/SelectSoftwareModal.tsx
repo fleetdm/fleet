@@ -76,13 +76,6 @@ const SelectSoftwareModal = ({
     });
   }, []);
 
-  const onChangeSelectAll = useCallback(
-    (selectAll: boolean) => {
-      setSelectedSoftwareIds(selectAll ? softwareTitles.map((s) => s.id) : []);
-    },
-    [softwareTitles]
-  );
-
   return (
     <Modal
       className={baseClass}
@@ -94,7 +87,6 @@ const SelectSoftwareModal = ({
         <SelectSoftwareTable
           softwareTitles={softwareTitles}
           onChangeSoftwareSelect={onChangeSoftwareSelect}
-          onChangeSelectAll={onChangeSelectAll}
           platform={platform}
         />
         <div className="modal-cta-wrap">
