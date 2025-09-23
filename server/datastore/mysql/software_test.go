@@ -54,6 +54,9 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
 		{"UpdateHostSoftwareSameNameDifferentBundleIDs", testUpdateHostSoftwareSameNameDifferentBundleIDs},
 		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
+		{"UpdateHostBundleIDRenameOnlyNoNewSoftware", testUpdateHostBundleIDRenameOnlyNoNewSoftware},
+		{"UpdateHostBundleIDRenameWithNewSoftware", testUpdateHostBundleIDRenameWithNewSoftware},
+		{"UpdateHostBrowserExtensions", testUpdateHostBrowserExtensions},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
@@ -92,7 +95,6 @@ func TestSoftware(t *testing.T) {
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
-		{"BundleIDRenameOnlyNoNewSoftware", testBundleIDRenameOnlyNoNewSoftware},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1878,13 +1880,20 @@ func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastor
 	require.NoError(t, err)
 
 	// The getExistingSoftware function matches by bundle ID when present,
-	// so it links to the existing software entry
+	// so it links to the existing software entry and updates the name
 	err = ds.LoadHostSoftware(ctx, host, false)
 	require.NoError(t, err)
 	require.Len(t, host.Software, 1)
-	// The existing software entry is reused (matched by bundle ID)
-	require.Equal(t, "GoLand.app", host.Software[0].Name)
+	// The existing software entry is reused (matched by bundle ID) and name is updated
+	require.Equal(t, "GoLand 2.app", host.Software[0].Name, "Name should be updated to reflect what's on the host")
 	require.Equal(t, originalSoftwareID, host.Software[0].ID, "Should reuse the same software row")
+
+	// Verify the name_source was updated
+	var nameSource string
+	err = ds.writer(ctx).GetContext(ctx, &nameSource,
+		`SELECT name_source FROM software WHERE id = ?`, originalSoftwareID)
+	require.NoError(t, err)
+	require.Equal(t, "bundle_4.67", nameSource, "Name source should indicate bundle ID match")
 
 	// Verify only one software title exists
 	var titleCount int
@@ -8975,9 +8984,9 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 
 }
 
-// testBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
+// testUpdateHostBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
 // (same bundle ID, different name) with NO new software
-func testBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
+func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "rename-test-host", "", "renamekey", "renameuuid", time.Now())
 
@@ -9029,4 +9038,221 @@ func testBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
 		WHERE bundle_identifier IN ('com.example.app', 'com.example.another')`)
 	require.NoError(t, err)
 	require.Equal(t, 2, softwareCount, "Should have exactly 2 software entries, not duplicates")
+}
+
+// testUpdateHostBundleIDRenameWithNewSoftware tests the edge case where a host reports BOTH:
+// 1. New software that needs to be inserted
+// 2. Existing software with renamed bundle IDs that needs updating
+// This tests that both operations work correctly in the same update.
+func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "mixed-test-host", "", "mixedkey", "mixeduuid", time.Now())
+
+	// Step 1: Initial software setup - just one app with bundle ID
+	initialSoftware := []fleet.Software{
+		{Name: "Slack.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, initialSoftware)
+	require.NoError(t, err)
+
+	// Verify initial state
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 1)
+	slackOriginalID := host.Software[0].ID
+
+	// Step 2: Report BOTH renamed software AND new software in the same update
+	mixedUpdate := []fleet.Software{
+		// Renamed existing software (same bundle ID, different name)
+		{Name: "Slack 2.app", Version: "1.0.0", Source: "apps", BundleIdentifier: "com.tinyspeck.slackmacgap"},
+		// Brand new software
+		{Name: "Chrome.app", Version: "110.0", Source: "apps", BundleIdentifier: "com.google.Chrome"},
+		// Another new software without bundle ID
+		{Name: "CustomTool", Version: "3.2.1", Source: "programs"},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, mixedUpdate)
+	require.NoError(t, err)
+
+	// Verify the results
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 3, "Should have 3 software entries total")
+
+	// Check each software entry
+	foundSlack := false
+	foundChrome := false
+	foundCustomTool := false
+
+	for _, s := range host.Software {
+		switch s.BundleIdentifier {
+		case "com.tinyspeck.slackmacgap":
+			foundSlack = true
+			// Verify Slack was renamed and ID was reused
+			require.Equal(t, "Slack 2.app", s.Name, "Slack should be renamed")
+			require.Equal(t, slackOriginalID, s.ID, "Slack should reuse the same ID")
+
+			// Verify name_source was updated
+			var nameSource string
+			err = ds.writer(ctx).GetContext(ctx, &nameSource,
+				`SELECT name_source FROM software WHERE id = ?`, s.ID)
+			require.NoError(t, err)
+			require.Equal(t, "bundle_4.67", nameSource, "Name source should indicate bundle ID match")
+
+		case "com.google.Chrome":
+			foundChrome = true
+			require.Equal(t, "Chrome.app", s.Name)
+			require.NotEqual(t, slackOriginalID, s.ID, "Chrome should have a different ID")
+
+		case "":
+			if s.Name == "CustomTool" {
+				foundCustomTool = true
+				require.Equal(t, "CustomTool", s.Name)
+				require.NotEqual(t, slackOriginalID, s.ID, "CustomTool should have a different ID")
+			}
+		}
+	}
+
+	require.True(t, foundSlack, "Should find renamed Slack")
+	require.True(t, foundChrome, "Should find new Chrome")
+	require.True(t, foundCustomTool, "Should find new CustomTool")
+
+	// Verify no duplicate software entries were created
+	var softwareCount int
+	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
+		`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = 'com.tinyspeck.slackmacgap'`)
+	require.NoError(t, err)
+	require.Equal(t, 1, softwareCount, "Should have exactly 1 Slack software entry")
+
+	// Verify titles were created correctly
+	var titleCount int
+	err = ds.writer(ctx).GetContext(ctx, &titleCount,
+		`SELECT COUNT(DISTINCT id) FROM software_titles`)
+	require.NoError(t, err)
+	require.Equal(t, 3, titleCount, "Should have 3 software titles")
+}
+
+// testUpdateHostBrowserExtensions explicitly tests browser extension handling.
+// Browser extensions have extension IDs and browser fields, but no bundle identifiers.
+func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "ext-test-host", "", "extkey", "extuuid", time.Now())
+
+	// Test Case 1: Add multiple browser extensions
+	extensions := []fleet.Software{
+		{Name: "1Password", Version: "1.45.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"},
+		{Name: "Grammarly", Version: "14.1.0", Source: "browser_plugins", ExtensionID: "kbfnbcaeplbcioakkpcpgfkobkghlhen", Browser: "chrome"},
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"}, // Same ext ID, different browser
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, extensions)
+	require.NoError(t, err)
+
+	// Verify extensions were added correctly
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 4, "Should have 4 browser extensions")
+
+	// Verify each extension
+	extensionsByName := make(map[string]fleet.HostSoftwareEntry)
+	for _, s := range host.Software {
+		extensionsByName[s.Name] = s
+		// All browser extensions should have empty bundle identifier
+		require.Empty(t, s.BundleIdentifier, "Browser extensions should not have bundle identifier")
+		require.Equal(t, "browser_plugins", s.Source)
+	}
+
+	// Verify specific extensions
+	require.Contains(t, extensionsByName, "1Password")
+	require.Contains(t, extensionsByName, "React Developer Tools")
+	require.Contains(t, extensionsByName, "Grammarly")
+	require.Contains(t, extensionsByName, "uBlock Origin")
+
+	// Test Case 2: Update extension version (same extension ID, new version)
+	updatedExtensions := []fleet.Software{
+		{Name: "1Password", Version: "1.46.0", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "chrome"},             // Version update
+		{Name: "React Developer Tools", Version: "3.14.2", Source: "browser_plugins", ExtensionID: "cfhdojbkjhnklbpkdaibdccddilifddb", Browser: "chrome"}, // No change
+		// Grammarly removed
+		{Name: "uBlock Origin", Version: "1.52.2", Source: "browser_plugins", ExtensionID: "cjpalhdlnbpafiamejdnhcphjbkeiagm", Browser: "firefox"},
+		{Name: "Bitwarden", Version: "2023.10.1", Source: "browser_plugins", ExtensionID: "nngceckbapebfimnlniiiahkandclblb", Browser: "chrome"}, // New extension
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, updatedExtensions)
+	require.NoError(t, err)
+
+	// Verify update results
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 4, "Should have 4 browser extensions after update")
+
+	// Check version update
+	extensionsByName = make(map[string]fleet.HostSoftwareEntry)
+	for _, s := range host.Software {
+		extensionsByName[s.Name] = s
+	}
+
+	require.Equal(t, "1.46.0", extensionsByName["1Password"].Version, "1Password version should be updated")
+	require.Contains(t, extensionsByName, "Bitwarden", "New extension should be added")
+	require.NotContains(t, extensionsByName, "Grammarly", "Removed extension should not be present")
+
+	// Test Case 3: Extensions with same name but different browsers/extension IDs
+	// This simulates cross-browser extensions
+	crossBrowserExtensions := []fleet.Software{
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "gighmmpiobklfepjocnamgkkbiglidom", Browser: "chrome"},
+		{Name: "Adblock", Version: "5.0", Source: "browser_plugins", ExtensionID: "jid1-NIfFY2CA8fy1tg", Browser: "firefox"},
+		{Name: "Adblock", Version: "4.9", Source: "browser_plugins", ExtensionID: "pdffkfellgipmhklpdmokmckkkfcopbh", Browser: "edge"},
+	}
+
+	host2 := test.NewHost(t, ds, "ext-test-host2", "", "extkey2", "extuuid2", time.Now())
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, crossBrowserExtensions)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host2, false)
+	require.NoError(t, err)
+	require.Len(t, host2.Software, 3, "Should have 3 Adblock variants")
+
+	// Verify they're tracked as separate software entries
+	var adblockCount int
+	for _, s := range host2.Software {
+		if s.Name == "Adblock" {
+			adblockCount++
+			require.Equal(t, "browser_plugins", s.Source)
+			require.Empty(t, s.BundleIdentifier)
+		}
+	}
+	require.Equal(t, 3, adblockCount, "Should have 3 distinct Adblock entries for different browsers")
+
+	// Verify database has correct number of browser extension entries
+	var totalExtensions int
+	err = ds.writer(ctx).GetContext(ctx, &totalExtensions,
+		`SELECT COUNT(DISTINCT id) FROM software WHERE source = 'browser_plugins'`)
+	require.NoError(t, err)
+	require.GreaterOrEqual(t, totalExtensions, 7, "Should have at least 7 distinct browser extensions in database")
+
+	// Verify extensions don't interfere with bundle ID logic
+	// Add a macOS app with a bundle ID alongside extensions
+	mixedSoftware := crossBrowserExtensions
+	mixedSoftware = append(mixedSoftware,
+		fleet.Software{Name: "Safari.app", Version: "17.0", Source: "apps", BundleIdentifier: "com.apple.Safari"},
+	)
+
+	host3 := test.NewHost(t, ds, "ext-test-host3", "", "extkey3", "extuuid3", time.Now())
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, mixedSoftware)
+	require.NoError(t, err)
+
+	err = ds.LoadHostSoftware(ctx, host3, false)
+	require.NoError(t, err)
+	require.Len(t, host3.Software, 4, "Should have 3 extensions + 1 app")
+
+	// Verify Safari has bundle ID while extensions don't
+	for _, s := range host3.Software {
+		if s.Name == "Safari.app" {
+			require.Equal(t, "com.apple.Safari", s.BundleIdentifier, "Safari should have bundle ID")
+			require.Equal(t, "apps", s.Source)
+		} else if s.Name == "Adblock" {
+			require.Empty(t, s.BundleIdentifier, "Extensions should not have bundle ID")
+			require.Equal(t, "browser_plugins", s.Source)
+		}
+	}
 }

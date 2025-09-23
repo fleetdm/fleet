@@ -424,12 +424,27 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 			// Also link existing software that matches by bundle ID
 			// This handles the case where software has the same bundle ID but different name
+			var bundleUpdated []softwareIDChecksum
 			if len(existingBundleIDsToUpdate) > 0 {
 				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
 				if err != nil {
 					return err
 				}
 				r.Inserted = append(r.Inserted, bundleInserted...)
+
+				// Collect the existing software that needs renaming
+				for _, s := range existingSoftware {
+					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
+						if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+							bundleUpdated = append(bundleUpdated, s)
+						}
+					}
+				}
+			}
+
+			// Update software names for bundle ID matches
+			if err = updateTargetedBundleIDs(ctx, tx, hostID, r.Inserted, bundleUpdated, existingBundleIDsToUpdate); err != nil {
+				return err
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -453,30 +468,82 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	return r, err
 }
 
-//nolint:unused
-func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, bundleIDsToSoftware map[string]fleet.Software) error {
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, insertedSoftware []fleet.Software, updatedSoftware []softwareIDChecksum, bundleIDsToSoftware map[string]fleet.Software) error {
 	if len(bundleIDsToSoftware) == 0 {
 		return nil
 	}
 
-	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
+	// inserted/updated software id -> software whose name has changed (name / last_opened_at)
+	softwareIDToUpdate := make(map[uint]fleet.Software)
+	var softwareIDs []uint
 
-	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software
-			(host_id, software_id, last_opened_at)
-		VALUES
-			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
-
-	for k, v := range bundleIDsToSoftware {
-		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software names")
-		}
-
-		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host software")
+	// checking inserted software
+	for _, software := range insertedSoftware {
+		if software.BundleIdentifier != "" {
+			if updSoftware, needsUpdate := bundleIDsToSoftware[software.BundleIdentifier]; needsUpdate {
+				softwareIDToUpdate[software.ID] = updSoftware
+				softwareIDs = append(softwareIDs, software.ID)
+			}
 		}
 	}
-	return nil
+
+	// checking existing software
+	for _, software := range updatedSoftware {
+		if software.BundleIdentifier != nil && *software.BundleIdentifier != "" {
+			if updSoftware, needsUpdate := bundleIDsToSoftware[*software.BundleIdentifier]; needsUpdate {
+				softwareIDToUpdate[software.ID] = updSoftware
+				softwareIDs = append(softwareIDs, software.ID)
+			}
+		}
+	}
+
+	if len(softwareIDToUpdate) == 0 {
+		return nil
+	}
+
+	const batchSize = 100
+	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
+		updateCases := make([]string, 0, len(batch))
+		updateCaseArgs := make([]any, 0, len(batch))
+		updateWhereArgs := make([]any, 0, len(batch))
+		updateIDs := make([]string, 0, len(batch))
+
+		insertArgs := make([]any, 0, len(batch)*3)
+		insertValues := make([]string, 0, len(batch))
+
+		for _, id := range batch {
+			software := softwareIDToUpdate[id]
+
+			updateCases = append(updateCases, "WHEN ? THEN ?")
+			updateCaseArgs = append(updateCaseArgs, id, software.Name)
+			updateWhereArgs = append(updateWhereArgs, id)
+			updateIDs = append(updateIDs, "?")
+
+			insertValues = append(insertValues, "(?, ?, ?)")
+			insertArgs = append(insertArgs, hostID, id, software.LastOpenedAt)
+		}
+
+		updateStmt := fmt.Sprintf(
+			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
+			strings.Join(updateCases, " "),
+			strings.Join(updateIDs, ","),
+		)
+
+		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch update software names")
+		}
+
+		insertStmt := fmt.Sprintf(
+			`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`,
+			strings.Join(insertValues, ", "),
+		)
+
+		if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch insert host software")
+		}
+
+		return nil
+	})
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
