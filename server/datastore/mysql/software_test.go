@@ -50,6 +50,9 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftware", testUpdateHostSoftware},
 		{"UpdateHostSoftwareDeadlock", testUpdateHostSoftwareDeadlock},
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
+		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
+		{"UpdateHostSoftwareSameNameDifferentBundleIDs", testUpdateHostSoftwareSameNameDifferentBundleIDs},
+		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
 		{"ListSoftwareByHostIDShort", testListSoftwareByHostIDShort},
 		{"ListSoftwareVulnerabilitiesByHostIDsSource", testListSoftwareVulnerabilitiesByHostIDsSource},
 		{"InsertSoftwareVulnerability", testInsertSoftwareVulnerability},
@@ -1841,176 +1844,178 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	require.NotContains(t, buf.String(), "bar_app")
 
 	ds.logger = oldLogger
+}
 
-	// Test edge case: Software with same bundle identifier but different names
-	// When software with the same bundle ID but different name is added, the system
-	// reuses the existing software entry (matched by bundle ID) and links it to the host
-	t.Run("SameBundleIDDifferentNames", func(t *testing.T) {
-		host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
+// Test edge case: Software with same bundle identifier but different names
+// When software with the same bundle ID but different name is added, the system
+// reuses the existing software entry (matched by bundle ID) and links it to the host
+func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
 
-		// First, add software with a bundle ID
-		sw := []fleet.Software{
-			{Name: "GoLand.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
-		}
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
-		require.NoError(t, err)
+	// First, add software with a bundle ID
+	sw := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
 
-		// Verify the software was added
-		err = ds.LoadHostSoftware(ctx, host, false)
-		require.NoError(t, err)
-		require.Len(t, host.Software, 1)
-		require.Equal(t, "GoLand.app", host.Software[0].Name)
+	// Verify the software was added
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 1)
+	require.Equal(t, "GoLand.app", host.Software[0].Name)
 
-		// Now update with the same bundle ID but different name
-		// The behavior depends on how the system handles bundle ID matching
-		sw = []fleet.Software{
-			{Name: "GoLand 2.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
-		}
-		_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
-		require.NoError(t, err)
+	// Now update with the same bundle ID but different name
+	// The behavior depends on how the system handles bundle ID matching
+	sw = []fleet.Software{
+		{Name: "GoLand 2.app", Version: "2024.3", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
 
-		// The getExistingSoftware function matches by bundle ID when present,
-		// so it links to the existing software entry
-		err = ds.LoadHostSoftware(ctx, host, false)
-		require.NoError(t, err)
-		require.Len(t, host.Software, 1)
-		// The existing software entry is reused (matched by bundle ID)
-		require.Equal(t, "GoLand.app", host.Software[0].Name)
+	// The getExistingSoftware function matches by bundle ID when present,
+	// so it links to the existing software entry
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 1)
+	// The existing software entry is reused (matched by bundle ID)
+	require.Equal(t, "GoLand.app", host.Software[0].Name)
 
-		// Verify only one software title exists
-		var titleCount int
-		err = ds.writer(ctx).GetContext(ctx, &titleCount,
-			`SELECT COUNT(DISTINCT id) FROM software_titles WHERE bundle_identifier = ?`,
-			"com.jetbrains.goland")
-		require.NoError(t, err)
-		require.Equal(t, 1, titleCount, "Should have only one software title for the bundle ID")
+	// Verify only one software title exists
+	var titleCount int
+	err = ds.writer(ctx).GetContext(ctx, &titleCount,
+		`SELECT COUNT(DISTINCT id) FROM software_titles WHERE bundle_identifier = ?`,
+		"com.jetbrains.goland")
+	require.NoError(t, err)
+	require.Equal(t, 1, titleCount, "Should have only one software title for the bundle ID")
 
-		// Verify only one software entry exists with this bundle ID
-		var softwareCount int
-		err = ds.writer(ctx).GetContext(ctx, &softwareCount,
-			`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = ?`,
-			"com.jetbrains.goland")
-		require.NoError(t, err)
-		require.Equal(t, 1, softwareCount, "Should have only one software entry for the bundle ID")
-	})
+	// Verify only one software entry exists with this bundle ID
+	var softwareCount int
+	err = ds.writer(ctx).GetContext(ctx, &softwareCount,
+		`SELECT COUNT(DISTINCT id) FROM software WHERE bundle_identifier = ?`,
+		"com.jetbrains.goland")
+	require.NoError(t, err)
+	require.Equal(t, 1, softwareCount, "Should have only one software entry for the bundle ID")
+}
 
-	// Test edge case: Software with same name but different bundle identifiers
-	// This validates that separate software titles are created
-	t.Run("SameNameDifferentBundleIDs", func(t *testing.T) {
-		host := test.NewHost(t, ds, "dupname-host", "", "dupnamekey", "dupnameuuid", time.Now())
+// Test edge case: Software with same name but different bundle identifiers
+// This validates that separate software titles are created
+func testUpdateHostSoftwareSameNameDifferentBundleIDs(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "dupname-host", "", "dupnamekey", "dupnameuuid", time.Now())
 
-		// Add two software items with same name but different bundle IDs
-		sw := []fleet.Software{
-			{Name: "MyApp", Version: "1.0", Source: "chrome_extensions", BundleIdentifier: "bundle_id1"},
-			{Name: "MyApp", Version: "1.0", Source: "chrome_extensions", BundleIdentifier: "bundle_id2"},
-		}
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
-		require.NoError(t, err)
+	// Add two software items with same name but different bundle IDs
+	sw := []fleet.Software{
+		{Name: "MyApp", Version: "1.0", Source: "chrome_extensions", BundleIdentifier: "bundle_id1"},
+		{Name: "MyApp", Version: "1.0", Source: "chrome_extensions", BundleIdentifier: "bundle_id2"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
 
-		// Verify both software entries exist
-		err = ds.LoadHostSoftware(ctx, host, false)
-		require.NoError(t, err)
-		require.Len(t, host.Software, 2)
+	// Verify both software entries exist
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 2)
 
-		// Verify two separate software titles exist
-		var titles []struct {
-			Name             string  `db:"name"`
-			BundleIdentifier *string `db:"bundle_identifier"`
-		}
-		err = sqlx.SelectContext(ctx, ds.reader(ctx), &titles,
-			`SELECT name, bundle_identifier FROM software_titles WHERE name = ? ORDER BY bundle_identifier`,
-			"MyApp")
-		require.NoError(t, err)
-		require.Len(t, titles, 2)
-		require.NotNil(t, titles[0].BundleIdentifier)
-		require.NotNil(t, titles[1].BundleIdentifier)
-		require.Equal(t, "bundle_id1", *titles[0].BundleIdentifier)
-		require.Equal(t, "bundle_id2", *titles[1].BundleIdentifier)
-	})
+	// Verify two separate software titles exist
+	var titles []struct {
+		Name             string  `db:"name"`
+		BundleIdentifier *string `db:"bundle_identifier"`
+	}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &titles,
+		`SELECT name, bundle_identifier FROM software_titles WHERE name = ? ORDER BY bundle_identifier`,
+		"MyApp")
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.NotNil(t, titles[0].BundleIdentifier)
+	require.NotNil(t, titles[1].BundleIdentifier)
+	require.Equal(t, "bundle_id1", *titles[0].BundleIdentifier)
+	require.Equal(t, "bundle_id2", *titles[1].BundleIdentifier)
+}
 
-	// Test edge case: Software with names exceeding maximum length
-	// This validates truncation and handling of long names
-	t.Run("LongNameTruncation", func(t *testing.T) {
-		host := test.NewHost(t, ds, "longname-host", "", "longnamekey", "longnameuuid", time.Now())
+// Test edge case: Software with names exceeding maximum length
+// This validates truncation and handling of long names
+func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host := test.NewHost(t, ds, "longname-host", "", "longnamekey", "longnameuuid", time.Now())
 
-		// Create a name longer than the maximum allowed length
-		longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+10)
-		expectedTruncatedName := strings.Repeat("a", fleet.SoftwareNameMaxLength)
+	// Create a name longer than the maximum allowed length
+	longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+10)
+	expectedTruncatedName := strings.Repeat("a", fleet.SoftwareNameMaxLength)
 
-		// Add software with excessively long names
-		// Note: In production, fleet.NewSoftware() truncates names, but we're testing
-		// the database layer directly, so we need to truncate here to match production behavior
-		sw := []fleet.Software{
-			{Name: truncateString(longName+"suffix1", fleet.SoftwareNameMaxLength), Version: "1.0", Source: "chrome_extensions"},
-			{Name: truncateString(longName+"suffix2", fleet.SoftwareNameMaxLength), Version: "2.0", Source: "chrome_extensions"},
-		}
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
-		require.NoError(t, err)
+	// Add software with excessively long names
+	// Note: In production, fleet.NewSoftware() truncates names, but we're testing
+	// the database layer directly, so we need to truncate here to match production behavior
+	sw := []fleet.Software{
+		{Name: truncateString(longName+"suffix1", fleet.SoftwareNameMaxLength), Version: "1.0", Source: "chrome_extensions"},
+		{Name: truncateString(longName+"suffix2", fleet.SoftwareNameMaxLength), Version: "2.0", Source: "chrome_extensions"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
 
-		// Verify the software was added with truncated names
-		err = ds.LoadHostSoftware(ctx, host, false)
-		require.NoError(t, err)
-		// The implementation actually creates separate entries based on the full checksum,
-		// even though the truncated names are the same
-		require.Len(t, host.Software, 2)
-		require.Equal(t, expectedTruncatedName, host.Software[0].Name)
-		require.Equal(t, expectedTruncatedName, host.Software[1].Name)
+	// Verify the software was added with truncated names
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	// The implementation actually creates separate entries based on the full checksum,
+	// even though the truncated names are the same
+	require.Len(t, host.Software, 2)
+	require.Equal(t, expectedTruncatedName, host.Software[0].Name)
+	require.Equal(t, expectedTruncatedName, host.Software[1].Name)
 
-		// IMPORTANT: Verify both software entries have title_ids
-		// This validates our fix for the mapping issue
-		var softwareWithTitles []struct {
-			ID      uint   `db:"id"`
-			Version string `db:"version"`
-			TitleID *uint  `db:"title_id"`
-		}
-		err = ds.writer(ctx).SelectContext(ctx, &softwareWithTitles,
-			`SELECT s.id, s.version, s.title_id
-			 FROM software s
-			 JOIN host_software hs ON hs.software_id = s.id
-			 WHERE hs.host_id = ? AND s.name = ?
-			 ORDER BY s.version`,
-			host.ID, expectedTruncatedName)
-		require.NoError(t, err)
-		require.Len(t, softwareWithTitles, 2)
+	// Verify both software entries have title_ids
+	var softwareWithTitles []struct {
+		ID      uint   `db:"id"`
+		Version string `db:"version"`
+		TitleID *uint  `db:"title_id"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &softwareWithTitles,
+		`SELECT s.id, s.version, s.title_id
+		 FROM software s
+		 JOIN host_software hs ON hs.software_id = s.id
+		 WHERE hs.host_id = ? AND s.name = ?
+		 ORDER BY s.version`,
+		host.ID, expectedTruncatedName)
+	require.NoError(t, err)
+	require.Len(t, softwareWithTitles, 2)
 
-		// Both should have the same title_id (not NULL)
-		require.NotNil(t, softwareWithTitles[0].TitleID, "First software should have title_id")
-		require.NotNil(t, softwareWithTitles[1].TitleID, "Second software should have title_id")
-		require.Equal(t, *softwareWithTitles[0].TitleID, *softwareWithTitles[1].TitleID,
-			"Both software entries should have the same title_id")
+	// Both should have the same title_id (not NULL)
+	require.NotNil(t, softwareWithTitles[0].TitleID, "First software should have title_id")
+	require.NotNil(t, softwareWithTitles[1].TitleID, "Second software should have title_id")
+	require.Equal(t, *softwareWithTitles[0].TitleID, *softwareWithTitles[1].TitleID,
+		"Both software entries should have the same title_id")
 
-		// Try adding another software with a different long name that truncates to the same value
-		sw = []fleet.Software{
-			{Name: truncateString(longName+"differentsuffix", fleet.SoftwareNameMaxLength), Version: "3.0", Source: "chrome_extensions"},
-		}
-		_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
-		require.NoError(t, err)
+	// Try adding another software with a different long name that truncates to the same value
+	sw = []fleet.Software{
+		{Name: truncateString(longName+"differentsuffix", fleet.SoftwareNameMaxLength), Version: "3.0", Source: "chrome_extensions"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	require.NoError(t, err)
 
-		// The new software replaces the old ones
-		err = ds.LoadHostSoftware(ctx, host, false)
-		require.NoError(t, err)
-		require.Len(t, host.Software, 1)
-		require.Equal(t, expectedTruncatedName, host.Software[0].Name)
-		require.Equal(t, "3.0", host.Software[0].Version)
+	// The new software replaces the old ones
+	err = ds.LoadHostSoftware(ctx, host, false)
+	require.NoError(t, err)
+	require.Len(t, host.Software, 1)
+	require.Equal(t, expectedTruncatedName, host.Software[0].Name)
+	require.Equal(t, "3.0", host.Software[0].Version)
 
-		// Verify the new software also has the same title_id
-		var newSoftwareWithTitle struct {
-			ID      uint   `db:"id"`
-			Version string `db:"version"`
-			TitleID *uint  `db:"title_id"`
-		}
-		err = ds.writer(ctx).GetContext(ctx, &newSoftwareWithTitle,
-			`SELECT s.id, s.version, s.title_id
-			 FROM software s
-			 JOIN host_software hs ON hs.software_id = s.id
-			 WHERE hs.host_id = ? AND s.name = ? AND s.version = ?`,
-			host.ID, expectedTruncatedName, "3.0")
-		require.NoError(t, err)
-		require.NotNil(t, newSoftwareWithTitle.TitleID, "New software should have title_id")
-		// Should reuse the same title as before
-		require.Equal(t, *softwareWithTitles[0].TitleID, *newSoftwareWithTitle.TitleID,
-			"New software should have the same title_id as previous software")
-	})
+	// Verify the new software also has the same title_id
+	var newSoftwareWithTitle struct {
+		ID      uint   `db:"id"`
+		Version string `db:"version"`
+		TitleID *uint  `db:"title_id"`
+	}
+	err = ds.writer(ctx).GetContext(ctx, &newSoftwareWithTitle,
+		`SELECT s.id, s.version, s.title_id
+		 FROM software s
+		 JOIN host_software hs ON hs.software_id = s.id
+		 WHERE hs.host_id = ? AND s.name = ? AND s.version = ?`,
+		host.ID, expectedTruncatedName, "3.0")
+	require.NoError(t, err)
+	require.NotNil(t, newSoftwareWithTitle.TitleID, "New software should have title_id")
+	// Should reuse the same title as before
+	require.Equal(t, *softwareWithTitles[0].TitleID, *newSoftwareWithTitle.TitleID,
+		"New software should have the same title_id as previous software")
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {
