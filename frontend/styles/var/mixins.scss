@@ -246,6 +246,12 @@ $max-width: 2560px;
   }
 }
 
+@mixin flex-column-16px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-form;
+}
+
 @mixin flex-column-24px-gap {
   display: flex;
   flex-direction: column;
@@ -505,7 +511,6 @@ $max-width: 2560px;
   $inactive-color: $ui-fleet-black-25
 ) {
   position: relative;
-  margin-bottom: -1px;
 
   &:hover {
     margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
