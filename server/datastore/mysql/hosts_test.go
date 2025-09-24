@@ -3856,7 +3856,9 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "user1", "user@example.com", true)
 
+	// Don't set a computer name for this one, so we can test that the hostname is used as a fallback for display name.
 	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
+	// Set a computer name for the rest of the hosts.
 	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"), test.WithComputerName("hostWinComputerName"))
 	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now(), test.WithComputerName("host1ComputerName"))
 	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now(), test.WithComputerName("host2ComputerName"))
@@ -4053,7 +4055,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 2)
 	require.Equal(t, uint(2), hostCount)
 	require.Equal(t, hostNoScripts.ID, batchHosts[0].ID)
-	require.Equal(t, hostNoScripts.ComputerName, batchHosts[0].DisplayName)
+	require.Equal(t, hostNoScripts.Hostname, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[0].Status)
 	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
 	require.Equal(t, hostWindows.ComputerName, batchHosts[1].DisplayName)
