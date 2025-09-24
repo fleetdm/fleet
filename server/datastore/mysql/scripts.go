@@ -504,7 +504,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Update the script to point to the new content
 		if newContentID != oldContentID {
 			updateStmt := `
-				UPDATE scripts 
+				UPDATE scripts
 				SET script_content_id = ?
 				WHERE id = ?
 			`
@@ -638,8 +638,8 @@ func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContex
 			UNION ALL
 			SELECT 1 FROM setup_experience_scripts WHERE script_content_id = ?
 			UNION ALL
-			SELECT 1 FROM software_installers WHERE 
-				install_script_content_id = ? 
+			SELECT 1 FROM software_installers WHERE
+				install_script_content_id = ?
 				OR uninstall_script_content_id = ?
 				OR post_install_script_content_id = ?
 			UNION ALL
@@ -992,9 +992,9 @@ WITH all_latest_activities AS (
 			canceled = 0
 	) completed_ranked
 	WHERE row_num = 1
-	
+
 	UNION ALL
-	
+
 	-- latest from upcoming_activities
 	SELECT * FROM (
 		SELECT
@@ -1035,7 +1035,7 @@ FROM
 				*,
 				ROW_NUMBER() OVER (
 					PARTITION BY script_id
-					ORDER BY 
+					ORDER BY
 						CASE WHEN source = 'upcoming' THEN 1 ELSE 2 END,  -- Prefer upcoming over completed
 						created_at DESC,
 						id DESC
@@ -1409,6 +1409,12 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		fleetPlatform = mdmActions.FleetPlatform
 		status.HostFleetPlatform = fleetPlatform
 	}
+
+	// TODO(mna): for every getHostMDM...Command and
+	// getHostScriptExecutionResultDB, ensure that we don't fail with an error if
+	// the command/script result does not exist. We may have to fill it with
+	// "command got removed" or "script got removed" placeholder data so the rest
+	// of the code works as expected (and shows the correct state in the UI).
 
 	switch fleetPlatform {
 	case "darwin", "ios", "ipados":
@@ -2392,7 +2398,7 @@ FROM (
     ba.created_at                           AS created_at,
     j.not_before                            AS not_before,
     ba.id                                   AS id
-  FROM batch_activities ba 
+  FROM batch_activities ba
   LEFT JOIN batch_activity_host_results bahr
          ON ba.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results hsr
