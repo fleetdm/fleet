@@ -1,7 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
 
 import SmallstepForm, { ISmallstepFormData } from "./SmallstepForm";
 
@@ -21,7 +20,7 @@ describe("SmallstepForm", () => {
         formData={createTestFormData()}
         isSubmitting={false}
         submitBtnText="Submit"
-        onChange={() => undefined}
+        onChange={noop}
         onSubmit={noop}
         onCancel={noop}
       />
@@ -31,12 +30,13 @@ describe("SmallstepForm", () => {
   });
 
   it("enables and disabled form submittion depending on the form validation", async () => {
-    const { user } = renderWithSetup(
+    const testData = createTestFormData();
+    render(
       <SmallstepForm
-        formData={createTestFormData()}
+        formData={testData}
         isSubmitting={false}
         submitBtnText="Submit"
-        onChange={() => undefined}
+        onChange={noop}
         onSubmit={noop}
         onCancel={noop}
       />
@@ -45,8 +45,20 @@ describe("SmallstepForm", () => {
     // data is valid, so submit should be enabled
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
 
-    // name input is invalidated, submit should be disabled
-    await user.clear(screen.getByLabelText("Name"));
+    // make name invalid by setting it to an empty string
+    testData.name = "";
+    render(
+      <SmallstepForm
+        formData={testData}
+        isSubmitting={false}
+        submitBtnText="Submit"
+        onChange={noop}
+        onSubmit={noop}
+        onCancel={noop}
+      />
+    );
+
+    // name is required, so submit should be disabled
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
 
@@ -56,7 +68,7 @@ describe("SmallstepForm", () => {
         formData={createTestFormData()}
         isSubmitting
         submitBtnText="Submit"
-        onChange={() => undefined}
+        onChange={noop}
         onSubmit={noop}
         onCancel={noop}
       />
@@ -72,7 +84,7 @@ describe("SmallstepForm", () => {
         isSubmitting={false}
         submitBtnText="Submit"
         isDirty={false}
-        onChange={() => undefined}
+        onChange={noop}
         onSubmit={noop}
         onCancel={noop}
       />
@@ -88,7 +100,7 @@ describe("SmallstepForm", () => {
         isSubmitting={false}
         submitBtnText="Submit"
         isDirty
-        onChange={() => undefined}
+        onChange={noop}
         onSubmit={noop}
         onCancel={noop}
       />
