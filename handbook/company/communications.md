@@ -900,7 +900,6 @@ When in doubt, simplify. Read your draft, cut unnecessary words, and make it sho
 Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say) (see the [Further inspiration](#further-inspiration) section, below).
 
 
-
 ### Writing types
 
 Different types of writing at Fleet have slightly different expectations. Keep the shared principles in mind (plain English, brevity, clarity), but adjust for the format.
