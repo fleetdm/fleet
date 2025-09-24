@@ -1047,6 +1047,7 @@ var HostRpmPackageOSs = map[string]struct{}{
 	"opensuse-tumbleweed": {},
 }
 
+// TODO - use me
 func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
 }

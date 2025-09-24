@@ -139,7 +139,8 @@ func (ds *Datastore) NewAndroidHost(ctx context.Context, host *fleet.AndroidHost
 			err = ds.SetOrUpdateHostDisksSpace(ctx, host.Host.ID,
 				host.Host.GigsDiskSpaceAvailable,
 				host.Host.PercentDiskSpaceAvailable,
-				host.Host.GigsTotalDiskSpace)
+				host.Host.GigsTotalDiskSpace,
+				host.Host.GigsAllDiskSpace)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "setting Android host disk space")
 			}
