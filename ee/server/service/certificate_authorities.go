@@ -541,9 +541,7 @@ func (svc *Service) getCertificateAuthoritiesBatchOperations(ctx context.Context
 	}
 	// preprocess ndes
 	if incoming.NDESSCEP != nil {
-		incoming.NDESSCEP.URL = fleet.Preprocess(incoming.NDESSCEP.URL)
-		incoming.NDESSCEP.AdminURL = fleet.Preprocess(incoming.NDESSCEP.AdminURL)
-		incoming.NDESSCEP.Username = fleet.Preprocess(incoming.NDESSCEP.Username)
+		incoming.NDESSCEP.Preprocess()
 	}
 
 	if err := svc.processNDESSCEP(ctx, batchOps, incoming.NDESSCEP, existing.NDESSCEP); err != nil {
