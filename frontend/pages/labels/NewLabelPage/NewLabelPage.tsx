@@ -25,6 +25,14 @@ import { NotificationContext } from "context/notification";
 
 import useToggleSidePanel from "hooks/useToggleSidePanel";
 
+import { RouteComponentProps } from "react-router";
+import {
+  LabelHostVitalsCriterion,
+  LabelMembershipType,
+} from "interfaces/label";
+import { IHost } from "interfaces/host";
+import { IInputFieldParseTarget } from "interfaces/form_field";
+
 import SidePanelPage from "components/SidePanelPage";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
@@ -34,19 +42,10 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import Button from "components/buttons/Button";
-
-import { RouteComponentProps } from "react-router";
-import {
-  LabelHostVitalsCriterion,
-  LabelMembershipType,
-} from "interfaces/label";
-import { IHost } from "interfaces/host";
-import { IInputFieldParseTarget } from "interfaces/form_field";
 import SQLEditor from "components/SQLEditor";
 import Icon from "components/Icon";
 import TargetsInput from "components/TargetsInput";
 import Radio from "components/forms/fields/Radio";
-
 import PlatformField from "../components/PlatformField";
 
 const availableCriteria: {
@@ -396,7 +395,7 @@ const NewLabelPage = ({
               label="Query"
               labelActionComponent={
                 showOpenSidebarButton ? (
-                  <Button variant="text-icon" onClick={onOpenSidebar}>
+                  <Button variant="inverse" onClick={onOpenSidebar}>
                     Schema
                     <Icon name="info" size="small" />
                   </Button>

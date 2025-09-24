@@ -221,7 +221,6 @@ const CalendarEventsModal = ({
           }}
         />
         <Button
-          type="button"
           variant="inverse"
           onClick={() => {
             setSelectedPolicyToPreview(undefined);
@@ -280,7 +279,7 @@ const CalendarEventsModal = ({
           renderItemRow={(item: IFormPolicy) => {
             return (
               <Button
-                variant="text-icon"
+                variant="inverse"
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                   e.stopPropagation();
                   setSelectedPolicyToPreview(item);

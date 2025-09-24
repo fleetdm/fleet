@@ -817,7 +817,7 @@ const HostDetailsPage = ({
     setSelectedCertificate(certificate);
   };
 
-  const renderActionDropdown = () => {
+  const renderActionsDropdown = () => {
     if (!host) {
       return null;
     }
@@ -1119,7 +1119,7 @@ const HostDetailsPage = ({
               summaryData={summaryData}
               showRefetchSpinner={showRefetchSpinner}
               onRefetchHost={onRefetchHost}
-              renderActionDropdown={renderActionDropdown}
+              renderActionsDropdown={renderActionsDropdown}
               hostMdmDeviceStatus={hostMdmDeviceStatus}
             />
           </div>
