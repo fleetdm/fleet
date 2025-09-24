@@ -719,9 +719,6 @@ org_settings:
 
 The `integrations` section lets you configure your Google Calendar, Conditional Access (for hosts in "No team"), Jira, and Zendesk. After configuration, you can enable [automations](https://fleetdm.com/docs/using-fleet/automations) like calendar event and ticket creation for failing policies. Currently, enabling ticket creation is only available using Fleet's UI or [API](https://fleetdm.com/docs/rest-api/rest-api) (YAML files coming soon).
 
-In addition, you can configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi.
-
-
 #### Example
 
 `default.yml`
@@ -743,24 +740,6 @@ org_settings:
         email: user1@example.com
         api_token: $ZENDESK_API_TOKEN
         group_id: 1234
-    digicert: # Available in Fleet Premium
-      - name: DIGICERT_WIFI
-        url: https://one.digicert.com
-        api_token: $DIGICERT_API_TOKEN
-        profile_id: 926dbcdd-41c4-4fe5-96c3-b6a7f0da81d8
-        certificate_common_name: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_user_principal_names:
-          - $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-        certificate_seat_id: $FLEET_VAR_HOST_HARDWARE_SERIAL@example.com
-    ndes_scep_proxy: # Available in Fleet Premium
-      url: https://example.com/certsrv/mscep/mscep.dll
-      admin_url: https://example.com/certsrv/mscep_admin/
-      username: Administrator@example.com
-      password: myPassword
-    custom_scep_proxy: # Available in Fleet Premium
-      - name: SCEP_VPN
-        url: https://example.com/scep
-        challenge: $SCEP_VPN_CHALLENGE
 ```
 
 `/teams/team-name.yml`
@@ -793,8 +772,6 @@ integrations:
 
 ### certificate_authorities
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
-
 This section lets you configure your [certificate authorities (CA)](https://fleetdm.com/guides/certificate-authorities) to help your end users connect to Wi-Fi and VPN.
 
 #### Example
@@ -822,6 +799,11 @@ org_settings:
       - name: SCEP_VPN
         url: https://example.com/scep
         challenge: $SCEP_VPN_CHALLENGE
+    custom_est_proxy: # Available in Fleet Premium
+      - name: SECTIGO_WIFI
+        url: https://example.com/.well-known/est/abc123
+        username: $SECTIGO_USERNAME_PASSWORD
+        password: $SECTIGO_WIFI_PASSWORD
     hydrant: # Available in Fleet Premium
       - name: HYDRANT_WIFI
         url: https://example.hydrantid.com/.well-known/est/abc123
@@ -830,8 +812,6 @@ org_settings:
 ```
 
 #### digicert
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `name` is the name of certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the URL to DigiCert One instance (default: `https://one.digicert.com`).
@@ -842,8 +822,6 @@ org_settings:
 - `certificate_seat_id` is the ID of the DigiCert's seat. Seats are license units in DigiCert.
 
 #### ndes_scep_proxy
-
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
 
 - `url` is the URL of the NDES SCEP endpoint (default: `""`).
 - `admin_url` is the URL of the NDES admin endpoint (default: `""`).
@@ -858,9 +836,14 @@ org_settings:
 - `url` is the URL of the Simple Certificate Enrollment Protocol (SCEP) server.
 - `challenge` is the static challenge password used to authenticate requests to SCEP server.
 
-#### hydrant
+#### custom_est_proxy
 
-> **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+- `name` is the name of the certificate authority. Only letters, numbers, and underscores are allowed.
+- `url` is the EST (Enrollment Over Secure Transport) endpoint's URL.
+- `username` is the username used to authenticate with the EST endpoint.
+- `password` is the password used to authenticate with the EST endpoint.
+
+#### hydrant
 
 - `name` is the name of the certificate authority that will be used in variables in configuration profiles. Only letters, numbers, and underscores are allowed.
 - `url` is the EST (Enrollment Over Secure Transport) endpoint provided by Hydrant.
