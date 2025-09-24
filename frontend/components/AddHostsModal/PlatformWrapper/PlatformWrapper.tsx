@@ -301,7 +301,7 @@ const PlatformWrapper = ({
               information below.
             </p>
             <InfoBanner className={`${baseClass}__chromeos--instructions`}>
-              For a step-by-step guide, see the documentation page for{" "}
+              For a step-by-step guide, see the documentation page for&nbsp;
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
                 text="adding hosts"
@@ -367,7 +367,7 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,{" "}
+              Chromebooks,&nbsp;
               <Button
                 variant="text-link-dark"
                 onClick={() => setSelectedTabIndex(4)}

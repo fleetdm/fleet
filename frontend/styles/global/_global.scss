@@ -4,6 +4,9 @@ html {
   // Because iOS hates us we must fight to the death!
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
   // End Apple War
+  // Because scrollbar widths hate us and we must prevent it taking up viewport width
+  scrollbar-gutter: stable;
+  // Ends War with Chrome and FF only
 }
 
 body {

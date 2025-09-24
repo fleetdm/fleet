@@ -138,10 +138,10 @@ const LoginForm = ({
         <>
           <Button
             onClick={() => setShowPendingEmail(false)}
-            variant="text-icon"
+            variant="inverse"
             className="back-link"
           >
-            <Icon name="chevron-left" color="core-fleet-blue" />
+            <Icon name="chevron-left" color="ui-fleet-black-75" />
             Back to login
           </Button>
           <h1>Check your email</h1>

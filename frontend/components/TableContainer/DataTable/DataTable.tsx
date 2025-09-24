@@ -556,7 +556,11 @@ const DataTable = ({
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button onClick={onClearSelectionClick} variant="inverse">
+                    <Button
+                      onClick={onClearSelectionClick}
+                      variant="inverse"
+                      size="small"
+                    >
                       Clear selection
                     </Button>
                   </div>
