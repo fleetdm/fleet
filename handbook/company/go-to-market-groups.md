@@ -230,16 +230,11 @@ If an agreement requires additional review during the negotiation process, the r
 
 The SLA for contract signature is **2 business days**. Please do not follow up on signatures unless this time has elapsed. If a contract is ready for signature and **DOES NOT** require [review or revision](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) (i.e. no contract review issue necessary), follow the steps below:
 
-First, log into DocuSign (credentials in 1Password) and route the agreement to the CEO for signature. When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed to the CEO for signature.
+First, log into DocuSign (credentials in 1Password) and route the agreement to the CFO for signature via [Fleet's Sales email address](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit?tab=t.0). 
 
-Then, at-mention the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) in the appropriate internal Slack channel (e.g. op channel, #g-unicorns) with the following template:
+> When a contract is going to be routed for signature by someone outside of Fleet (i.e. the vendor or customer), the requestor is responsible for working with the other party to make sure the document gets routed correctly. Please use [Fleet's Sales email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CFO for signature.
 
-```
-@Sam Pfluger - :writing_hand Signature request
-The following contract is ready to sign and has been routed to the CEO for signature: CONTRACT_DOC_URL_FROM_GOOGLE_DRIVE
-```
-
-Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/communications#email-relays) for all contracts and never include individual emails in any company agreement. If the agreement includes any individual emails, remove them before routing the agreement to the CEO for signature.
+Once the signature SLA has expired you can [contact Finance](https://fleetdm.com/handbook/finance#contact-us) to follow up. 
 
 
 ### Fleet's vendor collateral
