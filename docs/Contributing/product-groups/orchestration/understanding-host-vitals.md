@@ -585,8 +585,8 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 - Query:
 ```sql
 SELECT package, MAX(atime) AS last_opened_at
-		FROM deb_package_files 
-		CROSS JOIN file USING (path) 
+		FROM deb_package_files
+		CROSS JOIN file USING (path)
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
 ```
@@ -673,6 +673,30 @@ SELECT
   '' AS arch,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid);
+```
+
+## software_linux_fleetd_pacman
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, tuxedo, neon, archarm
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'fleetd_pacman_packages'
+```
+
+- Query:
+```sql
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS browser,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages
 ```
 
 ## software_macos
