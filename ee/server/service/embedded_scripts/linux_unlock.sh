@@ -70,20 +70,6 @@ echo "All non-root users have been unlocked."
 
 # Schedule a reboot to resolve UI issues (e.g., password prompt not fully visible in LightDM+Ubuntu24.04)
 # We schedule it instead of immediate reboot to ensure the script completes and reports success to Fleet
-
-# Try systemd-run first if available (most reliable for short delays)
-if command -v systemd-run >/dev/null 2>&1; then
-    echo "Scheduling system reboot in 10 seconds to complete unlock process..."
-    systemd-run --on-active=10s --timer-property=AccuracySec=100ms /sbin/reboot 2>/dev/null && exit 0
-fi
-
-# Try shutdown command (use 1 minute minimum as many distros don't support fractional minutes)
-if command -v shutdown >/dev/null 2>&1; then
-    echo "Scheduling system reboot in 1 minute to complete unlock process..."
-    shutdown -r +1 "Fleet unlock process complete - rebooting" 2>/dev/null && exit 0
-fi
-
-# Last resort: background sleep and reboot (works everywhere but less reliable)
 echo "Scheduling system reboot in 10 seconds to complete unlock process..."
-(sleep 10 && reboot) &
+systemd-run --on-active=10s --timer-property=AccuracySec=100ms /sbin/reboot
 exit 0
