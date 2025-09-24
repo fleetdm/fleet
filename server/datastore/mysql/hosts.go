@@ -4332,12 +4332,12 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
-func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
+func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal, gigsAll float64) error {
 	return ds.updateOrInsert(
 		ctx,
-		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ? WHERE host_id = ?`,
-		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, host_id) VALUES (?, ?, ?, ?)`,
-		gigsAvailable, percentAvailable, gigsTotal, hostID,
+		`UPDATE host_disks SET gigs_disk_space_available = ?, percent_disk_space_available = ?, gigs_total_disk_space = ?, gigs_all_disk_space = ? WHERE host_id = ?`,
+		`INSERT INTO host_disks (gigs_disk_space_available, percent_disk_space_available, gigs_total_disk_space, gigs_all_disk_space, host_id) VALUES (?, ?, ?, ?, ?)`,
+		gigsAvailable, percentAvailable, gigsTotal, gigsAll, hostID,
 	)
 }
 
