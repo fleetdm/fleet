@@ -904,6 +904,7 @@ Our approach is informed by [Paul Graham's essays on writing simply](http://www.
 
 Different types of writing at Fleet have slightly different expectations. Keep the shared principles in mind (plain English, brevity, clarity), but adjust for the format.
 
+
 #### Guides and tutorials
 
 - Write in short sentences, imperative mood, and active voice.
