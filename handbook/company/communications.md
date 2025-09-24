@@ -890,7 +890,7 @@ We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3Ftrackin
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say).
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say) (see the [Further inspiration](#further-inspiration) section, below).
 
 
 
@@ -905,6 +905,8 @@ Different types of writing at Fleet have slightly different expectations. Keep t
 - Format as directional, step-by-step instructions, not narrative prose.
 - Use **bold** text when referencing UI elements.
   - Example: “Navigate to **Hosts** and click **Add a host**.”
+- Surface the simple, high-level steps first.
+- Place advanced or technical details, including troubleshooting, in a separate section at the bottom.
 - Keep it practical, avoid marketing fluff, superlatives, and unnecessary adjectives.
 
 
