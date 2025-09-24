@@ -68,6 +68,8 @@ fi
 
 echo "All non-root users have been unlocked."
 
-# Although rebooting is not strictly necessary for all cases, we've seen some UI issues that
-# can be resolved by rebooting. For example, the password prompt is not fully visible in LightDM+Ubuntu24.04
-reboot
+# Schedule a reboot to resolve UI issues (e.g., password prompt not fully visible in LightDM+Ubuntu24.04)
+# We schedule it instead of immediate reboot to ensure the script completes and reports success to Fleet
+echo "Scheduling system reboot in 10 seconds to complete unlock process..."
+systemd-run --on-active=10s --timer-property=AccuracySec=100ms /sbin/reboot
+exit 0

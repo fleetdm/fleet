@@ -19,6 +19,8 @@ Currently, there's no **Lock** button for iOS and iPadOS. If an iOS or iPadOS ho
 
 Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.microsoft.com/en-us/entra/identity/devices/concept-directory-join), the best practice is to disable the end user's account in Entra and then lock the host in Fleet. This applies to all Windows hosts that [automatically enroll](https://fleetdm.com/guides/windows-mdm-setup#automatic-enrollment). These hosts are Entra joined.
 
+> **Linux hosts**: The system may automatically reboot after approximately 10 seconds to complete the lock process.
+
 ## Wipe a host
 
 1. Navigate to the **Hosts** page by clicking the "Hosts" tab in the main navigation header. Find the device you want to wipe. You can search by name, hostname, UUID, serial number, or private IP address in the search box in the upper right corner.
@@ -39,6 +41,7 @@ Currently, for Windows hosts that are [Microsoft Entra joined](https://learn.mic
     - **Windows and Linux**: The command to unlock the host will be queued and the host will unlock once it receives the command (no PIN needed).*
 4. When you click **Unlock**, Windows and Linux hosts will be marked with an "Unlock pending" badge. Once the host is unlocked and checks back in with Fleet, the "Unlock pending" badge will be removed. macOS hosts do not have an "Unlock pending" badge as they cannot be remotely unlocked (the PIN has to be typed into the device).
 
+> **Linux hosts**: The system will automatically reboot after approximately 10 seconds to complete the unlock process and ensure the user interface is properly restored. If the host loses connection to Fleet, the unlock process may run again, causing the host to reboot again.
 
 ## Lock and wipe using `fleetctl`
 
