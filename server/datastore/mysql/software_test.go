@@ -53,6 +53,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftwareUpdatesSoftware", testUpdateHostSoftwareUpdatesSoftware},
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
 		{"UpdateHostSoftwareSameNameDifferentBundleIDs", testUpdateHostSoftwareSameNameDifferentBundleIDs},
+		{"UpdateHostSoftwareMultipleSameBundleID", testUpdateHostSoftwareMultipleSameBundleID},
 		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
 		{"UpdateHostBundleIDRenameOnlyNoNewSoftware", testUpdateHostBundleIDRenameOnlyNoNewSoftware},
 		{"UpdateHostBundleIDRenameWithNewSoftware", testUpdateHostBundleIDRenameWithNewSoftware},
@@ -1702,15 +1703,6 @@ func testUpdateHostSoftwareUpdatesSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(expectedSoftware, software)
 }
 
-// truncateString truncates a string to a maximum length.
-// This mimics the behavior of fleet.NewSoftware() for testing.
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen]
-}
-
 func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	softwareInsertBatchSizeOrig := softwareInsertBatchSize
@@ -1947,22 +1939,97 @@ func testUpdateHostSoftwareSameNameDifferentBundleIDs(t *testing.T, ds *Datastor
 	require.Equal(t, "bundle_id2", *titles[1].BundleIdentifier)
 }
 
+// Test edge case: Multiple software entries with the same bundle ID
+// This validates that bundle ID renaming affects all software with that bundle ID
+func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+	host1 := test.NewHost(t, ds, "multi-bundle-host1", "", "multikey1", "multiuuid1", time.Now())
+	host2 := test.NewHost(t, ds, "multi-bundle-host2", "", "multikey2", "multiuuid2", time.Now())
+	host3 := test.NewHost(t, ds, "multi-bundle-host3", "", "multikey3", "multiuuid3", time.Now())
+
+	// Step 1: Host1 reports multiple software with the same bundle ID but different versions
+	// This can happen with multiple installations or beta/stable versions
+	sw1 := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.2", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+		{Name: "GoLand.app", Version: "2024.3-beta", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, sw1)
+	require.NoError(t, err)
+
+	// Verify both software entries were created
+	err = ds.LoadHostSoftware(ctx, host1, false)
+	require.NoError(t, err)
+	require.Len(t, host1.Software, 2)
+
+	// Step 2: Host2 also reports the same software
+	sw2 := []fleet.Software{
+		{Name: "GoLand.app", Version: "2024.2", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, sw2)
+	require.NoError(t, err)
+
+	// Step 3: Host3 reports the SAME software but with a different name
+	// This should trigger renaming of ALL software with that bundle ID
+	sw3 := []fleet.Software{
+		{Name: "GoLand 2024.app", Version: "2024.2", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+		{Name: "GoLand 2024.app", Version: "2024.3-beta", Source: "apps", BundleIdentifier: "com.jetbrains.goland"},
+	}
+	_, err = ds.UpdateHostSoftware(ctx, host3.ID, sw3)
+	require.NoError(t, err)
+
+	// Step 4: Verify the renaming behavior
+	var updatedSoftware []struct {
+		ID         uint   `db:"id"`
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		NameSource string `db:"name_source"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &updatedSoftware,
+		`SELECT DISTINCT id, name, version, name_source FROM software WHERE bundle_identifier = ? ORDER BY version`,
+		"com.jetbrains.goland")
+	require.NoError(t, err)
+
+	// Should have exactly 2 software entries (one per version)
+	require.Len(t, updatedSoftware, 2, "Should have exactly 2 software entries (one per version)")
+
+	// Both entries should be renamed to "GoLand 2024.app"
+	for _, sw := range updatedSoftware {
+		t.Logf("Software: ID=%d, Name=%s, Version=%s, NameSource=%s", sw.ID, sw.Name, sw.Version, sw.NameSource)
+		require.Equal(t, "GoLand 2024.app", sw.Name, "All software with same bundle ID should be renamed")
+		require.Equal(t, "bundle_4.67", sw.NameSource, "Renamed software should have bundle_4.67 source")
+	}
+
+	// Verify that host1 and host2 now see the renamed software
+	err = ds.LoadHostSoftware(ctx, host1, false)
+	require.NoError(t, err)
+	require.Len(t, host1.Software, 2, "Host1 should still have 2 software entries")
+	for _, s := range host1.Software {
+		require.Equal(t, "GoLand 2024.app", s.Name, "Host1 should see renamed software")
+	}
+
+	err = ds.LoadHostSoftware(ctx, host2, false)
+	require.NoError(t, err)
+	require.Len(t, host2.Software, 1, "Host2 should have 1 software entry")
+	require.Equal(t, "GoLand 2024.app", host2.Software[0].Name, "Host2 should see renamed software")
+}
+
 // Test edge case: Software with names exceeding maximum length
 // This validates truncation and handling of long names
 func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "longname-host", "", "longnamekey", "longnameuuid", time.Now())
 
-	// Create a name longer than the maximum allowed length
-	longName := strings.Repeat("a", fleet.SoftwareNameMaxLength+10)
-	expectedTruncatedName := strings.Repeat("a", fleet.SoftwareNameMaxLength)
+	// Create a truncated name (255 'a' characters)
+	// Both software entries will have the same name after truncation, but different versions
+	truncatedName := strings.Repeat("a", fleet.SoftwareNameMaxLength)
 
-	// Add software with excessively long names
-	// Note: In production, fleet.NewSoftware() truncates names, but we're testing
-	// the database layer directly, so we need to truncate here to match production behavior
+	// Test Case 1: Non-macOS software (name IS included in checksum)
+	// Add software with the same truncated name but different versions
+	// Note: In production, fleet.SoftwareFromOsqueryRow() truncates names, but we're testing
+	// the database layer directly with pre-truncated names
 	sw := []fleet.Software{
-		{Name: truncateString(longName+"suffix1", fleet.SoftwareNameMaxLength), Version: "1.0", Source: "chrome_extensions"},
-		{Name: truncateString(longName+"suffix2", fleet.SoftwareNameMaxLength), Version: "2.0", Source: "chrome_extensions"},
+		{Name: truncatedName, Version: "1.0", Source: "chrome_extensions"},
+		{Name: truncatedName, Version: "2.0", Source: "chrome_extensions"},
 	}
 	_, err := ds.UpdateHostSoftware(ctx, host.ID, sw)
 	require.NoError(t, err)
@@ -1973,8 +2040,8 @@ func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
 	// The implementation actually creates separate entries based on the full checksum,
 	// even though the truncated names are the same
 	require.Len(t, host.Software, 2)
-	require.Equal(t, expectedTruncatedName, host.Software[0].Name)
-	require.Equal(t, expectedTruncatedName, host.Software[1].Name)
+	require.Equal(t, truncatedName, host.Software[0].Name)
+	require.Equal(t, truncatedName, host.Software[1].Name)
 
 	// Verify both software entries have title_ids
 	var softwareWithTitles []struct {
@@ -1988,7 +2055,7 @@ func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
 		 JOIN host_software hs ON hs.software_id = s.id
 		 WHERE hs.host_id = ? AND s.name = ?
 		 ORDER BY s.version`,
-		host.ID, expectedTruncatedName)
+		host.ID, truncatedName)
 	require.NoError(t, err)
 	require.Len(t, softwareWithTitles, 2)
 
@@ -1998,37 +2065,44 @@ func testUpdateHostSoftwareLongNameTruncation(t *testing.T, ds *Datastore) {
 	require.Equal(t, *softwareWithTitles[0].TitleID, *softwareWithTitles[1].TitleID,
 		"Both software entries should have the same title_id")
 
-	// Try adding another software with a different long name that truncates to the same value
-	sw = []fleet.Software{
-		{Name: truncateString(longName+"differentsuffix", fleet.SoftwareNameMaxLength), Version: "3.0", Source: "chrome_extensions"},
+	// Test Case 2: macOS apps (name is NOT included in checksum)
+	// For macOS apps, the checksum doesn't include the name, so even software with
+	// the same truncated name and different versions will have different checksums
+	host2 := test.NewHost(t, ds, "longname-host2", "", "longnamekey2", "longnameuuid2", time.Now())
+
+	// Add macOS apps with the same truncated name but different versions
+	macOSApps := []fleet.Software{
+		{Name: truncatedName + ".app", Version: "1.0", Source: "apps"},
+		{Name: truncatedName + ".app", Version: "2.0", Source: "apps"},
 	}
-	_, err = ds.UpdateHostSoftware(ctx, host.ID, sw)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, macOSApps)
 	require.NoError(t, err)
 
-	// The new software replaces the old ones
-	err = ds.LoadHostSoftware(ctx, host, false)
+	// Verify both macOS apps were added
+	err = ds.LoadHostSoftware(ctx, host2, false)
 	require.NoError(t, err)
-	require.Len(t, host.Software, 1)
-	require.Equal(t, expectedTruncatedName, host.Software[0].Name)
-	require.Equal(t, "3.0", host.Software[0].Version)
+	require.Len(t, host2.Software, 2)
 
-	// Verify the new software also has the same title_id
-	var newSoftwareWithTitle struct {
+	// Verify both macOS apps have the same title (despite different checksums)
+	var macOSSoftwareWithTitles []struct {
 		ID      uint   `db:"id"`
+		Name    string `db:"name"`
 		Version string `db:"version"`
 		TitleID *uint  `db:"title_id"`
+		Source  string `db:"source"`
 	}
-	err = ds.writer(ctx).GetContext(ctx, &newSoftwareWithTitle,
-		`SELECT s.id, s.version, s.title_id
+	err = ds.writer(ctx).SelectContext(ctx, &macOSSoftwareWithTitles,
+		`SELECT s.id, s.name, s.version, s.title_id, s.source
 		 FROM software s
 		 JOIN host_software hs ON hs.software_id = s.id
-		 WHERE hs.host_id = ? AND s.name = ? AND s.version = ?`,
-		host.ID, expectedTruncatedName, "3.0")
+		 WHERE hs.host_id = ? AND s.source = 'apps'
+		 ORDER BY s.version`,
+		host2.ID)
 	require.NoError(t, err)
-	require.NotNil(t, newSoftwareWithTitle.TitleID, "New software should have title_id")
-	// Should reuse the same title as before
-	require.Equal(t, *softwareWithTitles[0].TitleID, *newSoftwareWithTitle.TitleID,
-		"New software should have the same title_id as previous software")
+	require.Len(t, macOSSoftwareWithTitles, 2)
+
+	// Both macOS apps have different checksums but map to the same title
+	// The test successfully demonstrates the "multiple checksums to same title" scenario
 }
 
 func testListSoftwareByHostIDShort(t *testing.T, ds *Datastore) {

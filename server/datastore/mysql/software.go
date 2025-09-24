@@ -432,9 +432,10 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				}
 				r.Inserted = append(r.Inserted, bundleInserted...)
 
-				// Build map of software IDs to their new names for renaming
-				softwareRenames := make(map[uint]string)
-
+				// Build map of software IDs to their new names for renaming.
+				// softwareRenames should match existingBundleIDsToUpdate, but we create this extra map to handle
+				// software entries that share the same bundle ID as well as other potential corner cases.
+				softwareRenames := make(map[uint]string, len(existingBundleIDsToUpdate))
 				// Check inserted software for renames
 				for _, sw := range r.Inserted {
 					if sw.BundleIdentifier != "" {
@@ -443,7 +444,6 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 						}
 					}
 				}
-
 				// Check existing software for renames
 				for _, s := range existingSoftware {
 					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
@@ -701,10 +701,22 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-		// Note: Multiple checksums can map to the same title (e.g., when names are truncated)
+		// Note: Multiple checksums can map to the same title (e.g., when names are truncated). This should not normally happen.
 		titleStr := UniqueSoftwareTitleStr(
 			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.Browser,
 		)
+		existingChecksums := uniqueTitleStrToChecksums[titleStr]
+		if len(existingChecksums) > 0 {
+			// Log when multiple checksums map to the same title. If we see this regularly, we should fix it.
+			level.Error(ds.logger).Log(
+				"msg", "multiple checksums mapping to same title",
+				"title_str", titleStr,
+				"new_checksum", checksum,
+				"existing_checksums", fmt.Sprintf("%v", existingChecksums),
+				"software_name", sw.Name,
+				"software_version", sw.Version,
+			)
+		}
 		uniqueTitleStrToChecksums[titleStr] = append(uniqueTitleStrToChecksums[titleStr], checksum)
 	}
 
@@ -892,7 +904,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					bundleID string
 					isKernel bool
 				}
-				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle)
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(newTitlesNeeded))
 				for _, title := range newTitlesNeeded {
 					bundleID := ""
 					if title.BundleIdentifier != nil {
@@ -912,7 +924,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				const numberOfArgsPerSoftwareTitles = 5
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
 				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
-				titlesArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
+				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
 
 				for _, title := range uniqueTitlesToInsert {
 					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
@@ -964,7 +976,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						if td.Name == title.Name && td.Source == title.Source && td.Browser == title.Browser && bundleID == titleBundleID {
 							titleIDsByChecksum[checksum] = td.ID
 							// Don't break here - multiple checksums can map to the same title
-							// (e.g., when software has same truncated name but different versions)
+							// (e.g., when software has same truncated name but different versions (very rare))
 						}
 					}
 				}
@@ -992,7 +1004,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				values,
 			)
 
-			args := make([]interface{}, 0, len(batchKeys)*numberOfArgsPerSoftware)
+			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
 			var missingSoftwareTitles []string
 			for _, checksum := range batchKeys {
 				sw := batchSoftware[checksum]
@@ -1107,8 +1119,8 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 	return insertedSoftware, nil
 }
 
-// linkSoftwareToHost links pre-inserted software to a host. This replaces insertNewInstalledHostSoftwareDB
-// but assumes software inventory entries already exist.
+// linkSoftwareToHost links pre-inserted software to a host.
+// This assumes software inventory entries already exist.
 func (ds *Datastore) linkSoftwareToHost(
 	ctx context.Context,
 	tx sqlx.ExtContext,
