@@ -192,6 +192,7 @@ const CalendarEventsModal = ({
       <Button
         type="button"
         variant="inverse"
+        className={`${baseClass}__preview-button`}
         onClick={() => {
           setSelectedPolicyToPreview(undefined);
           togglePreviewCalendarEvent();
@@ -222,6 +223,7 @@ const CalendarEventsModal = ({
         />
         <Button
           variant="inverse"
+          className={`${baseClass}__preview-button`}
           onClick={() => {
             setSelectedPolicyToPreview(undefined);
             togglePreviewCalendarEvent();
