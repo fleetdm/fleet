@@ -80,7 +80,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
 1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
 2. Assign the "Quote #" by combining the "ISO date" (YYYYMMDD) and "Total amount" (e.g. "YYYYMMDD-000000" or "20250212-128400").
-3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote
+3. Make sure the "Customer", "Customer contact", "Total term", "Effective dates", "Billing frequency/timing", and "Payment terms" fields are correctly reflected on the subscription quote.
 4. Insert the correct "Quantity", "Total list price", "Distributor price", and "Effective price" in the table. If a discount is applied to the quote, insert the appropriate ISO date in the "**Discount.**" term at the bottom of the page.
 5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
