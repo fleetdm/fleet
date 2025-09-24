@@ -94,14 +94,14 @@ const PackQueriesTable = ({
             name: "add query",
             buttonText: "Add query",
             iconSvg: "plus",
-            variant: "text-icon",
+            variant: "inverse",
             onClick: onAddPackQuery,
           }}
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
             iconSvg: "close",
-            variant: "text-icon",
+            variant: "inverse",
             onClick: onRemovePackQueries,
           }}
           searchable

@@ -238,7 +238,9 @@ const ScriptBatchDetailsPage = ({
 
     return (
       <>
-        <BackButton text="Back to script activity" path={pathToProgress} />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton text="Back to script activity" path={pathToProgress} />
+        </div>
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
           title={script_name}
@@ -250,7 +252,7 @@ const ScriptBatchDetailsPage = ({
                 {
                   type: "secondary",
                   label: "Show script",
-                  buttonVariant: "text-icon",
+                  buttonVariant: "inverse",
                   iconName: "eye",
                   onClick: () => {
                     setShowBatchScriptDetails(true);
