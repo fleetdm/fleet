@@ -21,7 +21,6 @@ const InheritedBadge = ({
         position={tooltipPosition}
         tipOffset={8}
         underline={false}
-        delayInMs={300} // TODO: Apply pattern of delay tooltip for repeated table tooltips
       >
         <span className={`${baseClass}__element-text`}>Inherited</span>
       </TooltipWrapper>
