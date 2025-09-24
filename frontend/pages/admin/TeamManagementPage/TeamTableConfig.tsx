@@ -96,7 +96,13 @@ const generateTableHeaders = (
         <GitOpsModeTooltipWrapper
           position="left"
           renderChildren={(disableChildren) => (
-            <div className={disableChildren ? "disabled-by-gitops-mode" : ""}>
+            <div
+              className={
+                disableChildren
+                  ? "disabled-by-gitops-mode team-actions-wrapper"
+                  : "team-actions-wrapper"
+              }
+            >
               <ActionsDropdown
                 options={cellProps.cell.value}
                 onChange={(value: string) =>
