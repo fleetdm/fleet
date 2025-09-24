@@ -1769,7 +1769,7 @@ const ManageHostsPage = ({
         name: "run-script",
         onClick: onClickRunScriptBatchAction,
         buttonText: "Run script",
-        variant: "text-icon",
+        variant: "inverse",
         iconSvg: "run",
         iconStroke: true,
         hideButton: !canRunScriptBatch,
@@ -1780,7 +1780,7 @@ const ManageHostsPage = ({
         name: "transfer",
         onClick: onTransferToTeamClick,
         buttonText: "Transfer",
-        variant: "text-icon",
+        variant: "inverse",
         iconSvg: "transfer",
         hideButton:
           !isPremiumTier ||
@@ -1859,7 +1859,7 @@ const ManageHostsPage = ({
           name: "delete host",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
           onClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
