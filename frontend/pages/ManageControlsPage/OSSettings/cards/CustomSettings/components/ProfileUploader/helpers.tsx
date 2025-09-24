@@ -1,10 +1,18 @@
 import React from "react";
 import { AxiosResponse } from "axios";
+
 import { IApiError } from "interfaces/errors";
 import { generateSecretErrMsg } from "pages/SoftwarePage/helpers";
+
 import CustomLink from "components/CustomLink";
 
-export const parseFile = async (file: File): Promise<[string, string]> => {
+export interface IParseFileResult {
+  name: string;
+  platform: string;
+  ext: string;
+}
+
+export const parseFile = async (file: File): Promise<IParseFileResult> => {
   // get the file name and extension
   const nameParts = file.name.split(".");
   const name = nameParts.slice(0, -1).join(".");
@@ -12,13 +20,17 @@ export const parseFile = async (file: File): Promise<[string, string]> => {
 
   switch (ext) {
     case "xml": {
-      return [name, "Windows"];
+      return {
+        name,
+        platform: "Windows",
+        ext,
+      };
     }
     case "mobileconfig": {
-      return [name, "macOS, iOS, iPadOS"];
+      return { name, platform: "macOS, iOS, iPadOS", ext };
     }
     case "json": {
-      return [name, "macOS, iOS, iPadOS"];
+      return { name, platform: "Android or macOS(DDM)", ext };
     }
     default: {
       throw new Error(`Invalid file type: ${ext}`);
@@ -81,6 +93,55 @@ const generateUserChannelLearnMoreErrMsg = (errMsg: string) => {
 // eslint-disable-next-line import/prefer-default-export
 export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
   const apiReason = err?.data?.errors?.[0]?.reason;
+
+  if (apiReason.includes("should include valid JSON")) {
+    return "Couldn't add. The profile should include valid JSON.";
+  }
+
+  if (apiReason.includes("JSON is empty")) {
+    return "Couldn't add. The JSON file doesn't include any fields.";
+  }
+
+  if (apiReason.includes("Keys in declaration (DDM) profile")) {
+    return (
+      <>
+        <span>
+          Couldn&apos;t add. Keys in declaration (DDM) profile must contain only
+          letters and start with a uppercase letter. Keys in Android profile
+          must contain only letters and start with a lowercase letter.{" "}
+        </span>
+        <CustomLink
+          text="Learn more"
+          newTab
+          variant="flash-message-link"
+          url="https://fleetdm.com/learn-more-about/how-to-craft-android-profile"
+        />
+      </>
+    );
+  }
+
+  if (
+    apiReason.includes("apple declaration missing Type") ||
+    apiReason.includes("apple declaration missing Payload")
+  ) {
+    return 'Couldn\'t add. Declaration (DDM) profile must include "Type" and "Payload" fields.';
+  }
+
+  if (
+    apiReason.includes(
+      'Android configuration profile can\'t include "statusReportingSettings"'
+    )
+  ) {
+    return (
+      <>
+        <span>
+          Couldn&apos;t add. Android configuration profile can&apos;t include
+          {'"statusReportingSettings"'} setting. To see host vitals, go to{" "}
+          <b>Host details</b>.
+        </span>
+      </>
+    );
+  }
 
   if (
     apiReason.includes(

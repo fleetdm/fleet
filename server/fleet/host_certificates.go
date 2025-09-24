@@ -220,16 +220,22 @@ func ExtractDetailsFromOsqueryDistinguishedName(str string) (*HostCertificateNam
 	str = strings.ReplaceAll(str, `\/`, `<<SLASH>>`) // Replace with our own "safe" sequence
 	parts := strings.Split(str, "/")
 
+	if len(parts) == 1 {
+		// Try to split into parts based on +
+		parts = strings.Split(str, "+")
+	}
+
 	var details HostCertificateNameDetails
 	for _, part := range parts {
-		kv := strings.Split(part, "=")
-		if len(kv) != 2 {
+		key, value, found := strings.Cut(part, "=")
+
+		if !found {
 			return nil, fmt.Errorf("invalid distinguished name, wrong key value pair format: %s", str)
 		}
 
-		value := strings.ReplaceAll(strings.Trim(kv[1], " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
+		value = strings.ReplaceAll(strings.Trim(value, " "), `<<SLASH>>`, `/`) // Replace our "safe" sequence with forward slash
 
-		switch strings.ToUpper(kv[0]) {
+		switch strings.ToUpper(key) {
 		case "C":
 			details.Country = strings.Trim(value, " ")
 		case "O":

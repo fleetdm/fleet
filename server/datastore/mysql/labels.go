@@ -148,9 +148,9 @@ DELETE FROM label_membership WHERE label_id = ?
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))
 `
-				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -174,10 +174,10 @@ func batchHostnames(hostnames []string) [][]string {
 	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
 	//
 	// WARNING: This is used in ApplyLabelSpecsWithAuthor and the batch sizes have to be small
-	// enough to allow for three copies each hostname list in the query. The batch size is 20_000
+	// enough to allow for three copies each hostname list in the query. The batch size is 15_000
 	// because 60_001 binding arguments is less than the maximum of 65,535.
 
-	const batchSize = 20_000 // Large, but well under the undocumented limit
+	const batchSize = 15_000 // Large, but well under the undocumented limit
 	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
 
 	for batchSize < len(hostnames) {
@@ -838,7 +838,8 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query += `
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
+		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?
+		  LEFT JOIN android_devices ad ON ad.host_id = h.id`
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
@@ -846,6 +847,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.MacOSSettingsFilter.IsValid() {
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
+	}
+
+	if opt.OSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAndroidProfilesStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))

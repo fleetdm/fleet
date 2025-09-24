@@ -396,7 +396,7 @@ func resendDeviceConfigurationProfileEndpoint(ctx context.Context, request inter
 	}
 
 	req := request.(*resendDeviceConfigurationProfileRequest)
-	err := svc.ResendHostMDMProfile(ctx, host.ID, req.ProfileUUID)
+	err := svc.ResendDeviceHostMDMProfile(ctx, host, req.ProfileUUID)
 	if err != nil {
 		return resendDeviceConfigurationProfileResponse{
 			Err: err,

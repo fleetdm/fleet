@@ -1,0 +1,25 @@
+.manage-labels-page {
+  &__header-wrap {
+    @include normalize-team-header;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+  }
+
+  &__text {
+    margin-right: 16px;
+  }
+
+  &__title {
+    h1 {
+      margin: 0;
+    }
+  }
+
+  &__action-button-container {
+    display: flex;
+    align-items: center;
+  }
+}

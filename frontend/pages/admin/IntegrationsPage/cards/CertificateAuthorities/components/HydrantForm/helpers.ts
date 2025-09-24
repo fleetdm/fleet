@@ -59,8 +59,9 @@ export const generateFormValidations = (
           isValid: (formData: IHydrantFormData) => {
             return (
               isEditing ||
-              certAuthorities.find((cert) => cert.name === formData.name) ===
-                undefined
+              certAuthorities.find(
+                (cert) => cert.type === "hydrant" && cert.name === formData.name
+              ) === undefined
             );
           },
           message: "Name is already used by another Hydrant CA.",

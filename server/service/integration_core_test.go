@@ -13782,7 +13782,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AndroidPolicyID:      ptr.Uint(1),
+				AppliedPolicyID:      ptr.String("1"),
 				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
@@ -13812,7 +13812,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
 		},
 	}

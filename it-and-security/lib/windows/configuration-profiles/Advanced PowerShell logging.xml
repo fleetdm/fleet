@@ -1,12 +1,12 @@
 <Replace>
-  <!-- Powershell configs, modify the admx keys as needed for your env -->     
+  <CmdID>1</CmdID>
   <Item>
-    <Meta>
-      <Format xmlns="syncml:metinf">chr</Format>
-    </Meta>
     <Target>
       <LocURI>./Device/Vendor/MSFT/Policy/Config/WindowsPowerShell/TurnOnPowerShellScriptBlockLogging</LocURI>
     </Target>
+    <Meta>
+      <Format xmlns="syncml:metinf">chr</Format>
+    </Meta>
     <Data>
       <![CDATA[<enabled/><data id="ExecutionPolicy" value="AllSigned"/>
       <data id="Listbox_ModuleNames" value="*"/>
