@@ -95,6 +95,41 @@ module.exports.routes = {
     }
   },
 
+  'GET /scripts': {
+    action: 'view-scripts',
+    locals: {
+      currentSection: 'more',
+      pageTitleForMeta: 'Scripts',
+      pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
+    }
+  },
+
+  'GET /scripts/:slug': {
+    action: 'view-script-details',
+    locals: {// Meta title set in view action
+      currentSection: 'more',
+      pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
+    }
+  },
+
+  'GET /mdm-commands': {
+    action: 'view-mdm-commands',
+    locals: {
+      currentSection: 'more',
+      pageTitleForMeta: 'MDM commands',
+      pageDescriptionForMeta: 'A collection of commands you can send to devices.'
+    }
+  },
+
+  'GET /mdm-commands/:slug': {
+    action: 'view-command-details',
+    locals: {// Meta title set in view action
+      currentSection: 'more',
+      pageDescriptionForMeta: 'A collection of commands you can send to devices.'
+    }
+  },
+
+
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
@@ -495,7 +530,6 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
     }
   },
-
 
   'GET /configuration-builder': {
     action: 'view-configuration-builder',
@@ -940,6 +974,9 @@ module.exports.routes = {
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
+  'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
+  'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
+  'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
 
   // Sitemap
   // =============================================================================================================
@@ -984,7 +1021,6 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false},
-  'POST /api/v1/webhooks/receive-from-zoom': { action: 'webhooks/receive-from-zoom', csrf: false},
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},// TODO: change this route to match Sails conventions for webhooks and to be in the webhooks/ folder.  Then remove from policies: 'get-est-device-certificate': true, as it'll just be taken care of by being in the right place.
 
 

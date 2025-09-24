@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -362,4 +363,17 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 		ds:    ds,
 	}
 	return svc
+}
+
+func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmock.Service) {
+	t.Helper()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	baseSvc := new(svcmock.Service)
+	svc := &Service{
+		Service: baseSvc,
+		authz:   authorizer,
+		ds:      ds,
+	}
+	return svc, baseSvc
 }

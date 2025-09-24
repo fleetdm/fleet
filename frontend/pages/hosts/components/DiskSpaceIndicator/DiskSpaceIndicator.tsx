@@ -1,39 +1,52 @@
 import React from "react";
 
 import ReactTooltip from "react-tooltip";
+import { PlacesType } from "react-tooltip-5";
+import NotSupported from "components/NotSupported";
+
 import { COLORS } from "styles/var/colors";
 
+import ProgressBar from "components/ProgressBar";
+import TooltipWrapper from "components/TooltipWrapper";
+
+const baseClass = "disk-space-indicator";
 interface IDiskSpaceIndicatorProps {
-  baseClass: string;
   gigsDiskSpaceAvailable: number | "---";
   percentDiskSpaceAvailable: number;
-  id: string;
   platform: string;
-  tooltipPosition?: "top" | "bottom";
+  inTableCell?: boolean;
+  tooltipPosition?: PlacesType;
 }
 
 const DiskSpaceIndicator = ({
-  baseClass,
   gigsDiskSpaceAvailable,
   percentDiskSpaceAvailable,
-  id,
   platform,
+  inTableCell = false,
   tooltipPosition = "top",
 }: IDiskSpaceIndicatorProps): JSX.Element => {
+  // Check if storage measurement is not supported (sentinel value -1)
+  if (
+    typeof gigsDiskSpaceAvailable === "number" &&
+    gigsDiskSpaceAvailable < 0
+  ) {
+    return NotSupported;
+  }
+
   if (gigsDiskSpaceAvailable === 0 || gigsDiskSpaceAvailable === "---") {
-    return <span className={`${baseClass}__data`}>No data available</span>;
+    return <span className={`${baseClass}__empty`}>No data available</span>;
   }
 
   const getDiskSpaceIndicatorColor = (): string => {
     // return space-dependent indicator colors for mac and windows hosts, green for linux
     if (platform === "darwin" || platform === "windows") {
       if (gigsDiskSpaceAvailable < 16) {
-        return "red";
+        return COLORS["ui-error"];
       } else if (gigsDiskSpaceAvailable < 32) {
-        return "yellow";
+        return COLORS["ui-warning"];
       }
     }
-    return "green";
+    return COLORS["status-success"];
   };
 
   const diskSpaceTooltipText = ((): string | undefined => {
@@ -48,41 +61,34 @@ const DiskSpaceIndicator = ({
     return undefined;
   })();
 
+  const renderBar = () => (
+    <ProgressBar
+      sections={[
+        {
+          color: getDiskSpaceIndicatorColor(),
+          portion: percentDiskSpaceAvailable / 100,
+        },
+      ]}
+      width="small"
+    />
+  );
+
   return (
-    <span className={`${baseClass}__data`}>
-      <div
-        className={`${baseClass}__disk-space-wrapper tooltip`}
-        data-tip
-        data-for={`tooltip-${id}`}
-      >
-        <div className={`${baseClass}__disk-space`}>
-          <div
-            className={`${baseClass}__disk-space--${getDiskSpaceIndicatorColor()}`}
-            style={{
-              width: `${percentDiskSpaceAvailable}%`,
-            }}
-            title="disk space indicator"
-          />
-        </div>
-      </div>
-      {diskSpaceTooltipText && (
-        <ReactTooltip
-          className="disk-space-tooltip"
-          place={tooltipPosition}
-          type="dark"
-          effect="solid"
-          id={`tooltip-${id}`}
-          backgroundColor={COLORS["tooltip-bg"]}
+    <span className={baseClass}>
+      {diskSpaceTooltipText ? (
+        <TooltipWrapper
+          position={tooltipPosition}
+          tipOffset={10}
+          showArrow
+          underline={false}
+          tipContent={diskSpaceTooltipText}
         >
-          <span
-            className={`${baseClass}__tooltip-text`}
-            title="disk space tooltip"
-          >
-            {diskSpaceTooltipText}
-          </span>
-        </ReactTooltip>
+          {renderBar()}
+        </TooltipWrapper>
+      ) : (
+        renderBar()
       )}
-      {gigsDiskSpaceAvailable} GB{baseClass === "info-flex" && " available"}
+      {gigsDiskSpaceAvailable} GB{!inTableCell && " available"}
     </span>
   );
 };

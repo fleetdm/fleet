@@ -216,6 +216,7 @@ export interface IGetHostCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export type ILoadHostDetailsExtension = "macadmins";
@@ -618,7 +619,7 @@ export default {
     return sendRequest("POST", HOST_WIPE(id));
   },
 
-  resendProfile: (hostId: number, profileUUID: string) => {
+  resendProfile: (hostId: number, profileUUID: string): Promise<void> => {
     const { HOST_RESEND_PROFILE } = endpoints;
 
     return sendRequest("POST", HOST_RESEND_PROFILE(hostId, profileUUID));

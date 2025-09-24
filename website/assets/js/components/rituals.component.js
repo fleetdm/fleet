@@ -46,8 +46,8 @@ parasails.registerComponent('rituals', {
           <td>{{ritual.task}}</td>
           <td>{{ritual.startedOn}}</td>
           <td>{{ritual.frequency}}</td>
-          <td v-if="!ritual.moreInfoUrl">{{ritual.description}}</td>
-          <td v-else><a :href="ritual.moreInfoUrl">{{ritual.description}}</a></td>
+          <td purpose="ritual-description" v-if="!ritual.moreInfoUrl">{{ritual.description}}</td>
+          <td purpose="ritual-description" v-else><a :href="ritual.moreInfoUrl">{{ritual.description}}</a></td>
           <td>{{ritual.dri}}</td>
         </tr>
       </tbody>

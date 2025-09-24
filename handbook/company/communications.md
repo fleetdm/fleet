@@ -69,12 +69,12 @@ Fleet is successful because of our customers and community, and those relationsh
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_[Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -825,38 +825,56 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Retirement contributions
 
-**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employee’s contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
+**US-based team members:** Starting August 2023, Fleet offers the ability for US-based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employees' contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
 
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+
+
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
-### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
+#### Payroll dates
 
+US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
 
-### Payroll dates
-
-US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
-
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
 
 
-### Workiversaries
+#### Compensation changes
+
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+
+
+#### Exercise stock options
+
+Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
+
+- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
+
+> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
+> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
+
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+
+> Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
+
+- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
+
+
+## Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
 
 
-### Compensation changes
-
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation). 
-
-
-### Relocating
+## Relocating
 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
