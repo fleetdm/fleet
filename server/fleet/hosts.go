@@ -818,7 +818,7 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 func (h *Host) IsLUKSSupported() bool {
 	return h.Platform == "ubuntu" ||
 		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
-		h.Platform == "arch" || h.Platform == "archarm"
+		h.Platform == "arch" || h.Platform == "archarm" || h.Platform == "manjaro"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
