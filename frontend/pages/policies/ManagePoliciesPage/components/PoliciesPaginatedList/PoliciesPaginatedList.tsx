@@ -10,9 +10,17 @@ import React, {
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
-import { useQueryClient } from "react-query";
-import { IPolicy } from "interfaces/policy";
-import teamPoliciesAPI from "services/entities/team_policies";
+import { useQuery, useQueryClient } from "react-query";
+import {
+  IPolicy,
+  ILoadAllPoliciesResponse,
+  ILoadTeamPoliciesResponse,
+  IPoliciesCountResponse,
+} from "interfaces/policy";
+import teamPoliciesAPI, {
+  IPoliciesApiParams,
+  IPoliciesCountApiParams,
+} from "services/entities/team_policies";
 import globalPoliciesAPI from "services/entities/global_policies";
 
 import { APP_CONTEXT_ALL_TEAMS_ID } from "interfaces/team";
@@ -78,6 +86,8 @@ function PoliciesPaginatedList(
 
   const [saveDisabled, setSaveDisabled] = useState<string | boolean>(false);
 
+  const [pageNumber, setPageNumber] = useState(0);
+
   // Allow parents access to the `getDirtyItems` of the underlying PaginatedList.
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
@@ -115,104 +125,90 @@ function PoliciesPaginatedList(
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
-  const fetchPage = useCallback(
-    (pageNumber: number) => {
-      let fetchPromise;
+  // API CALLS
+  let policiesQueryKey: IPoliciesApiParams;
+  let policiesQueryAPI: (
+    params: IPoliciesApiParams
+  ) => Promise<ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse>;
+  let countQueryKey: IPoliciesCountApiParams;
+  let countQueryAPI: (
+    params: IPoliciesCountApiParams
+  ) => Promise<IPoliciesCountResponse>;
+  if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
+    policiesQueryKey = {
+      page: pageNumber,
+      perPage: DEFAULT_PAGE_SIZE,
+      query: "",
+      orderDirection: "asc" as const,
+      orderKey: DEFAULT_SORT_COLUMN,
+      teamId,
+    };
+    policiesQueryAPI = globalPoliciesAPI.loadAllNew;
+    countQueryKey = {
+      query: "",
+      teamId,
+    };
+    countQueryAPI = globalPoliciesAPI.getCount;
+  } else {
+    policiesQueryKey = {
+      page: pageNumber,
+      perPage: DEFAULT_PAGE_SIZE,
+      query: "",
+      orderDirection: "asc" as const,
+      orderKey: DEFAULT_SORT_COLUMN,
+      teamId,
+      mergeInherited: false,
+    };
+    policiesQueryAPI = teamPoliciesAPI.loadAllNew;
+    countQueryKey = {
+      query: "",
+      teamId,
+      mergeInherited: false,
+    };
+    countQueryAPI = teamPoliciesAPI.getCount;
+  }
 
-      if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
-        fetchPromise = queryClient.fetchQuery(
-          [
-            {
-              scope: "globalPolicies",
-              page: pageNumber,
-              perPage: DEFAULT_PAGE_SIZE,
-              query: "",
-              orderDirection: "asc" as const,
-              orderKey: DEFAULT_SORT_COLUMN,
-            },
-          ],
-          ({ queryKey }) => {
-            return globalPoliciesAPI.loadAllNew(queryKey[0]);
-          }
-        );
-      } else {
-        fetchPromise = queryClient.fetchQuery(
-          [
-            {
-              scope: "teamPolicies",
-              page: pageNumber,
-              perPage: DEFAULT_PAGE_SIZE,
-              query: "",
-              orderDirection: "asc" as const,
-              orderKey: DEFAULT_SORT_COLUMN,
-              teamId,
-              mergeInherited: false,
-            },
-          ],
-          ({ queryKey }) => {
-            return teamPoliciesAPI.loadAllNew(queryKey[0]);
-          }
-        );
-      }
-
-      return fetchPromise.then((policiesResponse) => {
-        // Marshall the response into IFormPolicy objects.
-        return (policiesResponse.policies || []).map((policy) => {
-          return {
-            ...policy,
-            installSoftwareEnabled: !!policy.install_software,
-            swIdToInstall: policy.install_software?.software_title_id,
-            runScriptEnabled: !!policy.run_script,
-            scriptIdToRun: policy.run_script?.id,
-            scriptNameToRun: policy.run_script?.name,
-          };
-        }) as IFormPolicy[];
-      });
+  const { data, isFetching: isLoading } = useQuery<
+    ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse,
+    Error,
+    IFormPolicy[]
+  >([policiesQueryKey], () => policiesQueryAPI(policiesQueryKey), {
+    keepPreviousData: true,
+    select: (
+      policiesResponse: ILoadAllPoliciesResponse | ILoadTeamPoliciesResponse
+    ) => {
+      // Marshall the response into IFormPolicy objects.
+      return (policiesResponse.policies || []).map((policy) => {
+        return {
+          ...policy,
+          installSoftwareEnabled: !!policy.install_software,
+          swIdToInstall: policy.install_software?.software_title_id,
+          runScriptEnabled: !!policy.run_script,
+          scriptIdToRun: policy.run_script?.id,
+          scriptNameToRun: policy.run_script?.name,
+        };
+      }) as IFormPolicy[];
     },
-    [queryClient, teamId]
-  );
+  });
 
-  const fetchCount = useCallback(() => {
-    let fetchPromise;
-
-    if (teamId === APP_CONTEXT_ALL_TEAMS_ID) {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "globalPoliciesCount",
-            query: "",
-          },
-        ],
-        ({ queryKey }) => {
-          return globalPoliciesAPI.getCount(queryKey[0]);
-        }
-      );
-    } else {
-      fetchPromise = queryClient.fetchQuery(
-        [
-          {
-            scope: "teamPoliciesCount",
-            query: "",
-            teamId,
-            mergeInherited: false,
-          },
-        ],
-        ({ queryKey }) => {
-          return teamPoliciesAPI.getCount(queryKey[0]);
-        }
-      );
-    }
-
-    return fetchPromise.then((countResponse) => countResponse.count);
-  }, []);
+  const { data: count, isFetching: isFetchingCount } = useQuery<
+    IPoliciesCountResponse,
+    Error,
+    number
+  >([countQueryKey], () => countQueryAPI(countQueryKey), {
+    select: (countResponse: IPoliciesCountResponse) => countResponse.count,
+  });
 
   return (
     <div className={`${baseClass} form`}>
       <div className="form-field">
         <PaginatedList<IFormPolicy>
           ref={paginatedListRef}
-          fetchPage={fetchPage}
-          fetchCount={fetchCount}
+          data={data || []}
+          count={count || 0}
+          isLoading={isLoading || isFetchingCount}
+          currentPage={pageNumber}
+          onPageIndexChange={setPageNumber}
           isSelected={isSelected}
           isItemDisabled={getPolicyDisabled}
           getItemTooltipContent={getPolicyTooltipContent}
