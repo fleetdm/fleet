@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250904115553, Down_20250904115553)
+	MigrationClient.AddMigration(Up_20250816115553, Down_20250816115553)
 }
 
-func Up_20250904115553(tx *sql.Tx) error {
+func Up_20250816115553(tx *sql.Tx) error {
 	// Replace the inefficient index with an optimized one that includes canceled status
 	// and has created_at in descending order to better support "find latest" queries
 	// This addresses performance issues with hosts having 40,000+ script execution records
@@ -37,7 +37,7 @@ func Up_20250904115553(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20250904115553(_ *sql.Tx) error {
+func Down_20250816115553(_ *sql.Tx) error {
 	// Not used
 	return nil
 }

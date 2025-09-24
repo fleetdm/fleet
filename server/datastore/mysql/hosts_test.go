@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -86,6 +87,7 @@ func TestHosts(t *testing.T) {
 		{"ListStatus", testHostsListStatus},
 		{"ListQuery", testHostsListQuery},
 		{"ListMDM", testHostsListMDM},
+		{"ListMDMAndroid", testHostsListMDMAndroid},
 		{"SelectHostMDM", testHostMDMSelect},
 		{"ListMunkiIssueID", testHostsListMunkiIssueID},
 		{"Enroll", testHostsEnroll},
@@ -1523,6 +1525,125 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 		gotIDs = append(gotIDs, h.ID)
 	}
 	assert.ElementsMatch(t, []uint{hostIDs[0], hostIDs[1], hostIDs[2], hostIDs[10], hostIDs[11]}, gotIDs)
+}
+
+func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	test.AddBuiltinLabels(t, ds)
+
+	// Helper to create Android hosts with specific UUID configurations
+	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {
+		uuid := ""
+		if withUUID {
+			uuid = fmt.Sprintf("enterprise-id-%s", name)
+		}
+
+		androidHost := &fleet.AndroidHost{
+			Host: &fleet.Host{
+				Hostname:       fmt.Sprintf("%s.android.local", name),
+				ComputerName:   name,
+				Platform:       "android",
+				OSVersion:      "Android 14",
+				Build:          "test-build",
+				Memory:         8192,
+				HardwareSerial: fmt.Sprintf("serial-%s", name),
+				CPUType:        "arm64",
+				HardwareModel:  "Pixel",
+				HardwareVendor: "Google",
+				UUID:           uuid,
+			},
+			Device: &android.Device{
+				DeviceID:             fmt.Sprintf("device-%s", name),
+				EnterpriseSpecificID: ptr.String(name),
+				AppliedPolicyID:      ptr.String("1"),
+				AppliedPolicyVersion: ptr.Int64(1),
+				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
+			},
+		}
+		androidHost.SetNodeKey(name)
+
+		result, err := ds.NewAndroidHost(ctx, androidHost)
+		require.NoError(t, err)
+		return result.Host
+	}
+
+	// Create Android hosts with personal enrollment (BYOD - non-empty UUID)
+	_ = createAndroidHostForTest(t, "android-personal-1", true)
+	_ = createAndroidHostForTest(t, "android-personal-2", true)
+
+	// Create Android hosts without personal enrollment (company-owned - empty UUID)
+	_ = createAndroidHostForTest(t, "android-company-1", false)
+	_ = createAndroidHostForTest(t, "android-company-2", false)
+
+	// Android hosts are automatically enrolled in MDM when created with NewAndroidHost
+	// Personal hosts get is_personal_enrollment = 1 based on UUID
+	// Company hosts get is_personal_enrollment = 0 based on empty UUID
+
+	// Create a non-Android host to ensure Android platform filtering works
+	darwinHost, err := ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		OsqueryHostID:   ptr.String("darwin-1"),
+		NodeKey:         ptr.String("darwin-1"),
+		UUID:            "darwin-uuid",
+		Hostname:        "darwin.local",
+		Platform:        "darwin",
+		OSVersion:       "13.0",
+	})
+	require.NoError(t, err)
+	err = ds.SetOrUpdateMDMData(ctx, darwinHost.ID, false, true, "https://fleet.mdm.com", false, fleet.WellKnownMDMFleet, "", true)
+	require.NoError(t, err)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+
+	// Test filtering by personal enrollment status - should return Android personal hosts
+	hosts := listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal}, 3)
+	require.Len(t, hosts, 3, "Should have 2 Android personal hosts + 1 darwin personal host")
+
+	// Count Android personal hosts
+	androidPersonalCount := 0
+	for _, h := range hosts {
+		if h.Platform == "android" {
+			androidPersonalCount++
+			// Verify these are the personal enrollment hosts
+			assert.Contains(t, []string{"android-personal-1.android.local", "android-personal-2.android.local"}, h.Hostname)
+		}
+	}
+	assert.Equal(t, 2, androidPersonalCount, "Should have exactly 2 Android personal hosts")
+
+	// Test filtering by manual enrollment - should return Android company hosts
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusManual}, 2)
+	require.Len(t, hosts, 2, "Should have 2 Android company hosts (manual enrollment)")
+	for _, h := range hosts {
+		assert.Equal(t, "android", h.Platform, "All manual enrollment hosts should be Android")
+		assert.Contains(t, []string{"android-company-1.android.local", "android-company-2.android.local"}, h.Hostname)
+	}
+
+	// Test that Android hosts appear in general enrolled filter
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusEnrolled}, 5)
+	require.Len(t, hosts, 5, "Should have all 5 enrolled hosts (4 Android + 1 darwin)")
+
+	// Count platforms
+	androidCount := 0
+	for _, h := range hosts {
+		if h.Platform == "android" {
+			androidCount++
+		}
+	}
+	assert.Equal(t, 4, androidCount, "Should have all 4 Android hosts in enrolled filter")
+
+	// Test with MDM name filter for Fleet
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{MDMNameFilter: ptr.String(fleet.WellKnownMDMFleet)}, 5)
+	require.Len(t, hosts, 5, "All hosts are enrolled with Fleet MDM")
+
+	// Test combination of personal enrollment and Fleet MDM
+	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{
+		MDMEnrollmentStatusFilter: fleet.MDMEnrollStatusPersonal,
+		MDMNameFilter:             ptr.String(fleet.WellKnownMDMFleet),
+	}, 3)
+	require.Len(t, hosts, 3, "Should have 2 Android + 1 darwin personal hosts with Fleet MDM")
 }
 
 func testHostMDMSelect(t *testing.T, ds *Datastore) {

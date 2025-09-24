@@ -189,7 +189,8 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			hardware_serial = :hardware_serial,
 			cpu_type = :cpu_type,
 			hardware_model = :hardware_model,
-			hardware_vendor = :hardware_vendor
+			hardware_vendor = :hardware_vendor,
+			uuid = :uuid
 		WHERE id = :id
 		`
 		_, err := sqlx.NamedExecContext(ctx, tx, stmt, map[string]interface{}{
@@ -207,6 +208,7 @@ func (ds *Datastore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidH
 			"cpu_type":          host.CPUType,
 			"hardware_model":    host.HardwareModel,
 			"hardware_vendor":   host.HardwareVendor,
+			"uuid":              host.UUID,
 		})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "update Android host")
@@ -394,16 +396,39 @@ func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverU
 		}
 	}
 
-	args := []interface{}{}
+	// Query host UUIDs to determine personal enrollment status
+	// For Android, a non-empty UUID (enterprise_specific_id) indicates a BYOD/personal device
+	type hostInfo struct {
+		ID   uint   `db:"id"`
+		UUID string `db:"uuid"`
+	}
+	var hosts []hostInfo
+	query, args, err := sqlx.In(`SELECT id, uuid FROM hosts WHERE id IN (?)`, hostIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build host query")
+	}
+	if err := sqlx.SelectContext(ctx, tx, &hosts, query, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "query host UUIDs")
+	}
+
+	// Build map of host ID to personal enrollment status
+	hostPersonalEnrollment := make(map[uint]bool)
+	for _, h := range hosts {
+		// Android BYOD devices have a non-empty UUID (enterprise_specific_id)
+		hostPersonalEnrollment[h.ID] = h.UUID != ""
+	}
+
+	args = []interface{}{}
 	parts := []string{}
 	for _, id := range hostIDs {
-		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, id)
-		parts = append(parts, "(?, ?, ?, ?, ?, ?)")
+		isPersonalEnrollment := hostPersonalEnrollment[id]
+		args = append(args, enrolled, serverURL, fromDEP, mdmID, false, isPersonalEnrollment, id)
+		parts = append(parts, "(?, ?, ?, ?, ?, ?, ?)")
 	}
 
 	_, err = tx.ExecContext(ctx, fmt.Sprintf(`
-		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, host_id) VALUES %s
-		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id)`, strings.Join(parts, ",")), args...)
+		INSERT INTO host_mdm (enrolled, server_url, installed_from_dep, mdm_id, is_server, is_personal_enrollment, host_id) VALUES %s
+		ON DUPLICATE KEY UPDATE enrolled = VALUES(enrolled), server_url = VALUES(server_url), mdm_id = VALUES(mdm_id), is_personal_enrollment = VALUES(is_personal_enrollment)`, strings.Join(parts, ",")), args...)
 
 	return ctxerr.Wrap(ctx, err, "upsert host mdm info")
 }
