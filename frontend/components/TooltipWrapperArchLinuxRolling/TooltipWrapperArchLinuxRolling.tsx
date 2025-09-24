@@ -7,7 +7,9 @@ type Props = {
   capitalized?: boolean;
 };
 
-export default function TooltipWrapperArchLinuxRolling({ capitalized = false }: Props) {
+export default function TooltipWrapperArchLinuxRolling({
+  capitalized = false,
+}: Props) {
   return (
     <TooltipWrapper
       tipContent={
