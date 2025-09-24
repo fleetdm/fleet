@@ -421,6 +421,31 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		require.Equal(t, float64(-1), createdHost.Host.GigsDiskSpaceAvailable, "should set available storage to -1 when MEASURED events are missing")
 		require.Equal(t, float64(-1), createdHost.Host.PercentDiskSpaceAvailable, "should set percent available to -1 when MEASURED events are missing")
 	})
+
+	t.Run("uses only latest EXTERNAL_STORAGE_DETECTED event", func(t *testing.T) {
+		createdHost = nil // Reset
+
+		enrollmentMessage := createEnrollmentMessageWithMultipleExternalDetectedEvents(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("multiple-external-test"),
+			EnrollmentTokenData: `{"enroll_secret": "global"}`,
+		})
+
+		err := svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
+		require.NoError(t, err)
+
+		require.NotNil(t, createdHost)
+		require.NotNil(t, createdHost.Host)
+
+		// Should use only the latest EXTERNAL_STORAGE_DETECTED event (120GB)
+		// Total: 1GB (internal) + 120GB (latest external) = 121GB
+		require.Equal(t, 121.0, createdHost.Host.GigsTotalDiskSpace, "should use only latest EXTERNAL_STORAGE_DETECTED event")
+
+		// Available: 96GB (from EXTERNAL_STORAGE_MEASURED)
+		require.InDelta(t, 96.0, createdHost.Host.GigsDiskSpaceAvailable, 0.1, "should calculate available storage")
+
+		// Percentage: 96/121 * 100 = 79.34%
+		require.InDelta(t, 79.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage correctly")
+	})
 }
 
 func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
@@ -496,7 +521,76 @@ func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo andro
 			CreateTime: "2024-01-15T09:00:00Z",
 		},
 		// No INTERNAL_STORAGE_MEASURED or EXTERNAL_STORAGE_MEASURED events
-		// This simulates Work Profile/BYOD device behavior
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
+}
+
+func createEnrollmentMessageWithMultipleExternalDetectedEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		Brand:                "Google",
+		Model:                "Pixel 8a",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "16",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024), // 8GB RAM in bytes
+		TotalInternalStorage: int64(1 * 1024 * 1024 * 1024), // 1GB work profile partition (simulates PROFILE_OWNER)
+	}
+
+	// Simulate with multiple work profile EXTERNAL_STORAGE_DETECTED events
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			CreateTime: "2024-01-15T09:00:00Z",
+			// No byteCount for work profiles
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(96 * 1024 * 1024 * 1024), // 96GB available
+			CreateTime: "2024-01-15T09:00:01Z",
+		},
+		// Multiple EXTERNAL_STORAGE_DETECTED events (simulating the bug scenario)
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB (older event)
+			CreateTime: "2024-01-15T09:00:02Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB
+			CreateTime: "2024-01-15T09:05:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB
+			CreateTime: "2024-01-15T09:10:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(120 * 1024 * 1024 * 1024), // 120GB (latest, different value)
+			CreateTime: "2024-01-15T09:15:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(110 * 1024 * 1024 * 1024), // 110GB (older timestamp than above)
+			CreateTime: "2024-01-15T09:14:00Z",
+		},
 	}
 
 	data, err := json.Marshal(deviceInfo)

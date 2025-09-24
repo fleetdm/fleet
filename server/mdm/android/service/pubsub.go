@@ -565,6 +565,16 @@ func (svc *Service) calculateAndroidStorageMetrics(
 	var totalAvailableBytes int64
 	var hasMeasuredEvents bool
 
+	// Track the latest external storage detection event to avoid accumulation
+	var latestExternalStorageBytes int64
+	var latestExternalStorageTime time.Time
+
+	// Track the latest measured events to avoid accumulation
+	var latestInternalMeasuredBytes int64
+	var latestInternalMeasuredTime time.Time
+	var latestExternalMeasuredBytes int64
+	var latestExternalMeasuredTime time.Time
+
 	for _, event := range device.MemoryEvents {
 		level.Debug(svc.logger).Log(
 			"msg", "Android memory event"+logSuffix,
@@ -572,19 +582,56 @@ func (svc *Service) calculateAndroidStorageMetrics(
 			"byte_count", event.ByteCount,
 			"create_time", event.CreateTime,
 		)
+
+		eventTime, err := time.Parse(time.RFC3339, event.CreateTime)
+		if err != nil {
+			// Log parse error but continue processing
+			level.Debug(svc.logger).Log(
+				"msg", "Failed to parse event time"+logSuffix,
+				"event_type", event.EventType,
+				"create_time", event.CreateTime,
+				"error", err,
+			)
+			continue
+		}
+
 		switch event.EventType {
 		case "EXTERNAL_STORAGE_DETECTED":
-			totalStorageBytes += event.ByteCount
-		case "INTERNAL_STORAGE_MEASURED", "EXTERNAL_STORAGE_MEASURED":
-			totalAvailableBytes += event.ByteCount
-			hasMeasuredEvents = true
+			// Only use the most recent EXTERNAL_STORAGE_DETECTED event
+			if eventTime.After(latestExternalStorageTime) {
+				latestExternalStorageBytes = event.ByteCount
+				latestExternalStorageTime = eventTime
+			}
+		case "INTERNAL_STORAGE_MEASURED":
+			// Only use the most recent INTERNAL_STORAGE_MEASURED event
+			if eventTime.After(latestInternalMeasuredTime) {
+				latestInternalMeasuredBytes = event.ByteCount
+				latestInternalMeasuredTime = eventTime
+				hasMeasuredEvents = true
+			}
+		case "EXTERNAL_STORAGE_MEASURED":
+			// Only use the most recent EXTERNAL_STORAGE_MEASURED event
+			if eventTime.After(latestExternalMeasuredTime) {
+				latestExternalMeasuredBytes = event.ByteCount
+				latestExternalMeasuredTime = eventTime
+				hasMeasuredEvents = true
+			}
 		}
 	}
+
+	// Add the latest external storage value (if any) to the total
+	if latestExternalStorageBytes > 0 {
+		totalStorageBytes += latestExternalStorageBytes
+	}
+
+	// Calculate total available from the latest measured events
+	totalAvailableBytes = latestInternalMeasuredBytes + latestExternalMeasuredBytes
 
 	if totalStorageBytes > 0 {
 		gigsTotalDiskSpace = float64(totalStorageBytes) / (1024 * 1024 * 1024)
 
-		// If we only have DETECTED events (no MEASURED events), storage measurement isn't supported
+		// If we only have DETECTED events (no MEASURED events), available space measurement isn't supported
+		// We can still report total storage capacity but not how much is free/used
 		// We use -1 as sentinel value to indicate "not supported"
 		if !hasMeasuredEvents {
 			gigsDiskSpaceAvailable = -1
