@@ -8,7 +8,7 @@ export interface ITooltipWrapper {
   children: React.ReactNode;
   // default is bottom-start
   position?: PlacesType;
-  isDelayed?: boolean;
+  delayInMs?: number;
   underline?: boolean;
   // Below two props used here to maintain the API of the old TooltipWrapper
   // A clearer system would be to use the 3 below commented props, which describe exactly where they
@@ -49,7 +49,7 @@ const TooltipWrapper = ({
   tipContent,
   tipOffset = 5,
   position = "bottom-start",
-  isDelayed,
+  delayInMs, // TODO: Apply pattern of delay tooltip for repeated table tooltips
   underline = true,
   className,
   tooltipClass,
@@ -83,8 +83,7 @@ const TooltipWrapper = ({
         <ReactTooltip5
           className={tipClassNames}
           id={tipId}
-          delayShow={isDelayed ? 500 : undefined}
-          delayHide={isDelayed ? 500 : undefined}
+          delayShow={delayInMs}
           noArrow={!showArrow}
           place={position}
           opacity={1}

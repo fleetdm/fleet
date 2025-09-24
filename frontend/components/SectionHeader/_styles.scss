@@ -14,6 +14,7 @@
 
   &__sub-title {
     &--grey {
+      font-size: $x-small;
       @include grey-text;
     }
   }
@@ -24,5 +25,10 @@
     font-size: $medium;
     width: 100%;
     color: $core-fleet-black;
+  }
+
+  // GOAL: rely on gap instead of these bottom margins
+  &__no-margin {
+    margin: 0;
   }
 }
