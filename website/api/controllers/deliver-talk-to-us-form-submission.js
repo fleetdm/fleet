@@ -106,7 +106,7 @@ module.exports = {
         lastName,
         organization,
       }).tolerate((err)=>{
-        sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`)
+        sails.log.warn(`When a user (${emailAddress}) submitted the "Talk to us form", an error occured while getting enrichment information for this user. Error from get-enriched helper: ${require('util').inspect(err)}`);
         return {};
       });
 
