@@ -468,11 +468,11 @@ software:
   fleet_maintained_apps:
     - slug: slack/darwin
       install_script:
-        path: ../lib/software/slack-install-script.ps1
+        path: ../lib/software/slack-install-script.sh
       uninstall_script:
-        path: ../lib/software/slack-uninstall-script.ps1
+        path: ../lib/software/slack-uninstall-script.sh
       post_install_script:
-        path: ../lib/software/slack-config-script.ps1
+        path: ../lib/software/slack-config-script.sh
       self_service: true
       labels_include_any:
         - Design
