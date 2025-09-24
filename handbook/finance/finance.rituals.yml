@@ -150,4 +150,14 @@
   autoIssue:  
     labels: [ ":help-finance" ] 
     repo: "confidential"
+-
+  task: "Trademark review"
+  startedOn: "2025-10-24"
+  frequency: "Qurterly"
+  description: "Review status of current Fleet trademark registrations internationally and discuss necessity of current and future registrations."
+  moreInfoUrl: 
+  dri: "hollidayn"
+  autoIssue:  
+    labels: [ ":help-finance" ] 
+    repo: "confidential"
 
