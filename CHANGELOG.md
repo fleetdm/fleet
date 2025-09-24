@@ -1,8 +1,10 @@
-## Fleet 4.73.2 (Sep 19, 2025)
+## Fleet 4.73.2 (Sep 23, 2025)
 
 ### Bug fixes
 
-* Optimized the query used to list a host’s script results so it performs well with large result sets.
+- Optimized the query used to list a host’s script results so it performs well with large result sets.
+- Fixed MySQL DB performance regressions introduced in Fleet 4.73.0/4.73.1 affecting OS versions and software titles read queries.
+
 
 ## Fleet 4.73.1 (Sep 11, 2025)
 
