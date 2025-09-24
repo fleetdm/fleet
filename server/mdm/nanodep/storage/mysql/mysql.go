@@ -115,9 +115,6 @@ WHERE
 	if !consumerKey.Valid { // all auth token fields are set together
 		return nil, storage.ErrNotFound
 	}
-	if err != nil {
-		return nil, err
-	}
 	return &client.OAuth1Tokens{
 		ConsumerKey:       consumerKey.String,
 		ConsumerSecret:    consumerSecret.String,

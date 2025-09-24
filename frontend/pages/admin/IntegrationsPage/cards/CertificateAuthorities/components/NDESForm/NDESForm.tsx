@@ -31,7 +31,6 @@ const NDESForm = ({
   formData,
   submitBtnText,
   isSubmitting,
-  isEditing = false,
   isDirty = true,
   onChange,
   onSubmit,

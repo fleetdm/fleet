@@ -11,8 +11,6 @@ import {
 
 import { IMdmCommandResult } from "interfaces/mdm";
 
-import { createMockSetupSoftwareStatusesResponse } from "__mocks__/deviceUserMock";
-
 import { IHostSoftwareQueryParams } from "./hosts";
 
 export type ILoadHostDetailsExtension = "macadmins";
@@ -43,6 +41,7 @@ export interface IGetDeviceCertificatesResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+  count: number;
 }
 
 export interface IGetDeviceCertsRequestParams extends IListOptions {
@@ -53,7 +52,7 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupSoftwareStatusesResponse {
-  setup_experience_results: { software: ISetupSoftwareStatus[] };
+  setup_experience_results: { software?: ISetupSoftwareStatus[] };
 }
 
 export interface IGetSetupSoftwareStatusesParams {
@@ -179,6 +178,12 @@ export default {
   }: IGetSetupSoftwareStatusesParams): Promise<IGetSetupSoftwareStatusesResponse> => {
     const { DEVICE_SETUP_SOFTWARE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_SOFTWARE_STATUSES(token);
+    return sendRequest("POST", path);
+  },
+
+  resendProfile: (deviceToken: string, profileUUID: string) => {
+    const { DEVICE_RESEND_PROFILE } = endpoints;
+    const path = DEVICE_RESEND_PROFILE(deviceToken, profileUUID);
     return sendRequest("POST", path);
   },
 };

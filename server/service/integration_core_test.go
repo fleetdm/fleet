@@ -10033,7 +10033,9 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
@@ -10051,7 +10053,13 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params interface{}
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -13774,7 +13782,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AndroidPolicyID:      ptr.Uint(1),
+				AppliedPolicyID:      ptr.String("1"),
 				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
@@ -13804,7 +13812,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
 		},
 	}

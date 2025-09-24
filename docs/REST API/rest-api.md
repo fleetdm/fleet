@@ -9846,12 +9846,6 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Falcon.app",
     "display_name": "Crowdstrike Falcon",
     "bundle_identifier": "crowdstrike.falcon.Agent",
-    "available_software": {
-      "fleet_maintained_app": {
-        "id": 4
-      },
-      "app_store_app": null
-    },
     "software_package": {
       "name": "FalconSensor-6.44.pkg",
       "version": "6.44",
@@ -9931,12 +9925,6 @@ Returns information about the specified software. By default, `versions` are sor
     "name": "Logic Pro",
     "display_name": "",
     "bundle_identifier": "com.apple.logic10",
-    "available_software": {
-      "fleet_maintained_app": null,
-      "app_store_app": {
-        "app_store_id": "8675309"
-      }
-    },
     "software_package": null,
     "app_store_app": {
       "name": "Logic Pro",

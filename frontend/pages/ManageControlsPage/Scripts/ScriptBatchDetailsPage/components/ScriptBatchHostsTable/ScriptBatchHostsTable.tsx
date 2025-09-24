@@ -108,7 +108,8 @@ const ScriptBatchHostsTable = ({
         queryParams: newQueryParams,
       });
 
-      router.push(path);
+      // replace instead of push here keeps browser history clear and allows cleaner forward/back navigation
+      router.replace(path);
     },
     [selectedHostStatus, orderKey, orderDirection, batchExecutionId, router]
   );

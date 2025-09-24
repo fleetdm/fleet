@@ -114,3 +114,10 @@ func ToMDMAppleDecl(p *fleet.MDMConfigProfilePayload) *fleet.MDMAppleDeclaration
 		DeclarationUUID: p.ProfileUUID,
 	}
 }
+
+func ToMDMAndroidConfigProfile(p *fleet.MDMConfigProfilePayload) *fleet.MDMAndroidConfigProfile {
+	return &fleet.MDMAndroidConfigProfile{
+		Name:        p.Name,
+		ProfileUUID: p.ProfileUUID,
+	}
+}

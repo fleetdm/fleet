@@ -13,6 +13,9 @@ agent_options:
       logger_tls_period: 10
       pack_delimiter: /
 controls:
+  android_settings:
+    custom_settings:
+    - path: ./lib/profiles/global-android-profile.json
   macos_settings:
     custom_settings:
     - labels_include_all:
