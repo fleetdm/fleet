@@ -167,6 +167,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
                   keyboardSelectableRows
