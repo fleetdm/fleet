@@ -932,6 +932,7 @@ Different types of writing at Fleet have slightly different expectations. Keep t
 - Avoid jargon unless you explain it.
 - Stay aligned with Fleet’s values and overall voice.
 
+
 #### Website copy
 
 - Keep it simple: short sentences, plain English, imperative mood.
