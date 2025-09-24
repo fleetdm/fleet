@@ -1398,20 +1398,12 @@ func preProcessSoftwareResults(
 	updateFleetdVersion(host.Platform, results)
 }
 
-// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table.
-// We do this because orbit uses auto-update mechanism which does not update the installed version on the host.
+// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
+// We do this because orbit uses an auto-update mechanism which does not update the host's package manager database.
 func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQueryResults) {
-	// fleetd is not listed in 'apps' in macOS, so we will just update the versions for Linux
-	// and Windows.
-	if !fleet.IsLinux(hostPlatform) && hostPlatform != "windows" {
+	// Just update the versions for Linux.
+	if !fleet.IsLinux(hostPlatform) {
 		return
-	}
-
-	fleetdPackageName := "fleet-osquery"
-	softwareQueryName := hostDetailQueryPrefix + "software_linux"
-	if hostPlatform == "windows" {
-		fleetdPackageName = "Fleet osquery"
-		softwareQueryName = hostDetailQueryPrefix + "software_windows"
 	}
 
 	orbitInfoResults := results[hostDetailQueryPrefix+"orbit_info"]
@@ -1423,12 +1415,8 @@ func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQu
 		return
 	}
 
-	softwareResults := results[softwareQueryName]
-	if len(softwareQueryName) == 0 {
-		return
-	}
-	for _, row := range softwareResults {
-		if row["name"] != fleetdPackageName {
+	for _, row := range results[hostDetailQueryPrefix+"software_linux"] {
+		if row["name"] != "fleet-osquery" {
 			continue
 		}
 		row["version"] = orbitVersion
