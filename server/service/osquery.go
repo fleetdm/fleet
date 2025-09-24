@@ -1060,6 +1060,12 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	preProcessSoftwareResults(host, results, statuses, messages, osquery_utils.SoftwareOverrideQueries, svc.logger)
 
+	refetchRequested := host.RefetchRequested
+	// If a refetch was requested, we reset the flag here
+	if refetchRequested {
+		host.RefetchRequested = false
+	}
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -1089,6 +1095,11 @@ func (svc *Service) SubmitDistributedQueryResults(
 		if err != nil {
 			logging.WithErr(ctx, ctxerr.New(ctx, "error in query ingestion"))
 			logging.WithExtras(ctx, "ingestion-err", err)
+			if refetchRequested {
+				// if we failed to ingest results for a query that was requested
+				// to be refetched, we should set the refetch flag back to true
+				host.RefetchRequested = true
+			}
 		}
 
 		detailUpdated = detailUpdated || ingestedDetailUpdated
@@ -1199,10 +1210,6 @@ func (svc *Service) SubmitDistributedQueryResults(
 		host.DetailUpdatedAt = svc.clock.Now()
 	}
 
-	refetchRequested := host.RefetchRequested
-	if refetchRequested {
-		host.RefetchRequested = false
-	}
 	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
 	if refetchCriticalSet {
 		level.Debug(svc.logger).Log("msg", "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
