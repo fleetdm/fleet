@@ -4499,3 +4499,53 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
 	}
 }
+
+func TestUpdateFleetdVersion(t *testing.T) {
+	const (
+		orbitInfoQuery     = hostDetailQueryPrefix + "orbit_info"
+		softwareLinuxQuery = hostDetailQueryPrefix + "software_linux"
+	)
+
+	t.Run("updates fleet-osquery version on linux", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "some-other-package", "version": "0.0.1"},
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("linux", results)
+
+		require.Equal(t, "1.2.3", results[softwareLinuxQuery][1]["version"])
+		require.Equal(t, "0.0.1", results[softwareLinuxQuery][0]["version"])
+	})
+
+	t.Run("non-linux platform - does nothing", func(t *testing.T) {
+		originalResults := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("darwin", results)
+		require.Equal(t, originalResults, results)
+
+		updateFleetdVersion("windows", results)
+		require.Equal(t, originalResults, results)
+	})
+}
