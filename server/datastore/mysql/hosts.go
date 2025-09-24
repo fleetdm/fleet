@@ -1067,6 +1067,7 @@ func (ds *Datastore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt
 	}
 
 	hosts := []*fleet.Host{}
+	fmt.Println(sql)
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, sql, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list hosts")
 	}
@@ -1087,7 +1088,11 @@ WHERE
 	sqlStmt := `
 SELECT
     h.id,
-    h.computer_name as display_name,
+    h.computer_name,
+	h.hostname,
+	h.hardware_model,
+	h.hardware_serial,
+	-- if the status filter is "pending", we want to return "pending" for all hosts
     ? as status,
 	-- pending hosts will have "updated_at" set in the db, but since 
 	-- we're using it to mean "executed at" we'll return it as empty.
@@ -1099,6 +1104,7 @@ SELECT
 	COALESCE(hsr.execution_id, '') as execution_id
 FROM
     hosts h
+	JOIN host_display_names hdn ON h.id = hdn.host_id
 	%s
 WHERE
     %s
@@ -1145,6 +1151,10 @@ WHERE
 			meta.HasNextResults = true
 			hosts = hosts[:len(hosts)-1]
 		}
+	}
+
+	for i := range hosts {
+		hosts[i].DisplayName = fleet.HostDisplayName(hosts[i].ComputerName, hosts[i].HostName, hosts[i].HardwareModel, hosts[i].HardwareSerial)
 	}
 
 	return hosts, meta, count, nil
