@@ -4372,9 +4372,9 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 
 `POST /api/v1/fleet/hosts/:id/lock`
@@ -4417,15 +4417,27 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 }
 ```
 
+##### Default response (iOS, iPadOS, Windows, or Linux hosts)
+
+`Status: 200`
+
+```json
+{
+  "device_status": "unlocked",
+  "pending_action": "lock"
+}
+```
+
 > To verify the host successfully locked, you can use the [Get host](https://fleetdm.com/docs/rest-api/rest-api#get-host) endpoint to retrieve the host's `mdm.device_status`.
 
 ### Unlock host
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -4439,7 +4451,7 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response (Windows or Linux hosts)
+##### Default response (iOS, iPadOS, Windows, or Linux hosts)
 
 `Status: 200`
 
