@@ -1,0 +1,1 @@
+- Fixed required query parameters using field name instead of parameter name in error messages

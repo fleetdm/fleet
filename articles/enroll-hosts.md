@@ -213,14 +213,12 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 ### Grant full disk access to osquery on macOS
 
-MacOS does not allow applications to access all system files by default. 
+macOS does not allow applications to access all system files by default. 
 
 If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, you can deploy a "Privacy Preferences Policy Control" policy to grant fleetd or osquery that level of access. 
 
 This is required to query for files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
-
-#### Creating the configuration profile
 
 ##### Obtaining identifiers
 

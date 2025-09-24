@@ -1044,9 +1044,10 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	hostUUID := "uuid"
 	hostPlatform := "windows"
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		ID:       hostID,
-		UUID:     hostUUID,
-		Platform: hostPlatform,
+		ID:            hostID,
+		UUID:          hostUUID,
+		Platform:      hostPlatform,
+		OsqueryHostID: &hostUUID,
 	})
 	require.NoError(t, err)
 
@@ -2082,7 +2083,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 
@@ -2424,7 +2425,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 

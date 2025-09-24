@@ -165,6 +165,7 @@ const AddCertAuthorityModal = ({
         return (
           <DigicertForm
             formData={digicertFormData}
+            certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
             onChange={onChangeForm}
@@ -176,6 +177,7 @@ const AddCertAuthorityModal = ({
         return (
           <HydrantForm
             formData={hydrantFormData}
+            certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
             onChange={onChangeForm}
@@ -198,6 +200,7 @@ const AddCertAuthorityModal = ({
         return (
           <CustomSCEPForm
             formData={customSCEPFormData}
+            certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
             onChange={onChangeForm}

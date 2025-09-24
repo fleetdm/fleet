@@ -31,6 +31,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
@@ -236,7 +237,8 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new" />
+            <IndexRedirect to="manage" />
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
               <Route path="dynamic" component={NewLabelPage} />
@@ -286,16 +288,22 @@ const routes = (
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
+
                 <Route path="setup-experience" component={SetupExperience} />
+                <Route
+                  path="setup-experience/:section"
+                  component={SetupExperience}
+                />
+                <Route
+                  path="setup-experience/:section/:platform"
+                  component={SetupExperience}
+                />
+
                 <Route path="scripts">
                   <IndexRedirect to="library" />
                   <Route path=":section" component={Scripts} />
                 </Route>
                 <Route path="variables" component={Secrets} />
-                <Route
-                  path="setup-experience/:section"
-                  component={SetupExperience}
-                />
               </Route>
             </Route>
             <Route

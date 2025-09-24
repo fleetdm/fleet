@@ -1,3 +1,4 @@
+import { SetupExperiencePlatform } from "interfaces/platform";
 import URL_PREFIX from "./url_prefix";
 
 const INTEGRATIONS_PREFIX = `${URL_PREFIX}/settings/integrations`;
@@ -16,7 +17,8 @@ export default {
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
   CONTROLS_SETUP_ASSITANT: `${URL_PREFIX}/controls/setup-experience/setup-assistant`,
-  CONTROLS_INSTALL_SOFTWARE: `${URL_PREFIX}/controls/setup-experience/install-software`,
+  CONTROLS_INSTALL_SOFTWARE: (platform: SetupExperiencePlatform) =>
+    `${URL_PREFIX}/controls/setup-experience/install-software/${platform}`,
   CONTROLS_RUN_SCRIPT: `${URL_PREFIX}/controls/setup-experience/run-script`,
   CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
   CONTROLS_SCRIPTS_LIBRARY: `${URL_PREFIX}/controls/scripts/library`,
@@ -98,6 +100,7 @@ export default {
   SOFTWARE_ADD_APP_STORE: `${URL_PREFIX}/software/add/app-store`,
 
   // Label pages
+  MANAGE_LABELS: `${URL_PREFIX}/labels/manage`,
   NEW_LABEL: `${URL_PREFIX}/labels/new`,
   // deprecated - now handled by `/new` route
   LABEL_NEW_DYNAMIC: `${URL_PREFIX}/labels/new/dynamic`,

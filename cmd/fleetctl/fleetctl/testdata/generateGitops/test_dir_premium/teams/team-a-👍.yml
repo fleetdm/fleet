@@ -17,6 +17,7 @@ agent_options:
     orbit: edge
     osqueryd: edge
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
   ios_updates:
     deadline: "2021-12-31"

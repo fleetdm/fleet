@@ -751,7 +751,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	}
 
 	// retrieve new app config with obfuscated secrets
-	obfuscatedAppConfig, err := svc.ds.AppConfig(ctxdb.RequirePrimary(ctx, true))
+	obfuscatedAppConfig, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1085,6 +1085,17 @@ func (svc *Service) validateMDM(
 		}
 	}
 	checkCustomSettings("windows", mdm.WindowsSettings.CustomSettings.Value)
+
+	// Check oldMdm as we bypass the patching of this value, as it's enabled and disabled elsewhere.
+	if !oldMdm.AndroidEnabledAndConfigured {
+		if mdm.AndroidSettings.CustomSettings.Set &&
+			len(mdm.AndroidSettings.CustomSettings.Value) > 0 &&
+			!fleet.MDMProfileSpecsMatch(mdm.AndroidSettings.CustomSettings.Value, oldMdm.AndroidSettings.CustomSettings.Value) {
+			invalid.Append("android_settings.custom_settings",
+				`Couldn’t edit android_settings.custom_settings. Android MDM isn’t turned on. This can be enabled by setting "controls.android_enabled_and_configured: true" in the default configuration. Visit https://fleetdm.com/guides/android-mdm-setup and https://fleetdm.com/docs/configuration/yaml-files#controls to learn more about enabling MDM.`)
+		}
+	}
+	checkCustomSettings("android", mdm.AndroidSettings.CustomSettings.Value)
 
 	// MacOSUpdates
 	updatingMacOSVersion := mdm.MacOSUpdates.MinimumVersion.Value != "" &&

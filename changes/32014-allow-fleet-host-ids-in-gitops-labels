@@ -1,0 +1,1 @@
+- Added ability to specify a Fleet host ID when declaring a manual label in a Gitops YAML file

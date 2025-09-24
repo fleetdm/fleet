@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { createCustomRenderer } from "test/test-utils";
 
 import createMockUser from "__mocks__/userMock";
@@ -127,20 +127,20 @@ describe("Host Summary section", () => {
       const osqueryVersion = summaryData.osquery_version as string;
       const fleetdVersion = summaryData.fleet_desktop_version as string;
 
-      render(<HostSummary summaryData={summaryData} />);
+      const { user } = render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
-      await fireEvent.mouseEnter(
-        screen.getByText(new RegExp(orbitVersion, "i"))
-      );
+      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
 
-      expect(
-        screen.getByText(new RegExp(osqueryVersion, "i"))
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(new RegExp(fleetdVersion, "i"))
-      ).toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(new RegExp(osqueryVersion, "i"))
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(new RegExp(fleetdVersion, "i"))
+        ).toBeInTheDocument();
+      });
     });
 
     it("omit fleet desktop from tooltip if no fleet desktop version", async () => {
@@ -159,18 +159,18 @@ describe("Host Summary section", () => {
       const orbitVersion = summaryData.orbit_version as string;
       const osqueryVersion = summaryData.osquery_version as string;
 
-      render(<HostSummary summaryData={summaryData} />);
+      const { user } = render(<HostSummary summaryData={summaryData} />);
 
       expect(screen.getByText("Agent")).toBeInTheDocument();
 
-      await fireEvent.mouseEnter(
-        screen.getByText(new RegExp(orbitVersion, "i"))
-      );
+      await user.hover(screen.getByText(new RegExp(orbitVersion, "i")));
 
-      expect(
-        screen.getByText(new RegExp(osqueryVersion, "i"))
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
+      await waitFor(() => {
+        expect(
+          screen.getByText(new RegExp(osqueryVersion, "i"))
+        ).toBeInTheDocument();
+        expect(screen.queryByText(/Fleet desktop:/i)).not.toBeInTheDocument();
+      });
     });
 
     it("for Chromebooks, render Agent header with osquery_version that is the fleetd chrome version and no tooltip", async () => {
@@ -332,6 +332,100 @@ describe("Host Summary section", () => {
         />
       );
       expect(screen.getByText("Bootstrap package")).toBeInTheDocument();
+    });
+  });
+
+  describe("Disk space field visibility", () => {
+    it("hides disk space field when storage measurement is not supported (sentinel value -1)", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: -1,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should not be rendered at all
+      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
+    });
+
+    it("shows disk space field for zero storage (disk full)", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: 0,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should be rendered
+      expect(screen.getByText("Disk space")).toBeInTheDocument();
+    });
+
+    it("renders disk space normally for positive values", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: 25.5,
+        percent_disk_space_available: 50,
+        platform: "darwin",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should be rendered with the value
+      expect(screen.getByText("Disk space")).toBeInTheDocument();
+    });
+
+    it("handles other negative values as not supported", () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const summaryData = createMockHostSummary({
+        gigs_disk_space_available: -10,
+        percent_disk_space_available: 0,
+        platform: "android",
+      });
+
+      render(<HostSummary summaryData={summaryData} />);
+
+      // Disk space field should not be rendered for any negative value
+      expect(screen.queryByText("Disk space")).not.toBeInTheDocument();
     });
   });
 });

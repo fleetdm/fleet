@@ -15,7 +15,7 @@ interface IHostLinkProps {
   condensed?: boolean;
   excludeChevron?: boolean;
   responsive?: boolean;
-  customText?: string;
+  customContent?: React.ReactNode;
   /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
   /** Don't actually create a link, useful when click is handled by an ancestor */
@@ -31,7 +31,7 @@ const ViewAllHostsLink = ({
   condensed = false,
   excludeChevron = false,
   responsive = false,
-  customText,
+  customContent,
   rowHover = false,
   noLink = false,
 }: IHostLinkProps): JSX.Element => {
@@ -65,7 +65,7 @@ const ViewAllHostsLink = ({
         <span
           className={`${baseClass}__text${responsive ? "--responsive" : ""}`}
         >
-          {customText ?? "View all hosts"}
+          {customContent ?? "View all hosts"}
         </span>
       )}
       {!excludeChevron && (
