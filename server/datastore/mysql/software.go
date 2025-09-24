@@ -423,8 +423,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			r.Inserted = inserted
 
 			// Also link existing software that matches by bundle ID
-			// This handles the case where software has the same bundle ID but different name
-			var bundleUpdated []softwareIDChecksum
+			// This handles the case where software has the same bundle ID but different name.
+			// Since this is a rare case, it is not optimized for performance.
 			if len(existingBundleIDsToUpdate) > 0 {
 				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
 				if err != nil {
@@ -432,19 +432,31 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				}
 				r.Inserted = append(r.Inserted, bundleInserted...)
 
-				// Collect the existing software that needs renaming
-				for _, s := range existingSoftware {
-					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
-						if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-							bundleUpdated = append(bundleUpdated, s)
+				// Build map of software IDs to their new names for renaming
+				softwareRenames := make(map[uint]string)
+
+				// Check inserted software for renames
+				for _, sw := range r.Inserted {
+					if sw.BundleIdentifier != "" {
+						if updSoftware, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
+							softwareRenames[sw.ID] = updSoftware.Name
 						}
 					}
 				}
-			}
 
-			// Update software names for bundle ID matches
-			if err = updateTargetedBundleIDs(ctx, tx, hostID, r.Inserted, bundleUpdated, existingBundleIDsToUpdate); err != nil {
-				return err
+				// Check existing software for renames
+				for _, s := range existingSoftware {
+					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
+						if updSoftware, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+							softwareRenames[s.ID] = updSoftware.Name
+						}
+					}
+				}
+
+				// Update software names for bundle ID matches
+				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+					return err
+				}
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -468,59 +480,33 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	return r, err
 }
 
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, insertedSoftware []fleet.Software, updatedSoftware []softwareIDChecksum, bundleIDsToSoftware map[string]fleet.Software) error {
-	if len(bundleIDsToSoftware) == 0 {
+// updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
+// softwareRenames maps software IDs to their new names.
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
+	if len(softwareRenames) == 0 {
 		return nil
 	}
 
-	// inserted/updated software id -> software whose name has changed (name / last_opened_at)
-	softwareIDToUpdate := make(map[uint]fleet.Software)
-	var softwareIDs []uint
-
-	// checking inserted software
-	for _, software := range insertedSoftware {
-		if software.BundleIdentifier != "" {
-			if updSoftware, needsUpdate := bundleIDsToSoftware[software.BundleIdentifier]; needsUpdate {
-				softwareIDToUpdate[software.ID] = updSoftware
-				softwareIDs = append(softwareIDs, software.ID)
-			}
-		}
-	}
-
-	// checking existing software
-	for _, software := range updatedSoftware {
-		if software.BundleIdentifier != nil && *software.BundleIdentifier != "" {
-			if updSoftware, needsUpdate := bundleIDsToSoftware[*software.BundleIdentifier]; needsUpdate {
-				softwareIDToUpdate[software.ID] = updSoftware
-				softwareIDs = append(softwareIDs, software.ID)
-			}
-		}
-	}
-
-	if len(softwareIDToUpdate) == 0 {
-		return nil
+	// Extract software IDs for batch processing
+	softwareIDs := make([]uint, 0, len(softwareRenames))
+	for id := range softwareRenames {
+		softwareIDs = append(softwareIDs, id)
 	}
 
 	const batchSize = 100
 	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
 		updateCases := make([]string, 0, len(batch))
-		updateCaseArgs := make([]any, 0, len(batch))
+		updateCaseArgs := make([]any, 0, len(batch)*2)
 		updateWhereArgs := make([]any, 0, len(batch))
 		updateIDs := make([]string, 0, len(batch))
 
-		insertArgs := make([]any, 0, len(batch)*3)
-		insertValues := make([]string, 0, len(batch))
-
 		for _, id := range batch {
-			software := softwareIDToUpdate[id]
+			newName := softwareRenames[id]
 
 			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateCaseArgs = append(updateCaseArgs, id, software.Name)
+			updateCaseArgs = append(updateCaseArgs, id, newName)
 			updateWhereArgs = append(updateWhereArgs, id)
 			updateIDs = append(updateIDs, "?")
-
-			insertValues = append(insertValues, "(?, ?, ?)")
-			insertArgs = append(insertArgs, hostID, id, software.LastOpenedAt)
 		}
 
 		updateStmt := fmt.Sprintf(
@@ -531,15 +517,6 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uin
 
 		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch update software names")
-		}
-
-		insertStmt := fmt.Sprintf(
-			`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`,
-			strings.Join(insertValues, ", "),
-		)
-
-		if _, err := tx.ExecContext(ctx, insertStmt, insertArgs...); err != nil {
-			return ctxerr.Wrap(ctx, err, "batch insert host software")
 		}
 
 		return nil
