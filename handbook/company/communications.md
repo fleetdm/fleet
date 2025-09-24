@@ -885,7 +885,6 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 - [Writing style](https://fleetdm.com/handbook/company/communication#writing-style)
 - [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
-- [Further inspiration](#further-inspiration)
 - [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance)
 - [Writing mechanics](#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](#writing-in-fleet-flavored-markdown)
