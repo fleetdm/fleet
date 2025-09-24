@@ -21,14 +21,35 @@ type SoftwareMatchingRules []SoftwareMatchingRule
 // GetKnownOVALBugRules returns a list of SoftwareMatchingRules used for
 // ignoring false positives detected during the OVAL vuln. detection process.
 func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
-	rules := SoftwareMatchingRules{ // Would it be more efficient to use a map? It's a very small list of things
+	rules := SoftwareMatchingRules{
+		// OVAL source only lists date versions of microcode_ctl
+		// while the fedora package uses semantic version. Causing
+		// it to match 2.1 < 20250211
 		{
 			Name:            "microcode_ctl",
 			VersionResolved: "2.1",
 			CVEs: map[string]struct{}{
-				"CVE-2022-21216": {}, // release: 53.1.fc37
-				"CVE-2022-33196": {}, // release: 53.1.fc37
-				"CVE-2022-41804": {}, // release: 55.1.fc38
+				"CVE-2022-21216": {},
+				"CVE-2022-33196": {},
+			},
+			MatchIf: func(s fleet.Software) bool {
+				return nvd.SmartVerCmp(s.Release, "53.1.fc37") >= 0
+			},
+		},
+		{
+			Name:            "microcode_ctl",
+			VersionResolved: "2.1",
+			CVEs: map[string]struct{}{
+				"CVE-2022-41804": {},
+			},
+			MatchIf: func(s fleet.Software) bool {
+				return nvd.SmartVerCmp(s.Release, "55.1.fc38") >= 0
+			},
+		},
+		{
+			Name:            "microcode_ctl",
+			VersionResolved: "2.1",
+			CVEs: map[string]struct{}{
 				"CVE-2023-22655": {},
 				"CVE-2023-28746": {},
 				"CVE-2023-34440": {},
@@ -50,6 +71,9 @@ func GetKnownOVALBugRules() (SoftwareMatchingRules, error) {
 				"CVE-2025-20012": {},
 				"CVE-2025-20623": {},
 				"CVE-2025-24495": {},
+			},
+			MatchIf: func(s fleet.Software) bool {
+				return nvd.SmartVerCmp(s.Release, "70.fc42") >= 0
 			},
 		},
 		{
@@ -81,7 +105,6 @@ func (rules SoftwareMatchingRules) MatchesAny(s fleet.Software, cve string) bool
 		return false
 	}
 	if strings.TrimSpace(s.Version) == "" {
-		// TODO: maybe log this
 		return false
 	}
 

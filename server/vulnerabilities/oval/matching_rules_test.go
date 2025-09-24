@@ -47,25 +47,25 @@ func TestSoftwareMatchingRules(t *testing.T) {
 	s1 := softwareFixture{
 		Name:    "microcode_ctl",
 		Version: "2.1",
-		// Release: "70.fc42",
+		Release: "70.fc42",
 	}
 
-	match := rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version}, "CVE-2025-20012")
+	match := rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version, Release: s1.Release}, "CVE-2025-20012")
 	require.True(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "2.2"}, "CVE-2025-20012")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "2.2", Release: s1.Release}, "CVE-2025-20012")
 	require.True(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "2.0"}, "CVE-2025-20012")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "2.0", Release: s1.Release}, "CVE-2025-20012")
 	require.False(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "20220207"}, "CVE-2024-23984")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "20250211", Release: "1.el9"}, "CVE-2024-23984")
 	require.False(t, match)
 
-	match = rules.MatchesAny(fleet.Software{Name: "  ", Version: s1.Version}, "CVE-2025-20012")
+	match = rules.MatchesAny(fleet.Software{Name: "  ", Version: s1.Version, Release: s1.Release}, "CVE-2025-20012")
 	require.False(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "    "}, "CVE-2025-20012")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: "    ", Release: s1.Release}, "CVE-2025-20012")
 	require.False(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version}, "CVE-1111-11111")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version, Release: s1.Release}, "CVE-1111-11111")
 	require.False(t, match)
-	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version}, "")
+	match = rules.MatchesAny(fleet.Software{Name: s1.Name, Version: s1.Version, Release: s1.Release}, "")
 	require.False(t, match)
 
 	rules = append(rules, SoftwareMatchingRule{
