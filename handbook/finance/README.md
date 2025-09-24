@@ -434,14 +434,18 @@ When reviewing contracts from a vendor, Fleet is concerned about the following:
 
 ### Review an order form
 
+Within 1 business day, at a minimum, [Deal Desk](https://fleetdm.com/handbook/finance#team) will review order forms to be sent. 
+
 Using the this [order form review](https://fleetdm.zoom.us/clips/share/M79m0GZUS_GmF1R7go5T7A) and the [TEMPLATE - Subscription order form (confidential document)](https://docs.google.com/document/d/1X4fh2LsuFtAVyQDnU1ZGBggqg-Ec00vYHACyckEooqA/edit?tab=t.0) as an examples, check the document for correct format, pricing info, terms, "Fast-track deployment services" info, or any other missing details. 
-1. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
-2. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
-3. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
-4. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
-5. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
-6. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
-7. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to Nathanael Holliday with concerns.
+1. Navigate to the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) to review any order forms pending approval.
+2. Be sure the order form includes a quality logo that matches the customer company and is correctly sized.
+3. Navigate to the future customer's opportunity in Salesforce and verify the contact information + billing address and information so that Fleet knows how and who to invoice for payment.
+4. Verify. There is a good quality and decently sized customer logo in the top right corner of the order form a good way to pull this is off of Linkedin. If you're having trouble finding it.
+5. Next, as you're going down the page, you're going to verify the customer information and terms. Verify the customer name and address, the billing contact. And you'll be verifying these against the same information that should be in Salesforce. The billing contact (or an economic buyer) in salesforce should be the same person as your billing contact on the order form.
+6. Verify the effective dates and total term match that in salesforce. E.g. If your effective dates are January 1st to December 31st of the same year, your total term is 12 months . If your effective dates are January 1st of 2025 to December 31st of 2028, your total term is 36 months. It's very important that the breakdown table, effective dates, and the total term all match. Otherwise the math won't come out correct.
+7. Verify that the math in this table is correct. You can do that by going to the "Template gallery" in Google sheets and pull up the order form calculator. Copy the number of host and the unit price from the order form to the order form calculator and compare the order form to the order form calculator. Using the order form caluculator as the source of truth, if needed, adjust the values in the table to be correct.
+8. Lastly, double check one more time to make sure there are no sneaky, unusual terms snuck in at the bottom of an order form or stashed away in fine print.  Common things that are included in order forms and not always communicated to Fleet are caps on price increases upon renewal, new SLAs, or a product roadmap or milestones we may not have agreed upon.  Any clauses on an order form that appear beyond the scope of simply elaborating on the services being provided, the purchase cost, the contract that the purchase is being made under, how Fleet will bill and how the customer will pay deserves a careful look.  Reach out to [Deal Desk](https://fleetdm.com/handbook/finance#team) with concerns.
+9. `@`-mention the requestor in the thread to request changes or provide approval.
 
 
 ### Review a non-standard subscription agreement
@@ -450,15 +454,14 @@ We want to use our standard terms whenever possible with our customers, but it i
 When reviewing subscription agreements on customer paper or when a customer has made changes to Fleet's terms, we review it using [these guidelines](https://docs.google.com/document/d/1aGgN5It1i3fdsBF37vWSbvukO_gQhy5vCp4fINg191Q/edit?usp=sharing).
 
 
-### Obtain a signature from the CEO
+### Obtain a signature from the CFO
 
-When an agreement is routed to the CEO for signature, the [Head of Digital Workplace & GTM Systems](https://fleetdm.com/handbook/it-and-enablement#team) is responsible for obtaining a signature from the CEO using the following steps:
-1. Drag the email to the ["🔏 SAM: Signature wanted"](https://mail.google.com/mail/u/0/#label/SAM%3A+Signature+wanted) label making sure to mark the email as unread.
-2. [Deal Desk](https://fleetdm.com/handbook/finance#team) will at-mention the Head of Digital Workplace & GTM Systems in a legal review issue, letting them know the contract is good to go. After that, move the email to the "[✍️ MIKE: Ready to sign](https://mail.google.com/mail/u/0/#label/%E2%9C%8D%EF%B8%8F+MIKE%3A+Ready+to+sign)" label
+When an agreement is routed to the [CFO](https://fleetdm.com/handbook/finance#team) for signature, use the following steps to get the agreement signed:
+1. [Deal Desk](https://fleetdm.com/handbook/finance#team) will at-mention the CFO in a legal review issue, letting them know the contract is good to go.
 
-> If the agreement closes a deal, inform the CEO (via Slack DM) that a subscription agreement is ready for his review/signature. The SLA for CEO review and signature is 48hrs.
+> If the agreement closes a deal, inform the CFO (via Slack) that a subscription agreement is ready for his review/signature. The SLA for CFO review and signature is 48hrs.
 
-3. Comment in the issue once the CEO has signed the agreement and assign the issue to [Nathan Holiday](https://fleetdm.com/handbook/finance#team).
+2. The CFO will comment in the issue once they've signed the agreement and assign the issue to [Deal Desk](https://fleetdm.com/handbook/finance#team) to confirm a signed copy of the agreement is correctly stored in Google Drive. Then the issue can be closed.  
 
 
 ### Monitor compliance tests

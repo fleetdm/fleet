@@ -315,7 +315,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       const value = cellProps.cell.value;
       if (
         value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling"
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
       ) {
         return (
           <TextCell
