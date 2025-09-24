@@ -17,7 +17,15 @@ Fleet is used in production by IT and security teams with thousands of laptops a
 - **Get what you need:** Fleet lets you work directly with [data](https://fleetdm.com/integrations) and events from the native operating system. It lets you go all the way down to the bare metal. It’s also modular. (You can turn off features you are not using.)
 - **Out of the box:** Ready-to-use integrations exist for the [most common tools](https://fleetdm.com/integrations). You can also build custom workflows with the REST API, webhook events, and the fleetctl command line tool. Or go all in and govern computers [with GitOps](https://github.com/fleetdm/fleet-gitops).
 - **Good neighbors:** We think tools should be as easy as possible for everyone to understand. We helped [create osquery](https://fleetdm.com/handbook/company#history), and we are committed to improving it.
-- **Free as in free:** The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is independently backed and actively maintained with the help of many amazing contributors.
+- **Free as in free:** The free version of Fleet will [always be free](https://fleetdm.com/pricing). Fleet is independently backed and actively maintained with the help of many amazing contributors.
+
+## Scope transparency
+
+With Fleet, transparency is built in. IT and security teams can verify exactly how the agent works. End users can see what the agent is capable of and what kinds of data their company chooses to collect.
+
+Fleet is designed to collect only the data needed to manage and secure devices—things like user accounts, device health, installed software, and security settings. It isn’t built to log private activity such as keystrokes, emails, or webcams.
+
+This way, users and teams share the same understanding of how devices are monitored and secured—on macOS, Windows, Linux, Chromebooks, and beyond.
 
 ## Ready to get started?
 

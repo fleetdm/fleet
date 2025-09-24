@@ -1462,7 +1462,7 @@ func filterHostsByMDM(sql string, opt fleet.HostListOptions, params []interface{
 		}
 	}
 	if opt.MDMNameFilter != nil || opt.MDMIDFilter != nil || opt.MDMEnrollmentStatusFilter != "" {
-		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados')`
+		sql += ` AND NOT COALESCE(hmdm.is_server, false) AND h.platform IN ('darwin', 'windows', 'ios', 'ipados', 'android')`
 	}
 	return sql, params
 }

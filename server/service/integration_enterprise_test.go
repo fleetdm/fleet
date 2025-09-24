@@ -6926,8 +6926,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
-	// List pending hosts
 	var batchPendingHostsResp batchScriptExecutionHostResultsResponse
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results", batchRes.BatchExecutionID), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Param status is required")
+
+	// List pending hosts
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
 	require.Len(t, batchPendingHostsResp.Hosts, 2)
 	require.Equal(t, batchPendingHostsResp.Count, uint(2))
