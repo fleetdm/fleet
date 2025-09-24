@@ -378,11 +378,31 @@ var hostDetailQueries = map[string]DetailQuery{
 		Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
 	},
 	"disk_space_unix": {
+		// LEFT JOIN approach:
+
+		// 		Query: `
+		// SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		//        round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		//        round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+		// 			 round(SUM(m2.blocks * m2.blocks_size) * 1.0 / (1024 * 1024 * 1024), 2) AS gigs_all_disk_space
+		// FROM mounts m1 LEFT JOIN mounts m2 WHERE m1.path = '/' LIMIT 1 AND m2.blocks IS NOT NULL AND
+		// blocks_size IS NOT NULL;`,
+
+		// Subquery approach:
 		Query: `
-SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
-       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
-FROM mounts WHERE path = '/' LIMIT 1;`,
+		SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+					 (SELECT round(SUM(m2.blocks * m2.blocks_size) * 1.0 / (1024 * 1024 * 1024), 2) FROM mounts WHERE <condition TBD>) AS gigs_all_disk_space
+		FROM mounts WHERE path = '/' LIMIT 1;`,
+
+		// original
+
+		// 		Query: `
+		// SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
+		//        round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+		//        round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space,
+		// FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
 	},
