@@ -153,7 +153,7 @@
 -
   task: "Trademark review"
   startedOn: "2025-10-24"
-  frequency: "Qurterly"
+  frequency: "Quarterly"
   description: "Review status of current Fleet trademark registrations internationally and discuss necessity of current and future registrations."
   moreInfoUrl: 
   dri: "hollidayn"
@@ -169,7 +169,7 @@
   startedOn: "2025-09-15"
   frequency: "Monthly"
   description: "CEO + CFO + Head of People review operating model."
-  moreInfoUrl: 
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#prepare-for-ocv-meeting"
   dri: "rfoo2015"
   autoIssue:  
     labels: [ ":help-finance" ] 
