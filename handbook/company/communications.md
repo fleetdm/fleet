@@ -886,7 +886,7 @@ Learn how to communicate as Fleet with guidelines for tone of voice, our approac
 - [Writing types](https://fleetdm.com/handbook/company/communication#writing-types)
 - [Editing and publishing](https://fleetdm.com/handbook/company/communication#editing-and-publishing)
 - [Writing assistance](https://fleetdm.com/handbook/company/communication#writing-assistance)
-- [Writing mechanics](#writing-mechanics)
+- [Writing mechanics](https://fleetdm.com/handbook/company/communication#writing-mechanics)
 - [Writing in Fleet-flavored Markdown](https://fleetdm.com/handbook/company/communication#writing-in-fleet-flavored-markdown)
 Fleet’s writing style is clear, simple, and welcoming. We use short sentences, plain English, and an active voice so anyone can follow along. Instead of sounding formal, we aim for approachable and easy to read.
 
