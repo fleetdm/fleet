@@ -164,4 +164,13 @@
   description: "CEO + CFO + Head of People review operating model."
   moreInfoUrl: 
   dri: "rfoo2015"
-
+-
+  task: "Prepare for OCV meeting"
+  startedOn: "2025-09-15"
+  frequency: "Monthly"
+  description: "CEO + CFO + Head of People review operating model."
+  moreInfoUrl: 
+  dri: "rfoo2015"
+  autoIssue:  
+    labels: [ ":help-finance" ] 
+    repo: "confidential"
