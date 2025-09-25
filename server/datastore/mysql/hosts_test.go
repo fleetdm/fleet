@@ -1497,8 +1497,6 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 			Device: &android.Device{
 				DeviceID:             fmt.Sprintf("device-%s", name),
 				EnterpriseSpecificID: ptr.String(name),
-				AppliedPolicyID:      ptr.String("1"),
-				AppliedPolicyVersion: ptr.Int64(1),
 				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 			},
 		}
