@@ -993,7 +993,7 @@ Collaborating with AI can be helpful for outlines, rewrites, and drafts. But it�
 - Don’t paste sensitive data.
 - Always fact-check names, versions, dates, and links.
 - Question everything you don't understand and strip out anything fabricated.
-- Make sure the tone sounds like Fleet (plain English, short sentences, active voice) and watch for common AI habits like em dashes, over-bolding, clichés, or passive voice.
+- Make sure the tone sounds like Fleet (plain English, short sentences, active voice) and watch for common AI habits like the overuse of em dashes, over-bolding, or passive voice.
 
 Finally, check the format that you are writing for. [Guides](https://fleetdm.com/handbook/company/communication#guides-and-tutorials) should be step-by-step instructions, [announcements](https://fleetdm.com/handbook/company/communication#announcements) should be short and factual, and [articles](https://fleetdm.com/handbook/company/communication#articles) can be more conversational but still simple and professional.
 
