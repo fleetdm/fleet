@@ -992,6 +992,25 @@ FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
 	// the results of this query are appended to the results of the other software queries.
 }
 
+var softwareJetbrainsPlugins = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  '' AS bundle_identifier,
+  '' AS extension_id,
+  product_type AS browser,
+  'jetbrains_plugins' AS source,
+  vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN jetbrains_plugins USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("jetbrains_plugins"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
+}
+
 var scheduledQueryStats = DetailQuery{
 	Query: `
 			SELECT *,
@@ -1815,8 +1834,10 @@ const (
 	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
-var kernelRegex = regexp.MustCompile(linuxImageRegex)
-var archKernelRegex = regexp.MustCompile(archKernelName)
+var (
+	kernelRegex     = regexp.MustCompile(linuxImageRegex)
+	archKernelRegex = regexp.MustCompile(archKernelName)
+)
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
@@ -2707,6 +2728,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
+		generatedMap["software_jetbrains_plugins"] = softwareJetbrainsPlugins
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query

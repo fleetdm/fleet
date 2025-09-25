@@ -1111,6 +1111,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
 		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
+		hostDetailQueryPrefix + "software_jetbrains_plugins":              {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
 		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
