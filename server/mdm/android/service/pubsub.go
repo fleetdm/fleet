@@ -276,6 +276,7 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
+	host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
 
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
 	if err != nil {
