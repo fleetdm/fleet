@@ -168,6 +168,46 @@ func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName s
 	return ret, nil
 }
 
+
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
+	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Origin", p.serverUrl)
+	ret, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
+	}
+	return ret, nil
+}
+
+func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: policy,
+			},
+		},
+	}
+	ret, err := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s: %w", policyName, err)
+	}
+	return ret.Policy, nil
+}
+
+func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	return nil, nil
+}
+
+
 func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
 	call := p.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
