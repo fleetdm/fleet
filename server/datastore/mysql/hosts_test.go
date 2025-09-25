@@ -1471,7 +1471,6 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	// Builtin labels are already added by the test framework
 
 	// Helper to create Android hosts with specific UUID configurations
 	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {

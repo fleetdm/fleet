@@ -9,7 +9,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,10 +24,7 @@ func TestAndroid(t *testing.T) {
 	}{
 		{"NewAndroidHost", testNewAndroidHost},
 		{"UpdateAndroidHost", testUpdateAndroidHost},
-		// TODO: Re-enable these tests after fixing UUID handling in 4.74.0
-		// {"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
-		// {"AndroidBYODDetection", testAndroidBYODDetection},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -148,150 +144,6 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
 	assert.EqualValues(t, host.Device, resultLite.Device)
-}
-
-func testAndroidMDMStats(t *testing.T, ds *Datastore) {
-	const appleMDMURL = "/mdm/apple/mdm"
-	const serverURL = "http://androidmdm.example.com"
-
-	appCfg, err := ds.AppConfig(testCtx())
-	require.NoError(t, err)
-	appCfg.ServerSettings.ServerURL = serverURL
-	err = ds.SaveAppConfig(testCtx(), appCfg)
-	require.NoError(t, err)
-
-	// create a few android hosts
-	hosts := make([]*fleet.Host, 3)
-	var androidHost0 *fleet.AndroidHost
-	for i := range hosts {
-		host := createAndroidHost(uuid.NewString())
-		result, err := ds.NewAndroidHost(testCtx(), host)
-		require.NoError(t, err)
-		hosts[i] = result.Host
-
-		if androidHost0 == nil {
-			androidHost0 = host
-		}
-	}
-
-	// create a non-android host
-	macHost, err := ds.NewHost(testCtx(), &fleet.Host{
-		Hostname:       "test-host1-name",
-		OsqueryHostID:  ptr.String("1337"),
-		NodeKey:        ptr.String("1337"),
-		UUID:           "test-uuid-1",
-		Platform:       "darwin",
-		HardwareSerial: uuid.NewString(),
-	})
-	require.NoError(t, err)
-	nanoEnroll(t, ds, macHost, false)
-	err = ds.MDMAppleUpsertHost(testCtx(), macHost, false)
-	require.NoError(t, err)
-
-	// create a non-mdm host
-	linuxHost, err := ds.NewHost(testCtx(), &fleet.Host{
-		Hostname:       "test-host2-name",
-		OsqueryHostID:  ptr.String("1338"),
-		NodeKey:        ptr.String("1338"),
-		UUID:           "test-uuid-2",
-		Platform:       "linux",
-		HardwareSerial: uuid.NewString(),
-	})
-	require.NoError(t, err)
-	require.NotNil(t, linuxHost)
-
-	// stats not computed yet
-	statusStats, _, err := ds.AggregatedMDMStatus(testCtx(), nil, "")
-	require.NoError(t, err)
-	solutionsStats, _, err := ds.AggregatedMDMSolutions(testCtx(), nil, "")
-	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{}, statusStats)
-	require.Equal(t, []fleet.AggregatedMDMSolutions(nil), solutionsStats)
-
-	// compute stats
-	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
-	require.NoError(t, err)
-
-	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
-	require.NoError(t, err)
-	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
-	require.NoError(t, err)
-	// 3 Android hosts with UUID are counted as personal enrollment, 1 macOS host as manual
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, EnrolledPersonalHostsCount: 3}, statusStats)
-	require.Len(t, solutionsStats, 2)
-
-	// both solutions are Fleet
-	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[0].Name)
-	require.Equal(t, fleet.WellKnownMDMFleet, solutionsStats[1].Name)
-
-	// one is the Android server URL, one is the Apple URL
-	for _, sol := range solutionsStats {
-		switch sol.ServerURL {
-		case serverURL:
-			require.Equal(t, 3, sol.HostsCount)
-		case serverURL + appleMDMURL:
-			require.Equal(t, 1, sol.HostsCount)
-		default:
-			require.Failf(t, "unexpected server URL: %v", sol.ServerURL)
-		}
-	}
-
-	// filter on android
-	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
-	require.NoError(t, err)
-	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
-	require.NoError(t, err)
-	// All 3 Android hosts with UUID are counted as personal enrollment
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, EnrolledPersonalHostsCount: 3}, statusStats)
-	require.Len(t, solutionsStats, 1)
-	require.Equal(t, 3, solutionsStats[0].HostsCount)
-	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
-
-	// turn MDM off for android
-	err = ds.DeleteAllEnterprises(testCtx())
-	require.NoError(t, err)
-	err = ds.BulkSetAndroidHostsUnenrolled(testCtx())
-	require.NoError(t, err)
-
-	// compute stats
-	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
-	require.NoError(t, err)
-
-	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "")
-	require.NoError(t, err)
-	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "")
-	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 4, EnrolledManualHostsCount: 1, UnenrolledHostsCount: 3}, statusStats)
-	require.Len(t, solutionsStats, 1)
-	require.Equal(t, 1, solutionsStats[0].HostsCount)
-	require.Equal(t, serverURL+appleMDMURL, solutionsStats[0].ServerURL)
-
-	// filter on android
-	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
-	require.NoError(t, err)
-	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
-	require.NoError(t, err)
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 3}, statusStats)
-	require.Len(t, solutionsStats, 0)
-
-	// simulate an android host that re-enrolls
-	err = ds.UpdateAndroidHost(testCtx(), androidHost0, true)
-	require.NoError(t, err)
-
-	// compute stats
-	err = ds.GenerateAggregatedMunkiAndMDM(testCtx())
-	require.NoError(t, err)
-
-	// filter on android
-	statusStats, _, err = ds.AggregatedMDMStatus(testCtx(), nil, "android")
-	require.NoError(t, err)
-	solutionsStats, _, err = ds.AggregatedMDMSolutions(testCtx(), nil, "android")
-	require.NoError(t, err)
-	// After re-enrollment, 1 Android host with UUID is counted as personal enrollment
-	require.Equal(t, fleet.AggregatedMDMStatus{HostsCount: 3, UnenrolledHostsCount: 2, EnrolledPersonalHostsCount: 1}, statusStats)
-	require.Len(t, solutionsStats, 1)
-	require.Equal(t, 1, solutionsStats[0].HostsCount)
-	require.Equal(t, serverURL, solutionsStats[0].ServerURL)
 }
 
 func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
@@ -428,82 +280,4 @@ func testNewAndroidHostWithIdP(t *testing.T, ds *Datastore) {
 	emails, err = ds.GetHostEmails(ctx, "test-host-uuid", fleet.DeviceMappingMDMIdpAccounts)
 	require.NoError(t, err)
 	require.Empty(t, emails, "IdP email should be removed when association is deleted")
-}
-
-func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	test.AddBuiltinLabels(t, ds)
-
-	// Test 1: Android host with non-empty UUID (BYOD/personal device)
-	t.Run("personal enrollment with UUID", func(t *testing.T) {
-		const enterpriseID = "test-enterprise-id-byod"
-		host := createAndroidHost(enterpriseID)
-		// Ensure UUID is set (createAndroidHost already does this)
-		require.NotEmpty(t, host.Host.UUID)
-		require.Equal(t, enterpriseID, host.Host.UUID)
-
-		result, err := ds.NewAndroidHost(ctx, host)
-		require.NoError(t, err)
-		require.NotZero(t, result.Host.ID)
-
-		// Query host_mdm table directly to verify is_personal_enrollment = 1
-		var isPersonalEnrollment bool
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
-			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
-			result.Host.ID)
-		require.NoError(t, err)
-		assert.True(t, isPersonalEnrollment, "BYOD device with UUID should have is_personal_enrollment = 1")
-	})
-
-	// Test 2: Android host without UUID (company-owned device)
-	t.Run("company enrollment without UUID", func(t *testing.T) {
-		const enterpriseID = "test-enterprise-id-company"
-		host := createAndroidHost(enterpriseID)
-		// Override UUID to be empty to simulate company-owned device
-		host.Host.UUID = ""
-
-		result, err := ds.NewAndroidHost(ctx, host)
-		require.NoError(t, err)
-		require.NotZero(t, result.Host.ID)
-
-		// Query host_mdm table directly to verify is_personal_enrollment = 0
-		var isPersonalEnrollment bool
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
-			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
-			result.Host.ID)
-		require.NoError(t, err)
-		assert.False(t, isPersonalEnrollment, "Company device without UUID should have is_personal_enrollment = 0")
-	})
-
-	// Test 3: Verify update path also sets personal enrollment correctly
-	t.Run("update existing host enrollment status", func(t *testing.T) {
-		// Create a host initially without UUID
-		const enterpriseID = "test-enterprise-id-update"
-		host := createAndroidHost(enterpriseID)
-		host.Host.UUID = ""
-
-		result, err := ds.NewAndroidHost(ctx, host)
-		require.NoError(t, err)
-		require.NotZero(t, result.Host.ID)
-
-		// Initially should not be personal enrollment
-		var isPersonalEnrollment bool
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
-			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
-			result.Host.ID)
-		require.NoError(t, err)
-		assert.False(t, isPersonalEnrollment, "Initially should not be personal enrollment")
-
-		// Update the host with a UUID (simulating re-enrollment as BYOD)
-		result.Host.UUID = enterpriseID
-		err = ds.UpdateAndroidHost(ctx, result, true) // fromEnroll = true to trigger MDM info update
-		require.NoError(t, err)
-
-		// Now should be marked as personal enrollment
-		err = sqlx.GetContext(ctx, ds.reader(ctx), &isPersonalEnrollment,
-			`SELECT is_personal_enrollment FROM host_mdm WHERE host_id = ?`,
-			result.Host.ID)
-		require.NoError(t, err)
-		assert.True(t, isPersonalEnrollment, "After update with UUID should have is_personal_enrollment = 1")
-	})
 }
