@@ -2003,6 +2003,16 @@ var uuidCommand = &cli.Command{
 			Name:  "json",
 			Usage: "Output UUID in JSON format",
 		},
+		&cli.BoolFlag{
+			Name:    "openframe-mode",
+			Usage:   "Enable OpenFrame mode for osquery",
+			EnvVars: []string{"ORBIT_OPENFRAME_MODE"},
+		},
+		&cli.StringFlag{
+			Name:    "openframe-osquery-path",
+			Usage:   "Custom path to osqueryd binary when using OpenFrame mode",
+			EnvVars: []string{"ORBIT_OPENFRAME_OSQUERY_PATH"},
+		},
 	},
 	Action: func(c *cli.Context) error {
 		// Set up root directory
@@ -2018,20 +2028,37 @@ var uuidCommand = &cli.Command{
 			}
 		}
 
-		// Initialize updater to get osqueryd path
-		localStore, err := filestore.New(filepath.Join(rootDir, update.MetadataFileName))
-		if err != nil {
-			return fmt.Errorf("failed to create local metadata store: %w", err)
-		}
-
-		opt := update.DefaultOptions
-		opt.RootDirectory = rootDir
-		opt.LocalStore = localStore
+		var osquerydPath string
 		
-		updater := update.NewDisabled(opt)
-		osquerydPath, err := updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
-		if err != nil {
-			return fmt.Errorf("failed to locate osqueryd: %w", err)
+		// Check if we're using OpenFrame mode with custom osqueryd path
+		if c.Bool("openframe-mode") {
+			osquerydPath = c.String("openframe-osquery-path")
+			if osquerydPath == "" {
+				return fmt.Errorf("openframe-osquery-path must be specified when openframe-mode is enabled")
+			}
+			if _, err := os.Stat(osquerydPath); err != nil {
+				if errors.Is(err, os.ErrNotExist) {
+					return fmt.Errorf("custom openframe osqueryd binary not found: %s", osquerydPath)
+				} else {
+					return fmt.Errorf("failed to check custom openframe osqueryd binary: %w", err)
+				}
+			}
+		} else {
+			// Initialize updater to get osqueryd path
+			localStore, err := filestore.New(filepath.Join(rootDir, update.MetadataFileName))
+			if err != nil {
+				return fmt.Errorf("failed to create local metadata store: %w", err)
+			}
+
+			opt := update.DefaultOptions
+			opt.RootDirectory = rootDir
+			opt.LocalStore = localStore
+			
+			updater := update.NewDisabled(opt)
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+			if err != nil {
+				return fmt.Errorf("failed to locate osqueryd: %w", err)
+			}
 		}
 
 		// Use temporary database for UUID query
