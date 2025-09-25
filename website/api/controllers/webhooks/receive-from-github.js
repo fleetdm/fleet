@@ -519,7 +519,8 @@ module.exports = {
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}/reviews`, {
             event: 'APPROVE'
           }, baseHeaders)
-          .intercept((err)=>{
+          .retry()
+          .tolerate((err)=>{
             return new Error(`When the receive-from-github webhook sent a request to approve a pull request (${owner}/${repo} #${prNumber}) an error occured. Full error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
