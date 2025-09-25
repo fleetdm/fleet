@@ -19,6 +19,14 @@ type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.Enterprises
 
 type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
 
+type EnterprisesPoliciesListFunc func(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error)
+
+type EnterprisesPoliciesModifyPolicyApplicationsFunc func(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+
+type EnterprisesPoliciesRemovePolicyApplicationsFunc func(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error)
+
+type EnterprisesApplicationsFunc func(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error)
+
 type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
@@ -38,6 +46,18 @@ type Client struct {
 
 	EnterprisesPoliciesPatchFunc        EnterprisesPoliciesPatchFunc
 	EnterprisesPoliciesPatchFuncInvoked bool
+
+	EnterprisesPoliciesListFunc        EnterprisesPoliciesListFunc
+	EnterprisesPoliciesListFuncInvoked bool
+
+	EnterprisesPoliciesModifyPolicyApplicationsFunc        EnterprisesPoliciesModifyPolicyApplicationsFunc
+	EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked bool
+
+	EnterprisesPoliciesRemovePolicyApplicationsFunc        EnterprisesPoliciesRemovePolicyApplicationsFunc
+	EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked bool
+
+	EnterprisesApplicationsFunc        EnterprisesApplicationsFunc
+	EnterprisesApplicationsFuncInvoked bool
 
 	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
 	EnterprisesDevicesPatchFuncInvoked bool
@@ -76,6 +96,34 @@ func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesPoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesListFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesListFunc(ctx, enterpriseName)
+}
+
+func (p *Client) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesModifyPolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesModifyPolicyApplicationsFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error) {
+	p.mu.Lock()
+	p.EnterprisesPoliciesRemovePolicyApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesPoliciesRemovePolicyApplicationsFunc(ctx, policyName, appIDs)
+}
+
+func (p *Client) EnterprisesApplications(ctx context.Context, enterpriseName string, packageName string) (*androidmanagement.Application, error) {
+	p.mu.Lock()
+	p.EnterprisesApplicationsFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesApplicationsFunc(ctx, enterpriseName, packageName)
 }
 
 func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {

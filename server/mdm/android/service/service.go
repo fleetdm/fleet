@@ -788,7 +788,6 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	}
 }
 
-
 func jordanEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
 	err := svc.JordanEndpoint(ctx)
 	return android.DefaultResponse{Err: err}
@@ -805,7 +804,7 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 	}
 
 	// Just here for debug purposes
-	policies, err := svc.androidAPIClient.PoliciesList(ctx, enterprise.Name())
+	policies, err := svc.androidAPIClient.EnterprisesPoliciesList(ctx, enterprise.Name())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "listing policies")
 	}
@@ -815,21 +814,16 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 	}
 
 	policyName := fmt.Sprintf("%s/policies/1", enterprise.Name())
-	packages := []string{"com.google.android.youtube", "com.android.chrome", "com.roblox.client", "com.walmart.android", "com.whatsapp", "com.zhiliaoapp.musically", "com.instagram.android"}
-	packageName := ""
-	if calls < len(packages) {
-		packageName = packages[calls]
-	}
-	if packageName == "" {
-		fmt.Printf("Out of apps\n")
-		packageName = "com.example.app"
+
+	packageName := "com.zebra.oemconfig.release"
+	appPolicy := &androidmanagement.ApplicationPolicy{
+		PackageName: packageName,
+		InstallType: "REQUIRED_FOR_SETUP",
+		ManagedConfiguration: googleapi.RawMessage(`{
+			"passThroughCommand": "<wap-provisioningdoc>\r\n  <characteristic version=\"11.8\" type=\"Clock\">\r\n    <parm name=\"AutoTimeZone\" value=\"true\" \/>\r\n    <parm name=\"AutoTime\" value=\"true\" \/>\r\n    <characteristic type=\"AutoTimeDetails\">\r\n      <parm name=\"NTPServer\" value=\"pool.ntp.org\" \/>\r\n      <parm name=\"SyncInterval\" value=\"00:30:00\" \/>\r\n      <parm name=\"SpecifyTimeSyncThreshold\" value=\"false\" \/>\r\n    <\/characteristic>\r\n    <parm name=\"MilitaryTime\" value=\"1\" \/>\r\n  <\/characteristic>\r\n  <characteristic version=\"4.3\" type=\"BrowserMgr\">\r\n    <parm name=\"SetDefaultHomepage\" value=\"https:\/\/fleetdm.com\" \/>\r\n    <parm name=\"SetRememberPasswords\" value=\"1\" \/>\r\n    <parm name=\"SetSaveFormData\" value=\"1\" \/>\r\n  <\/characteristic>\r\n<\/wap-provisioningdoc>"
+		}`),
 	}
 
-	// Testing different install types
-	installType := "AVAILABLE"
-	if calls > 3 {
-		installType = "FORCE_INSTALLED"
-	}
 	fmt.Printf("Checking if app %s exists", packageName)
 	app, err := svc.androidAPIClient.EnterprisesApplications(ctx, enterprise.Name(), packageName)
 	if err != nil {
@@ -840,12 +834,18 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 	} else {
 		jsonBytes, _ := json.Marshal(app)
 		fmt.Printf("Application %s exists: %s\n", packageName, string(jsonBytes))
+		/*err = os.WriteFile("zebraapp.json", jsonBytes, 0o644)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "writing zebraapp.json")
+		}*/
+	}
+
+	if calls == 0 {
+		calls++
+		return nil
 	}
 	fmt.Printf("Call %d: Patching policy %s to add app %s\n", calls+1, policyName, packageName)
-	policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, &androidmanagement.ApplicationPolicy{
-		PackageName: packageName,
-		InstallType: installType,
-	})
+	policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
 	calls++
 	if err != nil {
 		return err
@@ -873,6 +873,10 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 	fmt.Printf("Policy has %d apps\n", len(policy.Applications))
 	jsonBytes, _ := json.Marshal(policy)
 	fmt.Printf("Apps of returned policy: %s\n", string(jsonBytes))
+	err = os.WriteFile("zebrapolicy.json", jsonBytes, 0o644)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing zebrapolicy.json")
+	}
 
 	return nil
 }

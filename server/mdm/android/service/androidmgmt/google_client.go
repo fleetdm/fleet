@@ -174,7 +174,16 @@ func (g *GoogleClient) EnterprisesPoliciesPatch(ctx context.Context, policyName 
 	return ret, nil
 }
 
-
+func (g *GoogleClient) EnterprisesPoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	resp, err := g.mgmt.Enterprises.Policies.List(enterpriseName).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("listing policies for enterprise %s: %w", enterpriseName, err)
+	}
+	return resp.Policies, nil
+}
 
 func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
 	req := androidmanagement.ModifyPolicyApplicationsRequest{
