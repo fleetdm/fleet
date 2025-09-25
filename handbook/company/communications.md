@@ -896,7 +896,7 @@ We avoid "[puffery](https://www.linkedin.com/pulse/puffery-adam-frankl%3Ftrackin
 
 When in doubt, simplify. Read your draft, cut unnecessary words, and make it shorter. If something feels confusing, rewrite until it feels obvious.
 
-Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of [Mister Rogers](#what-would-mister-rogers-say) (see the [Further inspiration](#further-inspiration) section, below).
+Our approach is informed by [Paul Graham's essays on writing simply](http://www.paulgraham.com/simply.html) and the clarity and optimism of Mister Rogers. To see how tone can shift from formal or negative to simple and optimistic, [the "Mister Rogersing" example](https://fleetdm.com/handbook/company/communication#what-would-mister-rogers-say) is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 
 ### Writing types
