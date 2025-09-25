@@ -40,14 +40,31 @@ const MSETID = "microsoft_entra_tenant_id";
 interface IDeleteConditionalAccessModal {
   toggleDeleteConditionalAccessModal: () => void;
   onDelete: () => void;
-  isUpdating: boolean;
 }
 
 const DeleteConditionalAccessModal = ({
   toggleDeleteConditionalAccessModal,
   onDelete,
-  isUpdating,
 }: IDeleteConditionalAccessModal) => {
+  const { renderFlash } = useContext(NotificationContext);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
+      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
+      toggleDeleteConditionalAccessModal();
+      onDelete();
+    } catch {
+      renderFlash(
+        "error",
+        "Could not disconnect from Microsoft Entra, please try again."
+      );
+    }
+    setIsDeleting(false);
+  };
+
   return (
     <Modal
       title="Delete"
@@ -63,14 +80,16 @@ const DeleteConditionalAccessModal = ({
           <Button
             type="button"
             variant="alert"
-            onClick={onDelete}
-            isLoading={isUpdating}
+            onClick={handleDelete}
+            isLoading={isDeleting}
+            disabled={isDeleting}
           >
             Delete
           </Button>
           <Button
             onClick={toggleDeleteConditionalAccessModal}
             variant="inverse-alert"
+            disabled={isDeleting}
           >
             Cancel
           </Button>
@@ -250,19 +269,8 @@ const ConditionalAccess = () => {
   };
 
   const onDeleteConditionalAccess = async () => {
-    setIsUpdating(true);
-    try {
-      await conditionalAccessAPI.deleteMicrosoftConditionalAccess();
-      renderFlash("success", "Successfully disconnected from Microsoft Entra.");
-      toggleDeleteConditionalAccessModal();
-      refetchConfig();
-    } catch {
-      renderFlash(
-        "error",
-        "Could not disconnect from Microsoft Entra, please try again."
-      );
-      setIsUpdating(false);
-    }
+    setFormData({ [MSETID]: "" });
+    refetchConfig();
   };
 
   const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
@@ -369,7 +377,6 @@ const ConditionalAccess = () => {
           toggleDeleteConditionalAccessModal={
             toggleDeleteConditionalAccessModal
           }
-          isUpdating={isUpdating}
         />
       )}
     </div>
