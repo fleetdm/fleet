@@ -22,6 +22,13 @@ This handbook page details processes specific to working [with](#contact-us) and
 The Finance department is directly responsible for accounts receivable including invoicing, accounts payable including commision calculations, compliance, expense reporting including Brex memos and maintaining accurate spend projections in "🧮The numbers", sales taxes, payroll taxes, corporate income/franchise taxes, and financial operations including bank accounts and cash flow management.
 
 
+### Prepare for OCV meeting
+
+Mike meets with OCV on the last Wednesday of every month. Use the following steps to help him prepare for that meeting:
+1. In the "📈 Longer-term plan" section of the doc, update the "Gross new ARR (QTD)", "New logo pipeline $ generated (QTD)", "ARR, cumulative" numbers using the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet.
+2. In the "😬 CEO's top-of-mind goals" section, use the [📈 OKRs (quarterly goals) + KPIs (everyday metrics) (confidential)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit?gid=0#gid=0) spreadsheet to update the numbers in the goal column for the current month to be correct.
+
+
 ### Reconcile monthly recurring expenses
 
 Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
