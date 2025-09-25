@@ -380,6 +380,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 	}
 
+	err := CheckProfileIsNotSigned(data)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
 	var teamName string
 	if teamID >= 1 {
 		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, &teamID, nil)
@@ -492,6 +497,19 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, d
 	}
 
 	return newCP, nil
+}
+
+// CheckProfileIsNotSigned checks if the provided profile data is a signed profile.
+// If it is signed, it returns a BadRequestError indicating that signed profiles
+// are not allowed. If the profile is not signed, it returns nil.
+func CheckProfileIsNotSigned(data []byte) error {
+	mc := mobileconfig.Mobileconfig(data)
+	if mc.IsSignedProfile() {
+		return &fleet.BadRequestError{
+			Message: "Couldn't add. Configuration profiles can't be signed. Fleet wil sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles",
+		}
+	}
+	return nil
 }
 
 func validateConfigProfileFleetVariables(contents string, lic *fleet.LicenseInfo, groupedCAs *fleet.GroupedCertificateAuthorities) (map[string]struct{}, error) {
@@ -2683,6 +2701,12 @@ func (svc *Service) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, tm
 				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%d]", i), "maximum configuration profile file size is 1 MB"),
 			)
 		}
+
+		err := CheckProfileIsNotSigned(prof)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err)
+		}
+
 		// Check for secrets in profile name before expansion
 		if err := fleet.ValidateNoSecretsInProfileName(prof); err != nil {
 			return ctxerr.Wrap(ctx,
