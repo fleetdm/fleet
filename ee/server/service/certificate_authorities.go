@@ -1311,30 +1311,45 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid SCEP URL. Please correct and try again.", errPrefix)}
 		}
 	}
-	if smallstep.ChallengeURL != nil {
-		if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
-			return err
-		}
+	// Call challenge URL to validate all fields are valid
+	if smallstep.ChallengeURL != nil || smallstep.Username != nil || smallstep.Password != nil {
 
-		// We want to generate a SmallsteSCEPProxyCA struct with all required fields to verify the admin URL.
-		// If URL, Username or Password are not being updated we use the existing values from oldCA
 		smallstepSCEPProxy := fleet.SmallstepSCEPProxyCA{
-			ChallengeURL: *smallstep.ChallengeURL,
-		}
+			ChallengeURL: *oldCa.ChallengeURL,
+			Username:     *oldCa.Username,
+			Password:     *oldCa.Password,
+		} // The object we are building to validate fields are valid.
+
 		if smallstep.URL != nil {
 			smallstepSCEPProxy.URL = *smallstep.URL
 		} else {
 			smallstepSCEPProxy.URL = *oldCa.URL
 		}
-		if smallstep.Username != nil {
-			smallstepSCEPProxy.Username = *smallstep.Username
-		} else {
-			smallstepSCEPProxy.Username = *oldCa.Username
+
+		// Additional validation if url was updated
+		if smallstep.ChallengeURL != nil {
+			if err := validateURL(*smallstep.ChallengeURL, "Challenge", errPrefix); err != nil {
+				return err
+			}
+			smallstepSCEPProxy.ChallengeURL = *smallstep.ChallengeURL
 		}
+
+		if smallstep.Username != nil {
+			if *smallstep.Username == "" {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("%sSmallstep SCEP Proxy username cannot be empty", errPrefix),
+				}
+			}
+			smallstepSCEPProxy.Username = *smallstep.Username
+		}
+
 		if smallstep.Password != nil {
+			if *smallstep.Password == "" {
+				return &fleet.BadRequestError{
+					Message: fmt.Sprintf("%sSmallstep SCEP Proxy password cannot be empty", errPrefix),
+				}
+			}
 			smallstepSCEPProxy.Password = *smallstep.Password
-		} else {
-			smallstepSCEPProxy.Password = *oldCa.Password
 		}
 
 		if err := svc.scepConfigService.ValidateSmallstepChallengeURL(ctx, smallstepSCEPProxy); err != nil {
@@ -1342,16 +1357,7 @@ func (svc *Service) validateSmallstepSCEPProxyUpdate(ctx context.Context, smalls
 			return &fleet.BadRequestError{Message: fmt.Sprintf("%sInvalid challenge URL or credentials. Please correct and try again.", errPrefix)}
 		}
 	}
-	if smallstep.Username != nil && *smallstep.Username == "" {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("%sSmallstep SCEP Proxy username cannot be empty", errPrefix),
-		}
-	}
-	if smallstep.Password != nil && *smallstep.Password == "" {
-		return &fleet.BadRequestError{
-			Message: fmt.Sprintf("%sSmallstep SCEP Proxy password cannot be empty", errPrefix),
-		}
-	}
+
 	return nil
 }
 
