@@ -953,9 +953,6 @@ Follow these steps before merging a change:
 - Check preview mode in GitHub to make sure formatting renders correctly.
 - Look for and remove any unintentional changes in your diff.
 
-### Further inspiration
-
-To see how tone can shift from formal or negative to simple and optimistic, The "The Mister Rogersing" example below is a practical illustration of how reframing can make complex or difficult ideas more approachable.
 
 #### What would Mister Rogers say?
 
