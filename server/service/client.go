@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
@@ -349,6 +350,21 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 				return nil, fmt.Errorf("applying custom settings: %w", err)
 			}
 
+			ext := filepath.Ext(filePath)
+			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
+			// their PayloadDisplayName when we parse the profile below)
+			name := strings.TrimSuffix(filepath.Base(filePath), ext)
+			// for validation errors, we want to include the platform and file name in the error message
+			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
+
+			if platform == "macos" && (ext == ".mobileconfig" || ext == ".xml") {
+				// Parse and check for signed mobile configs before expanding.
+				mc := mobileconfig.Mobileconfig(fileContents)
+				if mc.IsSignedProfile() {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Configuration profiles can't be signed. Fleet will sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles")
+				}
+			}
+
 			if expandEnv {
 				// Secrets are handled earlier in the flow when config files are initially read
 				fileContents, err = spec.ExpandEnvBytesIgnoreSecrets(fileContents)
@@ -356,13 +372,6 @@ func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidPr
 					return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
 				}
 			}
-
-			ext := filepath.Ext(filePath)
-			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
-			// their PayloadDisplayName when we parse the profile below)
-			name := strings.TrimSuffix(filepath.Base(filePath), ext)
-			// for validation errors, we want to include the platform and file name in the error message
-			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
 
 			// validate macOS profiles
 			if platform == "macos" {
