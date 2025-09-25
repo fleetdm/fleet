@@ -29,7 +29,7 @@ describe("SmallstepForm", () => {
     expect(screen.getByRole("button", { name: "Submit" })).toBeVisible();
   });
 
-  it("enables and disabled form submittion depending on the form validation", async () => {
+  it("enables submission depending on the form validation", async () => {
     const testData = createTestFormData();
     render(
       <SmallstepForm
@@ -44,7 +44,10 @@ describe("SmallstepForm", () => {
 
     // data is valid, so submit should be enabled
     expect(screen.getByRole("button", { name: "Submit" })).toBeEnabled();
+  });
 
+  it("disables submission when form is invalid", async () => {
+    const testData = createTestFormData();
     // make name invalid by setting it to an empty string
     testData.name = "";
     render(
@@ -57,7 +60,6 @@ describe("SmallstepForm", () => {
         onCancel={noop}
       />
     );
-
     // name is required, so submit should be disabled
     expect(screen.getByRole("button", { name: "Submit" })).toBeDisabled();
   });
