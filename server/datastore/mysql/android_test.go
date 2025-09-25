@@ -136,7 +136,7 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.CPUType = "cpu_type_updated"
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
-	host.Device.AppliedPolicyID = ptr.String("2")
+	host.Device.AndroidPolicyID = ptr.Uint(2)
 
 	// Make sure host UUID is preserved during update
 	host.Host.UUID = enterpriseSpecificID
