@@ -107,6 +107,15 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, err
 	}
 
+	// for jetbrains plugins/extensions, we populate the ExtensionFor field
+	// from the Browser field (which holds the JetBrains product name)
+	for i, t := range titles {
+		if t.Source == "jetbrains_plugins" {
+			titles[i].ExtensionFor = t.Browser
+			titles[i].Browser = ""
+		}
+	}
+
 	return titles, count, meta, nil
 }
 
@@ -178,6 +187,12 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 			return nil, fleet.NewPermissionError("Error: You don't have permission to view specified software. It is installed on hosts that belong to team you don't have permissions to view.")
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
+	}
+
+	// Populate extension_for for jetbrains plugins/extensions
+	if software.Source == "jetbrains_plugins" {
+		software.ExtensionFor = software.Browser
+		software.Browser = ""
 	}
 
 	license, err := svc.License(ctx)

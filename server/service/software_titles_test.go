@@ -221,3 +221,108 @@ func TestSoftwareNameUpdate(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, ds.UpdateSoftwareTitleNameFuncInvoked)
 }
+
+func TestListJetbrainsPlugins(t *testing.T) {
+	ds := new(mock.Store)
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmf fleet.TeamFilter) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
+		return []fleet.SoftwareTitleListResult{
+			{
+				Name:    "Plugin Name",
+				Source:  "jetbrains_plugins",
+				Browser: "goland",
+			},
+		}, 0, &fleet.PaginationMetadata{}, nil
+	}
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+
+	results, _, _, err := svc.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Equal(t, "Plugin Name", results[0].Name)
+	require.Equal(t, "jetbrains_plugins", results[0].Source)
+	require.Equal(t, "goland", results[0].ExtensionFor)
+	require.Empty(t, results[0].Browser)
+}
+
+func TestSoftwareTitleByID(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{
+			ID:      1,
+			Name:    "Google Chrome",
+			IconUrl: ptr.String("https://example.com/icon.png"),
+			Source:  "apps",
+			// Browser: "",
+			HostsCount:    10,
+			VersionsCount: 1,
+			Versions: []fleet.SoftwareVersion{
+				{
+					ID:         1,
+					Version:    "89.0.4389.90",
+					HostsCount: ptr.Uint(10),
+					TitleID:    1,
+				},
+			},
+		}, nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+
+	title, err := svc.SoftwareTitleByID(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, uint(1), title.ID)
+	require.Equal(t, "Google Chrome", title.Name)
+	require.Equal(t, ptr.String("https://example.com/icon.png"), title.IconUrl)
+	require.Equal(t, "apps", title.Source)
+	require.Equal(t, "", title.Browser)
+	require.Equal(t, uint(10), title.HostsCount)
+	require.Equal(t, uint(1), title.VersionsCount)
+	require.Len(t, title.Versions, 1)
+	require.Equal(t, uint(1), title.Versions[0].ID)
+	require.Equal(t, "89.0.4389.90", title.Versions[0].Version)
+	require.Equal(t, ptr.Uint(10), title.Versions[0].HostsCount)
+	require.Equal(t, uint(1), title.Versions[0].TitleID)
+}
+
+func TestSoftwareTitleByIDWithJetbrainsPlugin(t *testing.T) {
+	ds := new(mock.Store)
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+		return &fleet.SoftwareTitle{
+			ID:            1,
+			Name:          "Some Plugin",
+			IconUrl:       ptr.String("https://example.com/icon.png"),
+			Source:        "jetbrains_plugins",
+			Browser:       "goland",
+			HostsCount:    10,
+			VersionsCount: 1,
+			Versions: []fleet.SoftwareVersion{
+				{
+					ID:         1,
+					Version:    "1.2.3",
+					HostsCount: ptr.Uint(10),
+					TitleID:    1,
+				},
+			},
+		}, nil
+	}
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+
+	title, err := svc.SoftwareTitleByID(ctx, 1, nil)
+	require.NoError(t, err)
+	require.Equal(t, "Some Plugin", title.Name)
+	require.Equal(t, "jetbrains_plugins", title.Source)
+	require.Equal(t, "goland", title.ExtensionFor)
+	require.Empty(t, title.Browser)
+}

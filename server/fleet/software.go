@@ -187,6 +187,8 @@ type SoftwareTitle struct {
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
 	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -229,6 +231,8 @@ type SoftwareTitleListResult struct {
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
 	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
