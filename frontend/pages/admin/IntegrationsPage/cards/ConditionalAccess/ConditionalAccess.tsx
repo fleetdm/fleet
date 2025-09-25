@@ -174,7 +174,7 @@ const ConditionalAccess = () => {
     ...DEFAULT_USE_QUERY_OPTIONS,
     // only make this call at the appropriate UI phase
     enabled: phase === Phase.ConfirmingConfigured && isPremiumTier,
-    onSuccess: ({ configuration_completed }) => {
+    onSuccess: ({ configuration_completed, setup_error }) => {
       if (configuration_completed) {
         setPhase(Phase.Configured);
         renderFlash(
@@ -183,10 +183,42 @@ const ConditionalAccess = () => {
         );
       } else {
         setPhase(Phase.Form);
-        renderFlash(
-          "error",
-          "Could not verify conditional access integration. Please try connecting again."
-        );
+
+        if (
+          // IT admin did not complete the consent.
+          !setup_error ||
+          // IT admin clicked "Cancel" in the consent dialog.
+          setup_error.includes(
+            "A Microsoft Entra admin did not consent to the permissions requested by the conditional access integration"
+          )
+        ) {
+          renderFlash(
+            "error",
+            "Couldn't update. Fleet didn't get permissions for Entra. Please try again and accept the permissions."
+          );
+        } else if (
+          setup_error.includes(
+            'No "Fleet conditional access" Entra ID group was found'
+          )
+        ) {
+          renderFlash(
+            "error",
+            `Couldn't connect. The "Fleet conditional access" group doesn't exist in Entra. Please create the group and try again.`
+          );
+        } else {
+          // For other kind of errors we just show a generic error.
+          // We won't render the error as is because the error comes from the MS proxy and they may be too big or unformatted
+          // to display in the banner.
+          //
+          // For troubleshooting:
+          //  - The API response contains the setup_error.
+          //  - The Fleet server logs the error.
+          //  - The MS proxy stores the error in its database.
+          renderFlash(
+            "error",
+            "Couldn't connect. Please contact your Fleet administrator."
+          );
+        }
       }
     },
     onError: () => {
