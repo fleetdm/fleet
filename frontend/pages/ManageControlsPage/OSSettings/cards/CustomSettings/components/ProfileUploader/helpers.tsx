@@ -86,6 +86,31 @@ const generateUserChannelLearnMoreErrMsg = (errMsg: string) => {
   );
 };
 
+/**
+ * Helper function to take whatever message is from the API and strip out the Learn More link and format it accordingly.
+ */
+const generateGenericLearnMoreErrMsg = (errMsg: string) => {
+  if (errMsg.includes(" Learn more: https://")) {
+    const message = errMsg.substring(
+      0,
+      errMsg.indexOf(" Learn more: https://")
+    );
+    const link = errMsg.substring(errMsg.indexOf("https://"));
+    return (
+      <>
+        {message}{" "}
+        <CustomLink
+          url={link}
+          text="Learn more"
+          variant="flash-message-link"
+          newTab
+        />
+      </>
+    );
+  }
+  return errMsg;
+};
+
 /** We want to add some additional messageing to some of the error messages so
  * we add them in this function. Otherwise, we'll just return the error message from the
  * API.
@@ -229,6 +254,10 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (apiReason.includes('"PayloadScope"')) {
     return generateUserChannelLearnMoreErrMsg(apiReason);
+  }
+
+  if (apiReason.includes("Configuration profiles can't be signed")) {
+    return generateGenericLearnMoreErrMsg(apiReason);
   }
 
   return `${apiReason}` || DEFAULT_ERROR_MESSAGE;
