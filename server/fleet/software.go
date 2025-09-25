@@ -52,6 +52,8 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
 	Browser string `json:"browser" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).

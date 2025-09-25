@@ -199,6 +199,12 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
 
+	// JetBrains plugins
+	if software.Source == "jetbrains_plugins" {
+		software.ExtensionFor = software.Browser
+		software.Browser = ""
+	}
+
 	return software, nil
 }
 

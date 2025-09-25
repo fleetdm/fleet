@@ -201,3 +201,32 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 		})
 	}
 }
+
+func TestSoftwareByIDJetbrainsPlugins(t *testing.T) {
+	ds := new(mock.Store)
+
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
+		return &fleet.Software{
+			ID:      42,
+			Name:    "Some Plugin",
+			Source:  "jetbrains_plugins",
+			Browser: "goland",
+		}, nil
+	}
+
+	user := &fleet.User{
+		ID:         3,
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: user})
+
+	software, err := svc.SoftwareByID(ctx, 42, nil, false)
+	require.NoError(t, err)
+	require.Equal(t, uint(42), software.ID)
+	require.Equal(t, "Some Plugin", software.Name)
+	require.Equal(t, "jetbrains_plugins", software.Source)
+	require.Equal(t, "goland", software.ExtensionFor)
+	require.Empty(t, software.Browser)
+}
