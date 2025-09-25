@@ -1,5 +1,9 @@
 .require-end-user-auth {
-  width: 100%;
+  
+  .empty-table__container {
+    @include tab-empty-state;
+  }
+
 
   &__required-message {
     margin-top: 0;
