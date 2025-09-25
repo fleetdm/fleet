@@ -27,6 +27,7 @@ func TestAndroid(t *testing.T) {
 		{"UpdateAndroidHost", testUpdateAndroidHost},
 		{"AndroidMDMStats", testAndroidMDMStats},
 		{"AndroidHostStorageData", testAndroidHostStorageData},
+		{"AndroidBYODDetection", testAndroidBYODDetection},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
