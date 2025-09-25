@@ -242,7 +242,7 @@ func (ds *Datastore) AndroidHostLite(ctx context.Context, enterpriseSpecificID s
 		ad.android_policy_id,
 		ad.last_policy_sync_time
 		FROM android_devices ad
-		JOIN hosts h ON ad.host_id = h.id
+	JOIN hosts h ON ad.host_id = h.id
 		WHERE ad.enterprise_specific_id = ?`
 	var host liteHost
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &host, stmt, enterpriseSpecificID)
