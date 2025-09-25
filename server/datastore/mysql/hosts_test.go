@@ -1471,7 +1471,6 @@ func testHostsListMDM(t *testing.T, ds *Datastore) {
 
 func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-	test.AddBuiltinLabels(t, ds)
 
 	// Helper to create Android hosts with specific UUID configurations
 	createAndroidHostForTest := func(t *testing.T, name string, withUUID bool) *fleet.Host {
@@ -1497,8 +1496,6 @@ func testHostsListMDMAndroid(t *testing.T, ds *Datastore) {
 			Device: &android.Device{
 				DeviceID:             fmt.Sprintf("device-%s", name),
 				EnterpriseSpecificID: ptr.String(name),
-				AppliedPolicyID:      ptr.String("1"),
-				AppliedPolicyVersion: ptr.Int64(1),
 				LastPolicySyncTime:   ptr.Time(time.Now().UTC().Truncate(time.Millisecond)),
 			},
 		}
