@@ -54,6 +54,7 @@ func TestSoftware(t *testing.T) {
 		{"UpdateHostSoftwareSameBundleIDDifferentNames", testUpdateHostSoftwareSameBundleIDDifferentNames},
 		{"UpdateHostSoftwareSameNameDifferentBundleIDs", testUpdateHostSoftwareSameNameDifferentBundleIDs},
 		{"UpdateHostSoftwareMultipleSameBundleID", testUpdateHostSoftwareMultipleSameBundleID},
+		{"UpdateHostSoftwareMultipleChecksumsPerBundleID", testUpdateHostSoftwareMultipleChecksumsPerBundleID},
 		{"UpdateHostSoftwareLongNameTruncation", testUpdateHostSoftwareLongNameTruncation},
 		{"UpdateHostBundleIDRenameOnlyNoNewSoftware", testUpdateHostBundleIDRenameOnlyNoNewSoftware},
 		{"UpdateHostBundleIDRenameWithNewSoftware", testUpdateHostBundleIDRenameWithNewSoftware},
@@ -2011,6 +2012,93 @@ func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, host2.Software, 1, "Host2 should have 1 software entry")
 	require.Equal(t, "GoLand 2024.app", host2.Software[0].Name, "Host2 should see renamed software")
+}
+
+// Test for the bug where multiple software with the same bundle ID causes
+// "software not found for checksum" errors during bundle ID rename operations.
+// This test specifically validates that ALL software entries with the same
+// bundle ID are properly linked to hosts when renaming occurs.
+func testUpdateHostSoftwareMultipleChecksumsPerBundleID(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Note: Basic multiple versions scenario is already covered in testUpdateHostSoftwareMultipleSameBundleID
+	// This test focuses on the specific bug fix for renamed apps with many versions
+
+	// First, establish the software with host1 - using 10 versions to stress test
+	host1 := test.NewHost(t, ds, "rename-test-host1", "", "rename-key1", "rename-uuid1", time.Now())
+
+	// Create 10 versions to stress test the checksum tracking
+	var initialSoftware []fleet.Software
+	for i := 0; i < 10; i++ {
+		initialSoftware = append(initialSoftware, fleet.Software{
+			Name:             "TestApp.app",
+			Version:          fmt.Sprintf("1.%d.0", i),
+			Source:           "apps",
+			BundleIdentifier: "com.stresstest.app",
+		})
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host1.ID, initialSoftware)
+	require.NoError(t, err, "Should handle 10 versions with same bundle ID")
+
+	// Verify all 10 were inserted
+	err = ds.LoadHostSoftware(ctx, host1, false)
+	require.NoError(t, err)
+	require.Len(t, host1.Software, 10, "Host1 should have all 10 versions")
+
+	// Host2 reports the same software but renamed (user renamed the apps)
+	// This triggers the bundle ID rename logic and tests the bug fix
+	host2 := test.NewHost(t, ds, "rename-test-host2", "", "rename-key2", "rename-uuid2", time.Now())
+
+	var renamedSoftware []fleet.Software
+	for i := 0; i < 10; i++ {
+		renamedSoftware = append(renamedSoftware, fleet.Software{
+			Name:             "TestApp Renamed.app", // Different name
+			Version:          fmt.Sprintf("1.%d.0", i),
+			Source:           "apps",
+			BundleIdentifier: "com.stresstest.app",
+		})
+	}
+
+	// This is where the bug would occur - only one software would be linked instead of all 10
+	result, err := ds.UpdateHostSoftware(ctx, host2.ID, renamedSoftware)
+	require.NoError(t, err, "Should handle renamed apps with 10 versions without 'software not found for checksum' error")
+	assert.NotNil(t, result)
+
+	// Verify the rename was processed in the database
+	var dbSoftware []struct {
+		Name       string `db:"name"`
+		Version    string `db:"version"`
+		NameSource string `db:"name_source"`
+	}
+	err = ds.writer(ctx).SelectContext(ctx, &dbSoftware,
+		`SELECT name, version, name_source FROM software
+		WHERE bundle_identifier = ? ORDER BY version`,
+		"com.stresstest.app")
+	require.NoError(t, err)
+	require.Len(t, dbSoftware, 10, "Should have 10 software entries in database")
+
+	// All should be renamed
+	for _, sw := range dbSoftware {
+		assert.Equal(t, "TestApp Renamed.app", sw.Name, "All software should use the new name")
+		assert.Equal(t, "bundle_4.67", sw.NameSource, "Renamed software should have bundle_4.67 source")
+	}
+
+	// Most importantly, verify that host2 has ALL 10 versions linked (this was the bug)
+	err = ds.LoadHostSoftware(ctx, host2, false)
+	require.NoError(t, err)
+	assert.Len(t, host2.Software, 10, "Host2 should have all 10 versions linked (bug fix verification)")
+
+	// Verify all versions are present
+	versions := make(map[string]bool)
+	for _, sw := range host2.Software {
+		versions[sw.Version] = true
+		assert.Equal(t, "TestApp Renamed.app", sw.Name, "Should see renamed app")
+	}
+	for i := 0; i < 10; i++ {
+		version := fmt.Sprintf("1.%d.0", i)
+		assert.True(t, versions[version], "Should have version %s", version)
+	}
 }
 
 // Test edge case: Software with names exceeding maximum length

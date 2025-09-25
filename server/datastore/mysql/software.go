@@ -439,16 +439,22 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				// Check inserted software for renames
 				for _, sw := range r.Inserted {
 					if sw.BundleIdentifier != "" {
-						if updSoftware, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
-							softwareRenames[sw.ID] = updSoftware.Name
+						if updSoftwareList, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
+							// Use the first software in the list for the name (they should all have the same name)
+							if len(updSoftwareList) > 0 {
+								softwareRenames[sw.ID] = updSoftwareList[0].Name
+							}
 						}
 					}
 				}
 				// Check existing software for renames
 				for _, s := range existingSoftware {
 					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
-						if updSoftware, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-							softwareRenames[s.ID] = updSoftware.Name
+						if updSoftwareList, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+							// Use the first software in the list for the name (they should all have the same name)
+							if len(updSoftwareList) > 0 {
+								softwareRenames[s.ID] = updSoftwareList[0].Name
+							}
 						}
 					}
 				}
@@ -597,15 +603,14 @@ func (ds *Datastore) getExistingSoftware(
 	currentSoftware []softwareIDChecksum,
 	incomingChecksumToSoftware map[string]fleet.Software,
 	incomingChecksumToTitle map[string]fleet.SoftwareTitle,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 	err error,
 ) {
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
-	bundleIDsToChecksum := make(map[string]string)
 	bundleIDsToNames := make(map[string]string)
-	existingBundleIDsToUpdate = make(map[string]fleet.Software)
+	existingBundleIDsToUpdate = make(map[string][]fleet.Software)
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
 		if !ok {
@@ -617,7 +622,6 @@ func (ds *Datastore) getExistingSoftware(
 			newSoftware[string(checksum)] = struct{}{}
 
 			if s.BundleIdentifier != "" {
-				bundleIDsToChecksum[s.BundleIdentifier] = string(checksum)
 				bundleIDsToNames[s.BundleIdentifier] = s.Name
 			}
 		}
@@ -634,6 +638,7 @@ func (ds *Datastore) getExistingSoftware(
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
+
 		for _, s := range currentSoftware {
 			sw, ok := incomingChecksumToSoftware[s.Checksum]
 			if !ok {
@@ -648,12 +653,10 @@ func (ds *Datastore) getExistingSoftware(
 					// Copy the incoming software but with the existing software's ID
 					swWithID := sw
 					swWithID.ID = s.ID
-					existingBundleIDsToUpdate[*s.BundleIdentifier] = swWithID
+					existingBundleIDsToUpdate[*s.BundleIdentifier] = append(existingBundleIDsToUpdate[*s.BundleIdentifier], swWithID)
 
-					// Remove from incomingChecksumToSoftware to prevent it being treated as new software
-					if cs, ok := bundleIDsToChecksum[*s.BundleIdentifier]; ok {
-						delete(incomingChecksumToSoftware, cs)
-					}
+					// Delete this checksum to prevent it from being treated as new software
+					delete(incomingChecksumToSoftware, s.Checksum)
 					continue
 				}
 			}
@@ -1054,7 +1057,7 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 	ctx context.Context,
 	tx sqlx.ExtContext,
 	hostID uint,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 ) ([]fleet.Software, error) {
 	if len(existingBundleIDsToUpdate) == 0 {
 		return nil, nil
@@ -1062,12 +1065,14 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 
 	// Collect all software IDs to verify they still exist
 	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
-	for _, software := range existingBundleIDsToUpdate {
-		// The software.ID should already be set from getExistingSoftware
-		if software.ID == 0 {
-			return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+	for _, softwareList := range existingBundleIDsToUpdate {
+		for _, software := range softwareList {
+			// The software.ID should already be set from getExistingSoftware
+			if software.ID == 0 {
+				return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+			}
+			softwareIDs = append(softwareIDs, software.ID)
 		}
-		softwareIDs = append(softwareIDs, software.ID)
 	}
 
 	// Verify software still exists (just like we do in linkSoftwareToHost)
@@ -1092,19 +1097,21 @@ func (ds *Datastore) linkExistingBundleIDSoftware(
 	var insertsHostSoftware []any
 	var insertedSoftware []fleet.Software
 
-	for _, software := range existingBundleIDsToUpdate {
-		// Only link if software still exists
-		if _, ok := existingIDSet[software.ID]; ok {
-			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, software)
-		} else {
-			// Log missing software but continue
-			level.Warn(ds.logger).Log(
-				"msg", "bundle ID software not found after pre-insertion",
-				"software_id", software.ID,
-				"name", software.Name,
-				"bundle_id", software.BundleIdentifier,
-			)
+	for _, softwareList := range existingBundleIDsToUpdate {
+		for _, software := range softwareList {
+			// Only link if software still exists
+			if _, ok := existingIDSet[software.ID]; ok {
+				insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+				insertedSoftware = append(insertedSoftware, software)
+			} else {
+				// Log missing software but continue
+				level.Warn(ds.logger).Log(
+					"msg", "bundle ID software not found after pre-insertion",
+					"software_id", software.ID,
+					"name", software.Name,
+					"bundle_id", software.BundleIdentifier,
+				)
+			}
 		}
 	}
 
@@ -1208,7 +1215,7 @@ func updateModifiedHostSoftwareDB(
 	hostID uint,
 	currentMap map[string]fleet.Software,
 	incomingMap map[string]fleet.Software,
-	existingBundleIDsToUpdate map[string]fleet.Software,
+	existingBundleIDsToUpdate map[string][]fleet.Software,
 	minLastOpenedAtDiff time.Duration,
 	logger log.Logger,
 ) error {
