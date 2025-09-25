@@ -181,3 +181,26 @@ func TestVulnerabilitesAuth(t *testing.T) {
 		})
 	}
 }
+
+func TestListSoftwareByCVEJetbrainsPlugins(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	ds.SoftwareByCVEFunc = func(cxt context.Context, cve string, teamID *uint) ([]*fleet.VulnerableSoftware, time.Time, error) {
+		return []*fleet.VulnerableSoftware{{
+			Name:       "Some Plugin",
+			Source:     "jetbrains_plugins",
+			Browser:    "goland",
+			HostsCount: 5,
+		}}, time.Now(), nil
+	}
+
+	software, _, err := svc.ListSoftwareByCVE(ctx, "CVE-2023-1234", nil)
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, "Some Plugin", software[0].Name)
+	require.Equal(t, "jetbrains_plugins", software[0].Source)
+	require.Equal(t, "goland", software[0].ExtensionFor)
+	require.Empty(t, software[0].Browser)
+}

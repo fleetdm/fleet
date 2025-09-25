@@ -142,6 +142,7 @@ type VulnerableSoftware struct {
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
 	Browser           string  `json:"browser" db:"browser"`
+	ExtensionFor      string  `json:"extension_for,omitempty"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`

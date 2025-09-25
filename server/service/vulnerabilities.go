@@ -228,5 +228,13 @@ func (svc *Service) ListSoftwareByCVE(ctx context.Context, cve string, teamID *u
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, updatedAt, err
 	}
-	return svc.ds.SoftwareByCVE(ctx, cve, teamID)
+	sw, updatedAt, err := svc.ds.SoftwareByCVE(ctx, cve, teamID)
+
+	for i, s := range sw {
+		if s.Source == "jetbrains_plugins" && s.Browser != "" {
+			sw[i].ExtensionFor = s.Browser
+			sw[i].Browser = ""
+		}
+	}
+	return sw, updatedAt, err
 }
