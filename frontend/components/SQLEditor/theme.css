@@ -89,7 +89,7 @@
 
 .ace-fleet .ace_keyword {
   color: #ae6ddf;
-  font-weight: $bold;
+  font-weight: 600;
 }
 
 .ace-fleet .ace_osquery-token {
