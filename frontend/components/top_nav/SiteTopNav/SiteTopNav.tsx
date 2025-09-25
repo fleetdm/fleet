@@ -168,7 +168,7 @@ const SiteTopNav = ({
         ? navItem.location.pathname
         : currentPath;
 
-      const includeTeamId = (activePath: string) => {
+      const getPathWithTeamid = (activePath: string) => {
         if (currentQueryParams.team_id !== API_ALL_TEAMS_ID) {
           return getPathWithQueryParams(path, {
             team_id: currentQueryParams.team_id,
@@ -183,14 +183,17 @@ const SiteTopNav = ({
       // replace to the same url, which triggers a re-render)
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <a className={`${navItemBaseClass}__link`} href={includeTeamId(path)}>
+          <Link
+            to={getPathWithTeamid(path)}
+            className={`${navItemBaseClass}__link`}
+          >
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
             >
               {name}
             </span>
-          </a>
+          </Link>
         </li>
       );
     }
