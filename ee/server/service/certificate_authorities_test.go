@@ -1888,6 +1888,28 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"username\" of an existing certificate authority: Smallstep CA.")
 		})
 
+		t.Run("Validates password and username on update", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Username: ptr.String("updated-username"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			mockScep := &scep_mock.SCEPConfigService{
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error {
+					return errors.New("bad password or username")
+				},
+				ValidateSmallstepChallengeURLFuncInvoked: false, // Reset so we can check it was invoked
+			}
+			svc.scepConfigService = mockScep
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.True(t, mockScep.ValidateSmallstepChallengeURLFuncInvoked)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.")
+		})
+
 		t.Run("Errors on empty username", func(t *testing.T) {
 			svc, ctx := baseSetupForCATests()
 			payload := fleet.CertificateAuthorityUpdatePayload{
