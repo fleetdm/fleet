@@ -129,7 +129,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
 
   if (apiReason.includes("Keys in declaration (DDM) profile")) {
     return (
-      <>
+      <div className="upload-profile-invalid-keys-error">
         <span>
           Couldn&apos;t add. Keys in declaration (DDM) profile must contain only
           letters and start with a uppercase letter. Keys in Android profile
@@ -141,7 +141,7 @@ export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
           variant="flash-message-link"
           url="https://fleetdm.com/learn-more-about/how-to-craft-android-profile"
         />
-      </>
+      </div>
     );
   }
 

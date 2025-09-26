@@ -770,7 +770,7 @@ From time to time, Fleet organizes offsites to bring team members together in pe
 Offsites are:
   - Attended by a particular [product group](https://fleetdm.com/handbook/company#product-groups), a [department](https://fleetdm.com/handbook/company#org-chart), or a team such as the E-group.
   - Sometimes also attended by founders or other team members on a case-by-case basis.
-  - 1-3 full days long (2-4 nights stay)
+  - 1-3 full days long (2-4 nights stay).
   - A ritual of effective teams, not a reward or vacation.
   - Driven by a detailed, thoughtful agenda of how time will be spent.  An intentional investment of valuable personal and company time, at great opportunity cost.
   - An opportunity to spend time together, build relationships, and be human.  Shared meals and activities are important.
