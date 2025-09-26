@@ -6911,10 +6911,10 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	require.Equal(t, batchPendingHostsResp.Meta.HasNextResults, false)
 	require.Equal(t, batchPendingHostsResp.Meta.HasPreviousResults, false)
 	require.Equal(t, batchPendingHostsResp.Hosts[0].Status, fleet.BatchScriptExecutionPending)
-	require.Equal(t, batchPendingHostsResp.Hosts[0].DisplayName, host1.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[0].DisplayName, host1.ComputerName)
 	require.Equal(t, batchPendingHostsResp.Hosts[0].ID, host1.ID)
 	require.Equal(t, batchPendingHostsResp.Hosts[1].Status, fleet.BatchScriptExecutionPending)
-	require.Equal(t, batchPendingHostsResp.Hosts[1].DisplayName, host2.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[1].DisplayName, host2.ComputerName)
 	require.Equal(t, batchPendingHostsResp.Hosts[1].ID, host2.ID)
 
 	// Another request so we can check the list endpoint
