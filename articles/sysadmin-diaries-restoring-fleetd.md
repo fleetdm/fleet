@@ -22,7 +22,7 @@ There are several approaches to reinstall the `fleetd` agent using MDM commands:
 
 #### 1. Resending the `fleetd` configuration profile
 
-One potential solution is to resend the `fleetd` configuration profile. The new feature for [resending profiles](https://fleetdm.com/docs/rest-api/rest-api#resend-hosts-configuration-profile) makes this easy to accomplish through the MDM interface.
+One potential solution is to resend the `fleetd` configuration profile. The new feature for [resending profiles](https://fleetdm.com/docs/rest-api/rest-api#resend-custom-os-setting-configuration-profile) makes this easy to accomplish through the MDM interface.
 
 
 #### 2. Wipe the device
