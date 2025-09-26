@@ -787,3 +787,96 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
 	}
 }
+
+func jordanEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
+	err := svc.JordanEndpoint(ctx)
+	return android.DefaultResponse{Err: err}
+}
+
+var calls int
+
+func (svc *Service) JordanEndpoint(ctx context.Context) error {
+	// skipauth: Testing porpoises only
+	svc.authz.SkipAuthorization(ctx)
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Just here for debug purposes
+	policies, err := svc.androidAPIClient.EnterprisesPoliciesList(ctx, enterprise.Name())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "listing policies")
+	}
+	fmt.Printf("Found %d policies\n", len(policies))
+	for _, p := range policies {
+		fmt.Printf("Policy: %s (version %d) with %d apps\n", p.Name, p.Version, len(p.Applications))
+	}
+
+	policyName := fmt.Sprintf("%s/policies/1", enterprise.Name())
+
+	packageName := "com.zebra.oemconfig.release"
+	appPolicy := &androidmanagement.ApplicationPolicy{
+		PackageName: packageName,
+		InstallType: "REQUIRED_FOR_SETUP",
+		ManagedConfiguration: googleapi.RawMessage(`{
+			"passThroughCommand": "<wap-provisioningdoc>\r\n  <characteristic version=\"11.8\" type=\"Clock\">\r\n    <parm name=\"AutoTimeZone\" value=\"true\" \/>\r\n    <parm name=\"AutoTime\" value=\"true\" \/>\r\n    <characteristic type=\"AutoTimeDetails\">\r\n      <parm name=\"NTPServer\" value=\"pool.ntp.org\" \/>\r\n      <parm name=\"SyncInterval\" value=\"00:30:00\" \/>\r\n      <parm name=\"SpecifyTimeSyncThreshold\" value=\"false\" \/>\r\n    <\/characteristic>\r\n    <parm name=\"MilitaryTime\" value=\"1\" \/>\r\n  <\/characteristic>\r\n  <characteristic version=\"4.3\" type=\"BrowserMgr\">\r\n    <parm name=\"SetDefaultHomepage\" value=\"https:\/\/fleetdm.com\" \/>\r\n    <parm name=\"SetRememberPasswords\" value=\"1\" \/>\r\n    <parm name=\"SetSaveFormData\" value=\"1\" \/>\r\n  <\/characteristic>\r\n<\/wap-provisioningdoc>"
+		}`),
+	}
+
+	fmt.Printf("Checking if app %s exists", packageName)
+	app, err := svc.androidAPIClient.EnterprisesApplications(ctx, enterprise.Name(), packageName)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking if application exists")
+	}
+	if app == nil {
+		fmt.Printf("Application %s does not exist\n", packageName)
+	} else {
+		jsonBytes, _ := json.Marshal(app)
+		fmt.Printf("Application %s exists: %s\n", packageName, string(jsonBytes))
+		/*err = os.WriteFile("zebraapp.json", jsonBytes, 0o644)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "writing zebraapp.json")
+		}*/
+	}
+
+	if calls == 0 {
+		calls++
+		return nil
+	}
+	fmt.Printf("Call %d: Patching policy %s to add app %s\n", calls+1, policyName, packageName)
+	policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, appPolicy)
+	calls++
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Call %d: Successfully patched policy %s to add app %s got policy version %d\n", calls, policyName, packageName, policy.Version)
+	/*
+		// Uncomment this code and comment out the install code above to test uninstalls
+		fmt.Printf("Call %d: Patching policy %s to remove app %s\n", calls+1, policyName, packageName)
+		policy, err := svc.androidAPIClient.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, []string{packageName})
+		calls++
+		if err != nil {
+			return err
+		}
+	*/
+	if policy.StatusReportingSettings != nil && !policy.StatusReportingSettings.ApplicationReportsEnabled {
+		fmt.Printf("Enabling application reports in policy %s\n", policyName)
+		policy.StatusReportingSettings.ApplicationReportsEnabled = true
+		policy, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
+	} else {
+		fmt.Printf("Application reports are already enabled in policy %s\n", policyName)
+	}
+
+	// DEbugging info about the returned policy
+	fmt.Printf("Policy has %d apps\n", len(policy.Applications))
+	jsonBytes, _ := json.Marshal(policy)
+	fmt.Printf("Apps of returned policy: %s\n", string(jsonBytes))
+	err = os.WriteFile("zebrapolicy.json", jsonBytes, 0o644)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "writing zebrapolicy.json")
+	}
+
+	return nil
+}
