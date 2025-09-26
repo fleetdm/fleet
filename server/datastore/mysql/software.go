@@ -4313,6 +4313,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				SELECT
 					software_titles.id,
 					software_titles.name,
+					software_titles.browser AS browser,
 					software_titles.source AS source,
 					NULL AS installer_id,
 					NULL AS package_self_service,
@@ -4332,7 +4333,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
-					software_titles.source
+					software_titles.source,
+					software_titles.browser
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
