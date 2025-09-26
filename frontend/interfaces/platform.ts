@@ -155,6 +155,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
   "arch", // Arch Linux
   "archarm", // Arch Linux ARM
+  "manjaro",
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (

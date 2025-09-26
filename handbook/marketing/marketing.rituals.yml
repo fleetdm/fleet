@@ -101,7 +101,7 @@
     labels: [ ":help-marketing" ] 
     repo: "confidential"
 -
-  task: "Import LinkedIn posts to Clay"
+  task: "Import LinkedIn posts"
   startedOn: "2025-08-08"
   frequency: "Weekly"
   description: "Every Friday, the Content Specialist will duplicate the previously made Clay table and import all LinkedIn posts listed in the content calendar."
@@ -115,7 +115,7 @@
   startedOn: "2025-08-08"
   frequency: "Daily"
   description: "Daily, the Data & Video Specialist will clean up any duplicate accounts."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicates-in-crm"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 

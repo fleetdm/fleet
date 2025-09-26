@@ -13665,6 +13665,85 @@ func (s *integrationTestSuite) TestSecretVariablesPermissions() {
 	require.NotZero(t, lsvr.CustomVariables[0].UpdatedAt)
 }
 
+func (s *integrationTestSuite) TestAndroidHostUUIDPropagation() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create an Android host with a specific UUID
+	const expectedUUID = "TEST-UUID-12345-ANDROID"
+	host := &fleet.AndroidHost{
+		Host: &fleet.Host{
+			Hostname:       "test-android-uuid",
+			ComputerName:   "AndroidTestDevice",
+			Platform:       "android",
+			OSVersion:      "Android 15",
+			Build:          "test-build-uuid",
+			Memory:         2048,
+			TeamID:         nil,
+			HardwareSerial: "test-serial-uuid",
+			HardwareModel:  "Pixel 8",
+			HardwareVendor: "Google",
+			UUID:           expectedUUID, // Set the UUID explicitly
+		},
+		Device: &android.Device{
+			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
+			EnterpriseSpecificID: ptr.String(expectedUUID),
+			AppliedPolicyID:      ptr.String("1"),
+			LastPolicySyncTime:   ptr.Time(time.Now()),
+		},
+	}
+	host.SetNodeKey(expectedUUID)
+
+	// Create Android host
+	androidHost, err := s.ds.NewAndroidHost(ctx, host)
+	require.NoError(t, err)
+	require.NotZero(t, androidHost.Host.ID)
+
+	// Test 1: Get the host, verify UUID is present
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.Host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.Equal(t, expectedUUID, getHostResp.Host.UUID, "UUID should be returned in API response")
+	require.Equal(t, "AndroidTestDevice", getHostResp.Host.ComputerName)
+
+	// Test 2: Update the host, verify UUID is preserved
+	updatedHost := androidHost
+	updatedHost.Host.Hostname = "updated-android-hostname"
+	updatedHost.Host.ComputerName = "UpdatedAndroidDevice"
+	updatedHost.Host.OSVersion = "Android 16"
+	updatedHost.Host.UUID = expectedUUID
+
+	err = s.ds.UpdateAndroidHost(ctx, updatedHost, false)
+	require.NoError(t, err)
+
+	// Get the host again, verify UUID is still present
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", androidHost.Host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host)
+	require.Equal(t, expectedUUID, getHostResp.Host.UUID, "UUID should be preserved after host update")
+	require.Equal(t, "UpdatedAndroidDevice", getHostResp.Host.ComputerName)
+	require.Equal(t, "Android 16", getHostResp.Host.OSVersion)
+
+	// Test 3: List hosts, verify Android host UUID is included
+	var listHostsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsResp)
+
+	// Find our Android host in the list
+	var foundHost *fleet.HostResponse
+	for _, h := range listHostsResp.Hosts {
+		if h.ID == androidHost.Host.ID {
+			foundHost = &h
+			break
+		}
+	}
+	require.NotNil(t, foundHost, "Android host should be in list response")
+	require.Equal(t, expectedUUID, foundHost.UUID, "UUID should be present in list hosts response")
+
+	// Test 4: AndroidHostLite returns UUID
+	androidHostLite, err := s.ds.AndroidHostLite(ctx, expectedUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedUUID, androidHostLite.Host.UUID, "AndroidHostLite should return UUID")
+}
+
 func (s *integrationTestSuite) TestListAndroidHostsInLabel() {
 	t := s.T()
 	ctx := context.Background()

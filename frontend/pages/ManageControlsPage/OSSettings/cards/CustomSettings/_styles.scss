@@ -32,3 +32,8 @@
     max-width: none;
   }
 }
+
+// this is used to format the long error message when uploading invalid keys
+.upload-profile-invalid-keys-error {
+  display: flex;
+}
