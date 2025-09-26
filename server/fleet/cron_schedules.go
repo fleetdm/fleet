@@ -23,6 +23,7 @@ const (
 	CronActivitiesStreaming          CronScheduleName = "activities_streaming"
 	CronMDMAppleProfileManager       CronScheduleName = "mdm_apple_profile_manager"
 	CronMDMWindowsProfileManager     CronScheduleName = "mdm_windows_profile_manager"
+	CronMDMAndroidProfileManager     CronScheduleName = "mdm_android_profile_manager"
 	CronAppleMDMIPhoneIPadRefetcher  CronScheduleName = "apple_mdm_iphone_ipad_refetcher"
 	CronAppleMDMAPNsPusher           CronScheduleName = "apple_mdm_apns_pusher"
 	CronCalendar                     CronScheduleName = "calendar"

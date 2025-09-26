@@ -82,8 +82,8 @@ controls:
       - package_path: ../lib/macos/software/1password.yml # 1Password for macOS
       - app_store_id: '803453959' # Slack Desktop
   macos_updates:
-    deadline: "2025-08-31"
-    minimum_version: "15.6"
+    deadline: 
+    minimum_version: 
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -91,6 +91,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -109,6 +110,7 @@ controls:
     - path: ../lib/macos/scripts/install-nudge.sh
     - path: ../lib/linux/scripts/install-fleet-desktop-required-extension.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/latest-macos.yml
@@ -118,13 +120,16 @@ policies:
   - path: ../lib/macos/policies/enrollment-profile-up-to-date.yml
   - path: ../lib/macos/policies/disk-encryption-check.yml
   - path: ../lib/macos/policies/1password-installed.yml
+  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
-  - path: ../lib/macos/policies/install-macos-compatibility-extension.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:

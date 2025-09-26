@@ -1234,6 +1234,61 @@ This activity contains the following fields:
 }
 ```
 
+## created_android_profile
+
+Generated when a user adds a new Android profile to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_android_profile
+
+Generated when a user deletes an Android profile from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_android_profile
+
+Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
@@ -1763,6 +1818,51 @@ This activity contains the following fields:
 ```json
 {
   "name": "HYDRANT_WIFI"
+}
+```
+
+## added_smallstep
+
+Generated when Smallstep certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## deleted_smallstep
+
+Generated when Smallstep certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## edited_smallstep
+
+Generated when Smallstep certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
 }
 ```
 

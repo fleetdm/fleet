@@ -286,20 +286,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const {
-        id,
-        platform,
-        percent_disk_space_available,
-      } = cellProps.row.original;
+      const { platform, percent_disk_space_available } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
-          baseClass="gigs_disk_space_available__cell"
+          inTableCell
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
           platform={platform}
         />
       );
@@ -320,7 +315,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       const value = cellProps.cell.value;
       if (
         value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling"
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
       ) {
         return (
           <TextCell

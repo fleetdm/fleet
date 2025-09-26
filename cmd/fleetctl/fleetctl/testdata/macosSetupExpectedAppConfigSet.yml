@@ -38,6 +38,8 @@ spec:
       custom_settings: null
     windows_settings:
       custom_settings: null
+    android_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false

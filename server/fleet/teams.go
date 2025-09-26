@@ -239,6 +239,8 @@ type TeamMDM struct {
 	MacOSSetup           MacOSSetup            `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 	// NOTE: TeamSpecMDM must be kept in sync with TeamMDM.
 
 	/////////////////////////////////////////////////////////////////
@@ -280,6 +282,13 @@ func (t *TeamMDM) Copy() *TeamMDM {
 		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
+	if t.AndroidSettings.CustomSettings.Set {
+		androidSettings := make([]MDMProfileSpec, len(t.AndroidSettings.CustomSettings.Value))
+		for i, mps := range t.AndroidSettings.CustomSettings.Value {
+			androidSettings[i] = *mps.Copy()
+		}
+		clone.AndroidSettings.CustomSettings = optjson.SetSlice(androidSettings)
+	}
 	if t.MacOSSetup.Software.Set {
 		sw := make([]*MacOSSetupSoftware, len(t.MacOSSetup.Software.Value))
 		for i, s := range t.MacOSSetup.Software.Value {
@@ -315,6 +324,8 @@ type TeamSpecMDM struct {
 	MacOSSetup    MacOSSetup             `json:"macos_setup"`
 
 	WindowsSettings WindowsSettings `json:"windows_settings"`
+
+	AndroidSettings AndroidSettings `json:"android_settings"`
 
 	// NOTE: TeamMDM must be kept in sync with TeamSpecMDM.
 }
@@ -570,6 +581,7 @@ type TeamSpecIntegrations struct {
 // TeamSpecsDryRunAssumptions holds the assumptions that are made when applying team specs in dry-run mode.
 type TeamSpecsDryRunAssumptions struct {
 	WindowsEnabledAndConfigured optjson.Bool `json:"windows_enabled_and_configured,omitempty"`
+	AndroidEnabledAndConfigured optjson.Bool `json:"android_enabled_and_configured,omitempty"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -599,6 +611,7 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+	mdmSpec.AndroidSettings = t.Config.MDM.AndroidSettings
 
 	var webhookSettings TeamSpecWebhookSettings
 	if t.Config.WebhookSettings.HostStatusWebhook != nil {

@@ -151,7 +151,7 @@ type UpdateLabelMembershipByHostIDsFunc func(ctx context.Context, labelID uint, 
 
 type UpdateLabelMembershipByHostCriteriaFunc func(ctx context.Context, hvl fleet.HostVitalsLabel) (*fleet.Label, error)
 
-type NewLabelFunc func(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
+type NewLabelFunc func(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error)
 
 type SaveLabelFunc func(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error)
 
@@ -797,6 +797,8 @@ type ListOSVulnerabilitiesByOSFunc func(ctx context.Context, osID uint) ([]fleet
 
 type ListVulnsByOsNameAndVersionFunc func(ctx context.Context, name string, version string, includeCVSS bool, teamID *uint) (fleet.Vulnerabilities, error)
 
+type ListVulnsByMultipleOSVersionsFunc func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint) (map[string]fleet.Vulnerabilities, error)
+
 type InsertOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error)
 
 type DeleteOSVulnerabilitiesFunc func(ctx context.Context, vulnerabilities []fleet.OSVulnerability) error
@@ -1155,7 +1157,7 @@ type NewMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindow
 
 type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error
 
-type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
+type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error)
 
 type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
@@ -1413,7 +1415,7 @@ type ExpandEmbeddedSecretsAndUpdatedAtFunc func(ctx context.Context, document st
 
 type CreateEnterpriseFunc func(ctx context.Context, userID uint) (uint, error)
 
-type GetEnterpriseByIDFunc func(ctx context.Context, ID uint) (*android.EnterpriseDetails, error)
+type GetEnterpriseByIDFunc func(ctx context.Context, id uint) (*android.EnterpriseDetails, error)
 
 type GetEnterpriseBySignupTokenFunc func(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error)
 
@@ -1423,13 +1425,15 @@ type UpdateEnterpriseFunc func(ctx context.Context, enterprise *android.Enterpri
 
 type DeleteAllEnterprisesFunc func(ctx context.Context) error
 
-type DeleteOtherEnterprisesFunc func(ctx context.Context, ID uint) error
+type DeleteOtherEnterprisesFunc func(ctx context.Context, id uint) error
 
 type CreateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error)
 
 type UpdateDeviceTxFunc func(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error
 
 type AndroidHostLiteFunc func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error)
+
+type AndroidHostLiteByHostUUIDFunc func(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error)
 
 type BulkSetAndroidHostsUnenrolledFunc func(ctx context.Context) error
 
@@ -1438,6 +1442,30 @@ type NewAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost) (*fle
 type SetAndroidEnabledAndConfiguredFunc func(ctx context.Context, configured bool) error
 
 type UpdateAndroidHostFunc func(ctx context.Context, host *fleet.AndroidHost, fromEnroll bool) error
+
+type BulkUpsertMDMAndroidHostProfilesFunc func(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error
+
+type BulkDeleteMDMAndroidHostProfilesFunc func(ctx context.Context, hostUUID string, policyVersionID int64) error
+
+type ListHostMDMAndroidProfilesPendingInstallWithVersionFunc func(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error)
+
+type GetAndroidPolicyRequestByUUIDFunc func(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error)
+
+type NewMDMAndroidConfigProfileFunc func(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error)
+
+type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
+
+type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
+
+type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
+
+type GetHostMDMAndroidProfilesFunc func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error)
+
+type NewAndroidPolicyRequestFunc func(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error
+
+type ListMDMAndroidProfilesToSendFunc func(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error)
+
+type GetMDMAndroidProfilesContentsFunc func(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
 type CreateScimUserFunc func(ctx context.Context, user *fleet.ScimUser) (uint, error)
 
@@ -2679,6 +2707,9 @@ type DataStore struct {
 	ListVulnsByOsNameAndVersionFunc        ListVulnsByOsNameAndVersionFunc
 	ListVulnsByOsNameAndVersionFuncInvoked bool
 
+	ListVulnsByMultipleOSVersionsFunc        ListVulnsByMultipleOSVersionsFunc
+	ListVulnsByMultipleOSVersionsFuncInvoked bool
+
 	InsertOSVulnerabilitiesFunc        InsertOSVulnerabilitiesFunc
 	InsertOSVulnerabilitiesFuncInvoked bool
 
@@ -3630,6 +3661,9 @@ type DataStore struct {
 	AndroidHostLiteFunc        AndroidHostLiteFunc
 	AndroidHostLiteFuncInvoked bool
 
+	AndroidHostLiteByHostUUIDFunc        AndroidHostLiteByHostUUIDFunc
+	AndroidHostLiteByHostUUIDFuncInvoked bool
+
 	BulkSetAndroidHostsUnenrolledFunc        BulkSetAndroidHostsUnenrolledFunc
 	BulkSetAndroidHostsUnenrolledFuncInvoked bool
 
@@ -3641,6 +3675,42 @@ type DataStore struct {
 
 	UpdateAndroidHostFunc        UpdateAndroidHostFunc
 	UpdateAndroidHostFuncInvoked bool
+
+	BulkUpsertMDMAndroidHostProfilesFunc        BulkUpsertMDMAndroidHostProfilesFunc
+	BulkUpsertMDMAndroidHostProfilesFuncInvoked bool
+
+	BulkDeleteMDMAndroidHostProfilesFunc        BulkDeleteMDMAndroidHostProfilesFunc
+	BulkDeleteMDMAndroidHostProfilesFuncInvoked bool
+
+	ListHostMDMAndroidProfilesPendingInstallWithVersionFunc        ListHostMDMAndroidProfilesPendingInstallWithVersionFunc
+	ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked bool
+
+	GetAndroidPolicyRequestByUUIDFunc        GetAndroidPolicyRequestByUUIDFunc
+	GetAndroidPolicyRequestByUUIDFuncInvoked bool
+
+	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
+	NewMDMAndroidConfigProfileFuncInvoked bool
+
+	GetMDMAndroidConfigProfileFunc        GetMDMAndroidConfigProfileFunc
+	GetMDMAndroidConfigProfileFuncInvoked bool
+
+	DeleteMDMAndroidConfigProfileFunc        DeleteMDMAndroidConfigProfileFunc
+	DeleteMDMAndroidConfigProfileFuncInvoked bool
+
+	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
+	GetMDMAndroidProfilesSummaryFuncInvoked bool
+
+	GetHostMDMAndroidProfilesFunc        GetHostMDMAndroidProfilesFunc
+	GetHostMDMAndroidProfilesFuncInvoked bool
+
+	NewAndroidPolicyRequestFunc        NewAndroidPolicyRequestFunc
+	NewAndroidPolicyRequestFuncInvoked bool
+
+	ListMDMAndroidProfilesToSendFunc        ListMDMAndroidProfilesToSendFunc
+	ListMDMAndroidProfilesToSendFuncInvoked bool
+
+	GetMDMAndroidProfilesContentsFunc        GetMDMAndroidProfilesContentsFunc
+	GetMDMAndroidProfilesContentsFuncInvoked bool
 
 	CreateScimUserFunc        CreateScimUserFunc
 	CreateScimUserFuncInvoked bool
@@ -4210,11 +4280,11 @@ func (s *DataStore) UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl
 	return s.UpdateLabelMembershipByHostCriteriaFunc(ctx, hvl)
 }
 
-func (s *DataStore) NewLabel(ctx context.Context, Label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
+func (s *DataStore) NewLabel(ctx context.Context, label *fleet.Label, opts ...fleet.OptionalArg) (*fleet.Label, error) {
 	s.mu.Lock()
 	s.NewLabelFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewLabelFunc(ctx, Label, opts...)
+	return s.NewLabelFunc(ctx, label, opts...)
 }
 
 func (s *DataStore) SaveLabel(ctx context.Context, label *fleet.Label, teamFilter fleet.TeamFilter) (*fleet.Label, []uint, error) {
@@ -6471,6 +6541,13 @@ func (s *DataStore) ListVulnsByOsNameAndVersion(ctx context.Context, name string
 	return s.ListVulnsByOsNameAndVersionFunc(ctx, name, version, includeCVSS, teamID)
 }
 
+func (s *DataStore) ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool, teamID *uint) (map[string]fleet.Vulnerabilities, error) {
+	s.mu.Lock()
+	s.ListVulnsByMultipleOSVersionsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListVulnsByMultipleOSVersionsFunc(ctx, osVersions, includeCVSS, teamID)
+}
+
 func (s *DataStore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 	s.mu.Lock()
 	s.InsertOSVulnerabilitiesFuncInvoked = true
@@ -7724,11 +7801,11 @@ func (s *DataStore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp f
 	return s.SetOrUpdateMDMWindowsConfigProfileFunc(ctx, cp)
 }
 
-func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
+func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration, androidProfiles []*fleet.MDMAndroidConfigProfile, profilesVariables []fleet.MDMProfileIdentifierFleetVariables) (updates fleet.MDMProfilesUpdates, err error) {
 	s.mu.Lock()
 	s.BatchSetMDMProfilesFuncInvoked = true
 	s.mu.Unlock()
-	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, profilesVariables)
+	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations, androidProfiles, profilesVariables)
 }
 
 func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
@@ -8627,11 +8704,11 @@ func (s *DataStore) CreateEnterprise(ctx context.Context, userID uint) (uint, er
 	return s.CreateEnterpriseFunc(ctx, userID)
 }
 
-func (s *DataStore) GetEnterpriseByID(ctx context.Context, ID uint) (*android.EnterpriseDetails, error) {
+func (s *DataStore) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
 	s.mu.Lock()
 	s.GetEnterpriseByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetEnterpriseByIDFunc(ctx, ID)
+	return s.GetEnterpriseByIDFunc(ctx, id)
 }
 
 func (s *DataStore) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
@@ -8662,11 +8739,11 @@ func (s *DataStore) DeleteAllEnterprises(ctx context.Context) error {
 	return s.DeleteAllEnterprisesFunc(ctx)
 }
 
-func (s *DataStore) DeleteOtherEnterprises(ctx context.Context, ID uint) error {
+func (s *DataStore) DeleteOtherEnterprises(ctx context.Context, id uint) error {
 	s.mu.Lock()
 	s.DeleteOtherEnterprisesFuncInvoked = true
 	s.mu.Unlock()
-	return s.DeleteOtherEnterprisesFunc(ctx, ID)
+	return s.DeleteOtherEnterprisesFunc(ctx, id)
 }
 
 func (s *DataStore) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
@@ -8688,6 +8765,13 @@ func (s *DataStore) AndroidHostLite(ctx context.Context, enterpriseSpecificID st
 	s.AndroidHostLiteFuncInvoked = true
 	s.mu.Unlock()
 	return s.AndroidHostLiteFunc(ctx, enterpriseSpecificID)
+}
+
+func (s *DataStore) AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*fleet.AndroidHost, error) {
+	s.mu.Lock()
+	s.AndroidHostLiteByHostUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.AndroidHostLiteByHostUUIDFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) BulkSetAndroidHostsUnenrolled(ctx context.Context) error {
@@ -8716,6 +8800,90 @@ func (s *DataStore) UpdateAndroidHost(ctx context.Context, host *fleet.AndroidHo
 	s.UpdateAndroidHostFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateAndroidHostFunc(ctx, host, fromEnroll)
+}
+
+func (s *DataStore) BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*fleet.MDMAndroidProfilePayload) error {
+	s.mu.Lock()
+	s.BulkUpsertMDMAndroidHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkUpsertMDMAndroidHostProfilesFunc(ctx, payload)
+}
+
+func (s *DataStore) BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error {
+	s.mu.Lock()
+	s.BulkDeleteMDMAndroidHostProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.BulkDeleteMDMAndroidHostProfilesFunc(ctx, hostUUID, policyVersionID)
+}
+
+func (s *DataStore) ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*fleet.MDMAndroidProfilePayload, error) {
+	s.mu.Lock()
+	s.ListHostMDMAndroidProfilesPendingInstallWithVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostMDMAndroidProfilesPendingInstallWithVersionFunc(ctx, hostUUID, policyVersion)
+}
+
+func (s *DataStore) GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*fleet.MDMAndroidPolicyRequest, error) {
+	s.mu.Lock()
+	s.GetAndroidPolicyRequestByUUIDFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetAndroidPolicyRequestByUUIDFunc(ctx, requestUUID)
+}
+
+func (s *DataStore) NewMDMAndroidConfigProfile(ctx context.Context, cp fleet.MDMAndroidConfigProfile) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.NewMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAndroidConfigProfileFunc(ctx, cp)
+}
+
+func (s *DataStore) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
+	s.mu.Lock()
+	s.DeleteMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidProfilesSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
+}
+
+func (s *DataStore) GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]fleet.HostMDMAndroidProfile, error) {
+	s.mu.Lock()
+	s.GetHostMDMAndroidProfilesFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostMDMAndroidProfilesFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) NewAndroidPolicyRequest(ctx context.Context, req *fleet.MDMAndroidPolicyRequest) error {
+	s.mu.Lock()
+	s.NewAndroidPolicyRequestFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewAndroidPolicyRequestFunc(ctx, req)
+}
+
+func (s *DataStore) ListMDMAndroidProfilesToSend(ctx context.Context) ([]*fleet.MDMAndroidProfilePayload, []*fleet.MDMAndroidProfilePayload, error) {
+	s.mu.Lock()
+	s.ListMDMAndroidProfilesToSendFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListMDMAndroidProfilesToSendFunc(ctx)
+}
+
+func (s *DataStore) GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidProfilesContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidProfilesContentsFunc(ctx, uuids)
 }
 
 func (s *DataStore) CreateScimUser(ctx context.Context, user *fleet.ScimUser) (uint, error) {

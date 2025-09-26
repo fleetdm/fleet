@@ -1110,6 +1110,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":                          {},
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
 		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
@@ -4497,4 +4498,54 @@ func BenchmarkPreprocessUbuntuPythonPackageFilter(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		preProcessSoftwareResults(&fleet.Host{ID: 1, Platform: platform}, results, statuses, nil, nil, log.NewNopLogger())
 	}
+}
+
+func TestUpdateFleetdVersion(t *testing.T) {
+	const (
+		orbitInfoQuery     = hostDetailQueryPrefix + "orbit_info"
+		softwareLinuxQuery = hostDetailQueryPrefix + "software_linux"
+	)
+
+	t.Run("updates fleet-osquery version on linux", func(t *testing.T) {
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "some-other-package", "version": "0.0.1"},
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("linux", results)
+
+		require.Equal(t, "1.2.3", results[softwareLinuxQuery][1]["version"])
+		require.Equal(t, "0.0.1", results[softwareLinuxQuery][0]["version"])
+	})
+
+	t.Run("non-linux platform - does nothing", func(t *testing.T) {
+		originalResults := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		results := fleet.OsqueryDistributedQueryResults{
+			orbitInfoQuery: []map[string]string{
+				{"version": "1.2.3"},
+			},
+			softwareLinuxQuery: []map[string]string{
+				{"name": "fleet-osquery", "version": "0.0.0"},
+			},
+		}
+
+		updateFleetdVersion("darwin", results)
+		require.Equal(t, originalResults, results)
+
+		updateFleetdVersion("windows", results)
+		require.Equal(t, originalResults, results)
+	})
 }

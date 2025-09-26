@@ -29,7 +29,7 @@ module.exports = {
 
     let thisScript = _.find(sails.config.builtStaticContent.scripts, { slug: slug });
     if(!thisScript){
-      return 'notFound';
+      throw 'notFound';
     }
 
     let pageTitleForMeta = `${thisScript.name} | Fleet controls library`;

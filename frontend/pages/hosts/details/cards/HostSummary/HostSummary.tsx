@@ -107,7 +107,8 @@ const getHostDiskEncryptionTooltipMessage = (
     platform === "rhel" ||
     platform === "ubuntu" ||
     platform === "arch" ||
-    platform === "archarm"
+    platform === "archarm" ||
+    platform === "manjaro"
   ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
@@ -174,6 +175,14 @@ const HostSummary = ({
   );
 
   const renderDiskSpaceSummary = () => {
+    // Hide disk space field if storage measurement is not supported (sentinel value -1)
+    if (
+      typeof summaryData.gigs_disk_space_available === "number" &&
+      summaryData.gigs_disk_space_available < 0
+    ) {
+      return null;
+    }
+
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
         Disk space
@@ -187,10 +196,8 @@ const HostSummary = ({
         title={title}
         value={
           <DiskSpaceIndicator
-            baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
-            id={`disk-space-tooltip-${summaryData.id}`}
             platform={platform}
             tooltipPosition="bottom"
           />
@@ -247,7 +254,9 @@ const HostSummary = ({
       let value = summaryData.os_version;
       if (
         value === "Arch Linux rolling" ||
-        value === "Arch Linux ARM rolling"
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
       ) {
         const archLinuxPrefix = value.slice(0, -8); // removing lowercase "rolling" suffix
         value = (

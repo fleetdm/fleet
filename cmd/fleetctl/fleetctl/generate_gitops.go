@@ -605,14 +605,20 @@ var isJSON = regexp.MustCompile(`^\s*\{`)
 // Generate a filename for a profile based on its name and contents.
 func generateProfileFilename(profile *fleet.MDMConfigProfilePayload, profileContentsString string) string {
 	fileName := generateFilename(profile.Name)
-	if profile.Platform == "darwin" {
+	switch profile.Platform {
+	case "darwin":
 		if isJSON.MatchString(profileContentsString) {
 			fileName += ".json"
 		} else {
 			fileName += ".mobileconfig"
 		}
-	} else {
+	case "windows":
 		fileName += ".xml"
+	case "android":
+		fileName += ".json"
+	default:
+		fmt.Fprintf(os.Stderr, "Warning: unknown profile platform %s for profile %s, skipping\n", profile.Platform, profile.Name)
+		return ""
 	}
 	return fileName
 }
@@ -824,7 +830,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["api_token"] = cmd.AddComment(filePath, "TODO: Add your Digicert API token here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.digicert.api_token",
+					Key:      "certificate_authorities.digicert.api_token",
 				})
 			}
 		}
@@ -832,7 +838,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 			ndes_scep_proxy.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your NDES SCEP proxy password here")
 			cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 				Filename: "default.yml",
-				Key:      "integrations.ndes_scep_proxy.password",
+				Key:      "certificate_authorities.ndes_scep_proxy.password",
 			})
 		}
 		if custom_scep_proxy, ok := result["custom_scep_proxy"]; ok && custom_scep_proxy != nil {
@@ -840,7 +846,7 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["challenge"] = cmd.AddComment(filePath, "TODO: Add your custom SCEP proxy challenge here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.custom_scep_proxy.challenge",
+					Key:      "certificate_authorities.custom_scep_proxy.challenge",
 				})
 			}
 		}
@@ -849,7 +855,22 @@ func (cmd *GenerateGitopsCommand) generateCertificateAuthorities(filePath string
 				intg.(map[string]interface{})["client_secret"] = cmd.AddComment(filePath, "TODO: Add your Hydrant client secret here")
 				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
 					Filename: "default.yml",
-					Key:      "integrations.hydrant.client_secret",
+					Key:      "certificate_authorities.hydrant.client_secret",
+				})
+			}
+		}
+		if smallstep, ok := result["smallstep"]; ok && smallstep != nil {
+			for _, intg := range smallstep.([]interface{}) {
+				intg.(map[string]interface{})["password"] = cmd.AddComment(filePath, "TODO: Add your Smallstep password here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.smallstep.password",
+				})
+
+				intg.(map[string]interface{})["username"] = cmd.AddComment(filePath, "TODO: Add your Smallstep username here")
+				cmd.Messages.SecretWarnings = append(cmd.Messages.SecretWarnings, SecretWarning{
+					Filename: "default.yml",
+					Key:      "certificate_authorities.smallstep.username",
 				})
 			}
 		}
@@ -1000,22 +1021,30 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		result[jsonFieldName(t, "Scripts")] = scripts
 	}
 
-	if cmd.AppConfig.MDM.EnabledAndConfigured {
-		profiles, err := cmd.generateProfiles(teamId, teamName)
-		if err != nil {
-			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
-			return nil, err
-		}
-		if profiles != nil {
-			if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
-					"custom_settings": profiles["apple_profiles"],
-				}
+	profiles, err := cmd.generateProfiles(teamId, teamName)
+	if err != nil {
+		fmt.Fprintf(cmd.CLI.App.ErrWriter, "Error generating profiles: %s\n", err)
+		return nil, err
+	}
+
+	if cmd.AppConfig.MDM.EnabledAndConfigured && profiles != nil {
+		if len(profiles["apple_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "MacOSSettings")] = map[string]interface{}{
+				"custom_settings": profiles["apple_profiles"],
 			}
-			if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
-				result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
-					"custom_settings": profiles["windows_profiles"],
-				}
+		}
+	}
+	if cmd.AppConfig.MDM.WindowsEnabledAndConfigured && profiles != nil {
+		if len(profiles["windows_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "WindowsSettings")] = map[string]interface{}{
+				"custom_settings": profiles["windows_profiles"],
+			}
+		}
+	}
+	if cmd.AppConfig.MDM.AndroidEnabledAndConfigured && profiles != nil {
+		if len(profiles["android_profiles"].([]map[string]interface{})) > 0 {
+			result[jsonFieldName(t, "AndroidSettings")] = map[string]interface{}{
+				"custom_settings": profiles["android_profiles"],
 			}
 		}
 	}
@@ -1039,6 +1068,9 @@ func (cmd *GenerateGitopsCommand) generateControls(teamId *uint, teamName string
 		}
 		if cmd.AppConfig.MDM.WindowsEnabledAndConfigured {
 			result["windows_enabled_and_configured"] = cmd.AppConfig.MDM.WindowsEnabledAndConfigured
+		}
+		if cmd.AppConfig.MDM.AndroidEnabledAndConfigured {
+			result["android_enabled_and_configured"] = cmd.AppConfig.MDM.AndroidEnabledAndConfigured
 		}
 
 		if teamId != nil && cmd.AppConfig.MDM.EnabledAndConfigured {
@@ -1092,6 +1124,7 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 	}
 	appleProfilesSlice := make([]map[string]interface{}, 0)
 	windowsProfilesSlice := make([]map[string]interface{}, 0)
+	androidProfilesSlice := make([]map[string]interface{}, 0)
 	for _, profile := range profiles {
 		profileSpec := map[string]interface{}{}
 		// Parse any labels.
@@ -1125,7 +1158,12 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 		}
 		profileContentsString := string(profileContents)
 
-		fileName := fmt.Sprintf("profiles/%s", generateProfileFilename(profile, profileContentsString))
+		generatedFilename := generateProfileFilename(profile, profileContentsString)
+		if generatedFilename == "" {
+			continue // Error logged inside generateProfileFilename
+		}
+
+		fileName := fmt.Sprintf("profiles/%s", generatedFilename)
 		if teamId == nil {
 			fileName = fmt.Sprintf("lib/%s", fileName)
 		} else {
@@ -1142,16 +1180,22 @@ func (cmd *GenerateGitopsCommand) generateProfiles(teamId *uint, teamName string
 
 		profileSpec["path"] = path
 
-		if profile.Platform == "darwin" {
+		switch profile.Platform {
+		case "darwin":
 			appleProfilesSlice = append(appleProfilesSlice, profileSpec)
-		} else {
+		case "windows":
 			windowsProfilesSlice = append(windowsProfilesSlice, profileSpec)
+		case "android":
+			androidProfilesSlice = append(androidProfilesSlice, profileSpec)
+		default:
+			fmt.Fprintf(cmd.CLI.App.ErrWriter, "Warning: unknown profile platform %s for profile %s, skipping\n", profile.Platform, profile.Name)
 		}
 	}
 
 	return map[string]interface{}{
 		"apple_profiles":   appleProfilesSlice,
 		"windows_profiles": windowsProfilesSlice,
+		"android_profiles": androidProfilesSlice,
 	}, nil
 }
 

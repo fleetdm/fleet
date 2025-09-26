@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	android_svc "github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	"github.com/fleetdm/fleet/v4/server/mdm/assets"
@@ -1306,6 +1307,30 @@ func newWindowsMDMProfileManagerSchedule(
 		schedule.WithLogger(logger),
 		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
 			return service.ReconcileWindowsProfiles(ctx, ds, logger)
+		}),
+	)
+
+	return s, nil
+}
+
+func newAndroidMDMProfileManagerSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	logger kitlog.Logger,
+	licenseKey string,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronMDMAndroidProfileManager)
+		defaultInterval = 30 * time.Second
+	)
+
+	logger = kitlog.With(logger, "cron", name)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		schedule.WithLogger(logger),
+		schedule.WithJob("manage_android_profiles", func(ctx context.Context) error {
+			return android_svc.ReconcileProfiles(ctx, ds, logger, licenseKey)
 		}),
 	)
 

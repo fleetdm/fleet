@@ -26,7 +26,7 @@ module.exports = {
     }
     let thisCommand = _.find(sails.config.builtStaticContent.mdmCommands, { slug: slug });
     if(!thisCommand) {
-      return 'notFound';
+      throw 'notFound';
     }
     let pageTitleForMeta = ` ${thisCommand.name} command | Fleet controls library`;
     let pageDescriptionForMeta = `${thisCommand.description}`;

@@ -186,7 +186,7 @@ func DecodeQueryTagValue(r *http.Request, fp fieldPair) error {
 			if optional {
 				return nil
 			}
-			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", fp.Sf.Name)}
+			return &fleet.BadRequestError{Message: fmt.Sprintf("Param %s is required", queryTagValue)}
 		}
 		field := fp.V
 		if field.Kind() == reflect.Ptr {

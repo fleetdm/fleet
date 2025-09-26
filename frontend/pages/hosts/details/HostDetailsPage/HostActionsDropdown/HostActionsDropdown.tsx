@@ -41,6 +41,7 @@ const HostActionsDropdown = ({
     isGlobalMaintainer = false,
     isMacMdmEnabledAndConfigured = false,
     isWindowsMdmEnabledAndConfigured = false,
+    isAndroidMdmEnabledAndConfigured = false,
     currentUser,
     config: globalConfig,
   } = useContext(AppContext);
@@ -69,6 +70,7 @@ const HostActionsDropdown = ({
     isConnectedToFleetMdm,
     isMacMdmEnabledAndConfigured,
     isWindowsMdmEnabledAndConfigured,
+    isAndroidMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     hostMdmDeviceStatus,
     hostScriptsEnabled,

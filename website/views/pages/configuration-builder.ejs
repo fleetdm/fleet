@@ -43,18 +43,18 @@
         <p class="mb-0">Choose an operating system to continue.</p>
         <ajax-form :handle-submitting="handleSubmittingPlatformSelectForm" :form-errors.sync="formErrors" :form-data="platformSelectFormData" :form-rules="platformSelectFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div purpose="platforms" id="platform" class="d-flex flex-row">
-            <div purpose="platform-button" class="mb-3" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]" @click="platformSelectFormData.platform = 'macos'">
+            <!-- <div purpose="platform-button" class="mb-3" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]" @click="platformSelectFormData.platform = 'macos'">
               <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
               macOS
-            </div>
+            </div> -->
             <div purpose="platform-button" class="mb-0" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
               <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
               Windows
             </div>
-            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'ios' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'ios'">
+            <!-- <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'ios' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'ios'">
               <img src="/images/icon-ios-24x24@2x.png" alt="iOS" class="d-inline">
               iOS
-            </div>
+            </div> -->
             <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'android' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'android'">
               <img src="/images/icon-android-24x24@2x.png" alt="Android" class="d-inline">
               Android

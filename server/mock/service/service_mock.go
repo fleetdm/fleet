@@ -505,9 +505,9 @@ type BatchAssociateVPPAppsFunc func(ctx context.Context, teamName string, payloa
 
 type GetHostDEPAssignmentFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostDEPAssignment, error)
 
-type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
+type NewMDMAppleConfigProfileFunc func(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error)
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error)
 
 type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error)
 
@@ -673,9 +673,11 @@ type DeleteMDMWindowsConfigProfileFunc func(ctx context.Context, profileUUID str
 
 type GetMDMWindowsProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
-type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error)
+type NewMDMWindowsConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error)
 
 type NewMDMUnsupportedConfigProfileFunc func(ctx context.Context, teamID uint, filename string) error
+
+type NewMDMInvalidJSONConfigProfileFunc func(ctx context.Context, teamID uint, err error) error
 
 type ListMDMConfigProfilesFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error)
 
@@ -684,6 +686,14 @@ type BatchSetMDMProfilesFunc func(ctx context.Context, teamID *uint, teamName *s
 type LinuxHostDiskEncryptionStatusFunc func(ctx context.Context, host fleet.Host) (fleet.HostMDMDiskEncryption, error)
 
 type GetMDMLinuxProfilesSummaryFunc func(ctx context.Context, teamId *uint) (fleet.MDMProfilesSummary, error)
+
+type NewMDMAndroidConfigProfileFunc func(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error)
+
+type DeleteMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) error
+
+type GetMDMAndroidConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error)
+
+type GetMDMAndroidProfilesSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error)
 
 type GetMDMDiskEncryptionSummaryFunc func(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error)
 
@@ -801,7 +811,7 @@ type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, t
 
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
 
-type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, err error)
+type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
@@ -1812,6 +1822,9 @@ type Service struct {
 	NewMDMUnsupportedConfigProfileFunc        NewMDMUnsupportedConfigProfileFunc
 	NewMDMUnsupportedConfigProfileFuncInvoked bool
 
+	NewMDMInvalidJSONConfigProfileFunc        NewMDMInvalidJSONConfigProfileFunc
+	NewMDMInvalidJSONConfigProfileFuncInvoked bool
+
 	ListMDMConfigProfilesFunc        ListMDMConfigProfilesFunc
 	ListMDMConfigProfilesFuncInvoked bool
 
@@ -1823,6 +1836,18 @@ type Service struct {
 
 	GetMDMLinuxProfilesSummaryFunc        GetMDMLinuxProfilesSummaryFunc
 	GetMDMLinuxProfilesSummaryFuncInvoked bool
+
+	NewMDMAndroidConfigProfileFunc        NewMDMAndroidConfigProfileFunc
+	NewMDMAndroidConfigProfileFuncInvoked bool
+
+	DeleteMDMAndroidConfigProfileFunc        DeleteMDMAndroidConfigProfileFunc
+	DeleteMDMAndroidConfigProfileFuncInvoked bool
+
+	GetMDMAndroidConfigProfileFunc        GetMDMAndroidConfigProfileFunc
+	GetMDMAndroidConfigProfileFuncInvoked bool
+
+	GetMDMAndroidProfilesSummaryFunc        GetMDMAndroidProfilesSummaryFunc
+	GetMDMAndroidProfilesSummaryFuncInvoked bool
 
 	GetMDMDiskEncryptionSummaryFunc        GetMDMDiskEncryptionSummaryFunc
 	GetMDMDiskEncryptionSummaryFuncInvoked bool
@@ -3739,18 +3764,18 @@ func (s *Service) GetHostDEPAssignment(ctx context.Context, host *fleet.Host) (*
 	return s.GetHostDEPAssignmentFunc(ctx, host)
 }
 
-func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
+func (s *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleConfigProfileFunc(ctx, teamID, r, labels, labelsMembershipMode)
+	return s.NewMDMAppleConfigProfileFunc(ctx, teamID, data, labels, labelsMembershipMode)
 }
 
-func (s *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
+func (s *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, data []byte, labels []string, name string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, teamID, r, labels, name, labelsMembershipMode)
+	return s.NewMDMAppleDeclarationFunc(ctx, teamID, data, labels, name, labelsMembershipMode)
 }
 
 func (s *Service) GetMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) (*fleet.MDMAppleConfigProfile, error) {
@@ -4327,11 +4352,11 @@ func (s *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint
 	return s.GetMDMWindowsProfilesSummaryFunc(ctx, teamID)
 }
 
-func (s *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
+func (s *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMWindowsConfigProfile, error) {
 	s.mu.Lock()
 	s.NewMDMWindowsConfigProfileFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMWindowsConfigProfileFunc(ctx, teamID, profileName, r, labels, labelsMembershipMode)
+	return s.NewMDMWindowsConfigProfileFunc(ctx, teamID, profileName, data, labels, labelsMembershipMode)
 }
 
 func (s *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uint, filename string) error {
@@ -4339,6 +4364,13 @@ func (s *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID uin
 	s.NewMDMUnsupportedConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.NewMDMUnsupportedConfigProfileFunc(ctx, teamID, filename)
+}
+
+func (s *Service) NewMDMInvalidJSONConfigProfile(ctx context.Context, teamID uint, err error) error {
+	s.mu.Lock()
+	s.NewMDMInvalidJSONConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMInvalidJSONConfigProfileFunc(ctx, teamID, err)
 }
 
 func (s *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.MDMConfigProfilePayload, *fleet.PaginationMetadata, error) {
@@ -4367,6 +4399,34 @@ func (s *Service) GetMDMLinuxProfilesSummary(ctx context.Context, teamId *uint) 
 	s.GetMDMLinuxProfilesSummaryFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMLinuxProfilesSummaryFunc(ctx, teamId)
+}
+
+func (s *Service) NewMDMAndroidConfigProfile(ctx context.Context, teamID uint, profileName string, data []byte, labels []string, labelsMembershipMode fleet.MDMLabelsMode) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.NewMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.NewMDMAndroidConfigProfileFunc(ctx, teamID, profileName, data, labels, labelsMembershipMode)
+}
+
+func (s *Service) DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error {
+	s.mu.Lock()
+	s.DeleteMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.DeleteMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *Service) GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*fleet.MDMAndroidConfigProfile, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidConfigProfileFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *Service) GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	s.mu.Lock()
+	s.GetMDMAndroidProfilesSummaryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAndroidProfilesSummaryFunc(ctx, teamID)
 }
 
 func (s *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
@@ -4775,7 +4835,7 @@ func (s *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.Con
 	return s.ConditionalAccessMicrosoftGetFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error) {
+func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error) {
 	s.mu.Lock()
 	s.ConditionalAccessMicrosoftConfirmFuncInvoked = true
 	s.mu.Unlock()

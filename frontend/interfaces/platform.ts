@@ -155,6 +155,7 @@ export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "rhel", // *included here to support Fedora systems. Necessary to cross-check with `os_versions` as well to confrim host is Fedora and not another, non-support rhel-like platform.
   "arch", // Arch Linux
   "archarm", // Arch Linux ARM
+  "manjaro",
 ] as const;
 
 export const isDiskEncryptionSupportedLinuxPlatform = (
@@ -195,15 +196,13 @@ const OS_SETTINGS_DISPLAY_PLATFORMS = [
   ...DISK_ENCRYPTION_SUPPORTED_PLATFORMS,
   "ios",
   "ipados",
+  "android",
 ];
 
 export const isOsSettingsDisplayPlatform = (
   platform: HostPlatform,
   os_version: string
 ) => {
-  if (isAndroid(platform)) {
-    return false;
-  }
   if (platform === "rhel") {
     return !!os_version && os_version.toLowerCase().includes("fedora");
   }
@@ -217,3 +216,9 @@ export const SETUP_EXPERIENCE_PLATFORMS = [
 ] as const;
 
 export type SetupExperiencePlatform = typeof SETUP_EXPERIENCE_PLATFORMS[number];
+
+export const isSetupExperiencePlatform = (
+  s: string | undefined
+): s is SetupExperiencePlatform => {
+  return SETUP_EXPERIENCE_PLATFORMS.includes(s as SetupExperiencePlatform);
+};

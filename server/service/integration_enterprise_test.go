@@ -259,6 +259,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -361,6 +364,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
@@ -392,6 +398,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
@@ -427,6 +436,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
@@ -2645,6 +2657,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
@@ -6553,6 +6568,14 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	}`), http.StatusOK, &acr)
 	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
 
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	})
+
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
@@ -6903,8 +6926,12 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
-	// List pending hosts
 	var batchPendingHostsResp batchScriptExecutionHostResultsResponse
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results", batchRes.BatchExecutionID), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Param status is required")
+
+	// List pending hosts
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
 	require.Len(t, batchPendingHostsResp.Hosts, 2)
 	require.Equal(t, batchPendingHostsResp.Count, uint(2))
@@ -13365,6 +13392,15 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
+
+	t.Cleanup(func() {
+		acr := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	})
 
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{

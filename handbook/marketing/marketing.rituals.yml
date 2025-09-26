@@ -50,13 +50,9 @@
   description: "Measure intent signals and update Salesforce"
   moreInfoUrl: "https://fleetdm.com/handbook/marketing#measure-intent-signals"
   dri: "onasismunro"
-- 
-  task: "Research accounts"
-  startedOn: "2024-08-09"
-  frequency: "Daily"
-  description: "Research 10 research-ready accounts starting with this Salesforce report (https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view) and advance them to 'Ads running'"
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#research-an-account"
-  dri: "onasismunro"
+  autoIssue:   
+    labels: [ ":help-marketing" ]
+    repo: "confidential"
 -
   task: "Check ongoing events"
   startedOn: "2024-10-21"
@@ -105,7 +101,7 @@
     labels: [ ":help-marketing" ] 
     repo: "confidential"
 -
-  task: "Import LinkedIn posts to Clay"
+  task: "Import LinkedIn posts"
   startedOn: "2025-08-08"
   frequency: "Weekly"
   description: "Every Friday, the Content Specialist will duplicate the previously made Clay table and import all LinkedIn posts listed in the content calendar."
@@ -119,8 +115,15 @@
   startedOn: "2025-08-08"
   frequency: "Daily"
   description: "Daily, the Data & Video Specialist will clean up any duplicate accounts."
-  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-dupicates-in-crm"
+  moreInfoUrl: "https://fleetdm.com/handbook/marketing#manage-duplicates-in-crm"
   dri: "onasismunro"
   autoIssue:  
     labels: [ ":help-marketing" ] 
     repo: "confidential"
+# - 
+#   task: "Research accounts"
+#   startedOn: "2024-08-09"
+#   frequency: "Daily"
+#   description: "Research 10 research-ready accounts starting with this Salesforce report (https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002MuC52AK/view) and advance them to 'Ads running'"
+#   moreInfoUrl: "https://fleetdm.com/handbook/marketing#research-an-account"
+#   dri: "onasismunro"
