@@ -979,7 +979,7 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
+  vscode_extensions.uuid AS extension_id,
   '' AS browser,
   'vscode_extensions' AS source,
   publisher AS vendor,
@@ -1815,8 +1815,10 @@ const (
 	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
 )
 
-var kernelRegex = regexp.MustCompile(linuxImageRegex)
-var archKernelRegex = regexp.MustCompile(archKernelName)
+var (
+	kernelRegex     = regexp.MustCompile(linuxImageRegex)
+	archKernelRegex = regexp.MustCompile(archKernelName)
+)
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
