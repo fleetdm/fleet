@@ -4074,11 +4074,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 On macOS hosts, `last_opened_at` is suported for software from the `apps` source and is the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. 
 
-On Windows hosts, `last_opened_at` is suported for software from the `programs` source.
-
-On Linux hosts, `last_opened_at` is suported for software from the `deb_packages` and `rpm_packages` sources.
-
-On Windows and Linux hosts, it represents the last open time of any version.
+On Windows hosts, `last_opened_at` is suported for software from the `programs` source. On Linux hosts, `last_opened_at` is suported for software from the `deb_packages` and `rpm_packages` sources. On Windows and Linux hosts, it represents the last open time of any version.
 
 #### Example
 
