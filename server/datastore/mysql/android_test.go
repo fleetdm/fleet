@@ -137,6 +137,9 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	host.Host.HardwareModel = "hardware_model_updated"
 	host.Host.HardwareVendor = "hardware_vendor_updated"
 	host.Device.AndroidPolicyID = ptr.Uint(2)
+
+	// Make sure host UUID is preserved during update
+	host.Host.UUID = enterpriseSpecificID
 	err = ds.UpdateAndroidHost(testCtx(), host, false)
 	require.NoError(t, err)
 
@@ -144,6 +147,40 @@ func testUpdateAndroidHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Equal(t, host.Host.ID, resultLite.Host.ID)
 	assert.EqualValues(t, host.Device, resultLite.Device)
+
+	// Regression: empty UUID doesn't corrupt existing data
+	// This simulates a scenario where updateHost might not set UUID, resulting in empty value
+	t.Run("Empty UUID regression test", func(t *testing.T) {
+		const regressionESID = "regression-uuid-test"
+		regressionHost := createAndroidHost(regressionESID)
+		createdHost, err := ds.NewAndroidHost(testCtx(), regressionHost)
+		require.NoError(t, err)
+
+		// Simulate update where UUID might be accidentally cleared
+		hostWithEmptyUUID := createdHost
+		hostWithEmptyUUID.Host.UUID = ""
+		hostWithEmptyUUID.Host.Hostname = "regression-hostname"
+
+		// This should still work but UUID should be empty
+		err = ds.UpdateAndroidHost(testCtx(), hostWithEmptyUUID, false)
+		require.NoError(t, err)
+
+		// UUID is now empty
+		resultAfterBug, err := ds.AndroidHostLite(testCtx(), regressionESID)
+		require.NoError(t, err)
+
+		// Update with UUID properly set
+		hostWithUUID := resultAfterBug
+		hostWithUUID.Host.UUID = regressionESID
+		hostWithUUID.Host.Hostname = "fixed-hostname"
+
+		err = ds.UpdateAndroidHost(testCtx(), hostWithUUID, false)
+		require.NoError(t, err)
+
+		// UUID is restored
+		_, err = ds.AndroidHostLite(testCtx(), regressionESID)
+		require.NoError(t, err)
+	})
 }
 
 func testAndroidHostStorageData(t *testing.T, ds *Datastore) {
