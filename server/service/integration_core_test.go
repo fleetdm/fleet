@@ -6966,6 +6966,20 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
 
+	// Turn on MDM.
+	ctx := t.Context()
+	appCfg, err := s.ds.AppConfig(ctx)
+	require.NoError(t, err)
+	origEnabledAndConfigured := appCfg.MDM.EnabledAndConfigured
+	appCfg.MDM.EnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(ctx, appCfg)
+	require.NoError(t, err)
+	defer func() {
+		appCfg.MDM.EnabledAndConfigured = origEnabledAndConfigured
+		err = s.ds.SaveAppConfig(ctx, appCfg)
+		require.NoError(t, err)
+	}()
+
 	// device migrate mdm endpoint returns an error if not premium
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
@@ -7042,12 +7056,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 
-	// try to update the enable_release_device_manually setting, requires premium
-	// (but /setup_experience catches the error of the MDM middleware check, so not
-	// StatusPaymentRequired)
-	res = s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+	// try to update the enable_release_device_manually setting, requires premium.
+	s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusPaymentRequired)
 
 	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
@@ -8655,6 +8665,15 @@ func (s *integrationTestSuite) TestChangePassword() {
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(t, s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
+	s.T().Cleanup(func() {
+		clearKeys()
+	})
+
 	// create a new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
@@ -10042,11 +10061,6 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 	for _, route := range mdmConfigurationRequiredEndpoints() {
 		var expectedErr fleet.ErrWithStatusCode = fleet.ErrMDMNotConfigured
 		path := route.path
-		if route.premiumOnly && route.deviceAuthenticated {
-			// user-authenticated premium-only routes will never see the ErrMissingLicense error
-			// if mdm is not configured, as the MDM middleware will intercept and fail the call.
-			expectedErr = fleet.ErrMissingLicense
-		}
 		if slices.Contains(windowsOnly, path) {
 			expectedErr = fleet.ErrWindowsMDMNotConfigured
 		}
