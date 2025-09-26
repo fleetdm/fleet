@@ -10330,6 +10330,7 @@ func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Dat
 		NodeKey:         ptr.String(name),
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
+		ComputerName:    name,
 		HardwareSerial:  uuid.New().String(),
 		Platform:        platform,
 	})
