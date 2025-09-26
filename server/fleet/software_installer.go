@@ -469,6 +469,7 @@ type HostSoftwareWithInstaller struct {
 	ID                uint                            `json:"id" db:"id"`
 	Name              string                          `json:"name" db:"name"`
 	Browser           string                          `json:"browser" db:"browser"`
+	ExtensionFor      string                          `json:"extension_for,omitempty" db:"-"`
 	IconUrl           *string                         `json:"icon_url" db:"-"`
 	Source            string                          `json:"source" db:"source"`
 	Status            *SoftwareInstallerStatus        `json:"status" db:"status"`

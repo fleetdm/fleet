@@ -466,6 +466,7 @@ export interface IHostSoftware {
   bundle_identifier?: string;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
+  extension_for?: string; // only for jetbrains_plugins, indicates the IDE (e.g., "goland")
 }
 
 /**

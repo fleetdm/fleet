@@ -4277,6 +4277,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				SELECT
 					software_titles.id,
 					software_titles.name,
+					software_titles.browser AS browser,
 					software_titles.source AS source,
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
@@ -4296,6 +4297,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
+					software_titles.browser,
 					software_titles.source,
 					software_installers.id,
 					software_installers.self_service,

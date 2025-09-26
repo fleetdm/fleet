@@ -2990,6 +2990,13 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		}
 	}
 
+	for i, s := range software {
+		if s.Source == "jetbrains_plugins" {
+			software[i].ExtensionFor = s.Browser
+			software[i].Browser = ""
+		}
+	}
+
 	return software, meta, nil
 }
 
