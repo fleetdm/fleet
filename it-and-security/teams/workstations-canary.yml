@@ -138,6 +138,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -164,6 +165,7 @@ controls:
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
@@ -178,11 +180,14 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:

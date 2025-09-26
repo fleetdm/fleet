@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/tui"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 )
 
@@ -26,14 +26,7 @@ var projectCmd = &cobra.Command{
 			return
 		}
 
-		model := initializeModelForProject(projectID, limit)
-		p := tea.NewProgram(&model)
-		if _, err := p.Run(); err != nil {
-			fmt.Printf("Error running Bubble Tea program: %v\n", err)
-		}
-		if model.exitMessage != "" {
-			fmt.Println(model.exitMessage)
-		}
+		tui.RunTUI(tui.ProjectCommand, projectID, limit, "")
 	},
 }
 
@@ -60,14 +53,7 @@ var estimatedCmd = &cobra.Command{
 			return
 		}
 
-		model := initializeModelForEstimated(projectID, limit)
-		p := tea.NewProgram(&model)
-		if _, err := p.Run(); err != nil {
-			fmt.Printf("Error running Bubble Tea program: %v\n", err)
-		}
-		if model.exitMessage != "" {
-			fmt.Println(model.exitMessage)
-		}
+		tui.RunTUI(tui.EstimatedCommand, projectID, limit, "")
 	},
 }
 
@@ -91,13 +77,6 @@ var sprintCmd = &cobra.Command{
 			return
 		}
 
-		model := initializeModelForSprint(projectID, limit)
-		p := tea.NewProgram(&model)
-		if _, err := p.Run(); err != nil {
-			fmt.Printf("Error running Bubble Tea program: %v\n", err)
-		}
-		if model.exitMessage != "" {
-			fmt.Println(model.exitMessage)
-		}
+		tui.RunTUI(tui.SprintCommand, projectID, limit, "")
 	},
 }

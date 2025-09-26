@@ -71,7 +71,7 @@ To propose an ad, or a change to an ad:
 
 ### Measure intent signals
 
-To measure and process intent signals, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals).  
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
 
 
 ### Research an account

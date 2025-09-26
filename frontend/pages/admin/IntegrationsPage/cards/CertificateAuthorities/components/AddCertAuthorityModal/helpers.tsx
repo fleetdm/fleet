@@ -13,7 +13,9 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
+// FIXME: do we care about the order of these? Should we alphabetize them or something?
 const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
   { label: "DigiCert", value: "digicert" },
   {
@@ -28,6 +30,7 @@ const DEFAULT_CERT_AUTHORITY_OPTIONS: IDropdownOption[] = [
     label: "Custom SCEP (Simple Certificate Enrollment Protocol)",
     value: "custom_scep_proxy",
   },
+  { label: "Smallstep", value: "smallstep" },
 ];
 
 /**
@@ -129,6 +132,24 @@ export const generateAddCertAuthorityData = (
           url,
           client_id: clientId,
           client_secret: clientSecret,
+        },
+      };
+    case "smallstep":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name: smallstepName,
+        scepURL: smallstepScepURL,
+        challengeURL,
+        username: smallstepUsername,
+        password: smallstepPassword,
+      } = formData as ISmallstepFormData;
+      return {
+        smallstep: {
+          name: smallstepName,
+          url: smallstepScepURL,
+          challenge_url: challengeURL,
+          username: smallstepUsername,
+          password: smallstepPassword,
         },
       };
     default:
