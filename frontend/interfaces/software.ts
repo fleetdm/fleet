@@ -43,6 +43,7 @@ export interface ISoftware {
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
   browser?: string;
+  extension_for?: string; // only for jetbrains_plugins, indicates the IDE (e.g., "goland")
   vendor?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
@@ -148,6 +149,7 @@ export interface ISoftwareTitle {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   browser?: BrowserType;
+  extension_for?: string; // only for jetbrains_plugins, indicates the IDE (e.g., "goland")
 }
 
 export interface ISoftwareTitleDetails {
@@ -162,6 +164,7 @@ export interface ISoftwareTitleDetails {
   counts_updated_at?: string;
   bundle_identifier?: string;
   browser?: BrowserType;
+  extension_for?: string; // only for jetbrains_plugins, indicates the IDE (e.g., "goland")
   versions_count?: number;
 }
 
@@ -184,6 +187,7 @@ export interface ISoftwareVersion {
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
   browser: BrowserType;
+  extension_for?: string; // only for jetbrains_plugins, indicates the IDE (e.g., "goland")
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -200,6 +204,7 @@ export const SOURCE_TYPE_CONVERSION = {
   yum_sources: "Package (YUM)",
   pacman_packages: "Package (pacman)",
   npm_packages: "Package (NPM)",
+  jetbrains_plugins: "IDE extension",
   atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   tgz_packages: "Package (tar)",
@@ -229,6 +234,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   pacman_packages: "linux",
   tgz_packages: "linux",
   npm_packages: null,
+  jetbrains_plugins: null,
   atom_packages: null,
   python_packages: null,
   apps: "darwin",
@@ -259,12 +265,30 @@ const BROWSER_TYPE_CONVERSION = {
 
 export type BrowserType = keyof typeof BROWSER_TYPE_CONVERSION;
 
+const JETBRAINS_EXTENSION_FOR_DISPLAY: Record<string, string> = {
+  clion: "CLion",
+  datagrip: "DataGrip",
+  goland: "GoLand",
+  intellij_idea: "IntelliJ IDEA",
+  intellij_idea_community_edition: "IntelliJ IDEA Community Edition",
+  phpstorm: "PhpStorm",
+  pycharm: "PyCharm",
+  pycharm_community_edition: "PyCharm Community Edition",
+  resharper: "ReSharper",
+  rider: "Rider",
+  rubymine: "RubyMine",
+  rust_rov: "RustRover",
+  webstorm: "WebStorm",
+};
+
 export const formatSoftwareType = ({
   source,
   browser,
+  extension_for,
 }: {
   source: SoftwareSource;
   browser?: BrowserType;
+  extension_for?: string;
 }) => {
   let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (browser) {
@@ -272,6 +296,15 @@ export const formatSoftwareType = ({
       BROWSER_TYPE_CONVERSION[browser] || startCase(browser)
     })`;
   }
+
+  // JetBrains plugins: show the IDE they extend
+  if (source === "jetbrains_plugins" && extension_for) {
+    const displayName =
+      JETBRAINS_EXTENSION_FOR_DISPLAY[extension_for] ||
+      startCase(extension_for);
+    return `IDE extension (${displayName})`;
+  }
+
   return type;
 };
 
