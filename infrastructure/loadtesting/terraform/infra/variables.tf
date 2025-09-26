@@ -9,8 +9,8 @@ variable "fleet_task_count" {
   default     = 5
 
   validation {
-    condition     = var.fleet_task_count >= 5
-    error_message = "var.fleet_task_count must be greater than or equal to 5."
+    condition     = var.fleet_task_count >= 0
+    error_message = "var.fleet_task_count must be greater than or equal to 0."
   }
 }
 
