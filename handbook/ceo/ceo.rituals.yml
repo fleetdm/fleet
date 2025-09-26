@@ -50,7 +50,7 @@
   task: "Make sure Mike's direct reports 1:1's are cleaned out"
   startedOn: "2025-09-18"
   frequency: "Weekly"
-  description: "Check all of the CEO's direct reports 1:1 docs 12hrs after their 1:1 and make sure they’re cleaned out. If they are not cleaned out, the EA will then clean it out and DM the direct report that the historu was checked and saw it wasn’t cleaned out, and that they cleaned it out for them."  
+  description: "Check all of the CEO's direct reports' 1:1 docs 12hrs after their 1:1 and make sure they’re cleaned out. If they are not cleaned out, the EA will then clean it out and DM the direct report that the history was checked and saw it wasn’t cleaned out, and that they cleaned it out for them."  
   moreInfoUrl:
   dri: "SFriendLee"
 -
