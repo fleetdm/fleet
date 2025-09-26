@@ -4074,6 +4074,8 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 On macOS hosts, `last_opened_at` represents the last open time of the most recently installed version of the software. After an update, it may be empty until the software is opened again. On Windows and Linux hosts, it represents the last open time of any version.
 
+Currently, `hash_sha256` is only supported for macOS software from the `apps` source.
+
 #### Example
 
 `GET /api/v1/fleet/hosts/123/software`
