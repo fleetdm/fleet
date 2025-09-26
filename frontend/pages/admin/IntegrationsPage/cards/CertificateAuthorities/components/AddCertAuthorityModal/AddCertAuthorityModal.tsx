@@ -25,7 +25,9 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
-import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
+import SmallstepForm, {
+  ISmallstepFormData,
+} from "../SmallstepForm/SmallstepForm";
 
 export type ICertFormData =
   | IDigicertFormData
@@ -219,6 +221,18 @@ const AddCertAuthorityModal = ({
         return (
           <CustomSCEPForm
             formData={customSCEPFormData}
+            certAuthorities={certAuthorities}
+            submitBtnText={submitBtnText}
+            isSubmitting={isAdding}
+            onChange={onChangeForm}
+            onSubmit={onAddCertAuthority}
+            onCancel={onExit}
+          />
+        );
+      case "smallstep":
+        return (
+          <SmallstepForm
+            formData={smallstepFormData}
             certAuthorities={certAuthorities}
             submitBtnText={submitBtnText}
             isSubmitting={isAdding}
