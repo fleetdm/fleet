@@ -11,6 +11,7 @@ import { IDigicertFormData } from "../DigicertForm/DigicertForm";
 import { INDESFormData } from "../NDESForm/NDESForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 export const generateDefaultFormData = (
   certAuthority: ICertificateAuthority
@@ -40,7 +41,21 @@ export const generateDefaultFormData = (
       clientId: certAuthority.client_id,
       clientSecret: certAuthority.client_secret,
     };
+  } else if (certAuthority.type === "smallstep") {
+    return {
+      name: certAuthority.name,
+      scepURL: certAuthority.url,
+      challengeURL: certAuthority.challenge_url,
+      username: certAuthority.username,
+      password: certAuthority.password,
+    };
   }
+
+  // FIXME: seems like we have some competing patterns in here where we sometimes do switch
+  // statements with a default and sometimes do if or if/else if with a final default return. We
+  // should probably standardize on one or the other. Also, do we really want this to be the
+  // default? Why not have an explicit check for custom_scep_proxy and have the final
+  // else throw an error?
 
   const customSCEPcert = certAuthority as ICertificatesCustomSCEP;
   return {
@@ -122,6 +137,30 @@ export const generateEditCertAuthorityData = (
           certAuthWithoutType
         ),
       };
+    case "smallstep":
+      // eslint-disable-next-line no-case-declarations
+      const {
+        name: smallstepName,
+        scepURL: smallstepURL,
+        challengeURL: smallstepChallengeURL,
+        username: smallstepUsername,
+        password: smallstepPassword,
+      } = formData as ISmallstepFormData;
+      return {
+        smallstep: deepDifference(
+          {
+            name: smallstepName,
+            scep_url: smallstepURL,
+            challenge_url: smallstepChallengeURL,
+            username: smallstepUsername,
+            password: smallstepPassword,
+          },
+          certAuthWithoutType
+        ),
+      };
+
+    // FIXME: do we really want this to be the default? why not have an explicit case for
+    // custom_scep_proxy and have the default throw an error?
     default:
       // custom_scep_proxy
       // eslint-disable-next-line no-case-declarations
@@ -196,6 +235,19 @@ export const updateFormData = (
             : formData.clientId,
         clientSecret:
           formData.clientSecret === "********" ? "" : formData.clientSecret,
+      };
+    }
+  } else if (certAuthority.type === "smallstep") {
+    const formData = prevFormData as ISmallstepFormData;
+    if (
+      update.name === "name" ||
+      update.name === "scepURL" ||
+      update.name === "challengeURL" ||
+      update.name === "username"
+    ) {
+      return {
+        ...newData,
+        password: formData.password === "********" ? "" : formData.password,
       };
     }
   }
