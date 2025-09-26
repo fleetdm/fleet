@@ -37,6 +37,7 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 
 	// Select software title but filter out if the software has zero host counts
 	// and it's not an installer or VPP app.
+
 	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
@@ -44,7 +45,7 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
-	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
