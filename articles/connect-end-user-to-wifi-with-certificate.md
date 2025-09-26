@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), and custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server.
+Fleet can help your end users connect to Wi-Fi or VPN by deploying certificates from your certificate authority (CA). Fleet currently supports [DigiCert](https://www.digicert.com/digicert-one), [Microsoft NDES](https://learn.microsoft.com/en-us/windows-server/identity/ad-cs/network-device-enrollment-service-overview), custom [SCEP](https://en.wikipedia.org/wiki/Simple_Certificate_Enrollment_Protocol) server, and [Hydrant](https://www.hidglobal.com/solutions/pki-service).
 
 Fleet will automatically renew certificates 30 days before expiration. If an end user is on vacation (offline more than 30 days), their certificate might expire and they'll lose access to Wi-Fi or VPN. To get them reconnected, ask your end users to momentarily connect to a different network so that Fleet can deliver a new certificate.
 
@@ -102,9 +102,12 @@ More DigiCert details:
 </plist>
 ```
 
+
+
+
 ## Microsoft NDES
 
-To connect end users to W-Fi or VPN with Microsoft NDES certificates, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with Microsoft NDES certificates, we'll do the following steps:
 
 - [Connect Fleet to NDES](#step-1-connect-fleet-to-ndes)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet)
@@ -198,7 +201,7 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 
 ## Custom SCEP server
 
-To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the following steps:
+To connect end users to Wi-Fi or VPN with a custom SCEP server, we'll do the following steps:
 
 - [Connect Fleet to custom SCEP server](#step-1-connect-fleet-to-custom-scep-server)
 - [Add SCEP configuration profile to Fleet](#step-2-add-scep-configuration-profile-to-fleet2)
@@ -209,7 +212,7 @@ To connect end users to W-Fi or VPN with a custom SCEP server, we'll do the foll
 2. Select the **Add CA** button and select **Custom** in the dropdown.
 3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). We'll use this name later as variable name in a configuration profile.
 4. Add your **SCEP URL** and **Challenge**.
-6. Select **Add CA**.  Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
+6. Select **Add CA**. Your custom SCEP certificate authority (CA) should appear in the list in Fleet.
 
 ### Step 2: Add SCEP configuration profile to Fleet
 
@@ -288,6 +291,99 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 </plist>
 ```
 
+## Hydrant
+
+To connect end users to Wi-Fi or VPN with Hydrant, we'll do the following steps:
+
+- [Create a Hydrant user and obtain its API credentials](#step-1-create-a-hydrant-user-and-obtain-its-api-credentials)
+- [Connect Fleet to Hydrant](#step-2-connect-fleet-to-hydrant)
+- [Create a custom script](#step-3-create-a-custom-script)
+- [Create a custom policy](#step-4-create-a-custom-policy)
+
+The flow for Hydrant differs from the other certificate authorities (CA's). Other CAs in Fleet use a configuration profile to request a certificate. Hydrant uses a custom script that makes a request to Fleet's [`POST /request_certificate`](https://fleetdm.com/docs/rest-api/rest-api#request-certificate) API endpoint and a custom policy that triggers the script on hosts that don't have a certificate.
+
+### Step 1: Create a Hydrant user and obtain its API credentials
+
+1. Log in to your [company's ACM platform](https://help.hydrantid.com/html/authentication.html).
+1. Invite a [new user](https://help.hydrantid.com/html/authentication.html) that will be used for certificate generation and ensure it has the [required permissions](https://help.hydrantid.com/html/roles.html) to request certificates.
+1. Log out and log back in as the new user.
+1. Get the [API keys](https://help.hydrantid.com/html/manageapikeys.html) for the newly created user, make a note of the **Client ID** and **Client Secret**, you will need that to connect Fleet with Hydrant in the next step.
+
+### Step 2: Connect Fleet to Hydrant
+
+1. In Fleet, head to **Settings > Integrations > Certificates**.
+2. Select **Add CA** and then choose **Hydrant EST** in the dropdown.
+3. Add a **Name** for your certificate authority. The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION").
+4. Add your Hydrant EST **URL**.
+5. Add the Hydrant ID and Key as the **Client ID** and **Client secret** in Fleet respectfully.
+6. Click **Add CA**. Your Hydrant certificate authority (CA) should appear in the list in Fleet.
+
+### Step 3: Create a custom script
+
+To automatically deploy certificates to Linux hosts when they ernoll, we'll create a custom script to write a certificate to a location. This script will be triggered by a policy that checks for the existence of a certificate.
+
+This custom script will create a certificate signing request (CSR) and make a request to Fleet's "Request certificate" API endpoint.
+
+1. Create an API-only user with the global maintainer role. Learn more how to create an API-only user in the [API-only user guide](https://fleetdm.com/guides/fleetctl#create-api-only-user).
+2. In Fleet, head to **Controls > Variables** to and create a Fleet variable called REQUEST_CERTIFICATE_API_TOKEN. Add the API-only user's API token as the value. You'll use this variable in your script.
+3. Make a request to Fleet's [`GET /certificate_authorities` API endpoint](https://fleetdm.com/docs/rest-api/rest-api#list-certificate-authorities-cas) to get the `id` for your Hydrant CA. You'll use this `id` in your script.
+4. In Fleet, head to **Controls > Scripts**, and add a script like the one below, plugging in your own filesystem locations, Fleet server URL and IdP information. For this script to work, the host it's run on has to have openssl, sed, curl and jq installed.
+
+Example script:
+
+```shell
+#!/bin/bash
+set -e
+
+# Load the end user information, IdP token and IdP client ID.
+. /opt/company/userinfo
+
+URL="<IdP-introspection-URL>"
+
+# Generate the password-protected private key
+openssl genpkey -algorithm RSA -out /opt/company/CustomerUserNetworkAccess.key -pkeyopt rsa_keygen_bits:2048 -aes256 -pass pass:${PASSWORD}
+
+# Generate CSR signed with that private key. The CN can be changed and DNS attribute omitted if your Hydrant configuration allows it.
+openssl req -new -sha256 -key /opt/company/CustomerUserNetworkAccess.key -out CustomerUserNetworkAccess.csr -subj /CN=CustomerUserNetworkAccess:${USERNAME} -addext "subjectAltName=DNS:example.com, email:$USERNAME, otherName:msUPN;UTF8:$USERNAME" -passin pass:${PASSWORD}
+
+# Escape CSR for request
+CSR=$(sed 's/$/\\n/' CustomerUserNetworkAccess.csr | tr -d '\n')
+REQUEST='{ "csr": "'"${CSR}"'", "idp_oauth_url":"'"${URL}"'", "idp_token": "'"${TOKEN}"'", "idp_client_id": "'"${CLIENT_ID}"'" }'
+
+curl 'https://<Fleet-server-URL>/api/latest/fleet/certificate_authorities/<Hydrant-CA-ID>/request_certificate' \
+  -X 'POST' \
+  -H 'accept: application/json, text/plain, */*' \
+  -H 'authorization: Bearer '"$FLEET_SECRET_REQUEST_CERTIFICATE_API_TOKEN" \
+  -H 'content-type: application/json' \
+  --data-raw "${REQUEST}" -o response.json
+
+jq -r .certificate response.json > /opt/company/certificate.pem
+```
+
+This script assumes that your company installs a custom Company Portal app or something similar at `/opt/company`, gathers the user's IdP session information, uses username and a password to protect the private key from `/opt/company/userinfo`, and installs that the certificate in `/opt/company`. You will want to modify it to match your company's requirements.
+
+The `userinfo` file in the scripts looks like the below. However, the variables could be loaded from the output of a command or even a separate network request depending on your requirements:
+```shell
+PASSWORD="<Password-for-the-certificate-private-key>"
+USERNAME="<End-user-email>"
+TOKEN="<End-user-OAuth-IdP-token>"
+CLIENT_ID="<OAuth-IdP-client-ID>"
+```
+
+Enforcing IdP validation using `idp_oauth_url` and `idp_token` is optional. If enforced, the CSR must include exactly 1 email which matches the IdP username and must include a UPN attribute which is either a prefix of the IdP username or the username itself (i.e. if the IdP username is "bob@example.com", the UPN may be "bob" or "bob@example.com")
+
+### Step 4: Create a custom policy
+
+1. In Fleet, head to **Policies** and select **Add policy**. Use the following query to detect the certificate's existence:
+
+```sql
+SELECT 1 FROM file WHERE path='/opt/company/certificate.pem';
+```
+
+2. Select **Save** and select only **Linux** as its target. Select **Save** again to create your policy.
+3. On the **Policies** page, select **Manage automations > Scripts**. Select your newly-created policy and then in the dropdown to the right, select your newly created certificate issuance script.
+4. Now, any host that's doesn't have a certificate in `/opt/company/certificate.pem` will fail the policy. When the policy fails, Fleet will run the script to deploy a certificate!
+
 ## How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host.
@@ -310,8 +406,6 @@ Custom SCEP proxy:
   - This Fleet-managed passcode is valid for 60 minutes. Fleet automatically resends the SCEP profile
     to the host with a new passcode if the host requests a certificate after the passcode has expired.
   - The static challenge configured for the custom SCEP server remains in the SCEP profile.
-
-
 
 ## Assumptions and limitations
 
