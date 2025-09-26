@@ -189,11 +189,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 
-	// Populate extension_for for jetbrains plugins/extensions
-	if software.Source == "jetbrains_plugins" {
-		software.ExtensionFor = software.Browser
-		software.Browser = ""
-	}
+	fleet.NormalizeTitle(software)
 
 	license, err := svc.License(ctx)
 	if err != nil {

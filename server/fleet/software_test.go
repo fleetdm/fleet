@@ -194,3 +194,82 @@ func TestEnhanceOutputDetails(t *testing.T) {
 		})
 	}
 }
+
+
+func TestMoveBrowserToExtFor(t *testing.T) {
+	t.Run("moves when source=jetbrains_plugins and browser non-empty", func(t *testing.T) {
+		src := "jetbrains_plugins"
+		b := "goland"
+		ext := "OLD"
+		moveBrowserToExtFor(&src, &b, &ext)
+		require.Equal(t, "jetbrains_plugins", src, "source unchanged")
+		require.Equal(t, "", b, "browser cleared")
+		require.Equal(t, "goland", ext, "extension_for set to previous browser")
+	})
+
+	t.Run("no-op when source is not jetbrains_plugins", func(t *testing.T) {
+		src := "apps"
+		b := "chrome"
+		ext := "OLD"
+		moveBrowserToExtFor(&src, &b, &ext)
+		require.Equal(t, "apps", src)
+		require.Equal(t, "chrome", b)
+		require.Equal(t, "OLD", ext)
+	})
+
+	t.Run("no-op when browser empty", func(t *testing.T) {
+		src := "jetbrains_plugins"
+		b := ""
+		ext := "OLD"
+		moveBrowserToExtFor(&src, &b, &ext)
+		require.Equal(t, "jetbrains_plugins", src)
+		require.Equal(t, "", b)
+		require.Equal(t, "OLD", ext)
+	})
+
+	t.Run("idempotent on second call", func(t *testing.T) {
+		src := "jetbrains_plugins"
+		b := "firefox"
+		ext := ""
+		moveBrowserToExtFor(&src, &b, &ext)
+
+		require.Equal(t, "", b)
+		require.Equal(t, "firefox", ext)
+
+		// Call again: should be no-op now.
+		moveBrowserToExtFor(&src, &b, &ext)
+		require.Equal(t, "", b)
+		require.Equal(t, "firefox", ext)
+	})
+
+	t.Run("overwrites existing extension_for", func(t *testing.T) {
+		src := "jetbrains_plugins"
+		b := "webstorm"
+		ext := "previous"
+		moveBrowserToExtFor(&src, &b, &ext)
+		require.Equal(t, "", b)
+		require.Equal(t, "webstorm", ext, "should overwrite ext_for with browser")
+	})
+}
+
+func FuzzMoveBrowserToExtFor(f *testing.F) {
+	f.Add("jetbrains_plugins", "x", "y")
+	f.Add("apps", "x", "y")
+	f.Add("jetbrains_plugins", "", "y")
+	f.Fuzz(func(t *testing.T, srcIn, browserIn, extIn string) {
+		src := srcIn
+		b := browserIn
+		ext := extIn
+		moveBrowserToExtFor(&src, &b, &ext)
+
+		if srcIn == jbPlugins && browserIn != "" {
+			require.Equal(t, "", b)
+			require.Equal(t, browserIn, ext)
+			require.Equal(t, jbPlugins, src)
+		} else {
+			require.Equal(t, srcIn, src)
+			require.Equal(t, browserIn, b)
+			require.Equal(t, extIn, ext)
+		}
+	})
+}

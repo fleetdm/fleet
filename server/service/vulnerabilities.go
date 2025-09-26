@@ -230,11 +230,9 @@ func (svc *Service) ListSoftwareByCVE(ctx context.Context, cve string, teamID *u
 	}
 	sw, updatedAt, err := svc.ds.SoftwareByCVE(ctx, cve, teamID)
 
-	for i, s := range sw {
-		if s.Source == "jetbrains_plugins" && s.Browser != "" {
-			sw[i].ExtensionFor = s.Browser
-			sw[i].Browser = ""
-		}
+	for _, s := range sw {
+		fleet.NormalizeVulnerableSoftware(s)
 	}
+
 	return sw, updatedAt, err
 }

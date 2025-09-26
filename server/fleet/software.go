@@ -514,3 +514,30 @@ type SoftwareCategory struct {
 	ID   uint   `db:"id"`
 	Name string `db:"name"`
 }
+
+const jbPlugins = "jetbrains_plugins"
+
+func moveBrowserToExtFor(source, browser, extFor *string) {
+	if source != nil && *source == jbPlugins {
+		if browser != nil && *browser != "" {
+			*extFor = *browser
+		}
+		*browser = ""
+	}
+}
+
+func NormalizeSoftware(software *Software) {
+	moveBrowserToExtFor(&software.Source, &software.Browser, &software.ExtensionFor)
+}
+
+func NormalizeTitle(t *SoftwareTitle) {
+	moveBrowserToExtFor(&t.Source, &t.Browser, &t.ExtensionFor)
+}
+
+func NormalizeVulnerableSoftware(vs *VulnerableSoftware) {
+	moveBrowserToExtFor(&vs.Source, &vs.Browser, &vs.ExtensionFor)
+}
+
+func NormalizeHostSoftwareWithInstaller(hs *HostSoftwareWithInstaller) {
+	moveBrowserToExtFor(&hs.Source, &hs.Browser, &hs.ExtensionFor)
+}
