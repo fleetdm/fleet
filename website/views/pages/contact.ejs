@@ -106,20 +106,10 @@
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Linux management
             </label>
-            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'it-misc' ? 'selected' : '']">
-              <input type="radio" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model.trim="formData.primaryBuyingSituation" value="it-misc">
-              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              IT engineering
-            </label>
             <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'security-misc' ? 'selected' : '']">
               <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="security-misc">
               <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
               Security engineering
-            </label>
-            <label purpose="form-option" class="form-control" :class="[formData.primaryBuyingSituation === 'security-vm' ? 'selected' : '']">
-              <input type="radio" v-model.trim="formData.primaryBuyingSituation" value="security-vm">
-              <span purpose="custom-radio"><span purpose="custom-radio-selected"></span></span>
-              Vulnerability reporting
             </label>
             <div class="invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option</div>
           </div>
