@@ -65,7 +65,7 @@ const AddInstallSoftware = ({
       <>
         {installSoftwareDuringSetupCount} software item
         {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
-        <TooltipWrapper tipContent="Software will install in alphabetical order.">
+        <TooltipWrapper tipContent="Software order will vary.">
           installed during setup.
         </TooltipWrapper>
       </>
