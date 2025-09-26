@@ -1,0 +1,229 @@
+name: Deploy Loadtest - Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      terraform_workspace:
+        description: "Terraform workspace that you will be deploying to"
+        type: string
+        required: true
+      tag:
+        description: "Fleet Image Tag to deploy"
+        type: string
+        default: "v4.72.1"
+        required: true
+      fleet_task_count:
+        description: "The number of ECS tasks, fleet containers, that should be deployed"
+        type: string
+        default: "5"
+        required: true
+      fleet_task_memory:
+        description: "The amount of memoery allocated in Megabytes for the ECS tasks"
+        type: string
+        default: "4096"
+        required: true
+      fleet_task_cpu:
+        description: "The amount of CPU allocated in hertz for the ECS tasks"
+        type: string
+        default: "512"
+        required: true
+      fleet_database_instance_size:
+        description: "AWS Instance size for the Fleet database instances"
+        type: string
+        defualt: "db.t4g.medium"
+        required: true
+      fleet_database_instance_count:
+        description: "Number of database instance replicas (including the writer)"
+        type: string
+        default: 2
+        required: true
+      fleet_redis_instance_size:
+        description: "AWS Instance size for the Fleet redis instances"
+        type: string
+        defualt: "cache.t4g.micro"
+        required: true
+      fleet_redis_instance_count:
+        description: "Number of redis instance replicas (including the writer)"
+        type: string
+        default: 3
+        required: true
+      terraform_action:
+        description: Dry run only? No "terraform apply"
+        type: choice
+        options:
+        - plan
+        - apply
+        - destroy
+        default: plan
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+    working-directory: infrastructure/loadtesting/terraform/infra
+
+env:
+  AWS_REGION: us-east-2
+  AWS_IAM_ROLE: arn:aws:iam::917007347864:role/github-actions-role
+  TF_ACTIONS_WORKING_DIR: infrastructure/loadtesting/terraform/infra
+  TF_VAR_tag: "${{ inputs.tag }}"
+  TF_VAR_fleet_task_count: "${{ inputs.fleet_task_count }}"
+  TF_VAR_fleet_task_memory: "${{ inputs.fleet_task_memory }}"
+  TF_VAR_fleet_task_cpu: "${{ inputs.fleet_task_cpu }}"
+  TF_VAR_database_instance_size: "${{ inputs.fleet_database_instance_size }}"
+  TF_VAR_database_instance_count: "${{ inputs.fleet_database_instance_count }}"
+  TF_VAR_redis_instance_size: "${{ inputs.fleet_redis_instance_size }}"
+  TF_VAR_redis_instance_count: "${{ inputs.fleet_redis_instance_count }}"
+
+permissions:
+  id-token: write
+  contents: read    # This is required for actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+
+jobs:
+  deploy:
+    name: Deploy Fleet Loadtest Environment
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - id: fail-on-main
+        run: "false"
+        if: ${{ github.ref == 'main' }}
+      - uses: aws-actions/configure-aws-credentials@67fbcbb121271f7775d2e7715933280b06314838 # v1.7.0
+        with:
+          role-to-assume: ${{env.AWS_IAM_ROLE}}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Set up Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version-file: 'go.mod'
+      - uses: hashicorp/setup-terraform@633666f66e0061ca3b725c73b2ec20cd13a8fdd1 # v2.0.3
+        with:
+          terraform_version: 1.10.2
+          terraform_wrapper: false
+      - name: Terraform Init
+        id: init
+        run: terraform init
+      - name: Terraform workspace
+        id: workspace
+        run: |
+          if terraform workspace list | grep -q ${{ input.terraform_workspace }};
+          then
+            echo "MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            
+            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" || ${{ input.terraform_action }} = "destroy" ]];
+            then
+              terraform workspace select ${{ input.terraform_workspace }}
+              
+              if [[ $(echo $?) = "0" ]];
+              then
+                echo "WORKSPACE CHANGED TO ${{ input.terraform_workspace }}\n"
+              fi
+            fi
+          else
+            echo "NO MATCH - TF_WORKSPACE: ${{ input.terraform_workspace }}\n"
+            
+            if [[ ${{ input.terraform_action }} = "apply" || ${{ input.terraform_action }} = "plan" ]];
+            then
+              echo "CREATING NEW TERRAFORM WORKSPACE: ${{ input.terraform_workspace }}"
+              terraform workspace new ${{ input.terraform_workspace }}
+              
+              if [[ $(echo $?) = "0" ]];
+              then
+                echo "TERRAFORM WORKSPACE: SUCCESSFULLY CREATED"
+              else
+                echo "TERRAFORM WORKSPACE: ERROR CREATING"
+              fi
+            fi
+          fi
+        continue-on-error: true
+      - name: Terraform fmt
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate -no-color
+      - name: Terraform Plan
+        id: plan
+        run: |
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            terraform plan -no-color
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi
+        continue-on-error: true
+      - name: Terraform Apply
+        if: inputs.terraform_action == 'apply'
+        id: apply
+        run: |
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            terraform apply -auto-approve
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi
+      - name: Terraform Destroy
+        if: inputs.terraform_action == 'destroy'
+        id: destroy
+        run: | 
+          if [[ `terraform workspace show` = "${{ input.terraform_workspace }}" ]];
+          then
+            echo "TERRAFORM WORKSPACE: MATCHES - ${{ input.terraform_workspace }}"
+            if [[ ${{ input.terraform_action }} = "destroy" ]];  
+            then
+              if [[ $(terraform state list | wc -l) -gt 0 ]];
+              then
+                echo "RESOURCES DETECTED IN TERRAFORM STATE FILE"
+                terraform destroy -auto-approve
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM DESTROY: SUCCESSFUL\n"
+                  TERRAFORM_DELETE_STATUS="complete"
+                else
+                  echo "TERRAFORM DESTROY: ERROR\n"
+                  TERRAFORM_DELETE_STATUS="error"
+                fi
+              else
+                echo "NO RESOURCES DETECTED IN TERRAFORM STATE FILE"
+                TERRAFORM_DELETE_STATUS="complete"
+              fi
+              
+              if [[ $TERRAFORM_DELETE_STATUS = "complete" ]];
+              then
+                echo "SETTING WORKSPACE TO DEFAULT"
+                terraform workspace select default
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM WORKSPACE: SUCCESSFULLY SELECTING DEFAULT\n"
+                else
+                  echo "TERRAFORM WORKSPACE: ERROR SELECTING DEFAULT\n"
+                fi
+
+                terraform workspace delete ${{ input.terraform_workspace }}
+
+                if [[ $(echo $?) = "0" ]];
+                then
+                  echo "TERRAFORM WORKSPACE: SUCCESSFULLY DELETED\n"
+                else
+                  echo "TERRAFORM WORKSPACE: ERROR DELETING\n"
+                fi
+              fi
+            fi
+          else
+            echo "TERRAFORM WORKSPACE: DOES NOT MATCH INPUT - ${{ input.terraform_workspace }}"
+          fi
