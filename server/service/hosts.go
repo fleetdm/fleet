@@ -2990,6 +2990,10 @@ func (svc *Service) ListHostSoftware(ctx context.Context, hostID uint, opts flee
 		}
 	}
 
+	for _, s := range software {
+		fleet.NormalizeHostSoftwareWithInstaller(s)
+	}
+
 	return software, meta, nil
 }
 

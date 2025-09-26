@@ -52,6 +52,8 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// Browser is the browser type (from osquery chrome_extensions)
 	Browser string `json:"browser" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -140,6 +142,7 @@ type VulnerableSoftware struct {
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
 	Browser           string  `json:"browser" db:"browser"`
+	ExtensionFor      string  `json:"extension_for,omitempty"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
@@ -187,6 +190,8 @@ type SoftwareTitle struct {
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
 	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -229,6 +234,8 @@ type SoftwareTitleListResult struct {
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
 	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the JetBrains product this plugin/extension is for (e.g., "goland", "idea").
+	ExtensionFor string `json:"extension_for,omitempty"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -508,4 +515,31 @@ type VPPBatchPayloadWithPlatform struct {
 type SoftwareCategory struct {
 	ID   uint   `db:"id"`
 	Name string `db:"name"`
+}
+
+const jbPlugins = "jetbrains_plugins"
+
+func moveBrowserToExtFor(source, browser, extFor *string) {
+	if source != nil && *source == jbPlugins {
+		if browser != nil && *browser != "" {
+			*extFor = *browser
+		}
+		*browser = ""
+	}
+}
+
+func NormalizeSoftware(software *Software) {
+	moveBrowserToExtFor(&software.Source, &software.Browser, &software.ExtensionFor)
+}
+
+func NormalizeTitle(t *SoftwareTitle) {
+	moveBrowserToExtFor(&t.Source, &t.Browser, &t.ExtensionFor)
+}
+
+func NormalizeVulnerableSoftware(vs *VulnerableSoftware) {
+	moveBrowserToExtFor(&vs.Source, &vs.Browser, &vs.ExtensionFor)
+}
+
+func NormalizeHostSoftwareWithInstaller(hs *HostSoftwareWithInstaller) {
+	moveBrowserToExtFor(&hs.Source, &hs.Browser, &hs.ExtensionFor)
 }
