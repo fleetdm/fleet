@@ -499,9 +499,10 @@ Currently, for Fleet-maintained apps and App Store (VPP) apps, the `labels_` and
 - `url` specifies the URL at which the software is located. Fleet will download the software and upload it to S3.
 - `hash_sha256` specifies the SHA256 hash of the package file. If provided, and if a software package with that hash has already been uploaded to Fleet, the existing package will be used and download will be skipped. If a package with that hash does not yet exist, Fleet will download the package, then verify that the hash matches, bailing out if it does not match.
 
-> Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
-
-> You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
++ Without specifying a hash, Fleet downloads each installer for each team on each GitOps run.
+  + You can specify a hash alone to reference a software package that was previously uploaded to Fleet, whether via the UI or the API,. If a package with that hash isn't already in Fleet and visible to the user performing the GitOps run, the GitOps run will error.
+- `custom_script.path` is the path to a script to make available as a package. Can be specified instead of `url` or `hash_sha256` to create a a no-op package. 
+  + If provided, install/uninstall/post-install scripts should not be included.
 
 - `pre_install_query.path` is the osquery query Fleet runs before installing the software. Software will be installed only if the [query returns results](https://fleetdm.com/tables).
 - `install_script.path` specifies the command Fleet will run on hosts to install software. The [default script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) is dependent on the software type (i.e. .pkg).
@@ -536,6 +537,15 @@ You can view the hash for existing software in the software detail page in the F
 ```yaml
 # Mozilla Firefox (Firefox 136.0.1.pkg) version 136.0.1
 - hash_sha256: fd22528a87f3cfdb81aca981953aa5c8d7084581b9209bb69abf69c09a0afaaf
+```
+
+##### Custom script
+
+```yaml
+custom_script:
+  path: ../lib/software/custom-script.sh
+platform: macos
+self_service: true
 ```
 
 ### app_store_apps
