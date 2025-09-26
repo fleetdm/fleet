@@ -944,7 +944,7 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
+  vscode_extensions.uuid AS extension_id,
   '' AS browser,
   'vscode_extensions' AS source,
   publisher AS vendor,
