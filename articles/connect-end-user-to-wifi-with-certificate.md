@@ -288,6 +288,112 @@ When Fleet delivers the profile to your hosts, Fleet will replace the variables.
 </plist>
 ```
 
+## Smallstep
+
+To connect end users to W-Fi or VPN with Smallstep certificates, we'll do the following steps:
+
+- [Configure Smallstep with Fleet information](#step-1-configure-smallstep-with-fleet-information)
+- [Configure Fleet with Smallstep information](#step-2-configure-fleet-with-smallstep-information)
+- [Add SCEP configuration profile to Fleet](#step-3-add-scep-configuration-profile-to-fleet)
+
+### Step 1: Configure Smallstep with Fleet information
+
+We're currently working with Smallstep to develop a specific Smallstep-Fleet connector. In the
+meantime, you still can configure Smallstep to work with Fleet by using the Smallstep-Jamf connector.
+
+1. In Smallstep, go to **Settings > Device Management**.
+
+2. Under **Available Providers**, find **Jamf** and click **Connect**.
+
+3. In the Smallstepform, enter your Fleet server URL (the API Client ID and API Client Secret fields are not required), then click **Connect MDM**.
+
+4. After connecting, take note of the **SCEP URL**, **WebhookURL (SCEPChallenge)**, **Challenge Basic Authentication Username**, and **Challenge Basic Authentication Password** from Smallstep. You'll need these in the next step.
+
+### Step 2: Configure Fleet with Smallstep information
+
+1. In Fleet, go to **Settings > Integrations > Certificates** and click **Add CA**. 
+
+2. In the modal, select **Smallstep** from the dropdown and enter a name for your certificate authority (CA). The best practice is to create a name based on your use case in all caps snake case (ex. "WIFI_AUTHENTICATION"). We'll use this name later as variable name in a configuration profile.
+
+3. For the **Challenge URL**, **Username**, and **Password**, use the information you got from Smallstep in the previous step. For the **SCEP URL**, you'll need to modify the URL provided by Smallstep to instead use the public proxy route. For example, `https://agents.SMALLSTEP_TEAM_NAME.ca.smallstep.com/scep/INTEGRATION_ID` becomes `https://<SMALLSTEP_TEAM_NAME>.scep.smallstep.com/p/agents/<INTEGRATION_ID>`
+
+### Step 3: Add SCEP configuration profile to Fleet
+
+1. Create a [configuration profile](https://fleetdm.com/guides/custom-os-settings) with the SCEP payload. In the profile, for `Challenge`, use`$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_<CA_NAME>`. For, `URL`, use `$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_<CA_NAME>`, and make sure to add `$FLEET_VAR_SCEP_RENEWAL_ID` to `CN`.
+
+
+2. Replace the `<CA_NAME>`, with name you created in step 2. For example, if the name of the CA is "WIFI_AUTHENTICATION" the variables will look like this: `$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_WIFI_AUTHENTICATION` and `FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_WIFI_AUTHENTICATION`.
+
+3. If your Wi-Fi or VPN requires certificates that are unique to each host, update the `Subject`. You can use `$FLEET_VAR_HOST_END_USER_EMAIL_IDP` if your hosts automatically enrolled (via ADE) to Fleet with [end user authentication](https://fleetdm.com/docs/rest-api/rest-api#get-human-device-mapping) enabled. You can also use any of the [Apple's built-in variables](https://support.apple.com/en-my/guide/deployment/dep04666af94/1/web/1.0).
+
+4. In Fleet, head to **Controls > OS settings > Custom settings** and add the configuration profile to deploy certificates to your hosts.
+
+When Fleet delivers the profile to your hosts, Fleet will replace the variables. If something goes wrong, errors will appear on each host's **Host details > OS settings**.
+
+#### Example configuration profile
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+       <dict>
+          <key>PayloadContent</key>
+          <dict>
+             <key>Challenge</key>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_CHALLENGE_CA_NAME</string>
+             <key>Key Type</key>
+             <string>RSA</string>
+             <key>Key Usage</key>
+             <integer>5</integer>
+             <key>Keysize</key>
+             <integer>2048</integer>
+             <key>Subject</key>
+                    <array>
+                        <array>
+                          <array>
+                            <string>CN</string>
+                            <string>%SerialNumber% WIFI $FLEET_VAR_SCEP_RENEWAL_ID</string>
+                          </array>
+                        </array>
+                        <array>
+                          <array>
+                            <string>OU</string>
+                            <string>FLEET DEVICE MANAGEMENT</string>
+                          </array>
+                        </array>
+                    </array>
+             <key>URL</key>
+             <string>$FLEET_VAR_SMALLSTEP_SCEP_PROXY_URL_CA_NAME</string>
+          </dict>
+          <key>PayloadDisplayName</key>
+          <string>WIFI SCEP</string>
+          <key>PayloadIdentifier</key>
+          <string>com.apple.security.scep.9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadType</key>
+          <string>com.apple.security.scep</string>
+          <key>PayloadUUID</key>
+          <string>9DCC35A5-72F9-42B7-9A98-7AD9A9CCA3AC</string>
+          <key>PayloadVersion</key>
+          <integer>1</integer>
+       </dict>
+    </array>
+    <key>PayloadDisplayName</key>
+    <string>SCEP proxy cert</string>
+    <key>PayloadIdentifier</key>
+    <string>Fleet.WiFi</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>4CD1BD65-1D2C-4E9E-9E18-9BCD400CDEDC</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>
+```
+
 ## How the SCEP proxy works
 
 Fleet acts as a middleman between the host and the NDES or custom SCEP server. When a host requests a certificate from Fleet, Fleet requests a certificate from the NDES or custom SCEP server, retrieves the certificate, and sends it back to the host.
