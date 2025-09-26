@@ -268,6 +268,10 @@ func ValidateIcon(file io.ReadSeeker) error {
 		return &fleet.BadRequestError{Message: fmt.Sprintf("icon must be a square image (detected %dx%d pixels)", config.Width, config.Height)}
 	}
 
+	if _, err := file.Seek(0, 0); err != nil {
+		return &fleet.BadRequestError{Message: "failed to rewind file"}
+	}
+
 	return nil
 }
 
