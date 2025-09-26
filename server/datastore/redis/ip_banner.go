@@ -3,6 +3,7 @@ package redis
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -128,13 +129,24 @@ func (s *IPBanner) RunRequest(ip string, success bool) error {
 	// must come after BindConn due to redisc restrictions
 	conn = ConfigureDoer(s.pool, conn)
 
+	allowedConsecutiveFailuresCount := s.allowedConsecutiveFailuresCount
+	allowedConsecutiveFailuresTimeWindow := s.allowedConsecutiveFailuresTimeWindow
+	banDuration := s.banDuration
+
+	// This is just for testing purposes (no op in production).
+	if isTest, testIPBannerAllowedConsecutiveFailuresCount, testIPBannerAllowedConsecutiveFailuresTimeWindow, testIPBannerBanDuration := getIPBannerTestValues(); isTest {
+		allowedConsecutiveFailuresCount = testIPBannerAllowedConsecutiveFailuresCount
+		allowedConsecutiveFailuresTimeWindow = testIPBannerAllowedConsecutiveFailuresTimeWindow
+		banDuration = testIPBannerBanDuration
+	}
+
 	allowedConsecutiveFailuresTimeWindowTTLSeconds := max(
 		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-		int(s.allowedConsecutiveFailuresTimeWindow.Seconds()), 1,
+		int(allowedConsecutiveFailuresTimeWindow.Seconds()), 1,
 	)
 	banTTLSeconds := max(
 		// An `EX 0` will fail, make sure that we set expiry for a minimum of one second
-		int(s.banDuration.Seconds()), 1,
+		int(banDuration.Seconds()), 1,
 	)
 	script := redis.NewScript(2, updateCountScript)
 
@@ -148,7 +160,7 @@ func (s *IPBanner) RunRequest(ip string, success bool) error {
 		ipBannedKey,
 
 		action,
-		s.allowedConsecutiveFailuresCount,
+		allowedConsecutiveFailuresCount,
 		allowedConsecutiveFailuresTimeWindowTTLSeconds,
 		banTTLSeconds,
 	); err != nil {
@@ -165,4 +177,49 @@ func SetNullIfEmptyIP(ip string) string {
 		return "null"
 	}
 	return ip
+}
+
+var (
+	testIPBannerMu sync.Mutex
+	testIPBanner   bool
+
+	testIPBannerAllowedConsecutiveFailuresCount      int
+	testIPBannerAllowedConsecutiveFailuresTimeWindow time.Duration
+	testIPBannerBanDuration                          time.Duration
+)
+
+func SetIPBannerTestValues(
+	allowedConsecutiveFailuresCount int,
+	allowedConsecutiveFailuresTimeWindow time.Duration,
+	banDuration time.Duration,
+) {
+	testIPBannerMu.Lock()
+	defer testIPBannerMu.Unlock()
+
+	testIPBanner = true
+	testIPBannerAllowedConsecutiveFailuresCount = allowedConsecutiveFailuresCount
+	testIPBannerAllowedConsecutiveFailuresTimeWindow = allowedConsecutiveFailuresTimeWindow
+	testIPBannerBanDuration = banDuration
+}
+
+func UnsetIPBannerTestValues() {
+	testIPBannerMu.Lock()
+	defer testIPBannerMu.Unlock()
+
+	testIPBanner = false
+
+	testIPBannerAllowedConsecutiveFailuresCount = 0
+	testIPBannerAllowedConsecutiveFailuresTimeWindow = 0
+	testIPBannerBanDuration = 0
+}
+
+func getIPBannerTestValues() (test bool, allowedConsecutiveFailuresCount int, allowedConsecutiveFailuresTimeWindow time.Duration, banDuration time.Duration) {
+	testIPBannerMu.Lock()
+	defer testIPBannerMu.Unlock()
+
+	test = testIPBanner
+	allowedConsecutiveFailuresCount = testIPBannerAllowedConsecutiveFailuresCount
+	allowedConsecutiveFailuresTimeWindow = testIPBannerAllowedConsecutiveFailuresTimeWindow
+	banDuration = testIPBannerBanDuration
+	return
 }

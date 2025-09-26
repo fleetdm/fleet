@@ -476,14 +476,19 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	clearKeys()
 	s.T().Cleanup(clearKeys)
 
+	allowedConsecutiveFailuresCount := 4
+	allowedConsecutiveFailuresTimeWindow := 2 * time.Second
+	banDuration := 2 * time.Second
+	redis.SetIPBannerTestValues(allowedConsecutiveFailuresCount, allowedConsecutiveFailuresTimeWindow, banDuration)
+	s.T().Cleanup(redis.UnsetIPBannerTestValues)
+
 	// Test that consecutive invalid requests get banned (for IP=127.0.0.1).
-	for range deviceIPAllowedConsecutiveFailingRequestsCount / 4 {
-		// Test different endpoints coming from the same IP.
-		s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
-		s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
-		s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
-		s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
-	}
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
+
 	// A valid request from another IP does not clear the status of the IP 127.0.0.1 (banned).
 	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK, map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
@@ -492,18 +497,28 @@ func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
 	// Wait for the ban window to finish, which should clear the ban on the IP.
-	time.Sleep(deviceIPBanTime + 1*time.Second)
+	time.Sleep(banDuration + 500*time.Millisecond)
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
 
 	// Clear rate limiting.
 	clearKeys()
 
 	// Test that a successful request clears the failing count.
-	for range deviceIPAllowedConsecutiveFailingRequestsCount - 1 {
+	for range allowedConsecutiveFailuresCount - 1 {
 		s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
 	}
 	// Valid request clears the failing count.
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK).Body.Close()
+	// A new failing request is not banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+
+	// Test that consecutive invalid requests in a time window bigger than the configured one does not ban the IP (for IP=127.0.0.1).
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	time.Sleep(allowedConsecutiveFailuresTimeWindow + 500*time.Millisecond)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
 	// A new failing request is not banned.
 	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
 }
