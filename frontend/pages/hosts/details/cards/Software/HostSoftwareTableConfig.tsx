@@ -113,17 +113,13 @@ export const generateSoftwareTableHeaders = ({
       Header: "Type",
       disableSortBy: true,
       accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-              extension_for: cellProps.row.original.extension_for,
-            })
-          }
-        />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const value = formatSoftwareType({
+          source: cellProps.cell.value as SoftwareSource,
+          extension_for: cellProps.row.original.extension_for,
+        });
+        return <TextCell value={value} />;
+      },
     },
     {
       Header: (): JSX.Element => {
