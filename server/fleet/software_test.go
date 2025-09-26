@@ -195,7 +195,6 @@ func TestEnhanceOutputDetails(t *testing.T) {
 	}
 }
 
-
 func TestMoveBrowserToExtFor(t *testing.T) {
 	t.Run("moves when source=jetbrains_plugins and browser non-empty", func(t *testing.T) {
 		src := "jetbrains_plugins"
