@@ -70,7 +70,7 @@ By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/gu
 
 ### Next-gen change management
 
-Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provides transparency and flexibility. allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to audit, customize, and extend Fleet as needed.
+Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source) Fleet provides transparency and flexibility, allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to audit and extend Fleet as needed.
 
 ## Conclusion
 
