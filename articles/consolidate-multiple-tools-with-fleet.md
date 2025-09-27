@@ -30,7 +30,7 @@ Stripe replaced their legacy device management tooling with Fleet: a cross-platf
 
 The company was already using Fleet in early 2023 for managing [osquery](https://www.osquery.io/) in threat detection and compliance use cases with [scheduled queries](https://fleetdm.com/guides/queries).
 
-Not long after, Fleet Device Management announced open-source [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html). Fleet added these MDM features on top of osquery's powerful capabilities. Stripe saw the addition of the new features as an opportunity to leverage Fleet for device management and to consolidate their tools. Fleet's combination of cross-platform support, open-source transparency, and scalability made it the right choice.
+Around this time, Fleet Device Management announced open-source [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html). Fleet added MDM features on top of osquery's powerful capabilities. Stripe saw the additions as an opportunity to leverage Fleet for device management and to consolidate their tools. Fleet's combination of cross-platform support, open-source transparency, and scalability made it the right choice.
 
 ## Results
 
@@ -68,7 +68,7 @@ Fleet can pull detailed information from every operating system in near real-tim
 
 By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop#basic-article), end-users can resolve common policy issues without IT intervention, reducing support tickets and improving IT help desk response. This optimizes resources and allows Stripe's teams to spend less time reacting and more time focused on strategic initiatives.
 
-### Next-gen change management
+### Next-generation change management
 
 Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source) Fleet provides transparency and flexibility, allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to audit and extend Fleet as needed.
 
