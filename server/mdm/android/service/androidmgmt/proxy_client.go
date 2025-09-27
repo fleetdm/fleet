@@ -182,6 +182,19 @@ func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName st
 	return ret, nil
 }
 
+func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
 func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
 	if p == nil || p.mgmt == nil {
 		return errors.New("android management service not initialized")

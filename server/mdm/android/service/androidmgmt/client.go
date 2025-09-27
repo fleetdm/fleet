@@ -30,6 +30,10 @@ type Client interface {
 	// On success it returns the updated device with latest applied policy information.
 	EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
+	// EnterprisesDevicesGet retrieves a device by resource name.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/get
+	EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
 	// EnterprisesDevicesDelete deletes an enrolled device (work profile) in the enterprise.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/delete
 	EnterprisesDevicesDelete(ctx context.Context, deviceName string) error

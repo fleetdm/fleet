@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 //go:generate go run ./mockimpl/impl.go -o datastore_mock.go "s *DataStore" "fleet.Datastore"
@@ -45,3 +46,6 @@ func (m *Store) Name() string { return "mock" }
 
 // Added to satisfy fleet.Datastore interface after Android unenroll additions.
 func (m *Store) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
+
+// Added to satisfy fleet.Datastore interface after Android reconcile additions.
+func (m *Store) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) { return nil, nil }

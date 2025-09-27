@@ -21,6 +21,8 @@ type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, p
 
 type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
+type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
 type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
@@ -43,6 +45,9 @@ type Client struct {
 
 	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
 	EnterprisesDevicesPatchFuncInvoked bool
+
+	EnterprisesDevicesGetFunc        EnterprisesDevicesGetFunc
+	EnterprisesDevicesGetFuncInvoked bool
 
 	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
 	EnterprisesDevicesDeleteFuncInvoked bool
@@ -88,6 +93,13 @@ func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string,
 	p.EnterprisesDevicesPatchFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesDevicesPatchFunc(ctx, deviceName, device)
+}
+
+func (p *Client) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesGetFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesGetFunc(ctx, deviceName)
 }
 
 func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
