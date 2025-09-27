@@ -514,7 +514,7 @@ software:
   - `Communication`: shown as **👬 Communication**
   - `Developer tools`: shown as **🧰 Developer tools**
   - `Productivity`: shown as **🖥️ Productivity**
-- `setup_experience` installs the software on macOS, Windows, and Linux hosts that automatically enroll via [setup experience](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored for iOS/iPadOS software (default: `false`).
+- `setup_experience` installs the software when macOS, Windows, and Linux hosts enroll. Learn more in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#software-and-script). This setting is ignored for iOS/iPadOS software (default: `false`).
 
 ### packages
 
