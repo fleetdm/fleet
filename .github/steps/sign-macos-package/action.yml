@@ -1,0 +1,170 @@
+name: Sign MacOS package
+description: Sign built MacOS package and Notarize it
+inputs:
+  apple_certificate_p12:
+    description: 'Base64 encoded Apple Developer certificate (.p12)'
+    required: true
+  apple_certificate_password:
+    description: 'Password for the .p12 certificate'
+    required: true
+  apple_developer_id:
+    description: 'Apple Developer ID string'
+    required: true
+  apple_id_username:
+    description: 'Apple ID username for notarization'
+    required: true
+  apple_id_password:
+    description: 'App-specific password for Apple ID'
+    required: true
+  apple_team_id:
+    description: 'Apple Developer ID'
+    required: true
+  binary_name:
+    description: 'Name of built MacOS binary (e.g. "rmmagent-mac-universal")'
+    required: true
+    default: ""
+  app_name:
+    description: 'Name of MacOS App targets to add (e.g. "RMMAgent")'
+    required: true
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup and export all needed vars
+      shell: bash
+      run: |
+        BINARY_NAME="${{ inputs.binary_name }}"
+        APP_NAME="${{ inputs.app_name }}"
+        APP_BUNDLE="${APP_NAME}.app"
+        BINARY_PATH="./artifacts/$BINARY_NAME"
+        DEVELOPER_ID="${{ inputs.apple_developer_id }}"
+
+        echo "BINARY_NAME=$BINARY_NAME"  >> $GITHUB_ENV
+        echo "APP_NAME=$APP_NAME" >> $GITHUB_ENV
+        echo "APP_BUNDLE=$APP_BUNDLE" >> $GITHUB_ENV
+        echo "BINARY_PATH=$BINARY_PATH" >> $GITHUB_ENV
+        echo "DEVELOPER_ID=$DEVELOPER_ID" >> $GITHUB_ENV
+
+    - name: Setup Apple Code Signing
+      shell: bash
+      run: |
+        CERTIFICATE_PATH="$HOME/certificate.p12"
+        KEYCHAIN_PATH="$HOME/signing.keychain-db"
+        
+        # Decode certificate and create keychain
+        echo "${{ inputs.apple_certificate_p12 }}" | base64 --decode > "$CERTIFICATE_PATH"
+        security create-keychain -p "${{ inputs.apple_certificate_password }}" "$KEYCHAIN_PATH"
+        security default-keychain -s "$KEYCHAIN_PATH"
+        security unlock-keychain -p "${{ inputs.apple_certificate_password }}" "$KEYCHAIN_PATH"
+        
+        # Import certificate and set key partition list
+        security import "$CERTIFICATE_PATH" -P "${{ inputs.apple_certificate_password }}" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+        security set-key-partition-list -S apple-tool:,apple: -s -k "${{ inputs.apple_certificate_password }}" "$KEYCHAIN_PATH"
+                
+        # Verify setup, cleanup initial cert and export path
+        security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+        rm "$CERTIFICATE_PATH"
+        echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+
+    - name: Code Sign Binary
+      shell: bash
+      run: |
+        to_lower() {
+          # Lowercase regardless of input
+          printf '%s' "$*" | tr '[:upper:]' '[:lower:]'
+        }
+        APP_NAME_LOWER="$(to_lower $APP_NAME)"
+        BUNDLE_ID="cx.flamingo.$APP_NAME_LOWER"
+
+        # Clean up any existing bundle and create new app bundle structure
+        rm -rf "$APP_BUNDLE" "${APP_BUNDLE}.zip"
+        mkdir -p "${APP_BUNDLE}/Contents/MacOS"
+        mkdir -p "${APP_BUNDLE}/Contents/Resources"
+        cp "$BINARY_PATH" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+        chmod +x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
+        
+        # Create Info.plist and entitlements
+        cat > "${APP_BUNDLE}/Contents/Info.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleExecutable</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleIdentifier</key>
+            <string>${BUNDLE_ID}</string>
+            <key>CFBundleName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleDisplayName</key>
+            <string>${APP_NAME}</string>
+            <key>CFBundleVersion</key>
+            <string>1.0.0</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0.0</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleSignature</key>
+            <string>????</string>
+            <key>LSMinimumSystemVersion</key>
+            <string>10.15</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>LSUIElement</key>
+            <true/>
+            <key>LSBackgroundOnly</key>
+            <true/>
+        </dict>
+        </plist>
+        EOF
+        
+        cat > "entitlements.plist" << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>com.apple.security.cs.disable-library-validation</key><true/>
+        </dict>
+        </plist>
+        EOF
+
+        # Sign the binary and verify
+        codesign --sign "$DEVELOPER_ID" --timestamp --options runtime --entitlements "entitlements.plist" --deep --force "$APP_BUNDLE"
+        
+        # Verify signature
+        codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+        echo "Binary signed successfully"
+
+    - name: Create archive and submit for Notarization
+      shell: bash
+      run: |
+        zip -r "${APP_BUNDLE}.zip" "$APP_BUNDLE"
+
+        xcrun notarytool submit "${APP_BUNDLE}.zip" \
+          --apple-id "${{ inputs.apple_id_username }}" \
+          --password "${{ inputs.apple_id_password }}" \
+          --team-id "${{ inputs.apple_team_id }}" \
+          --wait \
+          --timeout 30m
+
+    - name: Staple Notarization Ticket and Verify Final Binary
+      shell: bash
+      run: |
+        xcrun stapler staple "$APP_BUNDLE"
+        xcrun stapler validate "$APP_BUNDLE"
+        echo "Notarization completed successfully"
+
+        # Verify code signature and notarization
+        codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+        spctl --assess --type execute --verbose "$APP_BUNDLE"
+        echo "Binary verification completed"
+
+    - name: Cleanup Keychain
+      if: always()
+      shell: bash
+      run: |
+        if [[ -n "$KEYCHAIN_PATH" ]] && [[ -f "$KEYCHAIN_PATH" ]]; then
+          security delete-keychain "$KEYCHAIN_PATH"
+        fi

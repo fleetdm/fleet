@@ -1,0 +1,115 @@
+name: Fleet Agent Build and Push Latest
+
+permissions:
+  contents: write
+  packages: write
+  actions: write
+  pull-requests: write
+  attestations: write
+  id-token: write
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g., v1.2.3)"
+        required: true
+        type: string
+
+env:
+  REGISTRY: "ghcr.io"
+  ORGANISATION: ${{ github.repository_owner }}
+  REPOSITORY: ${{ github.event.repository.name }}
+
+# =============================================================================
+# JOBS
+# =============================================================================
+
+jobs:
+  build_client:
+    name: "Build Go Client (${{ matrix.os }})"
+    runs-on: ${{ matrix.os }}
+    if: |
+      github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            go_os: darwin
+            go_arch: [arm64, amd64]
+            artifact_name: fleet-mac-universal
+          - os: windows-latest
+            go_os: windows
+            go_arch: amd64
+            artifact_name: fleet-windows-amd64.exe
+          # - os: windows-latest
+          #   go_os: windows
+          #   go_arch: 386
+          #   artifact_name: fleet-windows-i386.exe
+         
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Prepare Build tools
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.1'
+
+      - name: Compile agent for ${{ matrix.go_os }}
+        run: |
+          if [[ "${{ matrix.os }}" == "macos-latest" ]]; then
+            rm -rf ./build_target
+            mkdir -p ./build_target
+            architectures=($(echo '${{ toJSON(matrix.go_arch) }}' | jq -r '.[]'))
+            for arch in "${architectures[@]}"; do
+              echo "Building for ${{ matrix.go_os }}/${arch}"
+              env GOARCH=${arch} go build -o ./build_target/orbit-mac-${arch} ./orbit/cmd/orbit
+            done
+            ls -la ./build_target
+            echo "Create ${{ matrix.artifact_name }}"
+            mkdir -p ./artifacts
+            arch0=${architectures[0]}
+            arch1=${architectures[1]}
+            lipo -create ./build_target/orbit-mac-${arch0} ./build_target/orbit-mac-${arch1} -output ./artifacts/${{ matrix.artifact_name }}
+            lipo -info ./artifacts/${{ matrix.artifact_name }}
+            ls -la ./artifacts
+            rm -rf ./build_target
+          elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
+            mkdir -p ./artifacts
+            env GOARCH=${{ matrix.go_arch }} go build -o ./artifacts/orbit-"${{ matrix.go_arch }}" ./orbit/cmd/orbit
+            ls -la ./artifacts
+          fi
+
+      - name: Sign MacOS package
+        if: runner.os == 'macOS'
+        uses: ./.github/steps/sign-macos-package
+        with:
+          apple_certificate_p12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          apple_certificate_password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          apple_developer_id: ${{ secrets.APPLE_DEVELOPER_ID }}
+          apple_id_username: ${{ secrets.APPLE_ID_USERNAME }}
+          apple_id_password: ${{ secrets.APPLE_ID_PASSWORD }}
+          apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
+          binary_name: ${{ matrix.artifact_name }}
+          app_name: FleetAgent
+
+      - name: Upload client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            artifacts/
+          if-no-files-found: warn
+          retention-days: 30
+          compression-level: 9

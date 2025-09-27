@@ -1,4 +1,0 @@
-name: Fleet CodeQL
-
-paths-ignore:
-  - website/assets/dependencies/
