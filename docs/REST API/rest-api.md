@@ -6733,11 +6733,7 @@ List software that can be automatically installed during setup. If `install_duri
 
 | Name  | Type   | In    | Description                              |
 | ----- | ------ | ----- | ---------------------------------------- |
-<<<<<<< HEAD
 | platform | string  | query |   Platform to show compatible software for. Either `"macos"`, `"windows"`, or `"linux"`. Defaults to `"macos`. |
-=======
-| platform | string  | query |   Platform to show compatible software for. Either `"macos"` or `"linux"`. Defaults to `"macos"`. |
->>>>>>> 36c29f3d8ebbc75a5a67b76546bc556ad4f05710
 | team_id | integer | query | _Available in Fleet Premium_. The ID of the team to filter software by. If not specified, it will filter only software that's available to hosts with no team. |
 | page | integer | query | Page number of the results to fetch. |
 | per_page | integer | query | Results per page. |
