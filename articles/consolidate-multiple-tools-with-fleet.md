@@ -13,7 +13,7 @@ Stripe is a global technology company, building the economic infrastructure for 
 
 As Stripe expanded, they faced growing complexity in managing devices across teams and locations. Existing device management solutions were either too cumbersome or lacked the flexibility to align with the high-availability, fast, secure infrastructure Stripe has built for itself.
 
-To address these challenges, Stripe set out to achieve four key device management goals:
+Stripe set out to address four key device management goals:
 
 - Reduce tool overlap
 - Adopt next-generation change management
@@ -58,11 +58,11 @@ The ability to easily build Fleet's agent deployment packages allowed a quick in
 
 ### Audits
 
-By switching to Fleet, Stripe wasted less time around audits by unblocking data collection and overcame change management inertia, allowing IT to move faster with less manual intervention. At Stripe this means expanded employee device choice without adding risk. 
+By switching to Fleet, Stripe wasted less time around device audits by unblocking data collection and overcoming change management inertia, allowing IT to move faster with less manual intervention. 
 
 ### Device health
 
-Fleet can pull detailed information from every operating system in near real-time, allowing quick assessments of device health, installed applications, and verified configurations. Because Fleet is API-first and built for automation, Stripe configures all of their devices to access its network but only if they've passed conditional access checks.
+Fleet pulls detailed information from every operating system on every device in near real-time, allowing quick assessments of device health, installed applications, and verified configurations. Because Fleet is API-first and built for automation, Stripe uses these capabilities to ensure devices are allowed on their networks only if they've passed conditional access checks.
 
 ### End-user empowerment
 
