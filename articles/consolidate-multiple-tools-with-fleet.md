@@ -4,81 +4,81 @@
 
 We've been using Fleet for a few years and we couldn't be happier. The fact that it's also open-source made it easy for us to try it out, customize it to our needs, and seamlessly integrate it into our existing environment.
 
-**- Head of Developer Infrastructure & Corporate Technology**
+**- Head of Developer Infrastructure & Corporate Technology, Stripe**
 </div>
-
-## Challenge
-
-Stripe, a leading financial company, looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure. The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
-
-## Solution
-
-Stripe migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
-
-## Results
-
-<div purpose="checklist">
-
-Reduced tool overlap by consolidating multiple legacy solutions, improving efficiency and reducing SaaS spending without compromising functionality. 
-
-Adopted Fleet’s GitOps capabilities to help reduce mistakes through peer reviews and keep track of changes for faster auditing.
-
-Use Fleet to get reliable, live access to their infrastructure to verify device data for better decisions surrounding end-user access and auditing context.
-
-Elected to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
-</div>
-
-By switching to Fleet, Stripe company saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
-
 
 ## Their story
 
-This company is a global technology company building economic infrastructure for the Internet. Businesses of every size, from new startups to public companies, use its software to accept payments and manage their businesses online and in person.
+Stripe is a global technology company, building the economic infrastructure for the current and future internet. Enterprises of every size, from startups to publicly-traded bohemoths, use Stripe for payment transaction processing and managing their businesses.
 
-As they expanded, it faced a growing complexity in managing a vast array of devices across teams and locations. Existing solutions were either too cumbersome to deploy or lacked the flexibility and cross-platform support needed to align with existing infrastructure and workflows.
+As Stripe expanded, they faced growing complexity in managing devices across teams and locations. Existing device management solutions were either too cumbersome or lacked the flexibility to align with the high-availability, fast, secure infrastructure Stripe has built for itself.
 
-To address these challenges, they set out to achieve four key goals:
+To address these challenges, Stripe set out to achieve four key device management goals:
 
 - Reduce tool overlap
 - Adopt next-generation change management
 - Streamline device health assessments
 - Empower end-user self-service
 
-The company was already using Fleet in early 2023 to manage osquery from a threat detection and compliance perspective with [scheduled queries](https://fleetdm.com/guides/queries). However, they mentioned the growing need to quickly reach out to users to educate them on enabling compliance checks.
+## Challenge
 
-Not long after, Fleet announced open-source, [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html) building on top of osquery which they were already familiar with.  Seeing this as an opportunity to leverage Fleet and reduce the amount of tools they had to manage. Fleet's combination of cross-platform support, open-source transparency, and scalability made it worthwhile to migrate MDMs.
+Stripe wanted to simplify device management. They also wanted to reduce the load on their engineering teams without sacrificing control over the critical devices they manage. Their use of multiple device management solutions created operational silos, required specialized expertise for legacy systems, and led to engineering inefficiencies.
 
-### Eliminate tool overlap with easy deployment
+## Solution
+
+Stripe replaced their legacy device management tooling with Fleet: a cross-platform device management solution that supports macOS, mulitple Linux flavors, Windows, iOS / iPadOS, Chromebook and Android.
+
+The company was already using Fleet in early 2023 for managing [osquery](https://www.osquery.io/) in threat detection and compliance use cases with [scheduled queries](https://fleetdm.com/guides/queries).
+
+Not long after, Fleet Device Management announced open-source [cross-platform MDM capabilities](https://www.computerworld.com/article/1622574/fleet-announces-open-source-cross-platform-mdm-solution.html). Fleet added these MDM features on top of osquery's powerful capabilities. Stripe saw the addition of the new features as an opportunity to leverage Fleet for device management and to consolidate their tools. Fleet's combination of cross-platform support, open-source transparency, and scalability made it the right choice.
+
+## Results
+
+<div purpose="checklist">
+
+- Consolidated multiple legacy device management solutions, improving efficiency and reducing SaaS spending without compromising functionality
+
+- Reduced mistakes through peer reviews and robust automation using the Fleet API
+
+- Used Fleet to get reliable, live access to their infrastructure for verifying device data, driving better decisions around end-user access and auditing
+
+- Elected to self-host Fleet for complete control of their data and security posture while maintaining their impressive 99.99% uptime
+</div>
+
+### Agent deployment
 
 <div purpose="attribution-quote">
 
 Mad props to how easy making a deploy pkg of the agent was. I wish everyone made stuff that easy.
 
-**— Staff Client Platform Engineer**
+**— Staff Client Platform Engineer, Stripe**
 </div>
 
-Fleet's straightforward deployment package allowed a quick install of the agent across all of its devices. By supporting macOS, Windows, and Linux, Fleet enabled them to not only continue managing osquery but also consolidate its legacy device management tools into a single self-hosted MDM without sacrificing existing control. 
+THe ability to easily build Fleet's agent deployment packages allowed a quick install of `fleetd` across all of Stripe's devices. By supporting all of Stripe's platforms, Fleet enabled Stripe to deploy `fleetd` for managing osquery and device management, elimintating legacy tooling in the process.
 
-### Next-gen change management and open-source flexibility
+### Audits
 
-Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provided the transparency and flexibility to tailor the platform to their specific requirements. This fostered trust among engineering teams and allows them to audit, customize, and extend the platform as needed.
+By switching to Fleet, Stripe wasted less time around audits by unblocking data collection and overcame change management inertia, allowing IT to move faster with less manual intervention. At Stripe this means expanded employee device choice without adding risk. 
 
-### Definitive data and end-user empowerment
+### Device health
 
-Fleet can pull detailed information on assets across every operating system in seconds, allowing quick assessments of device health, installed applications, and verified configurations. Because Fleet is API-first, programmable, and built for automation, they configure all of their devices to access its network but only if they passed its predetermined policies.
+Fleet can pull detailed information from every operating system in near real-time, allowing quick assessments of device health, installed applications, and verified configurations. Because Fleet is API-first and built for automation, Stripe configures all of their devices to access its network but only if they've passed conditional access checks.
 
-By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop#basic-article), end-users can resolve common policy issues without IT intervention, reducing support tickets and increasing efficiency. This empowerment optimizes resources and allowed their IT teams to focus on more strategic initiatives.
+### End-user empowerment
 
+By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop#basic-article), end-users can resolve common policy issues without IT intervention, reducing support tickets and improving IT help desk response. This optimizes resources and allows Stripe's teams to spend less time reacting and more time focused on strategic initiatives.
+
+### Next-gen change management
+
+Being [open-source](http://fleetdm.com/handbook/company/why-this-way?utm_content=eo-security#why-open-source), Fleet provides transparency and flexibility. allowing Stripe to customize it to their requirements. This builds trust among peers on Stripe's engineering teams allowing them to audit, customize, and extend Fleet as needed.
 
 ## Conclusion
 
-Fleet has become an integral part of Stripe's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth. By choosing Fleet, they improved endpoint operations, streamlined device management, unified their device management strategy across all platforms, and empowered end-users—all while leveraging the benefits of an open-source solution with advanced [GitOps capabilities](https://github.com/fleetdm/fleet-gitops).
+By choosing Fleet, Stripe streamlined device management, unified their device management strategy, and empowered their end-users while leveraging the benefits of an open-source solution with an API-first design. Fleet's device management features compliment the advanced data collection and real-time insights available via osquery, enabling proactive management, improved decision-making and enhancing operational efficiency.
 
-Fleet's cross-platform support and open-source transparency set it apart from competitors, providing a single source of truth for all devices. The advanced data collection and real-time insights enable proactive management and decision-making, enhancing operational efficiency.
-
+For Stripe, Fleet's capabilities and design philosophy set it apart from its competitors. Fleet has become an integral part of Stripe's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth.
 
 To learn more about how Fleet can support your organization, visit [fleetdm.com/mdm](https://fleetdm.com/mdm).
-
 
 <call-to-action></call-to-action>
 
