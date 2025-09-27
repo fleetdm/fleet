@@ -34,11 +34,15 @@ const UnenrollMdmModal = ({
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
     try {
-      await mdmAPI.unenrollHostFromMdm(hostId, 5000);
+      if (isAndroid(hostPlatform)) {
+        await mdmAPI.unenrollAndroidHostFromMdm(hostId, 5000);
+      } else {
+        await mdmAPI.unenrollHostFromMdm(hostId, 5000);
+      }
       const successMessage =
         isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
           <>
-            <b>{hostName}</b> will unenrolled next time this host checks in.
+            <b>{hostName}</b> will be unenrolled next time this host checks in.
           </>
         ) : (
           <>

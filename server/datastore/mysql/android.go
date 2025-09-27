@@ -373,6 +373,15 @@ UPDATE host_mdm
 	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android")
 }
 
+// SetAndroidHostUnenrolled sets a single android host to unenrolled in host_mdm.
+func (ds *Datastore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+UPDATE host_mdm
+	SET server_url = '', mdm_id = NULL, enrolled = 0
+	WHERE host_id = ?`, hostID)
+	return ctxerr.Wrap(ctx, err, "set host_mdm to unenrolled for android host")
+}
+
 func upsertAndroidHostMDMInfoDB(ctx context.Context, tx sqlx.ExtContext, serverURL string, fromDEP, enrolled bool, hostIDs ...uint) error {
 	if len(hostIDs) == 0 {
 		return nil

@@ -367,8 +367,22 @@ const modifyOptions = (
   };
 
   let optionsToDisable: IDropdownOption[] = [];
+  // When the host is offline, always disable Query, but allow Unenroll for iOS/iPadOS and Android.
+  if (!isHostOnline) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "query")
+    );
+
+    // Disable "Turn off MDM" (Unenroll) when offline for all platforms except iOS/iPadOS and Android
+    if (!isIPadOrIPhone(hostPlatform) && !isAndroid(hostPlatform)) {
+      optionsToDisable = optionsToDisable.concat(
+        options.filter((option) => option.value === "mdmOff")
+      );
+    }
+  }
+
+  // While device status is updating, or device is locked/wiped, disable Query and Turn off MDM
   if (
-    (!isIPadOrIPhone(hostPlatform) && !isHostOnline) ||
     isDeviceStatusUpdating(hostMdmDeviceStatus) ||
     hostMdmDeviceStatus === "locked" ||
     hostMdmDeviceStatus === "wiped"

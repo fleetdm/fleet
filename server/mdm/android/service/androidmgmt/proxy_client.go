@@ -182,6 +182,23 @@ func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName st
 	return ret, nil
 }
 
+func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	if p == nil || p.mgmt == nil {
+		return errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	_, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
+		p.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		return nil
+	case err != nil:
+		return fmt.Errorf("deleting device %s: %w", deviceName, err)
+	}
+	return nil
+}
+
 func (p *ProxyClient) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string,
 	token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
 	if p == nil || p.mgmt == nil {

@@ -47,6 +47,7 @@ func TestAndroid(t *testing.T) {
 		{"BatchSetMDMAndroidProfiles_Associations", testBatchSetMDMAndroidProfiles_Associations},
 		{"NewAndroidHostWithIdP", testNewAndroidHostWithIdP},
 		{"AndroidBYODDetection", testAndroidBYODDetection},
+		{"SetAndroidHostUnenrolled", testSetAndroidHostUnenrolled},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1992,4 +1993,53 @@ func testAndroidBYODDetection(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		assert.True(t, isPersonalEnrollment, "After update with UUID should have is_personal_enrollment = 1")
 	})
+}
+
+// NEW TEST: verify single-host unenroll updates host_mdm correctly
+func testSetAndroidHostUnenrolled(t *testing.T, ds *Datastore) {
+	// Set a non-empty server URL so initial enrolled row has data to clear
+	appCfg, err := ds.AppConfig(testCtx())
+	require.NoError(t, err)
+	appCfg.ServerSettings.ServerURL = "https://mdm.example.com"
+	require.NoError(t, ds.SaveAppConfig(testCtx(), appCfg))
+
+	// Create an Android host (this also upserts an enrolled host_mdm row)
+	esid := "enterprise-" + uuid.NewString()
+	h := createAndroidHost(esid)
+	res, err := ds.NewAndroidHost(testCtx(), h)
+	require.NoError(t, err)
+
+	// Sanity check initial host_mdm values
+	var enrolled int
+	var serverURL string
+	var mdmIDIsNull int
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolled, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &serverURL, `SELECT server_url FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	require.Equal(t, 1, enrolled)
+	require.NotEmpty(t, serverURL)
+	require.Equal(t, 0, mdmIDIsNull)
+
+	// Perform single-host unenroll
+	require.NoError(t, ds.SetAndroidHostUnenrolled(testCtx(), res.Host.ID))
+
+	// Validate host_mdm row updated
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &enrolled, `SELECT enrolled FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &serverURL, `SELECT server_url FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(testCtx(), q, &mdmIDIsNull, `SELECT CASE WHEN mdm_id IS NULL THEN 1 ELSE 0 END FROM host_mdm WHERE host_id = ?`, res.Host.ID)
+	})
+	assert.Equal(t, 0, enrolled)
+	assert.Equal(t, "", serverURL)
+	assert.Equal(t, 1, mdmIDIsNull)
 }

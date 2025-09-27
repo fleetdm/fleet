@@ -115,7 +115,25 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 
-		// TODO(mna): should that delete the host from Fleet? Or at least set host_mdm to unenrolled?
+		// User-initiated unenroll (work profile removed) or device deleted via AMAPI.
+		// Flip host_mdm to unenrolled and emit an activity.
+		host, err := svc.getExistingHost(ctx, &device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
+		}
+		if host != nil {
+			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
+			}
+			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
+			// Use the computed display name from the device payload as lite host may not include it.
+			displayName := svc.getComputerName(&device)
+			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostSerial:       "",
+				HostDisplayName:  displayName,
+				InstalledFromDEP: false,
+			})
+		}
 		return nil
 	}
 
