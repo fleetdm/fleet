@@ -27,7 +27,9 @@ var _ fleet.Datastore = (*DataStore)(nil)
 func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
 
 // Added to satisfy fleet.Datastore interface after Android reconcile additions.
-func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) { return nil, nil }
+func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	return nil, nil
+}
 
 type HealthCheckFunc func() error
 

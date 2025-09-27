@@ -365,20 +365,20 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshilling enrollment token data")
 	}
-	
+
 	enrollSecret, err := svc.ds.VerifyEnrollSecret(ctx, enrollmentTokenRequest.EnrollSecret)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "verifying enroll secret")
 	}
-	
+
 	deviceID, err := svc.getDeviceID(ctx, device)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting device ID")
 	}
-	
+
 	gigsTotalDiskSpace, gigsDiskSpaceAvailable, percentDiskSpaceAvailable :=
 		svc.calculateAndroidStorageMetrics(ctx, device, false)
-	
+
 	host := &fleet.AndroidHost{
 		Host: &fleet.Host{
 			TeamID:                    enrollSecret.GetTeamID(),
@@ -423,7 +423,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
-	
+
 	if enrollmentTokenRequest.IdpUUID != "" {
 		level.Info(svc.logger).Log("msg", "associating android host with idp account", "host_uuid", host.UUID, "idp_uuid", enrollmentTokenRequest.IdpUUID)
 		err := svc.ds.AssociateHostMDMIdPAccount(ctx, host.UUID, enrollmentTokenRequest.IdpUUID)
@@ -431,7 +431,7 @@ func (svc *Service) addNewHost(ctx context.Context, device *androidmanagement.De
 			return ctxerr.Wrap(ctx, err, "associating host with idp account")
 		}
 	}
-	
+
 	return nil
 }
 

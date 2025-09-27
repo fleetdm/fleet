@@ -48,4 +48,6 @@ func (m *Store) Name() string { return "mock" }
 func (m *Store) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
 
 // Added to satisfy fleet.Datastore interface after Android reconcile additions.
-func (m *Store) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) { return nil, nil }
+func (m *Store) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	return nil, nil
+}
