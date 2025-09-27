@@ -54,7 +54,7 @@ Mad props to how easy making a deploy pkg of the agent was. I wish everyone made
 **— Staff Client Platform Engineer, Stripe**
 </div>
 
-THe ability to easily build Fleet's agent deployment packages allowed a quick install of `fleetd` across all of Stripe's devices. By supporting all of Stripe's platforms, Fleet enabled Stripe to deploy `fleetd` for managing osquery and device management, elimintating legacy tooling in the process.
+The ability to easily build Fleet's agent deployment packages allowed a quick install of `fleetd` across all of Stripe's devices. By supporting all of Stripe's platforms, Fleet enabled Stripe to deploy `fleetd` for managing osquery and device management, elimintating legacy tooling in the process.
 
 ### Audits
 
