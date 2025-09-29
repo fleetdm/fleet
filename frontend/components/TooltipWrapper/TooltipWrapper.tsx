@@ -119,9 +119,8 @@ const TooltipWrapper = ({
         <ReactTooltip5
           className={tipClassNames}
           id={tipId}
-          delayShow={delayShowVal}
+          delayShow={delayShowVal || delayInMs}
           delayHide={delayHideVal}
-          delayShow={delayInMs}
           noArrow={!showArrow}
           place={position}
           opacity={1}
