@@ -1,4 +1,4 @@
-# Security
+/# Security
 
 
 ## Fleet security
@@ -897,6 +897,31 @@ Effective security is a team effort. This involves the participation and support
 
 All Fleet employees and long-term collaborators are expected to read and electronically sign the *acceptable use of end-user computing* policy. They should also be aware of the others and consult them as needed. This is to make sure systems built and used are done in a compliant manner.
 
+### Acceptable use of Cloud Computing
+
+| Policy owner   | Effective date |
+| -------------- | -------------- |
+| @lheath       | 2025-10-01   |
+
+
+This policy applies to all users of the company's cloud computing resources, including employees, contractors, vendors, and partners with access to the cloud services
+
+- All cloud environments owned and operated by the company including Infrastructure-as-a-Service (IaaS), Platform-as-a-Service (PaaS), and Software-as-a-Service (SaaS) deployed or managed by the Company are governed by this policy.
+- Company's cloud resources must only be used for legitimate business purposes approved by the Company.
+- Users must access company-owned cloud systems only with company-managed accounts and approved identity methods.
+- Company data must only be stored in the company’s  cloud environments that have been security-reviewed and approved by the Information Security team.
+- Personal use of company-provisioned cloud services is prohibited.
+- Unauthorized sharing, downloading, or uploading of the company intellectual property to non-company cloud accounts is strictly forbidden.
+
+#### Prohibited Activities
+
+Users must not use the company's cloud resources to:
+
+- Attempt to disable, bypass, or interfere with cloud security controls.
+- Deploy workloads that violatethe company policies or applicable laws (e.g., cryptocurrency mining, illegal content).
+- Conduct personal business, personal profit activities, or malicious activity.
+- Introduce unapproved third-party integrations, extensions, or APIs.
+- Store, process, or transmit unencrypted PII, PHI, PCI, or sensitive company data outside approved company cloud environments.
 
 ### Acceptable use of end-user computing
 
