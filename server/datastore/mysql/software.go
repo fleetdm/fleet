@@ -609,7 +609,7 @@ func (ds *Datastore) getExistingSoftware(
 	// Compute checksums for all incoming software, which we will use for faster retrieval, since checksum is a unique index
 	incomingChecksumToSoftware = make(map[string]fleet.Software, len(current))
 	newSoftware := make(map[string]struct{})
-	bundleIDsToNames := make(map[string]string)
+	incomingBundleIDsToNewSoftwareNames := make(map[string]string)
 	existingBundleIDsToUpdate = make(map[string][]fleet.Software)
 	for uniqueName, s := range incoming {
 		_, ok := current[uniqueName]
@@ -622,7 +622,7 @@ func (ds *Datastore) getExistingSoftware(
 			newSoftware[string(checksum)] = struct{}{}
 
 			if s.BundleIdentifier != "" {
-				bundleIDsToNames[s.BundleIdentifier] = s.Name
+				incomingBundleIDsToNewSoftwareNames[s.BundleIdentifier] = s.Name
 			}
 		}
 	}
@@ -639,28 +639,28 @@ func (ds *Datastore) getExistingSoftware(
 			return nil, nil, nil, nil, err
 		}
 
-		for _, s := range currentSoftware {
-			sw, ok := incomingChecksumToSoftware[s.Checksum]
+		for _, currentSoftwareItem := range currentSoftware {
+			incomingSoftwareItem, ok := incomingChecksumToSoftware[currentSoftwareItem.Checksum]
 			if !ok {
 				// This should never happen. If it does, we have a bug.
 				return nil, nil, nil, nil, ctxerr.New(
-					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(currentSoftwareItem.Checksum))),
 				)
 			}
-			if s.BundleIdentifier != nil && s.Source == "apps" {
-				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
+			if currentSoftwareItem.BundleIdentifier != nil && currentSoftwareItem.Source == "apps" {
+				if name, ok := incomingBundleIDsToNewSoftwareNames[*currentSoftwareItem.BundleIdentifier]; ok && name != currentSoftwareItem.Name {
 					// Then this is a software whose name has changed, so we should update the name
 					// Copy the incoming software but with the existing software's ID
-					swWithID := sw
-					swWithID.ID = s.ID
-					existingBundleIDsToUpdate[*s.BundleIdentifier] = append(existingBundleIDsToUpdate[*s.BundleIdentifier], swWithID)
+					swWithID := incomingSoftwareItem
+					swWithID.ID = currentSoftwareItem.ID
+					existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier] = append(existingBundleIDsToUpdate[*currentSoftwareItem.BundleIdentifier], swWithID)
 
 					// Delete this checksum to prevent it from being treated as new software
-					delete(incomingChecksumToSoftware, s.Checksum)
+					delete(incomingChecksumToSoftware, currentSoftwareItem.Checksum)
 					continue
 				}
 			}
-			delete(newSoftware, s.Checksum)
+			delete(newSoftware, currentSoftwareItem.Checksum)
 		}
 	}
 
