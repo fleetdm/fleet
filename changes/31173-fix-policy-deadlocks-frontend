@@ -1,1 +1,0 @@
-When updating multiple policies in the UI, the policies are now updated in series to reduce server/DB load.

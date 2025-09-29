@@ -1,1 +1,0 @@
-* Fixed Google Cloud Storage (GCS) support broken since Fleet 4.71.0 by implementing a workaround for AWS Go SDK v2 signature compatibility issues with GCS endpoints.

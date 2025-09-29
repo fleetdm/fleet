@@ -1,1 +1,0 @@
-- Fleet UI: Fixed bug deduplicating to only count unique vulns when counting software title vulnerabilities across versions in various software title vulnerabilities count, and host software title vulnerabilities count
