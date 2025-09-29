@@ -917,7 +917,6 @@ This policy applies to all users of the company's cloud computing resources, inc
 #### Prohibited Activities
 
 Users must not use the company's cloud resources to:
-
 - Attempt to disable, bypass, or interfere with cloud security controls.
 - Deploy workloads that violatethe company policies or applicable laws (e.g., cryptocurrency mining, illegal content).
 - Conduct personal business, personal profit activities, or malicious activity.
