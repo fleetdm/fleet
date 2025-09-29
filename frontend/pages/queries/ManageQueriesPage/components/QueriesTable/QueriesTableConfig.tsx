@@ -38,8 +38,9 @@ import PerformanceImpactCell from "components/TableContainer/DataTable/Performan
 import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
-import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
+
+import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
 
 interface IQueryRow {
   id: string;
