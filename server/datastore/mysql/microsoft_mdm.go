@@ -130,19 +130,43 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 // enrollment entry from the database using the device's hardware ID as it is
 // re-enrolling.
 func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
-	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
+	const (
+		delStmt        = "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
+		loadStmt       = "SELECT host_uuid FROM mdm_windows_enrollments WHERE mdm_hardware_id = ? LIMIT 1"
+		delActionsStmt = "DELETE FROM host_mdm_actions WHERE host_id = (SELECT id FROM hosts WHERE uuid = ? LIMIT 1)"
+	)
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceHWID)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete MDMWindowsEnrolledDevice")
-	}
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var hostUUID sql.NullString
+		switch err := sqlx.GetContext(ctx, tx, &hostUUID, loadStmt, mdmDeviceHWID); err {
+		case nil:
+			// found the host uuid, clear its lock/wipe status
+			if hostUUID.Valid {
+				if _, err := tx.ExecContext(ctx, delActionsStmt, hostUUID.String); err != nil {
+					return ctxerr.Wrap(ctx, err, "delete host_mdm_actions for host")
+				}
+			}
 
-	deleted, _ := res.RowsAffected()
-	if deleted == 1 {
-		return nil
-	}
+		case sql.ErrNoRows:
+			// nothing to delete, return early
+			return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
 
-	return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+		default:
+			return ctxerr.Wrap(ctx, err, "load host_uuid for MDMWindowsEnrolledDevice")
+		}
+
+		res, err := tx.ExecContext(ctx, delStmt, mdmDeviceHWID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "delete MDMWindowsEnrolledDevice")
+		}
+
+		deleted, _ := res.RowsAffected()
+		if deleted == 1 {
+			return nil
+		}
+
+		return ctxerr.Wrap(ctx, notFound("MDMWindowsEnrolledDevice"))
+	})
 }
 
 // MDMWindowsDeleteEnrolledDeviceWithDeviceID deletes a given

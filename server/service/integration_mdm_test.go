@@ -17986,25 +17986,14 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
-	// re-enroll the host with the same MDM device hw id, simulating that another
-	// user received the wiped host
-	newOrbitKey := uuid.New().String()
-	newHost, err := s.ds.EnrollOrbit(ctx,
-		fleet.WithEnrollOrbitMDMEnabled(true),
-		fleet.WithEnrollOrbitHostInfo(fleet.OrbitHostInfo{
-			HardwareUUID:   uuid.NewString(),
-			HardwareSerial: host.HardwareSerial,
-		}),
-		fleet.WithEnrollOrbitNodeKey(newOrbitKey),
-	)
-	require.NoError(t, err)
-	// it re-enrolled using a different host record
+	// enroll a new host that will re-enroll as the same host for Windows MDM
+	// (via the same hardware device ID).
+	newHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
 	require.NotEqual(t, host.ID, newHost.ID)
-	newHost.OrbitNodeKey = &newOrbitKey
 
-	// now re-enroll in MDM for the new host but with the same device ID
+	// now re-enroll in MDM for the new host but with the same hardware device ID
 	newHostDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *newHost.OrbitNodeKey)
-	newHostDevice.DeviceID = winMDMClient.DeviceID
+	newHostDevice.HardwareID = winMDMClient.HardwareID
 	err = newHostDevice.Enroll()
 	require.NoError(t, err)
 	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
