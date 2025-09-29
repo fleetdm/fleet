@@ -73,7 +73,7 @@ jobs:
         run: |
           # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
           # :-(
-          DEVS="iansltx,jahzielv,ksykulev,jkatz01"
+          DEVS="jahzielv,jkatz01,mna,cdcme"
           echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
 
       - name: Log Info

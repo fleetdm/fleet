@@ -35,7 +35,7 @@
 
     .Select-control {
       min-height: 48px;
-      background-color: $ui-light-grey;
+      background-color: $core-fleet-white;
     }
 
     .Select-arrow {
@@ -85,7 +85,7 @@
 
         &.is-disabled {
           &.is-focused {
-            background-color: $ui-vibrant-blue-10;
+            background-color: $ui-fleet-black-10;
             border-radius: 8px;
           }
         }
@@ -131,7 +131,7 @@
 
   .Select-value {
     border-radius: $border-radius;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
 
     .Select-value-icon {
       height: 100%;

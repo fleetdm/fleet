@@ -150,4 +150,27 @@
   autoIssue:  
     labels: [ ":help-finance" ] 
     repo: "confidential"
-
+-
+  task: "Trademark review"
+  startedOn: "2025-10-24"
+  frequency: "Quarterly"
+  description: "Review status of current Fleet trademark registrations internationally and discuss necessity of current and future registrations."
+  moreInfoUrl: 
+  dri: "hollidayn"
+-
+  task: "Monthly operating review" # TODO tie this to a responsibility
+  startedOn: "2025-09-01"
+  frequency: "Monthly"
+  description: "CEO + CFO + Head of People review operating model."
+  moreInfoUrl: 
+  dri: "rfoo2015"
+-
+  task: "Prepare for OCV meeting"
+  startedOn: "2025-09-15"
+  frequency: "Monthly"
+  description: "CEO + CFO + Head of People review operating model."
+  moreInfoUrl: "https://fleetdm.com/handbook/finance#prepare-for-ocv-meeting"
+  dri: "rfoo2015"
+  autoIssue:  
+    labels: [ ":help-finance" ] 
+    repo: "confidential"

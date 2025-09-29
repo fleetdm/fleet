@@ -1,9 +1,6 @@
 .os-settings {
-  font-size: $x-small;
-  margin-top: $pad-xxlarge;
-  display: flex;
-  flex-direction: column;
-  gap: $pad-xxlarge;
+  @include vertical-page-tab-panel-layout;
+  margin-top: $gap-page-component; // Required as these Tabs don't use TabPanel
 
   &__description {
     margin: 0;
@@ -16,8 +13,6 @@
   }
 
   .side-nav__card-container {
-    overflow-x: hidden;
-
     > .custom-settings {
       max-width: none;
     }

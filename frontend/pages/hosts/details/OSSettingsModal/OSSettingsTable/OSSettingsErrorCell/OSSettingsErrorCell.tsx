@@ -33,10 +33,11 @@ const RefetchButton = ({ isFetching, onClick }: IRefetchButtonProps) => {
     <Button
       disabled={isFetching}
       onClick={onClick}
-      variant="text-icon"
+      variant="inverse"
       className={classNames}
+      size="small"
     >
-      <Icon name="refresh" color="core-fleet-blue" size="small" />
+      <Icon name="refresh" color="ui-fleet-black-75" size="small" />
       {buttonText}
     </Button>
   );

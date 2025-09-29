@@ -1,4 +1,4 @@
-# Leading financial company consolidates multiple tools with Fleet
+# Stripe consolidates multiple tools with Fleet
 
 <div purpose="attribution-quote">
 
@@ -9,11 +9,11 @@ We've been using Fleet for a few years and we couldn't be happier. The fact that
 
 ## Challenge
 
-The leading financial company looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure. The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
+Stripe, a leading financial company, looked to simplify how they manage devices and reduce tool overlap without sacrificing control over their infrastructure. The use of multiple proprietary device management tools was creating operational silos, and it required specialized expertise for different legacy systems, leading to inefficiencies.
 
 ## Solution
 
-The leading financial company migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
+Stripe migrated to Fleet without sacrificing a single point of their 99.99% uptime, replacing multiple device management suppliers with a single multi-platform system supporting macOS, desktop Linux, and Windows. They also implemented next-change management, reducing mistakes through peer reviews, and using the user interface and [Fleet API](https://fleetdm.com/docs/rest-api/rest-api) for reporting, automation, and to enable smarter end-user self-service.
 
 ## Results
 
@@ -28,7 +28,7 @@ Use Fleet to get reliable, live access to their infrastructure to verify device 
 Elected to self-host Fleet, and as the company continued to scale, they did so without a single point to their impressive 99.99% uptime.
 </div>
 
-By switching to Fleet, the leading financial company saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
+By switching to Fleet, Stripe company saw a reduction in wasted time by unblocking data collection for audits and overcame change inertia, allowing IT to move faster with less maintenance through convention over configuration and bare metal access to every supported platform, including Apple and desktop Linux. In this way, they were able to offer employees device choice without adding to their risk register. 
 
 
 ## Their story
@@ -72,7 +72,7 @@ By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/gu
 
 ## Conclusion
 
-Fleet has become an integral part of the financial company's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth. By choosing Fleet, they improved endpoint operations, streamlined device management, unified their device management strategy across all platforms, and empowered end-users—all while leveraging the benefits of an open-source solution with advanced [GitOps capabilities](https://github.com/fleetdm/fleet-gitops).
+Fleet has become an integral part of Stripe's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth. By choosing Fleet, they improved endpoint operations, streamlined device management, unified their device management strategy across all platforms, and empowered end-users—all while leveraging the benefits of an open-source solution with advanced [GitOps capabilities](https://github.com/fleetdm/fleet-gitops).
 
 Fleet's cross-platform support and open-source transparency set it apart from competitors, providing a single source of truth for all devices. The advanced data collection and real-time insights enable proactive management and decision-making, enhancing operational efficiency.
 
@@ -83,9 +83,9 @@ To learn more about how Fleet can support your organization, visit [fleetdm.com/
 <call-to-action></call-to-action>
 
 <meta name="category" value="announcements">
-<meta name="authorGitHubUsername" value="Drew-P-drawers">
-<meta name="authorFullName" value="Andrew Baker">
-<meta name="publishedOn" value="2024-12-06">
-<meta name="articleTitle" value="Leading financial company consolidates multiple tools with Fleet">
-<meta name="description" value="Leading financial company consolidates multiple tools with Fleet">
+<meta name="authorGitHubUsername" value="nonpunctual">
+<meta name="authorFullName" value="Brock Walters">
+<meta name="publishedOn" value="2025-09-26">
+<meta name="articleTitle" value="Stripe consolidates multiple tools with Fleet">
+<meta name="description" value="Stripe consolidates multiple tools with Fleet">
 <meta name="showOnTestimonialsPageWithEmoji" value="🥀">

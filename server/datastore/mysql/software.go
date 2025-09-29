@@ -14,12 +14,16 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/doug-martin/goqu/v9/dialect/mysql"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type softwareIDChecksum struct {
@@ -31,6 +35,10 @@ type softwareIDChecksum struct {
 	Source           string  `db:"source"`
 }
 
+// tracer is an OTEL tracer. It has no-op behavior when OTEL is not enabled.
+// If provider is set later (with otel.SetTracerProvider), the tracer will start using the new provider.
+var tracer = otel.Tracer("github.com/fleetdm/fleet/v4/server/datastore/mysql")
+
 // Since DB may have millions of software items, we need to batch the aggregation counts to avoid long SQL query times.
 // This is a variable so it can be adjusted during unit testing.
 var countHostSoftwareBatchSize = uint64(100000)
@@ -41,6 +49,10 @@ var countHostSoftwareBatchSize = uint64(100000)
 // This is a variable, so it can be adjusted during unit testing.
 var softwareInsertBatchSize = 1000
 
+// softwareInventoryInsertBatchSize is used for pre-inserting software inventory entries
+// outside the main software ingestion transaction. Smaller batches reduce lock contention.
+var softwareInventoryInsertBatchSize = 100
+
 func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Software {
 	result := make(map[string]fleet.Software, len(softwareItems))
 	for _, s := range softwareItems {
@@ -50,6 +62,15 @@ func softwareSliceToMap(softwareItems []fleet.Software) map[string]fleet.Softwar
 }
 
 func (ds *Datastore) UpdateHostSoftware(ctx context.Context, hostID uint, software []fleet.Software) (*fleet.UpdateHostSoftwareDBResult, error) {
+	// OTEL instrumentation. It has no-op behavior when OTEL is not enabled.
+	ctx, span := tracer.Start(ctx, "mysql.UpdateHostSoftware",
+		trace.WithSpanKind(trace.SpanKindInternal),
+		trace.WithAttributes(
+			attribute.Int("host_id", int(hostID)), //nolint:gosec
+			attribute.Int("software_count", len(software)),
+		))
+	defer span.End()
+
 	return ds.applyChangesForNewSoftwareDB(ctx, hostID, software)
 }
 
@@ -372,6 +393,19 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return r, err
 	}
 
+	// PHASE 1: Pre-insert software inventory data outside the main transaction
+	// This reduces lock contention by breaking up large INSERT IGNORE operations
+	// into smaller, faster transactions that release locks quickly.
+	// These operations are idempotent due to INSERT IGNORE.
+	if len(incomingByChecksum) > 0 {
+		// Pre-insert software and titles in small batches
+		err = ds.preInsertSoftwareInventory(ctx, existingSoftware, incomingByChecksum, existingTitlesForNewSoftware)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "pre-insert software inventory")
+		}
+	}
+
+	// PHASE 2: Main transaction for host-specific operations
 	err = ds.withRetryTxx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
@@ -380,22 +414,53 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 			}
 			r.Deleted = deleted
 
-			// Copy incomingByChecksum because ds.insertNewInstalledHostSoftwareDB is modifying it and we
-			// are runnning inside ds.withRetryTxx.
-			incomingByChecksumCopy := make(map[string]fleet.Software, len(incomingByChecksum))
-			for key, value := range incomingByChecksum {
-				incomingByChecksumCopy[key] = value
-			}
-
-			inserted, err := ds.insertNewInstalledHostSoftwareDB(
-				ctx, tx, hostID, existingSoftware, incomingByChecksumCopy, existingTitlesForNewSoftware, existingBundleIDsToUpdate,
-			)
+			// Link the pre-inserted software to this host
+			// Software inventory entries were already created in Phase 1
+			inserted, err := ds.linkSoftwareToHost(ctx, tx, hostID, incomingByChecksum)
 			if err != nil {
 				return err
 			}
 			r.Inserted = inserted
 
-			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, inserted, hostID); err != nil {
+			// Also link existing software that matches by bundle ID
+			// This handles the case where software has the same bundle ID but different name.
+			// Since this is a rare case, it is not optimized for performance.
+			if len(existingBundleIDsToUpdate) > 0 {
+				bundleInserted, err := ds.linkExistingBundleIDSoftware(ctx, tx, hostID, existingBundleIDsToUpdate)
+				if err != nil {
+					return err
+				}
+				r.Inserted = append(r.Inserted, bundleInserted...)
+
+				// Build map of software IDs to their new names for renaming.
+				// softwareRenames should match existingBundleIDsToUpdate, but we create this extra map to handle
+				// software entries that share the same bundle ID as well as other potential corner cases.
+				softwareRenames := make(map[uint]string, len(existingBundleIDsToUpdate))
+				// Check inserted software for renames
+				for _, sw := range r.Inserted {
+					if sw.BundleIdentifier != "" {
+						if updSoftware, needsUpdate := existingBundleIDsToUpdate[sw.BundleIdentifier]; needsUpdate {
+							softwareRenames[sw.ID] = updSoftware.Name
+						}
+					}
+				}
+				// Check existing software for renames
+				for _, s := range existingSoftware {
+					if s.BundleIdentifier != nil && *s.BundleIdentifier != "" {
+						if updSoftware, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
+							softwareRenames[s.ID] = updSoftware.Name
+						}
+					}
+				}
+
+				// Update software names for bundle ID matches
+				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+					return err
+				}
+			}
+
+			// Use r.Inserted which contains all inserted items (including bundle ID matches)
+			if err = checkForDeletedInstalledSoftware(ctx, tx, deleted, r.Inserted, hostID); err != nil {
 				return err
 			}
 
@@ -415,30 +480,47 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	return r, err
 }
 
-//nolint:unused
-func updateExistingBundleIDs(ctx context.Context, tx sqlx.ExtContext, hostID uint, bundleIDsToSoftware map[string]fleet.Software) error {
-	if len(bundleIDsToSoftware) == 0 {
+// updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
+// softwareRenames maps software IDs to their new names.
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
+	if len(softwareRenames) == 0 {
 		return nil
 	}
 
-	updateSoftwareStmt := `UPDATE software SET software.name = ?, software.name_source = 'bundle_4.67' WHERE software.bundle_identifier = ?`
-
-	hostSoftwareStmt := `
-		INSERT IGNORE INTO host_software
-			(host_id, software_id, last_opened_at)
-		VALUES
-			(?, (SELECT id FROM software WHERE bundle_identifier = ? AND name_source = 'bundle_4.67' ORDER BY id DESC LIMIT 1), ?)`
-
-	for k, v := range bundleIDsToSoftware {
-		if _, err := tx.ExecContext(ctx, updateSoftwareStmt, v.Name, k); err != nil {
-			return ctxerr.Wrap(ctx, err, "update software names")
-		}
-
-		if _, err := tx.ExecContext(ctx, hostSoftwareStmt, hostID, v.ID, v.LastOpenedAt); err != nil {
-			return ctxerr.Wrap(ctx, err, "insert host software")
-		}
+	// Extract software IDs for batch processing
+	softwareIDs := make([]uint, 0, len(softwareRenames))
+	for id := range softwareRenames {
+		softwareIDs = append(softwareIDs, id)
 	}
-	return nil
+
+	const batchSize = 100
+	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
+		updateCases := make([]string, 0, len(batch))
+		updateCaseArgs := make([]any, 0, len(batch)*2)
+		updateWhereArgs := make([]any, 0, len(batch))
+		updateIDs := make([]string, 0, len(batch))
+
+		for _, id := range batch {
+			newName := softwareRenames[id]
+
+			updateCases = append(updateCases, "WHEN ? THEN ?")
+			updateCaseArgs = append(updateCaseArgs, id, newName)
+			updateWhereArgs = append(updateWhereArgs, id)
+			updateIDs = append(updateIDs, "?")
+		}
+
+		updateStmt := fmt.Sprintf(
+			`UPDATE software SET name = CASE id %s END, name_source = 'bundle_4.67' WHERE id IN (%s)`,
+			strings.Join(updateCases, " "),
+			strings.Join(updateIDs, ","),
+		)
+
+		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch update software names")
+		}
+
+		return nil
+	})
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -563,7 +645,15 @@ func (ds *Datastore) getExistingSoftware(
 			if s.BundleIdentifier != nil && s.Source == "apps" {
 				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
 					// Then this is a software whose name has changed, so we should update the name
-					existingBundleIDsToUpdate[*s.BundleIdentifier] = sw
+					// Copy the incoming software but with the existing software's ID
+					swWithID := sw
+					swWithID.ID = s.ID
+					existingBundleIDsToUpdate[*s.BundleIdentifier] = swWithID
+
+					// Remove from incomingChecksumToSoftware to prevent it being treated as new software
+					if cs, ok := bundleIDsToChecksum[*s.BundleIdentifier]; ok {
+						delete(incomingChecksumToSoftware, cs)
+					}
 					continue
 				}
 			}
@@ -579,15 +669,6 @@ func (ds *Datastore) getExistingSoftware(
 	incomingChecksumToTitle, _, err = ds.getIncomingSoftwareChecksumsToExistingTitles(ctx, newSoftware, incomingChecksumToSoftware)
 	if err != nil {
 		return nil, nil, nil, nil, ctxerr.Wrap(ctx, err, "get incoming software checksums to existing titles")
-	}
-
-	for bid := range existingBundleIDsToUpdate {
-		if cs, ok := bundleIDsToChecksum[bid]; ok {
-			// we don't want this to be treated as a new software title, because then a new software
-			// entry will be created. Instead, we want to update the existing entries with the new
-			// names.
-			delete(incomingChecksumToSoftware, cs)
-		}
 	}
 
 	return currentSoftware, incomingChecksumToSoftware, incomingChecksumToTitle, existingBundleIDsToUpdate, nil
@@ -608,7 +689,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		incomingChecksumToTitle     = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
 		argsWithoutBundleIdentifier []any
 		argsWithBundleIdentifier    []any
-		uniqueTitleStrToChecksum    = make(map[string]string)
+		uniqueTitleStrToChecksums   = make(map[string][]string)
 	)
 	bundleIDsToIncomingNames := make(map[string]string)
 	for checksum := range newSoftwareChecksums {
@@ -620,9 +701,23 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.ExtensionFor)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
-		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(
+		// Note: Multiple checksums can map to the same title (e.g., when names are truncated). This should not normally happen.
+		titleStr := UniqueSoftwareTitleStr(
 			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.ExtensionFor,
-		)] = checksum
+		)
+		existingChecksums := uniqueTitleStrToChecksums[titleStr]
+		if len(existingChecksums) > 0 {
+			// Log when multiple checksums map to the same title. If we see this regularly, we should fix it.
+			level.Error(ds.logger).Log(
+				"msg", "multiple checksums mapping to same title",
+				"title_str", titleStr,
+				"new_checksum", checksum,
+				"existing_checksums", fmt.Sprintf("%v", existingChecksums),
+				"software_name", sw.Name,
+				"software_version", sw.Version,
+			)
+		}
+		uniqueTitleStrToChecksums[titleStr] = append(uniqueTitleStrToChecksums[titleStr], checksum)
 	}
 
 	// Get titles for software without bundle_identifier.
@@ -649,9 +744,12 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.ExtensionFor)]
+			checksums, ok := uniqueTitleStrToChecksums[UniqueSoftwareTitleStr(title.Name, title.Source, title.ExtensionFor)]
 			if ok {
-				incomingChecksumToTitle[checksum] = title
+				// Map all checksums that correspond to this title
+				for _, checksum := range checksums {
+					incomingChecksumToTitle[checksum] = title
+				}
 			}
 		}
 	}
@@ -673,10 +771,13 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
 			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.ExtensionFor)
-			withoutNameCS, withoutName := uniqueTitleStrToChecksum[uniqueStrWithoutName]
+			checksums, withoutName := uniqueTitleStrToChecksums[uniqueStrWithoutName]
 
 			if withoutName {
-				incomingChecksumToTitle[withoutNameCS] = title
+				// Map all checksums that correspond to this title
+				for _, checksum := range checksums {
+					incomingChecksumToTitle[checksum] = title
+				}
 			}
 		}
 	}
@@ -731,70 +832,161 @@ func deleteUninstalledHostSoftwareDB(
 	return deletedSoftware, nil
 }
 
-// insertNewInstalledHostSoftwareDB inserts host_software that is in softwareChecksums map,
-// but not in existingSoftware. It also inserts any new software titles that are needed.
-//
-// It returns the inserted software on the host.
-func (ds *Datastore) insertNewInstalledHostSoftwareDB(
+// preInsertSoftwareInventory pre-inserts software and software_titles outside the main transaction
+// to reduce lock contention. These operations are idempotent due to INSERT IGNORE.
+func (ds *Datastore) preInsertSoftwareInventory(
 	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostID uint,
 	existingSoftware []softwareIDChecksum,
 	softwareChecksums map[string]fleet.Software,
 	existingTitlesForNewSoftware map[string]fleet.SoftwareTitle,
-	existingBundleIDsToUpdate map[string]fleet.Software,
-) ([]fleet.Software, error) {
-	var insertsHostSoftware []interface{}
-	var insertedSoftware []fleet.Software
-	existingTitleNames := make(map[uint]string)
-	for _, s := range existingSoftware {
-		if s.TitleID != nil {
-			existingTitleNames[*s.TitleID] = s.Name
+) error {
+	// Collect all software that needs to be inserted
+	needsInsert := make(map[string]fleet.Software)
+	existingSet := make(map[string]struct{}, len(existingSoftware))
+	for _, es := range existingSoftware {
+		existingSet[es.Checksum] = struct{}{}
+	}
+	for checksum, sw := range softwareChecksums {
+		if _, ok := existingSet[checksum]; !ok {
+			needsInsert[checksum] = sw
 		}
 	}
 
-	// First, we remove incoming software that already exists in the software table.
-	if len(softwareChecksums) > 0 {
-		for _, s := range existingSoftware {
-			software, ok := softwareChecksums[s.Checksum]
-			if !ok {
-				if s.BundleIdentifier != nil {
-					// If this is a softwarea we know we have to update (rename), then it's expected
-					// that we wouldn't find it in softwareChecksums (we deleted it from that map
-					// earlier in ds.getExistingSoftware.
-					if _, ok := existingBundleIDsToUpdate[*s.BundleIdentifier]; ok {
-						continue
+	if len(needsInsert) == 0 {
+		return nil
+	}
+
+	// Process in smaller batches to reduce lock time
+	keys := make([]string, 0, len(needsInsert))
+	for checksum := range needsInsert {
+		keys = append(keys, checksum)
+	}
+
+	err := common_mysql.BatchProcessSimple(keys, softwareInventoryInsertBatchSize, func(batchKeys []string) error {
+		batchSoftware := make(map[string]fleet.Software, len(batchKeys))
+		for _, key := range batchKeys {
+			batchSoftware[key] = needsInsert[key]
+		}
+
+		// Each batch in its own transaction
+		return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+			// First insert any needed software titles
+			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
+			for checksum, sw := range batchSoftware {
+				if _, ok := existingTitlesForNewSoftware[checksum]; !ok {
+					st := fleet.SoftwareTitle{
+						Name:     sw.Name,
+						Source:   sw.Source,
+						Browser:  sw.Browser,
+						IsKernel: sw.IsKernel,
+					}
+					if sw.BundleIdentifier != "" {
+						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
+					}
+					newTitlesNeeded[checksum] = st
+				}
+			}
+
+			// Map to store title IDs for all titles (both existing and new)
+			titleIDsByChecksum := make(map[string]uint, len(existingTitlesForNewSoftware))
+
+			// First, add existing titles to the map
+			for checksum, title := range existingTitlesForNewSoftware {
+				titleIDsByChecksum[checksum] = title.ID
+			}
+
+			if len(newTitlesNeeded) > 0 {
+				// Deduplicate titles before insertion to avoid unnecessary duplicate INSERTs
+				type titleKey struct {
+					name     string
+					source   string
+					browser  string
+					bundleID string
+					isKernel bool
+				}
+				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(newTitlesNeeded))
+				for _, title := range newTitlesNeeded {
+					bundleID := ""
+					if title.BundleIdentifier != nil {
+						bundleID = *title.BundleIdentifier
+					}
+					key := titleKey{
+						name:     title.Name,
+						source:   title.Source,
+						browser:  title.Browser,
+						bundleID: bundleID,
+						isKernel: title.IsKernel,
+					}
+					uniqueTitlesToInsert[key] = title
+				}
+
+				// Insert software titles
+				const numberOfArgsPerSoftwareTitles = 5
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
+				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
+
+				for _, title := range uniqueTitlesToInsert {
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
+				}
+
+				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "pre-insert software_titles")
+				}
+
+				// Retrieve the IDs for the titles we just inserted (or that already existed)
+				var titlesData []struct {
+					ID               uint    `db:"id"`
+					Name             string  `db:"name"`
+					Source           string  `db:"source"`
+					Browser          string  `db:"browser"`
+					BundleIdentifier *string `db:"bundle_identifier"`
+				}
+
+				// Build query to retrieve title IDs using the same unique titles we inserted
+				titlePlaceholders := strings.TrimSuffix(strings.Repeat("(?,?,?,?),", len(uniqueTitlesToInsert)), ",")
+				queryArgs := make([]interface{}, 0, len(uniqueTitlesToInsert)*4)
+				for tk := range uniqueTitlesToInsert {
+					bundleID := ""
+					if uniqueTitlesToInsert[tk].BundleIdentifier != nil {
+						bundleID = *uniqueTitlesToInsert[tk].BundleIdentifier
+					}
+					queryArgs = append(queryArgs, tk.name, tk.source, tk.browser, bundleID)
+				}
+
+				queryTitles := fmt.Sprintf(`SELECT id, name, source, browser, bundle_identifier
+					FROM software_titles
+					WHERE (name, source, browser, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+
+				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
+					return ctxerr.Wrap(ctx, err, "select software titles")
+				}
+
+				// Map the titles back to their checksums
+				for _, td := range titlesData {
+					var bundleID string
+					if td.BundleIdentifier != nil {
+						bundleID = *td.BundleIdentifier
+					}
+					for checksum, title := range newTitlesNeeded {
+						var titleBundleID string
+						if title.BundleIdentifier != nil {
+							titleBundleID = *title.BundleIdentifier
+						}
+						if td.Name == title.Name && td.Source == title.Source && td.Browser == title.Browser && bundleID == titleBundleID {
+							titleIDsByChecksum[checksum] = td.ID
+							// Don't break here - multiple checksums can map to the same title
+							// (e.g., when software has same truncated name but different versions (very rare))
+						}
 					}
 				}
-				return nil, ctxerr.New(ctx, fmt.Sprintf("existing software: software not found for checksum %q", hex.EncodeToString([]byte(s.Checksum))))
 			}
-			software.ID = s.ID
-			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, software)
-			delete(softwareChecksums, s.Checksum)
-		}
-	}
 
-	// For software items that don't already exist in the software table, we insert them.
-	if len(softwareChecksums) > 0 {
-		keys := make([]string, 0, len(softwareChecksums))
-		for checksum := range softwareChecksums {
-			keys = append(keys, checksum)
-		}
-		for i := 0; i < len(keys); i += softwareInsertBatchSize {
-			start := i
-			end := i + softwareInsertBatchSize
-			if end > len(keys) {
-				end = len(keys)
-			}
-			totalToProcess := end - start
-
-			// Insert into software
-			const numberOfArgsPerSoftware = 11 // number of ? in each VALUES clause
+			// Insert software entries
+			const numberOfArgsPerSoftware = 11
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", totalToProcess), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
-			// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
 					name,
@@ -811,133 +1003,176 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				) VALUES %s`,
 				values,
 			)
-			args := make([]interface{}, 0, totalToProcess*numberOfArgsPerSoftware)
-			newTitlesNeeded := make(map[string]fleet.SoftwareTitle)
-			for j := start; j < end; j++ {
-				checksum := keys[j]
-				sw := softwareChecksums[checksum]
+
+			args := make([]any, 0, len(batchKeys)*numberOfArgsPerSoftware)
+			var missingSoftwareTitles []string
+			for _, checksum := range batchKeys {
+				sw := batchSoftware[checksum]
 				var titleID *uint
-				title, ok := existingTitlesForNewSoftware[checksum]
-				if ok {
-					titleID = &title.ID
-				} else if _, ok := newTitlesNeeded[checksum]; !ok {
-					st := fleet.SoftwareTitle{
-						Name:         sw.Name,
-						Source:       sw.Source,
-						ExtensionFor: sw.ExtensionFor,
-						IsKernel:     sw.IsKernel,
-					}
-
-					if sw.BundleIdentifier != "" {
-						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
-					}
-
-					newTitlesNeeded[checksum] = st
+				// Get the title ID from our combined map
+				if id, ok := titleIDsByChecksum[checksum]; ok {
+					titleID = &id
+				} else {
+					// Track software missing title IDs for debugging
+					missingSoftwareTitles = append(missingSoftwareTitles,
+						fmt.Sprintf("%s %s %s", sw.Name, sw.Version, sw.Source))
 				}
 				args = append(
-					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor,
-					titleID, checksum,
+					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
+					sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor, titleID, checksum,
 				)
 			}
+
+			// Log an error if we have software without title IDs
+			// This shouldn't happen in normal operation. And this code is here to catch bugs.
+			if len(missingSoftwareTitles) > 0 && ds.logger != nil {
+				exampleCount := 3
+				if len(missingSoftwareTitles) < exampleCount {
+					exampleCount = len(missingSoftwareTitles)
+				}
+				level.Error(ds.logger).Log(
+					"msg", "inserting software without title_id",
+					"count", len(missingSoftwareTitles),
+					"examples", strings.Join(missingSoftwareTitles[:exampleCount], "; "),
+				)
+			}
+
 			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "insert software")
+				return ctxerr.Wrap(ctx, err, "pre-insert software")
 			}
 
-			// Insert into software_titles
-			totalTitlesToProcess := len(newTitlesNeeded)
-			if totalTitlesToProcess > 0 {
-				const numberOfArgsPerSoftwareTitles = 5 // number of ? in each VALUES clause
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
-				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel) VALUES %s", titlesValues)
-				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
-				titleChecksums := make([]string, 0, totalTitlesToProcess)
-				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel)
-					titleChecksums = append(titleChecksums, checksum)
-				}
-				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "insert software_titles")
-				}
+			return nil
+		})
+	})
 
-				updateSoftwareWithoutIdentifierStmt := `
-				    UPDATE software s
-				    JOIN software_titles st
-				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.extension_for = st.extension_for
-				    SET s.title_id = st.id
-				    WHERE (s.title_id IS NULL OR s.title_id != st.id)
-				    AND COALESCE(s.bundle_identifier, '') = ''
-				    AND s.checksum IN (?)
-				    `
-				updateSoftwareWithoutIdentifierStmt, updateArgs, err := sqlx.In(updateSoftwareWithoutIdentifierStmt, titleChecksums)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id without identifier")
-				}
-				if _, err = tx.ExecContext(ctx, updateSoftwareWithoutIdentifierStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id without identifier")
-				}
+	return err
+}
 
-				// update new title ids for new software table entries
-				updateSoftwareStmt := `
-				      UPDATE software s
-				      JOIN software_titles st
-				      ON s.bundle_identifier = st.bundle_identifier AND
-				          IF(s.source IN ('apps', 'ios_apps', 'ipados_apps'), s.source = st.source, 1)
-				      SET s.title_id = st.id
-				      WHERE s.title_id IS NULL
-				      OR s.title_id != st.id
-				      AND s.checksum IN (?)`
-				updateSoftwareStmt, updateArgs, err = sqlx.In(updateSoftwareStmt, titleChecksums)
-				if err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "build update software title_id with identifier")
-				}
-				if _, err = tx.ExecContext(ctx, updateSoftwareStmt, updateArgs...); err != nil {
-					return nil, ctxerr.Wrap(ctx, err, "update software title_id with identifier")
-				}
-			}
-		}
-
-		// Here, we use the transaction (tx) for retrieval because we must retrieve the software IDs that we just inserted.
-		updatedExistingSoftware, err := getSoftwareIDsByChecksums(ctx, tx, keys)
-		if err != nil {
-			return nil, err
-		}
-		for _, s := range updatedExistingSoftware {
-			software, ok := softwareChecksums[s.Checksum]
-			if !ok {
-				return nil, ctxerr.New(ctx, fmt.Sprintf("updated existing software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))))
-			}
-			software.ID = s.ID
-			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
-			insertedSoftware = append(insertedSoftware, software)
-			delete(softwareChecksums, s.Checksum)
-		}
+// linkExistingBundleIDSoftware links existing software entries that match by bundle ID to the host.
+// This handles the case where incoming software has the same bundle ID as existing software but a different name.
+func (ds *Datastore) linkExistingBundleIDSoftware(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	existingBundleIDsToUpdate map[string]fleet.Software,
+) ([]fleet.Software, error) {
+	if len(existingBundleIDsToUpdate) == 0 {
+		return nil, nil
 	}
 
-	if len(softwareChecksums) > 0 {
-		// We log and continue. We should almost never see this error. If we see it regularly, we need to investigate.
-		level.Error(ds.logger).Log(
-			"msg", "could not find or create software items. This error may be caused by master and replica DBs out of sync.", "host_id",
-			hostID, "number", len(softwareChecksums),
-		)
-		for checksum, software := range softwareChecksums {
-			uuidString := ""
-			checksumAsUUID, err := uuid.FromBytes([]byte(checksum))
-			if err == nil {
-				// We ignore error
-				uuidString = checksumAsUUID.String()
-			}
-			level.Debug(ds.logger).Log(
-				"msg", "software item not found or created", "name", software.Name, "version", software.Version, "source", software.Source,
-				"bundle_identifier", software.BundleIdentifier, "checksum", uuidString,
+	// Collect all software IDs to verify they still exist
+	softwareIDs := make([]uint, 0, len(existingBundleIDsToUpdate))
+	for _, software := range existingBundleIDsToUpdate {
+		// The software.ID should already be set from getExistingSoftware
+		if software.ID == 0 {
+			return nil, ctxerr.New(ctx, "software ID not set for bundle ID match")
+		}
+		softwareIDs = append(softwareIDs, software.ID)
+	}
+
+	// Verify software still exists (just like we do in linkSoftwareToHost)
+	// This prevents creating orphaned references if software was deleted between pre-insertion and now
+	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
+	stmt, args, err := sqlx.In(`SELECT id FROM software WHERE id IN (?)`, softwareIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "build query for existing software verification")
+	}
+
+	var existingIDs []uint
+	if err := sqlx.SelectContext(ctx, tx, &existingIDs, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "verify existing bundle ID software")
+	}
+
+	// Build a set of existing IDs for quick lookup
+	existingIDSet := make(map[uint]struct{}, len(existingIDs))
+	for _, id := range existingIDs {
+		existingIDSet[id] = struct{}{}
+	}
+
+	var insertsHostSoftware []any
+	var insertedSoftware []fleet.Software
+
+	for _, software := range existingBundleIDsToUpdate {
+		// Only link if software still exists
+		if _, ok := existingIDSet[software.ID]; ok {
+			insertsHostSoftware = append(insertsHostSoftware, hostID, software.ID, software.LastOpenedAt)
+			insertedSoftware = append(insertedSoftware, software)
+		} else {
+			// Log missing software but continue
+			level.Warn(ds.logger).Log(
+				"msg", "bundle ID software not found after pre-insertion",
+				"software_id", software.ID,
+				"name", software.Name,
+				"bundle_id", software.BundleIdentifier,
 			)
 		}
 	}
 
 	if len(insertsHostSoftware) > 0 {
 		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
-		sql := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
-		if _, err := tx.ExecContext(ctx, sql, insertsHostSoftware...); err != nil {
+		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
+		if _, err := tx.ExecContext(ctx, stmt, insertsHostSoftware...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "link existing bundle ID software")
+		}
+	}
+
+	return insertedSoftware, nil
+}
+
+// linkSoftwareToHost links pre-inserted software to a host.
+// This assumes software inventory entries already exist.
+func (ds *Datastore) linkSoftwareToHost(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostID uint,
+	softwareChecksums map[string]fleet.Software,
+) ([]fleet.Software, error) {
+	var insertsHostSoftware []interface{}
+	var insertedSoftware []fleet.Software
+
+	// Build map of all checksums we need to link
+	allChecksums := make([]string, 0, len(softwareChecksums))
+	for checksum := range softwareChecksums {
+		allChecksums = append(allChecksums, checksum)
+	}
+
+	// Get all software IDs (they should exist from pre-insertion).
+	// This ensures that we're not creating orphaned references (where software was deleted between pre-insertion and now).
+	// This DB call could be removed to squeeze our a little more performance at the risk of orphaned references.
+	allSoftware, err := getSoftwareIDsByChecksums(ctx, tx, allChecksums)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build ID map
+	softwareByChecksum := make(map[string]softwareIDChecksum)
+	for _, s := range allSoftware {
+		softwareByChecksum[s.Checksum] = s
+	}
+
+	// Link software to host
+	for checksum, sw := range softwareChecksums {
+		if existing, ok := softwareByChecksum[checksum]; ok {
+			sw.ID = existing.ID
+			insertsHostSoftware = append(insertsHostSoftware, hostID, sw.ID, sw.LastOpenedAt)
+			insertedSoftware = append(insertedSoftware, sw)
+		} else {
+			// Log missing software but continue
+			level.Warn(ds.logger).Log(
+				"msg", "software not found after pre-insertion",
+				"checksum", checksum,
+				"name", sw.Name,
+				"version", sw.Version,
+			)
+		}
+	}
+
+	// Insert host_software links
+	// INSERT IGNORE handles duplicate key errors for idempotency.
+	if len(insertsHostSoftware) > 0 {
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?),", len(insertsHostSoftware)/3), ",")
+		stmt := fmt.Sprintf(`INSERT IGNORE INTO host_software (host_id, software_id, last_opened_at) VALUES %s`, values)
+		if _, err := tx.ExecContext(ctx, stmt, insertsHostSoftware...); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "insert host software")
 		}
 	}
@@ -946,6 +1181,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 }
 
 func getSoftwareIDsByChecksums(ctx context.Context, tx sqlx.QueryerContext, checksums []string) ([]softwareIDChecksum, error) {
+	if len(checksums) == 0 {
+		return []softwareIDChecksum{}, nil
+	}
+
 	// get existing software ids for checksums
 	stmt, args, err := sqlx.In("SELECT name, id, checksum, title_id, bundle_identifier, source FROM software WHERE checksum IN (?)", checksums)
 	if err != nil {

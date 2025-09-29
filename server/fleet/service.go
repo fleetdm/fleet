@@ -1325,7 +1325,7 @@ type Service interface {
 	// ConditionalAccessMicrosoftGet returns the current (currently unique) integration.
 	ConditionalAccessMicrosoftGet(ctx context.Context) (*ConditionalAccessMicrosoftIntegration, error)
 	// ConditionalAccessMicrosoftConfirm finalizes the integration (marks integration as done).
-	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error)
+	ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 	// ConditionalAccessMicrosoftDelete deletes the integration and deprovisions the tenant on Entra.
 	ConditionalAccessMicrosoftDelete(ctx context.Context) error
 

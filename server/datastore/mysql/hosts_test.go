@@ -3977,11 +3977,13 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 
 	user := test.NewUser(t, ds, "user1", "user@example.com", true)
 
+	// Don't set a computer name for this one, so we can test that the hostname is used as a fallback for display name.
 	hostNoScripts := test.NewHost(t, ds, "hostNoScripts", "10.0.0.1", "hostnoscripts", "hostnoscriptsuuid", time.Now())
-	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"))
-	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now())
-	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now())
-	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now())
+	// Set a computer name for the rest of the hosts.
+	hostWindows := test.NewHost(t, ds, "hostWin", "10.0.0.2", "hostWinKey", "hostWinUuid", time.Now(), test.WithPlatform("windows"), test.WithComputerName("hostWinComputerName"))
+	host1 := test.NewHost(t, ds, "host1", "10.0.0.3", "host1key", "host1uuid", time.Now(), test.WithComputerName("host1ComputerName"))
+	host2 := test.NewHost(t, ds, "host2", "10.0.0.4", "host2key", "host2uuid", time.Now(), test.WithComputerName("host2ComputerName"))
+	host3 := test.NewHost(t, ds, "host3", "10.0.0.4", "host3key", "host3uuid", time.Now(), test.WithComputerName("host3ComputerName"))
 	// Create another host that should not show up in any counts.
 	test.NewHost(t, ds, "host4", "10.0.0.4", "host4key", "host4uuid", time.Now())
 
@@ -4037,7 +4039,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(3), hostCount)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
-	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 	require.True(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
@@ -4048,13 +4050,13 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 3)
 	require.Equal(t, uint(3), hostCount)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
-	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host1.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[0].Status)
 	require.Equal(t, host2.ID, batchHosts[1].ID)
-	require.Equal(t, host2.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, host2.ComputerName, batchHosts[1].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[1].Status)
 	require.Equal(t, host3.ID, batchHosts[2].ID)
-	require.Equal(t, host3.Hostname, batchHosts[2].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[2].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionPending, batchHosts[2].Status)
 	require.False(t, meta.HasNextResults)
 	require.False(t, meta.HasPreviousResults)
@@ -4144,7 +4146,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host2.ID, batchHosts[0].ID)
-	require.Equal(t, host2.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host2.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionErrored, batchHosts[0].Status)
 	require.Equal(t, host2Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 
@@ -4154,7 +4156,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host1.ID, batchHosts[0].ID)
-	require.Equal(t, host1.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host1.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionRan, batchHosts[0].Status)
 	require.Equal(t, host1Upcoming[0].ExecutionID, batchHosts[0].ScriptExecutionID)
 	require.Equal(t, "foo", batchHosts[0].ScriptOutput)
@@ -4165,7 +4167,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Len(t, batchHosts, 1)
 	require.Equal(t, uint(1), hostCount)
 	require.Equal(t, host3.ID, batchHosts[0].ID)
-	require.Equal(t, host3.Hostname, batchHosts[0].DisplayName)
+	require.Equal(t, host3.ComputerName, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionCanceled, batchHosts[0].Status)
 
 	// List incompatible hosts for this batch. There should be two.
@@ -4177,7 +4179,7 @@ func testHostsListByBatchScriptExecutionStatus(t *testing.T, ds *Datastore) {
 	require.Equal(t, hostNoScripts.Hostname, batchHosts[0].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[0].Status)
 	require.Equal(t, hostWindows.ID, batchHosts[1].ID)
-	require.Equal(t, hostWindows.Hostname, batchHosts[1].DisplayName)
+	require.Equal(t, hostWindows.ComputerName, batchHosts[1].DisplayName)
 	require.Equal(t, fleet.BatchScriptExecutionIncompatible, batchHosts[1].Status)
 
 	// Schedule script that we will subsequently cancel.

@@ -1,4 +1,6 @@
 .custom-settings {
+  @include vertical-card-layout;
+
   .upload-list {
     &__list {
       .list-item__label-count {
@@ -8,7 +10,7 @@
         display: none;
       }
       :hover:not(.component__tooltip-wrapper__tip-text):not(.custom-link--tooltip-link) {
-        background-color: $ui-fleet-blue-10;
+        background-color: $ui-fleet-black-10;
         .list-item__labels {
           display: none;
         }
@@ -31,4 +33,9 @@
     margin: px-to-rem(32) 0 0;
     max-width: none;
   }
+}
+
+// this is used to format the long error message when uploading invalid keys
+.upload-profile-invalid-keys-error {
+  display: flex;
 }

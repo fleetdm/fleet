@@ -2,6 +2,7 @@
   &__label {
     font-size: $x-small;
     font-weight: $bold;
+    color: $core-fleet-black;
 
     &--error {
       color: $core-vibrant-red;
@@ -9,10 +10,16 @@
     &--with-action {
       display: flex;
       justify-content: space-between;
+      align-items: center;
 
       button {
         height: initial; // aligning space between label and textarea
+        margin: -$pad-small 0;
         animation: fade-in 250ms ease-out;
+      }
+
+      .custom-link {
+        margin-bottom: 0;
       }
     }
   }
@@ -28,7 +35,7 @@
     }
   }
 
-  .ace_content {
+  .ace_scroller {
     padding-left: 4px;
   }
 

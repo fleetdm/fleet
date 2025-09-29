@@ -811,7 +811,7 @@ type ConditionalAccessMicrosoftCreateIntegrationFunc func(ctx context.Context, t
 
 type ConditionalAccessMicrosoftGetFunc func(ctx context.Context) (*fleet.ConditionalAccessMicrosoftIntegration, error)
 
-type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, err error)
+type ConditionalAccessMicrosoftConfirmFunc func(ctx context.Context) (configurationCompleted bool, setupError string, err error)
 
 type ConditionalAccessMicrosoftDeleteFunc func(ctx context.Context) error
 
@@ -4835,7 +4835,7 @@ func (s *Service) ConditionalAccessMicrosoftGet(ctx context.Context) (*fleet.Con
 	return s.ConditionalAccessMicrosoftGetFunc(ctx)
 }
 
-func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, err error) {
+func (s *Service) ConditionalAccessMicrosoftConfirm(ctx context.Context) (configurationCompleted bool, setupError string, err error) {
 	s.mu.Lock()
 	s.ConditionalAccessMicrosoftConfirmFuncInvoked = true
 	s.mu.Unlock()

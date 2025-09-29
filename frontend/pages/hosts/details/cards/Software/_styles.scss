@@ -1,4 +1,6 @@
-.software-card {
+.host-software-card {
+  @include vertical-page-tab-panel-layout;
+
   .table-container {
     .stackable-header {
       min-width: initial; // Fix card overflow on low widths
