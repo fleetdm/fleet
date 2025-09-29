@@ -2188,37 +2188,32 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
-	var installers [5]uint
-
-	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
 
 	// Make software installers
-	tfr, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
-	payload := &fleet.UploadSoftwareInstallerPayload{
-		Title:            "foo",
-		Source:           "apps",
-		Version:          "1.0",
-		InstallScript:    "echo",
-		InstallerFile:    tfr,
-		StorageID:        "storage",
-		Filename:         "installer.pkg",
-		BundleIdentifier: "com.foo.installer",
-		UserID:           user1.ID,
-		TeamID:           nil,
-		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
-	}
-
+	var installers [5]uint
 	for i := range 5 {
 		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team " + strconv.Itoa(i)})
 		require.NoError(t, err)
-		payload.TeamID = &tm.ID
 
-		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, payload)
+		installers[i], _, err = ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+			Title:            "foo",
+			Source:           "apps",
+			Version:          "1.0",
+			InstallScript:    "echo",
+			StorageID:        "storage",
+			Filename:         "installer.pkg",
+			BundleIdentifier: "com.foo.installer",
+			UserID:           user1.ID,
+			TeamID:           &tm.ID,
+			ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+		})
 		require.NoError(t, err)
 		require.NotZero(t, installers[i])
 	}
 
 	// install software on host
+	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
 
@@ -2232,7 +2227,6 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 	_, err = ds.applyChangesForNewSoftwareDB(ctx, host1.ID, []fleet.Software{*updateSw})
 	require.NoError(t, err)
 
-	require.NoError(t, err)
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
