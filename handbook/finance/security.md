@@ -907,7 +907,7 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 This policy applies to all users of the company's cloud computing resources, including employees, contractors, vendors, and partners with access to the cloud services.
 - All cloud environments owned and operated by the company, including "Infrastructure-as-a-Service" (IaaS), "Platform-as-a-Service" (PaaS), and "Software-as-a-Service" (SaaS) deployed or managed by the company are governed by this policy.
-- Company's cloud resources must only be used for legitimate business purposes approved by the Company.
+- Fleet's cloud resources must only be used for legitimate business purposes approved by the company.
 - Users must access company-owned cloud systems only with company-managed accounts and approved identity methods.
 - Company data must only be stored in the company’s  cloud environments that have been security-reviewed and approved by the Information Security team.
 - Personal use of company-provisioned cloud services is prohibited.
