@@ -8,7 +8,7 @@ import { AppContext } from "context/app";
 
 import MainContent from "components/MainContent/MainContent";
 import Button from "components/buttons/Button";
-import BackLink from "components/BackLink/BackLink";
+import BackButton from "components/BackButton";
 import Slider from "components/forms/fields/Slider";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -97,7 +97,7 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
+        <BackButton
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-mdm`}

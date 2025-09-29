@@ -119,7 +119,7 @@ const SoftwareDetailsSummary = ({
                 <Button
                   onClick={onClickEditIcon}
                   className={`${baseClass}__edit-icon-btn`}
-                  variant="text-icon"
+                  variant="icon"
                 >
                   <Icon name="pencil" />
                 </Button>

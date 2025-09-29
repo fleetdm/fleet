@@ -320,7 +320,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
         value === "Manjaro Linux ARM rolling"
       ) {
         return (
-          <TextCell
+          <TooltipTruncatedTextCell
             value={
               <span>
                 {value.slice(0, -7 /* removing lowercase rolling suffix */)}
@@ -330,7 +330,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
           />
         );
       }
-      return <TextCell value={value} />;
+      return <TooltipTruncatedTextCell value={value} />;
     },
   },
   {

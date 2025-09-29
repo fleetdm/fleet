@@ -1,5 +1,4 @@
 import React, { useContext, useState } from "react";
-import { Link } from "react-router";
 import { useQuery } from "react-query";
 
 import paths from "router/paths";
@@ -8,7 +7,8 @@ import { ICertificateAuthorityPartial } from "interfaces/certificates";
 import certificatesAPI from "services/entities/certificates";
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
-import SectionHeader from "components/SectionHeader";
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import CustomLink from "components/CustomLink";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
@@ -100,19 +100,25 @@ const CertificateAuthorities = () => {
     }
 
     const pageDescription = (
-      <p className={`${baseClass}__page-description`}>
-        To help your end users connect to Wi-Fi or VPNs, you can add your
-        certificate authority. Then, head over to{" "}
-        <Link to={paths.CONTROLS_CUSTOM_SETTINGS}>
-          Controls {">"} OS Settings {">"} Custom
-        </Link>{" "}
-        settings to configure how certificates are delivered to your hosts.{" "}
-        <CustomLink
-          text="Learn more"
-          url="https://fleetdm.com/learn-more-about/certificate-authorities"
-          newTab
-        />
-      </p>
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            To help your end users connect to Wi-Fi or VPNs, you can add your
+            certificate authority. Then, head over to{" "}
+            <CustomLink
+              url={paths.CONTROLS_CUSTOM_SETTINGS}
+              text="Controls > OS Settings > Custom"
+            />{" "}
+            settings to configure how certificates are delivered to your hosts.{" "}
+            <CustomLink
+              text="Learn more"
+              url="https://fleetdm.com/learn-more-about/certificate-authorities"
+              newTab
+            />
+          </>
+        }
+      />
     );
 
     if (certAuthorities === undefined || certAuthorities.length === 0) {
@@ -138,8 +144,7 @@ const CertificateAuthorities = () => {
   };
 
   return (
-    <div className={baseClass}>
-      <SectionHeader title="Certificates" />
+    <SettingsSection title="Certificates">
       {renderContent()}
       {showAddCertAuthorityModal && certAuthorities && (
         <AddCertAuthorityModal
@@ -161,7 +166,7 @@ const CertificateAuthorities = () => {
           onExit={onDeletedCertAuthority}
         />
       )}
-    </div>
+    </SettingsSection>
   );
 };
 

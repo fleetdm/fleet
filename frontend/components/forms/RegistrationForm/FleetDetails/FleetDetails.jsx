@@ -52,10 +52,12 @@ class FleetDetails extends Component {
           ref={(input) => {
             this.firstInput = input;
           }}
-        />
-        <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
-          Next
-        </Button>
+        />{" "}
+        <div className="button-wrap">
+          <Button type="submit" tabIndex={tabIndex} disabled={!currentPage}>
+            Next
+          </Button>
+        </div>
       </form>
     );
   }
