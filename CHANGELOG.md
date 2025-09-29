@@ -1,4 +1,4 @@
-## Fleet 4.73.0 (Oct 1, 2025)
+## Fleet 4.74.0 (Oct 1, 2025)
 
 ### Security Engineers
 - Added support for Hydrant as a Certificate Authority and added an experimental API that can be used to have Fleet request a certificate from a Hydrant.
