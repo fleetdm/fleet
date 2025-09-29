@@ -13,7 +13,7 @@ import mdmAbmAPI, {
   IGetAbmTokensResponse,
 } from "services/entities/mdm_apple_bm";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -190,7 +190,7 @@ const AppleBusinessManagerPage = ({ router }: { router: InjectedRouter }) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackLink
+        <BackButton
           text="Back to MDM"
           path={PATHS.ADMIN_INTEGRATIONS_MDM}
           className={`${baseClass}__back-to-mdm`}

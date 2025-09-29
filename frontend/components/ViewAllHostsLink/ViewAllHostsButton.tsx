@@ -1,8 +1,9 @@
 import React from "react";
 import PATHS from "router/paths";
-import { Link } from "react-router";
+import { browserHistory } from "react-router";
 import classnames from "classnames";
 
+import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
@@ -18,13 +19,13 @@ interface IHostLinkProps {
   customContent?: React.ReactNode;
   /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
-  /** Don't actually create a link, useful when click is handled by an ancestor */
+  /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
 }
 
-const baseClass = "view-all-hosts-link";
+const baseClass = "view-all-hosts-button";
 
-const ViewAllHostsLink = ({
+const ViewAllHostsButton = ({
   queryParams,
   className,
   platformLabelId,
@@ -35,9 +36,9 @@ const ViewAllHostsLink = ({
   rowHover = false,
   noLink = false,
 }: IHostLinkProps): JSX.Element => {
-  const viewAllHostsLinkClass = classnames(baseClass, className, {
+  const viewAllHostsButtonClass = classnames(baseClass, className, {
     [`${baseClass}__condensed`]: condensed,
-    "row-hover-link": rowHover,
+    "row-hover-button": rowHover,
   });
 
   const endpoint = platformLabelId
@@ -46,20 +47,21 @@ const ViewAllHostsLink = ({
 
   const path = getPathWithQueryParams(endpoint, queryParams);
 
+  const onClick = (e: MouseEvent): void => {
+    if (!noLink) {
+      e.stopPropagation(); // Allows for button to have different onClick behavior than the row's onClick behavior
+    }
+    if (path) {
+      browserHistory.push(path);
+    }
+  };
+
   return (
-    <Link
-      className={viewAllHostsLinkClass}
-      to={noLink ? "" : path}
-      onClick={(e) => {
-        if (!noLink) {
-          e.stopPropagation(); // Allows for link to have different onClick behavior than the row's onClick behavior
-        }
-      }}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.stopPropagation(); // Allows for link to be keyboard accessible in a clickable row
-        }
-      }}
+    <Button
+      className={viewAllHostsButtonClass}
+      onClick={onClick}
+      variant="inverse"
+      size="small"
     >
       {!condensed && (
         <span
@@ -72,10 +74,11 @@ const ViewAllHostsLink = ({
         <Icon
           name="chevron-right"
           className={`${baseClass}__icon`}
-          color="core-fleet-blue"
+          color="ui-fleet-black-75"
         />
       )}
-    </Link>
+    </Button>
   );
 };
-export default ViewAllHostsLink;
+
+export default ViewAllHostsButton;

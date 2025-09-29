@@ -9,11 +9,14 @@
 
   &__page-banner {
     padding: $pad-large $pad-xlarge;
-    margin-bottom: $pad-large;
     width: auto;
+    gap: $pad-small;
   }
 
   &__info {
+    display: flex;
+    align-items: center;
+
     p {
       margin: $pad-small 0 0 0; // TOFIX: this causes weird top margin noticed in #28110
     }
@@ -34,6 +37,6 @@
   }
 
   &__close {
-    margin: -$pad-small; // Offset clickable padding from making banner taller
+    margin: -$pad-medium; // Offset clickable padding from making banner taller
   }
 }

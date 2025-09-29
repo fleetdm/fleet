@@ -126,7 +126,7 @@ export const SoftwareActionButtons = ({
             }
             variant="icon"
           >
-            <Icon name={option.iconName} color="core-fleet-blue" />
+            <Icon name={option.iconName} color="ui-fleet-black-75" />
           </Button>
         );
 

@@ -19,6 +19,7 @@ export interface ITooltipWrapper {
 and mouseout from the element. If a boolean, sets delay to the default below. If a number, sets to that
    * many milliseconds. Overrides `delayShow` and `delayHide` */
   delayShowHide?: boolean | number;
+  delayInMs?: number;
   underline?: boolean;
   // Below two props used here to maintain the API of the old TooltipWrapper
   // A clearer system would be to use the 3 below commented props, which describe exactly where they
@@ -64,6 +65,7 @@ const TooltipWrapper = ({
   delayShow = true,
   delayHide,
   delayShowHide,
+  delayInMs, // TODO: Apply pattern of delay tooltip for repeated table tooltips
   underline = true,
   className,
   tooltipClass,
@@ -119,6 +121,7 @@ const TooltipWrapper = ({
           id={tipId}
           delayShow={delayShowVal}
           delayHide={delayHideVal}
+          delayShow={delayInMs}
           noArrow={!showArrow}
           place={position}
           opacity={1}

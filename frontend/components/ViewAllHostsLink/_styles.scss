@@ -1,5 +1,4 @@
-.view-all-hosts-link {
-  @include table-link;
+.view-all-hosts-button {
   &__text {
     &--responsive {
       @media (max-width: $break-md) {
@@ -13,7 +12,7 @@
   }
 
   // For tabbing through the app
-  &:focus-visible.row-hover-link {
+  &:focus-visible.row-hover-button {
     opacity: 1;
   }
 }
