@@ -1,3 +1,10 @@
+## Fleet 4.73.3 (Sep 26, 2025)
+
+### Bug fixes
+
+- Improved software ingestion DB lock times by pre-inserting software/titles in smaller batches when hosts check in.
+- Re-added and optimized fix for macos software ingestion to prevent duplicate software due to end user renaming software on host.
+
 ## Fleet 4.73.2 (Sep 23, 2025)
 
 ### Bug fixes
