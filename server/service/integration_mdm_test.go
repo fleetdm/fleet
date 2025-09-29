@@ -14186,6 +14186,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 
 	iPhoneAccessToken := getSSOAccessToken("sso_user", "user123#")
 	iPadAccessToken := getSSOAccessToken("sso_user2", "user123#")
+	macAccessToken := getSSOAccessToken("sso_user3", "user123#")
 
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
@@ -14240,26 +14241,21 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	require.NotNil(t, linkedIDPAccount)
 	assert.Equal(t, linkedIDPAccount.Email, "sso_user2@example.com")
 
-	// Account driven enrollment is not yet supported for macOS devices so we expect an error in
-	// either case
 	macbookHwModel := "Mac16,1"
 	macbookMdmDevice := mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		macbookHwModel,
 		"", // No bearer token
 	)
-
-	// A different error than usual for no bearer token because the system will try
-	// to initiate the SSO flow if the server returns a 401 unauthorized, and we don't
-	// want that.
-	require.ErrorContains(t, macbookMdmDevice.Enroll(), "400 Bad Request")
+	require.ErrorContains(t, macbookMdmDevice.Enroll(), "401 Unauthorized")
 
 	macbookMdmDevice = mdmtest.NewTestMDMClientAppleAccountDrivenUserEnrollment(
 		s.server.URL,
 		macbookHwModel,
-		iPadAccessToken, // Using iPad's access token. It doesn't matter because it should fail before checking it
+		macAccessToken,
 	)
-	require.ErrorContains(t, macbookMdmDevice.Enroll(), "400 Bad Request")
+	require.NoError(t, macbookMdmDevice.Enroll())
+	assert.Equal(t, macbookMdmDevice.EnrollInfo.AssignedManagedAppleID, "sso_user3@example.com")
 
 	// Fetch the hosts we enrolled and check their details. Specifically we want to verify that MDM
 	// shows a personal enrollment via all 3 endpoints(list hosts, host details and host MDM
@@ -14267,6 +14263,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 	listHostsRes := listHostsResponse{}
 	var iPhoneHostID *uint
 	var iPadHostID *uint
+	var macHostID *uint
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
 	require.Len(t, listHostsRes.Hosts, 2)
 	for _, host := range listHostsRes.Hosts {
@@ -14287,11 +14284,20 @@ func (s *integrationMDMTestSuite) TestAppleMDMAccountDrivenUserEnrollment() {
 			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
 			assert.True(t, *host.MDM.ConnectedToFleet)
 			iPadHostID = ptr.Uint(host.ID)
+		} else if host.UUID == macbookMdmDevice.EnrollmentID() {
+			assert.Equal(t, macbookMdmDevice.EnrollmentID(), host.UUID)
+			assert.Equal(t, macbookMdmDevice.EnrollmentID(), host.HardwareSerial)
+			assert.Equal(t, macbookHwModel, host.HardwareModel)
+			require.NotNil(t, host.MDM.EnrollmentStatus)
+			assert.Equal(t, "On (personal)", *host.MDM.EnrollmentStatus)
+			assert.True(t, *host.MDM.ConnectedToFleet)
+			macHostID = ptr.Uint(host.ID)
 		}
 	}
 
 	require.NotNil(t, iPhoneHostID, "iPhone host not found in the list of hosts")
 	require.NotNil(t, iPadHostID, "iPad host not found in the list of hosts")
+	require.NotNil(t, macHostID, "Mac host not found in the list of hosts")
 
 	// Confirm that host details endpoint contains the expected values for the iPhone
 	getHostResp := getDeviceHostResponse{}
