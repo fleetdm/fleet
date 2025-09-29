@@ -2314,22 +2314,6 @@ parasails.registerPage('configuration-builder', {
             description: 'Settings that restrict specific windows features',// TODO: improve/rewrite.
             learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
             payloads: [
-              // { TODO: research this.
-              //   name: 'Enable advanced powershell logging',
-              //   tooltip: `Allows Personalization CSPs to be deployed on non-Enterprise versions of Windows. Setting this value to true triggers the action to configure a device as education environment. Thorough testing is crucial to ensure it does not disrupt workflows or create compatibility issues.`,
-              //   uniqueSlug: 'windows-allow-personalization-policies',
-              //   category: 'Personalization',
-              //   supportedAccessTypes: ['add', 'replace'],
-              //   formInput: {
-              //     type: 'boolean',
-              //   },
-              //   formOutput: {
-              //     settingFormat: 'int',
-              //     settingTarget: './Vendor/MSFT/SharedPC/SetEduPolicies',
-              //     trueValue: ``,
-              //     falseValue: false,
-              //   },
-              // },
               {
                 name: 'Disable AI data analysis',
                 tooltip: `Whether snapshots of the screen can be saved for use with Recall. By default, snapshots for Recall aren't enabled. IT administrators can't, on their own, enable saving snapshots on behalf of their users. If you set this policy to disabled, end users will have a choice to save snapshots of their screen and use Recall to find things they've seen on their device.`,
@@ -2362,22 +2346,22 @@ parasails.registerPage('configuration-builder', {
                   falseValue: 1,
                 },
               },
-              // {
-              //   name: 'Disable Cortana',
-              //   tooltip: `Whether Cortana is allowed on the device`,
-              //   uniqueSlug: 'windows-disable-cortana',
-              //   category: 'Functionality',
-              //   supportedAccessTypes: ['add', 'replace'],
-              //   formInput: {
-              //     type: 'boolean',
-              //   },
-              //   formOutput: {
-              //     settingFormat: 'int',
-              //     settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana',
-              //     trueValue: 0,
-              //     falseValue: 1,
-              //   },
-              // },
+              {
+                name: 'Disable Cortana',
+                tooltip: `Whether Cortana is allowed on the device`,
+                uniqueSlug: 'windows-disable-cortana',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
               {
                 name: 'Disable screen capture',
                 tooltip: `Whether screen capture is disabled on the device.`,
