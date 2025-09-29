@@ -10,7 +10,7 @@ import React, {
 import { ReactElement } from "react-markdown/lib/react-markdown";
 import { AppContext } from "context/app";
 import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
-import { useQuery, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 import {
   IPolicy,
   ILoadAllPoliciesResponse,
@@ -121,7 +121,6 @@ function PoliciesPaginatedList(
   );
 
   // Fetch a single page of policies.
-  const queryClient = useQueryClient();
   const DEFAULT_PAGE_SIZE = 10;
   const DEFAULT_SORT_COLUMN = "name";
 
