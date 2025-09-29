@@ -1990,16 +1990,6 @@ func mdmAppleEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.
 func mdmAppleAccountEnrollEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
 	req := request.(*mdmAppleAccountEnrollRequest)
 	svc.SkipAuth(ctx)
-	deviceProduct := strings.ToLower(req.DeviceInfo.Product)
-	if !(strings.HasPrefix(deviceProduct, "ipad") || strings.HasPrefix(deviceProduct, "iphone")) {
-		// There is unfortunately no good way to get the client to show this error, they will see a
-		// generic error about a failure to get an enrollment profile.
-		return mdmAppleEnrollResponse{
-			Err: &fleet.BadRequestError{
-				Message: "only iOS and iPadOS devices are supported for account driven user enrollment",
-			},
-		}, nil
-	}
 	if req.EnrollReference == nil {
 		mdmSSOUrl, err := svc.GetMDMAccountDrivenEnrollmentSSOURL(ctx)
 		if err != nil {
