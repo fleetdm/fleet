@@ -1410,12 +1410,6 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		status.HostFleetPlatform = fleetPlatform
 	}
 
-	// TODO(mna): for every getHostMDM...Command and
-	// getHostScriptExecutionResultDB, ensure that we don't fail with an error if
-	// the command/script result does not exist. We may have to fill it with
-	// "command got removed" or "script got removed" placeholder data so the rest
-	// of the code works as expected (and shows the correct state in the UI).
-
 	switch fleetPlatform {
 	case "darwin", "ios", "ipados":
 		if mdmActions.UnlockPIN != nil {
