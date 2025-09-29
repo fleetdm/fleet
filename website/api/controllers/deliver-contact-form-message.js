@@ -11,6 +11,7 @@ module.exports = {
 
     emailAddress: {
       required: true,
+      isEmail: true,
       type: 'string',
       description: 'A return email address where we can respond.',
       example: 'hermione@hogwarts.edu'
