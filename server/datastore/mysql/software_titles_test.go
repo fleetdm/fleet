@@ -1813,7 +1813,7 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 
 	var sw []fleet.Software
 	err = ds.writer(ctx).SelectContext(ctx, &sw,
-		`SELECT id, name, version, bundle_identifier, source, browser, title_id FROM software ORDER BY name, source, browser, version`)
+		`SELECT id, name, version, bundle_identifier, source, extension_for, title_id FROM software ORDER BY name, source, extension_for, version`)
 	require.NoError(t, err)
 	require.Len(t, sw, 1)
 	require.NotNil(t, sw[0].TitleID)
@@ -1860,7 +1860,7 @@ func testListSoftwareTitlesDoesnotIncludeDuplicates(t *testing.T, ds *Datastore)
 	// We should only have a single title on the DB ...
 	var swt []fleet.SoftwareTitle
 	err = ds.writer(ctx).SelectContext(ctx, &swt,
-		`SELECT id, name, bundle_identifier, source, browser FROM software_titles ORDER BY name, source, browser`)
+		`SELECT id, name, bundle_identifier, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
 	require.NoError(t, err)
 	require.Len(t, swt, 1)
 

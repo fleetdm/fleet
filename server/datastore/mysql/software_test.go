@@ -3265,7 +3265,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, extension_for FROM software_titles ORDER BY name, source, extension_for`)
 		if err != nil {
 			return nil, err
 		}
@@ -3410,9 +3410,9 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// the code will attempt to insert into `software_titles`, but the bundle_identifier + additional_identifier
 	// key (com.example.app1-0) will conflict.
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, browser, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
+		_, err = q.ExecContext(ctx, `INSERT INTO software_titles (id, name, source, extension_for, bundle_identifier) VALUES (7, 'App1', 'some_source', 'Chrome', 'com.example.app1')`)
 		require.NoError(t, err)
-		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, browser, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
+		_, err = q.ExecContext(ctx, `INSERT INTO software (name, source, extension_for, bundle_identifier, checksum, version) VALUES ('App1', 'some_other_source', 'Chrome', 'com.example.app1', UNHEX(MD5(CONCAT_WS(CHAR(0), 'App1', '', 'some_other_source', 'com.example.app1', '', '', '', 'Chrome', ''))), '')`)
 		require.NoError(t, err)
 		require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 		return nil
