@@ -2042,7 +2042,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 
 	// set the initial software list
 	sw := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "test", GenerateCPE: "cpe_foo", ExtensionFor: "chrome"},
 		{Name: "bar", Version: "0.0.2", Source: "test", GenerateCPE: "cpe_bar", LastOpenedAt: &lastYear},
 		{Name: "baz", Version: "0.0.3", Source: "test", GenerateCPE: "cpe_baz", LastOpenedAt: &now},
 	}
@@ -3226,7 +3226,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	expectedSoftware := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
@@ -3234,10 +3234,10 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	}
 	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
 	for _, s := range expectedSoftware {
-		expectedTitlesByNSB[s.Name+s.Source+s.Browser] = fleet.SoftwareTitle{
-			Name:    s.Name,
-			Source:  s.Source,
-			Browser: s.Browser,
+		expectedTitlesByNSB[s.Name+s.Source+s.ExtensionFor] = fleet.SoftwareTitle{
+			Name:         s.Name,
+			Source:       s.Source,
+			ExtensionFor: s.ExtensionFor,
 		}
 	}
 
@@ -3279,20 +3279,20 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 		byNSBV := map[string]fleet.Software{}
 		for _, s := range wantSoftware {
-			byNSBV[s.Name+s.Source+s.Browser+s.Version] = s
+			byNSBV[s.Name+s.Source+s.ExtensionFor+s.Version] = s
 		}
 
 		for _, r := range gotSoftware {
-			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
+			_, ok := byNSBV[r.Name+r.Source+r.ExtensionFor+r.Version]
 			require.True(t, ok)
 
 			assert.NotNil(t, r.TitleID)
-			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.ExtensionFor]
 			require.True(t, ok)
 			assert.Equal(t, swt.ID, *r.TitleID)
 			assert.Equal(t, swt.Name, r.Name)
 			assert.Equal(t, swt.Source, r.Source)
-			assert.Equal(t, swt.Browser, r.Browser)
+			assert.Equal(t, swt.ExtensionFor, r.ExtensionFor)
 		}
 	}
 
@@ -3301,20 +3301,20 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			if len(expectMissing) > 0 {
 				require.NotContains(t, expectMissing, r.Name)
 			}
-			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
+			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.ExtensionFor]
 			require.True(t, ok)
 			require.Equal(t, e.ID, r.ID)
 			require.Equal(t, e.Name, r.Name)
 			require.Equal(t, e.Source, r.Source)
-			require.Equal(t, e.Browser, r.Browser)
+			require.Equal(t, e.ExtensionFor, r.ExtensionFor)
 		}
 	}
 
 	swTitles, err := getTitles()
 	require.NoError(t, err)
 	for _, swt := range swTitles {
-		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser]; ok {
-			expectedTitlesByNSB[swt.Name+swt.Source+swt.Browser] = swt
+		if _, ok := expectedTitlesByNSB[swt.Name+swt.Source+swt.ExtensionFor]; ok {
+			expectedTitlesByNSB[swt.Name+swt.Source+swt.ExtensionFor] = swt
 		}
 	}
 
@@ -3328,23 +3328,23 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	require.Equal(t, swt[0].Name, "bar")
 	require.Equal(t, swt[0].Source, "deb_packages")
-	require.Equal(t, swt[0].Browser, "")
-	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].Browser] = swt[0]
+	require.Equal(t, swt[0].ExtensionFor, "")
+	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].ExtensionFor] = swt[0]
 
 	require.Equal(t, swt[1].Name, "baz")
 	require.Equal(t, swt[1].Source, "deb_packages")
-	require.Equal(t, swt[1].Browser, "")
-	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].Browser] = swt[1]
+	require.Equal(t, swt[1].ExtensionFor, "")
+	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].ExtensionFor] = swt[1]
 
 	require.Equal(t, swt[2].Name, "foo")
 	require.Equal(t, swt[2].Source, "chrome_extensions")
-	require.Equal(t, swt[2].Browser, "")
-	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].Browser] = swt[2]
+	require.Equal(t, swt[2].ExtensionFor, "")
+	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].ExtensionFor] = swt[2]
 
 	require.Equal(t, swt[3].Name, "foo")
 	require.Equal(t, swt[3].Source, "chrome_extensions")
-	require.Equal(t, swt[3].Browser, "chrome")
-	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
+	require.Equal(t, swt[3].ExtensionFor, "chrome")
+	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].ExtensionFor] = swt[3]
 
 	// Double check software and titles
 	assertSoftware(t, expectedSoftware)
@@ -3400,8 +3400,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.Len(t, gotTitles, 5)
 	require.Equal(t, "foo", gotTitles[4].Name)
 	require.Equal(t, "rpm_packages", gotTitles[4].Source)
-	require.Equal(t, "", gotTitles[4].Browser)
-	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
+	require.Equal(t, "", gotTitles[4].ExtensionFor)
+	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].ExtensionFor] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 	assertSoftware(t, expectedSoftware)
 
@@ -3475,7 +3475,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 
 	software := []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "test"},
-		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionFor: "firefox"},
 		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
 		{Name: "foo", Version: "0.0.2", Source: "test"},
 	}

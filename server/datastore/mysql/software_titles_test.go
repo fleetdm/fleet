@@ -285,22 +285,22 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 
 	software1 := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	software2 := []fleet.Software{
-		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", Browser: "chrome"},
-		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 		{Name: "foo", Version: "0.0.3", Source: "deb_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
 	}
 	software3 := []fleet.Software{
 		{Name: "foo", Version: "v0.0.2", Source: "rpm_packages"},
 		{Name: "bar", Version: "0.0.3", Source: "apps"},
-		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "edge"},
-		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", Browser: "chrome"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "edge"},
+		{Name: "baz", Version: "0.0.3", Source: "chrome_extensions", ExtensionFor: "chrome"},
 	}
 
 	_, err := ds.UpdateHostSoftware(ctx, host1.ID, software1)
@@ -385,13 +385,13 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.Nil(t, titles[i].AppStoreApp)
 	i++
@@ -440,11 +440,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "rpm_packages", titles[i].Source)
@@ -477,11 +477,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
@@ -532,11 +532,11 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "chrome", titles[i].Browser)
+	require.Equal(t, "chrome", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "baz", titles[i].Name)
 	require.Equal(t, "chrome_extensions", titles[i].Source)
-	require.Equal(t, "edge", titles[i].Browser)
+	require.Equal(t, "edge", titles[i].ExtensionFor)
 	i++
 	require.Equal(t, "bar", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
@@ -557,10 +557,10 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Len(t, titles, 4)
 	require.Equal(t, "baz", titles[0].Name)
 	require.Equal(t, "chrome_extensions", titles[0].Source)
-	require.Equal(t, "chrome", titles[0].Browser)
+	require.Equal(t, "chrome", titles[0].ExtensionFor)
 	require.Equal(t, "baz", titles[1].Name)
 	require.Equal(t, "chrome_extensions", titles[1].Source)
-	require.Equal(t, "edge", titles[1].Browser)
+	require.Equal(t, "edge", titles[1].ExtensionFor)
 	require.Equal(t, "bar", titles[2].Name)
 	require.Equal(t, "deb_packages", titles[2].Source)
 	require.Equal(t, "bar", titles[3].Name)
@@ -756,7 +756,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 			ID:              title.ID,
 			Name:            title.Name,
 			Source:          title.Source,
-			Browser:         title.Browser,
+			ExtensionFor:    title.ExtensionFor,
 			HostsCount:      title.HostsCount,
 			VersionsCount:   title.VersionsCount,
 			Versions:        title.Versions,
@@ -813,7 +813,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	// ListSoftwareTitles does not populate version host counts, so we do that manually
 	titles[0].Versions[0].HostsCount = ptr.Uint(1)
-	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, Browser: title.Browser, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
+	assert.Equal(t, titles[0], fleet.SoftwareTitleListResult{ID: title.ID, Name: title.Name, Source: title.Source, ExtensionFor: title.ExtensionFor, HostsCount: title.HostsCount, VersionsCount: title.VersionsCount, Versions: title.Versions, CountsUpdatedAt: title.CountsUpdatedAt})
 
 	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{

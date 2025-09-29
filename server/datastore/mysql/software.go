@@ -320,7 +320,7 @@ SELECT
     s.name,
     s.version,
     s.source,
-    s.browser,
+    s.extension_for,
     s.bundle_identifier,
     s.release,
     s.vendor,
@@ -453,13 +453,13 @@ func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, d
 		deletedTitles = make(map[string]struct{}, len(deleted))
 		for _, d := range deleted {
 			// We don't support installing browser plugins as of 2024/08/22
-			if d.Browser == "" {
+			if d.ExtensionFor == "" {
 				deletedTitles[UniqueSoftwareTitleStr(BundleIdentifierOrName(d.BundleIdentifier, d.Name), d.Source)] = struct{}{}
 			}
 		}
 		for _, i := range inserted {
 			// We don't support installing browser plugins as of 2024/08/22
-			if i.Browser == "" {
+			if i.ExtensionFor == "" {
 				key := UniqueSoftwareTitleStr(BundleIdentifierOrName(i.BundleIdentifier, i.Name), i.Source)
 				delete(deletedTitles, key)
 			}
@@ -617,18 +617,18 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			bundleIDsToIncomingNames[sw.BundleIdentifier] = sw.Name
 			argsWithBundleIdentifier = append(argsWithBundleIdentifier, sw.BundleIdentifier)
 		} else {
-			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.Browser)
+			argsWithoutBundleIdentifier = append(argsWithoutBundleIdentifier, sw.Name, sw.Source, sw.ExtensionFor)
 		}
 		// Map software title identifier to software checksums so that we can map checksums to actual titles later.
 		uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(
-			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.Browser,
+			BundleIdentifierOrName(sw.BundleIdentifier, sw.Name), sw.Source, sw.ExtensionFor,
 		)] = checksum
 	}
 
 	// Get titles for software without bundle_identifier.
 	if len(argsWithoutBundleIdentifier) > 0 {
 		// Build IN clause with composite values for better performance
-		// Each triplet of args represents (name, source, browser)
+		// Each triplet of args represents (name, source, extension_for)
 		numItems := len(argsWithoutBundleIdentifier) / 3
 		valuePlaceholders := make([]string, 0, numItems)
 		for i := 0; i < numItems; i++ {
@@ -636,7 +636,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		}
 
 		stmt := fmt.Sprintf(
-			"SELECT id, name, source, browser FROM software_titles WHERE (name, source, browser) IN (%s)",
+			"SELECT id, name, source, extension_for FROM software_titles WHERE (name, source, extension_for) IN (%s)",
 			strings.Join(valuePlaceholders, ", "),
 		)
 		var existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier []fleet.SoftwareTitle
@@ -649,7 +649,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 			return nil, nil, ctxerr.Wrap(ctx, err, "get existing titles without bundle identifier")
 		}
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithoutBundleIdentifier {
-			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.Browser)]
+			checksum, ok := uniqueTitleStrToChecksum[UniqueSoftwareTitleStr(title.Name, title.Source, title.ExtensionFor)]
 			if ok {
 				incomingChecksumToTitle[checksum] = title
 			}
@@ -661,7 +661,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 	if len(argsWithBundleIdentifier) > 0 {
 		// no-op code change
 		incomingChecksumToTitle = make(map[string]fleet.SoftwareTitle, len(newSoftwareChecksums))
-		stmtBundleIdentifier := `SELECT id, name, source, browser, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
+		stmtBundleIdentifier := `SELECT id, name, source, extension_for, bundle_identifier FROM software_titles WHERE bundle_identifier IN (?)`
 		stmtBundleIdentifier, argsWithBundleIdentifier, err := sqlx.In(stmtBundleIdentifier, argsWithBundleIdentifier)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "build query to existing titles with bundle_identifier")
@@ -672,7 +672,7 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		}
 		// Map software titles to software checksums.
 		for _, title := range existingSoftwareTitlesForNewSoftwareWithBundleIdentifier {
-			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.Browser)
+			uniqueStrWithoutName := UniqueSoftwareTitleStr(*title.BundleIdentifier, title.Source, title.ExtensionFor)
 			withoutNameCS, withoutName := uniqueTitleStrToChecksum[uniqueStrWithoutName]
 
 			if withoutName {
@@ -805,7 +805,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					arch,
 					bundle_identifier,
 					extension_id,
-					browser,
+					extension_for,
 					title_id,
 					checksum
 				) VALUES %s`,
@@ -822,10 +822,10 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					titleID = &title.ID
 				} else if _, ok := newTitlesNeeded[checksum]; !ok {
 					st := fleet.SoftwareTitle{
-						Name:     sw.Name,
-						Source:   sw.Source,
-						Browser:  sw.Browser,
-						IsKernel: sw.IsKernel,
+						Name:         sw.Name,
+						Source:       sw.Source,
+						ExtensionFor: sw.ExtensionFor,
+						IsKernel:     sw.IsKernel,
 					}
 
 					if sw.BundleIdentifier != "" {
@@ -835,7 +835,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 					newTitlesNeeded[checksum] = st
 				}
 				args = append(
-					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.Browser,
+					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch, sw.BundleIdentifier, sw.ExtensionID, sw.ExtensionFor,
 					titleID, checksum,
 				)
 			}
@@ -849,11 +849,11 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				const numberOfArgsPerSoftwareTitles = 5 // number of ? in each VALUES clause
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", totalTitlesToProcess), ",")
 				// INSERT IGNORE is used to avoid duplicate key errors, which may occur since our previous read came from the replica.
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel) VALUES %s", titlesValues)
 				titlesArgs := make([]interface{}, 0, totalTitlesToProcess*numberOfArgsPerSoftwareTitles)
 				titleChecksums := make([]string, 0, totalTitlesToProcess)
 				for checksum, title := range newTitlesNeeded {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel)
 					titleChecksums = append(titleChecksums, checksum)
 				}
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -863,7 +863,7 @@ func (ds *Datastore) insertNewInstalledHostSoftwareDB(
 				updateSoftwareWithoutIdentifierStmt := `
 				    UPDATE software s
 				    JOIN software_titles st
-				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+				    ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.extension_for = st.extension_for
 				    SET s.title_id = st.id
 				    WHERE (s.title_id IS NULL OR s.title_id != st.id)
 				    AND COALESCE(s.bundle_identifier, '') = ''
@@ -1150,7 +1150,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.source",
 			"s.bundle_identifier",
 			"s.extension_id",
-			"s.browser",
+			"s.extension_for",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -1330,7 +1330,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 			"s.source",
 			"s.bundle_identifier",
 			"s.extension_id",
-			"s.browser",
+			"s.extension_for",
 			"s.release",
 			"s.vendor",
 			"s.arch",
@@ -1480,7 +1480,7 @@ func (ds *Datastore) AllSoftwareIterator(
 	var args []interface{}
 
 	stmt := `SELECT
-		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.browser, s.extension_id, s.title_id,
+		s.id, s.name, s.version, s.source, s.bundle_identifier, s.release, s.arch, s.vendor, s.extension_for, s.extension_id, s.title_id,
 		COALESCE(sc.cpe, '') AS generated_cpe
 	FROM software s
 	LEFT JOIN software_cpe sc ON (s.id=sc.software_id)`
@@ -1659,7 +1659,7 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			"s.name",
 			"s.version",
 			"s.source",
-			"s.browser",
+			"s.extension_for",
 			"s.bundle_identifier",
 			"s.release",
 			"s.vendor",
@@ -1951,17 +1951,17 @@ func (ds *Datastore) ReconcileSoftwareTitles(ctx context.Context) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// ensure all software titles are in the software_titles table
 		upsertTitlesStmt := `
-INSERT INTO software_titles (name, source, browser, bundle_identifier)
+INSERT INTO software_titles (name, source, extension_for, bundle_identifier)
 SELECT
     name,
     source,
-    browser,
+    extension_for,
     bundle_identifier
 FROM (
     SELECT DISTINCT
         name,
         source,
-        browser,
+        extension_for,
         bundle_identifier
     FROM
         software s
@@ -1978,21 +1978,21 @@ FROM (
     SELECT DISTINCT
         name,
         source,
-        browser,
+        extension_for,
         NULL as bundle_identifier
     FROM
         software s
     WHERE
         NOT EXISTS (
             SELECT 1 FROM software_titles st
-            WHERE (s.name, s.source, s.browser) = (st.name, st.source, st.browser)
+            WHERE (s.name, s.source, s.extension_for) = (st.name, st.source, st.extension_for)
         )
         AND COALESCE(s.bundle_identifier, '') = ''
 ) as combined_results
 ON DUPLICATE KEY UPDATE
     software_titles.name = software_titles.name,
     software_titles.source = software_titles.source,
-    software_titles.browser = software_titles.browser,
+    software_titles.extension_for = software_titles.extension_for,
     software_titles.bundle_identifier = software_titles.bundle_identifier
 `
 		res, err := tx.ExecContext(ctx, upsertTitlesStmt)
@@ -2006,7 +2006,7 @@ ON DUPLICATE KEY UPDATE
 		updateSoftwareWithoutIdentifierStmt := `
 UPDATE software s
 JOIN software_titles st
-ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.browser = st.browser
+ON COALESCE(s.bundle_identifier, '') = '' AND s.name = st.name AND s.source = st.source AND s.extension_for = st.extension_for
 SET s.title_id = st.id
 WHERE (s.title_id IS NULL OR s.title_id != st.id)
 AND COALESCE(s.bundle_identifier, '') = '';
@@ -4544,7 +4544,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	0 as vpp_apps_count
 FROM software_titles st
@@ -4558,7 +4558,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	1 as vpp_apps_count
 FROM software_titles st
