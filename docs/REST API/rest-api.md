@@ -6191,7 +6191,7 @@ _Available in Fleet Premium_
 | -------------          | ------  | ----  | --------------------------------------------------------------------------------------      |
 | team_id                        | integer | body  | The team ID to apply the settings to. Settings applied to hosts in no team if absent.       |
 | enable_end_user_authentication | boolean | body  | When enabled, require end users to authenticate with your identity provider (IdP) when they set up their new macOS hosts. |
-| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the DeviceConfigured command.|
+| enable_release_device_manually | boolean | body  | When enabled, you're responsible for sending the [`DeviceConfigured` command](https://developer.apple.com/documentation/devicemanagement/device-configured-command). End users will be stcuk in Setup Assistant until this command is sent. |
 | manual_agent_install | boolean | body  | If set to `true` Fleet's agent (fleetd) won't be installed as part of automatic enrollment (ADE) on macOS hosts. (Default: `false`) |
 
 #### Example
