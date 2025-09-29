@@ -905,7 +905,7 @@ All Fleet employees and long-term collaborators are expected to read and electro
 | @lukeheath       | 2025-10-01   |
 
 
-This policy applies to all users of the company's cloud computing resources, including employees, contractors, vendors, and partners with access to the cloud services
+This policy applies to all users of the company's cloud computing resources, including employees, contractors, vendors, and partners with access to the cloud services.
 
 - All cloud environments owned and operated by the company including Infrastructure-as-a-Service (IaaS), Platform-as-a-Service (PaaS), and Software-as-a-Service (SaaS) deployed or managed by the Company are governed by this policy.
 - Company's cloud resources must only be used for legitimate business purposes approved by the Company.
