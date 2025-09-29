@@ -50,7 +50,7 @@ type Software struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
-	// ExtensionFor is the browser type this extension is for (from osquery chrome_extensions)
+	// ExtensionFor is the host software that this software is an extension for
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
@@ -113,6 +113,13 @@ func (s *Software) PopulateBrowserField() {
 	default:
 		s.Browser = ""
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface
+func (s *Software) MarshalJSON() ([]byte, error) {
+	s.PopulateBrowserField()
+	type Alias Software
+	return json.Marshal((*Alias)(s))
 }
 
 // ToUniqueStr creates a unique string representation of the software
@@ -199,8 +206,8 @@ type SoftwareTitle struct {
 	IconUrl *string `json:"icon_url" db:"icon_url"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
-	// ExtensionFor is the browser type this extension is for (e.g., "chrome", "firefox", "safari")
-	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
@@ -244,6 +251,13 @@ func (st *SoftwareTitle) PopulateBrowserField() {
 	}
 }
 
+// MarshalJSON implements json.Marshaler interface
+func (st *SoftwareTitle) MarshalJSON() ([]byte, error) {
+	st.PopulateBrowserField()
+	type Alias SoftwareTitle
+	return json.Marshal((*Alias)(st))
+}
+
 // PopulateBrowserField populates the browser field for backwards compatibility
 // see https://github.com/fleetdm/fleet/pull/31760/files
 func (st *SoftwareTitleListResult) PopulateBrowserField() {
@@ -254,6 +268,13 @@ func (st *SoftwareTitleListResult) PopulateBrowserField() {
 	default:
 		st.Browser = ""
 	}
+}
+
+// MarshalJSON implements json.Marshaler interface
+func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
+	st.PopulateBrowserField()
+	type Alias SoftwareTitleListResult
+	return json.Marshal((*Alias)(st))
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -267,8 +288,8 @@ type SoftwareTitleListResult struct {
 	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
-	// ExtensionFor is the browser type this extension is for (e.g., "chrome", "firefox", "safari")
-	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
 	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
 	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
