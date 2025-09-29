@@ -1745,7 +1745,7 @@ parasails.registerPage('configuration-builder', {
         subcategorySlug: 'windows-date-and-time',
         subcategoryName: 'Date & time',
         description: 'Settings related to screen lock and passwords.',
-        learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock',
+        learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
         payloads: [
           {
             name: 'Allow users to change date and time settings',
@@ -2234,7 +2234,7 @@ parasails.registerPage('configuration-builder', {
             subcategoryName: 'Personalization',
             subcategorySlug: 'windows-personalization',
             description: 'Settings for personalizing a Windows devices.',// TODO: improve/rewrite.
-            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
             payloads: [
               {
                 name: 'Allow personalization policies on non-EDU versions of Windows',
@@ -2312,7 +2312,7 @@ parasails.registerPage('configuration-builder', {
             subcategoryName: 'Functionality',
             subcategorySlug: 'windows-functionality',
             description: 'Settings that restrict specific windows features',// TODO: improve/rewrite.
-            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider',
             payloads: [
               // { TODO: research this.
               //   name: 'Enable advanced powershell logging',
