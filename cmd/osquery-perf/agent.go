@@ -2845,7 +2845,7 @@ func main() {
 		// 50% failure probability is not realistic but this is our current baseline for the osquery-perf setup.
 		// We tried setting this to a more realistic value like 5% but it overloaded the MySQL Writer instance
 		// during hosts enroll.
-		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
+		softwareQueryFailureProb                 = flag.Float64("software_query_fail_prob", 0.05, "Probability of the software query failing")
 		softwareVSCodeExtensionsQueryFailureProb = flag.Float64("software_vscode_extensions_query_fail_prob", 0.0, "Probability of the software vscode_extensions query failing")
 
 		softwareInstallerPreInstallFailureProb = flag.Float64("software_installer_pre_install_fail_prob", 0.05,
