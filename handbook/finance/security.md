@@ -918,7 +918,7 @@ This policy applies to all users of the company's cloud computing resources, inc
 
 Users must not use the company's cloud resources to:
 - Attempt to disable, bypass, or interfere with cloud security controls.
-- Deploy workloads that violatethe company policies or applicable laws (e.g., cryptocurrency mining, illegal content).
+- Deploy workloads that violate the company policies or applicable laws (e.g., cryptocurrency mining, illegal content).
 - Conduct personal business, personal profit activities, or malicious activity.
 - Introduce unapproved third-party integrations, extensions, or APIs.
 - Store, process, or transmit unencrypted PII, PHI, PCI, or sensitive company data outside approved company cloud environments.
