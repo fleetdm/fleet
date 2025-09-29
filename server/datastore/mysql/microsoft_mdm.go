@@ -126,9 +126,10 @@ func (ds *Datastore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device 
 	return nil
 }
 
-// MDMWindowsDeleteEnrolledDevice deletes an MDMWindowsEnrolledDevice entry
-// from the database using the device's hardware ID.
-func (ds *Datastore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
+// MDMWindowsDeleteEnrolledDeviceOnReenrollment deletes a Windows device
+// enrollment entry from the database using the device's hardware ID as it is
+// re-enrolling.
+func (ds *Datastore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
 	stmt := "DELETE FROM mdm_windows_enrollments WHERE mdm_hardware_id = ?"
 
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, mdmDeviceHWID)
@@ -574,7 +575,7 @@ AND ` + whereKeyAvailable + `
 AND (
     (` + whereEncrypted + ` AND NOT ` + whereHostDisksUpdated + `)
     OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
-) 
+)
 AND ` + whereBitLockerPINSet
 
 	case fleet.DiskEncryptionActionRequired:
@@ -584,7 +585,7 @@ AND ` + whereBitLockerPINSet
 AND NOT ` + whereClientError + `
 AND ` + whereKeyAvailable + `
 AND (
-	` + whereEncrypted + ` 
+	` + whereEncrypted + `
 	OR (NOT ` + whereEncrypted + ` AND ` + whereHostDisksUpdated + ` AND ` + withinGracePeriod + `)
 )
 AND NOT ` + whereBitLockerPINSet
