@@ -214,11 +214,11 @@ You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts,
 
 ### NFR instances
 
-NFR (Not For Resale) instances are Fleet environments deployed for partners and resellers who need to demo Fleet functionality or test integrations. Solutions Consulting sets up these Render-based instances to support partner enablement and evaluation activities outside of the standard sales process.
+NFR (Not For Resale) instances are Fleet environments deployed for partners and resellers who need to demo Fleet functionality or test integrations. Solutions Consulting sets up these based instances to support partner enablement and evaluation activities outside of the standard sales process.
 
 #### Deploy an NFR instance
 
-**To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance in Render, the infrastructure team will configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
+**To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
 ## Signatures
