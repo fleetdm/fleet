@@ -551,10 +551,10 @@ const DataTable = ({
               </Button>
             )}
             <Button
-                      onClick={onClearSelectionClick}
-                      variant="inverse"
-                      size="small"
-                    >
+              onClick={onClearSelectionClick}
+              variant="inverse"
+              size="small"
+            >
               Clear selection
             </Button>
           </div>
