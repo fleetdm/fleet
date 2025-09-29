@@ -923,6 +923,7 @@ Users must not use the company's cloud resources to:
 - Introduce unapproved third-party integrations, extensions, or APIs.
 - Store, process, or transmit unencrypted PII, PHI, PCI, or sensitive company data outside approved company cloud environments.
 
+
 ### Acceptable use of end-user computing
 
 > _Created from [JupiterOne/security-policy-templates](https://github.com/JupiterOne/security-policy-templates). [CC BY-SA 4 license](https://creativecommons.org/licenses/by-sa/4.0/)_
