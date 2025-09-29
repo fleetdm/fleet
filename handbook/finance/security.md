@@ -913,6 +913,7 @@ This policy applies to all users of the company's cloud computing resources, inc
 - Personal use of company-provisioned cloud services is prohibited.
 - Unauthorized sharing, downloading, or uploading of the company intellectual property to non-company cloud accounts is strictly forbidden.
 
+
 #### Prohibited Activities
 
 Users must not use the company's cloud resources to:
