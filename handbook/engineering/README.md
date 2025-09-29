@@ -79,7 +79,7 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 **For PRs that change the product:**
 
 - Assign the PR to the appropriate Product Designer (PD).
-- Notify the relevant PD in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
+- @ mention the relevant PD in the PR.
 
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
