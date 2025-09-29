@@ -1252,7 +1252,7 @@ func softwareChecksumComputedColumn(tableAlias string, source string) string {
 				`+"%[2]s`release`"+`,
 				%[2]sarch,
 				%[2]svendor,
-				%[2]sbrowser,
+				%[2]sextension_for,
 				%[2]sextension_id
 			)
 		)
@@ -3247,8 +3247,8 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	getSoftware := func() ([]fleet.Software, error) {
 		var sw []fleet.Software
 		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
-			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
-		FROM software ORDER BY name, source, browser, version`)
+			id, name, version, bundle_identifier, source, extension_id, extension_for, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, extension_for, version`)
 		if err != nil {
 			return nil, err
 		}
@@ -3485,7 +3485,7 @@ func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 		var got fleet.Software
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.GetContext(ctx, q, &got,
-				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, extension_for, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
 		})
 		require.Equal(t, software[i], got)
 	}

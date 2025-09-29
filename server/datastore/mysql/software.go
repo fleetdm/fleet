@@ -875,10 +875,10 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			for checksum, sw := range batchSoftware {
 				if _, ok := existingTitlesForNewSoftware[checksum]; !ok {
 					st := fleet.SoftwareTitle{
-						Name:     sw.Name,
-						Source:   sw.Source,
-						Browser:  sw.Browser,
-						IsKernel: sw.IsKernel,
+						Name:         sw.Name,
+						Source:       sw.Source,
+						ExtensionFor: sw.ExtensionFor,
+						IsKernel:     sw.IsKernel,
 					}
 					if sw.BundleIdentifier != "" {
 						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
@@ -898,11 +898,11 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			if len(newTitlesNeeded) > 0 {
 				// Deduplicate titles before insertion to avoid unnecessary duplicate INSERTs
 				type titleKey struct {
-					name     string
-					source   string
-					browser  string
-					bundleID string
-					isKernel bool
+					name         string
+					source       string
+					extensionFor string
+					bundleID     string
+					isKernel     bool
 				}
 				uniqueTitlesToInsert := make(map[titleKey]fleet.SoftwareTitle, len(newTitlesNeeded))
 				for _, title := range newTitlesNeeded {
@@ -911,11 +911,11 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						bundleID = *title.BundleIdentifier
 					}
 					key := titleKey{
-						name:     title.Name,
-						source:   title.Source,
-						browser:  title.Browser,
-						bundleID: bundleID,
-						isKernel: title.IsKernel,
+						name:         title.Name,
+						source:       title.Source,
+						extensionFor: title.ExtensionFor,
+						bundleID:     bundleID,
+						isKernel:     title.IsKernel,
 					}
 					uniqueTitlesToInsert[key] = title
 				}
@@ -923,11 +923,11 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				// Insert software titles
 				const numberOfArgsPerSoftwareTitles = 5
 				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, extension_for, bundle_identifier, is_kernel) VALUES %s", titlesValues)
 				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
 
 				for _, title := range uniqueTitlesToInsert {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.ExtensionFor, title.BundleIdentifier, title.IsKernel)
 				}
 
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -939,7 +939,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					ID               uint    `db:"id"`
 					Name             string  `db:"name"`
 					Source           string  `db:"source"`
-					Browser          string  `db:"browser"`
+					ExtensionFor     string  `db:"extension_for"`
 					BundleIdentifier *string `db:"bundle_identifier"`
 				}
 
@@ -951,12 +951,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if uniqueTitlesToInsert[tk].BundleIdentifier != nil {
 						bundleID = *uniqueTitlesToInsert[tk].BundleIdentifier
 					}
-					queryArgs = append(queryArgs, tk.name, tk.source, tk.browser, bundleID)
+					queryArgs = append(queryArgs, tk.name, tk.source, tk.extensionFor, bundleID)
 				}
 
-				queryTitles := fmt.Sprintf(`SELECT id, name, source, browser, bundle_identifier
+				queryTitles := fmt.Sprintf(`SELECT id, name, source, extension_for, bundle_identifier
 					FROM software_titles
-					WHERE (name, source, browser, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
+					WHERE (name, source, extension_for, COALESCE(bundle_identifier, '')) IN (%s)`, titlePlaceholders)
 
 				if err := sqlx.SelectContext(ctx, tx, &titlesData, queryTitles, queryArgs...); err != nil {
 					return ctxerr.Wrap(ctx, err, "select software titles")
@@ -973,7 +973,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 						if title.BundleIdentifier != nil {
 							titleBundleID = *title.BundleIdentifier
 						}
-						if td.Name == title.Name && td.Source == title.Source && td.Browser == title.Browser && bundleID == titleBundleID {
+						if td.Name == title.Name && td.Source == title.Source && td.ExtensionFor == title.ExtensionFor && bundleID == titleBundleID {
 							titleIDsByChecksum[checksum] = td.ID
 							// Don't break here - multiple checksums can map to the same title
 							// (e.g., when software has same truncated name but different versions (very rare))

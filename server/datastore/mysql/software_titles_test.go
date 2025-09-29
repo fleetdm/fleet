@@ -352,7 +352,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
-	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, browser ASC"
+	// primary sort is "hosts_count DESC", followed by "name ASC, source ASC, extension_for ASC"
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -415,7 +415,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Nil(t, titles[i].SoftwarePackage)
 	require.NotNil(t, titles[i].AppStoreApp)
 
-	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, browser ASC"
+	// primary sort is "hosts_count ASC", followed by "name ASC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "hosts_count",
@@ -458,7 +458,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "foo", titles[i].Name)
 	require.Equal(t, "deb_packages", titles[i].Source)
 
-	// primary sort is "name ASC", followed by "host_count DESC, source ASC, browser ASC"
+	// primary sort is "name ASC", followed by "host_count DESC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "name",
@@ -501,7 +501,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "vpp1", titles[i].Name)
 	assert.Equal(t, "ipados_apps", titles[i].Source)
 
-	// primary sort is "name DESC", followed by "host_count DESC, source ASC, browser ASC"
+	// primary sort is "name DESC", followed by "host_count DESC, source ASC, extension_for ASC"
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{
 		ListOptions: fleet.ListOptions{
 			OrderKey:       "name",
