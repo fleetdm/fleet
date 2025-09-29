@@ -8,7 +8,24 @@
   padding: $pad-xlarge $pad-large;
   font-size: $x-small;
   text-align: center;
-  gap: $pad-small;
+  
+  
+  .content-wrapper {
+
+    .outer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: $pad-large;
+    }
+
+    .inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: $pad-small;
+    }
+  }
 
   // when the file preview is showing, we want the padding to be
   // slightly smaller on the top and bottom.
@@ -18,7 +35,7 @@
 
   &__graphics {
     display: flex;
-    align-items: center;
+    justify-content: center;
     gap: $pad-medium;
   }
   &__message {
