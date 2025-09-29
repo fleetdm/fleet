@@ -18001,10 +18001,19 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
 	require.NoError(t, err)
 
-	// refresh the host's status, it should not 500
+	// refresh the (old) host's status, it should not 500
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
 	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to wipe the old host entry should fail, as it is not reported
+	// as enrolled in Fleet MDM anymore
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity, &wipeResp)
+
+	// attempting to wipe the new host entry works
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
 }
