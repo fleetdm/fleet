@@ -52,6 +52,8 @@ type Software struct {
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
 	// ExtensionFor is the browser type this extension is for (from osquery chrome_extensions)
 	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -99,6 +101,18 @@ type Software struct {
 
 func (Software) AuthzType() string {
 	return "software"
+}
+
+// PopulateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (s *Software) PopulateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch s.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		s.Browser = s.ExtensionFor
+	default:
+		s.Browser = ""
+	}
 }
 
 // ToUniqueStr creates a unique string representation of the software
@@ -187,6 +201,8 @@ type SoftwareTitle struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the browser type this extension is for (e.g., "chrome", "firefox", "safari")
 	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -216,6 +232,30 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 }
 
+// PopulateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (st *SoftwareTitle) PopulateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch st.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		st.Browser = st.ExtensionFor
+	default:
+		st.Browser = ""
+	}
+}
+
+// PopulateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (st *SoftwareTitleListResult) PopulateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch st.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		st.Browser = st.ExtensionFor
+	default:
+		st.Browser = ""
+	}
+}
+
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
 // SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
 // the above type is used when fetching them individually.
@@ -229,6 +269,8 @@ type SoftwareTitleListResult struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionFor is the browser type this extension is for (e.g., "chrome", "firefox", "safari")
 	ExtensionFor string `json:"extension_for,omitempty" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.

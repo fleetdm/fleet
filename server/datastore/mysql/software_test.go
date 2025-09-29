@@ -2026,7 +2026,7 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 			require.NoError(
 				t, ds.writer(ctx).GetContext(
 					ctx, &titleID,
-					`SELECT s.title_id FROM software s INNER JOIN software_titles st ON (s.name = st.name AND s.source = st.source AND s.browser = st.browser) WHERE st.id = ?`,
+					`SELECT s.title_id FROM software s INNER JOIN software_titles st USING (name, source, extension_for) WHERE st.id = ?`,
 					sw.ID,
 				),
 			)

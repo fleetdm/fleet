@@ -1310,7 +1310,7 @@ func selectSoftwareSQL(opts fleet.SoftwareListOptions) (string, []interface{}, e
 		"s.source",
 		"s.bundle_identifier",
 		"s.extension_id",
-		"s.browser",
+		"s.extension_for",
 		"s.release",
 		"s.vendor",
 		"s.arch",

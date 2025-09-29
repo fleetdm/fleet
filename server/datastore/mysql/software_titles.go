@@ -42,7 +42,7 @@ SELECT
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
@@ -60,7 +60,7 @@ GROUP BY
 	st.id,
 	st.name,
 	st.source,
-	st.browser,
+	st.extension_for,
 	st.bundle_identifier,
 	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
@@ -348,8 +348,8 @@ func spliceSecondaryOrderBySoftwareTitlesSQL(stmt string, opts fleet.ListOptions
 	if k != "source" {
 		secondaryOrderBy += ", source ASC"
 	}
-	if k != "browser" {
-		secondaryOrderBy += ", browser ASC"
+	if k != "extension_for" {
+		secondaryOrderBy += ", extension_for ASC"
 	}
 
 	return strings.Replace(stmt, targetSubstr, targetSubstr+secondaryOrderBy, 1)
@@ -361,7 +361,7 @@ SELECT
 	st.id
 	,st.name
 	,st.source
-	,st.browser
+	,st.extension_for
 	,st.bundle_identifier
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at

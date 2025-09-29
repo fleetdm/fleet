@@ -46,6 +46,8 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = sw.CountsUpdatedAt
 		}
+		// Populate browser field for browser extensions
+		sw.PopulateBrowserField()
 	}
 	listResp := listSoftwareResponse{Software: resp}
 	if !latest.IsZero() {
@@ -83,6 +85,8 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 		if !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = sw.CountsUpdatedAt
 		}
+		// Populate browser field for browser extensions
+		sw.PopulateBrowserField()
 	}
 	listResp := listSoftwareVersionsResponse{Software: resp, Meta: meta}
 	if !latest.IsZero() {
@@ -152,6 +156,9 @@ func getSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	if err != nil {
 		return getSoftwareResponse{Err: err}, nil
 	}
+
+	// Populate browser field for browser extensions
+	software.PopulateBrowserField()
 
 	return getSoftwareResponse{Software: software}, nil
 }
