@@ -42,8 +42,6 @@ func listSoftwareTitlesEndpoint(ctx context.Context, request interface{}, svc fl
 		if sw.CountsUpdatedAt != nil && !sw.CountsUpdatedAt.IsZero() && sw.CountsUpdatedAt.After(latest) {
 			latest = *sw.CountsUpdatedAt
 		}
-		// Populate browser field for browser extensions
-		sw.PopulateBrowserField()
 		// we dont want to include the InstallDuringSetup field in the response
 		// for software titles list.
 		if sw.SoftwarePackage != nil {
@@ -135,9 +133,6 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 	if err != nil {
 		return getSoftwareTitleResponse{Err: err}, nil
 	}
-
-	// Populate browser field for browser extensions
-	software.PopulateBrowserField()
 
 	return getSoftwareTitleResponse{SoftwareTitle: software}, nil
 }

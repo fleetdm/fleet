@@ -103,9 +103,9 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
-// PopulateBrowserField populates the browser field for backwards compatibility
+// populateBrowserField populates the browser field for backwards compatibility
 // see https://github.com/fleetdm/fleet/pull/31760/files
-func (s *Software) PopulateBrowserField() {
+func (s *Software) populateBrowserField() {
 	// Only populate browser field for browser extension sources
 	switch s.Source {
 	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
@@ -115,9 +115,10 @@ func (s *Software) PopulateBrowserField() {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
 func (s *Software) MarshalJSON() ([]byte, error) {
-	s.PopulateBrowserField()
+	s.populateBrowserField()
 	type Alias Software
 	return json.Marshal((*Alias)(s))
 }
@@ -239,9 +240,9 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 }
 
-// PopulateBrowserField populates the browser field for backwards compatibility
+// populateBrowserField populates the browser field for backwards compatibility
 // see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitle) PopulateBrowserField() {
+func (st *SoftwareTitle) populateBrowserField() {
 	// Only populate browser field for browser extension sources
 	switch st.Source {
 	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
@@ -251,16 +252,17 @@ func (st *SoftwareTitle) PopulateBrowserField() {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
 func (st *SoftwareTitle) MarshalJSON() ([]byte, error) {
-	st.PopulateBrowserField()
+	st.populateBrowserField()
 	type Alias SoftwareTitle
 	return json.Marshal((*Alias)(st))
 }
 
-// PopulateBrowserField populates the browser field for backwards compatibility
+// populateBrowserField populates the browser field for backwards compatibility
 // see https://github.com/fleetdm/fleet/pull/31760/files
-func (st *SoftwareTitleListResult) PopulateBrowserField() {
+func (st *SoftwareTitleListResult) populateBrowserField() {
 	// Only populate browser field for browser extension sources
 	switch st.Source {
 	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
@@ -270,9 +272,10 @@ func (st *SoftwareTitleListResult) PopulateBrowserField() {
 	}
 }
 
-// MarshalJSON implements json.Marshaler interface
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
 func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
-	st.PopulateBrowserField()
+	st.populateBrowserField()
 	type Alias SoftwareTitleListResult
 	return json.Marshal((*Alias)(st))
 }

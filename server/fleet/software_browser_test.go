@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestSoftware_PopulateBrowserField(t *testing.T) {
+func TestSoftware_populateBrowserField(t *testing.T) {
 	tests := []struct {
 		name            string
 		software        Software
@@ -72,13 +72,13 @@ func TestSoftware_PopulateBrowserField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.software.PopulateBrowserField()
+			tt.software.populateBrowserField()
 			require.Equal(t, tt.expectedBrowser, tt.software.Browser)
 		})
 	}
 }
 
-func TestSoftwareTitle_PopulateBrowserField(t *testing.T) {
+func TestSoftwareTitle_populateBrowserField(t *testing.T) {
 	tests := []struct {
 		name            string
 		softwareTitle   SoftwareTitle
@@ -144,13 +144,13 @@ func TestSoftwareTitle_PopulateBrowserField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.softwareTitle.PopulateBrowserField()
+			tt.softwareTitle.populateBrowserField()
 			require.Equal(t, tt.expectedBrowser, tt.softwareTitle.Browser)
 		})
 	}
 }
 
-func TestSoftwareTitleListResult_PopulateBrowserField(t *testing.T) {
+func TestSoftwareTitleListResult_populateBrowserField(t *testing.T) {
 	tests := []struct {
 		name                    string
 		softwareTitleListResult SoftwareTitleListResult
@@ -216,7 +216,7 @@ func TestSoftwareTitleListResult_PopulateBrowserField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.softwareTitleListResult.PopulateBrowserField()
+			tt.softwareTitleListResult.populateBrowserField()
 			require.Equal(t, tt.expectedBrowser, tt.softwareTitleListResult.Browser)
 		})
 	}
