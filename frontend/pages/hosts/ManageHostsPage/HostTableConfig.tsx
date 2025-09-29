@@ -177,7 +177,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "hostname",
     id: "hostname",
     Cell: (cellProps: IHostTableStringCellProps) => (
-      <TextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {

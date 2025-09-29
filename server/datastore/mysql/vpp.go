@@ -572,9 +572,11 @@ func (ds *Datastore) GetVPPApps(ctx context.Context, teamID *uint) ([]fleet.VPPA
 
 	// intentionally using writer as this is called right after batch-setting VPP apps
 	if err := sqlx.SelectContext(ctx, ds.writer(ctx), &results, `
-		SELECT vat.team_id, va.title_id, vat.adam_id app_store_id, vat.platform
+		SELECT vat.team_id, va.title_id, vat.adam_id AS app_store_id, vat.platform,
+			COALESCE(icons.filename, '') AS icon_filename, COALESCE(icons.storage_id, '') AS icon_hash_sha256
 		FROM vpp_apps_teams vat
 		JOIN vpp_apps va ON va.adam_id = vat.adam_id AND va.platform = vat.platform
+		LEFT JOIN software_title_icons icons ON va.title_id = icons.software_title_id AND vat.global_or_team_id = icons.team_id
 		WHERE global_or_team_id = ?`, tmID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get VPP apps")
 	}

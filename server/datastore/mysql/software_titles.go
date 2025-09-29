@@ -37,7 +37,6 @@ func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uin
 
 	// Select software title but filter out if the software has zero host counts
 	// and it's not an installer or VPP app.
-
 	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
