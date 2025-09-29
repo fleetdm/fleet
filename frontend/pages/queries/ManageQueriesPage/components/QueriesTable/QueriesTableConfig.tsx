@@ -2,7 +2,6 @@
 // disable this rule as it was throwing an error in Header and Cell component
 // definitions for the selection row for some reason when we dont really need it.
 import React from "react";
-import { formatDistanceToNow } from "date-fns";
 import PATHS from "router/paths";
 
 import { secondsToDhms } from "utilities/helpers";
@@ -40,6 +39,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import InheritedBadge from "components/InheritedBadge";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 interface IQueryRow {
   id: string;
@@ -269,10 +269,10 @@ const generateColumnConfigs = ({
       accessor: "updated_at",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
         <TextCell
-          value={formatDistanceToNow(new Date(cellProps.cell.value), {
-            includeSeconds: true,
-            addSuffix: true,
-          })}
+          value={cellProps.cell.value}
+          formatter={(updatedAt) => (
+            <HumanTimeDiffWithDateTip timeString={updatedAt} />
+          )}
         />
       ),
     },
