@@ -525,3 +525,18 @@ $max-width: 2560px;
   background-repeat: no-repeat;
   background-color: #fff; // area below gradient will just be white
 }
+
+@mixin content-wrapper {
+  .outer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-large;
+  }
+  .inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $pad-small;
+  }
+}

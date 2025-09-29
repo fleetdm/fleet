@@ -9,22 +9,8 @@
   font-size: $x-small;
   text-align: center;
   
-  
   .content-wrapper {
-
-    .outer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-large;
-    }
-
-    .inner {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: $pad-small;
-    }
+    @include content-wrapper();
   }
 
   // when the file preview is showing, we want the padding to be

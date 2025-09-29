@@ -2,7 +2,6 @@ import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import { ISecretPayload } from "interfaces/secrets";
-import { IFleetApiError } from "interfaces/errors";
 import secretsAPI from "services/entities/secrets";
 import { NotificationContext } from "context/notification";
 // @ts-ignore
@@ -69,7 +68,6 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
         if (error.status === 409) {
           renderFlash("error", "A secret with this name already exists.");
         } else {
-          console.log(getReasonFromErrors(error));
           renderFlash(
             "error",
             "An error occurred while saving the secret. Please try again."
