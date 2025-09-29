@@ -1740,6 +1740,32 @@ parasails.registerPage('configuration-builder', {
     // windows payloads
     windowsCategoriesAndPayloads: [
       {
+        categoryName: 'Date & time',
+        categorySlug: 'windows-date-and-time',
+        subcategorySlug: 'windows-date-and-time',
+        subcategoryName: 'Date & time',
+        description: 'Settings related to screen lock and passwords.',
+        learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-devicelock',
+        payloads: [
+          {
+            name: 'Allow users to change date and time settings',
+            uniqueSlug: 'windows-device-lock-enable-device-lock',
+            tooltip: 'Allows the user to change date and time settings.',
+            category: 'Date & time',
+            supportedAccessTypes: ['add', 'replace'],
+            formInput: {
+              type: 'boolean',
+            },
+            formOutput: {
+              settingFormat: 'int',
+              settingTarget: './Device/Vendor/MSFT/Policy/Config/Settings/AllowDateTime',
+              trueValue: 1,
+              falseValue: 0,
+            },
+          },
+        ],
+      },
+      {
         categoryName: 'Privacy & security',
         categorySlug: 'windows-privacy-and-security',
         subcategories: [
@@ -2200,6 +2226,220 @@ parasails.registerPage('configuration-builder', {
                 formOutput: {
                   settingFormat: 'int',
                   settingTarget: './Device/Vendor/MSFT/Policy/Config/SmartScreen/EnableAppInstallControl',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Personalization',
+            subcategorySlug: 'windows-personalization',
+            description: 'Settings for personalizing a Windows devices.',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            payloads: [
+              {
+                name: 'Allow personalization policies on non-EDU versions of Windows',
+                tooltip: `Allows Personalization CSPs to be deployed on non-Enterprise versions of Windows. Setting this value to true triggers the action to configure a device as education environment. Thorough testing is crucial to ensure it does not disrupt workflows or create compatibility issues.`,
+                uniqueSlug: 'windows-allow-personalization-policies',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'bool',
+                  settingTarget: './Vendor/MSFT/SharedPC/SetEduPolicies',
+                  trueValue: true,
+                  falseValue: false,
+                },
+              },
+              {
+                name: 'Set wallpaper from a URL',
+                tooltip: `Sets a device's wallpaper from a URL.`,
+                uniqueSlug: 'windows-set-wallpaper-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/DesktopImageUrl',
+                },
+              },
+              {
+                name: 'Set lockscreen image from a URL',
+                tooltip: `Sets a device's lockscreen image from a URL.`,
+                uniqueSlug: 'windows-set-lockscreen-url',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                alsoAutoSetWhenSelected: [
+                  {
+                    dependingOnSettingSlug: 'windows-allow-personalization-policies',
+                    dependingOnSettingValue: true,
+                  }
+                ],
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Vendor/MSFT/Personalization/LockScreenImageUrl',
+                },
+              },
+              {
+                name: 'Set device name',
+                tooltip: `This policy setting lets you configure whether to turn on Windows Defender SmartScreen in Microsoft Edge.`,
+                uniqueSlug: 'windows-set-device-name',
+                category: 'Personalization',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'text',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './Device/Vendor/MSFT/DeviceName',
+                },
+              },
+            ],
+          },
+          {
+            subcategoryName: 'Functionality',
+            subcategorySlug: 'windows-functionality',
+            description: 'Settings that restrict specific windows features',// TODO: improve/rewrite.
+            learnMoreLinkUrl: 'https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-smartscreen',
+            payloads: [
+              // { TODO: research this.
+              //   name: 'Enable advanced powershell logging',
+              //   tooltip: `Allows Personalization CSPs to be deployed on non-Enterprise versions of Windows. Setting this value to true triggers the action to configure a device as education environment. Thorough testing is crucial to ensure it does not disrupt workflows or create compatibility issues.`,
+              //   uniqueSlug: 'windows-allow-personalization-policies',
+              //   category: 'Personalization',
+              //   supportedAccessTypes: ['add', 'replace'],
+              //   formInput: {
+              //     type: 'boolean',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'int',
+              //     settingTarget: './Vendor/MSFT/SharedPC/SetEduPolicies',
+              //     trueValue: ``,
+              //     falseValue: false,
+              //   },
+              // },
+              {
+                name: 'Disable AI data analysis',
+                tooltip: `Whether snapshots of the screen can be saved for use with Recall. By default, snapshots for Recall aren't enabled. IT administrators can't, on their own, enable saving snapshots on behalf of their users. If you set this policy to disabled, end users will have a choice to save snapshots of their screen and use Recall to find things they've seen on their device.`,
+                uniqueSlug: 'windows-disable-ai-analysis',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/WindowsAI/DisableAIDataAnalysis',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable clipboard history',
+                tooltip: `Whether the history of clipboard contents can be stored in memory.`,
+                uniqueSlug: 'windows-disable-clipboard-history',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowClipboardHistory',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              // {
+              //   name: 'Disable Cortana',
+              //   tooltip: `Whether Cortana is allowed on the device`,
+              //   uniqueSlug: 'windows-disable-cortana',
+              //   category: 'Functionality',
+              //   supportedAccessTypes: ['add', 'replace'],
+              //   formInput: {
+              //     type: 'boolean',
+              //   },
+              //   formOutput: {
+              //     settingFormat: 'int',
+              //     settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowCortana',
+              //     trueValue: 0,
+              //     falseValue: 1,
+              //   },
+              // },
+              {
+                name: 'Disable screen capture',
+                tooltip: `Whether screen capture is disabled on the device.`,
+                uniqueSlug: 'windows-disable-screen-capture',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/Experience/AllowScreenCapture',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable Windows spotlight',
+                tooltip: `Whether to turn off all Windows spotlight features.`,
+                uniqueSlug: 'windows-disable-windows-spotlight',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Experience/AllowWindowsSpotlight',
+                  trueValue: 0,
+                  falseValue: 1,
+                },
+              },
+              {
+                name: 'Disable OneDrive',
+                tooltip: `Prevent apps and features from working with files on OneDrive`,
+                uniqueSlug: 'windows-disable-onedrive',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'int',
+                  settingTarget: './Device/Vendor/MSFT/Policy/Config/System/DisableOneDriveFileSync',
+                  trueValue: 1,
+                  falseValue: 0,
+                },
+              },
+              {
+                name: 'Disable quick setting panel',
+                tooltip: `Remove the quick settings from the bottom right area on the taskbar.`,
+                uniqueSlug: 'windows-disable-quick-settings',
+                category: 'Functionality',
+                supportedAccessTypes: ['add', 'replace'],
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'chr',
+                  settingTarget: './User/Vendor/MSFT/Policy/Config/Start/DisableControlCenter',
+                  trueValue: 1,
+                  falseValue: 0,
                 },
               },
             ],
