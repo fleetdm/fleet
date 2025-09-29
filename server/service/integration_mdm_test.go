@@ -17918,12 +17918,11 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	t := s.T()
 	ctx := context.Background()
 
-	// TODO(mna): complete this repro integration test
-
 	// create an MDM-enrolled Windows host
 	host, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
 
-	// update its serial number to empty, to simulate the DreamQuest device where this can happen
+	// update its serial number to empty, to simulate the DreamQuest device (and
+	// others) where this can happen
 	host.HardwareSerial = ""
 	err := s.ds.UpdateHost(ctx, host)
 	require.NoError(t, err)
@@ -17987,7 +17986,8 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
 
-	// TODO: re-enroll the host with the same MDM device hw id, simulating that another user received the wiped host
+	// re-enroll the host with the same MDM device hw id, simulating that another
+	// user received the wiped host
 	newOrbitKey := uuid.New().String()
 	newHost, err := s.ds.EnrollOrbit(ctx,
 		fleet.WithEnrollOrbitMDMEnabled(true),
@@ -17998,9 +17998,19 @@ func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
 		fleet.WithEnrollOrbitNodeKey(newOrbitKey),
 	)
 	require.NoError(t, err)
-
 	// it re-enrolled using a different host record
 	require.NotEqual(t, host.ID, newHost.ID)
+	newHost.OrbitNodeKey = &newOrbitKey
+
+	// now re-enroll in MDM for the new host but with the same device ID
+	newHostDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *newHost.OrbitNodeKey)
+	newHostDevice.DeviceID = winMDMClient.DeviceID
+	err = newHostDevice.Enroll()
+	require.NoError(t, err)
+	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
 
 	// refresh the host's status, it should not 500
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
