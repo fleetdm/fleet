@@ -64,18 +64,6 @@ func getBool(k string, def bool) bool {
 	return b
 }
 
-func getInt(k string, def int) int {
-	v := strings.TrimSpace(os.Getenv(k))
-	if v == "" {
-		return def
-	}
-	i, err := strconv.Atoi(v)
-	if err != nil {
-		return def
-	}
-	return i
-}
-
 // getUint32 reads k, parses a base-10 unsigned integer with 32-bit size,
 // clamps to [minVal, maxVal], and returns def if missing/invalid.
 // minVal/maxVal let you enforce sensible bounds (e.g., min 1 for thresholds).
