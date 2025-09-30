@@ -86,6 +86,7 @@ func TestV4732MigrationFix(t *testing.T) {
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
 
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, fleet4732BadMigrationID1)
+	require.NoError(t, err)
 	status, err = ds.MigrationStatus(context.Background())
 	require.NoError(t, err)
 	require.NotNil(t, status)

@@ -143,7 +143,7 @@ func printFleetv4732UnknownStateMessage(statusCode fleet.MigrationStatusCode) {
 	if statusCode == fleet.NeedsFleetv4732Fix {
 		extra = "the automatic fix did not result in the expected state."
 	}
-	fmt.Printf("################################################################################\n" +
+	fmt.Print("################################################################################\n" +
 		"# WARNING:\n" +
 		"#   Your Fleet database has misnumbered migrations introduced in some released\n" +
 		"#   v4.73.2 artifacts. Fleet attempts to fix this problem automatically, however\n" +
