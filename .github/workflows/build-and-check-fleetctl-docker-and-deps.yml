@@ -73,12 +73,16 @@ jobs:
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
             fleetdm/fleetctl
 
+      - name: Create tmp directory
+        run: |
+          mkdir ~/tmp
+
       - name: Run Trivy vulnerability scanner on fleetdm/wix
         uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # 0.30.0
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-          TMPDIR: /tmp # To avoid "no space left on device" issues in runners.
+          TMPDIR: ~/tmp # To avoid "no space left on device" issues in runners.
         with:
           image-ref: "fleetdm/wix"
           format: "table"
@@ -92,7 +96,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-          TMPDIR: /tmp # To avoid "no space left on device" issues in runners.
+          TMPDIR: ~/tmp # To avoid "no space left on device" issues in runners.
         with:
           image-ref: "fleetdm/bomutils"
           format: "table"
