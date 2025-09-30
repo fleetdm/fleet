@@ -445,7 +445,7 @@ func (ds *Datastore) CheckFleetv4732BadMigrations(appliedTable []int64) *fleet.M
 	if len(appliedTable) > 2 &&
 		appliedTable[len(appliedTable)-1] == fleet4732BadMigrationID1 &&
 		appliedTable[len(appliedTable)-2] == fleet4732BadMigrationID2 &&
-		appliedTable[len(appliedTable)-3] != fleet4731GoodMigrationID {
+		appliedTable[len(appliedTable)-3] == fleet4731GoodMigrationID {
 		return &fleet.MigrationStatus{
 			StatusCode: fleet.NeedsFleetv4732Fix,
 		}
