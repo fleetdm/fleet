@@ -9519,7 +9519,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 - [List software](#list-software)
 - [List software versions](#list-software-versions)
-- [ systems](#list-operating-systems)
+- [List operating systems](#list-operating-systems)
 - [Get software](#get-software)
 - [Get software version](#get-software-version)
 - [Get operating system version](#get-operating-system-version)
