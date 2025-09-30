@@ -29,6 +29,7 @@ env:
   REGISTRY: "ghcr.io"
   ORGANISATION: ${{ github.repository_owner }}
   REPOSITORY: ${{ github.event.repository.name }}
+  BINARY_NAME: fleet
 
 # =============================================================================
 # JOBS
@@ -86,13 +87,13 @@ jobs:
             mkdir -p ./artifacts
             arch0=${architectures[0]}
             arch1=${architectures[1]}
-            lipo -create ./build_target/orbit-mac-${arch0} ./build_target/orbit-mac-${arch1} -output ./artifacts/${{ matrix.artifact_name }}
-            lipo -info ./artifacts/${{ matrix.artifact_name }}
+            lipo -create ./build_target/orbit-mac-${arch0} ./build_target/orbit-mac-${arch1} -output ./artifacts/${{ env.BINARY_NAME }}
+            lipo -info ./artifacts/${{ env.BINARY_NAME }}
             ls -la ./artifacts
             rm -rf ./build_target
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mkdir -p ./artifacts
-            env GOARCH=${{ matrix.go_arch }} go build -o ./artifacts/orbit-"${{ matrix.go_arch }}" ./orbit/cmd/orbit
+            env GOARCH=${{ matrix.go_arch }} go build -o ./artifacts/${{ env.BINARY_NAME }}.exe ./orbit/cmd/orbit
             ls -la ./artifacts
           fi
 
@@ -106,5 +107,4 @@ jobs:
           apple_id_username: ${{ secrets.APPLE_ID_USERNAME }}
           apple_id_password: ${{ secrets.APPLE_ID_PASSWORD }}
           apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
-          binary_name: ${{ matrix.artifact_name }}
-          app_name: FleetAgent
+          binary_name: ${{ env.BINARY_NAME }}

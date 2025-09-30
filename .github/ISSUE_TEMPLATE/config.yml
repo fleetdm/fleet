@@ -1,9 +1,0 @@
-blank_issues_enabled: false
-contact_links:
-  - name: Chat with other users
-    url: https://fleetdm.com/support
-    about: Please ask and answer questions here.
-  - name: Documentation
-    url: https://fleetdm.com/documentation
-    about: Read about how to use, deploy, and configure Fleet.
-

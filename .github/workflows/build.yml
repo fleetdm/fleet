@@ -24,6 +24,7 @@ env:
   REGISTRY: "ghcr.io"
   ORGANISATION: ${{ github.repository_owner }}
   REPOSITORY: ${{ github.event.repository.name }}
+  BINARY_NAME: fleet
 
 # =============================================================================
 # JOBS
@@ -49,11 +50,7 @@ jobs:
           - os: windows-latest
             go_os: windows
             go_arch: amd64
-            artifact_name: fleet-windows-amd64.exe
-          # - os: windows-latest
-          #   go_os: windows
-          #   go_arch: 386
-          #   artifact_name: fleet-windows-i386.exe
+            artifact_name: fleet-windows-amd64
          
     steps:
       - name: Checkout
@@ -74,20 +71,20 @@ jobs:
             architectures=($(echo '${{ toJSON(matrix.go_arch) }}' | jq -r '.[]'))
             for arch in "${architectures[@]}"; do
               echo "Building for ${{ matrix.go_os }}/${arch}"
-              env GOARCH=${arch} go build -o ./build_target/orbit-mac-${arch} ./orbit/cmd/orbit
+              env GOARCH=${arch} go build -o ./build_target/fleet-${arch} ./orbit/cmd/orbit
             done
             ls -la ./build_target
             echo "Create ${{ matrix.artifact_name }}"
             mkdir -p ./artifacts
             arch0=${architectures[0]}
             arch1=${architectures[1]}
-            lipo -create ./build_target/orbit-mac-${arch0} ./build_target/orbit-mac-${arch1} -output ./artifacts/${{ matrix.artifact_name }}
-            lipo -info ./artifacts/${{ matrix.artifact_name }}
+            lipo -create ./build_target/fleet-${arch0} ./build_target/fleet-${arch1} -output ./artifacts/${{ env.BINARY_NAME }}
+            lipo -info ./artifacts/${{ env.BINARY_NAME }}
             ls -la ./artifacts
             rm -rf ./build_target
           elif [[ "${{ matrix.os }}" == "windows-latest" ]]; then
             mkdir -p ./artifacts
-            env GOARCH=${{ matrix.go_arch }} go build -o ./artifacts/orbit-"${{ matrix.go_arch }}" ./orbit/cmd/orbit
+            env GOARCH=${{ matrix.go_arch }} go build -o ./artifacts/${{ env.BINARY_NAME }}.exe ./orbit/cmd/orbit
             ls -la ./artifacts
           fi
 
@@ -101,8 +98,7 @@ jobs:
           apple_id_username: ${{ secrets.APPLE_ID_USERNAME }}
           apple_id_password: ${{ secrets.APPLE_ID_PASSWORD }}
           apple_team_id: ${{ secrets.APPLE_TEAM_ID }}
-          binary_name: ${{ matrix.artifact_name }}
-          app_name: FleetAgent
+          binary_name: ${{ env.BINARY_NAME }}
 
       - name: Upload client artifact
         uses: actions/upload-artifact@v4
