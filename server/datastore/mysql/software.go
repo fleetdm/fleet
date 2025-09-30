@@ -454,9 +454,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				}
 
 				// Update software names for bundle ID matches
-				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-					return err
-				}
+				// TEMPORARILY COMMENTED OUT: Performance issue with updateTargetedBundleIDs SQL statement
+				// TODO: Re-enable after gathering more info and optimizing the query
+				// if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+				// 	return err
+				// }
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
