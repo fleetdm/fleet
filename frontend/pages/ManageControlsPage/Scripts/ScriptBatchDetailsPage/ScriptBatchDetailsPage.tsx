@@ -31,7 +31,7 @@ import paths from "router/paths";
 import ScriptDetailsModal from "pages/hosts/components/ScriptDetailsModal";
 import RunScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/RunScriptDetailsModal";
 
-import BackLink from "components/BackLink";
+import BackButton from "components/BackButton";
 import MainContent from "components/MainContent";
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -246,7 +246,9 @@ const ScriptBatchDetailsPage = ({
 
     return (
       <>
-        <BackLink text="Back to script activity" path={pathToProgress} />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton text="Back to script activity" path={pathToProgress} />
+        </div>
         <SectionHeader
           wrapperCustomClass={`${baseClass}__header`}
           title={script_name}
@@ -258,7 +260,7 @@ const ScriptBatchDetailsPage = ({
                 {
                   type: "secondary",
                   label: "Show script",
-                  buttonVariant: "text-icon",
+                  buttonVariant: "inverse",
                   iconName: "eye",
                   onClick: () => {
                     setShowBatchScriptDetails(true);

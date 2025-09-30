@@ -373,6 +373,10 @@ func TestGitOpsBasicGlobalPremium(t *testing.T) {
 		return &storedCAs, nil
 	}
 
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
+
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 
@@ -595,6 +599,9 @@ func TestGitOpsBasicTeam(t *testing.T) {
 	}
 	ds.GetLabelSpecsFunc = func(ctx context.Context) ([]*fleet.LabelSpec, error) {
 		return nil, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -825,6 +832,9 @@ func TestGitOpsFullGlobal(t *testing.T) {
 	}
 	ds.NewJobFunc = func(ctx context.Context, job *fleet.Job) (*fleet.Job, error) {
 		return job, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	// Policies
@@ -1144,6 +1154,9 @@ func TestGitOpsFullTeam(t *testing.T) {
 	}
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
 	}
 
 	// Mock DefaultTeamConfig functions for No Team webhook settings
@@ -1555,6 +1568,9 @@ func TestGitOpsBasicGlobalAndTeam(t *testing.T) {
 	ds.ListQueriesFunc = func(ctx context.Context, opts fleet.ListQueryOptions) ([]*fleet.Query, int, *fleet.PaginationMetadata, error) {
 		return nil, 0, nil, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
 
 	testing_utils.AddLabelMocks(ds)
 
@@ -1859,6 +1875,9 @@ func TestGitOpsBasicGlobalAndNoTeam(t *testing.T) {
 		return nil
 	}
 	ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+		return nil
+	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 		return nil
 	}
 
@@ -2363,6 +2382,9 @@ func TestGitOpsFullGlobalAndTeam(t *testing.T) {
 	ds.GetSoftwareCategoryIDsFunc = func(ctx context.Context, names []string) ([]uint, error) {
 		return []uint{}, nil
 	}
+	ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
+		return nil
+	}
 
 	apnsCert, apnsKey, err := mysql.GenerateTestCertBytes(mdmtesting.NewTestMDMAppleCertTemplate())
 	require.NoError(t, err)
@@ -2588,6 +2610,9 @@ func TestGitOpsCustomSettings(t *testing.T) {
 				return nil
 			}
 			ds.BatchInsertVPPAppsFunc = func(ctx context.Context, apps []*fleet.VPPApp) error {
+				return nil
+			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 				return nil
 			}
 
@@ -2926,6 +2951,9 @@ software:
 			}
 
 			ds.SaveABMTokenFunc = func(ctx context.Context, tok *fleet.ABMToken) error {
+				return nil
+			}
+			ds.DeleteIconsAssociatedWithTitlesWithoutInstallersFunc = func(ctx context.Context, teamID uint) error {
 				return nil
 			}
 

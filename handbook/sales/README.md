@@ -98,7 +98,7 @@ In order to be transparent, Fleet sends order forms within 30 days of opportunit
 
 > **IMPORTANT** To ensure product language is consistent, any changes to the standard order form template (including subscription appendix) must be submitted to ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93) for approval. Any "Free" or "Initial deployment period" greater than three (3) months requires CEO approval. 
 
-4. In the internal Slack channel for the deal, `@`mention the `@order-form-review` Slack group with a link to the docx version of the order and ask them to approve the order form.
+4. In the [#help-order-forms Slack channel](https://fleetdm.slack.com/archives/C09G32R99M2) `@`-mention the VP of Customer Success (for post-sale), or the CRO (pre-sale), and [Deal Desk](https://fleetdm.com/handbook/finance#team) with a link to the docx version of the order and ask them to approve the order form.
 5. Once approved, copy the Google Doc URL to the "Order form URL" field on the Salesforce opportunity and send the order to the prospect. 
 
 > Every week, any proposal not sent within 30 days of its creation in Salesforce should be reviewed and "Closed lost". The review of these opportunities and exceptions for them of one (1) week or less is the responsibility of the sales manager.  For exceptions of more than one week, escalate to the CEO.

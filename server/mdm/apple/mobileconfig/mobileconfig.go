@@ -10,9 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/variables"
 
-	// we are using this package as we were having issues with pasrsing signed apple
-	// mobileconfig profiles with the pcks7 package we were using before.
-	cms "github.com/github/smimesign/ietf-cms"
 	"howett.net/plist"
 )
 
@@ -86,22 +83,12 @@ type Parsed struct {
 	PayloadScope       string
 }
 
-func (mc Mobileconfig) isSignedProfile() bool {
+func (mc Mobileconfig) IsSignedProfile() bool {
+	trimmed := bytes.TrimSpace(mc)
+	if bytes.HasPrefix(trimmed, []byte("${FLEET_")) || bytes.HasPrefix(trimmed, []byte("$FLEET_")) {
+		return false // Not a signed profile since it only contains secret variable.
+	}
 	return !bytes.HasPrefix(bytes.TrimSpace(mc), []byte("<?xml"))
-}
-
-// getSignedProfileData attempts to parse the signed mobileconfig and extract the
-// profile byte data from it.
-func getSignedProfileData(mc Mobileconfig) (Mobileconfig, error) {
-	signedData, err := cms.ParseSignedData(mc)
-	if err != nil {
-		return nil, fmt.Errorf("mobileconfig is not XML nor PKCS7 parseable: %w", err)
-	}
-	data, err := signedData.GetData()
-	if err != nil {
-		return nil, fmt.Errorf("could not get profile data from the signed mobileconfig: %w", err)
-	}
-	return Mobileconfig(data), nil
 }
 
 // ParseConfigProfile attempts to parse the Mobileconfig byte slice as a Fleet MDMAppleConfigProfile.
@@ -114,15 +101,8 @@ func (mc Mobileconfig) ParseConfigProfile() (*Parsed, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
 	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
-	if mc.isSignedProfile() {
-		profileData, err := getSignedProfileData(mc)
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = profileData
-		if variables.ContainsBytes(mcBytes) {
-			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
-		}
+	if mc.IsSignedProfile() {
+		return nil, errors.New("signed profiles are not supported")
 	}
 	var p Parsed
 	if _, err := plist.Unmarshal(mcBytes, &p); err != nil {
@@ -166,15 +146,8 @@ func (mc Mobileconfig) payloadSummary() ([]payloadSummary, error) {
 	mcBytes := mc
 	// Remove Fleet variables expected in <data> section.
 	mcBytes = variables.ProfileDataVariableRegex.ReplaceAll(mcBytes, []byte(""))
-	if mc.isSignedProfile() {
-		profileData, err := getSignedProfileData(mc)
-		if err != nil {
-			return nil, err
-		}
-		mcBytes = profileData
-		if variables.ContainsBytes(mcBytes) {
-			return nil, errors.New("a signed profile cannot contain Fleet variables ($FLEET_VAR_*)")
-		}
+	if mc.IsSignedProfile() {
+		return nil, errors.New("signed profiles are not supported")
 	}
 
 	// unmarshal the values we need from the top-level object

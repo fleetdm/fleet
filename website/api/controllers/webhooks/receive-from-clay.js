@@ -28,7 +28,17 @@ module.exports = {
     },
     contactSource: {
       type: 'string',
-      required: true
+      required: true,
+      isIn: [
+        'Website - Contact forms',
+        'Website - Sign up',
+        'Website - Newsletter',
+        'LinkedIn - Comment',
+        'LinkedIn - Reaction',
+        'LinkedIn - Share',
+        'LinkedIn - Liked the LinkedIn company page',
+        'Event - Engaged with Fleetie at event',
+      ],
     },
     jobTitle: {
       type: 'string',
@@ -38,6 +48,21 @@ module.exports = {
     intentSignal: {
       type: 'string',
       required: true,
+      isIn: [
+        'Followed the Fleet LinkedIn company page',
+        'LinkedIn comment',
+        'LinkedIn share',
+        'LinkedIn reaction',
+        'Fleet channel member in MacAdmins Slack',
+        'Fleet channel member in osquery Slack',
+        'Implemented a trial key',
+        'Engaged with Fleetie at event',
+        'Attended a Fleet happy hour',
+        'Stared the fleetdm/fleet repo on GitHub',
+        'Forked the fleetdm/fleet repo on GitHub',
+        'Subscribed to the Fleet newsletter',
+        'Attended a Fleet training course'
+      ]
     },
     historicalContent: {
       type: 'string',
@@ -54,8 +79,6 @@ module.exports = {
     duplicateContactOrAccountFound: {description: 'A contact or account could not be created because a duplicate record exists.', statusCode: 409 },
     couldNotCreateContactOrAccount: { description: 'A contact or account could not be created in the CRM using the provided information.' },
     couldNotCreateActivity: { description: 'An error occured when trying to create a historical event record in the CRM' },
-    invalidContactOrAccountCriteria: { description: 'A contact or account could not be created in the CRM using the provided information.', responseType: 'badRequest' },
-    invalidHistoricalEventCriteria: { description: 'A historical could not be created in the CRM using the provided information.', responseType: 'badRequest' },
   },
 
 
@@ -78,7 +101,6 @@ module.exports = {
       contactSource,
       jobTitle,
     })
-    .intercept({name: 'UsageError'}, 'invalidContactOrAccountCriteria')
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a contact/account could not be created or updated. Full error: ${require('util').inspect(err)}`);
       if(typeof err.errorCode !== 'undefined' && err.errorCode === 'DUPLICATES_DETECTED') {
@@ -105,7 +127,6 @@ module.exports = {
       eventContentUrl: historicalContentUrl,
       linkedinUrl: trimmedLinkedinUrl,
     })
-    .intercept({name: 'UsageError'}, 'invalidHistoricalEventCriteria')
     .intercept((err)=>{
       sails.log.warn(`When the receive-from-clay webhook received information about LinkedIn activity, a historical event record could not be created. Full error: ${require('util').inspect(err)}`);
       return 'couldNotCreateActivity';

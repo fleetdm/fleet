@@ -56,22 +56,18 @@ const ConfirmSSOInvitePage = ({
   };
 
   return (
-    <AuthenticationFormWrapper>
-      <div className={`${baseClass}`}>
-        <div className={`${baseClass}__lead-wrapper`}>
-          <p className={`${baseClass}__lead-text`}>Welcome to Fleet</p>
-          <p className={`${baseClass}__sub-lead-text`}>
-            Before you get started, please take a moment to complete the
-            following information.
-          </p>
-        </div>
+    <AuthenticationFormWrapper className={baseClass} header="Welcome to Fleet">
+      <>
+        <p className={`${baseClass}__description`}>
+          Please provide your name to get started.
+        </p>
         <ConfirmSSOInviteForm
           className={`${baseClass}__form`}
           formData={inviteFormData}
           handleSubmit={onSubmit}
           serverErrors={errors}
         />
-      </div>
+      </>
     </AuthenticationFormWrapper>
   );
 };

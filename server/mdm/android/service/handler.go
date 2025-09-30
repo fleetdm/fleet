@@ -25,6 +25,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ue.GET("/api/_version_/fleet/android_enterprise", getEnterpriseEndpoint, nil)
 	ue.DELETE("/api/_version_/fleet/android_enterprise", deleteEnterpriseEndpoint, nil)
 	ue.GET("/api/_version_/fleet/android_enterprise/signup_sse", enterpriseSSE, nil)
+	ue.POST("/api/_version_/fleet/hosts/{id}/mdm/unenroll", unenrollAndroidHostEndpoint, androidHostUnenrollRequest{})
 
 	// //////////////////////////////////////////
 	// Unauthenticated endpoints

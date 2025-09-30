@@ -2,11 +2,12 @@ import React, { useState } from "react";
 
 import { IInputFieldParseTarget } from "interfaces/form_field";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
-import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import CustomLink from "components/CustomLink";
 
@@ -71,11 +72,12 @@ const FleetDesktop = ({
   }
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Fleet Desktop" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
-          <p className={`${baseClass}__section-description`}>
+    <SettingsSection title="Fleet Desktop">
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            {" "}
             When an end user clicks “About Fleet” in the Fleet Desktop menu, by
             default they are taken to{" "}
             <CustomLink
@@ -86,34 +88,36 @@ const FleetDesktop = ({
             />{" "}
             . You can override the URL to take them to a resource of your
             choice.
-          </p>
-          <InputField
-            label="Custom transparency URL"
-            onChange={onInputChange}
-            name="transparency_url"
-            value={formData.transparencyUrl}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.transparency_url}
-            placeholder="https://fleetdm.com/transparency"
-            disabled={gitOpsModeEnabled}
-          />
-          <GitOpsModeTooltipWrapper
-            tipOffset={-8}
-            renderChildren={(disableChildren) => (
-              <Button
-                type="submit"
-                disabled={Object.keys(formErrors).length > 0 || disableChildren}
-                className="button-wrap"
-                isLoading={isUpdatingSettings}
-              >
-                Save
-              </Button>
-            )}
-          />
-        </form>
-      </div>
-    </div>
+          </>
+        }
+      />
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <InputField
+          label="Custom transparency URL"
+          onChange={onInputChange}
+          name="transparency_url"
+          value={formData.transparencyUrl}
+          parseTarget
+          onBlur={validateForm}
+          error={formErrors.transparency_url}
+          placeholder="https://fleetdm.com/transparency"
+          disabled={gitOpsModeEnabled}
+        />
+        <GitOpsModeTooltipWrapper
+          tipOffset={-8}
+          renderChildren={(disableChildren) => (
+            <Button
+              type="submit"
+              disabled={Object.keys(formErrors).length > 0 || disableChildren}
+              className="button-wrap"
+              isLoading={isUpdatingSettings}
+            >
+              Save
+            </Button>
+          )}
+        />
+      </form>
+    </SettingsSection>
   );
 };
 

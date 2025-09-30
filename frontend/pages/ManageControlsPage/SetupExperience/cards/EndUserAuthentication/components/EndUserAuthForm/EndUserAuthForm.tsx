@@ -1,10 +1,10 @@
 import React, { useContext, useState } from "react";
-import { Link } from "react-router";
 
 import PATHS from "router/paths";
 import mdmAPI from "services/entities/mdm";
 import classnames from "classnames";
 
+import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
@@ -83,8 +83,11 @@ const EndUserAuthForm = ({
             Android
           </TooltipWrapper>{" "}
           hosts.{" "}
-          <Link to={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}>View IdP</Link>{" "}
-          and <Link to={PATHS.ADMIN_INTEGRATIONS_MDM}>EULA</Link>.
+          <CustomLink
+            url={PATHS.ADMIN_INTEGRATIONS_IDENTITY_PROVIDER}
+            text="View IdP"
+          />{" "}
+          and <CustomLink url={PATHS.ADMIN_INTEGRATIONS_MDM} text="EULA" />.
         </p>
         <GitOpsModeTooltipWrapper
           renderChildren={(disableChildren) => (

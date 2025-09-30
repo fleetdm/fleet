@@ -87,7 +87,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 				return signedBytes
 			}(),
-			shouldFail: false,
+			shouldFail: true,
 		},
 	}
 

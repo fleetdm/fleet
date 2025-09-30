@@ -119,6 +119,11 @@ const mdmService = {
       timeout
     );
   },
+  // Android-specific: admin-initiated unenroll uses POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
+  unenrollAndroidHostFromMdm: (hostId: number, timeout?: number) => {
+    const path = `${endpoints.HOST_MDM(hostId)}/unenroll`;
+    return sendRequest("POST", path, undefined, undefined, timeout);
+  },
   requestCSR: () => {
     const { MDM_REQUEST_CSR } = endpoints;
 

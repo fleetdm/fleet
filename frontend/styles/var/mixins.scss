@@ -40,14 +40,14 @@ $max-width: 2560px;
   // this is the current spacing needed to keep the description looking correct under the sub nav when scrolling.
   top: 104px;
   z-index: 2;
-  background-color: $core-white;
+  background-color: $core-fleet-white;
   margin: 0;
   padding: $pad-xxlarge 0 54px 0;
 }
 
 @mixin grey-badge {
   background-color: $ui-fleet-black-25;
-  color: $core-white;
+  color: $core-fleet-white;
   font-size: $xx-small;
   font-weight: $bold;
   padding: 0 $pad-xsmall;
@@ -139,7 +139,7 @@ $max-width: 2560px;
 }
 
 @mixin grey-text {
-  color: $ui-fleet-black-75;
+  color: $ui-fleet-black-50;
 }
 
 @mixin help-text {
@@ -154,15 +154,20 @@ $max-width: 2560px;
 }
 
 @mixin link {
-  color: $core-vibrant-blue;
+  color: $ui-fleet-black-75;
   font-weight: $bold;
   font-size: $x-small;
   text-decoration: none;
+
+  &:hover {
+    color: $ui-fleet-black-75-over;
+  }
+
   &:focus-visible {
-    outline-color: #d9d9fe;
+    outline-color: $core-focused-outline;
     outline-offset: 3px;
     outline-style: solid;
-    outline-width: 2px;
+    outline-width: 1px;
     border-radius: 2px;
   }
 }
@@ -187,25 +192,6 @@ $max-width: 2560px;
   width: 100%;
 }
 
-@mixin direction-link {
-  display: inline-flex;
-  align-items: center;
-  padding: $pad-small $pad-xxsmall; // larger clickable area
-  border-radius: 3px; // Visible while tabbing;
-  gap: $pad-xsmall;
-
-  &:hover {
-    color: $core-vibrant-blue-over;
-    text-decoration: underline;
-
-    svg {
-      path {
-        stroke: $core-vibrant-blue-over;
-      }
-    }
-  }
-}
-
 @mixin ellipse-text($max-width: auto) {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -224,11 +210,10 @@ $max-width: 2560px;
 }
 
 @mixin color-contrasted-sections {
-  background-color: $ui-off-white;
   .section {
     display: flex;
     flex-direction: column;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     border-radius: 16px;
     border: 1px solid $ui-fleet-black-10;
     padding: $pad-xxlarge;
@@ -240,7 +225,7 @@ $max-width: 2560px;
   width: max-content;
   max-width: 360px;
   padding: 6px;
-  color: $core-white;
+  color: $core-fleet-white;
   background-color: $tooltip-bg;
   font-weight: $regular;
   font-size: $xx-small;
@@ -261,19 +246,28 @@ $max-width: 2560px;
   }
 }
 
-@mixin flex-column-1rem-gap {
+@mixin flex-column-24px-gap {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: $gap-page-component;
 }
 
-@mixin page {
-  @include flex-column-1rem-gap;
+@mixin vertical-form-layout {
+  @include flex-column-24px-gap;
 }
 
-@mixin form-button-extra-clickable-area-compensation {
-  // compensate in layout for extra clickable area button height
-  margin: -8px 0;
+@mixin vertical-page-layout {
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any card level styling we need
+@mixin vertical-card-layout {
+  @include flex-column-24px-gap;
+}
+
+// Separate in case there's any tab level styling we need
+@mixin vertical-page-tab-panel-layout {
+  @include flex-column-24px-gap;
 }
 
 @mixin button-dropdown {
@@ -325,7 +319,7 @@ $max-width: 2560px;
 
         // When tabbing
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-fleet-black;
           outline-offset: 1px;
           border-radius: 4px;
         }
@@ -429,13 +423,14 @@ $max-width: 2560px;
     align-items: center;
     height: 100%;
     padding: 0 16px;
-    color: $core-fleet-black;
+    color: $ui-fleet-black-75;
     font-weight: $regular;
     text-decoration: none;
+    border-bottom: none;
     cursor: pointer;
 
     &:hover {
-      color: $core-vibrant-blue;
+      color: $ui-fleet-black-75-over;
     }
   }
 
@@ -443,7 +438,7 @@ $max-width: 2560px;
     background-color: $ui-fleet-black-5;
     a {
       font-weight: $bold;
-      color: $ui-fleet-black-75;
+      color: $core-fleet-black;
       * > .__react_component_tooltip {
         font-weight: initial;
       }
@@ -464,4 +459,69 @@ $max-width: 2560px;
     margin: 0;
     @include help-text;
   }
+}
+
+@mixin bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
+  // Light underline always visible
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 1px;
+    width: 100%;
+    background: $inactive-color;
+    pointer-events: none;
+    transform: scaleX(1);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+    pointer-events: none;
+  }
+
+  // Dark underline, animates in
+  &::after {
+    content: "";
+    display: block;
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 1px;
+    width: 100%;
+    background: $active-color;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s ease;
+    pointer-events: none;
+  }
+}
+
+// Caution: LinkCell depends on this to have animation only under text and not icons etc
+@mixin animated-bottom-border(
+  $active-color: $core-fleet-black,
+  $inactive-color: $ui-fleet-black-25
+) {
+  position: relative;
+  margin-bottom: -1px;
+
+  &:hover {
+    margin-bottom: -1px; // Account for underline height, removed for link-cell truncated
+  }
+
+  @include bottom-border($active-color, $inactive-color);
+
+  &:hover::after,
+  &:focus::after {
+    transform: scaleX(1);
+  }
+}
+
+@mixin gradient-background {
+  background: linear-gradient(180deg, #eff6fa 0%, #fff 100%);
+  background-size: 100% 150px; // Must do this or gradient can be different heights on different pages
+  background-repeat: no-repeat;
+  background-color: #fff; // area below gradient will just be white
 }
