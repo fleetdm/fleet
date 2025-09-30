@@ -484,7 +484,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 // updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
 // softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error { //nolint:unused
 	if len(softwareRenames) == 0 {
 		return nil
 	}
