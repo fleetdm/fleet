@@ -2043,6 +2043,8 @@ func (ds *Datastore) MDMTurnOff(ctx context.Context, uuid string) error {
 			return ctxerr.Wrap(ctx, err, "deleting mdm-related upcoming activities for host")
 		}
 
+		// TODO(mna): this is where we'd need to create corresponding "past" activities
+		// for "canceled" VPP app installs.
 		if err := ds.markAllPendingVPPInstallsAsFailedForHost(ctx, tx, host.ID); err != nil {
 			return ctxerr.Wrap(ctx, err, "marking pending vpp installs as failed for host")
 		}
