@@ -67,6 +67,8 @@ by an exit code of zero.`,
 			switch status.StatusCode {
 			case fleet.AllMigrationsCompleted:
 				// only continue if db is considered up-to-date
+			case fleet.NeedsFleetv4732Fix, fleet.UnknownFleetv4732State:
+				migrationError = errors.New("database has misnumbered migrations from v4.73.2")
 			case fleet.NoMigrationsCompleted:
 				migrationError = errors.New("no migrations completed")
 			case fleet.SomeMigrationsCompleted:
