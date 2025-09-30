@@ -16,6 +16,7 @@ body {
   font-family: "Inter", sans-serif;
   font-size: $medium;
   height: 100%;
+  line-height: 1.5;
 }
 
 html,
@@ -112,6 +113,10 @@ form,
   .info-banner {
     box-sizing: border-box;
   }
+
+  .no-gap {
+    gap: 0;
+  }
 }
 
 .form-field {
@@ -175,6 +180,12 @@ form,
 
   &--slider {
     margin-bottom: 0;
+  }
+
+  &:last-of-type {
+    &.form-field--checkbox {
+      gap: 0;
+    }
   }
 }
 
