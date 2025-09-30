@@ -55,7 +55,7 @@ const FileChooser = ({ isLoading, onFileOpen }: IFileChooserProps) => (
     />
     <Button
       className={`${baseClass}__upload-button`}
-      variant="text-icon"
+      variant="brand-inverse-icon"
       isLoading={isLoading}
     >
       <label htmlFor="upload-profile">

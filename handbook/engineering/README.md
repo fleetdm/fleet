@@ -9,8 +9,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Chief Technology Officer (CTO)  | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
 | Engineering Manager (EM)        | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Tech Lead (TL)                  | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 | Quality Assurance Engineer (QA) | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
-| Software Engineer               | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
+| Software Engineer (SWE)         | <sup><sub> _See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
 
 
 ## Contact us
@@ -78,7 +79,7 @@ Make sure to create a Github issue and link it to the PR so that we can track th
 **For PRs that change the product:**
 
 - Assign the PR to the appropriate Product Designer (PD).
-- Notify the relevant PD in the #g-mdm, #g-software, or #g-orchestration Slack channel.
+- Notify the relevant PD in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 The PD will be the contact point for the contributor and will ensure the PR is reviewed by the appropriate team member when ready. The PD should:
 
@@ -288,7 +289,7 @@ In these cases there are two differences in our pull request process:
 1. Add the `~pushed` label to the user story.
 2. Update the user story's milestone to the next minor version milestone.
 3. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
-4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
 

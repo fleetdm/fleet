@@ -39,7 +39,7 @@ const PolicyResultsTable = ({
           name: "delete policy",
           buttonText: "Delete",
           iconSvg: "trash",
-          variant: "text-icon",
+          variant: "inverse",
         }}
         emptyComponent={() => (
           <div className="no-hosts__inner">

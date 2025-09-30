@@ -1394,6 +1394,34 @@ func preProcessSoftwareResults(
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
+
+	updateFleetdVersion(host.Platform, results)
+}
+
+// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
+// We do this because orbit uses an auto-update mechanism which does not update the host's package manager database.
+func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQueryResults) {
+	// Just update the versions for Linux.
+	if !fleet.IsLinux(hostPlatform) {
+		return
+	}
+
+	orbitInfoResults := results[hostDetailQueryPrefix+"orbit_info"]
+	if len(orbitInfoResults) != 1 {
+		return
+	}
+	orbitVersion := orbitInfoResults[0]["version"]
+	if orbitVersion == "" {
+		return
+	}
+
+	for _, row := range results[hostDetailQueryPrefix+"software_linux"] {
+		if row["name"] != "fleet-osquery" {
+			continue
+		}
+		row["version"] = orbitVersion
+		break
+	}
 }
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.

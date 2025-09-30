@@ -1,7 +1,8 @@
 .pack-composer {
-  @include page;
+  @include vertical-page-layout;
+
   &__pack-form {
-    background-color: $core-white;
+    background-color: $core-fleet-white;
     border-radius: 3px;
   }
 }

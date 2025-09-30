@@ -71,7 +71,7 @@ To propose an ad, or a change to an ad:
 
 ### Measure intent signals
 
-Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals) to measure and process intent signals.
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/blob/main/go-to-market-strategy.md#daily) to measure and process intent signals.
 
 
 ### Research an account
@@ -103,12 +103,12 @@ The Head of Marketing is the DRI for deploying Fleet's outward-facing content. T
  Fleet's [Head of Marketing](https://fleetdm.com/handbook/marketing#team) is the DRI for executing Fleet events efficiently, on-brand, and on-strategy within Fleet's event budget. Events are settled significantly in advance to provide ample time for strategy and planning.  
 
 1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
-  - target buying situation of the audience
-  - who from Fleet will attend
-  - the training plan for Fleet attendees
-  - which talk proposal Fleet will submit
-  - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
-  - estimated budget, including sponsorship or airfare, and lodging for attendees
+  - Target buying situation of the audience.
+  - Who from Fleet will attend.
+  - The training plan for Fleet attendees.
+  - Which talk proposal Fleet will submit.
+  - All event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties.
+  - Estimated budget, including sponsorship or airfare, and lodging for attendees.
 2. Set up and attend a 30m meeting with the Head of Marketing, Head of Finance and Manager of Training and Enablement.
   - First during this meeting, the Head of Marketing proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from Fleet's CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.

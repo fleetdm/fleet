@@ -284,7 +284,11 @@ func (hsr HostScriptResult) AuthzType() string {
 
 type BatchScriptHost struct {
 	// ID is the host on which the script was executed.
-	ID uint `json:"id" db:"id"`
+	ID             uint   `json:"id" db:"id"`
+	ComputerName   string `json:"-" db:"computer_name"`
+	HostName       string `json:"-" db:"hostname"`
+	HardwareModel  string `json:"-" db:"hardware_model"`
+	HardwareSerial string `json:"-" db:"hardware_serial"`
 	// Display name is the host's display name.
 	DisplayName string `json:"display_name" db:"display_name"`
 	// ExecutionID is a unique identifier for a single execution of the script.
@@ -433,6 +437,9 @@ type SoftwareInstallerPayload struct {
 	// This is to support FMAs
 	Slug          *string        `json:"slug"`
 	MaintainedApp *MaintainedApp `json:"-"`
+
+	IconPath string `json:"-"`
+	IconHash string `json:"-"`
 }
 
 type HostLockWipeStatus struct {

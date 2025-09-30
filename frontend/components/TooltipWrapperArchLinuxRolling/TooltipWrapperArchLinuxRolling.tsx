@@ -3,7 +3,13 @@ import React from "react";
 import TooltipWrapper from "../TooltipWrapper";
 import CustomLink from "../CustomLink";
 
-export default function TooltipWrapperArchLinuxRolling() {
+interface TooltipWrapperArchLinuxRollingProps {
+  capitalized?: boolean;
+}
+
+export default function TooltipWrapperArchLinuxRolling({
+  capitalized = false,
+}: TooltipWrapperArchLinuxRollingProps) {
   return (
     <TooltipWrapper
       tipContent={
@@ -18,7 +24,7 @@ export default function TooltipWrapperArchLinuxRolling() {
         </>
       }
     >
-      Rolling
+      {capitalized ? "Rolling" : "rolling"}
     </TooltipWrapper>
   );
 }

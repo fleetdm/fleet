@@ -1,5 +1,7 @@
 .no-access-page {
-  &__btn {
-    margin-top: $pad-small;
+  &__description {
+    p {
+      margin: 0;
+    }
   }
 }

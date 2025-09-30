@@ -316,7 +316,10 @@ func (h *ErrorHandler) Handle(ctx context.Context, err error) {
 	var rle ratelimit.Error
 	if errors.As(err, &rle) {
 		res := rle.Result()
-		logger.Log("err", "limit exceeded", "retry_after", res.RetryAfter)
+		if res.RetryAfter > 0 {
+			logger = log.With(logger, "retry_after", res.RetryAfter)
+		}
+		logger.Log("err", "limit exceeded")
 	} else {
 		logger.Log("err", err)
 	}
@@ -623,6 +626,12 @@ func (e *CommonEndpointer[H]) WithAltPaths(paths ...string) *CommonEndpointer[H]
 func (e *CommonEndpointer[H]) WithCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
 	ae := *e
 	ae.CustomMiddleware = mws
+	return &ae
+}
+
+func (e *CommonEndpointer[H]) AppendCustomMiddleware(mws ...endpoint.Middleware) *CommonEndpointer[H] {
+	ae := *e
+	ae.CustomMiddleware = append(ae.CustomMiddleware, mws...)
 	return &ae
 }
 

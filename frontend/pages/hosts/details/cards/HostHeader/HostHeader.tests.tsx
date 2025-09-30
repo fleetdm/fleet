@@ -19,7 +19,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.getByText("Test Host")).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, detail_updated_at: undefined }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
         deviceUser
       />
     );
@@ -45,7 +45,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, platform: "android" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.queryByText("Refetch")).not.toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, status: "offline" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     const refetchButton = screen.getByRole("button", { name: /refetch/i });
@@ -70,7 +70,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.getByText(/Fetching fresh vitals/i)).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={onRefetchHost}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     fireEvent.click(screen.getByText("Refetch"));
@@ -96,7 +96,7 @@ describe("HostHeader", () => {
         summaryData={{ ...defaultSummaryData, status: "offline" }}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
       />
     );
     expect(screen.getByText(/an offline host/i)).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("HostHeader", () => {
         summaryData={defaultSummaryData}
         showRefetchSpinner={false}
         onRefetchHost={jest.fn()}
-        renderActionDropdown={renderActionDropdown}
+        renderActionsDropdown={renderActionDropdown}
         hostMdmDeviceStatus={"locked" as HostMdmDeviceStatusUIState}
       />
     );

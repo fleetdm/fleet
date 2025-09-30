@@ -192,7 +192,7 @@ If the original request is a customer request, the PD also assigns the relevant 
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be [drafted](#drafting) and estimated in a single sprint. When the Product Designers (PD) knows a user story will be pushed, it is the PD's responsibility to notify stakeholders:
 
 1. Comment on the GitHub issue and at-mention the Head of Product Design and anyone listed in the requester field.
-2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, or #g-orchestration Slack channel.
+2. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team) in the #g-mdm, #g-software, #g-orchestration, or #g-security-compliance Slack channel.
 
 > Instead of waiting until the end of the sprint, notify stakeholders as soon as you know the story is being pushed.
 

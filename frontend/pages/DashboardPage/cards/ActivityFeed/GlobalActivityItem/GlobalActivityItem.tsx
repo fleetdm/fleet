@@ -1061,11 +1061,13 @@ const TAGGED_TEMPLATES = {
   },
 
   resentConfigProfile: (activity: IActivity) => {
+    const actor = activity.actor_full_name
+      ? activity.actor_full_name
+      : "An end user";
     return (
       <>
-        {" "}
-        resent {activity.details?.profile_name} configuration profile to{" "}
-        {activity.details?.host_display_name}.
+        <b>{actor}</b> resent {activity.details?.profile_name} configuration
+        profile to {activity.details?.host_display_name}.
       </>
     );
   },
@@ -1654,19 +1656,22 @@ const getDetail = (activity: IActivity, isPremiumTier: boolean) => {
     }
     case ActivityType.AddedCustomScepProxy:
     case ActivityType.AddedDigicert:
-    case ActivityType.AddedHydrant: {
+    case ActivityType.AddedHydrant:
+    case ActivityType.AddedSmallstep: {
       return TAGGED_TEMPLATES.addedCertificateAuthority(activity.details?.name);
     }
     case ActivityType.DeletedCustomScepProxy:
     case ActivityType.DeletedDigicert:
-    case ActivityType.DeletedHydrant: {
+    case ActivityType.DeletedHydrant:
+    case ActivityType.DeletedSmallstep: {
       return TAGGED_TEMPLATES.deletedCertificateAuthority(
         activity.details?.name
       );
     }
     case ActivityType.EditedCustomScepProxy:
     case ActivityType.EditedDigicert:
-    case ActivityType.EditedHydrant: {
+    case ActivityType.EditedHydrant:
+    case ActivityType.EditedSmallstep: {
       return TAGGED_TEMPLATES.editedCertificateAuthority(
         activity.details?.name
       );
@@ -1941,11 +1946,12 @@ const GlobalActivityItem = ({
         ) : (
           DEFAULT_ACTOR_DISPLAY
         );
-      // MdmEnrolled and MdmUnenroll activities have more complicated logic to
+      // these activities have more complicated logic to
       // determine if we display the actor name so we will handle that in the
       // template function
       case ActivityType.MdmUnenrolled:
       case ActivityType.MdmEnrolled:
+      case ActivityType.ResentConfigurationProfile:
         return null;
       default:
         return DEFAULT_ACTOR_DISPLAY;

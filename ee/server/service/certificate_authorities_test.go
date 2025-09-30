@@ -169,6 +169,13 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		}
 		if ca.Type != string(fleet.CATypeNDESSCEPProxy) {
 			assert.Nil(t, ca.AdminURL)
+		}
+		if ca.Type != string(fleet.CATypeSmallstep) {
+			assert.Nil(t, ca.ChallengeURL)
+		}
+
+		// Since username and password is now shared for NDES and Smallstep
+		if ca.Type != string(fleet.CATypeNDESSCEPProxy) && ca.Type != string(fleet.CATypeSmallstep) {
 			assert.Nil(t, ca.Username)
 			assert.Nil(t, ca.Password)
 		}
@@ -199,8 +206,9 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 			digiCertService: digicert.NewService(),
 			hydrantService:  hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
-				ValidateSCEPURLFunc:          func(_ context.Context, _ string) error { return nil },
-				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
+				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error { return nil },
 			},
 		}
 		svc.config.Server.PrivateKey = "supersecret"
@@ -209,6 +217,27 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 
 		return svc, ctx
 	}
+
+	t.Run("Errors when no CA type is specified", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createRequest := fleet.CertificateAuthorityPayload{}
+		createdCA, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "Couldn't add certificate authority. A certificate authority must be specified")
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Errors when multiple CA types are specified", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+		createRequest := fleet.CertificateAuthorityPayload{
+			DigiCert: &fleet.DigiCertCA{},
+			Hydrant:  &fleet.HydrantCA{},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createRequest)
+		require.EqualError(t, err, "Couldn't add certificate authority. Only one certificate authority can be created at a time")
+		require.Nil(t, createdCA)
+	})
 
 	t.Run("Create DigiCert CA - Happy path", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
@@ -392,6 +421,36 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.Username, *createdCA.Username)
 		require.NotNil(t, createdCA.Password)
 		assert.Equal(t, createNDESSCEPRequest.NDESSCEPProxy.Password, *createdCA.Password)
+		verifyNilFieldsForType(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - Happy path", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		_, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		require.Len(t, createdCAs, 1)
+		createdCA := createdCAs[0]
+
+		assert.Equal(t, createSmallstepRequest.Smallstep.Name, *createdCA.Name)
+		assert.Equal(t, createSmallstepRequest.Smallstep.URL, *createdCA.URL)
+		assert.Equal(t, string(fleet.CATypeSmallstep), createdCA.Type)
+		require.NotNil(t, createdCA.ChallengeURL)
+		assert.Equal(t, createSmallstepRequest.Smallstep.ChallengeURL, *createdCA.ChallengeURL)
+		require.NotNil(t, createdCA.Username)
+		assert.Equal(t, createSmallstepRequest.Smallstep.Username, *createdCA.Username)
+		require.NotNil(t, createdCA.Password)
+		assert.Equal(t, createSmallstepRequest.Smallstep.Password, *createdCA.Password)
 		verifyNilFieldsForType(t, createdCA)
 	})
 
@@ -886,6 +945,150 @@ func TestCreatingCertificateAuthorities(t *testing.T) {
 		require.Len(t, createdCAs, 0)
 		require.Nil(t, createdCA)
 	})
+
+	t.Run("Create Smallstep SCEP CA - bad name", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "Smallstep SCEP WIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid characters in the \"name\" field.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - invalid URL format", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "bozo",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid Smallstep SCEP URL.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - empty username", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Smallstep username cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - empty password", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Smallstep password cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - masked password", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     fleet.MaskedPassword,
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Smallstep password cannot be empty")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - invalid SCEP URL", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		svc.scepConfigService = &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return errors.New("some error") },
+		}
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "https://smallstep.example.com/challenge",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid SCEP URL. Please correct and try again.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
+
+	t.Run("Create Smallstep SCEP CA - invalid challenge validation", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		svc.scepConfigService = &scep_mock.SCEPConfigService{
+			ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+			ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error {
+				return errors.New("some error")
+			},
+		}
+
+		createSmallstepRequest := fleet.CertificateAuthorityPayload{
+			Smallstep: &fleet.SmallstepSCEPProxyCA{
+				Name:         "SmallstepSCEPWIFI",
+				URL:          "https://smallstep.example.com",
+				ChallengeURL: "bozo",
+				Username:     "smallstep_user",
+				Password:     "smallstep_password",
+			},
+		}
+
+		createdCA, err := svc.NewCertificateAuthority(ctx, createSmallstepRequest)
+		require.ErrorContains(t, err, "Invalid challenge URL or credentials.")
+		require.Len(t, createdCAs, 0)
+		require.Nil(t, createdCA)
+	})
 }
 
 func TestUpdatingCertificateAuthorities(t *testing.T) {
@@ -903,6 +1106,7 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 	hydrantID := uint(2)
 	scepID := uint(3)
 	ndesID := uint(4)
+	smallstepID := uint(5)
 	createdCAs := []*fleet.CertificateAuthority{}
 	baseSetupForCATests := func() (*Service, context.Context) {
 		ds := new(mock.Store)
@@ -950,7 +1154,17 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			Password: ptr.String("ndes-password"),
 		}
 
-		createdCAs = append(createdCAs, digicertCA, hydrantCA, customSCEPCA, ndesCA)
+		smallstepCA := &fleet.CertificateAuthority{
+			ID:           smallstepID,
+			Name:         ptr.String("Smallstep CA"),
+			URL:          ptr.String("https://smallstep.example.com"),
+			Type:         string(fleet.CATypeSmallstep),
+			ChallengeURL: ptr.String("https://smallstep.example.com/challenge"),
+			Username:     ptr.String("smallstep-username"),
+			Password:     ptr.String("smallstep-password"),
+		}
+
+		createdCAs = append(createdCAs, digicertCA, hydrantCA, customSCEPCA, ndesCA, smallstepCA)
 		ds.GetCertificateAuthorityByIDFunc = func(ctx context.Context, id uint, includeSecrets bool) (*fleet.CertificateAuthority, error) {
 			for _, ca := range createdCAs {
 				if ca.ID == id {
@@ -987,8 +1201,9 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			digiCertService: digicert.NewService(),
 			hydrantService:  hydrant.NewService(),
 			scepConfigService: &scep_mock.SCEPConfigService{
-				ValidateSCEPURLFunc:          func(_ context.Context, _ string) error { return nil },
-				ValidateNDESSCEPAdminURLFunc: func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSCEPURLFunc:               func(_ context.Context, _ string) error { return nil },
+				ValidateNDESSCEPAdminURLFunc:      func(_ context.Context, _ fleet.NDESSCEPProxyCA) error { return nil },
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error { return nil },
 			},
 		}
 		svc.config.Server.PrivateKey = "supersecret"
@@ -997,6 +1212,29 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 
 		return svc, ctx
 	}
+
+	t.Run("Errors on empty payload", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		err := svc.UpdateCertificateAuthority(ctx, digicertID, fleet.CertificateAuthorityUpdatePayload{})
+		require.EqualError(t, err, "Couldn't edit certificate authority. A certificate authority must be specified")
+	})
+
+	t.Run("Errors on multiple payloads", func(t *testing.T) {
+		svc, ctx := baseSetupForCATests()
+
+		payload := fleet.CertificateAuthorityUpdatePayload{
+			DigiCertCAUpdatePayload: &fleet.DigiCertCAUpdatePayload{
+				APIToken: ptr.String("updated-api-token"),
+			},
+			HydrantCAUpdatePayload: &fleet.HydrantCAUpdatePayload{
+				ClientSecret: ptr.String("updated-secret"),
+			},
+		}
+
+		err := svc.UpdateCertificateAuthority(ctx, digicertID, payload)
+		require.EqualError(t, err, "Couldn't edit certificate authority. Only one certificate authority can be edited at a time")
+	})
 
 	t.Run("Errors if no certificate authority is found", func(t *testing.T) {
 		svc, ctx := baseSetupForCATests()
@@ -1023,6 +1261,9 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			},
 			ndesID: {
 				NDESSCEPProxyCAUpdatePayload: &fleet.NDESSCEPProxyCAUpdatePayload{},
+			},
+			smallstepID: {
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{},
 			},
 		}
 
@@ -1524,10 +1765,179 @@ func TestUpdatingCertificateAuthorities(t *testing.T) {
 			require.EqualError(t, err, "Couldn't edit certificate authority. Insufficient permissions for NDES SCEP admin URL. Please correct and try again.")
 		})
 	})
+
+	t.Run("Smallstep SCEP", func(t *testing.T) {
+		t.Run("Full update succeeds", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Name:         ptr.String("Updated_Smallstep"),
+					URL:          ptr.String("https://smallstep.example.com"),
+					ChallengeURL: ptr.String("https://smallstep.example.com/challenge"),
+					Username:     ptr.String("smallstep_user"),
+					Password:     ptr.String("smallstep_password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "mock error to avoid NewActivity panic")
+		})
+
+		t.Run("Bad name", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Name: ptr.String("Updated Smallstep"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "validation failed: name Couldn't edit certificate authority. Invalid characters in the \"name\" field. Only letters, numbers and underscores allowed.")
+		})
+
+		t.Run("Invalid URL format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					URL:          ptr.String("bozo"),
+					ChallengeURL: ptr.String("https://smallstep.example.com/challenge"),
+					Username:     ptr.String("updated-username"),
+					Password:     ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid SCEP URL. Please correct and try again.")
+		})
+
+		t.Run("Invalid Challenge URL format", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					URL:          ptr.String("https://smallstep.example.com"),
+					ChallengeURL: ptr.String("bozo"),
+					Username:     ptr.String("updated-username"),
+					Password:     ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "validation failed: url Couldn't edit certificate authority. Invalid Challenge URL. Please correct and try again.")
+		})
+
+		t.Run("Bad Smallstep SCEP URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+
+			svc.scepConfigService = &scep_mock.SCEPConfigService{
+				ValidateSCEPURLFunc: func(_ context.Context, _ string) error { return nil },
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error {
+					return errors.New("some error")
+				},
+			}
+
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					URL:          ptr.String("https://smallstep.example.com"),
+					ChallengeURL: ptr.String("https://smallstep.example.com/challenge"),
+					Username:     ptr.String("updated-username"),
+					Password:     ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.")
+		})
+
+		t.Run("Requires all fields when updating URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					URL: ptr.String("https://smallstep.example.com"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"challenge_url\", \"username\" and \"password\" must be set when modifying \"url\" of an existing certificate authority: Smallstep CA.")
+		})
+
+		t.Run("Requires password and username when updating challenge URL", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					ChallengeURL: ptr.String("https://smallstep.example.com/challenge"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"username\" and \"password\" must be set when modifying \"challenge_url\" of an existing certificate authority: Smallstep CA.")
+		})
+
+		t.Run("Requires password when updating username", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Username: ptr.String("updated-username"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. \"password\" must be set when modifying \"username\" of an existing certificate authority: Smallstep CA.")
+		})
+
+		t.Run("Validates password and username on update", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Username: ptr.String("updated-username"),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			mockScep := &scep_mock.SCEPConfigService{
+				ValidateSmallstepChallengeURLFunc: func(_ context.Context, _ fleet.SmallstepSCEPProxyCA) error {
+					return errors.New("bad password or username")
+				},
+				ValidateSmallstepChallengeURLFuncInvoked: false, // Reset so we can check it was invoked
+			}
+			svc.scepConfigService = mockScep
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.True(t, mockScep.ValidateSmallstepChallengeURLFuncInvoked)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Invalid challenge URL or credentials. Please correct and try again.")
+		})
+
+		t.Run("Errors on empty username", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Username: ptr.String(""),
+					Password: ptr.String("updated-password"),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Smallstep SCEP Proxy username cannot be empty")
+		})
+
+		t.Run("Errors on empty password", func(t *testing.T) {
+			svc, ctx := baseSetupForCATests()
+			payload := fleet.CertificateAuthorityUpdatePayload{
+				SmallstepSCEPProxyCAUpdatePayload: &fleet.SmallstepSCEPProxyCAUpdatePayload{
+					Username: ptr.String("updated-username"),
+					Password: ptr.String(""),
+				},
+			}
+
+			err := svc.UpdateCertificateAuthority(ctx, smallstepID, payload)
+			require.EqualError(t, err, "Couldn't edit certificate authority. Smallstep SCEP Proxy password cannot be empty")
+		})
+	})
 }
 
-// TODO: Revisit this test, as it seems rather useless (at least the success case) due to it's simplicity
-// and not being possible atm. to mock/call free service methods.
 func TestDeleteCertificateAuthority(t *testing.T) {
 	t.Parallel()
 

@@ -81,6 +81,11 @@ func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint
 	return ds.Datastore.DeleteOtherEnterprises(ctx, id)
 }
 
+// Disambiguate method promoted from both mysql.Datastore and mock.Store
+func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
+}
+
 type WithServer struct {
 	suite.Suite
 	Svc      android.Service
