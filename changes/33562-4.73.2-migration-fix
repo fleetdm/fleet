@@ -1,0 +1,1 @@
+* Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary
