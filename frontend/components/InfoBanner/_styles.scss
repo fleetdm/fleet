@@ -15,6 +15,8 @@
   }
 
   &__info {
+    // Do not use display flex as it will have adverse effects on spacing around tags
+    align-content: center;
     p {
       margin: $pad-small 0 0 0; // TOFIX: this causes weird top margin noticed in #28110
     }
