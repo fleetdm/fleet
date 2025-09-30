@@ -723,11 +723,11 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFil
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don't require an asset reference are supported.")
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
 	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {

@@ -217,7 +217,7 @@ func TestMDMAppleDeclarationAllowCustomOSUpdatesAndFileVault(t *testing.T) {
 		// Should fail when allowCustomOSUpdatesAndFileVault = false
 		err := decl.ValidateUserProvided(false)
 		require.Error(t, err)
-		require.ErrorContains(t, err, "Declaration profile can't include OS updates settings")
+		require.ErrorContains(t, err, "Declaration profile can’t include OS updates settings")
 	})
 
 	t.Run("OSUpdateDeclarationAllowedWhenFlagEnabled", func(t *testing.T) {
