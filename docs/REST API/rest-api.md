@@ -5323,6 +5323,8 @@ Deletes the label specified by ID.
 
 ### Add custom OS setting (configuration profile)
 
+> **Experimental feature**. Windows SCEP profile is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
+
 > [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
