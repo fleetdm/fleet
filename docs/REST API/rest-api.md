@@ -10131,7 +10131,7 @@ Operating systems other than Windows, macOS, and Linux do not report vulnerabili
 
 _Available in Fleet Premium._
 
-Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts.
+Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windows, or Linux hosts. Also supports adding a custom script (.sh, .ps1) to run on Windows or Linux hosts.
 
 
 `POST /api/v1/fleet/software/package`
@@ -10140,16 +10140,16 @@ Add a package (.pkg, .msi, .exe, .deb, .rpm, .tar.gz) to install on macOS, Windo
 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
-| software        | file    | form | **Required**. Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | **Required**. Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.sh`, and `.ps1`. |
 | team_id         | integer | form | **Required**. The team ID. Adds a software package to the specified team. |
-| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
-| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| install_script  | string | form | Script that Fleet runs to install software. If not specified Fleet runs the [default install script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| uninstall_script  | string | form | Script that Fleet runs to uninstall software. If not specified Fleet runs the [default uninstall script](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type if one exists. Required for `.tar.gz` and `.exe` (no default script). Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, Fleet won't proceed to install. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | form | Self-service software is optional and can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
-| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. |
+| automatic_install | boolean | form | Only supported for macOS apps. Specifies whether to create a policy that triggers a software install only on hosts missing the software. Not supported for `.sh` and `.ps1`. |
 
 Only one of `labels_include_any` or `labels_exclude_any` can be specified. If neither are specified, all hosts are targeted.
 
@@ -10237,12 +10237,12 @@ Update a package to install on macOS, Windows, or Linux (Ubuntu) hosts.
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | id | integer | path | ID of the software title being updated. |
-| software        | file    | form | Installer package file. Supported packages are .pkg, .msi, .exe, .deb, and .rpm.   |
+| software        | file    | form | Installer package file or custom script file. Supported packages are `.pkg`, `.msi`, `.exe`, `.deb`, `.rpm`, `.tar.gz`, `.sh`, and `.ps1`.   |
 | team_id         | integer | form | **Required**. The team ID. Updates a software package in the specified team. |
 | categories        | string[] | form | Zero or more of the [supported categories](https://fleetdm.com/docs/configuration/yaml-files#supported-software-categories), used to group self-service software on your end users' **Fleet Desktop > My device** page. Software with no categories will be still be shown under **All**. |
-| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. |
-| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. |
-| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. |
+| install_script  | string | form | Command that Fleet runs to install software. If not specified Fleet runs the [default install command](https://github.com/fleetdm/fleet/tree/main/pkg/file/scripts) for each package type. Not supported for `.sh` and `.ps1`. |
+| pre_install_query  | string | form | Query that is pre-install condition. If the query doesn't return any result, the package will not be installed. Not supported for `.sh` and `.ps1`. |
+| post_install_script | string | form | The contents of the script to run after install. If the specified script fails (exit code non-zero) software install will be marked as failed and rolled back. Not supported for `.sh` and `.ps1`. |
 | self_service | boolean | form | Whether this is optional self-service software that can be installed by the end user. |
 | labels_include_any        | array     | form | Target hosts that have any label in the array. Only one of either `labels_include_any` or `labels_exclude_any` can be specified. |
 | labels_exclude_any | array | form | Target hosts that don't have any label in the array. |
