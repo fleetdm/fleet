@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 
 import { useQuery } from "react-query";
 
@@ -64,7 +64,10 @@ const ChangeManagement = () => {
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
+  const formInitialized = useRef(false);
+
   const {
+    data: config,
     isLoading: isLoadingConfig,
     error: isLoadingConfigError,
     refetch: refetchConfig,
@@ -73,17 +76,23 @@ const ChangeManagement = () => {
     () => configAPI.loadAll(),
     {
       onSuccess: (data) => {
-        const {
-          gitops: {
-            gitops_mode_enabled: gitOpsModeEnabled,
-            repository_url: repoURL,
-          },
-        } = data;
-        setFormData({ gitOpsModeEnabled, repoURL });
         setConfig(data);
       },
     }
   );
+
+  useEffect(() => {
+    if (config && !formInitialized.current) {
+      const {
+        gitops: {
+          gitops_mode_enabled: gitOpsModeEnabled,
+          repository_url: repoURL,
+        },
+      } = config;
+      setFormData({ gitOpsModeEnabled, repoURL });
+      formInitialized.current = true;
+    }
+  }, [config]);
 
   const { isPremiumTier } = useContext(AppContext);
 
