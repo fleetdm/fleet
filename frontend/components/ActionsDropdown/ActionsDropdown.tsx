@@ -190,7 +190,7 @@ const ActionsDropdown = ({
       // Need minHeight to override default
       minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
       padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
-      backgroundColor: "initial",
+      backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
       border: 0,
       boxShadow: "none",
       cursor: "pointer",
@@ -204,8 +204,11 @@ const ActionsDropdown = ({
           stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
-      "&:active .actions-dropdown-select__indicator path": {
-        stroke: COLORS["ui-fleet-black-75-down"],
+      "&:active": {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
+        ".actions-dropdown-select__indicator path": {
+          stroke: COLORS["ui-fleet-black-75-down"],
+        },
       },
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
