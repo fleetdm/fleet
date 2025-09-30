@@ -252,6 +252,12 @@ $max-width: 2560px;
   gap: $gap-page-component;
 }
 
+@mixin flex-column-16px-gap {
+  display: flex;
+  flex-direction: column;
+  gap: $gap-data-sets;
+}
+
 @mixin vertical-form-layout {
   @include flex-column-24px-gap;
 }
@@ -268,6 +274,10 @@ $max-width: 2560px;
 // Separate in case there's any tab level styling we need
 @mixin vertical-page-tab-panel-layout {
   @include flex-column-24px-gap;
+}
+
+@mixin vertical-data-set-layout {
+  @include flex-column-16px-gap;
 }
 
 @mixin button-dropdown {

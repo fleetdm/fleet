@@ -239,6 +239,7 @@ hr {
 }
 
 dl {
+  @include vertical-data-set-layout;
   margin: 0;
   padding: 0;
 }
