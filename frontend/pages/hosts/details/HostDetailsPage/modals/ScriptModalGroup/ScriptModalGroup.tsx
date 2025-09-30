@@ -25,6 +25,7 @@ interface IScriptsProps {
 
 type ScriptGroupModals =
   | "run-script"
+  | "confirm-run-script"
   | "view-script"
   | "run-script-details"
   | "delete-script"
@@ -57,9 +58,9 @@ const ScriptModalGroup = ({
   // except refetch is used multiple places
   const {
     data: runScriptTableResponse,
-    isError,
-    isLoading,
-    isFetching,
+    isError: isErrorHostScripts,
+    isLoading: isLoadingHostScripts,
+    isFetching: isFetchingHostScripts,
     refetch: refetchHostScripts,
   } = useQuery<
     IHostScriptsResponse,
@@ -116,7 +117,7 @@ const ScriptModalGroup = ({
     <>
       <RunScriptModal
         currentUser={currentUser}
-        host={host}
+        hostTeamId={host.team_id}
         onClose={onCloseScriptModalGroup}
         onClickViewScript={(scriptId: number, scriptDetails: IHostScript) => {
           setPreviousModal(currentModal);
@@ -129,18 +130,25 @@ const ScriptModalGroup = ({
           setCurrentModal("run-script-details");
           scriptExecutionId && setSelectedExecutionId(scriptExecutionId);
         }}
-        runScriptRequested={runScriptRequested}
-        refetchHostScripts={refetchHostScripts}
         page={runScriptTablePage}
         setPage={setRunScriptTablePage}
         hostScriptResponse={runScriptTableResponse}
-        isFetching={isFetching}
-        isLoading={isLoading}
-        isError={isError}
-        setRunScriptRequested={setRunScriptRequested}
+        isFetching={isFetchingHostScripts}
+        isLoading={isLoadingHostScripts}
+        isError={isErrorHostScripts}
         isHidden={currentModal !== "run-script"}
       />
-
+      <ConfirmRunScriptModal
+        // used to run script
+        hostId={host.id}
+        onClose={onCloseScriptModalGroup}
+        // used for loading state after running script
+        runScriptRequested={runScriptRequested}
+        // used after running script
+        refetchHostScripts={refetchHostScripts}
+        setRunScriptRequested={setRunScriptRequested}
+        isHidden={currentModal !== "confirm-run-script"}
+      />
       <ScriptDetailsModal
         hostId={host.id}
         hostTeamId={host.team_id}

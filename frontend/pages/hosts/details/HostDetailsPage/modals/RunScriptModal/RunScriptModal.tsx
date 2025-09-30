@@ -28,7 +28,6 @@ interface IRunScriptModalProps {
   currentUser: IUser | null;
   host: IHost;
   onClose: () => void;
-  runScriptRequested: boolean;
   refetchHostScripts: () => void;
   page: number;
   setPage: React.Dispatch<React.SetStateAction<number>>;
@@ -36,7 +35,6 @@ interface IRunScriptModalProps {
   isFetching: boolean;
   isLoading: boolean;
   isError: boolean;
-  setRunScriptRequested: React.Dispatch<React.SetStateAction<boolean>>;
   onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void;
   onClickRunDetails: (scriptExecutionId: string) => void;
   isHidden: boolean;
