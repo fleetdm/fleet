@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20250924103528, Down_20250924103528)
+	MigrationClient.AddMigration(Up_20250929103528, Down_20250929103528)
 }
 
-func Up_20250924103528(tx *sql.Tx) error {
+func Up_20250929103528(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE software
     RENAME COLUMN browser TO extension_for
@@ -30,6 +30,6 @@ ALTER TABLE software_titles
 	return nil
 }
 
-func Down_20250924103528(tx *sql.Tx) error {
+func Down_20250929103528(tx *sql.Tx) error {
 	return nil
 }
