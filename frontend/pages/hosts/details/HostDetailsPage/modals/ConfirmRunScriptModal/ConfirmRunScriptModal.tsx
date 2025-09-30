@@ -34,7 +34,7 @@ const ConfirmRunScriptModal = ({
       <form className={`${baseClass}__form`}>
         <p>
           {scriptName ? <b>{scriptName}</b> : "The script"} will run on{" "}
-          <b>{hostName}</b>{" "}
+          <b>{hostName}</b>.
         </p>
         <div className="modal-cta-wrap">
           <Button

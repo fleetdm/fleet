@@ -127,8 +127,8 @@ const ScriptModalGroup = ({
         refetchHostScripts();
       } catch (e) {
         renderFlash("error", getErrorReason(e));
-        setIsRunningScript(false);
       } finally {
+        setIsRunningScript(false);
         goBack();
       }
     }
@@ -150,7 +150,7 @@ const ScriptModalGroup = ({
         hostTeamId={host.team_id}
         onClickRun={onClikRunBeforeConfirmation}
         onClose={onCloseScriptModalGroup}
-        onClickViewScript={(scriptId: number, script: IHostScript) => {
+        onClickViewScript={(script: IHostScript) => {
           setPreviousModal(currentModal);
           setCurrentModal("view-script");
           setSelectedScript(script);

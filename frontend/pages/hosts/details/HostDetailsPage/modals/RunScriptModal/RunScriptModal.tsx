@@ -30,7 +30,7 @@ interface IRunScriptModalProps {
   isFetchingHostScripts: boolean;
   isLoadingHostScripts: boolean;
   isError: boolean;
-  onClickViewScript: (scriptId: number, scriptDetails: IHostScript) => void;
+  onClickViewScript: (scriptDetails: IHostScript) => void;
   onClickRunDetails: (scriptExecutionId: string) => void;
   onClickRun: (script: IHostScript) => void;
   isRunningScript: boolean;

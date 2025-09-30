@@ -6,19 +6,13 @@ import React, {
   useEffect,
 } from "react";
 import { format } from "date-fns";
-import {
-  useQuery,
-  RefetchOptions,
-  RefetchQueryFilters,
-  QueryObserverResult,
-} from "react-query";
+import { useQuery } from "react-query";
 import FileSaver from "file-saver";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
-import scriptAPI, { IHostScriptsResponse } from "services/entities/scripts";
+import scriptAPI from "services/entities/scripts";
 import { IHostScript } from "interfaces/script";
-import { IApiError, getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import ModalFooter from "components/ModalFooter";
