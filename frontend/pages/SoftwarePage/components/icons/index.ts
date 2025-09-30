@@ -91,6 +91,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
+  "windows app": WindowsApp,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
