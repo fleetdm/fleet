@@ -573,15 +573,17 @@ func (svc *Service) CreateEnrollmentToken(ctx context.Context, enrollSecret, idp
 		// Default duration is 1 hour
 
 		AdditionalData:     string(enrollmentTokenRequest),
-		AllowPersonalUsage: "PERSONAL_USAGE_ALLOWED",
+		AllowPersonalUsage: "PERSONAL_USAGE_DISALLOWED_USERLESS",
+		Duration:           fmt.Sprintf("%ds", 90*24*3600), // 90 days
 		PolicyName:         fmt.Sprintf("%s/policies/%d", enterprise.Name(), +defaultAndroidPolicyID),
-		OneTimeOnly:        true,
+		OneTimeOnly:        false,
 	}
+
 	token, err = svc.androidAPIClient.EnterprisesEnrollmentTokensCreate(ctx, enterprise.Name(), token)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creating Android enrollment token")
 	}
-
+	fmt.Printf("Created enrollment token with request: %s\n", token.QrCode)
 	return &android.EnrollmentToken{
 		EnrollmentToken: token.Value,
 		EnrollmentURL:   "https://enterprise.google.com/android/enroll?et=" + token.Value,
@@ -817,11 +819,9 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 
 	packageName := "com.zebra.oemconfig.release"
 	appPolicy := &androidmanagement.ApplicationPolicy{
-		PackageName: packageName,
-		InstallType: "REQUIRED_FOR_SETUP",
-		ManagedConfiguration: googleapi.RawMessage(`{
-			"passThroughCommand": "<wap-provisioningdoc>\r\n  <characteristic version=\"11.8\" type=\"Clock\">\r\n    <parm name=\"AutoTimeZone\" value=\"true\" \/>\r\n    <parm name=\"AutoTime\" value=\"true\" \/>\r\n    <characteristic type=\"AutoTimeDetails\">\r\n      <parm name=\"NTPServer\" value=\"pool.ntp.org\" \/>\r\n      <parm name=\"SyncInterval\" value=\"00:30:00\" \/>\r\n      <parm name=\"SpecifyTimeSyncThreshold\" value=\"false\" \/>\r\n    <\/characteristic>\r\n    <parm name=\"MilitaryTime\" value=\"1\" \/>\r\n  <\/characteristic>\r\n  <characteristic version=\"4.3\" type=\"BrowserMgr\">\r\n    <parm name=\"SetDefaultHomepage\" value=\"https:\/\/fleetdm.com\" \/>\r\n    <parm name=\"SetRememberPasswords\" value=\"1\" \/>\r\n    <parm name=\"SetSaveFormData\" value=\"1\" \/>\r\n  <\/characteristic>\r\n<\/wap-provisioningdoc>"
-		}`),
+		PackageName:          packageName,
+		InstallType:          "FORCE_INSTALLED",
+		ManagedConfiguration: googleapi.RawMessage(`{"systemConfig": {"passThroughCommand": "<wap-provisioningdoc><characteristic version=\"4.3\" type=\"DisplayMgr\"><parm name=\"TimeoutInterval\" value=\"1800\" \/><\/characteristic><\/wap-provisioningdoc>"}}`),
 	}
 
 	fmt.Printf("Checking if app %s exists", packageName)
