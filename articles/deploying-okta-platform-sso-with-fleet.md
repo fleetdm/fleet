@@ -85,13 +85,14 @@ On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). 
 Use the following policy to help find devices with certificates expiring:
 
 ```sql
--- Returns 1 if all certificates are valid for >14 days (PASSING)
--- Returns 0 if any certificates expire within 14 days (FAILING)
+-- Returns 1 if all Okta certs are valid for >14 days (PASSING)
+-- Returns 0 if any Okta certs expire within 14 days (FAILING)
 SELECT 1 
 WHERE NOT EXISTS (
   SELECT 1 
   FROM certificates
-  WHERE CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
+  WHERE issuer LIKE '%/DC=com/DC=okta%'
+    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
     AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
 );
 ```
