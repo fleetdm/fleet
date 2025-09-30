@@ -66,16 +66,37 @@ Now create a SCEP certificate profile to deploy via Fleet:
 
 On your Mac, open [iMazing Profile Editor](https://imazing.com/profile-editor). Create a new profile and add a **SCEP** payload with these settings:
 
-- **URL:** The SCEP URL from Okta (step 7 above)
+#### Under the General tab:
 - **Name:** Okta Device Access SCEP
-- **Challenge:** The secret key from Okta (step 7 above)
-- **Subject:** `CN=$COMPUTERNAME managementAttestation $UDID` (use Fleet's equivalent device variables)
-- **Key Size:** 2048
-- **Key Usage:** Digital Signature
-- **Allow export from keychain:** Unchecked
-- **Allow all apps access:** Checked
+- **Identifier**: Enter a unique string (e.g. "com.okta.device.access.53D4F816-6B96-400A-81A4-2C141E582D54")
+- **UUID**: Make sure that this field is populated.
 
-Save this as `okta-device-access-scep.mobileconfig`.
+#### Under SCEP
+- **URL:** The SCEP URL from Okta (step 7 above)
+- **Challenge:** The secret key from Okta (step 7 above)
+- **Subject:** `CN=managementAttestation %HardwareUUID%`
+- **Key Size:** 2048
+- **Key Usage:** Signing
+- **Key is Extractable:** Unchecked
+- **Allow All Apps Access:** Checked
+- **Certificate Expiration Notification**: Set to 14 days before expiration.
+
+***NOTE:*** Okta currently doesn't support automatic certificate renewal. This means you will need to redeploy the configuration profile prior to expiration.
+Use the following policy to help find devices with certificates expiring:
+
+```sql
+-- Returns 1 if all certificates are valid for >14 days (PASSING)
+-- Returns 0 if any certificates expire within 14 days (FAILING)
+SELECT 1 
+WHERE NOT EXISTS (
+  SELECT 1 
+  FROM certificates
+  WHERE CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) <= 14
+    AND CAST((not_valid_after - strftime('%s', 'now')) / 86400 AS INTEGER) >= 0
+);
+```
+
+Save this as `.mobileconfig`.
 
 ## Install Okta Verify via Fleet
 
@@ -151,24 +172,24 @@ Save as `okta-sso-extension.mobileconfig`.
 You need to create managed app configuration profiles for two preference domains:
 
 #### com.okta.mobile Configuration
-Create a new profile and add a **Custom Settings** payload:
+Create a new profile and select the `Okta Verify` Application Domain: 
 - **Preference Domain:** `com.okta.mobile`
 - **Settings:**
-  - **OktaVerify.OrgUrl:** `https://yourdomain.okta.com`
-  - **OktaVerify.UserPrincipalName:** `$USERNAME` (use Fleet's user variable)
+  - **Okta Org Url:** `https://yourdomain.okta.com`
+  - **Okta User Principle Name:** `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`
 
 #### com.okta.mobile.auth-service-extension Configuration
 
 **For macOS 13 Ventura:**
 - **Preference Domain:** `com.okta.mobile.auth-service-extension`
 - **Settings:**
-  - **OktaVerify.OrgUrl:** `https://yourdomain.okta.com`
-  - **OktaVerify.PasswordSyncClientID:** Your Client ID from the Platform Single Sign-on app
-  - **OktaVerify.UserPrincipalName:** `$USERNAME`
+  - **Okta Org Url:** `https://yourdomain.okta.com`
+  - **Okta Client ID:** Your Client ID from the Platform Single Sign-on app
+  - **Okta User Principle Name:**  `$FLEET_VAR_HOST_END_USER_IDP_USERNAME`
 
 **For macOS 14 Sonoma and later:**
 Same as above, plus:
-- **PlatformSSO.ProtocolVersion:** `2.0`
+- **Platform SSO Protocol Version:** `2.0`
 
 Save as `okta-app-config.mobileconfig`.
 
