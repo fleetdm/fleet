@@ -1,8 +1,7 @@
-- name: macOS - Operating system up to date
-  query: SELECT 1 FROM os_version WHERE version >= '26.0' OR version >= '15.7';
+- calendar_events_enabled: false
   critical: true
   description: Using an outdated macOS version risks exposure to security vulnerabilities and potential system instability.
-  resolution: Please find time to run Software Update.  > System Settings > Software Update
+  name: macOS - Operating system up to date
   platform: darwin
-  calendar_events_enabled: false
-  
+  query: SELECT 1 FROM os_version WHERE version >= '26.0' OR version >= '15.7';
+  resolution: Please find time to run Software Update.  > System Settings > Software Update

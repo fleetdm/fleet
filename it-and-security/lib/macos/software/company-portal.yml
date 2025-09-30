@@ -1,5 +1,5 @@
-url: https://officecdn.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/CompanyPortal_5.2508.0-Upgrade.pkg
-self_service: true
-categories:
+categories: null
 labels_include_any:
-  - "Conditional access test group"
+  - Conditional access test group
+self_service: true
+url: https://officecdn.microsoft.com/pr/C1297A47-86C4-4C1F-97FA-950631F94777/MacAutoupdate/CompanyPortal_5.2508.0-Upgrade.pkg

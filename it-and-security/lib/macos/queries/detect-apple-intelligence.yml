@@ -1,9 +1,9 @@
-- name: Detect if Apple Intelligence is enabled
-  automations_enabled: false
+- automations_enabled: false
   description: Detects if Apple Intelligence has been enabled.
   discard_data: false
   interval: 300
   logging: snapshot
+  name: Detect if Apple Intelligence is enabled
   observer_can_run: true
-  platform: "darwin"
+  platform: darwin
   query: SELECT * FROM plist WHERE path LIKE '/Users/%/Library/Preferences/com.apple.CloudSubscriptionFeatures.optIn.plist';

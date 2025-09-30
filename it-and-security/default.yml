@@ -1,5 +1,27 @@
 agent_options:
   path: ./lib/all/agent-options/agent-options.yml
+controls:
+  enable_disk_encryption: true
+  macos_migration:
+    enable: true
+    mode: voluntary
+    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
+  windows_enabled_and_configured: true
+  windows_migration_enabled: true
+labels:
+  - path: ./lib/all/labels/arm-based-windows-hosts.yml
+  - path: ./lib/all/labels/debian-based-linux-hosts.yml
+  - path: ./lib/all/labels/macs-with-1password-installed.yml
+  - path: ./lib/all/labels/rpm-based-linux-hosts.yml
+  - path: ./lib/all/labels/virtual-machines.yml
+  - path: ./lib/all/labels/santa-test-devices.yml
+  - path: ./lib/all/labels/x86-based-windows-hosts.yml
+  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
+  - path: ./lib/all/labels/keynote-installed.yml
+  - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
+  - path: ./lib/all/labels/team-g-mdm.yml
+  - path: ./lib/all/labels/conditional-access-test-group.yml
+  - path: ./lib/all/labels/nudge-test-devices.yml
 org_settings:
   features:
     enable_host_users: true
@@ -10,31 +32,30 @@ org_settings:
     host_expiry_enabled: false
   integrations:
     google_calendar:
-    - api_key_json: $DOGFOOD_CALENDAR_API_KEY
-      domain: fleetdm.com
-    jira: [ ]
-    zendesk: [ ]
+      - api_key_json: $DOGFOOD_CALENDAR_API_KEY
+        domain: fleetdm.com
+    jira: []
+    zendesk: []
   mdm:
+    apple_business_manager:
+      - ios_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+        ipados_team: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+        macos_team: "\U0001F4BB Workstations"
+        organization_name: Fleet Device Management Inc.
     end_user_authentication:
       entity_id: dogfood-eula.fleetdm.com
       idp_name: Google Workspace
-      metadata: |-
-        $DOGFOOD_END_USER_SSO_METADATA
+      metadata: $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
     end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
-    apple_business_manager:
-    - organization_name: Fleet Device Management Inc.
-      macos_team: "💻 Workstations" 
-      ios_team: "📱🏢 Company-owned mobile devices"
-      ipados_team: "📱🏢 Company-owned mobile devices"
     volume_purchasing_program:
-    - location: Fleet Device Management Inc.
-      teams:
-      - "💻 Workstations"
-      - "💻🐣 Workstations (canary)"
-      - "📱🏢 Company-owned mobile devices"
-      - "📱🔐 Personal mobile devices"
-      - "🧪 Testing & QA"
+      - location: Fleet Device Management Inc.
+        teams:
+          - "\U0001F4BB Workstations"
+          - "\U0001F4BB\U0001F423 Workstations (canary)"
+          - "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+          - "\U0001F4F1\U0001F510 Personal mobile devices"
+          - "\U0001F9EA Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
@@ -59,15 +80,17 @@ org_settings:
     entity_id: dogfood.fleetdm.com
     idp_image_url: ""
     idp_name: Google Workspace
-    metadata: |-
-      $DOGFOOD_SSO_METADATA
+    metadata: $DOGFOOD_SSO_METADATA
     metadata_url: ""
   webhook_settings:
+    activities_webhook:
+      destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
+      enable_activities_webhook: true
     failing_policies_webhook:
       destination_url: $DOGFOOD_FAILING_POLICIES_WEBHOOK_URL
       enable_failing_policies_webhook: true
       host_batch_size: 0
-      policy_ids: [ ]
+      policy_ids: []
     host_status_webhook:
       days_count: 5
       destination_url: $DOGFOOD_HOST_STATUS_WEBHOOK_URL
@@ -78,35 +101,10 @@ org_settings:
       destination_url: $DOGFOOD_VULNERABILITIES_WEBHOOK_URL
       enable_vulnerabilities_webhook: true
       host_batch_size: 0
-    activities_webhook:
-      destination_url: $DOGFOOD_ACTIVITIES_WEBHOOK_URL
-      enable_activities_webhook: true
-policies:
+policies: null
 queries:
   - path: ./lib/all/queries/collect-fleetd-information.yml
   - path: ./lib/all/queries/collect-operating-system-information.yml
   - path: ./lib/all/queries/collect-known-vulnerable-chrome-extensions.yml
   - path: ./lib/macos/queries/detect-apns-certificate.yml
   - path: ./lib/macos/queries/collect-macos-compatibility-data.yml
-controls: 
-  enable_disk_encryption: true
-  macos_migration:
-    enable: true
-    mode: voluntary
-    webhook_url: $DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL
-  windows_enabled_and_configured: true
-  windows_migration_enabled: true
-labels:
-  - path: ./lib/all/labels/arm-based-windows-hosts.yml
-  - path: ./lib/all/labels/debian-based-linux-hosts.yml
-  - path: ./lib/all/labels/macs-with-1password-installed.yml
-  - path: ./lib/all/labels/rpm-based-linux-hosts.yml
-  - path: ./lib/all/labels/virtual-machines.yml
-  - path: ./lib/all/labels/santa-test-devices.yml
-  - path: ./lib/all/labels/x86-based-windows-hosts.yml
-  - path: ./lib/all/labels/apple-silicon-macos-hosts.yml
-  - path: ./lib/all/labels/keynote-installed.yml
-  - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
-  - path: ./lib/all/labels/team-g-mdm.yml
-  - path: ./lib/all/labels/conditional-access-test-group.yml
-  - path: ./lib/all/labels/nudge-test-devices.yml
