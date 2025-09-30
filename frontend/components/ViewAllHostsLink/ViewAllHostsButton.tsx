@@ -58,9 +58,10 @@ const ViewAllHostsButton = ({
   const onClick = (e: MouseEvent): void => {
     if (!noLink) {
       e.stopPropagation(); // Allows for button to have different onClick behavior than the row's onClick behavior
-    }
-    if (path) {
-      browserHistory.push(path);
+
+      if (path) {
+        browserHistory.push(path);
+      }
     }
   };
 
