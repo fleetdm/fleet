@@ -1,1 +1,2 @@
-* Fixed bug with the ChangeManagement component were server state was overriding local UI state.
+* Fixed bug with the ChangeManagement component where server state was overriding local UI state.
+* Fixed bug with the ChangeManagement component where the GitOps checkbox local UI state was being reset due to GET request after PATCH request.
