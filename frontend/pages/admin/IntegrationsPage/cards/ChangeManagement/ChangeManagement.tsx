@@ -132,7 +132,6 @@ const ChangeManagement = () => {
     } catch (e) {
       const message = getErrorReason(e);
       renderFlash("error", message || "Failed to update settings");
-      setIsUpdating(false);
     } finally {
       setIsUpdating(false);
     }
