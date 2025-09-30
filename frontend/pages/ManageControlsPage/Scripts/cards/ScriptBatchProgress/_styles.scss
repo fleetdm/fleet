@@ -36,6 +36,7 @@
 
   &__empty {
     @include tab-empty-state;
+    gap: $pad-small;
   }
   .react-tabs__tab-list {
     margin-bottom: $pad-large;
