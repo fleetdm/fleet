@@ -108,6 +108,7 @@ const RunScriptBatchPaginatedList = ({
         count={scriptCount}
         data={data?.scripts || []}
         onPageIndexChange={setPageNumber}
+        currentPage={pageNumber}
         onClickRow={onClickScriptRow}
         setDirtyOnClickRow={false}
         pageSize={SCRIPT_BATCH_PAGE_SIZE}

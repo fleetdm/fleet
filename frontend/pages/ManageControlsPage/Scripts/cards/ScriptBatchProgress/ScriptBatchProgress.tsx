@@ -79,7 +79,9 @@ const ScriptBatchProgress = ({
     IScriptBatchSummariesResponse,
     Error,
     IScriptBatchSummariesResponse
-  >([queryKey], () => scriptsAPI.getRunScriptBatchSummaries(queryKey));
+  >([queryKey], () => scriptsAPI.getRunScriptBatchSummaries(queryKey), {
+    keepPreviousData: true,
+  });
 
   const handleTabChange = useCallback(
     (index: number) => {

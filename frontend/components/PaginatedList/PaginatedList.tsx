@@ -31,7 +31,7 @@ interface IPaginatedListProps<TItem> {
   /** if the parent is currently loading data */
   isLoading?: boolean;
   /** index of the currently displayed page */
-  currentPage?: number;
+  currentPage: number;
   /** callback when the page index changes */
   onPageIndexChange: (pageIndex: number) => void;
   /** UID property in an item. Defaults to `id`. */
