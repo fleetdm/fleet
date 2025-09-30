@@ -26,7 +26,7 @@ Stripe wanted to simplify device management. They also wanted to reduce the load
 
 ## Solution
 
-Stripe replaced their legacy device management tooling with Fleet: a cross-platform device management solution that supports macOS, mulitple Linux flavors, Windows, iOS / iPadOS, Chromebook and Android.
+Stripe replaced their legacy device management tooling with Fleet: a cross-platform device management solution that supports macOS, multiple Linux flavors, Windows, iOS / iPadOS, Chromebook, and Android.
 
 The company was already using Fleet in early 2023 for managing [osquery](https://www.osquery.io/) in threat detection and compliance use cases with [scheduled queries](https://fleetdm.com/guides/queries).
 
