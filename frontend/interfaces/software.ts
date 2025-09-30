@@ -42,7 +42,7 @@ export interface ISoftware {
   hosts_count?: number;
   last_opened_at?: string | null; // e.g., "2021-08-18T15:11:35Z”
   installed_paths?: string[];
-  browser?: string;
+  extension_for?: string;
   vendor?: string;
   icon_url: string | null; // Only available on team view if an admin uploaded an icon to a team's software
 }
@@ -147,7 +147,7 @@ export interface ISoftwareTitle {
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  browser?: BrowserType;
+  extension_for?: ExtensionForType;
 }
 
 export interface ISoftwareTitleDetails {
@@ -161,7 +161,7 @@ export interface ISoftwareTitleDetails {
   versions: ISoftwareTitleVersion[] | null;
   counts_updated_at?: string;
   bundle_identifier?: string;
-  browser?: BrowserType;
+  extension_for?: ExtensionForType;
   versions_count?: number;
 }
 
@@ -183,7 +183,7 @@ export interface ISoftwareVersion {
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
-  browser: BrowserType;
+  extension_for: ExtensionForType;
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -206,7 +206,7 @@ export const SOURCE_TYPE_CONVERSION = {
   apps: "Application (macOS)",
   ios_apps: "Application (iOS)",
   ipados_apps: "Application (iPadOS)",
-  chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `browser` field computed by Fleet server and fallback to this value if it is not present.
+  chrome_extensions: "Browser plugin", // chrome_extensions can include any chrome-based browser (e.g., edge), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
   firefox_addons: "Browser plugin (Firefox)",
   safari_extensions: "Browser plugin (Safari)",
   homebrew_packages: "Package (Homebrew)",
@@ -214,7 +214,7 @@ export const SOURCE_TYPE_CONVERSION = {
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
-  vscode_extensions: "IDE extension (VS Code)",
+  vscode_extensions: "IDE extension", // vscode_extensions can include any vscode-based editor (e.g., Cursor, Trae, Windsurf), so we rely instead on the `extension_for` field computed by Fleet server and fallback to this value if it is not present.
 } as const;
 
 export type SoftwareSource = keyof typeof SOURCE_TYPE_CONVERSION;
@@ -247,7 +247,8 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
 
 export type InstallableSoftwareSource = keyof typeof INSTALLABLE_SOURCE_PLATFORM_CONVERSION;
 
-const BROWSER_TYPE_CONVERSION = {
+const EXTENSION_FOR_TYPE_CONVERSION = {
+  // chrome versions
   chrome: "Chrome",
   chromium: "Chromium",
   opera: "Opera",
@@ -255,21 +256,30 @@ const BROWSER_TYPE_CONVERSION = {
   brave: "Brave",
   edge: "Edge",
   edge_beta: "Edge Beta",
+
+  // vscode versions
+  vscode: "VSCode",
+  vscode_insiders: "VSCode Insiders",
+  vscodium: "VSCodium",
+  vscodium_insiders: "VSCodium Insiders",
+  trae: "Trae",
+  windsurf: "Windsurf",
+  cursor: "Cursor",
 } as const;
 
-export type BrowserType = keyof typeof BROWSER_TYPE_CONVERSION;
+export type ExtensionForType = keyof typeof EXTENSION_FOR_TYPE_CONVERSION | "";
 
 export const formatSoftwareType = ({
   source,
-  browser,
+  extension_for,
 }: {
   source: SoftwareSource;
-  browser?: BrowserType;
+  extension_for?: ExtensionForType;
 }) => {
   let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
-  if (browser) {
-    type = `Browser plugin (${
-      BROWSER_TYPE_CONVERSION[browser] || startCase(browser)
+  if (extension_for) {
+    type += ` (${
+      EXTENSION_FOR_TYPE_CONVERSION[extension_for] || startCase(extension_for)
     })`;
   }
   return type;
