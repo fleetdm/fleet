@@ -15,13 +15,13 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
 
 export const DEFAULT_GRAVATAR_LINK_FALLBACK =
-  "/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+  "/assets/images/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
