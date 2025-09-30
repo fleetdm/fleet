@@ -23,6 +23,7 @@ labels:
   - path: ./lib/all/labels/conditional-access-test-group.yml
   - path: ./lib/all/labels/nudge-test-devices.yml
 org_settings:
+  certificate_authorities:
   features:
     enable_host_users: true
     enable_software_inventory: true
