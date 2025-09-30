@@ -709,8 +709,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		)
 		existingChecksums := uniqueTitleStrToChecksums[titleStr]
 		if len(existingChecksums) > 0 {
-			// Log when multiple checksums map to the same title. If we see this regularly, we should fix it.
-			level.Error(ds.logger).Log(
+			// Log when multiple checksums map to the same title.
+			level.Debug(ds.logger).Log(
 				"msg", "multiple checksums mapping to same title",
 				"title_str", titleStr,
 				"new_checksum", checksum,
