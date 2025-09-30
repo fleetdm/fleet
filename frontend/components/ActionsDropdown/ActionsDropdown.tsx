@@ -181,7 +181,6 @@ const ActionsDropdown = ({
     }
   };
 
-  console.log("variant", variant);
   const customStyles: StylesConfig<IDropdownOption, false> = {
     control: (provided, state) => ({
       ...provided,
