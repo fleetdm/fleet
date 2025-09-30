@@ -18,19 +18,4 @@
   &:focus-visible.row-hover-button {
     opacity: 1;
   }
-
-  // React-select's dropdown opacity must be controlled at input level for keyboard nav
-  &.row-hover-button.actions-dropdown {
-    opacity: 1;
-
-    // Control opacity of dropdown
-    .actions-dropdown-select__control {
-      opacity: 0;
-
-      &:hover,
-      &--is-focused {
-        opacity: 1;
-      }
-    }
-  }
 }
