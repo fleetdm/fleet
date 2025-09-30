@@ -515,7 +515,7 @@ func numberWithPluralization(n int, singular string, plural string) string {
 
 const dryRunAppliedFormat = "[+] would've applied %s\n"
 const appliedFormat = "[+] applied %s\n"
-const appliedTeamFormat = "[+] applied %s for team %s\n"
+const applyingTeamFormat = "[+] applying %s for team %s\n"
 
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
@@ -1016,7 +1016,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(appliedTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1028,7 +1028,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn(appliedTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
 				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
@@ -2475,12 +2475,12 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	logFn(appliedTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
+	logFn(applyingTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
 	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-	logFn(appliedTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
+	logFn(applyingTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
