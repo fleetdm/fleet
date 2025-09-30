@@ -85,6 +85,7 @@ func TestV4732MigrationFix(t *testing.T) {
 	require.NotNil(t, status)
 	assert.EqualValues(t, fleet.AllMigrationsCompleted, status.StatusCode)
 
+	// Insert a bad migration again which should trigger the unknown state
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO `+tables.MigrationClient.TableName+` (version_id, is_applied) VALUES (?, 1)`, fleet4732BadMigrationID1)
 	require.NoError(t, err)
 	status, err = ds.MigrationStatus(context.Background())
