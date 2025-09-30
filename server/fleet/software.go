@@ -117,8 +117,8 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
-// ToBundleVerStr is like ToUniqueStr but doesn't include the name
-func (s Software) ToBundleVerStr() string {
+// ToNamelessVerStr is like ToUniqueStr but doesn't include the name
+func (s Software) ToNamelessVerStr() string {
 	ss := []string{s.Version, s.Source, s.BundleIdentifier}
 	// Release, Vendor and Arch fields were added on a migration,
 	// thus we only include them in the string if at least one of them is defined.

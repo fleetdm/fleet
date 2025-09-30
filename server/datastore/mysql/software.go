@@ -379,7 +379,7 @@ func nameCompareFuncAlphabetical(new, old string) bool {
 func dedupeIncomingHelpers(software []fleet.Software, nameCompareFunc NameCompareFunc) []fleet.Software {
 	smap := map[string]*fleet.Software{}
 	for _, s := range software {
-		bundleVerStr := s.ToBundleVerStr()
+		bundleVerStr := s.ToNamelessVerStr()
 		if old, ok := smap[bundleVerStr]; ok {
 			if nameCompareFunc(s.Name, old.Name) {
 				smap[bundleVerStr] = &s
