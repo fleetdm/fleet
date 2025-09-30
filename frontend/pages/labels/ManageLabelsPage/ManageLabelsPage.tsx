@@ -113,19 +113,19 @@ const ManageLabelsPage = ({ router }: IManageLabelsPageProps): JSX.Element => {
               <h1>Labels</h1>
             </div>
           </div>
+          {canAddLabel && (
+            <div className={`${baseClass}__action-button-container`}>
+              <Button
+                className={`${baseClass}__create-button`}
+                onClick={onCreateLabelClick}
+              >
+                Add label
+              </Button>
+            </div>
+          )}
         </div>
-        {canAddLabel && (
-          <div className={`${baseClass}__action-button-container`}>
-            <Button
-              className={`${baseClass}__create-button`}
-              onClick={onCreateLabelClick}
-            >
-              Add label
-            </Button>
-          </div>
-        )}
+        <PageDescription content="Group hosts for targeting and filtering." />
       </div>
-      <PageDescription content="Group hosts for targeting and filtering" />
       {renderTable()}
       {labelToDelete && (
         <DeleteLabelModal
