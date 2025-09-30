@@ -1,3 +1,10 @@
+## Fleet 4.73.4 (Sep 30, 2025)
+
+### Bug fixes
+
+- Added logic to detect and fix migration issues caused by improperly published Fleet v4.73.2 Linux binary
+- Removing the software renaming fix introduced in 4.73.3 due to MySQL DB performance issues.
+
 ## Fleet 4.73.3 (Sep 26, 2025)
 
 ### Bug fixes
