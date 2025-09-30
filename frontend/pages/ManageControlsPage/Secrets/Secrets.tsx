@@ -190,7 +190,7 @@ const Secrets = () => {
         count={data?.count || 0}
         data={data?.custom_variables || []}
         currentPage={pageNumber}
-        onPageIndexChange={setPageNumber}
+        onChangePage={setPageNumber}
         onClickRow={(secret) => secret}
         heading={
           <div className={`${baseClass}__header`}>

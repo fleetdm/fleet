@@ -207,7 +207,7 @@ function PoliciesPaginatedList(
           count={count || 0}
           isLoading={isLoading || isFetchingCount}
           currentPage={pageNumber}
-          onPageIndexChange={setPageNumber}
+          onChangePage={setPageNumber}
           isSelected={isSelected}
           isItemDisabled={getPolicyDisabled}
           getItemTooltipContent={getPolicyTooltipContent}

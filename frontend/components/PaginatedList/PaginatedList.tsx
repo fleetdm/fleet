@@ -33,7 +33,7 @@ interface IPaginatedListProps<TItem> {
   /** index of the currently displayed page */
   currentPage: number;
   /** callback when the page index changes */
-  onPageIndexChange: (pageIndex: number) => void;
+  onChangePage: (pageIndex: number) => void;
   /** UID property in an item. Defaults to `id`. */
   idKey?: string;
   /** Property to use as an item's label. Defaults to `name`. */
@@ -81,7 +81,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     count,
     isLoading = false,
     currentPage = 0,
-    onPageIndexChange,
+    onChangePage,
     idKey: _idKey,
     labelKey: _labelKey,
     pageSize: _pageSize,
@@ -212,8 +212,8 @@ function PaginatedListInner<TItem extends Record<string, any>>(
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}
-        onNextPage={() => onPageIndexChange(currentPage + 1)}
-        onPrevPage={() => onPageIndexChange(currentPage - 1)}
+        onNextPage={() => onChangePage(currentPage + 1)}
+        onPrevPage={() => onChangePage(currentPage - 1)}
         hidePagination={currentPage === 0 && disableNext}
       />
     </div>
