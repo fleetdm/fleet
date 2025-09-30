@@ -11,6 +11,7 @@ module.exports = {
     emailAddress: {
       type: 'string',
       required: true,
+      isEmail: true,
     },
     fleetInstanceUrl: {
       type: 'string',

@@ -1,4 +1,6 @@
 .manage-controls-page {
+  @include vertical-page-layout;
+
   &__header-wrap {
     @include normalize-team-header;
 

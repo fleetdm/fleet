@@ -25,12 +25,14 @@ import CustomSCEPForm from "../CustomSCEPForm";
 import { ICustomSCEPFormData } from "../CustomSCEPForm/CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
 import { IHydrantFormData } from "../HydrantForm/HydrantForm";
+import { ISmallstepFormData } from "../SmallstepForm/SmallstepForm";
 
 export type ICertFormData =
   | IDigicertFormData
   | IHydrantFormData
   | INDESFormData
-  | ICustomSCEPFormData;
+  | ICustomSCEPFormData
+  | ISmallstepFormData;
 
 const baseClass = "add-cert-authority-modal";
 
@@ -79,6 +81,16 @@ const AddCertAuthorityModal = ({
     scepURL: "",
     challenge: "",
   });
+  const [
+    smallstepFormData,
+    setSmallstepFormData,
+  ] = useState<ISmallstepFormData>({
+    name: "",
+    scepURL: "",
+    challengeURL: "",
+    username: "",
+    password: "",
+  });
 
   const onChangeDropdown = (value: ICertificateAuthorityType) => {
     setCertAuthorityType(value);
@@ -104,6 +116,10 @@ const AddCertAuthorityModal = ({
         setFormData = setCustomSCEPFormData;
         formData = customSCEPFormData;
         break;
+      case "smallstep":
+        setFormData = setSmallstepFormData;
+        formData = smallstepFormData;
+        break;
       default:
         return;
     }
@@ -128,6 +144,9 @@ const AddCertAuthorityModal = ({
         break;
       case "custom_scep_proxy":
         formData = customSCEPFormData;
+        break;
+      case "smallstep":
+        formData = smallstepFormData;
         break;
       default:
         return;

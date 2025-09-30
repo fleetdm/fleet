@@ -229,7 +229,7 @@ const ScriptBatchProgress = ({
     <>
       <div className={baseClass}>
         <SectionHeader title="Batch progress" alignLeftHeaderVertically />
-        <TabNav>
+        <TabNav secondary>
           <Tabs
             selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
             onSelect={handleTabChange}

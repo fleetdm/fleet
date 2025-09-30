@@ -117,47 +117,57 @@ class RegistrationForm extends Component {
       [`${baseClass}__form--step4-active`]: page === 4,
     });
 
+    const REGISTRATION_FORM = {
+      1: (
+        <div className={adminDetailsContainerClass}>
+          <AdminDetails
+            formData={formData}
+            handleSubmit={onPageFormSubmit}
+            className={adminDetailsClass}
+            currentPage={isCurrentPage(1)}
+          />
+        </div>
+      ),
+      2: (
+        <div className={orgDetailsContainerClass}>
+          <OrgDetails
+            formData={formData}
+            handleSubmit={onPageFormSubmit}
+            className={orgDetailsClass}
+            currentPage={isCurrentPage(2)}
+          />
+        </div>
+      ),
+      3: (
+        <div className={fleetDetailsContainerClass}>
+          <FleetDetails
+            formData={formData}
+            handleSubmit={onPageFormSubmit}
+            className={fleetDetailsClass}
+            currentPage={isCurrentPage(3)}
+          />
+        </div>
+      ),
+      4: (
+        <div className={confirmationContainerClass}>
+          <ConfirmationPage
+            formData={formData}
+            handleSubmit={onSubmitConfirmation}
+            className={confirmationClass}
+            currentPage={isCurrentPage(4)}
+            isLoading={isLoading}
+          />
+        </div>
+      ),
+    };
+
+    const renderRegistrationForm = () => {
+      return REGISTRATION_FORM[page];
+    };
+
     return (
       <div className={baseClass}>
-        <div className={formSectionClasses}>
-          <div className={adminDetailsContainerClass}>
-            <h2>Set up user</h2>
-            <AdminDetails
-              formData={formData}
-              handleSubmit={onPageFormSubmit}
-              className={adminDetailsClass}
-              currentPage={isCurrentPage(1)}
-            />
-          </div>
-          <div className={orgDetailsContainerClass}>
-            <h2>Organization details</h2>
-            <OrgDetails
-              formData={formData}
-              handleSubmit={onPageFormSubmit}
-              className={orgDetailsClass}
-              currentPage={isCurrentPage(2)}
-            />
-          </div>
-          <div className={fleetDetailsContainerClass}>
-            <h2>Set Fleet URL</h2>
-            <FleetDetails
-              formData={formData}
-              handleSubmit={onPageFormSubmit}
-              className={fleetDetailsClass}
-              currentPage={isCurrentPage(3)}
-            />
-          </div>
-          <div className={confirmationContainerClass}>
-            <h2>Confirm configuration</h2>
-            <ConfirmationPage
-              formData={formData}
-              handleSubmit={onSubmitConfirmation}
-              className={confirmationClass}
-              currentPage={isCurrentPage(4)}
-              isLoading={isLoading}
-            />
-          </div>
-        </div>
+        <div className={formSectionClasses}>{renderRegistrationForm()}</div>
       </div>
     );
   }

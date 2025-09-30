@@ -18,11 +18,11 @@
   &:hover:not(.fleet-checkbox__label--disabled) {
     svg {
       .checkbox-state {
-        stroke: $core-vibrant-blue-over;
-        fill: $core-vibrant-blue-over;
+        stroke: $core-fleet-green-over;
+        fill: $core-fleet-green-over;
       }
       .checkbox-unchecked-state {
-        stroke: $core-vibrant-blue-over;
+        stroke: $core-fleet-green-over;
       }
     }
   }
@@ -31,11 +31,11 @@
   &:active:not(.fleet-checkbox__label--disabled) {
     svg {
       .checkbox-state {
-        stroke: $core-vibrant-blue-down;
-        fill: $core-vibrant-blue-down;
+        stroke: $core-fleet-green-down;
+        fill: $core-fleet-green-down;
       }
       .checkbox-unchecked-state {
-        stroke: $core-vibrant-blue-down;
+        stroke: $core-fleet-green-down;
       }
     }
   }
@@ -45,7 +45,7 @@
     outline: none;
 
     svg {
-      outline: 2px solid $ui-vibrant-blue-25;
+      outline: 2px solid $ui-fleet-black-75;
       outline-offset: 1px;
       border-radius: $border-radius;
     }

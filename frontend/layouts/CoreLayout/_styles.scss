@@ -2,19 +2,20 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  width: 100%;
   background-color: $ui-off-white;
 }
 
 .core-wrapper {
+  @include gradient-background;
   flex-grow: 1;
   margin: 0;
   padding: 0;
   position: relative;
-  background-color: $core-white;
   display: flex;
 
   // App hidden below 768px
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xs - 1px)) {
     display: none;
   }
 
@@ -33,14 +34,15 @@
 }
 
 .site-nav-container {
-  background: $core-fleet-black;
+  background: $core-fleet-white;
+  border-bottom: 1px solid $ui-fleet-black-10;
   box-sizing: border-box;
   top: 0;
   left: 0;
   z-index: 100;
 
   // Nav hidden below 768px;
-  @media (max-width: $break-xs - 1px) {
+  @media (max-width: ($break-xs - 1px)) {
     display: none;
   }
 

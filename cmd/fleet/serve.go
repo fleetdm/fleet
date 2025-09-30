@@ -1057,6 +1057,19 @@ the way that the Fleet server works.
 				initFatal(err, "failed to register mdm_android_profile_manager schedule")
 			}
 
+			// Register Android MDM Device Reconciler schedule (same interval as Android profile manager)
+			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
+				return newAndroidMDMDeviceReconcilerSchedule(
+					ctx,
+					instanceID,
+					ds,
+					logger,
+					config.License.Key,
+				)
+			}); err != nil {
+				initFatal(err, "failed to register mdm_android_device_reconciler schedule")
+			}
+
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
 				return newMDMAPNsPusher(
 					ctx,
@@ -1200,7 +1213,7 @@ the way that the Fleet server works.
 				}
 				extra = append(extra, service.WithHTTPSigVerifier(httpSigVerifier))
 
-				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore,
+				apiHandler = service.MakeHandler(svc, config, httpLogger, limiterStore, redisPool,
 					[]endpoint_utils.HandlerRoutesFunc{android_service.GetRoutes(svc, androidSvc)}, extra...)
 
 				setupRequired, err := svc.SetupRequired(baseCtx)

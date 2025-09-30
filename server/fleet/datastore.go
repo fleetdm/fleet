@@ -2287,6 +2287,11 @@ type Datastore interface {
 	// profiles with the specified UUIDs.
 	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
 
+	// ListAndroidEnrolledDevicesForReconcile returns the list of Android devices
+	// that are currently marked as enrolled in Fleet (host_mdm.enrolled=1).
+	// It returns a minimal device struct with host and device identifiers.
+	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
 
@@ -2410,6 +2415,7 @@ type AndroidDatastore interface {
 	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
+	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)

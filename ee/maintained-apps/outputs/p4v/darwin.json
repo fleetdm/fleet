@@ -1,14 +1,14 @@
 {
   "versions": [
     {
-      "version": "2025.2",
+      "version": "2025.3",
       "queries": {
         "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v';"
       },
-      "installer_url": "https://filehost.perforce.com/perforce/r25.2/bin.macosx12u/P4V.dmg",
+      "installer_url": "https://filehost.perforce.com/perforce/r25.3/bin.macosx12u/P4V.dmg",
       "install_script_ref": "30988d01",
       "uninstall_script_ref": "53a94d03",
-      "sha256": "9df7be63e2014cd523ad4f0afc1d97014d53ed1754e701323ab71279687810ce",
+      "sha256": "7fa7be623c05aa1eab8d7ceee0dc3d03dca1db8ded108f41df60460fd51a565a",
       "default_categories": [
         "Developer tools"
       ]

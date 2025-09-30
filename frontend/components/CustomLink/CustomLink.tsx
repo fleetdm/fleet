@@ -43,7 +43,7 @@ const CustomLink = ({
       case "banner-link":
         return "core-fleet-black";
       default:
-        return "core-fleet-blue";
+        return "ui-fleet-black-75";
     }
   };
 
