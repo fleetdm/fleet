@@ -139,24 +139,92 @@ software:
     - self_service: true
       slug: visual-studio-code/windows
   packages:
-    - path: ../lib/macos/software/mozilla-firefox.yml
-    - path: ../lib/macos/software/google-chrome.yml
+    - categories:
+        - Browsers
+      path: ../lib/macos/software/mozilla-firefox.yml
+      self_service: true
+    - categories:
+        - Browsers
+      path: ../lib/macos/software/google-chrome.yml
+      self_service: true
     - path: ../lib/macos/software/1password.yml
-    - path: ../lib/macos/software/santa.yml
-    - path: ../lib/macos/software/zoom.yml
-    - path: ../lib/macos/software/fleet-keynote-theme.yml
+      self_service: true
+    - labels_include_any:
+        - Santa test devices
+      path: ../lib/macos/software/santa.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      path: ../lib/macos/software/zoom.yml
+      self_service: true
+    - labels_include_any:
+        - Keynote installed
+      path: ../lib/macos/software/fleet-keynote-theme.yml
+      self_service: true
     - path: ../lib/macos/software/nudge.yml
+      self_service: false
     - path: ../lib/macos/software/nudge-assets.yml
-    - path: ../lib/linux/software/zoom-deb.yml
-    - path: ../lib/linux/software/zoom-rpm.yml
-    - path: ../lib/linux/software/slack-deb.yml
-    - path: ../lib/linux/software/slack-rpm.yml
-    - path: ../lib/windows/software/slack.yml
-    - path: ../lib/windows/software/zoom-arm.yml
-    - path: ../lib/windows/software/zoom.yml
-    - path: ../lib/windows/software/google-chrome.yml
-    - path: ../lib/windows/software/google-chrome-arm.yml
+      self_service: false
+    - categories:
+        - Communication
+      labels_include_any:
+        - Debian-based Linux hosts
+      path: ../lib/linux/software/zoom-deb.yml
+      self_service: true
+    - categories:
+        - Communication
+      labels_include_any:
+        - RPM-based Linux hosts
+      path: ../lib/linux/software/zoom-rpm.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - Debian-based Linux hosts
+      path: ../lib/linux/software/slack-deb.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - RPM-based Linux hosts
+      path: ../lib/linux/software/slack-rpm.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - x86-based Windows hosts
+      path: ../lib/windows/software/slack.yml
+      self_service: true
+    - categories:
+        - Communication
+      labels_include_any:
+        - ARM-based Windows hosts
+      path: ../lib/windows/software/zoom-arm.yml
+      self_service: true
+    - categories:
+        - Communication
+      labels_include_any:
+        - x86-based Windows hosts
+      path: ../lib/windows/software/zoom.yml
+      self_service: true
+    - categories:
+        - Browsers
+      labels_include_any:
+        - x86-based Windows hosts
+      path: ../lib/windows/software/google-chrome.yml
+      self_service: true
+    - categories:
+        - Browsers
+      labels_include_any:
+        - ARM-based Windows hosts
+      path: ../lib/windows/software/google-chrome-arm.yml
+      self_service: true
     - path: ../lib/windows/software/1password.yml
+      self_service: true
 team_settings:
   features:
     enable_host_users: true

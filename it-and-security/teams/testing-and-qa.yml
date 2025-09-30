@@ -39,10 +39,32 @@ software:
     - self_service: true
       slug: iterm2/darwin
   packages:
-    - path: ../lib/linux/software/zoom-deb.yml
-    - path: ../lib/linux/software/zoom-rpm.yml
-    - path: ../lib/linux/software/slack-deb.yml
-    - path: ../lib/linux/software/slack-rpm.yml
+    - categories:
+        - Communication
+      labels_include_any:
+        - Debian-based Linux hosts
+      path: ../lib/linux/software/zoom-deb.yml
+      self_service: true
+    - categories:
+        - Communication
+      labels_include_any:
+        - RPM-based Linux hosts
+      path: ../lib/linux/software/zoom-rpm.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - Debian-based Linux hosts
+      path: ../lib/linux/software/slack-deb.yml
+      self_service: true
+    - categories:
+        - Productivity
+        - Communication
+      labels_include_any:
+        - RPM-based Linux hosts
+      path: ../lib/linux/software/slack-rpm.yml
+      self_service: true
 team_settings:
   features:
     enable_host_users: true

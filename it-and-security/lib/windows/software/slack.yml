@@ -1,7 +1,1 @@
-categories:
-  - Productivity
-  - Communication
-labels_include_any:
-  - x86-based Windows hosts
-self_service: true
 url: http://slack.com/ssb/download-win64-msi
