@@ -1095,7 +1095,7 @@ SELECT
 	h.hardware_serial,
 	-- if the status filter is "pending", we want to return "pending" for all hosts
     ? as status,
-	-- pending hosts will have "updated_at" set in the db, but since 
+	-- pending hosts will have "updated_at" set in the db, but since
 	-- we're using it to mean "executed at" we'll return it as empty.
 	CASE
 		WHEN ? != 'pending' THEN hsr.updated_at
