@@ -1,4 +1,26 @@
-name: "☁️🐣 Servers (canary)"
+agent_options:
+  path: ../lib/all/agent-options/servers-canary.agent-options.yml
+controls:
+  enable_disk_encryption: false
+  macos_settings:
+    custom_settings: null
+  macos_setup:
+    bootstrap_package: null
+    enable_end_user_authentication: false
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: null
+    minimum_version: null
+  scripts: null
+  windows_settings:
+    custom_settings: null
+  windows_updates:
+    deadline_days: null
+    grace_period_days: null
+name: "☁️\U0001F423 Servers (canary)"
+policies: null
+queries: null
+software: null
 team_settings:
   features:
     enable_host_users: true
@@ -8,25 +30,3 @@ team_settings:
     host_expiry_window: 30
   secrets:
     - secret: $DOGFOOD_SERVERS_CANARY_ENROLL_SECRET
-agent_options:
-  path: ../lib/all/agent-options/servers-canary.agent-options.yml
-controls:
-  enable_disk_encryption: false
-  macos_settings:
-    custom_settings:
-  macos_setup:
-    bootstrap_package: null
-    enable_end_user_authentication: false
-    macos_setup_assistant: null
-  macos_updates:
-    deadline: null
-    minimum_version: null
-  windows_settings:
-    custom_settings: null
-  windows_updates:
-    deadline_days: null
-    grace_period_days: null
-  scripts:
-policies:
-queries:
-software:

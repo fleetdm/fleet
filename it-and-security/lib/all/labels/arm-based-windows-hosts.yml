@@ -1,5 +1,5 @@
-- name: ARM-based Windows hosts
-  description: Windows hosts on ARM architecture
-  query: SELECT 1 FROM os_version WHERE arch LIKE 'ARM%';
+- description: Windows hosts on ARM architecture
   label_membership_type: dynamic
+  name: ARM-based Windows hosts
   platform: windows
+  query: SELECT 1 FROM os_version WHERE arch LIKE 'ARM%';

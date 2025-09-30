@@ -12,8 +12,6 @@ config:
     logger_tls_period: 10
     pack_delimiter: /
 update_channels:
-  # We want to use these hosts to stick to stable releases
-  # to perform smoke tests after promoting edge to stable.
-  osqueryd: stable
-  orbit: stable
   desktop: stable
+  orbit: stable
+  osqueryd: stable

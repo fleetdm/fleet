@@ -1,10 +1,10 @@
-- name: macOS - Company Portal installed
-  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';
+- critical: false
+  description: This policy triggers automatic install of Company Portal on hosts in the "Conditional access test group" label.
   install_software:
     package_path: ../software/company-portal.yml
-  critical: false
-  description: This policy triggers automatic install of Company Portal on hosts in the "Conditional access test group" label.
-  resolution: Company Portal should be automatically installed. If it is missing, install it from self-service. 
-  platform: darwin
   labels_include_any:
-    - "Conditional access test group"
+    - Conditional access test group
+  name: macOS - Company Portal installed
+  platform: darwin
+  query: SELECT 1 FROM apps WHERE bundle_identifier = 'com.microsoft.CompanyPortalMac';
+  resolution: Company Portal should be automatically installed. If it is missing, install it from self-service.

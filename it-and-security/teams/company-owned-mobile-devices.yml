@@ -1,15 +1,4 @@
-name: 📱🏢 Company-owned mobile devices
-team_settings:
-  features:
-  host_expiry_settings:
-    host_expiry_enabled: false
-    host_expiry_window: 0
-  secrets:
-    - secret: $DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET
-  integrations:
-    google_calendar:
-      enable_calendar_events: false
-agent_options:
+agent_options: null
 controls:
   ios_updates:
     deadline: "2025-06-01"
@@ -24,13 +13,24 @@ controls:
       - path: ../lib/ios/declaration-profiles/Software Update settings.json
   macos_setup:
     enable_end_user_authentication: true
-  scripts:
-policies:
-queries:
+  scripts: null
+name: "\U0001F4F1\U0001F3E2 Company-owned mobile devices"
+policies: null
+queries: null
 software:
   app_store_apps:
-    - app_store_id: '618783545' # Slack
-    - app_store_id: '546505307' # Zoom
-    - app_store_id: '842842640' # Google Docs
-    - app_store_id: '842849113' # Google Sheets
-    - app_store_id: '507874739' # Google Drive
+    - app_store_id: "618783545"
+    - app_store_id: "546505307"
+    - app_store_id: "842842640"
+    - app_store_id: "842849113"
+    - app_store_id: "507874739"
+team_settings:
+  features: null
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  integrations:
+    google_calendar:
+      enable_calendar_events: false
+  secrets:
+    - secret: $DOGFOOD_COMPANY_OWNED_MOBILE_DEVICES_ENROLL_SECRET

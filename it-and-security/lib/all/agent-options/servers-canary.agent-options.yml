@@ -12,7 +12,6 @@ config:
     logger_tls_period: 10
     pack_delimiter: /
 update_channels:
-  # We want to use these hosts to smoke test edge releases.
-  osqueryd: edge
-  orbit: edge
   desktop: edge
+  orbit: edge
+  osqueryd: edge

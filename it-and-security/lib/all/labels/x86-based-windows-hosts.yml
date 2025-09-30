@@ -1,5 +1,5 @@
-- name: x86-based Windows hosts
-  description: Windows hosts on x86 architecture
-  query: SELECT * FROM os_version WHERE arch NOT LIKE 'ARM%';
+- description: Windows hosts on x86 architecture
   label_membership_type: dynamic
+  name: x86-based Windows hosts
   platform: windows
+  query: SELECT * FROM os_version WHERE arch NOT LIKE 'ARM%';

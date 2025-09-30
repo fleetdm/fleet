@@ -1,10 +1,10 @@
-- name: Nudge test devices
-  description: Macs testing Nudge
-  label_membership_type: manual
-  platform: darwin
+- description: Macs testing Nudge
   hosts:
-    - "allens-macbook-pro.local"
-    - "allens-mac-mini.local"
-    - "noah-talerman-macBook-pro.local"
-    - "mitchs-macbook-pro.local"
-    - "harrisons-macbook-pro.local"
+    - allens-macbook-pro.local
+    - allens-mac-mini.local
+    - noah-talerman-macBook-pro.local
+    - mitchs-macbook-pro.local
+    - harrisons-macbook-pro.local
+  label_membership_type: manual
+  name: Nudge test devices
+  platform: darwin
