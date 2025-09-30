@@ -736,7 +736,7 @@ type MDMConfig struct {
 	microsoftWSTEPCertPEM []byte
 	microsoftWSTEPKeyPEM  []byte
 
-	SSORateLimitPerMinute               int  `yaml:"sso_rate_limit_per_minute"`
+	SSORateLimitPerMinute             int  `yaml:"sso_rate_limit_per_minute"`
 	EnableCustomOSUpdatesAndFileVault bool `yaml:"enable_custom_os_updates_and_filevault"`
 }
 
