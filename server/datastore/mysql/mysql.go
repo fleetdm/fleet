@@ -40,6 +40,16 @@ import (
 const (
 	defaultSelectLimit   = 1000000
 	mySQLTimestampFormat = "2006-01-02 15:04:05" // %Y/%m/%d %H:%M:%S
+
+	// Migration IDs needed for fixing broken migrations that some customers encountered with fleet v4.73.2
+	// See https://github.com/fleetdm/fleet/issues/33562
+	fleet4732BadMigrationID1  = 20250918154557 // was 20250918154557_AddKernelHostCountsIndexForVulnQueries.go
+	fleet4732GoodMigrationID1 = 20250817154557 // 20250817154557_AddKernelHostCountsIndexForVulnQueries.go
+
+	fleet4732BadMigrationID2  = 20250904115553 // was 20250904115553_OptimizeHostScriptResultsIndex.go
+	fleet4732GoodMigrationID2 = 20250816115553 // 20250816115553_OptimizeHostScriptResultsIndex.go
+
+	fleet4731GoodMigrationID = 20250815130115
 )
 
 // Matches all non-word and '-' characters for replacement
@@ -412,12 +422,73 @@ func (ds *Datastore) MigrationStatus(ctx context.Context) (*fleet.MigrationStatu
 	if err != nil {
 		return nil, fmt.Errorf("cannot load migrations: %w", err)
 	}
+	// This will only return a non-nil status if we detect the specific broken state from v4.73.2
+	status := ds.CheckFleetv4732BadMigrations(appliedTable)
+	if status != nil {
+		return status, nil
+	}
 	return compareMigrations(
 		tables.MigrationClient.Migrations,
 		data.MigrationClient.Migrations,
 		appliedTable,
 		appliedData,
 	), nil
+}
+
+// Checks for misnumbered migrations introduced in some released fleet v4.73.2 versions
+func (ds *Datastore) CheckFleetv4732BadMigrations(appliedTable []int64) *fleet.MigrationStatus {
+	if len(appliedTable) == 0 {
+		return nil
+	}
+	// If the last 3 migrations are the "bad" 4.73.2 migrations and then the good 4.73.1 migration, in that order,
+	// we are in the known-bad 4.73.2 state and should apply the fix
+	if len(appliedTable) > 2 &&
+		appliedTable[len(appliedTable)-1] == fleet4732BadMigrationID1 &&
+		appliedTable[len(appliedTable)-2] == fleet4732BadMigrationID2 &&
+		appliedTable[len(appliedTable)-3] != fleet4731GoodMigrationID {
+		return &fleet.MigrationStatus{
+			StatusCode: fleet.NeedsFleetv4732Fix,
+		}
+	}
+	for _, v := range appliedTable {
+		if v == fleet4732BadMigrationID1 || v == fleet4732BadMigrationID2 {
+			return &fleet.MigrationStatus{
+				StatusCode: fleet.UnknownFleetv4732State,
+			}
+		}
+	}
+	return nil
+}
+
+func (ds *Datastore) FixFleetv4732Migrations(ctx context.Context) error {
+	// Update version ID of the bad migrations to the renumbered version IDs. Exactly 1 row should be affected
+	// by each query
+	stmt := `UPDATE ` + tables.MigrationClient.TableName + ` SET version_id = ? WHERE version_id = ?`
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		result, err := tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID1, fleet4732BadMigrationID1)
+		if err != nil {
+			return err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID1, affected)
+		}
+		result, err = tx.ExecContext(ctx, stmt, fleet4732GoodMigrationID2, fleet4732BadMigrationID2)
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if affected != 1 {
+			return ctxerr.Errorf(ctx, "expected to affect 1 row for migration %d, affected %d", fleet4732BadMigrationID2, affected)
+		}
+		return nil
+	})
 }
 
 // It assumes some deployments may have performed migrations out of order.
