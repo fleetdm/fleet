@@ -8,8 +8,7 @@ import PaginatedList, { IPaginatedListHandle } from "./PaginatedList";
 // to test:
 // setDirtyOnClickRow?: boolean;
 // useCheckBoxes?: boolean;
-// /** Allow the parent to trigger the loading overlay */
-// ancestralUpdating?: boolean;
+// isLoading?: boolean;
 
 describe("PaginatedList", () => {
   interface ITestItem {
