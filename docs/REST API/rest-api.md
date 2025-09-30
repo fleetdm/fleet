@@ -9172,7 +9172,13 @@ Returns a list hosts targeted in a batch script run, along with their script exe
   ],
   "meta": {
     "has_next_results": false,
-    "has_previous_results": false
+    "has_previous_results": false,
+    "targeted_host_count": 12599,
+    "ran_host_count": 12345,
+    "pending_host_count": 234,
+    "errored_host_count": 18,
+    "incompatible_host_count": 3,
+    "canceled_host_count": 2
   },
   "count": 1
 }
