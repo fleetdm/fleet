@@ -1105,7 +1105,7 @@ type WSTEPAssociateCertHashFunc func(ctx context.Context, deviceUUID string, has
 
 type MDMWindowsInsertEnrolledDeviceFunc func(ctx context.Context, device *fleet.MDMWindowsEnrolledDevice) error
 
-type MDMWindowsDeleteEnrolledDeviceFunc func(ctx context.Context, mdmDeviceHWID string) error
+type MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc func(ctx context.Context, mdmDeviceHWID string) error
 
 type MDMWindowsGetEnrolledDeviceWithDeviceIDFunc func(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error)
 
@@ -3165,8 +3165,8 @@ type DataStore struct {
 	MDMWindowsInsertEnrolledDeviceFunc        MDMWindowsInsertEnrolledDeviceFunc
 	MDMWindowsInsertEnrolledDeviceFuncInvoked bool
 
-	MDMWindowsDeleteEnrolledDeviceFunc        MDMWindowsDeleteEnrolledDeviceFunc
-	MDMWindowsDeleteEnrolledDeviceFuncInvoked bool
+	MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc        MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc
+	MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked bool
 
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFunc        MDMWindowsGetEnrolledDeviceWithDeviceIDFunc
 	MDMWindowsGetEnrolledDeviceWithDeviceIDFuncInvoked bool
@@ -7599,11 +7599,11 @@ func (s *DataStore) MDMWindowsInsertEnrolledDevice(ctx context.Context, device *
 	return s.MDMWindowsInsertEnrolledDeviceFunc(ctx, device)
 }
 
-func (s *DataStore) MDMWindowsDeleteEnrolledDevice(ctx context.Context, mdmDeviceHWID string) error {
+func (s *DataStore) MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx context.Context, mdmDeviceHWID string) error {
 	s.mu.Lock()
-	s.MDMWindowsDeleteEnrolledDeviceFuncInvoked = true
+	s.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMWindowsDeleteEnrolledDeviceFunc(ctx, mdmDeviceHWID)
+	return s.MDMWindowsDeleteEnrolledDeviceOnReenrollmentFunc(ctx, mdmDeviceHWID)
 }
 
 func (s *DataStore) MDMWindowsGetEnrolledDeviceWithDeviceID(ctx context.Context, mdmDeviceID string) (*fleet.MDMWindowsEnrolledDevice, error) {
