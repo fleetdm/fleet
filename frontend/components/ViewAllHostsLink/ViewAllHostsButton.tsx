@@ -25,6 +25,7 @@ interface IHostLinkProps {
   rowHover?: boolean;
   /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
+  /** When provided, replaces View all hosts button with ActionDropdown */
   dropdown?: { options: IDropdownOption[]; onChange: (value: string) => void };
 }
 
