@@ -117,6 +117,22 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+// ToBundleVerStr is like ToUniqueStr but doesn't include the name
+func (s Software) ToBundleVerStr() string {
+	ss := []string{s.Version, s.Source, s.BundleIdentifier}
+	// Release, Vendor and Arch fields were added on a migration,
+	// thus we only include them in the string if at least one of them is defined.
+	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
+		ss = append(ss, s.Release, s.Vendor, s.Arch)
+	}
+	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.Browser != "" {
+		ss = append(ss, s.ExtensionID, s.Browser)
+	}
+	return strings.Join(ss, SoftwareFieldSeparator)
+}
+
 // computeRawChecksum computes the checksum for a software entry
 // The calculation must match the one in softwareChecksumComputedColumn
 func (s Software) ComputeRawChecksum() ([]byte, error) {

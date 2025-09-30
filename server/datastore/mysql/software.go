@@ -363,6 +363,40 @@ WHERE
 	return softwares, nil
 }
 
+// NameCompareFunc is used to deal with identical software titles with different names in the same
+// ingestion. This is usually the case with helper functions. The first parameter is the new
+// software, the second is the old software. If the function returns true, the new name is used,
+// otherwise the old name is kept.
+type NameCompareFunc func(string, string) bool
+
+func nameCompareFuncAlphabetical(new, old string) bool {
+	return new > old
+}
+
+// dedupeIncomingHelpers reduces a list of software to remove any cases of software that is
+// identical except for the name. This is usually for cases where several helper functions will
+// share all properties excpet for the name. nameCompareFunc is used to determine which name wins.
+func dedupeIncomingHelpers(software []fleet.Software, nameCompareFunc NameCompareFunc) []fleet.Software {
+	smap := map[string]*fleet.Software{}
+	for _, s := range software {
+		bundleVerStr := s.ToBundleVerStr()
+		if old, ok := smap[bundleVerStr]; ok {
+			if nameCompareFunc(s.Name, old.Name) {
+				smap[bundleVerStr] = &s
+			}
+		} else {
+			smap[bundleVerStr] = &s
+		}
+	}
+
+	out := make([]fleet.Software, 0, len(smap))
+	for _, s := range smap {
+		out = append(out, *s)
+	}
+
+	return out
+}
+
 // applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
 // was inserted and what was deleted
 func (ds *Datastore) applyChangesForNewSoftwareDB(
@@ -382,6 +416,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 		return nil, ctxerr.Wrap(ctx, err, "loading current software for host")
 	}
 	r.WasCurrInstalled = currentSoftware
+
+	software = dedupeIncomingHelpers(software, nameCompareFuncAlphabetical)
 
 	current, incoming, notChanged := nothingChanged(currentSoftware, software, ds.minLastOpenedAtDiff)
 	if notChanged {
@@ -4667,7 +4703,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
-		SELECT 
+		SELECT
 			hsi.software_installer_id,
 			hsi.user_id,
 			hsi.policy_id,
