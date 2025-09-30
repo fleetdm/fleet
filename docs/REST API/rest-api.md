@@ -9815,10 +9815,7 @@ Returns a list of all operating systems.
 }
 ```
 
-
-`vulnerabilities` lists up to 3 vulnerabilities per OS version. To retrieve an OS version's full list of vulnerabilities, use [Get operating system version](#get-operating-system-version).
-
-Windows and macOS vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
+Windows and macOS listed vulnerabilities are based on OS version-specific data. Linux vulnerabilities are based on kernel vulnerabilities for hosts running the specified OS version. Both active and inactive kernels on a host are accounted for in kernel vulnerability reporting. Other operating systems do not report vulnerabilities.
 
 ### Get software
 
