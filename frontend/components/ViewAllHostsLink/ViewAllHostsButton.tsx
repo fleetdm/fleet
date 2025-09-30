@@ -3,7 +3,10 @@ import PATHS from "router/paths";
 import { browserHistory } from "react-router";
 import classnames from "classnames";
 
+import { IDropdownOption } from "interfaces/dropdownOption";
+
 import Button from "components/buttons/Button";
+import ActionsDropdown from "components/ActionsDropdown";
 import Icon from "components/Icon";
 import { getPathWithQueryParams, QueryParams } from "utilities/url";
 
@@ -16,11 +19,14 @@ interface IHostLinkProps {
   condensed?: boolean;
   excludeChevron?: boolean;
   responsive?: boolean;
-  customContent?: React.ReactNode;
+  /** Custom text replaces "View all hosts" in button or "Actions" in dropdown */
+  customText?: string;
   /** Table links shows on row hover and tab focus only */
   rowHover?: boolean;
   /** Don't actually create a button, useful when click is handled by an ancestor */
   noLink?: boolean;
+  /** When provided, replaces View all hosts button with ActionDropdown */
+  dropdown?: { options: IDropdownOption[]; onChange: (value: string) => void };
 }
 
 const baseClass = "view-all-hosts-button";
@@ -32,10 +38,12 @@ const ViewAllHostsButton = ({
   condensed = false,
   excludeChevron = false,
   responsive = false,
-  customContent,
+  customText,
   rowHover = false,
   noLink = false,
+  dropdown,
 }: IHostLinkProps): JSX.Element => {
+  console.log("rowHover", rowHover);
   const viewAllHostsButtonClass = classnames(baseClass, className, {
     [`${baseClass}__condensed`]: condensed,
     "row-hover-button": rowHover,
@@ -56,6 +64,19 @@ const ViewAllHostsButton = ({
     }
   };
 
+  if (dropdown) {
+    return (
+      <ActionsDropdown
+        className={viewAllHostsButtonClass}
+        options={dropdown.options}
+        onChange={dropdown.onChange}
+        placeholder={customText || "Actions"}
+        variant="small-button"
+        menuAlign="right"
+      />
+    );
+  }
+
   return (
     <Button
       className={viewAllHostsButtonClass}
@@ -67,7 +88,7 @@ const ViewAllHostsButton = ({
         <span
           className={`${baseClass}__text${responsive ? "--responsive" : ""}`}
         >
-          {customContent ?? "View all hosts"}
+          {customText ?? "View all hosts"}
         </span>
       )}
       {!excludeChevron && (

@@ -31,7 +31,7 @@ const ScriptOutputCell = (cellProps: CellProps<IScriptBatchHostResult>) => {
         value={cellProps.row.original.script_output_preview}
       />
       <ViewAllHostsLink
-        customContent="View script details"
+        customText="View script details"
         rowHover
         noLink
         responsive
@@ -63,7 +63,7 @@ const generateColumnConfigs = (
           />
           {SCRIPT_BATCH_HOST_NOT_EXECUTED_STATUSES.includes(hostStatus) && (
             <ViewAllHostsLink
-              customContent="View host details"
+              customText="View host details"
               rowHover
               noLink
               responsive
