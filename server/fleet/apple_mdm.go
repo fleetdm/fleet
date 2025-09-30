@@ -279,7 +279,7 @@ func ValidateNoSecretsInProfileName(xmlContent []byte) error {
 	return nil
 }
 
-func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
+func (cp MDMAppleConfigProfile) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
 		return fmt.Errorf("payload identifier %s is not allowed", cp.Identifier)
@@ -290,7 +290,7 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	}
 
 	// then screen the payload content for reserved identifiers, names, and types
-	return cp.Mobileconfig.ScreenPayloads()
+	return cp.Mobileconfig.ScreenPayloads(allowCustomOSUpdatesAndFileVault)
 }
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
@@ -712,20 +712,22 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.watch.enrollment":             {},
 }
 
-func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
+func (r *MDMAppleRawDeclaration) ValidateUserProvided(allowCustomOSUpdatesAndFileVault bool) error {
 	var err error
 
 	// Check against types we don't allow
 	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+		if !allowCustomOSUpdatesAndFileVault {
+			return NewInvalidArgumentError(r.Type, "Declaration profile can't include OS updates settings. To control these settings, go to OS updates.")
+		}
 	}
 
 	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
-		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don't require an asset reference are supported.")
 	}
 
 	if r.Type == "com.apple.configuration.management.status-subscriptions" {
-		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+		return NewInvalidArgumentError(r.Type, "Declaration profile can't include status subscription type. To get host's vitals, please use queries and policies.")
 	}
 
 	if !strings.HasPrefix(r.Type, "com.apple.configuration.") {
