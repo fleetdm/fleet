@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect, useRef } from "react";
 
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -53,6 +53,7 @@ const validate = (formData: IChangeManagementFormData) => {
 };
 
 const ChangeManagement = () => {
+  const queryClient = useQueryClient();
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -117,18 +118,22 @@ const ChangeManagement = () => {
     }
     setIsUpdating(true);
     try {
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         gitops: {
           gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
         },
       });
+
+      queryClient.setQueryData(["integrations"], updatedConfig);
+      setConfig(updatedConfig);
+
       renderFlash("success", "Successfully updated settings");
-      setIsUpdating(false);
-      refetchConfig();
     } catch (e) {
       const message = getErrorReason(e);
       renderFlash("error", message || "Failed to update settings");
+      setIsUpdating(false);
+    } finally {
       setIsUpdating(false);
     }
   };
