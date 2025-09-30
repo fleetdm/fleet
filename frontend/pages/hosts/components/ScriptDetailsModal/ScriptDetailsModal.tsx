@@ -46,14 +46,10 @@ interface IScriptDetailsModalProps {
   onDelete?: () => void;
   runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
-  setRunScriptRequested?: (value: boolean) => void;
-  hostId?: number | null;
+  onClickRun?: (script: IHostScript) => void;
   hostTeamId?: number | null;
-  refetchHostScripts?: <TPageData>(
-    options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined
-  ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
   selectedScriptId?: number;
-  selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript;
+  selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript | null;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
   isScriptContentError?: Error | null;
@@ -67,12 +63,10 @@ interface IScriptDetailsModalProps {
 const ScriptDetailsModal = ({
   onCancel,
   onDelete,
+  onClickRun,
   runScriptHelpText = false,
   showHostScriptActions = false,
-  setRunScriptRequested,
-  hostId,
   hostTeamId,
-  refetchHostScripts,
   selectedScriptId,
   selectedScriptDetails,
   selectedScriptContent,
@@ -161,57 +155,29 @@ const ScriptDetailsModal = ({
 
   const onSelectMoreActions = useCallback(
     async (action: string, script: IHostScript) => {
-      if (hostId && !!setRunScriptRequested && !!refetchHostScripts) {
-        switch (action) {
-          case "showRunDetails": {
-            if (script.last_execution?.execution_id) {
-              onClickRunDetails &&
-                onClickRunDetails(script.last_execution?.execution_id);
-            }
-            break;
+      switch (action) {
+        case "showRunDetails": {
+          if (script.last_execution?.execution_id) {
+            onClickRunDetails &&
+              onClickRunDetails(script.last_execution?.execution_id);
           }
-          case "run": {
-            try {
-              setRunScriptRequested && setRunScriptRequested(true);
-              await scriptAPI.runScript({
-                host_id: hostId,
-                script_id: script.script_id,
-              });
-              renderFlash(
-                "success",
-                "Script is running or will run when the host comes online."
-              );
-              refetchHostScripts();
-
-              onCancel(); // Running a script returns to previous state
-            } catch (e) {
-              renderFlash("error", getErrorReason(e));
-              setRunScriptRequested(false);
-            }
-            break;
-          }
-          default: // do nothing
+          break;
         }
+        case "run": {
+          // should always be present if these actions are visible
+          onClickRun && onClickRun(script);
+          break;
+        }
+        default: // do nothing
       }
     },
-    [
-      hostId,
-      onClickRunDetails,
-      setRunScriptRequested,
-      refetchHostScripts,
-      renderFlash,
-      onCancel,
-    ]
+    [onClickRunDetails, onClickRun]
   );
 
   const shouldShowFooter =
     !isLoadingScriptContent && selectedScriptDetails !== undefined;
 
   const renderFooter = () => {
-    if (!shouldShowFooter) {
-      return null;
-    }
-
     return (
       <ModalFooter
         isTopScrolling={isTopScrolling}
@@ -326,7 +292,7 @@ const ScriptDetailsModal = ({
     >
       <>
         {renderContent()}
-        {shouldShowFooter ? renderFooter() : undefined}
+        {shouldShowFooter && renderFooter()}
       </>
     </Modal>
   );
