@@ -40,8 +40,9 @@ type Client struct {
 	token         string
 	customHeaders map[string]string
 
-	outputWriter io.Writer
-	errWriter    io.Writer
+	outputWriter       io.Writer
+	errWriter          io.Writer
+	seenLicenseExpired bool
 }
 
 type ClientOption func(*Client) error
@@ -138,8 +139,9 @@ func (c *Client) doContextWithBodyAndHeaders(ctx context.Context, verb, path, ra
 		return nil, ctxerr.Wrap(ctx, err, "do request")
 	}
 
-	if resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
+	if !c.seenLicenseExpired && resp.Header.Get(fleet.HeaderLicenseKey) == fleet.HeaderLicenseValueExpired {
 		fleet.WriteExpiredLicenseBanner(c.errWriter)
+		c.seenLicenseExpired = true
 	}
 
 	return resp, nil
