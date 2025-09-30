@@ -383,7 +383,7 @@ module.exports.custom = {
     'yandex.ru',       'ymail.com',    'zoho.com',         'zonnet.nl'
   ],
 
-  // For website signups & contact form submissions:
+  // For website signups & "Talk to us" form submissions:
   bannedEmailDomainsForWebsiteSubmissions: [
     'gmail.com',
     'yahoo.com',
@@ -398,6 +398,13 @@ module.exports.custom = {
     'yandex.ru',
     'ymail.com',
     'qq.com',
+    'example.com',
+  ],
+
+  // For contact form submissions.
+  // Note: We're using a separate list for the contact form because we previously allowed signups/license dispenser purchases with a personal email address.
+  bannedEmailDomainsForContactFormSubmissions: [
+    'example.com'
   ],
 
   /***************************************************************************
