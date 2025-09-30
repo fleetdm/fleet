@@ -980,7 +980,7 @@ SELECT
   version,
   '' AS bundle_identifier,
   vscode_extensions.uuid AS extension_id,
-  '' AS extension_for,
+  vscode_edition AS extension_for,
   'vscode_extensions' AS source,
   publisher AS vendor,
   '' AS last_opened_at,
