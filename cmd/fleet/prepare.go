@@ -55,6 +55,8 @@ To setup Fleet infrastructure, use one of the available commands.
 				if !noPrompt {
 					printFleetv4732FixMessage()
 					bufio.NewScanner(os.Stdin).Scan()
+				} else {
+					fmt.Println("Applying automatic fix for mis-numbered v4.73.2 migrations")
 				}
 				if err := ds.FixFleetv4732Migrations(cmd.Context()); err != nil {
 					initFatal(err, "fixing v4.73.2 migrations")
