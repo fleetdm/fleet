@@ -271,8 +271,14 @@ the way that the Fleet server works.
 				}
 			case fleet.NeedsFleetv4732Fix:
 				printFleetv4732FixNeededMessage()
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.UnknownFleetv4732State:
 				printFleetv4732UnknownStateMessage(migrationStatus.StatusCode)
+				if !config.Upgrades.AllowMissingMigrations {
+					os.Exit(1)
+				}
 			case fleet.SomeMigrationsCompleted:
 				tables, data := migrationStatus.MissingTable, migrationStatus.MissingData
 				printMissingMigrationsWarning(tables, data)
