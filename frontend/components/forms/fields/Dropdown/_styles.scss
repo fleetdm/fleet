@@ -141,6 +141,17 @@
     }
   }
 
+  // Remove blue outline when auto focused
+  &.is-focused:not(.is-open) > .Select-control {
+    box-shadow: none;
+  }
+
+  &:focus-visible {
+    &.dropdown__select {
+      outline: 1px solid $core-focused-outline;
+    }
+  }
+
   &.is-open {
     .dropdown__custom-arrow .dropdown__icon {
       svg {

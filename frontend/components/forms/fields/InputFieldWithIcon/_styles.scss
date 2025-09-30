@@ -75,7 +75,7 @@
       border: 1px solid $ui-fleet-black-50;
 
       &:focus {
-        border: 1px solid $core-fleet-black;
+        border: 1px solid $core-focused-outline;
       }
     }
 
@@ -91,7 +91,7 @@
 
   &__input-wrapper {
     .input-icon-field__input:focus {
-      border: 1px solid $core-fleet-black;
+      border: 1px solid $core-focused-outline;
 
       // Icon color matches border color on focus
       + .input-icon-field__icon {

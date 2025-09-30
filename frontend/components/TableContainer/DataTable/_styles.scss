@@ -242,7 +242,7 @@ $shadow-transition-width: 10px;
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
         &:focus-visible {
-          outline: 2px solid $core-focused-outline;
+          outline: 1px solid $core-focused-outline;
           background: $ui-off-white;
           border-radius: $border-radius;
         }

@@ -1,11 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { Link } from "react-router";
 import PATHS from "router/paths";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
+import CustomLink from "components/CustomLink";
 import { ITeam } from "interfaces/team";
 
 interface ITransferHostModal {
@@ -82,12 +82,11 @@ const TransferHostModal = ({
           {isGlobalAdmin ? (
             <p>
               Team not here?{" "}
-              <Link
-                to={PATHS.ADMIN_TEAMS}
+              <CustomLink
+                url={PATHS.ADMIN_TEAMS}
                 className={`${baseClass}__team-link`}
-              >
-                Create a team
-              </Link>
+                text="Create a team"
+              />
             </p>
           ) : null}
           <div className="modal-cta-wrap">

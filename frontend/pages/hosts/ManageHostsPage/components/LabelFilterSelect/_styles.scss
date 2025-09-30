@@ -34,7 +34,7 @@
     &--is-focused,
     &--menu-is-open {
       box-shadow: none;
-      border: 1px solid $core-fleet-black;
+      border: 1px solid $core-focused-outline;
     }
 
     &--menu-is-open {

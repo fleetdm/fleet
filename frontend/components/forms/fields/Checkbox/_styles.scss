@@ -45,8 +45,8 @@
     outline: none;
 
     svg {
-      outline: 2px solid $ui-fleet-black-75;
-      outline-offset: 1px;
+      outline: 1px solid $ui-fleet-black-75;
+      outline-offset: 2px;
       border-radius: $border-radius;
     }
   }
