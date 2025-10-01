@@ -1,6 +1,6 @@
-# YAML Key Processing Script
+# GitOps Migration Tool
 
-A utility script for Fleet that moves specific configuration keys from software YAML files to team YAML files.
+A utility tool for Fleet that migrates specific configuration keys from software YAML files to team YAML files.
 
 ## Overview
 
@@ -38,8 +38,8 @@ fleet/
 │       ├── team2.yml
 │       └── ...
 └── tools/
-    └── yaml-key-processor/
-        ├── process_yaml_keys.sh
+    └── gitops-migrate/
+        ├── migrate.sh
         └── README.md
 ```
 
@@ -49,16 +49,18 @@ fleet/
 
 ```bash
 # From the fleet repository root
-./tools/yaml-key-processor/process_yaml_keys.sh
+./tools/gitops-migrate/migrate.sh <teams_directory_path>
+
+# Example:
+./tools/gitops-migrate/migrate.sh it-and-security/teams
 ```
 
 The script will:
-1. Automatically discover all `.yml` files in the `it-and-security/teams/` directory
+1. Automatically discover all `.yml` files in the specified teams directory
 2. For each team file, process all packages listed in `software.packages[]`
-3. Extract the target keys from each referenced software file
-4. Move those keys to the corresponding package entry in the team file
-5. Remove the keys from the original software files
-6. Create `.bak` backup files for all modified files
+3. Extract the target keys from each referenced software file (Pass 1)
+4. Move those keys to the corresponding package entry in the team file (Pass 1)
+5. Remove the keys from the original software files after all teams are processed (Pass 2)
 
 ### What the Script Does
 
@@ -131,42 +133,53 @@ The script provides detailed, colorized output showing:
 
 Example output:
 ```
-YAML Key Processing Script
+GitOps Migration Tool
 Moving keys from software files to team files
+Teams directory: it-and-security/teams
 
-✓ yq version 4.35.2 found
 Finding team files...
 Found 3 team files
 
+=== PASS 1: UPDATING TEAM FILES ===
 Processing team file: it-and-security/teams/workstations.yml
   Found 2 packages
   Processing package 1/2
     Package path: ../lib/macos/software/mozilla-firefox.yml
     Processing: it-and-security/lib/macos/software/mozilla-firefox.yml
-    Created backup: it-and-security/lib/macos/software/mozilla-firefox.yml.bak
     Adding keys to team file at package index 0
     Added self_service
     Added categories
     ✓ Package processed successfully
 
+=== PASS 2: CLEANING UP SOFTWARE FILES ===
+Removing keys from 15 unique software files
+  Removing keys from: mozilla-firefox.yml
+✓ Software file cleanup complete
+
 === PROCESSING COMPLETE ===
 Teams processed: 3
 Packages processed: 8
 ✓ All files processed successfully!
-
-Backup files created with .bak extension
-To restore from backups if needed: find . -name '*.bak' -exec bash -c 'mv "$1" "${1%.bak}"' _ {} \;
 ```
+
+## Two-Pass Processing
+
+The tool uses a two-pass approach to handle multiple teams referencing the same software files:
+
+1. **Pass 1**: Extract and add keys to ALL team files (without removing keys from software files)
+2. **Pass 2**: Remove keys from software files only after all teams have been processed
+
+This ensures that all teams receive the appropriate keys, even when multiple teams reference the same software file.
 
 ## Error Recovery
 
 If something goes wrong during processing:
 
 1. **Individual File Errors**: The script continues processing other files
-2. **YAML Validation Failures**: Automatically restores from backup
-3. **Manual Recovery**: Use the restore command shown in the output:
+2. **YAML Validation Failures**: Reports errors but continues with other files
+3. **Git Recovery**: Use git to restore files if needed:
    ```bash
-   find . -name '*.bak' -exec bash -c 'mv "$1" "${1%.bak}"' _ {} \;
+   git checkout -- it-and-security/
    ```
 
 ## Limitations
@@ -186,8 +199,9 @@ If something goes wrong during processing:
 2. **"yq version 4 or higher is required"**
    - Upgrade yq: `brew upgrade yq`
 
-3. **"it-and-security/teams directory not found"**
-   - Run the script from the Fleet repository root directory
+3. **"Teams directory not found"**
+   - Verify the directory path argument is correct
+   - Ensure you're running from the correct location
 
 4. **"Software file not found"**
    - Check that the `path` in the team file is correct relative to the team file location
@@ -202,8 +216,8 @@ set -euxo pipefail  # Adds debug output
 
 ## Contributing
 
-When modifying this script:
+When modifying this tool:
 1. Test on a small subset of files first
-2. Ensure shellcheck passes: `shellcheck process_yaml_keys.sh`
+2. Ensure shellcheck passes: `shellcheck migrate.sh`
 3. Verify YAML syntax validation works correctly
-4. Test error recovery scenarios
+4. Test the two-pass processing logic thoroughly

@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# YAML Key Processing Script
+# GitOps Migration Tool
 # Moves self_service, categories, labels_exclude_any, labels_include_any keys
 # from software YAML files to team YAML files
+#
+# Usage: ./migrate.sh <teams_directory_path>
+# Example: ./migrate.sh it-and-security/teams
 
 set -euo pipefail
 
@@ -17,6 +20,9 @@ NC='\033[0m' # No Color
 PROCESSED_TEAMS=0
 PROCESSED_PACKAGES=0
 ERRORS=0
+
+# Array to track software files that have been processed
+PROCESSED_SOFTWARE_FILES=()
 
 # Check if yq is installed
 check_dependencies() {
@@ -34,11 +40,21 @@ check_dependencies() {
     fi
 }
 
-# Create backup of a file
-backup_file() {
-    local file="$1"
-    cp "$file" "${file}.bak"
-    echo -e "${BLUE}Created backup: ${file}.bak${NC}"
+# Show usage information
+show_usage() {
+    echo "Usage: $0 <teams_directory_path>"
+    echo
+    echo "Process YAML files in the specified teams directory, moving keys from"
+    echo "referenced software files to the team files."
+    echo
+    echo "Arguments:"
+    echo "  teams_directory_path    Path to directory containing team YAML files"
+    echo
+    echo "Examples:"
+    echo "  $0 it-and-security/teams"
+    echo "  $0 /path/to/teams"
+    echo
+    echo "Keys moved: self_service, categories, labels_include_any, labels_exclude_any"
 }
 
 # Validate YAML syntax
@@ -73,7 +89,7 @@ remove_keys_from_software() {
     
     # Create a temporary file with keys removed
     local temp_file=$(mktemp)
-    yq eval 'del(.self_service, .categories, .labels_include_any, .labels_exclude_any)' "$software_file" > "$temp_file"
+    yq eval --output-format=yaml 'del(.self_service, .categories, .labels_include_any, .labels_exclude_any)' "$software_file" > "$temp_file"
     
     # Replace the original file
     mv "$temp_file" "$software_file"
@@ -93,28 +109,20 @@ add_keys_to_team_file() {
     
     echo -e "${BLUE}  Adding keys to team file at package index $package_index${NC}"
     
-    # Read each key and add it to the team file
-    local temp_team_file=$(mktemp)
-    cp "$team_file" "$temp_team_file"
-    
-    # Process each key type
+    # Process each key type directly on the team file to preserve formatting
     for key in "self_service" "categories" "labels_include_any" "labels_exclude_any"; do
         if yq eval "has(\"$key\")" "$keys_file" | grep -q "true"; then
             # Use yq to properly extract and merge the value, preserving arrays and complex structures
             if yq eval ".$key != null" "$keys_file" | grep -q "true"; then
-                yq eval ".software.packages[$package_index].$key = load(\"$keys_file\").$key" "$temp_team_file" > "${temp_team_file}.tmp"
-                mv "${temp_team_file}.tmp" "$temp_team_file"
+                yq eval -i ".software.packages[$package_index].$key = load(\"$keys_file\").$key" "$team_file"
                 echo -e "${GREEN}    Added $key${NC}"
             fi
         fi
     done
-    
-    # Replace the original team file
-    mv "$temp_team_file" "$team_file"
 }
 
-# Process a single team file
-process_team_file() {
+# Process a single team file (Pass 1: Add keys to team files only)
+process_team_file_pass1() {
     local team_file="$1"
     echo -e "${GREEN}Processing team file: $team_file${NC}"
     
@@ -123,9 +131,6 @@ process_team_file() {
         echo -e "${YELLOW}  No software.packages section found, skipping${NC}"
         return 0
     fi
-    
-    # Create backup
-    backup_file "$team_file"
     
     # Get the number of packages
     local package_count=$(yq eval '.software.packages | length' "$team_file")
@@ -167,17 +172,14 @@ process_team_file() {
         
         echo -e "${BLUE}    Processing: $software_file${NC}"
         
-        # Create backup of software file
-        backup_file "$software_file"
-        
         # Extract keys from software file
         local keys_temp_file=$(extract_keys_from_software "$software_file")
         
         # Add keys to team file
         add_keys_to_team_file "$team_file" "$i" "$keys_temp_file"
         
-        # Remove keys from software file
-        remove_keys_from_software "$software_file"
+        # Track this software file for cleanup in pass 2
+        PROCESSED_SOFTWARE_FILES+=("$software_file")
         
         # Clean up temp file
         rm -f "$keys_temp_file"
@@ -189,8 +191,6 @@ process_team_file() {
     # Validate the modified team file
     if ! validate_yaml "$team_file"; then
         echo -e "${RED}  Error: Team file became invalid after processing${NC}"
-        echo -e "${YELLOW}  Restoring from backup...${NC}"
-        mv "${team_file}.bak" "$team_file"
         ((ERRORS++))
         return 1
     fi
@@ -200,22 +200,54 @@ process_team_file() {
     echo
 }
 
+# Pass 2: Remove keys from all processed software files
+cleanup_software_files() {
+    echo -e "${GREEN}=== PASS 2: CLEANING UP SOFTWARE FILES ===${NC}"
+    
+    # Remove duplicates from the array
+    local unique_files=($(printf "%s\n" "${PROCESSED_SOFTWARE_FILES[@]}" | sort -u))
+    
+    echo -e "${BLUE}Removing keys from ${#unique_files[@]} unique software files${NC}"
+    
+    for software_file in "${unique_files[@]}"; do
+        echo -e "${BLUE}  Removing keys from: $software_file${NC}"
+        remove_keys_from_software "$software_file"
+    done
+    
+    echo -e "${GREEN}✓ Software file cleanup complete${NC}"
+    echo
+}
+
 # Main function
 main() {
-    # Accept any script arguments (fixes shellcheck warning)
-    local args=("$@")
+    # Check if directory path argument is provided
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}Error: No teams directory path provided${NC}"
+        echo
+        show_usage
+        exit 1
+    fi
     
-    echo -e "${GREEN}YAML Key Processing Script${NC}"
+    # Handle help flags
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        show_usage
+        exit 0
+    fi
+    
+    local teams_dir="$1"
+    
+    echo -e "${GREEN}GitOps Migration Tool${NC}"
     echo -e "${BLUE}Moving keys from software files to team files${NC}"
+    echo -e "${BLUE}Teams directory: $teams_dir${NC}"
     echo
 
     # Check dependencies
     check_dependencies
     
     # Check if teams directory exists
-    if [ ! -d "it-and-security/teams" ]; then
-        echo -e "${RED}Error: it-and-security/teams directory not found${NC}"
-        echo "Please run this script from the fleet repository root"
+    if [ ! -d "$teams_dir" ]; then
+        echo -e "${RED}Error: Teams directory not found: $teams_dir${NC}"
+        echo "Please provide a valid directory path"
         exit 1
     fi
     
@@ -224,7 +256,7 @@ main() {
     
     # Use nullglob to handle case where no files match the pattern
     shopt -s nullglob
-    local team_files=(it-and-security/teams/*.yml)
+    local team_files=("$teams_dir"/*.yml)
     shopt -u nullglob
     
     if [ ${#team_files[@]} -eq 0 ]; then
@@ -235,12 +267,18 @@ main() {
     echo -e "${BLUE}Found ${#team_files[@]} team files${NC}"
     echo
     
-    # Process each team file
+    # PASS 1: Process each team file (add keys to team files)
+    echo -e "${GREEN}=== PASS 1: UPDATING TEAM FILES ===${NC}"
     for team_file in "${team_files[@]}"; do
         if [ -f "$team_file" ]; then
-            process_team_file "$team_file"
+            process_team_file_pass1 "$team_file"
         fi
     done
+    
+    # PASS 2: Clean up software files (remove keys from software files)
+    if [ ${#PROCESSED_SOFTWARE_FILES[@]} -gt 0 ]; then
+        cleanup_software_files
+    fi
     
     # Summary
     echo -e "${GREEN}=== PROCESSING COMPLETE ===${NC}"
@@ -253,9 +291,6 @@ main() {
         echo -e "${GREEN}✓ All files processed successfully!${NC}"
     fi
     
-    echo
-    echo -e "${BLUE}Backup files created with .bak extension${NC}"
-    echo -e "${BLUE}To restore from backups if needed: find . -name '*.bak' -exec bash -c 'mv \"$1\" \"${1%.bak}\"' _ {} \\;${NC}"
 }
 
 # Run main function with all script arguments
