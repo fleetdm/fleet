@@ -849,7 +849,7 @@ func (ds *Datastore) cancelHostUpcomingActivity(ctx context.Context, tx sqlx.Ext
 		return nil, ctxerr.Wrap(ctx, err, "load host UUID fields")
 	}
 	hostUUID := host.UUID
-	if host.Platform == "darwin" || fleet.IsLinux(host.Platform) || host.Platform == "windows" {
+	if host.Platform == "darwin" || host.Platform == "ios" || host.Platform == "ipados" || fleet.IsLinux(host.Platform) || host.Platform == "windows" {
 		hostUUID, err = fleet.HostUUIDForSetupExperience(&host)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
