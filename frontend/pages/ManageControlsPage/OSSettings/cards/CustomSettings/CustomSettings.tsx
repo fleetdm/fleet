@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useRef, useState } from "react";
-import { InjectedRouter } from "react-router";
+
 import { useQuery } from "react-query";
 import PATHS from "router/paths";
 
@@ -12,6 +12,7 @@ import mdmAPI, { IMdmProfilesResponse } from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
@@ -204,15 +205,20 @@ const CustomSettings = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Custom settings" />
-      <p className={`${baseClass}__description`}>
-        Create and upload configuration profiles to apply custom settings.{" "}
-        <CustomLink
-          newTab
-          text="Learn how"
-          url="https://fleetdm.com/learn-more-about/custom-os-settings"
-        />
-      </p>
+      <SectionHeader title="Custom settings" alignLeftHeaderVertically />
+      <PageDescription
+        variant="right-panel"
+        content={
+          <>
+            Create and upload configuration profiles to apply custom settings.{" "}
+            <CustomLink
+              newTab
+              text="Learn how"
+              url="https://fleetdm.com/learn-more-about/custom-os-settings"
+            />
+          </>
+        }
+      />
       {!mdmEnabled ? (
         <TurnOnMdmMessage
           router={router}

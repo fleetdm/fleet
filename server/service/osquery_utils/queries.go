@@ -552,7 +552,7 @@ var extraDetailQueries = map[string]DetailQuery{
 			-- in order to account for hosts that might not have this
 			-- key, and servers
 					WHERE COALESCE(e.state, '0') IN ('0', '1', '2', '3')
-			-- old enrollments that aren't completely cleaned up may still be aronud
+			-- old enrollments that aren't completely cleaned up may still be around
 			-- in the registry so we want to make sure we return the one with an actual
 			-- discovery URL set if there is one. LENGTH is used here to prefer those
 			-- with actual URLs over empty string/null if there are multiple
@@ -854,7 +854,7 @@ func generateSQLForAllExists(subqueries ...string) string {
 }
 
 const usersQueryStr = `WITH cached_groups AS (select * from groups)
- SELECT uid, username, type, groupname, shell
+ SELECT uid, uuid, username, type, groupname, shell
  FROM users LEFT JOIN cached_groups USING (gid)
  WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> '')`
 
@@ -979,7 +979,7 @@ SELECT
   name,
   version,
   '' AS bundle_identifier,
-  uuid AS extension_id,
+  vscode_extensions.uuid AS extension_id,
   '' AS browser,
   'vscode_extensions' AS source,
   publisher AS vendor,
@@ -999,6 +999,25 @@ var scheduledQueryStats = DetailQuery{
 			FROM osquery_schedule`,
 	DirectTaskIngestFunc: directIngestScheduledQueryStats,
 	Platforms:            append(fleet.HostLinuxOSs, "darwin", "windows"), // not chrome
+}
+
+var softwareLinuxPacman = DetailQuery{
+	Query: `
+SELECT
+  name AS name,
+  version AS version,
+  '' AS extension_id,
+  '' AS browser,
+  'pacman_packages' AS source,
+  '' AS release,
+  '' AS vendor,
+  arch AS arch,
+  '' AS installed_path
+FROM fleetd_pacman_packages`,
+	Platforms: fleet.HostLinuxOSs,
+	Discovery: discoveryTable("fleetd_pacman_packages"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var softwareLinux = DetailQuery{
@@ -1360,8 +1379,8 @@ var SoftwareOverrideQueries = map[string]DetailQuery{
 		// deb_package_files does not have a mode column, so we need to join to the file table and filter there
 		Query: `
 		SELECT package, MAX(atime) AS last_opened_at
-		FROM deb_package_files 
-		CROSS JOIN file USING (path) 
+		FROM deb_package_files
+		CROSS JOIN file USING (path)
 		WHERE type = 'regular' AND regex_match(file.mode, '[1357]', 0)
 		GROUP BY package
 	`,
@@ -1789,11 +1808,17 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 	return nil
 }
 
-const linuxImageRegex = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
-const amazonLinuxKernelName = "kernel"
-const rhelKernelName = "kernel-core"
+const (
+	linuxImageRegex       = `^linux-image-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+-[[:digit:]]+-[[:alnum:]]+`
+	amazonLinuxKernelName = "kernel"
+	rhelKernelName        = "kernel-core"
+	archKernelName        = `^linux(?:-(?:lts|zen|hardened))?$`
+)
 
-var kernelRegex = regexp.MustCompile(linuxImageRegex)
+var (
+	kernelRegex     = regexp.MustCompile(linuxImageRegex)
+	archKernelRegex = regexp.MustCompile(archKernelName)
+)
 
 func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var software []fleet.Software
@@ -1832,7 +1857,7 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 			continue
 		}
 
-		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName) {
+		if fleet.IsLinux(host.Platform) && (kernelRegex.MatchString(s.Name) || s.Name == amazonLinuxKernelName || s.Name == rhelKernelName || archKernelRegex.MatchString(s.Name)) {
 			s.IsKernel = true
 		}
 
@@ -1929,6 +1954,17 @@ func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
+	var appleManagedUsername, appleManagedUserUUID string
+	if host.Platform == "darwin" {
+		// On macOS hosts with user enrollments, if the username of the managed user changes we need
+		// to sync it up with the nano_users table. otherwise we will never see the change until
+		// another TokenUpdate is sent which may be a long time(months, potentially).
+		var err error
+		appleManagedUsername, appleManagedUserUUID, err = ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting nano user enrollment username and uuid")
+		}
+	}
 	for _, row := range rows {
 		if row["uid"] == "" {
 			// Under certain circumstances, broken users can come back with empty UIDs. We don't want them
@@ -1947,6 +1983,7 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 		type_ := row["type"]
 		groupname := row["groupname"]
 		shell := row["shell"]
+		uuid := row["uuid"]
 		u := fleet.HostUser{
 			Uid:       uint(uid), // nolint:gosec // dismiss G115
 			Username:  username,
@@ -1955,6 +1992,14 @@ func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host,
 			Shell:     shell,
 		}
 		users = append(users, u)
+		if host.Platform == "darwin" && appleManagedUserUUID != "" && appleManagedUserUUID == uuid {
+			if username != appleManagedUsername {
+				err = ds.UpdateNanoMDMUserEnrollmentUsername(ctx, host.UUID, appleManagedUserUUID, username)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "UpdateNanoMDMUserEnrollmentUsername")
+				}
+			}
+		}
 	}
 	if len(users) == 0 {
 		return nil
@@ -2282,7 +2327,7 @@ func buildConfigProfilesMacOSQuery(ctx context.Context, logger log.Logger, host 
 		WHERE
 			type = "Configuration"`
 
-	username, err := ds.GetNanoMDMUserEnrollmentUsername(ctx, host.UUID)
+	username, _, err := ds.GetNanoMDMUserEnrollmentUsernameAndUUID(ctx, host.UUID)
 	if err != nil {
 		logger.Log("component", "service",
 			"method", "QueryFunc - macos config profiles", "err", err)
@@ -2533,7 +2578,7 @@ var tpmPINQueries = map[string]DetailQuery{
 					-- BitLocker is an optional feature but enabled
 					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
 				)
 				-- PIN is already set, so regardless of the current config, we don't need to enforce it:
 				-- 4: TPM And PIN.
@@ -2600,14 +2645,14 @@ var tpmPINQueries = map[string]DetailQuery{
 					-- BitLocker is an optional feature but enabled
 					EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker' AND state = 1)
 					-- BitLocker is built in, so it won't appear as an optional feature
-					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker') 
+					OR NOT EXISTS(SELECT 1 FROM windows_optional_features WHERE name = 'BitLocker')
 				)
 			)
 			SELECT 1 FROM should_run WHERE yes = 1`,
 		Query: `
 			SELECT EXISTS(
-				SELECT 1 
-				FROM bitlocker_key_protectors 
+				SELECT 1
+				FROM bitlocker_key_protectors
 				-- 4: TPM And PIN.
 				-- 6: TPM And PIN And Startup key.
 				WHERE drive_letter = 'C:' AND key_protector_type IN (4,6)
@@ -2645,6 +2690,7 @@ func GetDetailQueries(
 	appConfig *fleet.AppConfig,
 	features *fleet.Features,
 	integrations Integrations,
+	teamMDMConfig *fleet.TeamMDM,
 ) map[string]DetailQuery {
 	generatedMap := make(map[string]DetailQuery)
 	for key, query := range hostDetailQueries {
@@ -2662,6 +2708,7 @@ func GetDetailQueries(
 		generatedMap["software_python_packages"] = softwarePythonPackages
 		generatedMap["software_python_packages_with_users_dir"] = softwarePythonPackagesWithUsersDir
 		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
+		generatedMap["software_linux_fleetd_pacman"] = softwareLinuxPacman
 
 		for key, query := range SoftwareOverrideQueries {
 			generatedMap["software_"+key] = query
@@ -2689,12 +2736,22 @@ func GetDetailQueries(
 			generatedMap[key] = query
 		}
 
-		if appConfig.MDM.WindowsEnabledAndConfigured &&
-			appConfig.MDM.EnableDiskEncryption.Value &&
-			appConfig.MDM.RequireBitLockerPIN.Value {
+		// Add TPM PIN Queries iff Win MDM is enabled and ready to go
+		if appConfig.MDM.WindowsEnabledAndConfigured {
+			enableDiskEncryption := appConfig.MDM.EnableDiskEncryption.Value
+			requireTPMPin := appConfig.MDM.RequireBitLockerPIN.Value
 
-			for key, query := range tpmPINQueries {
-				generatedMap[key] = query
+			// If the host is part of a team, we need to look at the related team config
+			// instead of the App config ...
+			if teamMDMConfig != nil {
+				enableDiskEncryption = teamMDMConfig.EnableDiskEncryption
+				requireTPMPin = teamMDMConfig.RequireBitLockerPIN
+			}
+
+			if enableDiskEncryption && requireTPMPin {
+				for key, query := range tpmPINQueries {
+					generatedMap[key] = query
+				}
 			}
 		}
 	}

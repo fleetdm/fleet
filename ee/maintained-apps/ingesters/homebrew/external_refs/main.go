@@ -7,11 +7,12 @@ import (
 )
 
 var Funcs = map[string][]func(*maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error){
-	"microsoft-word/darwin":  {MicrosoftVersionFromReleaseNotes},
-	"microsoft-excel/darwin": {MicrosoftVersionFromReleaseNotes},
-	"brave-browser/darwin":   {BraveVersionTransformer},
-	"whatsapp/darwin":        {WhatsAppVersionShortener},
-	"google-chrome/darwin":   {ChromePKGInstaller},
+	"microsoft-word/darwin":         {MicrosoftVersionFromReleaseNotes},
+	"microsoft-excel/darwin":        {MicrosoftVersionFromReleaseNotes},
+	"brave-browser/darwin":          {BraveVersionTransformer},
+	"whatsapp/darwin":               {WhatsAppVersionShortener},
+	"google-chrome/darwin":          {ChromePKGInstaller},
+	"omnissa-horizon-client/darwin": {OmnissaHorizonVersionShortener},
 }
 
 func ChromePKGInstaller(app *maintained_apps.FMAManifestApp) (*maintained_apps.FMAManifestApp, error) {

@@ -12,12 +12,15 @@
     align-items: center;
     background-color: $core-vibrant-blue;
     border-radius: 29px;
-    color: $core-white;
+    color: $core-fleet-white;
     font-weight: $bold;
     font-size: $xx-small;
 
-    &--error {
+    &__alert {
       background-color: $core-vibrant-red;
+    }
+    &__pending {
+      background-color: $ui-fleet-black-50;
     }
   }
 }

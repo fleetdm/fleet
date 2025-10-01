@@ -61,3 +61,23 @@ We want to remember BREAD and alsoSHORTCAKEare important.
 
 	require.Equal(t, expected, expanded)
 }
+
+func TestContainsVar(t *testing.T) {
+	script := `
+#!/bin/sh
+
+echo $FLEET_SECRET_FOO is the secret ${FLEET_SECRET_ZOO}
+echo words${FLEET_SECRET_BAR}words
+$FLEET_SECRET_BAZ
+${FLEET_SECRET_END}
+`
+	require.True(t, ContainsVar(script, "FLEET_SECRET_FOO"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_ZOO"))
+	require.False(t, ContainsVar(script, "FLEET_SECRET_ZO"))
+	require.False(t, ContainsVar(script, "FLEET_SECRET_FO"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_BAR"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_BAZ"))
+	require.True(t, ContainsVar(script, "FLEET_SECRET_END"))
+	require.False(t, ContainsVar(script, "OTHER"))
+	require.False(t, ContainsVar(script, ""))
+}

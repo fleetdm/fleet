@@ -200,12 +200,12 @@ const PlatformWrapper = ({
                 </>
               )}
               <Button
-                variant="text-icon"
+                variant="inverse"
                 className={`${baseClass}__fleet-certificate-download`}
                 onClick={onDownloadCertificate}
               >
                 Download
-                <Icon name="download" color="core-fleet-blue" size="small" />
+                <Icon name="download" size="small" />
               </Button>
             </p>
           ) : (
@@ -274,6 +274,7 @@ const PlatformWrapper = ({
       packageTypeHelpText = (
         <>
           For CentOS, Red Hat, and Fedora Linux, use <code>--type=rpm</code>.
+          For Arch Linux, use <code>--type=pkg.tar.zst</code>.<br />
           For ARM, use <code>--arch=arm64</code>
         </>
       );
@@ -301,12 +302,13 @@ const PlatformWrapper = ({
               information below.
             </p>
             <InfoBanner className={`${baseClass}__chromeos--instructions`}>
-              For a step-by-step guide, see the documentation page for{" "}
+              For a step-by-step guide, see the documentation page for&nbsp;
               <CustomLink
                 url="https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks"
                 text="adding hosts"
                 newTab
                 multiline
+                variant="banner-link"
               />
             </InfoBanner>
           </div>
@@ -366,7 +368,7 @@ const PlatformWrapper = ({
           <div>
             <InfoBanner className={`${baseClass}__chrome--instructions`}>
               This works for macOS, Windows, and Linux hosts. To add
-              Chromebooks,{" "}
+              Chromebooks,&nbsp;
               <Button
                 variant="text-link-dark"
                 onClick={() => setSelectedTabIndex(4)}
@@ -394,11 +396,11 @@ const PlatformWrapper = ({
                   Osquery uses an enroll secret to authenticate with the Fleet
                   server.
                   <br />
-                  <Button variant="text-icon" onClick={onDownloadEnrollSecret}>
+                  <Button variant="inverse" onClick={onDownloadEnrollSecret}>
                     Download
                     <Icon
                       name="download"
-                      color="core-fleet-blue"
+                      color="ui-fleet-black-75"
                       size="small"
                     />
                   </Button>
@@ -419,13 +421,9 @@ const PlatformWrapper = ({
                       {fetchCertificateError}
                     </span>
                   ) : (
-                    <Button variant="text-icon" onClick={onDownloadFlagfile}>
+                    <Button variant="inverse" onClick={onDownloadFlagfile}>
                       Download
-                      <Icon
-                        name="download"
-                        color="core-fleet-blue"
-                        size="small"
-                      />
+                      <Icon name="download" size="small" />
                     </Button>
                   )}
                 </p>

@@ -74,8 +74,6 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  routeTemplate?: string;
-  pathPrefix: string;
   vulnFilters: ISoftwareVulnFiltersParams;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
@@ -93,8 +91,6 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  routeTemplate,
-  pathPrefix,
   vulnFilters,
   onAddFiltersClick,
   isMyDevicePage,
@@ -210,8 +206,8 @@ const HostSoftwareTable = ({
         tipContent={vulnFilterDetails.tooltipText}
         disableTooltip={!hasVulnFilters}
       >
-        <Button variant="text-link" onClick={onAddFiltersClick}>
-          <Icon name="filter" color="core-fleet-blue" />
+        <Button variant="inverse" onClick={onAddFiltersClick}>
+          <Icon name="filter" />
           <span>{vulnFilterDetails.buttonText}</span>
         </Button>
       </TooltipWrapper>

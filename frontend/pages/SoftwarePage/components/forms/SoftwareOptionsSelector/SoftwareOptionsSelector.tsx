@@ -49,7 +49,7 @@ const CategoriesSelector = ({
         })}
       </div>
       <Button
-        variant="text-link"
+        variant="inverse"
         onClick={onClickPreviewEndUserExperience}
         className={`${baseClass}__preview-button`}
       >
@@ -174,6 +174,7 @@ const SoftwareOptionsSelector = ({
             url={`${LEARN_MORE_ABOUT_BASE_LINK}/query-templates-for-automatic-software-install`}
             text="Learn more"
             newTab
+            variant="banner-link"
           />
         </InfoBanner>
       )}

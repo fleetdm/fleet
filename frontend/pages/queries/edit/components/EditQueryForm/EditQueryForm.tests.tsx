@@ -14,7 +14,6 @@ import createMockQuery from "__mocks__/queryMock";
 import createMockUser from "__mocks__/userMock";
 import createMockConfig from "__mocks__/configMock";
 
-import queryAPI from "services/entities/queries";
 import EditQueryForm from "./EditQueryForm";
 
 jest.mock("services/entities/queries");
@@ -181,9 +180,11 @@ describe("EditQueryForm - component", () => {
 
     await user.hover(screen.getByRole("button", { name: "Live query" }));
 
-    expect(container.querySelector("#live-query-button")).toHaveTextContent(
-      /live queries are disabled/i
-    );
+    expect(
+      await screen.findByText(
+        /live queries are disabled in organization settings/i
+      )
+    ).toBeInTheDocument();
   });
 
   it("shows automations warning icon when query frequency is set to 0", async () => {

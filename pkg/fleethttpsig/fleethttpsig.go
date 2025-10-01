@@ -3,6 +3,7 @@ package fleethttpsig
 
 import (
 	"crypto"
+	"crypto/ecdsa"
 
 	"github.com/remitly-oss/httpsig-go"
 )
@@ -28,13 +29,22 @@ func Verifier(kf httpsig.KeyFetcher) (*httpsig.Verifier, error) {
 }
 
 // Signer returns a *httpsig.Signer to sign HTTP requests to a Fleet server.
+// It handles both regular ECDSA keys and TPM-backed signers.
 func Signer(metaKeyID string, signer crypto.Signer, signingAlgorithm httpsig.Algorithm) (*httpsig.Signer, error) {
+	signingKey := httpsig.SigningKey{
+		MetaKeyID: metaKeyID,
+	}
+	if _, ok := signer.(*ecdsa.PrivateKey); ok {
+		signingKey.Key = signer
+	} else {
+		// TPM or other hardware-backed signer
+		signingKey.Opts = httpsig.SigningKeyOpts{
+			Signer: signer,
+		}
+	}
 	return httpsig.NewSigner(httpsig.SigningProfile{
 		Algorithm: signingAlgorithm,
 		Fields:    requiredFields,
 		Metadata:  requiredMetadata,
-	}, httpsig.SigningKey{
-		Key:       signer,
-		MetaKeyID: metaKeyID,
-	})
+	}, signingKey)
 }

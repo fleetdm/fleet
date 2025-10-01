@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow, parseISO } from "date-fns";
+import { formatDistanceToNow, parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 
 /** Utility to create a string from a date in this format:

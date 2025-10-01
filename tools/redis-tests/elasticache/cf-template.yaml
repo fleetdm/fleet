@@ -1,0 +1,301 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Fleet ElastiCache IAM Authentication Test Environment with Serverless and Standalone'
+
+Parameters:
+  KeyName:
+    Type: String
+    Description: EC2 Key Pair name
+  InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: EC2 instance type
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-vpc
+
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-igw
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Subnets (multiple for serverless cache requirement)
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-subnet-1
+
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-subnet-2
+
+  # Route Table
+  RouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-rt
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref RouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  SubnetRouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref RouteTable
+
+  SubnetRouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref RouteTable
+
+  # Security Groups
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for ElastiCache
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 6379
+          ToPort: 6380
+          SourceSecurityGroupId: !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-cache-sg
+
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EC2 instance
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-ec2-sg
+
+  # IAM Role for EC2
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: ElastiCacheIAMAuth
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticache:Connect
+                Resource:
+                  # Access for 'fleet-test-user' cache user only
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:user:fleet-test-user'
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:serverlesscache:*'
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:replicationgroup:*'
+              - Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: !Sub 'arn:aws:iam::${AWS::AccountId}:role/fleet-elasticache-iam-test-assume-role'
+
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref EC2Role
+
+  # Test Role for Assume Role functionality - has access to a different cache user
+  TestAssumeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: fleet-elasticache-iam-test-assume-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              ArnLike:
+                aws:PrincipalArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}-EC2Role-*'
+      Policies:
+        - PolicyName: ElastiCacheIAMAuthTestUser
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticache:Connect
+                Resource:
+                  # Access for 'test_assume_user' cache user
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:user:test-assume-user'
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:serverlesscache:*'
+                  - !Sub 'arn:aws:elasticache:${AWS::Region}:${AWS::AccountId}:replicationgroup:*'
+
+  # ElastiCache Subnet Group
+  CacheSubnetGroup:
+    Type: AWS::ElastiCache::SubnetGroup
+    Properties:
+      Description: Subnet group for ElastiCache
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+
+  # IAM User for ElastiCache (shared between serverless and standalone)
+  CacheUser:
+    Type: AWS::ElastiCache::User
+    Properties:
+      UserId: fleet-test-user
+      UserName: fleet-test-user
+      Engine: valkey
+      AuthenticationMode:
+        Type: iam
+      AccessString: 'on ~* &* +@all'
+
+  # Test Assume User for ElastiCache
+  TestAssumeUser:
+    Type: AWS::ElastiCache::User
+    Properties:
+      UserId: test-assume-user
+      UserName: test-assume-user
+      Engine: valkey
+      AuthenticationMode:
+        Type: iam
+      AccessString: 'on ~* &* +@all'
+
+  # User group for serverless
+  CacheUserGroup:
+    Type: AWS::ElastiCache::UserGroup
+    Properties:
+      UserGroupId: fleet-test-group
+      Engine: valkey
+      UserIds:
+        - !Ref CacheUser
+        - !Ref TestAssumeUser
+
+  # Serverless Cache
+  ServerlessCache:
+    Type: AWS::ElastiCache::ServerlessCache
+    DependsOn: CacheUserGroup
+    Properties:
+      ServerlessCacheName: fleet-iam-test-cache
+      Engine: valkey
+      SecurityGroupIds:
+        - !Ref ElastiCacheSecurityGroup
+      SubnetIds:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      UserGroupId: !Ref CacheUserGroup
+
+  # Standalone Replication Group
+  StandaloneReplicationGroup:
+    Type: AWS::ElastiCache::ReplicationGroup
+    DependsOn: CacheUserGroup
+    Properties:
+      ReplicationGroupId: fleet-iam-standalone
+      ReplicationGroupDescription: Fleet IAM test standalone cluster
+      Engine: valkey
+      EngineVersion: '7.2'
+      CacheNodeType: cache.t3.micro
+      NumCacheClusters: 1
+      AutomaticFailoverEnabled: false
+      CacheSubnetGroupName: !Ref CacheSubnetGroup
+      SecurityGroupIds:
+        - !Ref ElastiCacheSecurityGroup
+      UserGroupIds:
+        - !Ref CacheUserGroup
+      TransitEncryptionEnabled: true
+      TransitEncryptionMode: required
+      AtRestEncryptionEnabled: true
+      Tags:
+        - Key: Name
+          Value: fleet-iam-standalone
+
+  # EC2 Instance
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      IamInstanceProfile: !Ref EC2InstanceProfile
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref EC2SecurityGroup
+      Tags:
+        - Key: Name
+          Value: fleet-iam-test-instance
+
+Outputs:
+  ServerlessCacheEndpoint:
+    Description: ElastiCache Serverless endpoint
+    Value: !GetAtt ServerlessCache.Endpoint.Address
+  StandaloneEndpoint:
+    Description: ElastiCache Standalone endpoint
+    Value: !GetAtt StandaloneReplicationGroup.PrimaryEndPoint.Address
+  StandalonePort:
+    Description: ElastiCache Standalone port
+    Value: !GetAtt StandaloneReplicationGroup.PrimaryEndPoint.Port
+  EC2InstancePublicIP:
+    Description: EC2 instance public IP
+    Value: !GetAtt EC2Instance.PublicIp
+  EC2InstanceId:
+    Description: EC2 instance ID
+    Value: !Ref EC2Instance
+  CacheUser:
+    Description: Cache user name
+    Value: !Ref CacheUser
+  TestAssumeRoleArn:
+    Description: Test assume role ARN for test-assume-user cache user
+    Value: !GetAtt TestAssumeRole.Arn

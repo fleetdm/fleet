@@ -23,9 +23,7 @@ const (
 	TestReplicaAddress        = "localhost:3310"
 )
 
-var (
-	TestAddress = getTestAddress()
-)
+var TestAddress = getTestAddress()
 
 // getTestAddress returns the MySQL test server address from environment variable
 // FLEET_MYSQL_TEST_PORT or defaults to localhost:3307

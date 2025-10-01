@@ -30,6 +30,12 @@ func SetupTestBootstrapPackageStore(tb testing.TB, bucket, prefix string) *Boots
 	return store
 }
 
+func SetupTestSoftwareTitleIconStore(tb testing.TB, bucket, prefix string) *SoftwareTitleIconStore {
+	store := setupTestStore(tb, bucket, prefix, NewSoftwareTitleIconStore)
+	tb.Cleanup(func() { cleanupStore(tb, store.s3store) })
+	return store
+}
+
 type testBucketCreator interface {
 	CreateTestBucket(ctx context.Context, name string) error
 }

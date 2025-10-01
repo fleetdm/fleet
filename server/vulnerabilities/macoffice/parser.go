@@ -282,6 +282,31 @@ func parseReleaseHTML(reader io.Reader) ([]ReleaseNote, error) {
 					}
 				}
 
+				// Above, a state change ('insideSecUpts = true') occurs when a 'strong'
+				// element's inner text is 'Application'. Following this state change,
+				// subsequent 'strong' elements can contain the specific Office product
+				// name.
+				//
+				// Example:
+				// <tr>
+				// <td style="text-align: left;"><strong>Word</strong></td>
+				//                                ^----^ ^--^
+				//                                |      |
+				//                                |      |- The product name.
+				//                                |- The 'strong' element.
+				// ...
+				// </tr>
+				if t.Data == "strong" {
+					z.Next()
+					t := z.Token()
+					pName := strings.ToLower(strings.Trim(t.Data, " "))
+					for k, v := range nameToType {
+						if strings.HasPrefix(pName, k) {
+							currentProduct = v
+						}
+					}
+				}
+
 				// Or a link to a CVE
 				if t.Data == "a" {
 					if cve, ok := parseVulnLink(t); ok {

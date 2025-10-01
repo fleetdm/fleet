@@ -8,10 +8,12 @@ interface RenderYamlHelperText {
   uninstallScript?: string;
   preInstallQuery?: string;
   postInstallScript?: string;
+  iconUrl?: string | null;
   onClickPreInstallQuery?: (evt: MouseEvent) => void;
   onClickInstallScript?: (evt: MouseEvent) => void;
   onClickPostInstallScript?: (evt: MouseEvent) => void;
   onClickUninstallScript?: (evt: MouseEvent) => void;
+  onClickIcon?: (evt: MouseEvent) => void;
 }
 
 // Helper to join items with commas and Oxford comma before "and"
@@ -40,10 +42,12 @@ export const renderDownloadFilesText = ({
   installScript,
   postInstallScript,
   uninstallScript,
+  iconUrl,
   onClickPreInstallQuery,
   onClickInstallScript,
   onClickPostInstallScript,
   onClickUninstallScript,
+  onClickIcon,
 }: RenderYamlHelperText): JSX.Element => {
   const items: { key: string; element: JSX.Element }[] = [];
 
@@ -99,6 +103,16 @@ export const renderDownloadFilesText = ({
       ),
     });
   }
+  if (iconUrl) {
+    items.push({
+      key: "icon-url",
+      element: (
+        <Button key="post" variant="text-link" onClick={onClickIcon}>
+          icon
+        </Button>
+      ),
+    });
+  }
 
   if (items.length === 0) return <></>;
 
@@ -124,6 +138,7 @@ interface CreatePackageYamlParams {
   installScript?: string;
   postInstallScript?: string;
   uninstallScript?: string;
+  iconUrl: string | null;
 }
 
 export const createPackageYaml = ({
@@ -136,16 +151,18 @@ export const createPackageYaml = ({
   installScript,
   postInstallScript,
   uninstallScript,
+  iconUrl,
 }: CreatePackageYamlParams): string => {
   let yaml = `# ${softwareTitle} (${packageName}) version ${version}
 `;
 
   if (url) {
-    yaml += `url: ${url}
+    yaml += `- url: ${url}
 `;
   }
 
   if (sha256) {
+    yaml += url ? "  " : "- ";
     yaml += `hash_sha256: ${sha256}
 `;
   }
@@ -153,26 +170,32 @@ export const createPackageYaml = ({
   const hyphenatedSWTitle = hyphenateString(softwareTitle);
 
   if (preInstallQuery) {
-    yaml += `pre_install_query:
-  path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
+    yaml += `  pre_install_query:
+    path: ../queries/pre-install-query-${hyphenatedSWTitle}.yml
 `;
   }
 
   if (installScript) {
-    yaml += `install_script:
-  path: ../scripts/install-${hyphenatedSWTitle}.sh
+    yaml += `  install_script:
+    path: ../scripts/install-${hyphenatedSWTitle}.sh
 `;
   }
 
   if (postInstallScript) {
-    yaml += `post_install_script:
-  path: ../scripts/post-install-${hyphenatedSWTitle}.sh
+    yaml += `  post_install_script:
+    path: ../scripts/post-install-${hyphenatedSWTitle}.sh
 `;
   }
 
   if (uninstallScript) {
-    yaml += `uninstall_script:
-  path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
+    yaml += `  uninstall_script:
+    path: ../scripts/uninstall-${hyphenatedSWTitle}.sh
+`;
+  }
+
+  if (iconUrl) {
+    yaml += `  icon_url:
+    path: ./icons/${hyphenatedSWTitle}-icon.png
 `;
   }
 

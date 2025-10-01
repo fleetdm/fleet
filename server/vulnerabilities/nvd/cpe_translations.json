@@ -118,8 +118,9 @@
       "source": ["apps"]
     },
     "filter": {
-      "product": ["docker_desktop"],
-      "vendor": ["docker"]
+      "product": ["desktop"],
+      "vendor": ["docker"],
+      "sw_edition": [""]
     }
   },
   {
@@ -612,6 +613,17 @@
     "filter": {
       "product": ["iterm2"],
       "vendor": ["iterm2"]
+    }
+  },
+  {
+    "software": {
+      "name": ["Firefox ESR.app"],
+      "source": ["apps"]
+    },
+    "filter": {
+      "product": ["firefox"],
+      "vendor": ["mozilla"],
+      "sw_edition": ["esr"]
     }
   }
 ]

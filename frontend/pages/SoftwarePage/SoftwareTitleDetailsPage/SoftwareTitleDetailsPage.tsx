@@ -153,6 +153,7 @@ const SoftwareTitleDetailsPage = ({
         softwareInstaller={softwarePackage}
         name={name}
         version={version}
+        iconUrl={title.icon_url}
         addedTimestamp={addedTimestamp}
         status={status}
         isSelfService={isSelfService}
@@ -177,6 +178,12 @@ const SoftwareTitleDetailsPage = ({
         isAvailableForInstall={isAvailableForInstall}
         isLoading={isSoftwareTitleLoading}
         router={router}
+        refetchSoftwareTitle={refetchSoftwareTitle}
+        softwareInstaller={
+          isAvailableForInstall
+            ? getInstallerCardInfo(title).softwarePackage
+            : undefined
+        }
       />
     );
   };

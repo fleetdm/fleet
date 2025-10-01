@@ -63,7 +63,7 @@ You can [automatically run scripts](https://fleetdm.com/guides/policy-automation
 
 ## Batch execute scripts
 
-You can execute a script on a large number of hosts at the same time using the Fleet UI or Fleet API.
+You can execute a script on a large number of hosts at the same time using the Fleet UI or Fleet API. Batch script runs can be scheduled to run as soon as possible or at any point in the future.
 
 Fleet UI:
 
@@ -75,16 +75,16 @@ Fleet UI:
 
 4. In the **Run Script** modal, mouse over the script you want to run and click **Run Script**.
 
-5. Either close the modal or select another script to run.
+5. Select either **Run now** to start the batch as soon as possible, or **Schedule for later** to select a time and date for the batch to start.
 
-After you've initiated a batch script run, you can see its status by finding the related activity on the main dashboard:
+After you've initiated a batch script run, you can see its status by navigating to **Controls > Scripts**, and clicking on the **Batch progress** item in the side menu. Batches that have started running will be listed under the **Started** tab. Batches scheduled for a future date will be listed under **Scheduled**, and batches that have completed their run or have been canceled will appear under **Finished**.
 
-1. Click the logo in the upper-left corner of the page.
-2. If your Fleet instance has multiple teams, select "All teams" from the dropdown.
-3. In the "Activity" section, click on the related activity (for example, "**John Doe** ran the **check-status.sh** script on 5 hosts")
-4. A modal window will pop up displaying the number of hosts targeted and breaking down the host count by how many have run the script successfully, how many are pending (waiting to run the script) and how many have returned an _error_ (either because they were not eligible to run the script, or because the script returned an error).  
-5. You may click the numbers next to "Ran", "Pending" and "Error" to view the list of hosts in that state.
+To see a breakdown of the hosts targeted by a specific batch script run, click on that run's entry in the **Started**, **Scheduled**, or **Finished** list.  
 
+To cancel a current or future batch script run:
+1. Select the batch run you wish to cancel from the **Started** or **Scheduled** list.
+2. In the modal window that appears, hover over the **Pending** hosts row.
+3. Click on the **Cancel** button that appears in that row.
 
 Fleet API: See the [REST API documentation](https://fleetdm.com/docs/rest-api/rest-api#batch-run-script)
 

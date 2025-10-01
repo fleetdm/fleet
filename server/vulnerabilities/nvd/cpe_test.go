@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1313,7 +1314,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.7.1",
 				BundleIdentifier: "com.docker.docker",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.7.1:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.7.1:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1321,7 +1322,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "4.16.2",
 				BundleIdentifier: "com.electron.dockerdesktop",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:4.16.2:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:4.16.2:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1329,7 +1330,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Source:           "apps",
 				Version:          "3.5.0",
 				BundleIdentifier: "com.electron.docker-frontend",
-			}, cpe: "cpe:2.3:a:docker:docker_desktop:3.5.0:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:docker:desktop:3.5.0:*:*:*:*:macos:*:*",
 		},
 		// 2023-03-06: there are no entries for the docker python package at the NVD dataset.
 		{
@@ -1809,6 +1810,22 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "cpe:2.3:a:minio:minio:2020-03-10T00-00-00Z:*:*:*:*:macos:*:*",
 		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox.app",
+				Source:  "apps",
+				Version: "137.0.2",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:137.0.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox ESR.app",
+				Source:  "apps",
+				Version: "128.14.0",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
@@ -1836,6 +1853,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
+
+		translation, okT, _ := cpeTranslations.Translate(reCache, &tt.software)
+		if okT {
+			if len(translation.SWEdition) == 0 || translation.SWEdition[0] == "" {
+				re := regexp.MustCompile(`\*:[^*]+:[^*]+:\*:\*$`)
+				assert.False(t, re.MatchString(cpe), "did not expect sw_edition for:"+cpe)
+			}
+		}
+
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}

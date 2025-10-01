@@ -41,7 +41,6 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
       value = value.trimRight().toUpperCase();
       setSecretName(value);
     } else if (name === "value") {
-      value = value.trimRight();
       setSecretValue(value);
     }
     setFormValidation(
@@ -63,6 +62,7 @@ const AddSecretModal = ({ onCancel, onSave }: AddSecretModalProps) => {
       };
       try {
         await secretsAPI.addSecret(newSecret);
+        renderFlash("success", "Variable created!");
         onSave();
       } catch (error: any) {
         if (error.status === 409) {

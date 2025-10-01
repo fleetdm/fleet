@@ -408,7 +408,7 @@ describe("QueriesTable", () => {
       },
     });
 
-    const { container, user } = render(
+    const { user } = render(
       <QueriesTable
         queries={[...testTeamQueries, ...testGlobalQueries]}
         totalQueriesCount={4}

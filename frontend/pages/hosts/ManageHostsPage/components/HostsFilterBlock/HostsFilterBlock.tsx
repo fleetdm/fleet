@@ -109,6 +109,7 @@ interface IHostsFilterBlockProps {
   onChangeScriptBatchStatusFilter: (newStatus: ScriptBatchHostCountV1) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -162,8 +163,13 @@ const HostsFilterBlock = ({
   onChangeScriptBatchStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isLoading = false,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
+  if (isLoading) {
+    return <></>;
+  }
 
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
@@ -652,6 +658,17 @@ const HostsFilterBlock = ({
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+          // Software version can be combined with os name and os version
+          // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+          // Note: This is our only double filter available in the UI, are there others?
+          if (!!osVersionId || (!!osName && !!osVersion)) {
+            return (
+              <div className={`${baseClass}__multi-filter`}>
+                {renderSoftwareFilterBlock()}
+                {renderOSFilterBlock()}
+              </div>
+            );
+          }
           return renderSoftwareFilterBlock();
         case !!mdmId:
           return renderMDMSolutionFilterBlock();

@@ -15,11 +15,8 @@ spec:
     activity_expiry_window: 0
   integrations:
     conditional_access_enabled: null
-    custom_scep_proxy: null
-    digicert: null
     google_calendar: null
     jira: null
-    ndes_scep_proxy: null
     zendesk: null
   mdm:
     android_enabled_and_configured: false
@@ -40,6 +37,8 @@ spec:
     macos_settings:
       custom_settings: null
     windows_settings:
+      custom_settings: null
+    android_settings:
       custom_settings: null
     macos_setup:
       bootstrap_package: %s

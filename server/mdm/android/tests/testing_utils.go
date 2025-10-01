@@ -9,11 +9,10 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service"
 	"github.com/fleetdm/fleet/v4/server/mdm/android/service/androidmgmt"
 	ds_mock "github.com/fleetdm/fleet/v4/server/mock"
@@ -40,6 +39,51 @@ const (
 type AndroidDSWithMock struct {
 	*mysql.Datastore
 	ds_mock.Store
+}
+
+// resolve ambiguity between embedded datastore and mock methods
+func (ds *AndroidDSWithMock) AppConfig(ctx context.Context) (*fleet.AppConfig, error) {
+	return ds.Store.AppConfig(ctx) // use mock datastore
+}
+func (ds *AndroidDSWithMock) CreateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) (*android.Device, error) {
+	return ds.Datastore.CreateDeviceTx(ctx, tx, device)
+}
+
+func (ds *AndroidDSWithMock) UpdateDeviceTx(ctx context.Context, tx sqlx.ExtContext, device *android.Device) error {
+	return ds.Datastore.UpdateDeviceTx(ctx, tx, device)
+}
+
+func (ds *AndroidDSWithMock) CreateEnterprise(ctx context.Context, userID uint) (uint, error) {
+	return ds.Datastore.CreateEnterprise(ctx, userID)
+}
+
+func (ds *AndroidDSWithMock) GetEnterpriseByID(ctx context.Context, id uint) (*android.EnterpriseDetails, error) {
+	return ds.Datastore.GetEnterpriseByID(ctx, id)
+}
+
+func (ds *AndroidDSWithMock) GetEnterpriseBySignupToken(ctx context.Context, signupToken string) (*android.EnterpriseDetails, error) {
+	return ds.Datastore.GetEnterpriseBySignupToken(ctx, signupToken)
+}
+
+func (ds *AndroidDSWithMock) GetEnterprise(ctx context.Context) (*android.Enterprise, error) {
+	return ds.Datastore.GetEnterprise(ctx)
+}
+
+func (ds *AndroidDSWithMock) UpdateEnterprise(ctx context.Context, enterprise *android.EnterpriseDetails) error {
+	return ds.Datastore.UpdateEnterprise(ctx, enterprise)
+}
+
+func (ds *AndroidDSWithMock) DeleteAllEnterprises(ctx context.Context) error {
+	return ds.Datastore.DeleteAllEnterprises(ctx)
+}
+
+func (ds *AndroidDSWithMock) DeleteOtherEnterprises(ctx context.Context, id uint) error {
+	return ds.Datastore.DeleteOtherEnterprises(ctx, id)
+}
+
+// Disambiguate method promoted from both mysql.Datastore and mock.Store
+func (ds *AndroidDSWithMock) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error {
+	return ds.Datastore.SetAndroidHostUnenrolled(ctx, hostID)
 }
 
 type WithServer struct {
@@ -124,9 +168,9 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 			TopicName:      "projects/android/topics/ae98ed130-5ce2-4ddb-a90a-191ec76976d5",
 		}, nil
 	}
-	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) error {
+	ts.AndroidAPIClient.EnterprisesPoliciesPatchFunc = func(_ context.Context, policyName string, _ *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 		assert.Contains(t, policyName, EnterpriseID)
-		return nil
+		return &androidmanagement.Policy{}, nil
 	}
 	ts.AndroidAPIClient.EnterpriseDeleteFunc = func(_ context.Context, enterpriseName string) error {
 		assert.Equal(t, "enterprises/"+EnterpriseID, enterpriseName)
@@ -135,7 +179,7 @@ func (ts *WithServer) createCommonProxyMocks(t *testing.T) {
 }
 
 func (ts *WithServer) TearDownSuite() {
-	mysql.Close(ts.DS.Datastore)
+	ts.DS.Datastore.Close()
 }
 
 type mockService struct {
@@ -194,7 +238,6 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 	if _, ok := os.LookupEnv("MYSQL_TEST"); !ok {
 		t.Skip("MySQL tests are disabled")
 	}
-	ds := mysql.InitializeDatabase(t, name, new(testing_utils.DatastoreTestOptions))
-	t.Cleanup(func() { mysql.Close(ds) })
-	return ds
+	// use the standard Fleet datastore for Android integration tests
+	return mysql.CreateMySQLDS(t)
 }

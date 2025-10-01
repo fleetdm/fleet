@@ -1,3 +1,43 @@
+## Orbit 1.48.1 (Sep 24, 2025)
+
+* Added agent support for setup experience on Linux
+
+* Add `fleetd_pacman_packages` table for `pacman` package manager
+
+* Fixed desktop app launch on some Linux systems by reverting to using sudo.
+
+* Fixed Fleet Desktop failing to launch the browser, or launching the wrong browser, in Wayland sessions and/or when the browser is installed as a Flatpak or Snap.
+
+* Added logic to detect OpenSUSE to address emoji rendering issues in Fleet Desktop system tray menu
+
+* Fixed duplicate enrolled macOS UUIDs/SNs: for macOS, orbit saves hardware UUID to a file and forces a re-enrollment if the hardware UUID has changed. Existing duplicate hosts on the server are unaffected by this agent change.
+
+* Fixed issue with `orbit shell` ignoring disable updates flag.
+
+* Since new macOS/Linux packages built with `fleetctl 4.75.0` or higher do not have embedded osqueryd.app.tar.gz and desktop.tar.gz, orbit can now use osqueryd.app.tar.gz.sha512 and desktop.tar.gz.sha512/desktop.app.tar.gz.sha512 hash caches to check if an update is needed.
+
+* Updated go to 1.25.1
+
+* Updated httpsig-go library to 1.2.0 (for host identity certificates and HTTP message signatures).
+
+## Orbit 1.47.4 (Sep 11, 2025)
+
+* Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
+
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
+## Orbit 1.47.2 (Sep 04, 2025)
+
+* Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
+
+* Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
+
+* Updated go to 1.24.6
+
+* Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
+
 ## Orbit 1.46.0 (Aug 15, 2025)
 
 * Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.

@@ -21,7 +21,6 @@ import { convertParamsToSnakeCase } from "utilities/url";
 
 import { AppContext } from "context/app";
 
-import Card from "components/Card/Card";
 import CardHeader from "components/CardHeader";
 import DataError from "components/DataError";
 import DeviceUserError from "components/DeviceUserError";
@@ -38,7 +37,7 @@ import { generateSoftwareTableHeaders as generateDeviceSoftwareTableConfig } fro
 import HostSoftwareTable from "./HostSoftwareTable";
 import { getSoftwareSubheader } from "./helpers";
 
-const baseClass = "software-card";
+const baseClass = "host-software-card";
 
 export interface ITableSoftware extends Omit<ISoftware, "vulnerabilities"> {
   vulnerabilities: string[]; // for client-side search purposes, we only want an array of cve strings
@@ -258,8 +257,9 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
+          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -306,7 +306,6 @@ const HostSoftware = ({
               max_cvss_score: queryParams.max_cvss_score,
             })}
             onAddFiltersClick={toggleSoftwareFiltersModal}
-            pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
             onShowInventoryVersions={onShowInventoryVersions}
@@ -331,12 +330,7 @@ const HostSoftware = ({
 
   if (isMyDevicePage) {
     return (
-      <Card
-        className={baseClass}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
+      <div className={baseClass}>
         <CardHeader
           header="Software"
           subheader={getSoftwareSubheader({
@@ -346,7 +340,7 @@ const HostSoftware = ({
           })}
         />
         {renderHostSoftware()}
-      </Card>
+      </div>
     );
   }
 

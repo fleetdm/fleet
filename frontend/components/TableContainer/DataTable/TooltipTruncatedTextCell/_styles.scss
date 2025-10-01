@@ -59,4 +59,8 @@
     align-items: center;
     flex-shrink: 0; /* Prevent suffix from shrinking */
   }
+
+  .__react_component_tooltip {
+    font-size: $xx-small;
+  }
 }

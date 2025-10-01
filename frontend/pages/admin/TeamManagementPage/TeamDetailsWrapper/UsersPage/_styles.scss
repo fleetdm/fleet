@@ -1,8 +1,7 @@
 .team-users {
   &__page-description {
     font-size: $x-small;
-    padding-bottom: $pad-medium;
-    margin: 0;
+    margin: $pad-large 0;
   }
 
   &__api-only-user {

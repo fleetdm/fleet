@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "react-query";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
@@ -8,8 +8,6 @@ import scriptsAPI, { IScriptBatchSummaryV2 } from "services/entities/scripts";
 
 import { isValidScriptBatchStatus, ScriptBatchStatus } from "interfaces/script";
 
-import { isDateTimePast } from "utilities/helpers";
-
 import { COLORS } from "styles/var/colors";
 
 import Spinner from "components/Spinner";
@@ -17,15 +15,11 @@ import ProgressBar from "components/ProgressBar";
 import SectionHeader from "components/SectionHeader";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
-import PaginatedList from "components/PaginatedList";
-import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
+import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Icon from "components/Icon/Icon";
 
-import ScriptBatchSummaryModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal";
-import { IScriptBatchDetailsForSummary } from "pages/DashboardPage/cards/ActivityFeed/components/ScriptBatchSummaryModal/ScriptBatchSummaryModal";
-
 import { IScriptsCommonProps } from "../../ScriptsNavItems";
-import { ScriptsLocation } from "../../Scripts";
+import getWhen from "../../helpers";
 
 const baseClass = "script-batch-progress";
 
@@ -52,21 +46,19 @@ const getEmptyState = (status: ScriptBatchStatus) => {
   );
 };
 
-export type IScriptBatchProgressProps = IScriptsCommonProps & {
-  location?: ScriptsLocation;
-};
+export type IScriptBatchProgressProps = IScriptsCommonProps;
 
 const ScriptBatchProgress = ({
   location,
   router,
   teamId,
 }: IScriptBatchProgressProps) => {
-  const [
-    batchDetailsForSummary,
-    setShowBatchDetailsForSummary,
-  ] = useState<IScriptBatchDetailsForSummary | null>(null);
   const [batchCount, setBatchCount] = useState<number | null>(null);
   const [updating, setUpdating] = useState(false);
+
+  const paginatedListRef = useRef<IPaginatedListHandle<IScriptBatchSummaryV2>>(
+    null
+  );
 
   const statusParam = location?.query.status;
 
@@ -92,7 +84,7 @@ const ScriptBatchProgress = ({
             .getRunScriptBatchSummaries(queryKey[0])
             .then((r) => {
               setBatchCount(r.count);
-              return r.batch_executions;
+              return r.batch_executions ?? [];
             })
             .finally(() => {
               setUpdating(false);
@@ -127,80 +119,14 @@ const ScriptBatchProgress = ({
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
-    setShowBatchDetailsForSummary({
-      batch_execution_id: r.batch_execution_id,
-      script_name: r.script_name,
-      host_count: r.targeted_host_count,
-    });
-    // return satisfies caller expectations, not used in this case
+    // explicitly including the status param here avoids triggering the script details page's effect
+    // which would add it automatically, muddying browser history and preventing smooth forward/back navigation
+    router.push(
+      PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id).concat(
+        "?status=ran"
+      )
+    );
     return r;
-  };
-
-  const getWhen = (summary: IScriptBatchSummaryV2) => {
-    const {
-      batch_execution_id: id,
-      not_before,
-      started_at,
-      finished_at,
-      canceled,
-    } = summary;
-    switch (summary.status) {
-      case "started":
-        if (!started_at || !isDateTimePast(started_at)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'started' but has no past 'started_at'`
-          );
-          return null;
-        }
-        return (
-          <>
-            Started{" "}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={started_at}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      case "scheduled":
-        if (!not_before || isDateTimePast(not_before)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'scheduled' but has no future scheduled start time`
-          );
-          return null;
-        }
-        return (
-          <>
-            Scheduled to start{" "}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={not_before}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      case "finished":
-        if (!finished_at || !isDateTimePast(finished_at)) {
-          console.warn(
-            `Batch run with execution id ${id} is marked as 'finished' but has no past 'finished_at' data`
-          );
-          return null;
-        }
-        return (
-          <>
-            <Icon
-              name={canceled ? "close-filled" : "success"}
-              color="ui-fleet-black-50"
-              size="small"
-            />
-            {canceled ? "Canceled" : "Completed"}
-            <HumanTimeDiffWithFleetLaunchCutoff
-              timeString={finished_at}
-              tooltipPosition="right"
-            />
-          </>
-        );
-      default:
-        return null;
-    }
   };
 
   const renderRow = (summary: IScriptBatchSummaryV2) => {
@@ -288,6 +214,7 @@ const ScriptBatchProgress = ({
           </div>
         )}
         <PaginatedList<IScriptBatchSummaryV2>
+          ref={paginatedListRef}
           count={batchCount || 0}
           fetchPage={fetchPage}
           onClickRow={onClickRow}
@@ -302,7 +229,7 @@ const ScriptBatchProgress = ({
     <>
       <div className={baseClass}>
         <SectionHeader title="Batch progress" alignLeftHeaderVertically />
-        <TabNav>
+        <TabNav secondary>
           <Tabs
             selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
             onSelect={handleTabChange}
@@ -324,15 +251,6 @@ const ScriptBatchProgress = ({
           </Tabs>
         </TabNav>
       </div>
-      {batchDetailsForSummary && (
-        <ScriptBatchSummaryModal
-          scriptBatchExecutionDetails={{ ...batchDetailsForSummary }}
-          onCancel={() => {
-            setShowBatchDetailsForSummary(null);
-          }}
-          router={router}
-        />
-      )}
     </>
   );
 };

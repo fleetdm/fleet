@@ -10,18 +10,18 @@ import {
 import AddInstallSoftware from "./AddInstallSoftware";
 
 describe("AddInstallSoftware", () => {
-  it("should render no software message if there are no software to select from", () => {
+  it("should render the expected message if there are no software titles to select from", () => {
     render(
       <AddInstallSoftware
         currentTeamId={1}
         softwareTitles={null}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
-    expect(screen.getByText(/No software available to add/i)).toBeVisible();
-    expect(screen.getByText(/upload software/i)).toBeVisible();
+    expect(screen.getByText(/you can add software on the/i)).toBeVisible();
   });
 
   it("should render the correct messaging when there are software titles but none have been selected to install at setup", () => {
@@ -31,11 +31,12 @@ describe("AddInstallSoftware", () => {
         softwareTitles={[createMockSoftwareTitle(), createMockSoftwareTitle()]}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
-    expect(screen.getByText(/No software added/)).toBeVisible();
-    expect(screen.getByRole("button", { name: "Add software" })).toBeVisible();
+    expect(screen.getByText(/No software selected/)).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Add software" })).toBeNull();
   });
 
   it("should render the correct messaging when there are software titles that have been selected to install at setup", () => {
@@ -59,17 +60,19 @@ describe("AddInstallSoftware", () => {
         ]}
         onAddSoftware={noop}
         hasManualAgentInstall={false}
+        platform="macos"
       />
     );
 
     expect(
       screen.getByText(
         (_, element) =>
-          element?.textContent === "2 software will be installed during setup."
+          element?.textContent ===
+          "2 software items will be installed during setup."
       )
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Show selected software" })
+      screen.getByRole("button", { name: "Select software" })
     ).toBeVisible();
   });
 });

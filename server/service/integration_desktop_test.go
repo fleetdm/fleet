@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/google/uuid"
@@ -238,10 +240,25 @@ func (s *integrationTestSuite) TestDefaultTransparencyURL() {
 	require.Equal(t, fleet.DefaultTransparencyURL, rawResp.Header.Get("Location"))
 }
 
+func clearRedisKey(t *testing.T, redisPool fleet.RedisPool, key string) {
+	conn := redis.ConfigureDoer(redisPool, redisPool.Get())
+	defer conn.Close()
+
+	_, err := conn.Do("DEL", key)
+	require.NoError(t, err)
+}
+
 func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 	headers := map[string]string{
 		"X-Forwarded-For": "1.2.3.4",
 	}
+
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(s.T(), s.redisPool, "ratelimit::forgot_password")
+	}
+	clearKeys()
+	s.T().Cleanup(clearKeys)
 
 	testCases := []struct {
 		endpoint string
@@ -254,14 +271,8 @@ func (s *integrationTestSuite) TestRateLimitOfEndpoints() {
 			endpoint: "/api/latest/fleet/forgot_password",
 			verb:     "POST",
 			payload:  forgotPasswordRequest{Email: "some@one.com"},
-			burst:    forgotPasswordRateLimitMaxBurst - 2,
+			burst:    forgotPasswordRateLimitMaxBurst + 1,
 			status:   http.StatusAccepted,
-		},
-		{
-			endpoint: "/api/latest/fleet/device/" + uuid.NewString(),
-			verb:     "GET",
-			burst:    desktopRateLimitMaxBurst + 1,
-			status:   http.StatusUnauthorized,
 		},
 	}
 
@@ -452,4 +463,62 @@ func (s *integrationTestSuite) TestErrorReporting() {
 
 	s.DoJSON("GET", "/debug/errors", nil, http.StatusOK, &errors)
 	require.Len(t, errors, 2)
+}
+
+func (s *integrationEnterpriseTestSuite) TestRateLimitOfDesktopEndpoints() {
+	createHostAndDeviceToken(s.T(), s.ds, "valid_token")
+
+	// Clear any previous usage of forgot_password in the test suite to start from scatch.
+	clearKeys := func() {
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::banned")
+		clearRedisKey(s.T(), s.redisPool, "ipbanner::{127.0.0.1}::count")
+	}
+	clearKeys()
+	s.T().Cleanup(clearKeys)
+
+	allowedConsecutiveFailuresCount := 4
+	allowedConsecutiveFailuresTimeWindow := 2 * time.Second
+	banDuration := 2 * time.Second
+	redis.SetIPBannerTestValues(allowedConsecutiveFailuresCount, allowedConsecutiveFailuresTimeWindow, banDuration)
+	s.T().Cleanup(redis.UnsetIPBannerTestValues)
+
+	// Test that consecutive invalid requests get banned (for IP=127.0.0.1).
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
+
+	// A valid request from another IP does not clear the status of the IP 127.0.0.1 (banned).
+	s.DoRawWithHeaders("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK, map[string]string{
+		"X-Forwarded-For": "1.2.3.4",
+	}).Body.Close()
+	// 127.0.0.1 IP should be banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusTooManyRequests).Body.Close()
+	// Wait for the ban window to finish, which should clear the ban on the IP.
+	time.Sleep(banDuration + 500*time.Millisecond)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+
+	// Clear rate limiting.
+	clearKeys()
+
+	// Test that a successful request clears the failing count.
+	for range allowedConsecutiveFailuresCount - 1 {
+		s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	}
+	// Valid request clears the failing count.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/valid_token/desktop", nil, http.StatusOK).Body.Close()
+	// A new failing request is not banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+
+	// Test that consecutive invalid requests in a time window bigger than the configured one does not ban the IP (for IP=127.0.0.1).
+	// Test different endpoints coming from the same IP.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("POST", "/api/latest/fleet/device/invalid_token/refetch", nil, http.StatusUnauthorized).Body.Close()
+	time.Sleep(allowedConsecutiveFailuresTimeWindow + 500*time.Millisecond)
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/transparency", nil, http.StatusUnauthorized).Body.Close()
+	s.DoRawNoAuth("HEAD", "/api/latest/fleet/device/invalid_token/ping", nil, http.StatusUnauthorized).Body.Close()
+	// A new failing request is not banned.
+	s.DoRawNoAuth("GET", "/api/latest/fleet/device/invalid_token/desktop", nil, http.StatusUnauthorized).Body.Close()
 }

@@ -42,6 +42,12 @@
   frequency: "Quarterly"
   description: "Prepare slide deck for the next board meeting"
   dri: "sampfluger88"
-
-
-
+-
+  task: "Review active eval instances"
+  startedOn: "2025-08-25"
+  frequency: "Monthly"
+  description: "Review [list of active instances](https://github.com/fleetdm/confidential/tree/main/infrastructure/cloud) to see what can be shutdown and deleted."
+  dri: "allenhouchins"
+  autoIssue:   
+    labels: [ ":help-it-and-enablement",":solutions" ]
+    repo: "confidential"

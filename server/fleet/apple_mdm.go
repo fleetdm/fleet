@@ -5,9 +5,11 @@ import (
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -223,6 +225,7 @@ type MDMProfilesUpdates struct {
 	AppleConfigProfile   bool
 	WindowsConfigProfile bool
 	AppleDeclaration     bool
+	AndroidConfigProfile bool
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
@@ -258,6 +261,24 @@ func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile,
 	}, nil
 }
 
+// payloadDisplayNameRegex is used to extract PayloadDisplayName values from raw XML content
+var payloadDisplayNameRegex = regexp.MustCompile(`<key>PayloadDisplayName</key>\s*<string>([^<]*)</string>`)
+
+// ValidateNoSecretsInProfileName checks if PayloadDisplayName contains FLEET_SECRET_ variables
+// in the raw XML content of a profile.
+func ValidateNoSecretsInProfileName(xmlContent []byte) error {
+	matches := payloadDisplayNameRegex.FindAllSubmatch(xmlContent, -1)
+	for _, match := range matches {
+		if len(match) > 1 {
+			displayName := string(match[1])
+			if len(ContainsPrefixVars(displayName, ServerSecretPrefix)) > 0 {
+				return errors.New("PayloadDisplayName cannot contain FLEET_SECRET variables")
+			}
+		}
+	}
+	return nil
+}
+
 func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 	// first screen the top-level object for reserved identifiers and names
 	if _, ok := mobileconfig.FleetPayloadIdentifiers()[cp.Identifier]; ok {
@@ -274,29 +295,36 @@ func (cp MDMAppleConfigProfile) ValidateUserProvided() error {
 
 // HostMDMAppleProfile represents the status of an Apple MDM profile in a host.
 type HostMDMAppleProfile struct {
-	HostUUID           string             `db:"host_uuid" json:"-"`
-	CommandUUID        string             `db:"command_uuid" json:"-"`
-	ProfileUUID        string             `db:"profile_uuid" json:"profile_uuid"`
-	Name               string             `db:"name" json:"name"`
-	Identifier         string             `db:"identifier" json:"-"`
-	Status             *MDMDeliveryStatus `db:"status" json:"status"`
-	OperationType      MDMOperationType   `db:"operation_type" json:"operation_type"`
-	Detail             string             `db:"detail" json:"detail"`
-	VariablesUpdatedAt *time.Time         `db:"variables_updated_at" json:"-"`
-	Scope              PayloadScope       `db:"scope" json:"scope"`
+	HostUUID            string             `db:"host_uuid" json:"-"`
+	CommandUUID         string             `db:"command_uuid" json:"-"`
+	ProfileUUID         string             `db:"profile_uuid" json:"profile_uuid"`
+	Name                string             `db:"name" json:"name"`
+	Identifier          string             `db:"identifier" json:"-"`
+	Status              *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType       MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail              string             `db:"detail" json:"detail"`
+	VariablesUpdatedAt  *time.Time         `db:"variables_updated_at" json:"-"`
+	Scope               PayloadScope       `db:"scope" json:"scope"`
+	ManagedLocalAccount string             `db:"managed_local_account" json:"managed_local_account"`
 }
 
 // ToHostMDMProfile converts the HostMDMAppleProfile to a HostMDMProfile.
 func (p HostMDMAppleProfile) ToHostMDMProfile(platform string) HostMDMProfile {
+	scope := "device"
+	if p.Scope == PayloadScopeUser {
+		scope = "user"
+	}
 	return HostMDMProfile{
-		HostUUID:      p.HostUUID,
-		ProfileUUID:   p.ProfileUUID,
-		Name:          p.Name,
-		Identifier:    p.Identifier,
-		Status:        p.Status,
-		OperationType: p.OperationType,
-		Detail:        p.Detail,
-		Platform:      platform,
+		HostUUID:            p.HostUUID,
+		ProfileUUID:         p.ProfileUUID,
+		Name:                p.Name,
+		Identifier:          p.Identifier,
+		Status:              p.Status,
+		OperationType:       p.OperationType,
+		Detail:              p.Detail,
+		Platform:            platform,
+		Scope:               &scope,
+		ManagedLocalAccount: &p.ManagedLocalAccount,
 	}
 }
 
@@ -501,6 +529,13 @@ type HostDEPAssignment struct {
 	DeletedAt *time.Time `db:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
 	ABMTokenID *uint `db:"abm_token_id"`
+	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
+	// most recent sync.
+	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline"`
+	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
+	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
+	// date.
+	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
@@ -528,6 +563,17 @@ type NanoEnrollment struct {
 	Type             string `json:"-" db:"type"`
 	Enabled          bool   `json:"-" db:"enabled"`
 	TokenUpdateTally int    `json:"-" db:"token_update_tally"`
+}
+
+// NanoUser represents a row in the nano_users table of Managed Users, managed by
+// nanomdm. It is meant to be used internally by the server, not to be returned
+// as part of endpoints, and as a precaution its json-encoding is explicitly
+// ignored.
+type NanoUser struct {
+	ID            string `json:"-" db:"id"`
+	DeviceID      string `json:"-" db:"device_id"`
+	UserShortName string `json:"-" db:"user_short_name"`
+	UserLongName  string `json:"-" db:"user_long_name"`
 }
 
 // MDMAppleCommand represents an MDM Apple command that has been enqueued for

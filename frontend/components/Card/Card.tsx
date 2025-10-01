@@ -9,6 +9,13 @@ const baseClass = "card";
 
 type BorderRadiusSize = "small" | "medium" | "large" | "xlarge" | "xxlarge";
 type CardColor = "white" | "grey" | "purple" | "yellow";
+type PaddingSize =
+  | "small"
+  | "medium"
+  | "large"
+  | "xlarge"
+  | "xxlarge"
+  | "xxxlarge";
 
 interface ICardProps {
   children?: React.ReactNode;
@@ -26,13 +33,7 @@ interface ICardProps {
    *
    * These correspond to the padding sizes in the design system. Look at
    * `padding.scss` for values */
-  paddingSize?:
-    | "small"
-    | "medium"
-    | "large"
-    | "xlarge"
-    | "xxlarge"
-    | "xxxlarge";
+  paddingSize?: PaddingSize;
   /**
    * @deprecated Use `paddingSize` prop instead.
    *

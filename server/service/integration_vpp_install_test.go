@@ -43,7 +43,6 @@ func (s *integrationMDMTestSuite) setVPPTokenForTeam(teamID uint) {
 	// Associate team to the VPP token.
 	var resPatchVPP patchVPPTokensTeamsResponse
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", resp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{teamID}}, http.StatusOK, &resPatchVPP)
-
 }
 
 func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
@@ -333,7 +332,7 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 		require.Equal(t, expected.Name, got.Name)
 		require.NotNil(t, got.AppStoreApp)
 		require.Equal(t, expected.AdamID, got.AppStoreApp.AppStoreID)
-		require.Equal(t, ptr.String(expected.IconURL), got.AppStoreApp.IconURL)
+		require.Equal(t, ptr.String(expected.IconURL), got.IconUrl)
 		require.Empty(t, got.AppStoreApp.Name) // Name is only present for installer packages
 		require.Equal(t, expected.LatestVersion, got.AppStoreApp.Version)
 		require.NotNil(t, got.Status)
@@ -878,7 +877,6 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 						Installed:        false,
 					},
 					{
-
 						Name:             iOSApp.Name,
 						BundleIdentifier: iOSApp.BundleIdentifier,
 						Version:          iOSApp.LatestVersion,
@@ -900,5 +898,4 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
-
 }

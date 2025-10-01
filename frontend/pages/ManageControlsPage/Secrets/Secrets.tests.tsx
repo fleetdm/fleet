@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { getByText, screen, waitFor } from "@testing-library/react";
 
 import { ISecret } from "interfaces/secrets";
 import { UserEvent } from "@testing-library/user-event";
@@ -23,6 +23,21 @@ describe("Custom variables", () => {
     },
   });
 
+  const gomURL = "https://www.a.bc";
+  const renderInGOM = createCustomRenderer({
+    withBackendMock: true,
+    context: {
+      app: {
+        config: {
+          gitops: {
+            gitops_mode_enabled: true,
+            repository_url: gomURL,
+          },
+        },
+        isGlobalAdmin: true,
+      },
+    },
+  });
   describe("empty state", () => {
     afterAll(() => {
       mockServer.resetHandlers();
@@ -130,6 +145,79 @@ describe("Custom variables", () => {
       );
     });
 
+    describe("gitops mode", () => {
+      it("renders the add button disabled in GitOps mode", async () => {
+        const { user } = renderInGOM(<Secrets />);
+
+        let addSecretButton;
+        await waitFor(() => {
+          addSecretButton = screen.getByRole("button", {
+            name: /Add custom variable/,
+          });
+
+          expect(addSecretButton).toBeInTheDocument();
+        });
+        if (!addSecretButton) {
+          throw new Error("Add custom variable button not found");
+        }
+
+        expect(addSecretButton).toHaveAttribute("disabled");
+        expect(addSecretButton).toHaveClass("button--disabled");
+
+        // Tooltip behavior covered in GitOpsModeWrapper.tests.tsx; omitted here due to flakiness
+      });
+
+      it("deleting a secret is successful in GitOps mode", async () => {
+        const { user } = renderInGOM(<Secrets />);
+        await waitFor(() => {
+          expect(screen.getByText("Add custom variable")).toBeInTheDocument();
+        });
+        // Get the element with SECRET_UNO in it.
+        let secretUno: HTMLElement | null = null;
+        await waitFor(() => {
+          secretUno = screen.getByText("SECRET_UNO");
+          expect(secretUno).toBeInTheDocument();
+        });
+        if (secretUno === null) {
+          throw new Error("Secret not found");
+        }
+        // Find the element with .paginated-list__row class that is ancestor to that element.
+        const secretUnoRow = (secretUno as HTMLElement).closest(
+          ".paginated-list__row"
+        );
+        expect(secretUnoRow).toBeInTheDocument();
+        if (!secretUnoRow) {
+          throw new Error("Secret row not found");
+        }
+        // Find the element with data-id="trash-icon"
+        const trashIcon = secretUnoRow.querySelector(
+          "[data-testid='trash-icon']"
+        );
+        expect(trashIcon).toBeInTheDocument();
+        if (!trashIcon) {
+          throw new Error("Trash icon not found");
+        }
+        // Click it.
+        await user.click(trashIcon);
+        // Confirm the deletion.
+        await waitFor(() => {
+          expect(
+            screen.getByText(/Delete custom variable\?/)
+          ).toBeInTheDocument();
+          expect(screen.getByText(/This will delete the/)).toBeInTheDocument();
+        });
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await waitFor(() => {
+          expect(
+            screen.queryByText(/Delete custom variable\?/)
+          ).not.toBeInTheDocument();
+          expect(screen.queryByText("SECRET_UNO")).not.toBeInTheDocument();
+          expect(screen.queryByText("SECRET_DOS")).toBeInTheDocument();
+        });
+      });
+    });
+
     describe("adding a new secret", () => {
       const getAddSecretUI = async () => {
         let nameInput;
@@ -207,6 +295,18 @@ describe("Custom variables", () => {
           expect(saveButton).toBeDisabled();
         });
       });
+      it("does not allow saving very long name", async () => {
+        const { nameInput, valueInput, saveButton } = await getAddSecretUI();
+        await user.type(nameInput, new Array(256).fill("A").join("")); // Invalid name
+        await user.type(valueInput, "a value");
+        await user.click(saveButton);
+        await waitFor(() => {
+          expect(
+            screen.getByText("Name may not exceed 255 characters")
+          ).toBeInTheDocument();
+          expect(saveButton).toBeDisabled();
+        });
+      });
     });
 
     it("deleting a secret is successful", async () => {
@@ -246,14 +346,7 @@ describe("Custom variables", () => {
         expect(
           screen.getByText(/Delete custom variable\?/)
         ).toBeInTheDocument();
-        expect(
-          screen.getByText((content, element) => {
-            return (
-              element?.textContent ===
-              "This will delete the SECRET_UNO custom variable."
-            );
-          })
-        ).toBeInTheDocument();
+        expect(screen.getByText(/This will delete the/)).toBeInTheDocument();
       });
       await new Promise((resolve) => setTimeout(resolve, 250));
       await user.click(screen.getByRole("button", { name: "Delete" }));

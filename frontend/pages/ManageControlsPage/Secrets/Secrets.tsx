@@ -14,6 +14,7 @@ import { ISecret } from "interfaces/secrets";
 import { AppContext } from "context/app";
 
 import { stringToClipboard } from "utilities/copy_text";
+import { FLEET_WEBSITE_URL } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import ListItem from "components/ListItem/ListItem";
@@ -21,6 +22,7 @@ import PaginatedList, { IPaginatedListHandle } from "components/PaginatedList";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
 import EmptyTable from "components/EmptyTable";
+import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 import Icon from "components/Icon";
 import AddSecretModal from "./components/AddSecretModal";
 import DeleteSecretModal from "./components/DeleteSecretModal";
@@ -45,15 +47,9 @@ const Secrets = () => {
 
   const queryClient = useQueryClient();
 
-  const {
-    isGlobalAdmin,
-    isTeamAdmin,
-    isGlobalMaintainer,
-    isTeamMaintainer,
-  } = useContext(AppContext);
+  const { isGlobalAdmin, isGlobalMaintainer } = useContext(AppContext);
 
-  const canEdit =
-    isGlobalAdmin || isTeamAdmin || isGlobalMaintainer || isTeamMaintainer;
+  const canEdit = isGlobalAdmin || isGlobalMaintainer;
 
   // Fetch a single page of secrets.
   const fetchPage = useCallback(
@@ -109,9 +105,8 @@ const Secrets = () => {
     setShowDeleteModal(true);
   };
 
-  const onDeleteSecret = () => {
+  const reloadList = () => {
     paginatedListRef.current?.reload();
-    setShowDeleteModal(false);
   };
 
   const getTokenFromSecretName = (secretName: string): string => {
@@ -154,14 +149,18 @@ const Secrets = () => {
         title={secret.name.toUpperCase()}
         details={
           <span>
-            Updated <HumanTimeDiffWithDateTip timeString={secret.updated_at} />{" "}
-            &bull; {getTokenFromSecretName(secret.name)}
+            <span className="secret-details__text">
+              Updated{" "}
+              <HumanTimeDiffWithDateTip timeString={secret.updated_at} /> &bull;{" "}
+              {getTokenFromSecretName(secret.name)}
+            </span>
             <Button
-              variant="unstyled"
+              variant="icon"
               className={`${baseClass}__copy-secret-icon`}
               onClick={(e: React.MouseEvent<HTMLButtonElement>) =>
                 onCopySecretName(e, secret.name)
               }
+              iconStroke
             >
               <Icon name="copy" />
             </Button>
@@ -175,14 +174,14 @@ const Secrets = () => {
       />
       {canEdit && (
         <Button
-          variant="text-icon"
+          variant="icon"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
             onClickDeleteSecret(secret);
           }}
         >
           <>
-            <Icon name="trash" color="ui-fleet-black-75" />
+            <Icon name="trash" />
           </>
         </Button>
       )}
@@ -222,9 +221,33 @@ const Secrets = () => {
   }
   return (
     <div className={baseClass}>
-      <p>
-        Manage custom variables that will be available in scripts and profiles.
-      </p>
+      <div className={`${baseClass}__page-header`}>
+        <p className={`${baseClass}__description`}>
+          Manage custom variables that will be available in scripts and
+          profiles.{" "}
+          <CustomLink
+            text="Learn more"
+            url={`${FLEET_WEBSITE_URL}/guides/secrets-in-scripts-and-configuration-profiles`}
+            newTab
+          />
+        </p>
+        {canEdit && (
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <span>
+                <Button
+                  variant="brand-inverse-icon"
+                  onClick={onClickAddSecret}
+                  disabled={disableChildren}
+                >
+                  <Icon name="plus" color="core-fleet-green" />
+                  <span>Add custom variable</span>
+                </Button>
+              </span>
+            )}
+          />
+        )}
+      </div>
       <PaginatedList<ISecret>
         ref={paginatedListRef}
         pageSize={SECRETS_PAGE_SIZE}
@@ -232,19 +255,7 @@ const Secrets = () => {
         count={count || 0}
         fetchPage={fetchPage}
         onClickRow={(secret) => secret}
-        heading={
-          <div className={`${baseClass}__header`}>
-            <span>Custom variables</span>
-            {canEdit && (
-              <span>
-                <Button variant="text-icon" onClick={onClickAddSecret}>
-                  <Icon name="plus" />
-                  <span>Add custom variable</span>
-                </Button>
-              </span>
-            )}
-          </div>
-        }
+        heading={<div className={`${baseClass}__header`}>Custom variables</div>}
         helpText={
           <span>
             Profiles can also use any of Fleet&rsquo;s{" "}
@@ -265,8 +276,8 @@ const Secrets = () => {
       {showDeleteModal && (
         <DeleteSecretModal
           secret={secretToDelete}
-          onCancel={() => setShowDeleteModal(false)}
-          onDelete={onDeleteSecret}
+          onExit={() => setShowDeleteModal(false)}
+          reloadList={reloadList}
         />
       )}
     </div>

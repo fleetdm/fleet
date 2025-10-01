@@ -15,11 +15,8 @@ spec:
     enable_software_inventory: false
   integrations:
     conditional_access_enabled: null
-    custom_scep_proxy: null
-    digicert: null
     google_calendar: null
     jira: null
-    ndes_scep_proxy: null
     zendesk: null
   mdm:
     android_enabled_and_configured: false
@@ -60,6 +57,8 @@ spec:
       script:
       software:
     windows_settings:
+      custom_settings: null
+    android_settings:
       custom_settings: null
     end_user_authentication:
       idp_name: ""

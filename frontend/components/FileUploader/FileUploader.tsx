@@ -24,6 +24,7 @@ export type ISupportedGraphicNames = Extract<
   | "file-p7m"
   | "file-pem"
   | "file-vpp"
+  | "file-png"
 >;
 
 interface IFileUploaderProps {
@@ -48,16 +49,18 @@ interface IFileUploaderProps {
    * a link.
    * @default "button"
    */
-  buttonType?: "button" | "link";
+  buttonType?: "button" | "brand-inverse-icon";
   /** renders a tooltip for the button. If `gitopsCompatible` is set to `true`
    * this tooltip will not be rendered if gitops mode is enabled. */
   buttonTooltip?: React.ReactNode;
   onFileUpload: (files: FileList | null) => void;
   /** renders the current file with the edit pencil button */
   canEdit?: boolean;
+  /** renders the current file with the delete trash button */
+  onDeleteFile?: () => void;
   fileDetails?: {
     name: string;
-    platform?: string;
+    description?: string;
   };
   /** Indicates that this file uploader deals with an entity that can be managed by GitOps, and so should be disabled when gitops mode is enabled */
   gitopsCompatible?: boolean;
@@ -81,6 +84,7 @@ export const FileUploader = ({
   buttonTooltip,
   onFileUpload,
   canEdit = false,
+  onDeleteFile,
   fileDetails,
   gitopsCompatible = false,
   gitOpsModeEnabled = false,
@@ -91,19 +95,24 @@ export const FileUploader = ({
   const classes = classnames(baseClass, className, {
     [`${baseClass}__file-preview`]: isFileSelected,
   });
-  const buttonVariant = buttonType === "button" ? "default" : "text-icon";
+  const buttonVariant =
+    buttonType === "button" ? "default" : "brand-inverse-icon";
 
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
 
   const onFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    onFileUpload(files);
-    setIsFileSelected(true);
+    const target = e.currentTarget;
+    // Ensure target is the expected input element to prevent DOM manipulation
+    if (target && target.type === "file") {
+      const files = target.files;
+      onFileUpload(files);
+      setIsFileSelected(true);
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -151,7 +160,9 @@ export const FileUploader = ({
                 tabIndex={0}
               >
                 <label htmlFor="upload-file">
-                  {buttonType === "link" && <Icon name="upload" />}
+                  {buttonType === "brand-inverse-icon" && (
+                    <Icon color="core-fleet-green" name="upload" />
+                  )}
                   <span>{buttonMessage}</span>
                 </label>
               </Button>
@@ -179,7 +190,9 @@ export const FileUploader = ({
           tabIndex={0}
         >
           <label htmlFor="upload-file">
-            {buttonType === "link" && <Icon name="upload" />}
+            {buttonType === "brand-inverse-icon" && (
+              <Icon color="core-fleet-green" name="upload" />
+            )}
             <span>{buttonMessage}</span>
           </label>
         </Button>
@@ -190,30 +203,39 @@ export const FileUploader = ({
   const renderFileUploader = () => {
     return (
       <>
-        <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-        <p className={`${baseClass}__message`}>{message}</p>
-        {additionalInfo && (
-          <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
-        )}
-        {renderUploadButton()}
-        <input
-          ref={fileInputRef}
-          accept={accept}
-          id="upload-file"
-          type="file"
-          onChange={onFileSelect}
-        />
+        <div className="content-wrapper">
+          <div className="outer">
+            <div className="inner">
+              <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+              <p className={`${baseClass}__message`}>{message}</p>
+              {additionalInfo && (
+                <p className={`${baseClass}__additional-info`}>
+                  {additionalInfo}
+                </p>
+              )}
+            </div>
+            {renderUploadButton()}
+            <input
+              ref={fileInputRef}
+              accept={accept}
+              id="upload-file"
+              type="file"
+              onChange={onFileSelect}
+            />
+          </div>
+        </div>
       </>
     );
   };
 
   return (
     <Card color="grey" className={classes}>
-      {isFileSelected && fileDetails ? (
+      {fileDetails ? (
         <FileDetails
           graphicNames={graphicNames}
           fileDetails={fileDetails}
           canEdit={canEdit}
+          onDeleteFile={onDeleteFile}
           onFileSelect={onFileSelect}
           accept={accept}
           gitopsCompatible={gitopsCompatible}

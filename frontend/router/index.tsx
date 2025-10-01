@@ -31,6 +31,7 @@ import EmailTokenRedirect from "components/EmailTokenRedirect";
 import ForgotPasswordPage from "pages/ForgotPasswordPage";
 import GatedLayout from "layouts/GatedLayout";
 import HostDetailsPage from "pages/hosts/details/HostDetailsPage";
+import ManageLabelsPage from "pages/labels/ManageLabelsPage";
 import NewLabelPage from "pages/labels/NewLabelPage";
 import EditLabelPage from "pages/labels/EditLabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
@@ -83,6 +84,7 @@ import SoftwareFleetMaintained from "pages/SoftwarePage/SoftwareAddPage/Software
 import SoftwareCustomPackage from "pages/SoftwarePage/SoftwareAddPage/SoftwareCustomPackage";
 import SoftwareAppStore from "pages/SoftwarePage/SoftwareAddPage/SoftwareAppStoreVpp";
 import FleetMaintainedAppDetailsPage from "pages/SoftwarePage/SoftwareAddPage/SoftwareFleetMaintained/FleetMaintainedAppDetailsPage";
+import ScriptBatchDetailsPage from "pages/ManageControlsPage/Scripts/ScriptBatchDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -235,7 +237,8 @@ const routes = (
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
-            <IndexRedirect to="new" />
+            <IndexRedirect to="manage" />
+            <Route path="manage" component={ManageLabelsPage} />
             <Route path="new" component={NewLabelPage}>
               {/* maintaining previous 2 sub-routes for backward-compatibility of URL routes. NewLabelPage now sets the corresponding label type */}
               <Route path="dynamic" component={NewLabelPage} />
@@ -285,16 +288,28 @@ const routes = (
                 <Route path="os-updates" component={OSUpdates} />
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
+
                 <Route path="setup-experience" component={SetupExperience} />
-                <Route path="scripts" component={Scripts} />
-                <Route path="scripts/:section" component={Scripts} />
-                <Route path="variables" component={Secrets} />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
                 />
+                <Route
+                  path="setup-experience/:section/:platform"
+                  component={SetupExperience}
+                />
+
+                <Route path="scripts">
+                  <IndexRedirect to="library" />
+                  <Route path=":section" component={Scripts} />
+                </Route>
+                <Route path="variables" component={Secrets} />
               </Route>
             </Route>
+            <Route
+              path="controls/scripts/progress/:batch_execution_id"
+              component={ScriptBatchDetailsPage}
+            />
           </Route>
           <Route path="software">
             <IndexRedirect to="titles" />

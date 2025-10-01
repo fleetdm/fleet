@@ -19,6 +19,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import OSIcon from "pages/SoftwarePage/components/icons/OSIcon";
@@ -27,6 +28,7 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 import { isLinuxLike } from "interfaces/platform";
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 
 type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
@@ -95,12 +97,42 @@ const generateDefaultTableHeaders = (
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: IVersionCellProps) => (
-      <TextCell value={cellProps.cell.value} />
-    ),
+    Cell: (cellProps: IVersionCellProps) => {
+      const value = cellProps.cell.value;
+      if (
+        (cellProps.row.values.name_only === "Arch Linux" ||
+          cellProps.row.values.name_only === "Arch Linux ARM" ||
+          cellProps.row.values.name_only === "Manjaro Linux" ||
+          cellProps.row.values.name_only === "Manjaro Linux ARM") &&
+        value === "rolling"
+      ) {
+        return (
+          <TextCell value={<TooltipWrapperArchLinuxRolling capitalized />} />
+        );
+      }
+      return <TextCell value={value} />;
+    },
   },
   {
-    Header: "Vulnerabilities",
+    Header: (): JSX.Element => {
+      const titleWithTooltip = (
+        <TooltipWrapper
+          tipContent={
+            <>
+              Vulnerabilities on Linux are currently supported <br />
+              for Ubuntu, Debian, and Amazon Linux.
+            </>
+          }
+        >
+          Vulnerabilities
+        </TooltipWrapper>
+      );
+      return (
+        <>
+          <HeaderCell value={titleWithTooltip} disableSortBy />
+        </>
+      );
+    },
     disableSortBy: true,
     accessor: "vulnerabilities",
     Cell: (cellProps: IVulnCellProps) => {

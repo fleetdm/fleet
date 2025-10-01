@@ -69,8 +69,8 @@ Generated when creating policies.
 This activity contains the following fields:
 - "policy_id": the ID of the created policy.
 - "policy_name": the name of the created policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
@@ -90,8 +90,8 @@ Generated when editing policies.
 This activity contains the following fields:
 - "policy_id": the ID of the edited policy.
 - "policy_name": the name of the edited policy.
-- "team_id": the ID of the team the policy belongs to.
-- "team_name": the name of the team the policy belongs to.
+- "team_id": the ID of the team the policy belongs to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belongs to. null for global policies and "No Team" policies.
 
 #### Example
 
@@ -111,8 +111,8 @@ Generated when deleting policies.
 This activity contains the following fields:
 - "policy_id": the ID of the deleted policy.
 - "policy_name": the name of the deleted policy.
-- "team_id": the ID of the team the policy belonged to.
-- "team_name": the name of the team the policy belonged to.
+- "team_id": the ID of the team the policy belonged to. Use -1 for global policies, 0 for "No Team" policies.
+- "team_name": the name of the team the policy belonged to. null for global policies and "No Team" policies.
 
 #### Example
 
@@ -1234,6 +1234,61 @@ This activity contains the following fields:
 }
 ```
 
+## created_android_profile
+
+Generated when a user adds a new Android profile to a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, `null` if it applies to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## deleted_android_profile
+
+Generated when a user deletes an Android profile from a team (or no team).
+
+This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, `null` if it applied to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
+## edited_android_profile
+
+Generated when a user edits the Android profiles of a team (or no team) via the fleetctl CLI.
+
+This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, `null` if they apply to devices that are not in a team.
+
+#### Example
+
+```json
+{
+  "team_id": 123,
+  "team_name": "Workstations"
+}
+```
+
 ## resent_configuration_profile
 
 Generated when a user resends a configuration profile to a host.
@@ -1388,6 +1443,7 @@ This activity contains the following fields:
   "team_id": 123,
   "self_service": true,
   "software_title_id": 2234,
+  "software_icon_url": "/api/latest/fleet/software/titles/2234/icon?team_id=123",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1423,6 +1479,7 @@ This activity contains the following fields:
   "team_name": "Workstations",
   "team_id": 123,
   "self_service": true,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1527,6 +1584,7 @@ This activity contains the following fields:
   "platform": "darwin",
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1596,6 +1654,7 @@ This activity contains the following fields:
   "self_service": true,
   "team_name": "Workstations",
   "team_id": 1,
+  "software_icon_url": "/api/latest/fleet/software/titles/123/icon?team_id=1",
   "labels_include_any": [
     {
       "name": "Engineering",
@@ -1714,6 +1773,96 @@ This activity contains the following fields:
 ```json
 {
   "name": "DIGICERT_WIFI"
+}
+```
+
+## added_hydrant
+
+Generated when Hydrant certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## deleted_hydrant
+
+Generated when Hydrant certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## edited_hydrant
+
+Generated when Hydrant certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "HYDRANT_WIFI"
+}
+```
+
+## added_smallstep
+
+Generated when Smallstep certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## deleted_smallstep
+
+Generated when Smallstep certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## edited_smallstep
+
+Generated when Smallstep certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
 }
 ```
 
@@ -1898,7 +2047,7 @@ This activity contains the following fields:
 
 ## added_conditional_access_integration_microsoft
 
-Generated when Microsoft Entra is connected for conditonal access.
+Generated when Microsoft Entra is connected for conditional access.
 
 This activity does not contain any detail fields.
 
@@ -1990,6 +2139,25 @@ This activity contains the following fields:
 {
 	"custom_variable_id": 123,
 	"custom_variable_name": "SOME_API_KEY"
+}
+```
+
+## edited_setup_experience_software
+
+Generated when a user edits setup experience software.
+
+This activity contains the following fields:
+- "platform": the platform of the host ("darwin", "windows", or "linux").
+- "team_id": the ID of the team associated with the setup experience (0 for "No team").
+- "team_name": the name of the team associated with the setup experience (empty for "No team").
+
+#### Example
+
+```json
+{
+	"platform": "darwin",
+	"team_id": 1,
+	"team_name": "Workstations"
 }
 ```
 

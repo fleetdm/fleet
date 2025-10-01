@@ -1,12 +1,14 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 import {
   createMockHostAppStoreApp,
   createMockHostSoftware,
   createMockHostSoftwarePackage,
 } from "__mocks__/hostMock";
+import { IHostAppStoreApp } from "interfaces/software";
 
+import { createMockAppStoreApp } from "__mocks__/softwareMock";
 import { noop } from "lodash";
 import {
   getActionButtonState,
@@ -25,6 +27,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: false,
+      installedVersionsDetected: true,
     });
 
     expect(result).toEqual({
@@ -32,6 +35,7 @@ describe("getButtonActionState helper function", () => {
       installTooltip: "To install, turn on host scripts.",
       uninstallDisabled: true,
       uninstallTooltip: "To uninstall, turn on host scripts.",
+      moreDisabled: false,
     });
   });
 
@@ -43,6 +47,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: false,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -57,6 +62,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -71,6 +77,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: null,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.uninstallDisabled).toBe(true);
@@ -85,6 +92,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: null,
       hostMDMEnrolled: false,
+      installedVersionsDetected: false,
     });
 
     expect(result.installDisabled).toBe(true);
@@ -102,6 +110,7 @@ describe("getButtonActionState helper function", () => {
       softwareId: 1,
       softwarePackage: mockSoftwarePackage,
       hostMDMEnrolled: true,
+      installedVersionsDetected: true,
     });
 
     expect(result.installDisabled).toBe(false);
@@ -275,9 +284,11 @@ describe("HostInstallerActionCell component", () => {
     );
     const btn = screen.getByTestId(`${baseClass}__install-button--test`);
     await user.hover(btn);
-    expect(
-      screen.getByText(/To install, turn on MDM for this host/)
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText(/To install, turn on MDM for this host/)
+      ).toBeInTheDocument();
+    });
   });
 
   it('renders correct retry/reinstall for "failed_install" with installed_versions', () => {
@@ -675,5 +686,195 @@ describe("HostInstallerActionCell component", () => {
     // Both reinstall and retry uninstall have the same icon
     const refreshIcons = screen.getAllByTestId("refresh-icon");
     expect(refreshIcons).toHaveLength(2);
+  });
+});
+
+describe("HostInstallerActionCell dropdown on My Device page", () => {
+  const baseClass = "test";
+  const defaultSoftware = createMockHostSoftware();
+
+  it("renders dropdown with Uninstall option when on My Device Page", async () => {
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{ ...defaultSoftware, ui_status: "installed" }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(
+      screen.getByTestId(`${baseClass}__install-button--test`)
+    ).toBeInTheDocument(); // Install button is always rendered
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    expect(screen.getByText("Uninstall")).toBeInTheDocument();
+  });
+
+  it("renders dropdown with 'How to open' option for apps/programs", async () => {
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "apps",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    expect(screen.getByText("How to open")).toBeInTheDocument();
+  });
+
+  it("does not render dropdown when no extra actions available", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: null,
+            app_store_app: createMockAppStoreApp({
+              version: "",
+            }) as IHostAppStoreApp,
+          }),
+          ui_status: "installed", // no uninstall for iOS devices
+          source: "ios_apps", // no instructions for iOS devices
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(screen.queryByText("More")).not.toBeInTheDocument();
+  });
+
+  it("calls the proper callback when selecting uninstall option from dropdown", async () => {
+    const onClickUninstallAction = jest.fn();
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={onClickUninstallAction}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    await user.click(screen.getByText("Uninstall"));
+
+    expect(onClickUninstallAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("calls the proper callback when selecting 'How to open' option from dropdown", async () => {
+    const onClickOpenInstructionsAction = jest.fn();
+    const { user } = renderWithSetup(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "programs",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={onClickOpenInstructionsAction}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByText("More");
+    await user.click(moreDropdown);
+    await user.click(screen.getByText("How to open"));
+
+    expect(onClickOpenInstructionsAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables More dropdown when moreDisabled is true (pending state)", () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "apps",
+          ui_status: "pending_install",
+          status: "pending_install",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    const moreDropdown = screen.getByRole("combobox");
+    expect(moreDropdown).toBeDisabled();
+  });
+
+  it('does not render "How to open" option for non-"app"/"program" sources like "pkg_packages" but does render "Uninstall"', () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...defaultSoftware,
+          source: "pkg_packages",
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(screen.queryByText("Uninstall")).toBeInTheDocument();
+    expect(screen.queryByText("How to open")).not.toBeInTheDocument();
+  });
+  it('does not render "Uninstall" option for VPP apps but does render "How to Open"', () => {
+    render(
+      <HostInstallerActionCell
+        software={{
+          ...createMockHostSoftware({
+            software_package: null,
+            app_store_app: createMockHostAppStoreApp(),
+          }),
+          ui_status: "installed",
+        }}
+        onClickInstallAction={noop}
+        onClickUninstallAction={noop}
+        onClickOpenInstructionsAction={noop}
+        baseClass={baseClass}
+        hostScriptsEnabled
+        hostMDMEnrolled
+        isMyDevicePage
+      />
+    );
+
+    expect(screen.queryByText("Uninstall")).not.toBeInTheDocument();
+    expect(screen.queryByText("How to open")).toBeInTheDocument();
   });
 });

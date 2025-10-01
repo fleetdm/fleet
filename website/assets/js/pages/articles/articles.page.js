@@ -58,7 +58,7 @@ parasails.registerPage('articles', {
   },
 
   mounted: async function() {
-    if(['Articles', 'Announcements', 'Guides', 'Releases'].includes(this.articleCategory)) {
+    if(['Articles', 'News', 'Guides', 'Releases'].includes(this.articleCategory)) {
       if(this.algoliaPublicKey) {// Note: Docsearch will only be enabled if sails.config.custom.algoliaPublicKey is set. If the value is undefined, the handbook search will be disabled.
         docsearch({
           appId: 'NZXAYZXDGH',

@@ -96,7 +96,8 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 			toSetSourcesBySHA1[sha1] = incomingSources
 		}
 
-		if _, ok := existingBySHA1[sha1]; ok {
+		// Check by SHA but also validity dates, as certs with dynamic SCEP challenges, the profile contents does not change other than validity dates.
+		if existing, ok := existingBySHA1[sha1]; ok && existing.NotValidBefore.Equal(incoming.NotValidBefore) && existing.NotValidAfter.Equal(incoming.NotValidAfter) {
 			// TODO: should we always update existing records? skipping updates reduces db load but
 			// osquery is using sha1 so we consider subtleties
 			level.Debug(ds.logger).Log("msg", fmt.Sprintf("host certificates: already exists: %s", sha1), "host_id", hostID) // TODO: silence this log after initial rollout period
@@ -115,7 +116,7 @@ func (ds *Datastore) UpdateHostCertificates(ctx context.Context, hostID uint, ho
 		for _, hostMDMManagedCert := range hostMDMManagedCerts {
 			// Note that we only care about proxied SCEP certificates because DigiCert are requested
 			// by Fleet and stored in the DB directly, so we need not fetch them via osquery/MDM
-			if hostMDMManagedCert.Type != fleet.CAConfigCustomSCEPProxy && hostMDMManagedCert.Type != fleet.CAConfigNDES {
+			if !hostMDMManagedCert.Type.SupportsRenewalID() { // TODO(SCA): Will this not cause issues? It now includes DigiCert, which it didn't do previously.
 				continue
 			}
 			for _, certToInsert := range toInsert {
@@ -254,7 +255,6 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}
@@ -271,7 +271,16 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 }
 
 func listHostCertsDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
-	stmt := `
+	const fromWhereClause = `
+FROM
+	host_certificates hc
+	INNER JOIN host_certificate_sources hcs ON hc.id = hcs.host_certificate_id
+WHERE
+	hc.host_id = ?
+	AND hc.deleted_at IS NULL
+	`
+
+	stmt := fmt.Sprintf(`
 SELECT
 	hc.id,
 	hc.sha1_sum,
@@ -297,15 +306,14 @@ SELECT
 	hc.issuer_common_name,
 	hcs.source,
 	hcs.username
-FROM
-	host_certificates hc
-	INNER JOIN host_certificate_sources hcs ON hc.id = hcs.host_certificate_id
-WHERE
-	hc.host_id = ?
-	AND hc.deleted_at IS NULL`
+	%s`, fromWhereClause)
 
-	args := []interface{}{hostID}
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+	countStmt := fmt.Sprintf(`
+    	SELECT COUNT(*) %s
+    	`, fromWhereClause)
+
+	baseArgs := []interface{}{hostID}
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, baseArgs, &opts)
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {
@@ -314,7 +322,11 @@ WHERE
 
 	var metaData *fleet.PaginationMetadata
 	if opts.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		var count uint
+		if err := sqlx.GetContext(ctx, tx, &count, countStmt, baseArgs...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "counting host certificates")
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0, TotalResults: count}
 		if len(certs) > int(opts.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			certs = certs[:len(certs)-1]

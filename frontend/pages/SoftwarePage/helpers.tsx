@@ -194,3 +194,28 @@ export const getAutomaticInstallPoliciesCount = (
   }
   return 0;
 };
+
+// Helper to check safe image src
+// Used in SoftwareDetailsSummary in the EditIconModal
+export const isSafeImagePreviewUrl = (url?: string | null) => {
+  if (typeof url !== "string" || !url) return false;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    // Allow only blob:, data: (for images), or https/http
+    if (
+      parsed.protocol === "blob:" ||
+      parsed.protocol === "data:" ||
+      parsed.protocol === "https:" ||
+      parsed.protocol === "http:"
+    ) {
+      // Optionally, for data: URLs, ensure it's an image mime
+      if (parsed.protocol === "data:" && !/^data:image\/png/.test(url)) {
+        return false;
+      }
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+};

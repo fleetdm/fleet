@@ -105,7 +105,7 @@ export const generateTableColumnConfigs = (
           <Button
             className="script-info"
             onClick={onClickScriptName}
-            variant="text-icon"
+            variant="inverse"
           >
             <span className={`script-info-text`}>{name}</span>
           </Button>
@@ -160,6 +160,7 @@ export const generateTableColumnConfigs = (
             placeholder="Actions"
             disabled={scriptsDisabled}
             menuAlign="right"
+            variant="small-button"
           />
         );
       },

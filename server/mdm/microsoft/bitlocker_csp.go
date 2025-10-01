@@ -3,8 +3,9 @@ package microsoft_mdm
 import (
 	"bytes"
 	"errors"
-	"github.com/fleetdm/fleet/v4/server/fleet"
 	"text/template"
+
+	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
 const (
@@ -24,9 +25,9 @@ var systemDriveRequiresStartupAuthTmpl = template.Must(template.New("cmd").Funcs
 		return *val
 	}}).Parse(`
 <Atomic>
-	<CmdID>{{ .CmdUUID }}-1</CmdID>
+	<CmdID>{{ .CmdUUID }}</CmdID>
 	<Replace>
-		<CmdID>{{ .CmdUUID }}-2</CmdID>
+		<CmdID>{{ .CmdUUID }}-1</CmdID>
 		<Item>
 			<Meta>
 			  <Format>chr</Format>

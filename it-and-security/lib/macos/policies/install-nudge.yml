@@ -1,6 +1,6 @@
 - name: macOS - Nudge installed and configured
-  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = "com.fleetdm.nudge.managed") AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = "com.github.macadmins.Nudge" and bundle_short_version LIKE "2.%");
-  critical: false
+  query: SELECT 1 WHERE EXISTS (SELECT 1 FROM macos_profiles WHERE identifier = "com.fleetdm.nudge.managed") AND EXISTS (SELECT 1 FROM apps WHERE bundle_identifier = "com.github.macadmins.Nudge" and bundle_short_version LIKE "2.%") AND EXISTS (SELECT 1 FROM package_receipts WHERE package_id = "com.fleetdm.Nudge.assets");
+  critical: true
   description: This policy ensures the Nudge is installed and configured.
   resolution: "If you are failing this policy, click Refetch. If you are still failing after Refetch completes, drop a note in #help-it-and-enablement."
   run_script:
@@ -8,5 +8,3 @@
   install_software:
     package_path: ../software/nudge-assets.yml
   platform: darwin
-  labels_include_any:
-    - "Nudge test devices"

@@ -52,6 +52,7 @@ interface IScriptDetailsModalProps {
   refetchHostScripts?: <TPageData>(
     options?: (RefetchOptions & RefetchQueryFilters<TPageData>) | undefined
   ) => Promise<QueryObserverResult<IHostScriptsResponse, IApiError>>;
+  selectedScriptId?: number;
   selectedScriptDetails?: PartialOrFullHostScript | IPaginatedListScript;
   selectedScriptContent?: string;
   isLoadingScriptContent?: boolean;
@@ -72,6 +73,7 @@ const ScriptDetailsModal = ({
   hostId,
   hostTeamId,
   refetchHostScripts,
+  selectedScriptId,
   selectedScriptDetails,
   selectedScriptContent,
   isLoadingScriptContent,
@@ -98,7 +100,9 @@ const ScriptDetailsModal = ({
 
   // handle multiple possibilities for `selectedScriptDetails`
   let scriptId: number | null = null;
-  if (selectedScriptDetails) {
+  if (selectedScriptId) {
+    scriptId = selectedScriptId;
+  } else if (selectedScriptDetails) {
     if ("script_id" in selectedScriptDetails) {
       scriptId = selectedScriptDetails.script_id;
     } else if ("id" in selectedScriptDetails) {

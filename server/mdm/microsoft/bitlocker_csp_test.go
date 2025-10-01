@@ -1,10 +1,11 @@
 package microsoft_mdm
 
 import (
-	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/stretchr/testify/require"
 	"strings"
 	"testing"
+
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSystemDriveRequiresStartupAuthSpec_validate(t *testing.T) {
@@ -105,7 +106,7 @@ func TestSystemDriveRequiresStartupAuthSpec_validate(t *testing.T) {
 	}
 }
 
-func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
+func TestSystemDriveRequiresStartupAuthCmd_Template(t *testing.T) {
 	tests := []struct {
 		name     string
 		spec     SystemDriveRequiresStartupAuthSpec
@@ -119,9 +120,9 @@ func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
 			},
 			expected: `
 				<Atomic>
-					<CmdID>uuid-123-1</CmdID>
+					<CmdID>uuid-123</CmdID>
 					<Replace>
-						<CmdID>uuid-123-2</CmdID>
+						<CmdID>uuid-123-1</CmdID>
 						<Item>
 							<Meta>
 							  <Format>chr</Format>
@@ -150,9 +151,9 @@ func TestSystemDrRequiresStartupAuthCmd_Template(t *testing.T) {
 			},
 			expected: `
 				<Atomic>
-					<CmdID>uuid-789-1</CmdID>
+					<CmdID>uuid-789</CmdID>
 					<Replace>
-						<CmdID>uuid-789-2</CmdID>
+						<CmdID>uuid-789-1</CmdID>
 						<Item>
 							<Meta>
 							  <Format>chr</Format>

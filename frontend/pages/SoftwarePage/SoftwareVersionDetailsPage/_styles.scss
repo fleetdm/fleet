@@ -1,8 +1,5 @@
 .software-version-details-page {
-  background-color: $ui-off-white;
-  display: flex;
-  flex-direction: column;
-  gap: $pad-medium;
+  @include vertical-page-layout;
 
   .team-dropdown-wrapper {
     @include normalize-team-header;

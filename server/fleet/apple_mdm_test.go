@@ -87,7 +87,7 @@ func TestMDMAppleConfigProfile(t *testing.T) {
 
 				return signedBytes
 			}(),
-			shouldFail: false,
+			shouldFail: true,
 		},
 	}
 
@@ -653,4 +653,101 @@ func TestConfigurationProfileLabelEqual(t *testing.T) {
 	assert.Equal(t, fieldsInEqualMethod, numberOfFields,
 		"Does cmp.Equal for ConfigurationProfileLabel needs to be updated for new/updated field(s)?")
 	assert.True(t, cmp.Equal(items[0], items[1]))
+}
+
+func TestValidateNoSecretsInProfileName(t *testing.T) {
+	testCases := []struct {
+		name       string
+		xmlContent string
+		expectErr  bool
+		errMsg     string
+	}{
+		{
+			name: "no secrets",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+		{
+			name: "secret in PayloadDisplayName",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test $FLEET_SECRET_PASSWORD Profile</string>
+    <key>PayloadIdentifier</key>
+    <string>com.test.profile</string>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "multiple PayloadDisplayNames with secret in one",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Main Profile</string>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDisplayName</key>
+            <string>Sub Profile $FLEET_SECRET_KEY</string>
+        </dict>
+    </array>
+</dict>
+</plist>`,
+			expectErr: true,
+			errMsg:    "PayloadDisplayName cannot contain FLEET_SECRET variables",
+		},
+		{
+			name: "secret in other field not PayloadDisplayName",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>Test Profile</string>
+    <key>PayloadDescription</key>
+    <string>Description with $FLEET_SECRET_VALUE</string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+		{
+			name: "whitespace in PayloadDisplayName value",
+			xmlContent: `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadDisplayName</key>
+    <string>   Test Profile   </string>
+</dict>
+</plist>`,
+			expectErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateNoSecretsInProfileName([]byte(tc.xmlContent))
+			if tc.expectErr {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.errMsg)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

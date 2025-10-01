@@ -93,6 +93,9 @@
       "windows_settings": {
         "custom_settings": null
       },
+      "android_settings": {
+        "custom_settings": null
+      },
       "end_user_authentication": {
         "entity_id": "",
         "issuer_uri": "",
@@ -149,9 +152,6 @@
       "jira": null,
       "zendesk": null,
       "google_calendar": null,
-      "ndes_scep_proxy": null,
-      "custom_scep_proxy": null,
-      "digicert": null,
       "conditional_access_enabled": null
     },
     "update_interval": {

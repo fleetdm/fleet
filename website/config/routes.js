@@ -27,7 +27,6 @@ module.exports.routes = {
       pageTitleForMeta: 'Contact us',
       pageDescriptionForMeta: 'Get in touch with our team.',
       hideFooterLinks: true,
-      currentSection: 'community',
     }
   },
 
@@ -61,7 +60,7 @@ module.exports.routes = {
   'GET /queries': {
     action: 'view-query-library',
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
       pageTitleForMeta: 'Queries',
       pageDescriptionForMeta: 'A growing collection of optional queries you can run anytime to ask questions about your devices using Fleet and osquery.'
     }
@@ -70,21 +69,21 @@ module.exports.routes = {
   'GET /queries/:slug': {
     action: 'view-query-detail',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },
 
   'GET /vitals/:slug': {
     action: 'view-vital-details',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },
 
   'GET /policies': {
     action: 'view-policy-library',
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
       pageTitleForMeta: 'Policies',
       pageDescriptionForMeta: 'A growing collection of useful controls and policies for organizations deploying Fleet and osquery.'
     }
@@ -92,15 +91,50 @@ module.exports.routes = {
   'GET /policies/:slug': {
     action: 'view-policy-details',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },
+
+  'GET /scripts': {
+    action: 'view-scripts',
+    locals: {
+      currentSection: 'more',
+      pageTitleForMeta: 'Scripts',
+      pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
+    }
+  },
+
+  'GET /scripts/:slug': {
+    action: 'view-script-details',
+    locals: {// Meta title set in view action
+      currentSection: 'more',
+      pageDescriptionForMeta: 'A collection of scripts you can run on your devices.'
+    }
+  },
+
+  'GET /mdm-commands': {
+    action: 'view-mdm-commands',
+    locals: {
+      currentSection: 'more',
+      pageTitleForMeta: 'MDM commands',
+      pageDescriptionForMeta: 'A collection of commands you can send to devices.'
+    }
+  },
+
+  'GET /mdm-commands/:slug': {
+    action: 'view-command-details',
+    locals: {// Meta title set in view action
+      currentSection: 'more',
+      pageDescriptionForMeta: 'A collection of commands you can send to devices.'
+    }
+  },
+
 
   'GET /articles': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -108,7 +142,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -116,7 +150,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -124,7 +158,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /success-stores/foo
 
@@ -132,7 +166,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -140,7 +174,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /securing/foo
 
@@ -148,7 +182,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },
 
@@ -156,7 +190,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },// handles /releases/foo
 
@@ -164,7 +198,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },
 
@@ -172,7 +206,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
     }
   },// handles /guides/foo
 
@@ -180,23 +214,20 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
   'GET /announcements/*': {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
-    locals: {
-      currentSection: 'community',
-    }
   },// handles /announcements/foo
 
   'GET /podcasts': {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -204,7 +235,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /podcasts/foo
 
@@ -212,7 +243,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -220,7 +251,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /engineering/foo
 
@@ -228,7 +259,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-articles',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -236,7 +267,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'articles/view-basic-article',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /engineering/foo
 
@@ -254,7 +285,7 @@ module.exports.routes = {
     skipAssets: false,
     action: 'handbook/view-basic-handbook',// Meta title and description set in view action
     locals: {
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },// handles /handbook and /handbook/foo/bar
 
@@ -411,7 +442,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Support',
       pageDescriptionForMeta: 'Ask a question, chat with engineers, or get in touch with the Fleet team.',
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -459,7 +490,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'What people are saying',
       pageDescriptionForMeta: 'See what people are saying about Fleet.',
-      currentSection: 'community',
+      currentSection: 'customers',
     }
   },
 
@@ -480,7 +511,7 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'Meetups',
       pageDescriptionForMeta: 'See upcoming meetup locations.',
-      currentSection: 'community',
+      currentSection: 'more',
     }
   },
 
@@ -494,12 +525,11 @@ module.exports.routes = {
   'GET /os-settings': {
     action: 'view-os-settings',
     locals: {
-      currentSection: 'documentation',
+      currentSection: 'more',
       pageTitleForMeta: 'OS settings',
       pageDescriptionForMeta: 'Generate OS settings in CSP, .mobileconfig, and DDM format',
     }
   },
-
 
   'GET /configuration-builder': {
     action: 'view-configuration-builder',
@@ -653,6 +683,7 @@ module.exports.routes = {
   'GET /handbook/company/customer-solutions-architect': '/handbook/company/open-positions/customer-solutions-architect',
   'GET /handbook/company/software-engineer': '/handbook/company/open-positions/software-engineer',
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
+  'GET /handbook/company/open-positions/technical-product-designer': '/handbook/company/open-positions/product-designer',
   'GET /osquery-management': '/endpoint-ops',
   'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://github.com/fleetdm/fleet-gitops',
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
@@ -849,6 +880,7 @@ module.exports.routes = {
   'GET /endpoint-ops': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
   'GET /observability': (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? '?'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/orchestration'+originalQueryString);},
 
+  'GET /jnuc-2025': '/announcements/consolidate-multiple-tools-with-fleet',
 
   // Shortlinks for texting friends, radio ads, etc
   'GET /mdm': '/device-management?utm_content=mdm',// « alias for radio ad
@@ -943,6 +975,9 @@ module.exports.routes = {
   'GET /learn-more-about/conditional-access': '/guides/entra-conditional-access-integration',
   'GET /learn-more-about/organization-logo-size': '/docs/configuration/yaml-files#org-info',
   'GET /learn-more-about/byod-hosts-vpp-install': 'https://github.com/fleetdm/fleet/issues/31138',
+  'GET /learn-more-about/install-google-play-apps': 'https://github.com/fleetdm/fleet/issues/25595',
+  'GET /learn-more-about/arch-linux-rolling-release': 'https://wiki.archlinux.org/title/Arch_Linux',
+  'GET /learn-more-about/google-play-store': 'https://play.google.com/store/apps',
 
   // Sitemap
   // =============================================================================================================
@@ -987,7 +1022,6 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
   'POST /api/v1/webhooks/receive-from-zapier': { action: 'webhooks/receive-from-zapier', csrf: false },
   'POST /api/v1/webhooks/receive-from-clay': { action: 'webhooks/receive-from-clay', csrf: false},
-  'POST /api/v1/webhooks/receive-from-zoom': { action: 'webhooks/receive-from-zoom', csrf: false},
   'POST /api/v1/get-est-device-certificate': { action: 'get-est-device-certificate', csrf: false},// TODO: change this route to match Sails conventions for webhooks and to be in the webhooks/ folder.  Then remove from policies: 'get-est-device-certificate': true, as it'll just be taken care of by being in the right place.
 
 
@@ -996,6 +1030,7 @@ module.exports.routes = {
   //  ╩ ╩╝╚╝═╩╝╩╚═╚═╝╩═╩╝  ╩  ╩╚═╚═╝╩ ╚═ ╩   ╚═╝╝╚╝═╩╝╩  ╚═╝╩╝╚╝ ╩ ╚═╝
   'POST /api/android/v1/signupUrls': { action: 'android-proxy/create-android-signup-url', csrf: false},
   'POST /api/android/v1/enterprises': { action: 'android-proxy/create-android-enterprise', csrf: false},
+  'GET /api/android/v1/enterprises': { action: 'android-proxy/get-android-enterprises'},
   'POST /api/android/v1/enterprises/:androidEnterpriseId/enrollmentTokens': { action: 'android-proxy/create-android-enrollment-token', csrf: false},
   'PATCH /api/android/v1/enterprises/:androidEnterpriseId/policies/:policyId': { action: 'android-proxy/modify-android-policies', csrf: false},
   'DELETE /api/android/v1/enterprises/:androidEnterpriseId': { action: 'android-proxy/delete-one-android-enterprise', csrf: false},
