@@ -372,6 +372,15 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
+	// Filter out software with empty names. We've seen Windows programs with empty names. We want to make sure we have valid data before proceeding.
+	filteredSoftware := make([]fleet.Software, 0, len(software))
+	for _, sw := range software {
+		if sw.Name != "" {
+			filteredSoftware = append(filteredSoftware, sw)
+		}
+	}
+	software = filteredSoftware
+
 	// This code executes once an hour for each host, so we should optimize for MySQL master (writer) DB performance.
 	// We use a slave (reader) DB to avoid accessing the master. If nothing has changed, we avoid all access to the master.
 	// It is possible that the software list is out of sync between the slave and the master. This is unlikely because
@@ -710,11 +719,15 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		existingChecksums := uniqueTitleStrToChecksums[titleStr]
 		if len(existingChecksums) > 0 {
 			// Log when multiple checksums map to the same title.
+			existingChecksumsHex := make([]string, len(existingChecksums))
+			for i, cs := range existingChecksums {
+				existingChecksumsHex[i] = fmt.Sprintf("%x", cs)
+			}
 			level.Debug(ds.logger).Log(
 				"msg", "multiple checksums mapping to same title",
 				"title_str", titleStr,
-				"new_checksum", checksum,
-				"existing_checksums", fmt.Sprintf("%v", existingChecksums),
+				"new_checksum", fmt.Sprintf("%x", checksum),
+				"existing_checksums", fmt.Sprintf("%v", existingChecksumsHex),
 				"software_name", sw.Name,
 				"software_version", sw.Version,
 			)
@@ -1162,7 +1175,7 @@ func (ds *Datastore) linkSoftwareToHost(
 			// Log missing software but continue
 			level.Warn(ds.logger).Log(
 				"msg", "software not found after pre-insertion",
-				"checksum", checksum,
+				"checksum", fmt.Sprintf("%x", checksum),
 				"name", sw.Name,
 				"version", sw.Version,
 			)
