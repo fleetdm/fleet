@@ -363,6 +363,19 @@ WHERE
 	return softwares, nil
 }
 
+// filterSoftwareWithEmptyNames removes software entries with empty names in-place.
+// This is a well-known Go idiom: https://go.dev/wiki/SliceTricks#filter-in-place
+func filterSoftwareWithEmptyNames(software []fleet.Software) []fleet.Software {
+	n := 0
+	for _, sw := range software {
+		if sw.Name != "" {
+			software[n] = sw
+			n++
+		}
+	}
+	return software[:n]
+}
+
 // applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
 // was inserted and what was deleted
 func (ds *Datastore) applyChangesForNewSoftwareDB(
@@ -372,14 +385,8 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
 
-	// Filter out software with empty names. We've seen Windows programs with empty names. We want to make sure we have valid data before proceeding.
-	filteredSoftware := make([]fleet.Software, 0, len(software))
-	for _, sw := range software {
-		if sw.Name != "" {
-			filteredSoftware = append(filteredSoftware, sw)
-		}
-	}
-	software = filteredSoftware
+	// We want to make sure we have valid data before proceeding. We've seen Windows programs with empty names.
+	software = filterSoftwareWithEmptyNames(software)
 
 	// This code executes once an hour for each host, so we should optimize for MySQL master (writer) DB performance.
 	// We use a slave (reader) DB to avoid accessing the master. If nothing has changed, we avoid all access to the master.
