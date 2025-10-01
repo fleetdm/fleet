@@ -937,6 +937,21 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		}
 	}
 
+	// create a control host that will not be used in the test, should be unaffected
+	controlHost, controlDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, controlHost, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, controlDevice, true)
+	// Add serial number to our fake Apple server
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, controlHost.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{controlHost.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// trigger a VPP app install on the control host, will stay there until the end
+	var installResp installSoftwareResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", controlHost.ID, app1TitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
 	// create a host that will receive the VPP install commands AFTER a script execution request
 	// (so the VPP installs are not activated when they are cancelled)
 	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -954,7 +969,6 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: mdmHost.ID, ScriptContents: "echo"}, http.StatusAccepted, &runResp)
 
 	// trigger install of both apps on the host
-	var installResp installSoftwareResponse
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app1TitleID), &installSoftwareRequest{},
 		http.StatusAccepted, &installResp)
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost.ID, app2TitleID), &installSoftwareRequest{},
@@ -1057,7 +1071,14 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	// host's past activities should have the first VPP app cancellation because it was activated
 	listPastResp = listActivitiesResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
-	// require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
+	require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[0].Type)
+	require.Contains(t, string(*listPastResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Contains(t, string(*listPastResp.Activities[0].Details), `"status": "failed_install"`)
+	if len(listPastResp.Activities) > 1 {
+		// the second activity should not be the cancellation of the second app
+		require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listPastResp.Activities[1].Type)
+	}
 
 	// listing the host's software available for install shows the cancelled app as failed
 	getHostSw = getHostSoftwareResponse{}
@@ -1067,4 +1088,11 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
 	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+
+	// upcoming activities on the control host are unaffected
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", controlHost.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
+	require.Contains(t, string(*listResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
 }
