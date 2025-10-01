@@ -43,18 +43,18 @@
         <p class="mb-0">Choose an operating system to continue.</p>
         <ajax-form :handle-submitting="handleSubmittingPlatformSelectForm" :form-errors.sync="formErrors" :form-data="platformSelectFormData" :form-rules="platformSelectFormRules" :syncing.sync="syncing" :cloud-error.sync="cloudError">
           <div purpose="platforms" id="platform" class="d-flex flex-row">
-            <div purpose="platform-button" class="mb-3" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]" @click="platformSelectFormData.platform = 'macos'">
+            <!-- <div purpose="platform-button" class="mb-3" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'macos' ? 'selected' : '' ]" @click="platformSelectFormData.platform = 'macos'">
               <img src="/images/os-macos-dark-24x24@2x.png" alt="macOS" class="d-inline">
               macOS
-            </div>
+            </div> -->
             <div purpose="platform-button" class="mb-0" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'windows' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'windows'">
               <img src="/images/os-windows-dark-24x24@2x.png" alt="Windows" class="d-inline">
               Windows
             </div>
-            <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'ios' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'ios'">
+            <!-- <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'ios' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'ios'">
               <img src="/images/icon-ios-24x24@2x.png" alt="iOS" class="d-inline">
               iOS
-            </div>
+            </div> -->
             <div purpose="platform-button" :class="[formErrors.platform ? 'is-invalid' : platformSelectFormData.platform === 'android' ? 'selected' : '' ]"  @click="platformSelectFormData.platform = 'android'">
               <img src="/images/icon-android-24x24@2x.png" alt="Android" class="d-inline">
               Android
@@ -81,9 +81,10 @@
       <div purpose="category-selector" >
         <div purpose="category-options" v-if="selectedPlatform === 'windows'">
           <div v-for="category in windowsCategoriesAndPayloads">
-            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]" >{{category.categoryName}}</a>
+            <a @click="clickExpandCategory(category.categorySlug)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]"  v-if="category.subcategories">{{category.categoryName}}</a>
+            <a @click="clickSelectPayloadCategory(category)" :class="[expandedCategory === category.categorySlug ? 'selected' : '' ]"  v-else>{{category.categoryName}}</a>
 
-            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug">
+            <div purpose="subcategories" v-if="expandedCategory === category.categorySlug && category.subcategories">
               <a @click="clickSelectPayloadCategory(subcategory)" v-for="subcategory in category.subcategories">{{subcategory.subcategoryName}}</a>
             </div>
           </div>
@@ -185,11 +186,13 @@
                     <p class="mb-0"><strong>{{option.name}}</strong></p>
                     <div class="d-flex flex-row align-items-center" v-if="selectedPlatform === 'windows'">
                       <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider" target="_blank" no-icon><img style="margin-right: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-html="true"  data-toggle="tooltip" tabindex="0" data-placement="top" title="<%= '<p class="text-white">A Windows CSP profile may require the ADD action to work on initial delivery. To modify a previously delivered setting, the REPLACE action may be needed.</p> <p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>'%>"></a>
-                      <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
-                        <option selected value="undefined" >Access type</option>
-                        <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
-                      </select>
-                      <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
+                      <div class="d-flex flex-column">
+                        <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
+                          <option selected value="undefined" >Access type</option>
+                          <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
+                        </select>
+                        <div class="invalid-feedback" v-if="formErrors[option.uniqueSlug+'-access-type']">Please select an<br> access type</div>
+                      </div>
                     </div>
                   </div>
                   <% // Number input %>

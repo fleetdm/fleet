@@ -31,8 +31,13 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
 	notificationType, ok := message.Attributes["notificationType"]
+	if !ok || len(notificationType) == 0 {
+		// Nothing to process
+		svc.authz.SkipAuthorization(ctx)
+		return nil
+	}
 	level.Debug(svc.logger).Log("msg", "Received PubSub message", "notification", notificationType)
-	if !ok || len(notificationType) == 0 || android.NotificationType(notificationType) == android.PubSubTest {
+	if android.NotificationType(notificationType) == android.PubSubTest {
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
 		return nil
@@ -111,11 +116,43 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		return ctxerr.Wrap(ctx, err, "unmarshal Android status report message")
 	}
 
-	if device.AppliedState == string(android.DeviceStateDeleted) {
+	// Consider both appliedState and state fields for deletion, to handle variations in payloads.
+	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
+	if !isDeleted {
+		var alt struct {
+			AppliedState string `json:"appliedState"`
+			State        string `json:"state"`
+		}
+		// Best-effort parse; ignore error if shape doesn't match.
+		_ = json.Unmarshal(rawData, &alt)
+		if strings.ToUpper(alt.AppliedState) == string(android.DeviceStateDeleted) || strings.ToUpper(alt.State) == string(android.DeviceStateDeleted) {
+			isDeleted = true
+		}
+	}
+
+	if isDeleted {
 		level.Debug(svc.logger).Log("msg", "Android device deleted from MDM", "device.name", device.Name,
 			"device.enterpriseSpecificId", device.HardwareInfo.EnterpriseSpecificId)
 
-		// TODO(mna): should that delete the host from Fleet? Or at least set host_mdm to unenrolled?
+		// User-initiated unenroll (work profile removed) or device deleted via AMAPI.
+		// Flip host_mdm to unenrolled and emit an activity.
+		host, err := svc.getExistingHost(ctx, &device)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host for deleted android device")
+		}
+		if host != nil {
+			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state")
+			}
+			// Emit system activity: mdm_unenrolled. For Android BYOD, InstalledFromDEP is always false.
+			// Use the computed display name from the device payload as lite host may not include it.
+			displayName := svc.getComputerName(&device)
+			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostSerial:       "",
+				HostDisplayName:  displayName,
+				InstalledFromDEP: false,
+			})
+		}
 		return nil
 	}
 
@@ -157,6 +194,40 @@ func (svc *Service) handlePubSubEnrollment(ctx context.Context, token string, ra
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshal Android enrollment message")
 	}
+
+	// Some deployments may report work profile removal under ENROLLMENT notifications.
+	// Detect DELETED here too and treat as unenrollment confirmation.
+	isDeleted := strings.ToUpper(device.AppliedState) == string(android.DeviceStateDeleted)
+	if !isDeleted {
+		var alt struct {
+			AppliedState string `json:"appliedState"`
+			State        string `json:"state"`
+		}
+		_ = json.Unmarshal(rawData, &alt)
+		if strings.ToUpper(alt.AppliedState) == string(android.DeviceStateDeleted) || strings.ToUpper(alt.State) == string(android.DeviceStateDeleted) {
+			isDeleted = true
+		}
+	}
+	if isDeleted {
+		// Bypass re-enrollment and flip host to unenrolled.
+		host, herr := svc.getExistingHost(ctx, &device)
+		if herr != nil {
+			return ctxerr.Wrap(ctx, herr, "get host for deleted android device (ENROLLMENT)")
+		}
+		if host != nil {
+			if err := svc.ds.SetAndroidHostUnenrolled(ctx, host.Host.ID); err != nil {
+				return ctxerr.Wrap(ctx, err, "set android host unenrolled on DELETED state (ENROLLMENT)")
+			}
+			displayName := svc.getComputerName(&device)
+			_ = svc.fleetSvc.NewActivity(ctx, nil, fleet.ActivityTypeMDMUnenrolled{
+				HostSerial:       "",
+				HostDisplayName:  displayName,
+				InstalledFromDEP: false,
+			})
+		}
+		return nil
+	}
+
 	err = svc.enrollHost(ctx, &device)
 	if err != nil {
 		level.Debug(svc.logger).Log("msg", "Error enrolling Android host", "data", rawData)
@@ -276,11 +347,15 @@ func (svc *Service) updateHost(ctx context.Context, device *androidmanagement.De
 		host.DetailUpdatedAt = lastStatusReportTime
 	}
 	host.SetNodeKey(device.HardwareInfo.EnterpriseSpecificId)
+	if device.HardwareInfo.EnterpriseSpecificId != "" {
+		host.Host.UUID = device.HardwareInfo.EnterpriseSpecificId
+	}
 
 	err = svc.ds.UpdateAndroidHost(ctx, host, fromEnroll)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+	// Enrollment activities are intentionally not emitted for Android at this time.
 	return nil
 }
 

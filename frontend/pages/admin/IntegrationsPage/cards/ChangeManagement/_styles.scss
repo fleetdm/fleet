@@ -1,5 +1,3 @@
 .change-management {
-  .custom-link {
-    margin-bottom: 1rem;
-  }
+  @include vertical-page-layout;
 }

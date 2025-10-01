@@ -86,7 +86,7 @@ const DynamicLabelForm = ({
     }
 
     return (
-      <Button variant="text-icon" onClick={onOpenSidebar}>
+      <Button variant="inverse" onClick={onOpenSidebar}>
         Schema
         <Icon name="info" size="small" />
       </Button>

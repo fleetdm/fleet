@@ -14,10 +14,10 @@
   }
 
   &--active {
-    background-color: $core-vibrant-blue;
+    background-color: $core-fleet-green;
 
     &:hover {
-      background-color: $core-vibrant-blue;
+      background-color: $core-fleet-green;
     }
   }
 
@@ -35,7 +35,7 @@
     @include position(absolute, 2px null null 2px);
     transition: left 150ms ease-in-out;
     border-radius: 50%;
-    background-color: $core-white;
+    background-color: $core-fleet-white;
 
     &--active {
       left: 17px;

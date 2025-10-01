@@ -140,7 +140,7 @@ const Mdm = ({
         </div>
       )}
       <div style={opacity}>
-        <TabNav>
+        <TabNav secondary>
           <Tabs selectedIndex={navTabIndex} onSelect={onTabChange}>
             <TabList>
               <Tab>
@@ -167,6 +167,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
                   keyboardSelectableRows
@@ -190,6 +191,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  hideFooter
                   pageSize={PAGE_SIZE}
                 />
               )}

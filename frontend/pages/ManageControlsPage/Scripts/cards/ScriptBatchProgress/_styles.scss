@@ -1,4 +1,6 @@
 .script-batch-progress {
+  @include vertical-page-layout;
+
   &__status-count {
     font-weight: $bold;
     margin: $pad-medium 0;
