@@ -213,3 +213,17 @@ Following is the vulnerability report of Fleet and its dependencies.
 - **Justification:** `vulnerable_code_not_in_execute_path`
 - **Timestamp:** 2025-04-10 14:46:52
 
+## `fleetdm/wix` docker image
+
+### [CVE-2023-31484](https://nvd.nist.gov/vuln/detail/CVE-2023-31484)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** The WiX toolset is unaffected by the perl vulnerability.
+- **Products:**: `wix`,`pkg:deb/debian/perl-base`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 08:36:42
+
+## `fleetdm/bomutils` docker image
+
+No vulnerabilities tracked at the moment.
+
