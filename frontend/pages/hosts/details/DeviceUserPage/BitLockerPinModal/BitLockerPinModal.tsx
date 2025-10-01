@@ -36,6 +36,13 @@ const BitLockerPinModal = ({
               </li>
               <li>
                 <p>
+                  Click <b>Change how the drive is unlocked at startup</b>. If 
+                  this option doesn&apos;t show up, wait a minute and relaunch 
+                  <b>Manage BitLocker</b>.
+                </p>
+              </li>
+              <li>
+                <p>
                   Choose <b>Enter a PIN (recommended)</b> and follow the prompts
                   to create a PIN. If you don&apos;t see this option, wait 1
                   minute and refresh the <b>BitLocker Drive Encryption</b>{" "}
