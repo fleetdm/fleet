@@ -2489,6 +2489,11 @@ const (
 	AllMigrationsCompleted
 	// UnknownMigrations means some unidentified migrations were detected on the database.
 	UnknownMigrations
+	// NeedsFleetv4732Fix means the database needs the special fix migration for fleet v4.73.2
+	NeedsFleetv4732Fix
+	// UnknownFleetv4732State means the database has the broken migrations from fleet v4.73.2 however
+	// it is not in the expected state and needs manual intervention.
+	UnknownFleetv4732State
 )
 
 // TODO: we have a similar but different interface in the service package,
