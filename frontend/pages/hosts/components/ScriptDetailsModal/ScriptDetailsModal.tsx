@@ -37,6 +37,8 @@ type PartialOrFullHostScript =
 
 interface IScriptDetailsModalProps {
   onCancel: () => void;
+  /** optional onClose to allow both "go back" behavior and "close" behavior depending on context */
+  onClose?: () => void;
   onDelete?: () => void;
   runScriptHelpText?: boolean;
   showHostScriptActions?: boolean;
@@ -56,6 +58,7 @@ interface IScriptDetailsModalProps {
 
 const ScriptDetailsModal = ({
   onCancel,
+  onClose,
   onDelete,
   onClickRun,
   runScriptHelpText = false,
@@ -281,7 +284,7 @@ const ScriptDetailsModal = ({
       className={baseClass}
       title={selectedScriptDetails?.name || "Script details"}
       width="large"
-      onExit={onCancel}
+      onExit={onClose ?? onCancel}
       isHidden={isHidden}
     >
       <>

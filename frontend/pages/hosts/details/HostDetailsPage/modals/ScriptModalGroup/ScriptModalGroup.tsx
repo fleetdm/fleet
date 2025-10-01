@@ -185,6 +185,7 @@ const ScriptModalGroup = ({
         // in a slightly different context
         selectedScriptId={selectedScript?.script_id}
         selectedScriptContent={selectedScriptContent}
+        onClose={onCloseScriptModalGroup}
         onCancel={goBack}
         onDelete={() => {
           setPreviousModal(currentModal);
