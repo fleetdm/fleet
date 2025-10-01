@@ -1881,30 +1881,60 @@ AND state = ?
 	})
 }
 
-func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) error {
-	installFailStmt := `
+func (ds *Datastore) markAllPendingVPPInstallsAsFailedForHost(ctx context.Context, tx sqlx.ExtContext, hostID uint) (users []*fleet.User, activities []fleet.ActivityDetails, err error) {
+	const loadFailedCmdsStmt = `
+SELECT
+	command_uuid
+FROM
+	host_vpp_software_installs
+WHERE
+	verification_failed_at IS NULL
+	AND verification_at IS NULL
+	AND host_id = ?
+	AND canceled = 0
+`
+	var failedCmds []string
+	if err := sqlx.SelectContext(ctx, tx, &failedCmds, loadFailedCmdsStmt, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "load pending vpp install commands for host")
+	}
+
+	const installFailStmt = `
 UPDATE host_vpp_software_installs
 SET verification_failed_at = CURRENT_TIMESTAMP(6)
 WHERE
 	verification_failed_at IS NULL
 	AND verification_at IS NULL
 	AND host_id = ?
-	`
+`
+	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "set all vpp install as failed")
+	}
 
 	// We want to clear this table out, because otherwise we'll stop future installs from verifying.
-	deleteHostMDMCommandStmt := `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
-
-	if _, err := tx.ExecContext(ctx, installFailStmt, hostID); err != nil {
-		return ctxerr.Wrap(ctx, err, "set all vpp install as failed")
-	}
-
+	const deleteHostMDMCommandStmt = `DELETE FROM host_mdm_commands WHERE host_id = ? AND command_type = ?`
 	if _, err := tx.ExecContext(ctx, deleteHostMDMCommandStmt, hostID, fleet.VerifySoftwareInstallVPPPrefix); err != nil {
-		return ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
+		return nil, nil, ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
 	}
 
-	// TODO(mna): I don't think we need to check/set the from setup experience field, as it should
-	// not be possible to turn MDM off during setup experience (host is not released).
-	// user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus})
+	for _, cmd := range failedCmds {
+		// TODO(mna): I don't think we need to check/set the from setup experience field, as it should
+		// not be possible to turn MDM off during setup experience (host is not released).
+		user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				// shouldn't happen, but no need to fail
+				continue
+			}
+			return nil, nil, ctxerr.Wrap(ctx, err, "get past activity data for vpp app install")
+		}
 
-	return nil
+		// user may be nil if fleet-initiated activity, but the activity itself indicates
+		// if a new entry must be made, since users and activities must match in length
+		if act != nil {
+			users = append(users, user)
+			activities = append(activities, act)
+		}
+	}
+
+	return users, activities, nil
 }
