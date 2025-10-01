@@ -11,4 +11,29 @@
   &__lock-checkbox {
     margin-top: $pad-small;
   }
+
+  &__description {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-medium;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: $small;
+    font-weight: normal;
+  }
+
+  &__ios-ipad-lock-preview {
+    margin-top: $pad-xxlarge;
+    display: flex;
+    flex-direction: column;
+    gap: $pad-large;
+
+    img {
+      width: 250px;
+      margin: 0 auto;
+      margin-bottom: -$pad-xlarge;
+    }
+  }
 }
