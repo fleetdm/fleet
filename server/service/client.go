@@ -506,6 +506,17 @@ var errConflictingVPPSetupExperienceDeclarations = errors.New("Couldn't edit app
 // properly plan that separation and refactor so that gitops can be
 // significantly cleaned up and simplified going forward.
 
+func numberWithPluralization(n int, singular string, plural string) string {
+	if n == 1 {
+		return fmt.Sprintf("%d %s", n, singular)
+	}
+	return fmt.Sprintf("%d %s", n, plural)
+}
+
+const dryRunAppliedFormat = "[+] would've applied %s\n"
+const appliedFormat = "[+] applied %s\n"
+const applyingTeamFormat = "[+] applying %s for team %s\n"
+
 // ApplyGroup applies the given spec group to Fleet.
 func (c *Client) ApplyGroup(
 	ctx context.Context,
@@ -533,7 +544,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyQueries(specs.Queries); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying queries: %w", err)
 			}
-			logfn("[+] applied %d queries\n", len(specs.Queries))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Queries), "query", "queries"))
 		}
 	}
 
@@ -549,7 +560,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyLabels(specs.Labels); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying labels: %w", err)
 			}
-			logfn("[+] applied %d labels\n", len(specs.Labels))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Labels), "label", "labels"))
 		}
 	}
 
@@ -560,7 +571,7 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyPacks(specs.Packs); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying packs: %w", err)
 			}
-			logfn("[+] applied %d packs\n", len(specs.Packs))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Packs), "pack", "packs"))
 		}
 	}
 
@@ -1005,7 +1016,7 @@ func (c *Client) ApplyGroup(
 			for tmName, software := range tmSoftwarePackagesPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying %d software packages for team %s\n", len(software), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(software), "software package", "software packages"), tmName)
 				installers, err := c.ApplyTeamSoftwareInstallers(currentTeamName, software, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying software installers for team %q: %w", tmName, err)
@@ -1017,7 +1028,7 @@ func (c *Client) ApplyGroup(
 			for tmName, apps := range tmSoftwareAppsPayloads {
 				// For non-dry run, currentTeamName and tmName are the same
 				currentTeamName := getTeamName(tmName)
-				logfn("[+] applying %d app store apps for team %s\n", len(apps), tmName)
+				logfn(applyingTeamFormat, numberWithPluralization(len(apps), "app store app", "app store apps"), tmName)
 				appsResponse, err := c.ApplyTeamAppStoreAppsAssociation(currentTeamName, apps, opts.ApplySpecOptions)
 				if err != nil {
 					return nil, nil, nil, nil, fmt.Errorf("applying app store apps for team: %q: %w", tmName, err)
@@ -1026,9 +1037,9 @@ func (c *Client) ApplyGroup(
 			}
 		}
 		if opts.DryRun {
-			logfn("[+] would've applied %d teams\n", len(specs.Teams))
+			logfn(dryRunAppliedFormat, numberWithPluralization(len(specs.Teams), "team", "teams"))
 		} else {
-			logfn("[+] applied %d teams\n", len(specs.Teams))
+			logfn(appliedFormat, numberWithPluralization(len(specs.Teams), "team", "teams"))
 		}
 	}
 
@@ -1052,7 +1063,8 @@ func (c *Client) ApplyGroup(
 			if err := c.ApplyPolicies(specs.Policies); err != nil {
 				return nil, nil, nil, nil, fmt.Errorf("applying policies: %w", err)
 			}
-			logfn("[+] applied %d policies\n", len(specs.Policies))
+
+			logfn(appliedFormat, numberWithPluralization(len(specs.Policies), "policy", "policies"))
 		}
 	}
 
@@ -2287,12 +2299,20 @@ func (c *Client) DoGitOps(
 	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
 		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
 		if dryRun {
-			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn(
+				"[+] Would've set icons on %s and deleted icons on %s\n",
+				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
+				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
+			)
 		} else {
 			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
 				return nil, nil, err
 			}
-			logFn("[+] Set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			logFn(
+				"[+] Set icons on %s and deleted icons on %s\n",
+				numberWithPluralization(len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), "software title", "software titles"),
+				numberWithPluralization(len(iconUpdates.TitleIDsToRemoveIconsFrom), "title", "titles"),
+			)
 			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
 		}
 	}
@@ -2455,12 +2475,12 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 		}
 	}
 
-	logFn("[+] applying %d software packages for 'No team'\n", len(swPkgPayload))
+	logFn(applyingTeamFormat, numberWithPluralization(len(swPkgPayload), "software package", "software packages"), "'No team'")
 	softwareInstallers, err = c.ApplyNoTeamSoftwareInstallers(swPkgPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying software installers: %w", err)
 	}
-	logFn("[+] applying %d app store apps for 'No team'\n", len(appsPayload))
+	logFn(applyingTeamFormat, numberWithPluralization(len(appsPayload), "app store app", "app store apps"), "'No team'")
 	vppApps, err := c.ApplyNoTeamAppStoreAppsAssociation(appsPayload, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return nil, nil, fmt.Errorf("applying app store apps: %w", err)
@@ -2539,13 +2559,6 @@ func (c *Client) doGitOpsNoTeamWebhookSettings(
 	return nil
 }
 
-func pluralize(count int, ifSingle string, ifPlural string) string {
-	if count == 1 {
-		return ifSingle
-	}
-	return ifPlural
-}
-
 func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) ([]string, error) {
 	persistedLabels, err := c.GetLabels()
 	if err != nil {
@@ -2569,15 +2582,15 @@ func (c *Client) doGitOpsLabels(config *spec.GitOps, logFn func(format string, a
 			logFn("[-] would've deleted label '%s'\n", labelToDelete)
 		}
 		if numNew > 0 {
-			logFn("[+] would've created %d label%s\n", numNew, pluralize(numNew, "", "s"))
+			logFn("[+] would've created %s\n", numberWithPluralization(numNew, "label", "labels"))
 		}
 		if numUpdates > 0 {
-			logFn("[+] would've updated %d label%s\n", numUpdates, pluralize(numUpdates, "", "s"))
+			logFn("[+] would've updated %s\n", numberWithPluralization(numUpdates, "label", "labels"))
 		}
 		return nil, nil
 	}
 
-	logFn("[+] syncing %d label%s (%d new and %d updated)\n", len(config.Labels), pluralize(len(config.Labels), "", "s"), len(config.Labels)-numUpdates, numUpdates)
+	logFn("[+] syncing %s (%d new and %d updated)\n", numberWithPluralization(len(config.Labels), "label", "labels"), len(config.Labels)-numUpdates, numUpdates)
 	err = c.ApplyLabels(config.Labels)
 	if err != nil {
 		return nil, err
@@ -2700,7 +2713,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 
 	if len(config.Policies) > 0 {
 		numPolicies := len(config.Policies)
-		logFn("[+] syncing %d policies\n", numPolicies)
+		logFn("[+] syncing %s\n", numberWithPluralization(numPolicies, "policy", "policies"))
 		if !dryRun {
 			totalApplied := 0
 			for i := 0; i < len(config.Policies); i += batchSize {
@@ -2718,7 +2731,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.ApplyPolicies(policiesSpec); err != nil {
 					return fmt.Errorf("error applying policies: %w", err)
 				}
-				logFn("[+] synced %d policies\n", totalApplied)
+				logFn("[+] synced %s\n", numberWithPluralization(totalApplied, "policy", "policies"))
 			}
 		}
 	}
@@ -2741,7 +2754,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 		}
 	}
 	if len(policiesToDelete) > 0 {
-		logFn("[-] deleting %d policies\n", len(policiesToDelete))
+		logFn("[-] deleting %s\n", numberWithPluralization(len(policiesToDelete), "policy", "policies"))
 		if !dryRun {
 			totalDeleted := 0
 			for i := 0; i < len(policiesToDelete); i += batchSize {
@@ -2762,7 +2775,7 @@ func (c *Client) doGitOpsPolicies(config *spec.GitOps, teamSoftwareInstallers []
 				if err := c.DeletePolicies(teamID, policiesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting policies: %w", err)
 				}
-				logFn("[-] deleted %d policies\n", totalDeleted)
+				logFn("[-] deleted %s\n", numberWithPluralization(totalDeleted, "policy", "policies"))
 			}
 		}
 	}
@@ -2778,7 +2791,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 	}
 	if len(config.Queries) > 0 {
 		numQueries := len(config.Queries)
-		logFn("[+] syncing %d queries\n", numQueries)
+		logFn("[+] syncing %s\n", numberWithPluralization(numQueries, "query", "queries"))
 		if !dryRun {
 			appliedCount := 0
 			for i := 0; i < len(config.Queries); i += batchSize {
@@ -2791,7 +2804,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.ApplyQueries(config.Queries[i:end]); err != nil {
 					return fmt.Errorf("error applying queries: %w", err)
 				}
-				logFn("[+] synced %d queries\n", appliedCount)
+				logFn("[+] synced %s\n", numberWithPluralization(appliedCount, "query", "queries"))
 			}
 		}
 	}
@@ -2814,7 +2827,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 		}
 	}
 	if len(queriesToDelete) > 0 {
-		logFn("[-] deleting %d queries\n", len(queriesToDelete))
+		logFn("[-] deleting %s\n", numberWithPluralization(len(queriesToDelete), "query", "queries"))
 		if !dryRun {
 			deleteCount := 0
 			for i := 0; i < len(queriesToDelete); i += batchSize {
@@ -2826,7 +2839,7 @@ func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, 
 				if err := c.DeleteQueries(queriesToDelete[i:end]); err != nil {
 					return fmt.Errorf("error deleting queries: %w", err)
 				}
-				logFn("[-] deleted %d queries\n", deleteCount)
+				logFn("[-] deleted %s\n", numberWithPluralization(deleteCount, "query", "queries"))
 			}
 		}
 	}
