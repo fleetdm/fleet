@@ -1902,5 +1902,9 @@ WHERE
 		return ctxerr.Wrap(ctx, err, "delete pending host mdm command records")
 	}
 
+	// TODO(mna): I don't think we need to check/set the from setup experience field, as it should
+	// not be possible to turn MDM off during setup experience (host is not released).
+	// user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: expectedInstall.InstallCommandUUID, Status: terminalStatus})
+
 	return nil
 }
