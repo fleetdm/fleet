@@ -151,6 +151,8 @@ $shadow-transition-width: 10px;
 
         // Sort arrows change color on hover
         .sortable-header {
+          height: 36px;
+
           &:hover {
             .header-cell:not(.ascending) {
               .ascending-arrow {
