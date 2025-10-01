@@ -68,6 +68,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "microsoft word": Word,
   "google chrome": ChromeApp,
   darwin: MacOS,
+  "windows app": WindowsApp,
   windows: WindowsOS,
   chrome: ChromeOS,
   ios: iOS,
@@ -91,7 +92,6 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
-  "windows app": WindowsApp,
   ...LINUX_OS_NAME_TO_ICON_MAP,
 } as const;
 
