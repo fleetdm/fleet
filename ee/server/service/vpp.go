@@ -411,7 +411,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 
 		if exists {
 			return 0, ctxerr.New(ctx,
-				fmt.Sprintf("Error: Couldn't add software. %s already has software available for install on the %s team.",
+				fmt.Sprintf("Error: Couldn't add software. %s already has a package or app available for install on the %s team.",
 					assetMD.TrackName, teamName))
 		}
 	}
