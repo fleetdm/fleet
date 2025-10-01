@@ -187,7 +187,7 @@ type SetupExperienceStatusPayload struct {
 
 // IsSetupExperienceSupported returns whether "Setup experience" is supported for the host's platform.
 func IsSetupExperienceSupported(hostPlatform string) bool {
-	return hostPlatform == "darwin" || IsLinux(hostPlatform)
+	return hostPlatform == "darwin" || hostPlatform == "windows" || IsLinux(hostPlatform)
 }
 
 // DeviceSetupExperienceStatusPayload holds the status of the "Setup experience" for a device.
@@ -202,8 +202,8 @@ type DeviceSetupExperienceStatusPayload struct {
 // The setup_experience_status_results uses the host's "UUID" as the host identifier because the table
 // was created to implement "Setup experience" for macOS devices.
 //
-// On Linux devices there might be issues with duplicate hardware UUIDs, so for that reason we will instead
-// use the host.OsqueryHostID as UUID. For Linux devices, the "Setup experience" will be triggered after orbit
+// On Windows/Linux devices there might be issues with duplicate hardware UUIDs, so for that reason we will instead
+// use the host.OsqueryHostID as UUID. For Windows/Linux devices, the "Setup experience" will be triggered after orbit
 // and osquery enrollment, thus host.OsqueryHostID will always be set and unique.
 func HostUUIDForSetupExperience(host *Host) (string, error) {
 	if host.Platform == string(MacOSPlatform) {
@@ -215,4 +215,10 @@ func HostUUIDForSetupExperience(host *Host) (string, error) {
 		return "", errors.New("missing osquery_host_id")
 	}
 	return *host.OsqueryHostID, nil
+}
+
+type SetupExperienceCount struct {
+	Installers uint `db:"installers"`
+	Scripts    uint `db:"scripts"`
+	VPP        uint `db:"vpp"`
 }

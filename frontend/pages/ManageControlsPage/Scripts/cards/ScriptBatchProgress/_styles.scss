@@ -1,4 +1,6 @@
 .script-batch-progress {
+  @include vertical-page-layout;
+
   &__status-count {
     font-weight: $bold;
     margin: $pad-medium 0;
@@ -34,6 +36,10 @@
 
   &__empty {
     @include tab-empty-state;
+    gap: $pad-small;
+  }
+  .react-tabs__tab-list {
+    margin-bottom: $pad-large;
   }
 
   .paginated-list .loading-overlay {

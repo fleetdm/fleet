@@ -142,6 +142,9 @@
       "windows_settings": {
         "custom_settings": null
       },
+      "android_settings": {
+        "custom_settings": null
+      },
       "end_user_authentication": {
         "entity_id": "",
         "issuer_uri": "",

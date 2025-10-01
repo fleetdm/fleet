@@ -79,16 +79,12 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
         return undefined;
       }
 
-      return isAppStoreApp ? (
-        <>
-          The host acknowledged the MDM
-          <br />
-          command to install the app.
-        </>
-      ) : (
+      return (
         <>
           Software was installed{" "}
-          {!isSelfService && "(install script finished with exit code 0) "}
+          {!isSelfService &&
+            !isAppStoreApp &&
+            "(install script finished with exit code 0) "}
           {dateAgo(lastInstalledAt)}.
         </>
       );
@@ -229,7 +225,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   update_available: {
     iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (
@@ -497,6 +493,7 @@ const InstallStatusCell = ({
         position="top"
         className={`${baseClass}__tooltip-wrapper`}
         disableTooltip={!tooltipContent}
+        tipOffset={8}
       >
         {(isSelfService || isHostOnline) &&
         displayConfig.iconName === "pending-outline" ? (

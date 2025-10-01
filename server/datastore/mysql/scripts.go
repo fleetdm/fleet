@@ -504,7 +504,7 @@ func (ds *Datastore) UpdateScriptContents(ctx context.Context, scriptID uint, sc
 		// Update the script to point to the new content
 		if newContentID != oldContentID {
 			updateStmt := `
-				UPDATE scripts 
+				UPDATE scripts
 				SET script_content_id = ?
 				WHERE id = ?
 			`
@@ -638,8 +638,8 @@ func (ds *Datastore) cleanupScriptContent(ctx context.Context, tx sqlx.ExtContex
 			UNION ALL
 			SELECT 1 FROM setup_experience_scripts WHERE script_content_id = ?
 			UNION ALL
-			SELECT 1 FROM software_installers WHERE 
-				install_script_content_id = ? 
+			SELECT 1 FROM software_installers WHERE
+				install_script_content_id = ?
 				OR uninstall_script_content_id = ?
 				OR post_install_script_content_id = ?
 			UNION ALL
@@ -992,9 +992,9 @@ WITH all_latest_activities AS (
 			canceled = 0
 	) completed_ranked
 	WHERE row_num = 1
-	
+
 	UNION ALL
-	
+
 	-- latest from upcoming_activities
 	SELECT * FROM (
 		SELECT
@@ -1035,7 +1035,7 @@ FROM
 				*,
 				ROW_NUMBER() OVER (
 					PARTITION BY script_id
-					ORDER BY 
+					ORDER BY
 						CASE WHEN source = 'upcoming' THEN 1 ELSE 2 END,  -- Prefer upcoming over completed
 						created_at DESC,
 						id DESC
@@ -2277,7 +2277,7 @@ SELECT
 	COUNT(*) as num_targeted,
 	COUNT(bsehr.error) as num_did_not_run,
 	COUNT(CASE WHEN hsr.exit_code = 0 THEN 1 END) as num_succeeded,
-	COUNT(CASE WHEN hsr.exit_code > 0 THEN 1 END) as num_failed,
+	COUNT(CASE WHEN hsr.exit_code <> 0 THEN 1 END) as num_failed,
 	COUNT(CASE WHEN hsr.canceled = 1 AND hsr.exit_code IS NULL THEN 1 END) as num_cancelled
 FROM
 	batch_activity_host_results bsehr
@@ -2372,13 +2372,13 @@ FROM (
     COUNT(bahr.host_id)                     AS num_targeted,
     COUNT(bahr.error)                       AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))   AS num_ran,
-    COUNT(IF(hsr.exit_code > 0, 1, NULL))   AS num_errored,
+    COUNT(IF(hsr.exit_code <> 0, 1, NULL))   AS num_errored,
     COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL)) AS num_cancelled,
     (
       COUNT(bahr.host_id)
       - COUNT(bahr.error)
       - COUNT(IF(hsr.exit_code = 0, 1, NULL))
-      - COUNT(IF(hsr.exit_code > 0, 1, NULL))
+      - COUNT(IF(hsr.exit_code <> 0, 1, NULL))
       - COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba.canceled = 1), 1, NULL))
     ) AS num_pending,
     ba.execution_id,
@@ -2392,7 +2392,7 @@ FROM (
     ba.created_at                           AS created_at,
     j.not_before                            AS not_before,
     ba.id                                   AS id
-  FROM batch_activities ba 
+  FROM batch_activities ba
   LEFT JOIN batch_activity_host_results bahr
          ON ba.execution_id = bahr.batch_execution_id
   LEFT JOIN host_script_results hsr
@@ -2405,12 +2405,13 @@ FROM (
   GROUP BY ba.id
 ) AS u
 ORDER BY
-  u.not_before ASC, u.created_at DESC, u.id DESC
+  %s
 LIMIT %d OFFSET %d
 	`
 	limit := 10
 	offset := 0
 	args := []any{}
+	orderBy := []string{"u.created_at DESC", "u.id DESC"}
 	whereClauses := make([]string, 0, 2)
 	// If an execution ID is provided, use it to filter the results.
 	if filter.ExecutionID != nil && *filter.ExecutionID != "" {
@@ -2421,6 +2422,16 @@ LIMIT %d OFFSET %d
 		if filter.Status != nil && *filter.Status != "" {
 			whereClauses = append(whereClauses, "ba.status = ?")
 			args = append(args, *filter.Status)
+			switch *filter.Status {
+			case string(fleet.ScheduledBatchExecutionScheduled):
+				orderBy = append([]string{"u.not_before ASC"}, orderBy...)
+			case string(fleet.ScheduledBatchExecutionStarted):
+				orderBy = append([]string{"u.started_at DESC"}, orderBy...)
+			case string(fleet.ScheduledBatchExecutionFinished):
+				orderBy = append([]string{"u.finished_at DESC"}, orderBy...)
+			default:
+				// no additional ordering
+			}
 		}
 		if filter.TeamID != nil {
 			whereClauses = append(whereClauses, "s.global_or_team_id = ?")
@@ -2439,8 +2450,7 @@ LIMIT %d OFFSET %d
 		offset = int(*filter.Offset) //nolint:gosec // dismiss G115
 	}
 	where := strings.Join(whereClauses, " AND ")
-	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, limit, offset)
-
+	stmtExecutions = fmt.Sprintf(stmtExecutions, where, where, strings.Join(orderBy, ", "), limit, offset)
 	var summary []fleet.BatchActivity
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &summary, stmtExecutions, args...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "selecting execution information for bulk execution summary")
@@ -2491,8 +2501,8 @@ JOIN (
     COUNT(bahr.host_id)                                        AS num_targeted,
     COUNT(bahr.error)                                          AS num_incompatible,
     COUNT(IF(hsr.exit_code = 0, 1, NULL))                      AS num_ran,
-    COUNT(IF(hsr.exit_code > 0, 1, NULL))                      AS num_errored,
-    COUNT(IF(hsr.canceled = 1 AND hsr.exit_code IS NULL, 1, NULL)) AS num_canceled
+    COUNT(IF(hsr.exit_code <> 0, 1, NULL))                     AS num_errored,
+	COUNT(IF((hsr.canceled = 1 AND hsr.exit_code IS NULL) OR (hsr.host_id IS NULL AND bahr.error is NULL AND ba2.canceled = 1), 1, NULL)) AS num_canceled
   FROM batch_activities AS ba2
   LEFT JOIN batch_activity_host_results AS bahr
 	  ON ba2.execution_id = bahr.batch_execution_id

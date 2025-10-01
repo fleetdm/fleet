@@ -803,6 +803,25 @@ func (c *TestAppleMDMClient) UserTokenUpdate() error {
 	return err
 }
 
+// UserAuthenticate sends the UserAuthenticate message to the MDM server (Check In protocol).
+// Note that this is separate from the UserTokenUpdate and Authenticate used in device+user enrollment above.
+// Fleet does not currently support UserAuthenticate so this is stubbed out just to test the HTTP error
+//
+// For more details see https://developer.apple.com/documentation/devicemanagement/userauthenticaterequest
+func (c *TestAppleMDMClient) UserAuthenticate() error {
+	if c.UUID == "" {
+		return errors.New("UUID must be set for UserAuthenticate")
+	}
+	payload := map[string]any{
+		"MessageType": "UserAuthenticate",
+		"UDID":        c.UUID,
+		"UserID":      uuid.New().String(),
+	}
+
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
 // DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
 //
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.

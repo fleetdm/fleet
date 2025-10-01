@@ -187,6 +187,40 @@ func WithTxx(ctx context.Context, db *sqlx.DB, fn TxFn, logger log.Logger) error
 	return nil
 }
 
+// WithReadOnlyTxx executes fn within an isolated, read-only transaction
+func WithReadOnlyTxx(ctx context.Context, reader *sqlx.DB, fn ReadTxFn, logger log.Logger) error {
+	tx, err := reader.BeginTxx(ctx, &sql.TxOptions{
+		ReadOnly:  true,
+		Isolation: sql.LevelRepeatableRead,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create read-only transaction")
+	}
+
+	defer func() {
+		if p := recover(); p != nil {
+			if err := tx.Rollback(); err != nil {
+				logger.Log("err", err, "msg", "error encountered during read-only transaction panic rollback")
+			}
+			panic(p)
+		}
+	}()
+
+	if err := fn(tx); err != nil {
+		rbErr := tx.Rollback()
+		if rbErr != nil && rbErr != sql.ErrTxDone {
+			return ctxerr.Wrapf(ctx, err, "got err '%s' rolling back read-only transaction after err", rbErr.Error())
+		}
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return ctxerr.Wrap(ctx, err, "commit read-only transaction")
+	}
+
+	return nil
+}
+
 // MySQL is really particular about using zero values or old values for
 // timestamps, so we set a default value that is plenty far in the past, but
 // hopefully accepted by most MySQL configurations.

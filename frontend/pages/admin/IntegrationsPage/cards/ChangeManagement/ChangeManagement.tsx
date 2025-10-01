@@ -21,6 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -147,15 +148,20 @@ const ChangeManagement = () => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Change management" />
-      <p className={`${baseClass}__page-description`}>
-        When using a git repository to manage Fleet, you can optionally put the
-        UI in GitOps mode. This prevents you from making changes in the UI that
-        would be overridden by GitOps workflows.
-      </p>
-      <CustomLink
-        newTab
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
-        text="Learn more about GitOps"
+      <PageDescription
+        content={
+          <>
+            When using a git repository to manage Fleet, you can optionally put
+            the UI in GitOps mode. This prevents you from making changes in the
+            UI that would be overridden by GitOps workflows.{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+              text="Learn more about GitOps"
+            />
+          </>
+        }
+        variant="right-panel"
       />
       <form onSubmit={handleSubmit}>
         <Checkbox
@@ -180,13 +186,15 @@ const ChangeManagement = () => {
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
           disabled={!gitOpsModeEnabled}
         />
-        <Button
-          type="submit"
-          disabled={!!Object.keys(formErrors).length}
-          isLoading={isUpdating}
-        >
-          Save
-        </Button>
+        <div className="button-wrap">
+          <Button
+            type="submit"
+            disabled={!!Object.keys(formErrors).length}
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+        </div>
       </form>
     </div>
   );

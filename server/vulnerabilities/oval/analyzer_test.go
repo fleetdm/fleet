@@ -265,6 +265,11 @@ func BenchmarkTestOvalAnalyzer(b *testing.B) {
 				softwareFixtureDir: filepath.Join("rhel", "software", "0900"),
 				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
 			},
+			{
+				ovalFixtureDir:     filepath.Join("rhel", "fp_test"), // false-positive filtering test
+				softwareFixtureDir: filepath.Join("rhel", "fp_test", "software", "0900"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
+			},
 		}
 
 		for _, v := range systems {
@@ -318,6 +323,11 @@ func TestOvalAnalyzer(t *testing.T) {
 			{
 				ovalFixtureDir:     "rhel",
 				softwareFixtureDir: filepath.Join("rhel", "software", "0900"),
+				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
+			},
+			{
+				ovalFixtureDir:     filepath.Join("rhel", "fp_test"), // false-positive filtering test
+				softwareFixtureDir: filepath.Join("rhel", "fp_test", "software", "0900"),
 				version:            fleet.OSVersion{Platform: "rhel", Name: "Red Hat Enterprise Linux 9.0.0"},
 			},
 		}

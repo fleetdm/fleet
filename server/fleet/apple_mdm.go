@@ -225,6 +225,7 @@ type MDMProfilesUpdates struct {
 	AppleConfigProfile   bool
 	WindowsConfigProfile bool
 	AppleDeclaration     bool
+	AndroidConfigProfile bool
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
@@ -528,6 +529,13 @@ type HostDEPAssignment struct {
 	DeletedAt *time.Time `db:"deleted_at"`
 	// ABMTokenID is the ID of the ABM token that was used to make this DEP assignment.
 	ABMTokenID *uint `db:"abm_token_id"`
+	// MDMMigrationDeadline is the deadline for the MDM migration received from ABM on the host's
+	// most recent sync.
+	MDMMigrationDeadline *time.Time `db:"mdm_migration_deadline"`
+	// MDMMigrationCompleted is the value of MDMMigrationDeadline when the host completed its last
+	// Migration. Not a timestamp but a marker that the host completed the Migration for a given
+	// date.
+	MDMMigrationCompleted *time.Time `db:"mdm_migration_completed"`
 }
 
 func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {

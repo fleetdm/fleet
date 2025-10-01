@@ -1,5 +1,6 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import StatusIndicator from "./StatusIndicator";
 
@@ -12,12 +13,14 @@ describe("Status indicator", () => {
 
   it("renders optional tooltip on hover", async () => {
     const TOOLTIP_TEXT = "Online hosts will respond to a live query.";
-    render(
+    const { user } = renderWithSetup(
       <StatusIndicator value="online" tooltip={{ tooltipText: TOOLTIP_TEXT }} />
     );
 
-    await fireEvent.mouseEnter(screen.getByText("Online"));
+    await user.hover(screen.getByText("Online"));
 
-    expect(screen.getByText(TOOLTIP_TEXT)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText(TOOLTIP_TEXT)).toBeInTheDocument();
+    });
   });
 });

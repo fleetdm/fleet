@@ -19,6 +19,7 @@ const (
 	MDMAppleDeclarationUUIDPrefix = "d"
 	MDMAppleProfileUUIDPrefix     = "a"
 	MDMWindowsProfileUUIDPrefix   = "w"
+	MDMAndroidProfileUUIDPrefix   = "g"
 
 	// RefetchMDMUnenrollCriticalQueryDuration is the duration to set the
 	// RefetchCriticalQueriesUntil field when migrating a device from a
@@ -51,13 +52,15 @@ const (
 	FleetVarHostUUID                        FleetVarName = "HOST_UUID" // Windows only
 
 	// Certificate authority variables
-	FleetVarNDESSCEPChallenge         FleetVarName = "NDES_SCEP_CHALLENGE"
-	FleetVarNDESSCEPProxyURL          FleetVarName = "NDES_SCEP_PROXY_URL"
-	FleetVarSCEPRenewalID             FleetVarName = "SCEP_RENEWAL_ID"
-	FleetVarDigiCertDataPrefix        FleetVarName = "DIGICERT_DATA_"
-	FleetVarDigiCertPasswordPrefix    FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
-	FleetVarCustomSCEPChallengePrefix FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
-	FleetVarCustomSCEPProxyURLPrefix  FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
+	FleetVarNDESSCEPChallenge            FleetVarName = "NDES_SCEP_CHALLENGE"
+	FleetVarNDESSCEPProxyURL             FleetVarName = "NDES_SCEP_PROXY_URL"
+	FleetVarSCEPRenewalID                FleetVarName = "SCEP_RENEWAL_ID"
+	FleetVarDigiCertDataPrefix           FleetVarName = "DIGICERT_DATA_"
+	FleetVarDigiCertPasswordPrefix       FleetVarName = "DIGICERT_PASSWORD_" // nolint:gosec // G101: Potential hardcoded credentials
+	FleetVarCustomSCEPChallengePrefix    FleetVarName = "CUSTOM_SCEP_CHALLENGE_"
+	FleetVarCustomSCEPProxyURLPrefix     FleetVarName = "CUSTOM_SCEP_PROXY_URL_"
+	FleetVarSmallstepSCEPChallengePrefix FleetVarName = "SMALLSTEP_SCEP_CHALLENGE_"
+	FleetVarSmallstepSCEPProxyURLPrefix  FleetVarName = "SMALLSTEP_SCEP_PROXY_URL_"
 
 	// OneTimeChallengeTTL is the time to live for one-time challenges.
 	OneTimeChallengeTTL = 1 * time.Hour
@@ -461,7 +464,7 @@ type MDMConfigProfilePayload struct {
 	ProfileUUID string `json:"profile_uuid" db:"profile_uuid"`
 	TeamID      *uint  `json:"team_id" db:"team_id"` // null for no-team
 	Name        string `json:"name" db:"name"`
-	Platform    string `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Platform    string `json:"platform" db:"platform"`               // "windows", "android" or "darwin"
 	Identifier  string `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Scope       string `json:"scope,omitempty" db:"scope"`           // only set for macOS, can be "System" or "User"
 	// Checksum is the following
@@ -474,6 +477,16 @@ type MDMConfigProfilePayload struct {
 	LabelsIncludeAll []ConfigurationProfileLabel `json:"labels_include_all,omitempty" db:"-"`
 	LabelsIncludeAny []ConfigurationProfileLabel `json:"labels_include_any,omitempty" db:"-"`
 	LabelsExcludeAny []ConfigurationProfileLabel `json:"labels_exclude_any,omitempty" db:"-"`
+}
+
+// BatchModifyMDMConfigProfilePayload represents the payload for a config profile when
+// performing a batch modify operation.
+type BatchModifyMDMConfigProfilePayload struct {
+	Profile          []byte   `json:"profile,omitempty"`
+	DisplayName      string   `json:"display_name,omitempty"`
+	LabelsIncludeAll []string `json:"labels_include_all,omitempty"`
+	LabelsIncludeAny []string `json:"labels_include_any,omitempty"`
+	LabelsExcludeAny []string `json:"labels_exclude_any,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
@@ -547,6 +560,24 @@ func NewMDMConfigProfilePayloadFromAppleDDM(decl *MDMAppleDeclaration) *MDMConfi
 		LabelsIncludeAll: decl.LabelsIncludeAll,
 		LabelsIncludeAny: decl.LabelsIncludeAny,
 		LabelsExcludeAny: decl.LabelsExcludeAny,
+	}
+}
+
+func NewMDMConfigProfilePayloadFromAndroid(cp *MDMAndroidConfigProfile) *MDMConfigProfilePayload {
+	var tid *uint
+	if cp.TeamID != nil && *cp.TeamID > 0 {
+		tid = cp.TeamID
+	}
+	return &MDMConfigProfilePayload{
+		ProfileUUID:      cp.ProfileUUID,
+		TeamID:           tid,
+		Name:             cp.Name,
+		Platform:         "android",
+		CreatedAt:        cp.CreatedAt,
+		UploadedAt:       cp.UploadedAt,
+		LabelsIncludeAll: cp.LabelsIncludeAll,
+		LabelsIncludeAny: cp.LabelsIncludeAny,
+		LabelsExcludeAny: cp.LabelsExcludeAny,
 	}
 }
 

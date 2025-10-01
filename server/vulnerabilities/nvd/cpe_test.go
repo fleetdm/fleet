@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -1827,6 +1828,22 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			},
 			cpe: "", // Skip iTerm2ImportStatus since it is part of iTerm2 and doesn't have its own cpe
 		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox.app",
+				Source:  "apps",
+				Version: "137.0.2",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:137.0.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:    "Firefox ESR.app",
+				Source:  "apps",
+				Version: "128.14.0",
+			},
+			cpe: "cpe:2.3:a:mozilla:firefox:128.14.0:*:*:*:esr:macos:*:*",
+		},
 	}
 
 	// NVD_TEST_CPEDB_PATH can be used to speed up development (sync cpe.sqlite only once).
@@ -1854,6 +1871,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 	for _, tt := range testCases {
 		tt := tt
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
+
+		translation, okT, _ := cpeTranslations.Translate(reCache, &tt.software)
+		if okT {
+			if len(translation.SWEdition) == 0 || translation.SWEdition[0] == "" {
+				re := regexp.MustCompile(`\*:[^*]+:[^*]+:\*:\*$`)
+				assert.False(t, re.MatchString(cpe), "did not expect sw_edition for:"+cpe)
+			}
+		}
+
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}

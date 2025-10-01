@@ -210,14 +210,12 @@ Also, remember to replace both `AC_USERNAME` and `AC_PASSWORD` environment varia
 
 ### Grant full disk access to osquery on macOS
 
-MacOS does not allow applications to access all system files by default. 
+macOS does not allow applications to access all system files by default. 
 
 If you are using an MDM solution or Fleet's MDM features, one of which is required to deploy these profiles, you can deploy a "Privacy Preferences Policy Control" policy to grant fleetd or osquery that level of access. 
 
 This is required to query for files located in protected paths as well as to use event
 tables that require access to the [EndpointSecurity API](https://developer.apple.com/documentation/endpointsecurity#overview), such as *es_process_events*.
-
-#### Creating the configuration profile
 
 ##### Obtaining identifiers
 
@@ -335,6 +333,8 @@ This feature uses the host's TPM (Trusted Platform Module) to generate and store
 
 This provides a level of security similar to [mTLS](#using-mtls), but the certificate is hardware-backed and managed by the TPM rather than being stored as a file on disk. The TPM ensures the private key cannot be extracted or copied, providing stronger security guarantees.
 
+The certificate is issued for 365 days. 180 days before expiration, fleetd will automatically try to renew the certificate using a new TPM-based private key. The original enrollment secret is not needed for renewal. The renewal process is based on proof-of-possession of the existing certificate's private key.
+
 Currently, host identity certificates are only supported for Linux hosts (`.deb` and `.rpm` fleetd agents) with TPM 2.0 hardware (or vTPM for VMs) and Linux kernel 4.12 or later.
 
 #### Generating fleetd with host identity certificates
@@ -357,6 +357,7 @@ fleetctl package \
 - When a host requests a host identity certificate, the server will expect all future traffic from that host to be signed with HTTP message signatures. This allows mixed environments where some hosts use managed client certificates and others do not
 - Fleet administrators can enforce HTTP message signature requirements server-wide using the [auth.require_http_message_signature](https://fleetdm.com/docs/configuration/fleet-server-configuration#auth-require-http-message-signature) server configuration option
 - HTTP message signatures use P384 elliptic curve cryptography by default, which requires additional CPU resources to verify on the Fleet server. This can impact performance and should be considered when planning your Fleet deployment.
+
 
 ### Specifying update channels
 

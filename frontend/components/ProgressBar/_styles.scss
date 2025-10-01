@@ -1,9 +1,15 @@
 .progress-bar {
   display: flex;
   height: 4px;
-  width: 100px;
   border-radius: 8px;
   overflow: hidden;
+
+  &__small {
+    width: px-to-rem(50);
+  }
+  &__large {
+    width: px-to-rem(100);
+  }
 
   &__section {
     height: 100%;

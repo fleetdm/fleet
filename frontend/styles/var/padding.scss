@@ -9,3 +9,15 @@ $pad-large: px-to-rem(24);
 $pad-xlarge: px-to-rem(32);
 $pad-xxlarge: px-to-rem(40);
 $pad-xxxlarge: px-to-rem(80);
+
+// 2025 Stylesheet
+$pad-page: $pad-xlarge;
+$gap-page-component: $pad-large;
+$gap-page-component-responsiveness: $pad-medium;
+$gap-page-component-inner: $pad-medium;
+$gap-page-component-inner-responsiveness: $pad-smedium;
+$gap-form: $pad-large;
+$gap-form-component: $pad-small;
+$gap-data-sets: $pad-medium;
+$gap-table-elements: $pad-medium;
+$gap-modal-component: $pad-large;

@@ -17,13 +17,19 @@ type SignupURLsCreateFunc func(ctx context.Context, serverURL string, callbackUR
 
 type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error)
 
-type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
+type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+
+type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
+
+type EnterprisesDevicesGetFunc func(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
+type EnterprisesDevicesDeleteFunc func(ctx context.Context, deviceName string) error
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
 
-type EnterprisesListFunc func(ctx context.Context) ([]*androidmanagement.Enterprise, error)
+type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 type SetAuthenticationSecretFunc func(secret string) error
 
@@ -36,6 +42,15 @@ type Client struct {
 
 	EnterprisesPoliciesPatchFunc        EnterprisesPoliciesPatchFunc
 	EnterprisesPoliciesPatchFuncInvoked bool
+
+	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
+	EnterprisesDevicesPatchFuncInvoked bool
+
+	EnterprisesDevicesGetFunc        EnterprisesDevicesGetFunc
+	EnterprisesDevicesGetFuncInvoked bool
+
+	EnterprisesDevicesDeleteFunc        EnterprisesDevicesDeleteFunc
+	EnterprisesDevicesDeleteFuncInvoked bool
 
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
@@ -66,11 +81,32 @@ func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.Enterpri
 	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	p.mu.Lock()
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesPatchFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesPatchFunc(ctx, deviceName, device)
+}
+
+func (p *Client) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesGetFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesGetFunc(ctx, deviceName)
+}
+
+func (p *Client) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	p.mu.Lock()
+	p.EnterprisesDevicesDeleteFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesDeleteFunc(ctx, deviceName)
 }
 
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
@@ -87,11 +123,11 @@ func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseName string) er
 	return p.EnterpriseDeleteFunc(ctx, enterpriseName)
 }
 
-func (p *Client) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+func (p *Client) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
 	p.mu.Lock()
 	p.EnterprisesListFuncInvoked = true
 	p.mu.Unlock()
-	return p.EnterprisesListFunc(ctx)
+	return p.EnterprisesListFunc(ctx, serverURL)
 }
 
 func (p *Client) SetAuthenticationSecret(secret string) error {

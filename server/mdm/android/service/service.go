@@ -59,12 +59,7 @@ func NewService(
 	licenseKey string,
 	serverPrivateKey string,
 ) (android.Service, error) {
-	var client androidmgmt.Client
-	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
-		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
-	} else {
-		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
-	}
+	client := newAMAPIClient(ctx, logger, licenseKey)
 	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
 }
 
@@ -89,6 +84,16 @@ func NewServiceWithClient(
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
 	}, nil
+}
+
+func newAMAPIClient(ctx context.Context, logger kitlog.Logger, licenseKey string) androidmgmt.Client {
+	var client androidmgmt.Client
+	if os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT") == "1" || strings.ToUpper(os.Getenv("FLEET_DEV_ANDROID_GOOGLE_CLIENT")) == "ON" {
+		client = androidmgmt.NewGoogleClient(ctx, logger, os.Getenv)
+	} else {
+		client = androidmgmt.NewProxyClient(ctx, logger, licenseKey, os.Getenv)
+	}
+	return client
 }
 
 func newErrResponse(err error) android.DefaultResponse {
@@ -310,7 +315,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 	}
 
 	policyName := fmt.Sprintf("%s/policies/%s", enterprise.Name(), fmt.Sprintf("%d", defaultAndroidPolicyID))
-	err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
+	_, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, &androidmanagement.Policy{
 		StatusReportingSettings: &androidmanagement.StatusReportingSettings{
 			DeviceSettingsEnabled:        true,
 			MemoryInfoEnabled:            true,
@@ -330,7 +335,7 @@ func (svc *Service) EnterpriseSignupCallback(ctx context.Context, signupToken st
 			ApplicationReportingSettings: nil,
 		},
 	})
-	if err != nil {
+	if err != nil && !androidmgmt.IsNotModifiedError(err) {
 		return ctxerr.Wrapf(ctx, err, "patching %d policy", defaultAndroidPolicyID)
 	}
 
@@ -690,19 +695,39 @@ func (svc *Service) verifyEnterpriseExistsWithGoogle(ctx context.Context, enterp
 	}
 	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
 
+	// Get server URL from app config
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+
 	// Use LIST API as primary verification method
-	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx)
+	enterprises, err := svc.androidAPIClient.EnterprisesList(ctx, appConfig.ServerSettings.ServerURL)
 	if err != nil {
 		var gerr *googleapi.Error
-		if errors.As(err, &gerr) && gerr.Code == http.StatusNotFound {
-			// Special case: 404 from proxy with deletion confirmation
-			if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
-				level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
-				svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
-				return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+		if errors.As(err, &gerr) {
+			switch gerr.Code {
+			case http.StatusNotFound:
+				// Special case: 404 from proxy with deletion confirmation
+				if strings.Contains(gerr.Message, "PROXY_VERIFIED_DELETED:") {
+					level.Info(svc.logger).Log("msg", "enterprise confirmed deleted by proxy", "enterpriseID", enterprise.EnterpriseID)
+					svc.cleanupDeletedEnterprise(ctx, enterprise, enterprise.EnterpriseID)
+					return fleet.NewInvalidArgumentError("enterprise", "Android Enterprise has been deleted").WithStatus(http.StatusNotFound)
+				}
+			case http.StatusBadRequest:
+				// Bad request might indicate missing headers or invalid request format
+				// Don't delete the enterprise in this case
+				level.Error(svc.logger).Log("msg", "bad request when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: %s (check request headers and format)", err.Error())
+			case http.StatusUnauthorized, http.StatusForbidden:
+				// Authentication/authorization issues - don't delete the enterprise
+				level.Error(svc.logger).Log("msg", "authentication/authorization error when verifying enterprise", "error", err)
+				return fmt.Errorf("verifying enterprise with Google: authentication error: %w", err)
 			}
 		}
-		// LIST failed - this is likely a credential/permission issue, not deletion
+		// LIST failed - this is likely a technical issue, not deletion
+		// Log the error but don't delete the enterprise
+		level.Error(svc.logger).Log("msg", "failed to list enterprises", "error", err)
 		return fmt.Errorf("verifying enterprise with Google: %s", err.Error())
 	}
 
@@ -761,4 +786,67 @@ func (svc *Service) cleanupDeletedEnterprise(ctx context.Context, enterprise *an
 	if unenrollErr := svc.ds.BulkSetAndroidHostsUnenrolled(ctx); unenrollErr != nil {
 		level.Error(svc.logger).Log("msg", "failed to unenroll Android hosts after enterprise deletion", "err", unenrollErr)
 	}
+}
+
+// Admin-initiated Android unenroll
+// Request decoder for POST /api/_version_/fleet/hosts/{id}/mdm/unenroll
+type androidHostUnenrollRequest struct {
+	HostID uint `url:"id"`
+}
+
+func unenrollAndroidHostEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
+	req := request.(*androidHostUnenrollRequest)
+	err := svc.UnenrollAndroidHost(ctx, req.HostID)
+	return android.DefaultResponse{Err: err}
+}
+
+// UnenrollAndroidHost calls AMAPI to delete the device (work profile) and emits an activity.
+// The actual MDM status flip to Off is performed when Pub/Sub sends DELETED for the device.
+func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error {
+	// Load host and authorize based on team
+	h, err := svc.fleetSvc.GetHostLite(ctx, hostID)
+	if err != nil {
+		return err
+	}
+	if err := svc.authz.Authorize(ctx, h, fleet.ActionWrite); err != nil {
+		return err
+	}
+	if strings.ToLower(h.Platform) != "android" {
+		return &fleet.BadRequestError{Message: "host is not an android device"}
+	}
+
+	// Resolve Android device and enterprise
+	ah, err := svc.ds.AndroidHostLiteByHostUUID(ctx, h.UUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android host by uuid")
+	}
+	enterprise, err := svc.ds.GetEnterprise(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting android enterprise")
+	}
+	if ah.Device == nil || ah.Device.DeviceID == "" || enterprise.EnterpriseID == "" {
+		return &fleet.BadRequestError{Message: "missing android device or enterprise id"}
+	}
+
+	// Authenticate client and call AMAPI delete
+	secret, err := svc.getClientAuthenticationSecret(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting Android authentication secret")
+	}
+	_ = svc.androidAPIClient.SetAuthenticationSecret(secret)
+	deviceName := fmt.Sprintf("enterprises/%s/devices/%s", enterprise.EnterpriseID, ah.Device.DeviceID)
+	if err := svc.androidAPIClient.EnterprisesDevicesDelete(ctx, deviceName); err != nil {
+		return ctxerr.Wrap(ctx, err, "amapi delete device")
+	}
+
+	// Emit activity: admin told Fleet to unenroll
+	displayName := fleet.HostDisplayName(h.ComputerName, h.Hostname, h.HardwareModel, h.HardwareSerial)
+	if err := svc.fleetSvc.NewActivity(ctx, authz.UserFromContext(ctx), fleet.ActivityTypeMDMUnenrolled{
+		HostSerial:       h.HardwareSerial,
+		HostDisplayName:  displayName,
+		InstalledFromDEP: false,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
+	}
+	return nil
 }

@@ -1,10 +1,10 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import softwareAPI from "services/entities/software";
 
 import Modal from "components/Modal";
@@ -32,6 +32,7 @@ const baseClass = "edit-icon-modal";
 const ACCEPTED_EXTENSIONS = ".png";
 const MIN_DIMENSION = 120;
 const MAX_DIMENSION = 1024;
+const MAX_FILE_SIZE = 100 * 1024; // 100kb in bytes
 const UPLOAD_MESSAGE = `The icon must be a PNG file and square, with dimensions ranging from ${MIN_DIMENSION}x${MIN_DIMENSION} px to ${MAX_DIMENSION}x${MAX_DIMENSION} px.`;
 const DEFAULT_ERROR_MESSAGE = "Couldn't edit. Please try again.";
 
@@ -114,6 +115,7 @@ interface IEditIconModalProps {
     versions?: number;
     source?: string;
     currentIconUrl: string | null;
+    /** Name used in preview UI but also for FMA default icon matching */
     name: string;
     countsUpdatedAt?: string;
   };
@@ -230,6 +232,12 @@ const EditIconModal = ({
   const onFileSelect = (files: FileList | null) => {
     if (files && files.length > 0) {
       const file = files[0];
+
+      // Enforce filesize limit
+      if (file.size > MAX_FILE_SIZE) {
+        renderFlash("error", "Couldn't edit. Icon must be 100KB or less.");
+        return;
+      }
 
       // Enforce PNG MIME type, even though FileUploader also enforces by extension
       if (file.type !== "image/png") {
@@ -453,7 +461,7 @@ const EditIconModal = ({
             // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
             // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
-              name={software.name}
+              name={previewInfo.name}
               source={previewInfo.source}
               url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
@@ -478,7 +486,7 @@ const EditIconModal = ({
         message={UPLOAD_MESSAGE}
         onFileUpload={onFileSelect}
         buttonMessage="Choose file"
-        buttonType="link"
+        buttonType="brand-inverse-icon"
         className={`${baseClass}__file-uploader`}
         fileDetails={fileDetails}
         gitopsCompatible={false}
@@ -529,7 +537,8 @@ const EditIconModal = ({
       setIconUploadedAt(new Date().toISOString());
       onExitEditIconModal();
     } catch (e) {
-      renderFlash("error", DEFAULT_ERROR_MESSAGE);
+      const errorMessage = getErrorReason(e) || DEFAULT_ERROR_MESSAGE;
+      renderFlash("error", errorMessage);
     } finally {
       setIsUpdatingIcon(false);
     }

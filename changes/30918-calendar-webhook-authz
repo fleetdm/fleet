@@ -1,1 +1,0 @@
-Fixed 5XX errors on /api/v1/fleet/calendar/webhook/* endpoint due to missing authorization checks.

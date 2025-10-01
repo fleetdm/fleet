@@ -5,6 +5,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	"google.golang.org/api/androidmanagement/v1"
+	"google.golang.org/api/googleapi"
 )
 
 // Client is used to interact with the Android Management API.
@@ -21,7 +22,21 @@ type Client interface {
 
 	// EnterprisesPoliciesPatch updates or creates a policy.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch
-	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
+	// On success it returns the applied policy, with its version number set.
+	EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+
+	// EnterprisesDevicesPatch updates a device.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/patch
+	// On success it returns the updated device with latest applied policy information.
+	EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
+
+	// EnterprisesDevicesGet retrieves a device by resource name.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/get
+	EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error)
+
+	// EnterprisesDevicesDelete deletes an enrolled device (work profile) in the enterprise.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.devices/delete
+	EnterprisesDevicesDelete(ctx context.Context, deviceName string) error
 
 	// EnterprisesEnrollmentTokensCreate creates an enrollment token for a given enterprise. It is used to enroll an Android device.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.enrollmentTokens/create
@@ -34,7 +49,7 @@ type Client interface {
 
 	// EnterprisesList lists all enterprises accessible to the calling user.
 	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises/list
-	EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error)
+	EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
@@ -61,4 +76,10 @@ type EnterprisesCreateResponse struct {
 	// TopicName is the Google PubSub topic name, like: projects/project_id/topics/topic_id. It is only present Google API client is used
 	// directly (no proxy). We save it for debugging purposes.
 	TopicName string
+}
+
+// IsNotModifiedError reports whether the AMAPI error indicates that the
+// resource has not been modified.
+func IsNotModifiedError(err error) bool {
+	return googleapi.IsNotModified(err)
 }

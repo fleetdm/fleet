@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -32,6 +33,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/variables"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	mysql_driver "github.com/go-sql-driver/mysql"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -1667,7 +1669,7 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 	}
 
 	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, reqHWDeviceID)
+	err = svc.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, reqHWDeviceID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil
@@ -1891,7 +1893,20 @@ func GetContextItem(secTokenMsg *fleet.RequestSecurityToken, contextItem string)
 // GetAuthorizedSoapFault authorize the request so SoapFault message can be returned
 func (svc *Service) GetAuthorizedSoapFault(ctx context.Context, eType string, origMsg int, errorMsg error) *fleet.SoapFault {
 	svc.authz.SkipAuthorization(ctx)
-	logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
+
+	// check if it's a network/database error, if so log as error, otherwise as
+	// info (client validation error, e.g. empty binary security token). We
+	// unfortunately use raw errors such as fmt.Errorf and errors.New a lot,
+	// which does not carry much semantic information to discriminate error
+	// types, so we do a best-effort check here.
+	var ne net.Error
+	var me *mysql_driver.MySQLError
+	if errors.As(errorMsg, &ne) || errors.As(errorMsg, &me) {
+		logging.WithErr(ctx, ctxerr.Wrap(ctx, errorMsg, "soap fault"))
+	} else {
+		logging.WithLevel(ctx, level.Info)
+		logging.WithExtras(ctx, "soap_fault", errorMsg.Error())
+	}
 	soapFault := NewSoapFault(eType, origMsg, errorMsg)
 
 	return &soapFault

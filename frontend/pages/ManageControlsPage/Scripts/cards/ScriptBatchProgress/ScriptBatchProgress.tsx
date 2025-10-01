@@ -119,8 +119,13 @@ const ScriptBatchProgress = ({
   );
 
   const onClickRow = (r: IScriptBatchSummaryV2) => {
-    router.push(PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id));
-    // return satisfies caller expectations, not used in this case
+    // explicitly including the status param here avoids triggering the script details page's effect
+    // which would add it automatically, muddying browser history and preventing smooth forward/back navigation
+    router.push(
+      PATHS.CONTROLS_SCRIPTS_BATCH_DETAILS(r.batch_execution_id).concat(
+        "?status=ran"
+      )
+    );
     return r;
   };
 
@@ -224,7 +229,7 @@ const ScriptBatchProgress = ({
     <>
       <div className={baseClass}>
         <SectionHeader title="Batch progress" alignLeftHeaderVertically />
-        <TabNav>
+        <TabNav secondary>
           <Tabs
             selectedIndex={STATUS_BY_INDEX.indexOf(selectedStatus)}
             onSelect={handleTabChange}

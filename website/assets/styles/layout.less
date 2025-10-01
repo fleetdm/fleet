@@ -291,6 +291,7 @@ html, body {
     background-color: @core-vibrant-red;
     text-decoration: none;
     white-space: nowrap;
+    overflow: hidden;
     &:hover {
       color: #FFF;
     }
@@ -591,8 +592,7 @@ html, body {
         left: -10px;
       }
       &.more-dropdown {
-        left: unset;
-        right: 18px;
+        left: -379px;
         flex-direction: row;
       }
       &.customers-dropdown {
@@ -677,6 +677,7 @@ html, body {
     }
   }
   [purpose='dropdown-cta'] {
+    margin-right: 16px;
     [purpose='dropdown-cta-link'] {
       height: 100%;
       padding: 8px;

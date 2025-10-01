@@ -39,6 +39,8 @@
 				<true/>
 				<key>utilizeSOFAFeed</key>
 				<true/>
+				<key>refreshSOFAFeedTime</key>
+				<string>300</string>
 			</dict>
 			<key>osVersionRequirements</key>
 			<array>
@@ -123,10 +125,6 @@
 						<string>en</string>
 						<key>actionButtonText</key>
 						<string>Update</string>
-						<key>customDeferralButtonText</key>
-						<string>Custom</string>
-						<key>customDeferralDropdownText</key>
-						<string>Defer</string>
 						<key>informationButtonText</key>
 						<string>More Info</string>
 						<key>mainContentHeader</key>
@@ -145,14 +143,18 @@ If you fail to update by the deadline, access and functionality may be limited. 
 If you have any questions or need any assistance, please reach out via #help-it-and-enablement in Slack.</string>
 						<key>mainHeader</key>
 						<string>Required software update now available</string>
+						<key>subHeader</key>
+						<string>A friendly reminder from the IT &amp; Enablement team</string>
+						<key>customDeferralButtonText</key>
+						<string>Custom</string>
+						<key>customDeferralDropdownText</key>
+						<string>Defer</string>
 						<key>oneDayDeferralButtonText</key>
 						<string>One Day</string>
 						<key>oneHourDeferralButtonText</key>
 						<string>One Hour</string>
 						<key>primaryQuitButtonText</key>
 						<string>Later</string>
-						<key>subHeader</key>
-						<string>A friendly reminder from the IT &amp; Enablement team</string>
 					</dict>
 				</array>
 			</dict>

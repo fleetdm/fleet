@@ -5,6 +5,7 @@ import { HOST_LINUX_PLATFORMS } from "interfaces/platform";
 import { ISoftware } from "interfaces/software";
 
 import AcrobatReader from "./AcrobatReader";
+import CreativeCloud from "./AdobeCreativeCloud";
 import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
@@ -36,6 +37,7 @@ import Figma from "./Figma";
 import Notion from "./Notion";
 import WindowsDefender from "./WindowsDefender";
 import WhatsApp from "./WhatsApp";
+import P4V from "./P4V";
 import Postman from "./Postman";
 import OnePassword from "./OnePassword";
 import OmnissaHorizonClient from "./OmnissaHorizonClient";
@@ -46,6 +48,7 @@ import YubikeyManager from "./YubikeyManager";
 import BeyondCompare from "./BeyondCompare";
 import ITerm from "./ITerm";
 import VncViewer from "./VncViewer";
+import WindowsAppRemote from "./WindowsAppRemote";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
@@ -53,6 +56,7 @@ import VncViewer from "./VncViewer";
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
+  "adobe creative cloud": CreativeCloud,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
@@ -76,6 +80,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   teamviewer: TeamViewer,
   "windows defender": WindowsDefender,
   postman: Postman,
+  p4v: P4V,
   "1password": OnePassword,
   "amazon dcv": AmazonDCV,
   "company portal": IntuneCompanyPortal,
@@ -84,6 +89,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "beyond compare": BeyondCompare,
   iterm2: ITerm,
   "vnc viewer": VncViewer,
+  "windows app": WindowsAppRemote,
   "omnissa horizon client": OmnissaHorizonClient,
 } as const;
 

@@ -29,7 +29,7 @@ func ExecCmd(ctx context.Context, scriptPath string, env []string) (output []byt
 	cmd := exec.CommandContext(ctx, "/bin/sh", scriptPath)
 
 	if directExecute {
-		err = os.Chmod(scriptPath, 0o700)
+		err = os.Chmod(scriptPath, 0o700) // nolint:gosec // G302
 		if err != nil {
 			return nil, -1, ctxerr.Wrapf(ctx, err, "marking script as executable %s", scriptPath)
 		}

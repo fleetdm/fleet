@@ -210,7 +210,7 @@ lint-js:
 .help-short--lint-go:
 	@echo "Run the Go linters"
 lint-go:
-	golangci-lint run --exclude-dirs ./node_modules --timeout 15m
+	golangci-lint run --timeout 15m
 
 .help-short--lint:
 	@echo "Run linters"

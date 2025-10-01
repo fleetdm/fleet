@@ -103,6 +103,9 @@ type GitOpsControls struct {
 	WindowsEnabledAndConfigured interface{} `json:"windows_enabled_and_configured"`
 	WindowsMigrationEnabled     interface{} `json:"windows_migration_enabled"`
 
+	AndroidEnabledAndConfigured interface{} `json:"android_enabled_and_configured"`
+	AndroidSettings             interface{} `json:"android_settings"`
+
 	EnableDiskEncryption interface{} `json:"enable_disk_encryption"`
 	RequireBitLockerPIN  interface{} `json:"windows_require_bitlocker_pin,omitempty"`
 
@@ -116,7 +119,8 @@ func (c GitOpsControls) Set() bool {
 		c.IPadOSUpdates != nil || c.MacOSSettings != nil ||
 		c.MacOSSetup != nil || c.MacOSMigration != nil ||
 		c.WindowsUpdates != nil || c.WindowsSettings != nil || c.WindowsEnabledAndConfigured != nil ||
-		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0
+		c.WindowsMigrationEnabled != nil || c.EnableDiskEncryption != nil || len(c.Scripts) > 0 ||
+		c.AndroidEnabledAndConfigured != nil || c.AndroidSettings != nil
 }
 
 type Policy struct {
@@ -732,6 +736,31 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, multiError *m
 		result.Controls.WindowsSettings = windowsSettings
 	}
 
+	if result.Controls.AndroidSettings != nil {
+		// We are marshalling/unmarshalling to get the data into the fleet.AndroidSettings struct.
+		// This is inefficient, but it is more robust and less error-prone.
+		var androidSettings fleet.AndroidSettings
+		data, err := json.Marshal(result.Controls.AndroidSettings)
+		if err != nil {
+			return multierror.Append(multiError, fmt.Errorf("failed to process controls.android_settings: %v", err))
+		}
+		err = json.Unmarshal(data, &androidSettings)
+		if err != nil {
+			return multierror.Append(multiError, MaybeParseTypeError(controlsFilePath, []string{"controls", "android_settings"}, err))
+		}
+
+		if androidSettings.CustomSettings.Valid {
+			for i := range androidSettings.CustomSettings.Value {
+				err := resolveAndUpdateProfilePathToAbsolute(controlsDir, &androidSettings.CustomSettings.Value[i], result)
+				if err != nil {
+					return multierror.Append(multiError, err)
+				}
+			}
+		}
+		// Since we already unmarshalled and updated the path, we need to update the result struct.
+		result.Controls.AndroidSettings = androidSettings
+	}
+
 	return multiError
 }
 
@@ -1200,6 +1229,8 @@ func parseSoftware(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			multiError = multierror.Append(multiError, fmt.Errorf(`only one of "labels_exclude_any" or "labels_include_any" can be specified for app store app %q`, item.AppStoreID))
 			continue
 		}
+
+		item = item.ResolvePaths(baseDir)
 
 		result.Software.AppStoreApps = append(result.Software.AppStoreApps, &item)
 	}

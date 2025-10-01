@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/vpp"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
@@ -750,6 +751,13 @@ func (svc *Service) deleteVPPApp(ctx context.Context, teamID *uint, meta *fleet.
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted VPP app")
 	}
 
+	if teamID != nil && meta.IconURL != nil && *meta.IconURL != "" {
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, *teamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, fmt.Sprintf("failed to delete unused software icons for team %d", *teamID))
+		}
+	}
+
 	return nil
 }
 
@@ -784,6 +792,17 @@ func (svc *Service) deleteSoftwareInstaller(ctx context.Context, meta *fleet.Sof
 		SoftwareIconURL:  meta.IconUrl,
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "creating activity for deleted software")
+	}
+
+	if meta.IconUrl != nil && *meta.IconUrl != "" {
+		var teamIDForCleanup uint
+		if meta.TeamID != nil {
+			teamIDForCleanup = *meta.TeamID
+		}
+		err := svc.ds.DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx, teamIDForCleanup)
+		if err != nil {
+			return ctxerr.Wrap(ctx, fmt.Errorf("failed to delete unused software icons for team %d: %w", teamIDForCleanup, err))
+		}
 	}
 
 	return nil
@@ -1085,6 +1104,16 @@ func (svc *Service) InstallSoftwareTitle(ctx context.Context, hostID uint, softw
 			}
 			return svc.installSoftwareTitleUsingInstaller(ctx, host, installer)
 		}
+	} else {
+		// Get the enrollment type of the mobile apple device.
+		enrollment, err := svc.ds.GetNanoMDMEnrollment(ctx, host.UUID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "getting nano mdm enrollment")
+		}
+
+		if enrollment.Type == mdm.EnrollType(mdm.UserEnrollmentDevice).String() {
+			return fleet.NewUserMessageError(errors.New(fleet.InstallSoftwarePersonalAppleDeviceErrMsg), http.StatusUnprocessableEntity)
+		}
 	}
 
 	vppApp, err := svc.ds.GetVPPAppByTeamAndTitleID(ctx, host.TeamID, softwareTitleID)
@@ -1196,7 +1225,7 @@ func (svc *Service) InstallVPPAppPostValidation(ctx context.Context, host *fleet
 	// this app is not assigned to this device, check if we have licenses
 	// left and assign it.
 	if len(assignments) == 0 {
-		assets, err := vpp.GetAssets(token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
+		assets, err := vpp.GetAssets(ctx, token, &vpp.AssetFilter{AdamID: vppApp.AdamID})
 		if err != nil {
 			return "", ctxerr.Wrap(ctx, err, "getting assets from VPP API")
 		}

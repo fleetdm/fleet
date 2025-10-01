@@ -154,15 +154,60 @@ func (p *ProxyClient) EnterprisesCreate(ctx context.Context, req EnterprisesCrea
 	}, nil
 }
 
-func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+func (p *ProxyClient) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	call := p.mgmt.Enterprises.Policies.Patch(policyName, policy).Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
-	_, err := call.Do()
+	ret, err := call.Do()
 	switch {
 	case googleapi.IsNotModified(err):
 		p.logger.Log("msg", "Android policy not modified", "policy_name", policyName)
+		return nil, err
 	case err != nil:
-		return fmt.Errorf("patching policy %s: %w", policyName, err)
+		return nil, fmt.Errorf("patching policy %s: %w", policyName, err)
+	}
+	return ret, nil
+}
+
+func (p *ProxyClient) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	call := p.mgmt.Enterprises.Devices.Patch(deviceName, device).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android device not modified", "device_name", deviceName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("patching device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
+func (p *ProxyClient) EnterprisesDevicesGet(ctx context.Context, deviceName string) (*androidmanagement.Device, error) {
+	if p == nil || p.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.Devices.Get(deviceName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	ret, err := call.Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting device %s: %w", deviceName, err)
+	}
+	return ret, nil
+}
+
+func (p *ProxyClient) EnterprisesDevicesDelete(ctx context.Context, deviceName string) error {
+	if p == nil || p.mgmt == nil {
+		return errors.New("android management service not initialized")
+	}
+	call := p.mgmt.Enterprises.Devices.Delete(deviceName).Context(ctx)
+	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	_, err := call.Do()
+	switch {
+	case googleapi.IsNotModified(err) || isErrorCode(err, http.StatusNotFound):
+		p.logger.Log("msg", "Android device already deleted", "device_name", deviceName)
+		return nil
+	case err != nil:
+		return fmt.Errorf("deleting device %s: %w", deviceName, err)
 	}
 	return nil
 }
@@ -200,12 +245,13 @@ func (p *ProxyClient) EnterpriseDelete(ctx context.Context, enterpriseName strin
 	return nil
 }
 
-func (p *ProxyClient) EnterprisesList(ctx context.Context) ([]*androidmanagement.Enterprise, error) {
+func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
 	if p == nil || p.mgmt == nil {
 		return nil, errors.New("android management service not initialized")
 	}
 	call := p.mgmt.Enterprises.List().Context(ctx)
 	call.Header().Set("Authorization", "Bearer "+p.fleetServerSecret)
+	call.Header().Set("Origin", serverURL)
 	resp, err := call.Do()
 	if err != nil {
 		// Convert proxy errors to proper googleapi.Error for service layer

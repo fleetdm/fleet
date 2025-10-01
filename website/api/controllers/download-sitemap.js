@@ -76,6 +76,9 @@ module.exports = {
       '/tables',// « overview page (all subpages are dynamic)
       '/software-catalog',// « overview page (all subpages are dynamic)
       '/reports/state-of-device-management',// « 2021 research
+      '/mdm-commands',// « overview page (all subpages are dynamic)
+      '/scripts',// « overview page (all subpages are dynamic)
+      '/os-settings',
       // FUTURE: Do something smarter to get hand-coded HTML pages from routes.js, like how rebuild-cloud-sdk works, to avoid this manual duplication.
       // See also https://github.com/sailshq/sailsjs.com/blob/b53c6e6a90c9afdf89e5cae00b9c9dd3f391b0e7/api/helpers/get-pages-for-sitemap.js#L27
     ];
@@ -110,6 +113,12 @@ module.exports = {
     //  ╚═╝ ╩ ╩ ╩╚═╝╩╚═  ═╩╝ ╩ ╝╚╝╩ ╩╩ ╩╩╚═╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     for (let appPage of sails.config.builtStaticContent.appLibrary) {
       sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/software-catalog/${appPage.identifier}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let script of sails.config.builtStaticContent.scripts) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/scripts/${script.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
+    }//∞
+    for (let command of sails.config.builtStaticContent.mdmCommands) {
+      sitemapXml +=`<url><loc>${_.escape(sails.config.custom.baseUrl+`/mdm-commands/${command.slug}`)}</loc></url>`;// note we omit lastmod for some sitemap entries. This is ok, to mix w/ other entries that do have lastmod. Why? See https://docs.google.com/document/d/1SbpSlyZVXWXVA_xRTaYbgs3750jn252oXyMFLEQxMeU/edit
     }//∞
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     sitemapXml += '</urlset>';

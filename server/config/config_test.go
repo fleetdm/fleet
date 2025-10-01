@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/testutils"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +31,9 @@ func TestConfigRoundtrip(t *testing.T) {
 
 	// viper tries to load config from the environment too, clear it in case
 	// any config values are set in the environment.
+
+	// save the current env before clearing it.
+	testutils.SaveEnv(t)
 	os.Clearenv()
 
 	cmd := &cobra.Command{}
@@ -302,7 +306,9 @@ osquery:
 			// test-case values, but that didn't seem to work, not sure how it can
 			// be done in our particular setup.
 
-			// set the environment variables
+			// save the current env before clearing it.
+			testutils.SaveEnv(t)
+
 			os.Clearenv()
 			for _, env := range c.envVars {
 				kv := strings.SplitN(env, "=", 2)

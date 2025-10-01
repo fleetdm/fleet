@@ -352,6 +352,8 @@ spec:
         custom_settings:
       windows_settings:
         custom_settings:
+      android_settings:
+        custom_settings:
 ---
 apiVersion: v1
 kind: team
@@ -363,8 +365,10 @@ spec:
         custom_settings:
       windows_settings:
         custom_settings:
+      android_settings:
+        custom_settings:
 `,
-			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}}},
+			map[string]profileSpecsByPlatform{"Fleet": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}, "Fleet2": {windows: []fleet.MDMProfileSpec{}, macos: []fleet.MDMProfileSpec{}, android: []fleet.MDMProfileSpec{}}},
 		},
 		{
 			"custom settings specified",
@@ -375,6 +379,12 @@ spec:
   team:
     name: "Fleet"
     mdm:
+      android_settings:
+        custom_settings:
+          - path: "e"
+            labels:
+              - "foo"
+          - path: "f"
       macos_settings:
         custom_settings:
           - path: "a"
@@ -398,6 +408,10 @@ spec:
 				windows: []fleet.MDMProfileSpec{
 					{Path: "c"},
 					{Path: "d", Labels: []string{"foo", "baz"}},
+				},
+				android: []fleet.MDMProfileSpec{
+					{Path: "e", Labels: []string{"foo"}},
+					{Path: "f"},
 				},
 			}},
 		},
@@ -436,6 +450,12 @@ spec:
   team:
     name: "Fleet"
     mdm:
+      android_settings:
+        custom_settings:
+          - path: "e"
+            labels:
+              - "y"
+          - path: ""
       macos_settings:
         custom_settings:
           - path: "a"
@@ -493,6 +513,7 @@ spec:
 					require.True(t, ok)
 					require.Equal(t, wantProfs.macos, gotProfs.macos)
 					require.Equal(t, wantProfs.windows, gotProfs.windows)
+					require.Equal(t, wantProfs.android, gotProfs.android)
 				}
 			}
 		})
@@ -537,18 +558,29 @@ func TestGetProfilesContents(t *testing.T) {
     </Target>
   </Item>
 </Replace>`
+	androidProfile := []byte(`{
+		"name": "My Profile",
+		"modifyAccountsDisabled": true,
+		"maximumTimeToLock": "1234567",
+		"something": {"else": true},
+		"anotherThing": null,
+		"numeric": 12345,
+		"decimal": 1.23,
+		"aList": ["1", "2"]
+	}`)
 
 	tests := []struct {
-		name          string
-		baseDir       string
-		macSetupFiles [][2]string
-		winSetupFiles [][2]string
-		labels        []string
-		environment   map[string]string
-		expandEnv     bool
-		expectError   bool
-		want          []fleet.MDMProfileBatchPayload
-		wantErr       string
+		name              string
+		baseDir           string
+		macSetupFiles     [][2]string
+		winSetupFiles     [][2]string
+		androidSetupFiles [][2]string
+		labels            []string
+		environment       map[string]string
+		expandEnv         bool
+		expectError       bool
+		want              []fleet.MDMProfileBatchPayload
+		wantErr           string
 	}{
 		{
 			name:    "invalid darwin xml",
@@ -560,34 +592,42 @@ func TestGetProfilesContents(t *testing.T) {
 			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}},
 		},
 		{
-			name:    "windows and darwin files",
+			name:    "windows, darwin and android files",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			winSetupFiles: [][2]string{
 				{"foo.xml", string(windowsProfile)},
+			},
+			androidSetupFiles: [][2]string{
+				{"android.json", string(androidProfile)},
 			},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
 				{Name: "foo", Contents: windowsProfile},
 				{Name: "bar", Contents: darwinProfile},
+				{Name: "android", Contents: androidProfile},
 			},
 		},
 		{
-			name:    "windows and darwin files with labels",
+			name:    "windows, darwin and android files with labels",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			winSetupFiles: [][2]string{
 				{"foo.xml", string(windowsProfile)},
+			},
+			androidSetupFiles: [][2]string{
+				{"android.json", string(androidProfile)},
 			},
 			labels:      []string{"foo", "bar"},
 			expectError: false,
 			want: []fleet.MDMProfileBatchPayload{
 				{Name: "foo", Contents: windowsProfile, Labels: []string{"foo", "bar"}},
 				{Name: "bar", Contents: darwinProfile, Labels: []string{"foo", "bar"}},
+				{Name: "android", Contents: androidProfile, Labels: []string{"foo", "bar"}},
 			},
 		},
 		{
@@ -606,7 +646,7 @@ func TestGetProfilesContents(t *testing.T) {
 			},
 		},
 		{
-			name:    "duplicate names across windows and darwin",
+			name:    "duplicate names across windows, darwin and android",
 			baseDir: tempDir,
 			macSetupFiles: [][2]string{
 				{"bar.mobileconfig", string(mobileconfigForTest("baz", "I"))},
@@ -614,14 +654,26 @@ func TestGetProfilesContents(t *testing.T) {
 			winSetupFiles: [][2]string{
 				{"baz.xml", string(windowsProfile)},
 			},
+			androidSetupFiles: [][2]string{
+				{"baz.json", string(androidProfile)},
+			},
 			expectError: true,
 		},
 		{
-			name:    "duplicate file names",
+			name:    "duplicate windows file names",
 			baseDir: tempDir,
 			winSetupFiles: [][2]string{
 				{"baz.xml", string(windowsProfile)},
 				{"baz.xml", string(windowsProfile)},
+			},
+			expectError: true,
+		},
+		{
+			name:    "duplicate android file names",
+			baseDir: tempDir,
+			androidSetupFiles: [][2]string{
+				{"baz.json", string(androidProfile)},
+				{"baz.json", string(androidProfile)},
 			},
 			expectError: true,
 		},
@@ -879,6 +931,23 @@ func TestGetProfilesContents(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "android files with env var should expand",
+			baseDir: tempDir,
+			androidSetupFiles: [][2]string{
+				{"env_secrets.json", `{"name": "env secrets", "testKey": "$FOO"}`},
+			},
+			environment: map[string]string{
+				"FOO": "testValue",
+			},
+			expandEnv: true,
+			want: []fleet.MDMProfileBatchPayload{
+				{
+					Name:     "env_secrets",
+					Contents: []byte(`{"name": "env secrets", "testKey": "testValue"}`),
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -909,7 +978,14 @@ func TestGetProfilesContents(t *testing.T) {
 				winPaths = append(winPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
 			}
 
-			profileContents, err := getProfilesContents(tt.baseDir, macPaths, winPaths, tt.expandEnv)
+			androidPaths := []fleet.MDMProfileSpec{}
+			for _, fileSpec := range tt.androidSetupFiles {
+				filePath := filepath.Join(tempDir, fileSpec[0])
+				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0o644))
+				androidPaths = append(androidPaths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
+			}
+
+			profileContents, err := getProfilesContents(tt.baseDir, macPaths, winPaths, androidPaths, tt.expandEnv)
 
 			if tt.expectError {
 				require.Error(t, err)
@@ -965,7 +1041,8 @@ func TestGitOpsErrors(t *testing.T) {
 			err = json.Unmarshal([]byte(tt.rawJSON), &config.OrgSettings)
 			require.NoError(t, err)
 			config.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil)
+			settings := fleet.IconGitOpsSettings{ConcurrentUpdates: 1, ConcurrentUploads: 1}
+			_, _, err = client.DoGitOps(ctx, config, "/filename", nil, false, nil, nil, nil, nil, nil, &settings)
 			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}

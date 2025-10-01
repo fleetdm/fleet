@@ -19,6 +19,14 @@ const WINDOWS_SCRIPT: IScript = {
   updated_at: "2021-01-01",
 };
 
+beforeAll(() => {
+  jest.useFakeTimers();
+  jest.setSystemTime(new Date("2025-05-02T00:00:00Z")); // "over 4 years ago" after created_at
+});
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 describe("ScriptListItem", () => {
   const onDelete = jest.fn();
   const onClickScript = jest.fn();
@@ -78,7 +86,7 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Uploaded over 4 years ago"));
+    fireEvent.click(screen.getByText("over 4 years ago"));
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();

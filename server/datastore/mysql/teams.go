@@ -153,6 +153,11 @@ func (ds *Datastore) DeleteTeam(ctx context.Context, tid uint) error {
 			return ctxerr.Wrapf(ctx, err, "deleting mdm_apple_declarations for team %d", tid)
 		}
 
+		_, err = tx.ExecContext(ctx, `DELETE FROM mdm_android_configuration_profiles WHERE team_id=?`, tid)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "deleting mdm_android_configuration_profiles for team %d", tid)
+		}
+
 		return nil
 	})
 }
@@ -558,7 +563,9 @@ func defaultTeamConfigDB(ctx context.Context, q sqlx.QueryerContext) (*fleet.Tea
 
 // SaveDefaultTeamConfig saves the configuration for "No Team" hosts.
 func (ds *Datastore) SaveDefaultTeamConfig(ctx context.Context, config *fleet.TeamConfig) error {
-	configBytes, err := json.Marshal(config)
+	// Create a copy to avoid saving unsupported fields such as scripts and software
+	configCopy := config.Copy()
+	configBytes, err := json.Marshal(&configCopy)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshaling config")
 	}

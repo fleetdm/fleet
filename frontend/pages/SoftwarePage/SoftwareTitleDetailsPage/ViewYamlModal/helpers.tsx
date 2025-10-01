@@ -194,8 +194,8 @@ export const createPackageYaml = ({
   }
 
   if (iconUrl) {
-    yaml += `icon_url:
-  path: ./icons/${hyphenatedSWTitle}-icon.png
+    yaml += `  icon_url:
+    path: ./icons/${hyphenatedSWTitle}-icon.png
 `;
   }
 

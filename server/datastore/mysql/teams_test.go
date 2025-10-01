@@ -618,6 +618,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 					WindowsSettings: fleet.WindowsSettings{
 						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
 					},
+					AndroidSettings: fleet.AndroidSettings{
+						CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
+					},
 				},
 			},
 		})
@@ -652,6 +655,9 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 			},
 			WindowsSettings: fleet.WindowsSettings{
 				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}),
+			},
+			AndroidSettings: fleet.AndroidSettings{
+				CustomSettings: optjson.SetSlice([]fleet.MDMProfileSpec{{Path: "baz"}, {Path: "qux"}}),
 			},
 		}, mdm)
 	})

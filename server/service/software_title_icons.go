@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	_ "image/png"
+	"io"
 	"math"
 	"mime/multipart"
 	"net/http"
@@ -171,6 +172,19 @@ func (putSoftwareTitleIconRequest) DecodeRequest(ctx context.Context, r *http.Re
 		}
 	}
 
+	// Validate the file if one is provided
+	if decoded.File != nil {
+		file, err := decoded.File.Open()
+		if err != nil {
+			return nil, &fleet.BadRequestError{Message: "failed to open file"}
+		}
+		defer file.Close()
+
+		if err := ValidateIcon(file); err != nil {
+			return nil, err
+		}
+	}
+
 	return &decoded, nil
 }
 
@@ -188,12 +202,6 @@ func putSoftwareTitleIconEndpoint(ctx context.Context, request interface{}, svc 
 			return putSoftwareTitleIconResponse{Err: err}, nil
 		}
 		defer file.Close()
-
-		// ensure icon is png and fits sizing restrictions
-		err = iconValidator(file)
-		if err != nil {
-			return putSoftwareTitleIconResponse{Err: err}, nil
-		}
 
 		tfr, err := fleet.NewTempFileReader(file, nil)
 		if err != nil {
@@ -227,7 +235,21 @@ func (svc *Service) UploadSoftwareTitleIcon(ctx context.Context, payload *fleet.
 	return fleet.SoftwareTitleIcon{}, fleet.ErrMissingLicense
 }
 
-func iconValidator(file multipart.File) error {
+func ValidateIcon(file io.ReadSeeker) error {
+	// Check file size first
+	fileSize, err := file.Seek(0, io.SeekEnd) // Seek to end to get size
+	if err != nil {
+		return &fleet.BadRequestError{Message: "failed to read file size"}
+	}
+	if _, err := file.Seek(0, io.SeekStart); err != nil { // Reset to beginning
+		return &fleet.BadRequestError{Message: "failed to rewind file"}
+	}
+
+	maxSize := int64(100 * 1024) // 100KB
+	if fileSize > maxSize {
+		return &fleet.BadRequestError{Message: "icon must be less than 100KB"}
+	}
+
 	config, format, err := image.DecodeConfig(file)
 	if err != nil || format != "png" {
 		return &fleet.BadRequestError{Message: "icon must be a PNG image"}

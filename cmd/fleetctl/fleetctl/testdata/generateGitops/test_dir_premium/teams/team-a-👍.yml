@@ -17,6 +17,7 @@ agent_options:
     orbit: edge
     osqueryd: edge
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
   ios_updates:
     deadline: "2021-12-31"
@@ -64,6 +65,8 @@ software:
     categories:
     - Productivity
     - Utilities
+    icon:
+      path: "../lib/team-a-👍/icons/my-app-store-app--icon.png"
     labels_exclude_any:
     - Label C
     - Label D
@@ -72,6 +75,8 @@ software:
   - categories:
     - Browsers
     hash_sha256: software-package-hash # My Software Package (my-software.pkg) version 13.37
+    icon:
+      path: "../lib/team-a-👍/icons/my-software-package-darwin-icon.png"
     install_script:
       path: "../lib/team-a-👍/scripts/my-software-package-darwin-install"
     labels_include_any:

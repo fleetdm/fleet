@@ -1,8 +1,8 @@
 .app {
-  background: $gradients-dark-gradient-vertical;
+  @include gradient-background;
   margin: 0;
 
   & > div {
-      min-height: 100vh;
+    min-height: 100vh;
   }
 }

@@ -22,7 +22,7 @@ const EndUserExperiencePreview = ({
   return (
     <div className={classes}>
       <h3>End user experience</h3>
-      <TabNav className={`${baseClass}__tab-nav`}>
+      <TabNav className={`${baseClass}__tab-nav`} secondary>
         <Tabs>
           <TabList>
             <Tab>

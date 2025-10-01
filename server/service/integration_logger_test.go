@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/contract"
 	"github.com/go-kit/log"
@@ -320,6 +322,12 @@ func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogEr
 	require.NoError(s.T(), err)
 	originalAppConf := *appConf
 
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
 	appConf.MDM.EnabledAndConfigured = true
 	appConf.MDM.WindowsEnabledAndConfigured = true
 	appConf.MDM.AppleBMEnabledAndConfigured = true
@@ -338,8 +346,60 @@ func (s *integrationLoggerTestSuite) TestSetupExperienceEULAMetadataDoesNotLogEr
 	assert.NoError(t, json.Unmarshal([]byte(log), &logData))
 	assert.Equal(t, `"info"`, string(logData["level"]))
 	assert.Equal(t, string(logData["err"]), `"not found"`)
+}
 
-	// restore app config
-	err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+func (s *integrationLoggerTestSuite) TestWindowsMDMEnrollEmptyBinarySecurityToken() {
+	t := s.T()
+	ctx := t.Context()
+
+	appConf, err := s.ds.AppConfig(ctx)
+	require.NoError(s.T(), err)
+	originalAppConf := *appConf
+
+	t.Cleanup(func() {
+		// restore app config
+		err = s.ds.SaveAppConfig(context.Background(), &originalAppConf)
+		require.NoError(t, err)
+	})
+
+	appConf.MDM.EnabledAndConfigured = true
+	appConf.MDM.WindowsEnabledAndConfigured = true
+	appConf.MDM.AppleBMEnabledAndConfigured = true
+	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(t, err)
+
+	host := createOrbitEnrolledHost(t, "windows", "", s.ds)
+	mdmDevice := mdmtest.NewTestMDMClientWindowsEmptyBinarySecurityToken(s.server.URL, *host.OrbitNodeKey)
+	err = mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	t.Log(s.buf.String())
+
+	var foundDiscovery, foundPolicy, foundEnroll bool
+	for line := range strings.SplitSeq(s.buf.String(), "\n") {
+		line = strings.TrimSpace(line)
+		if !strings.HasPrefix(line, "{") {
+			continue
+		}
+
+		var m map[string]string
+		err := json.Unmarshal([]byte(line), &m)
+		require.NoError(t, err)
+
+		switch m["uri"] {
+		case microsoft_mdm.MDE2DiscoveryPath:
+			foundDiscovery = true
+		case microsoft_mdm.MDE2PolicyPath:
+			foundPolicy = true
+			require.Equal(t, "info", m["level"])
+			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
+		case microsoft_mdm.MDE2EnrollPath:
+			require.Equal(t, "info", m["level"])
+			require.Equal(t, "binarySecurityToken is empty", m["soap_fault"])
+			foundEnroll = true
+		}
+	}
+	require.True(t, foundDiscovery)
+	require.True(t, foundPolicy)
+	require.True(t, foundEnroll)
 }

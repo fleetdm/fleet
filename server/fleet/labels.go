@@ -181,6 +181,38 @@ type LabelQueryExecution struct {
 	HostID    uint
 }
 
+type HostsSlice []string
+
+// Custom unmarshaler to handle both string and integer host identifiers.
+func (s *HostsSlice) UnmarshalJSON(data []byte) error {
+	var raw []interface{}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	if raw == nil {
+		// Differentiate between nil and empty array.
+		return nil
+	}
+	result := make([]string, 0, len(raw))
+	for _, v := range raw {
+		switch val := v.(type) {
+		case string:
+			result = append(result, val)
+		case float64:
+			// Check if the float64 is actually an integer.
+			if val != float64(int64(val)) {
+				return fmt.Errorf("hosts must be strings or integers, got float %g", val)
+			}
+			// Convert to string.
+			result = append(result, fmt.Sprintf("%.0f", val))
+		default:
+			return fmt.Errorf("hosts must be strings or integers, got %T", v)
+		}
+	}
+	*s = result
+	return nil
+}
+
 type LabelSpec struct {
 	ID                  uint                `json:"id"`
 	Name                string              `json:"name"`
@@ -189,7 +221,7 @@ type LabelSpec struct {
 	Platform            string              `json:"platform,omitempty"`
 	LabelType           LabelType           `json:"label_type,omitempty" db:"label_type"`
 	LabelMembershipType LabelMembershipType `json:"label_membership_type" db:"label_membership_type"`
-	Hosts               []string            `json:"hosts"`
+	Hosts               HostsSlice          `json:"hosts"`
 	HostVitalsCriteria  *json.RawMessage    `json:"criteria,omitempty" db:"criteria"`
 }
 
