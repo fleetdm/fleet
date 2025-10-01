@@ -217,17 +217,16 @@ const ScriptModalGroup = ({
         teamIdForApi={teamIdForApi}
       />
       <DeleteScriptModal
-        // TODO - use selectedScript
         scriptId={selectedScript?.script_id || 1}
         scriptName={selectedScript?.name || ""}
         onCancel={() => {
           setCurrentModal(previousModal);
           setPreviousModal(ModalGroupOption.Run);
         }}
-        onDone={() => {
+        afterDelete={() => {
           // The delete API call is handled in DeleteScriptModal
-          setCurrentModal(previousModal);
-          setPreviousModal(ModalGroupOption.Run);
+          setCurrentModal(ModalGroupOption.Run);
+          setPreviousModal(null);
           refetchHostScripts();
           setSelectedScript(null);
         }}
