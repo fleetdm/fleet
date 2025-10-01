@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/csv"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -17,7 +18,17 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
-const linuxHosts = 800
+var (
+	// MySQL config
+	mysqlAddr = "localhost:3306"
+	mysqlUser = "fleet"
+	mysqlPass = "insecure"
+	mysqlDB   = "fleet"
+
+	// CSV paths
+	macCSVPath = "./tools/software/vulnerabilities/software-macos.csv"
+	winCSVPath = "./tools/software/vulnerabilities/software-win.csv"
+)
 
 func readCSVFile(filePath string) ([]fleet.Software, error) {
 	file, err := os.Open(filePath)
@@ -33,7 +44,7 @@ func readCSVFile(filePath string) ([]fleet.Software, error) {
 	}
 
 	var software []fleet.Software
-	for _, line := range lines[1:] { // Skip header line
+	for _, line := range lines[1:] { // Skip header
 		software = append(software, fleet.Software{
 			Name:             line[0],
 			Version:          line[1],
@@ -48,151 +59,179 @@ func readCSVFile(filePath string) ([]fleet.Software, error) {
 	return software, nil
 }
 
+func createOrGetHost(ctx context.Context, ds *mysql.Datastore, identifier string, base fleet.Host) (*fleet.Host, error) {
+	h, err := ds.HostByIdentifier(ctx, identifier)
+	if err == nil && h != nil {
+		return h, nil
+	}
+	base.UUID = identifier
+	base.Hostname = identifier
+	base.NodeKey = ptr.String(identifier)
+	return ds.NewHost(ctx, &base)
+}
+
 func main() {
+	// Flags
+	var (
+		ubuntuCount  = flag.Int("ubuntu", 0, "Number of Ubuntu hosts to create (default 0)")
+		macosCount   = flag.Int("macos", 0, "Number of macOS hosts to create (default 0)")
+		windowsCount = flag.Int("windows", 0, "Number of Windows hosts to create (default 0)")
+		linuxKernels = flag.Int("linux-kernels", 0, "Number of Linux kernels to add per Ubuntu host (default 0)")
+	)
+	flag.Parse()
+
+	ctx := context.Background()
+
+	// Datastore
 	ds, err := mysql.New(config.MysqlConfig{
 		Protocol: "tcp",
-		Address:  "localhost:3306",
-		Username: "fleet",
-		Password: "insecure",
-		Database: "fleet",
+		Address:  mysqlAddr,
+		Username: mysqlUser,
+		Password: mysqlPass,
+		Database: mysqlDB,
 	}, clock.C)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer ds.Close()
 
-	// macos Host
-	fmt.Print("Creating macOS host...\n")
-	var macosHost *fleet.Host
-	// get host if it already exists
-	macosHost, err = ds.HostByIdentifier(context.Background(), "macos-seed-host")
-	if err != nil {
-		fmt.Printf("get macos host failed: %v\n", err)
+	now := time.Now()
 
-		macosHost, err = ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         ptr.String("macos-seed-host"),
-			UUID:            "macos-seed-host",
-			Hostname:        "macos-seed-host",
-			PrimaryIP:       "192.168.1.100",
-			PrimaryMac:      "00:11:22:33:44:55",
-			Platform:        "darwin",
-			OSVersion:       "Mac OS X 10.14.6",
-		})
-		if err != nil {
-			fmt.Printf("create macos host failed: %v\n", err)
+	// macOS hosts
+	var macHosts []*fleet.Host
+	if *macosCount > 0 {
+		fmt.Printf("Creating %d macOS host(s)…\n", *macosCount)
+		for i := 1; i <= *macosCount; i++ {
+			name := "macos-seed-host"
+			if *macosCount > 1 {
+				name = fmt.Sprintf("macos-seed-host-%d", i)
+			}
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       "192.168.1.100",
+				PrimaryMac:      "00:11:22:33:44:55",
+				Platform:        "darwin",
+				OSVersion:       "Mac OS X 10.14.6",
+			})
+			if err != nil {
+				fmt.Printf("create macos host failed (%s): %v\n", name, err)
+				continue
+			}
+			macHosts = append(macHosts, host)
 		}
 	}
 
-	// windows Host
-	fmt.Print("Creating Windows host...\n")
-
-	// get host if it already exists
-	var winHost *fleet.Host
-	winHost, err = ds.HostByIdentifier(context.Background(), "windows-seed-host")
-	if err != nil {
-		fmt.Printf("get windows host failed: %v\n", err)
-
-		winHost, err = ds.NewHost(context.Background(), &fleet.Host{
-			DetailUpdatedAt: time.Now(),
-			LabelUpdatedAt:  time.Now(),
-			PolicyUpdatedAt: time.Now(),
-			SeenTime:        time.Now(),
-			NodeKey:         ptr.String("windows-seed-host"),
-			UUID:            "windows-seed-host",
-			Hostname:        "windows-seed-host",
-			PrimaryIP:       "192.168.1.101",
-			PrimaryMac:      "00:11:22:33:44:56",
-			Platform:        "windows",
-			OSVersion:       "Windows 11 Enterprise",
-		})
-		if err != nil {
-			fmt.Printf("create windows host failed: %v\n", err)
+	// Windows hosts
+	var winHosts []*fleet.Host
+	if *windowsCount > 0 {
+		fmt.Printf("Creating %d Windows host(s)…\n", *windowsCount)
+		for i := 1; i <= *windowsCount; i++ {
+			name := "windows-seed-host"
+			if *windowsCount > 1 {
+				name = fmt.Sprintf("windows-seed-host-%d", i)
+			}
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       "192.168.1.101",
+				PrimaryMac:      "00:11:22:33:44:56",
+				Platform:        "windows",
+				OSVersion:       "Windows 11 Enterprise",
+			})
+			if err != nil {
+				fmt.Printf("create windows host failed (%s): %v\n", name, err)
+				continue
+			}
+			winHosts = append(winHosts, host)
 		}
 	}
 
-	fmt.Print("Creating Ubuntu hosts...\n")
+	// Ubuntu hosts
 	var ubuntuIDs []uint
-	// ubuntu Hosts
-	for i := 0; i < linuxHosts; i++ {
-		var host *fleet.Host
-		host, err = ds.HostByIdentifier(context.Background(), fmt.Sprintf("ubuntu-seed-host-%d", len(ubuntuIDs)+1))
-		if err != nil {
-			host, err = ds.NewHost(context.Background(), &fleet.Host{
-				DetailUpdatedAt: time.Now(),
-				LabelUpdatedAt:  time.Now(),
-				PolicyUpdatedAt: time.Now(),
-				SeenTime:        time.Now(),
-				NodeKey:         ptr.String(fmt.Sprintf("ubuntu-seed-host-%d", len(ubuntuIDs)+1)),
-				UUID:            fmt.Sprintf("ubuntu-seed-host-%d", len(ubuntuIDs)+1),
-				Hostname:        fmt.Sprintf("ubuntu-seed-host-%d", len(ubuntuIDs)+1),
-				PrimaryIP:       fmt.Sprintf("192.168.1.%d", len(ubuntuIDs)+2),
-				PrimaryMac:      fmt.Sprintf("00:11:22:33:44:%02d", len(ubuntuIDs)+2),
+	if *ubuntuCount > 0 {
+		fmt.Printf("Creating %d Ubuntu host(s)…\n", *ubuntuCount)
+		for i := 1; i <= *ubuntuCount; i++ {
+			name := fmt.Sprintf("ubuntu-seed-host-%d", i)
+			host, err := createOrGetHost(ctx, ds, name, fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				PrimaryIP:       fmt.Sprintf("192.168.1.%d", i+1),
+				PrimaryMac:      fmt.Sprintf("00:11:22:33:44:%02d", i+1),
 				Platform:        "ubuntu",
 				OSVersion:       "Ubuntu 20.04.6 LTS",
 			})
 			if err != nil {
-				fmt.Printf("create ubuntu host failed: %v\n", err)
+				fmt.Printf("create ubuntu host failed (%s): %v\n", name, err)
 				continue
 			}
+			if err := ds.UpdateHostOperatingSystem(ctx, host.ID, fleet.OperatingSystem{
+				Name:           "Ubuntu",
+				Version:        fmt.Sprintf("20.04.%d", i),
+				Platform:       "ubuntu",
+				Arch:           "x86_64",
+				KernelVersion:  "5.4.0-148-generic",
+				DisplayVersion: "20.04",
+			}); err != nil {
+				fmt.Printf("update ubuntu host OS failed (%s): %v\n", name, err)
+				continue
+			}
+			ubuntuIDs = append(ubuntuIDs, host.ID)
 		}
+	}
 
-		err = ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-			Name:           "Ubuntu",
-			Version:        fmt.Sprintf("20.04.%d", i),
-			Platform:       "ubuntu",
-			Arch:           "x86_64",
-			KernelVersion:  "5.4.0-148-generic",
-			DisplayVersion: "20.04",
-		})
+	// macOS software
+	if len(macHosts) > 0 {
+		macSoftware, err := readCSVFile(macCSVPath)
 		if err != nil {
-			fmt.Printf("update ubuntu host OS failed: %v\n", err)
-			continue
+			fmt.Printf("read macOS software csv failed: %v\n", err)
+		} else {
+			for _, h := range macHosts {
+				if _, err := ds.UpdateHostSoftware(ctx, h.ID, macSoftware); err != nil {
+					fmt.Printf("update macOS host software failed (%s): %v\n", h.Hostname, err)
+				}
+			}
 		}
-
-		ubuntuIDs = append(ubuntuIDs, host.ID)
 	}
 
-	// Insert macOS software
-	macSoftware, err := readCSVFile("./tools/software/vulnerabilities/software-macos.csv")
-	if err != nil {
-		fmt.Printf("read macos software csv file failed: %v\n", err)
-		return
-	}
-
-	fmt.Printf("%v\n", macSoftware)
-	_, err = ds.UpdateHostSoftware(context.Background(), macosHost.ID, macSoftware)
-	if err != nil {
-		fmt.Printf("update macos host software failed: %v\n", err)
-		return
-	}
-
-	// Insert win software
-	winSoftware, err := readCSVFile("./tools/software/vulnerabilities/software-win.csv")
-	if err != nil {
-		fmt.Printf("read windows software csv file failed: %v\n", err)
-		return
-	}
-	_, err = ds.UpdateHostSoftware(context.Background(), winHost.ID, winSoftware)
-	if err != nil {
-		fmt.Printf("update windows host software failed: %v\n", err)
-		return
-	}
-
-	for i, ubuntuID := range ubuntuIDs {
-		_, err := ds.UpdateHostSoftware(context.Background(), ubuntuID, []fleet.Software{
-			{
-				Name:     fmt.Sprintf("linux-image-6.8.0-%d-generic", i+1),
-				Version:  fmt.Sprintf("6.8.0-%d", i+1),
-				Source:   "Package (deb)",
-				IsKernel: true,
-			},
-		})
+	// Windows software
+	if len(winHosts) > 0 {
+		winSoftware, err := readCSVFile(winCSVPath)
 		if err != nil {
-			fmt.Printf("insert software for Ubuntu host failed: %v\n", err)
+			fmt.Printf("read Windows software csv failed: %v\n", err)
+		} else {
+			for _, h := range winHosts {
+				if _, err := ds.UpdateHostSoftware(ctx, h.ID, winSoftware); err != nil {
+					fmt.Printf("update Windows host software failed (%s): %v\n", h.Hostname, err)
+				}
+			}
 		}
 	}
+
+	// Linux kernels for Ubuntu
+	if *linuxKernels > 0 && len(ubuntuIDs) > 0 {
+		fmt.Printf("Adding %d Linux kernel package(s) per Ubuntu host…\n", *linuxKernels)
+		for _, ubuntuID := range ubuntuIDs {
+			var pkgs []fleet.Software
+			for k := 1; k <= *linuxKernels; k++ {
+				pkgs = append(pkgs, fleet.Software{
+					Name:     fmt.Sprintf("linux-image-6.8.0-%d-generic", k),
+					Version:  fmt.Sprintf("6.8.0-%d", k),
+					Source:   "Package (deb)",
+					IsKernel: true,
+				})
+			}
+			if _, err := ds.UpdateHostSoftware(ctx, ubuntuID, pkgs); err != nil {
+				fmt.Printf("insert kernel software for Ubuntu host %d failed: %v\n", ubuntuID, err)
+			}
+		}
+	}
+
+	fmt.Println("Done.")
 }
