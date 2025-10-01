@@ -217,6 +217,35 @@ cleanup_software_files() {
     echo -e "${GREEN}✓ Software file cleanup complete${NC}"
     echo
 }
+# Fix Unicode escape sequences back to emoji characters
+fix_unicode_emojis() {
+    local file="$1"
+    echo -e "${BLUE}  Restoring emoji characters in: $(basename "$file")${NC}"
+    
+    # Use perl to convert Unicode escape sequences back to actual characters
+    if command -v perl &> /dev/null; then
+        perl -i -pe 's/\\U([0-9A-F]{8})/chr(hex($1))/ge' "$file"
+    else
+        # Fallback: convert specific known emojis manually
+        sed -i '' 's/\\U0001F4BB/💻/g' "$file" 2>/dev/null || sed -i 's/\\U0001F4BB/💻/g' "$file"
+        sed -i '' 's/\\U0001F423/🐣/g' "$file" 2>/dev/null || sed -i 's/\\U0001F423/🐣/g' "$file"
+    fi
+}
+
+# Fix emojis in all processed team files
+restore_emojis_in_team_files() {
+    echo -e "${GREEN}=== RESTORING EMOJI CHARACTERS ===${NC}"
+    
+    for team_file in "${team_files[@]}"; do
+        if [ -f "$team_file" ] && grep -q "\\\\U[0-9A-F]" "$team_file"; then
+            fix_unicode_emojis "$team_file"
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Emoji restoration complete${NC}"
+    echo
+}
+
 
 # Main function
 main() {
@@ -279,6 +308,9 @@ main() {
     if [ ${#PROCESSED_SOFTWARE_FILES[@]} -gt 0 ]; then
         cleanup_software_files
     fi
+    
+    # PASS 3: Restore emoji characters that may have been converted to Unicode escape sequences
+    restore_emojis_in_team_files
     
     # Summary
     echo -e "${GREEN}=== PROCESSING COMPLETE ===${NC}"
