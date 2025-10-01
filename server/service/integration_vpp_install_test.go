@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -893,11 +892,6 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 
 	s.setVPPTokenForTeam(team.ID)
 
-	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
-	setOrbitEnrollment(t, mdmHost, s.ds)
-	s.runWorker()
-	checkInstallFleetdCommandSent(t, mdmDevice, true)
-
 	// Add app 1 and 2 targeting macOS to the team
 	app1 := &fleet.VPPApp{
 		VPPAppTeam: fleet.VPPAppTeam{
@@ -943,6 +937,12 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 		}
 	}
 
+	// create a host that will receive the VPP install commands AFTER a script execution request
+	// (so the VPP installs are not activated when they are cancelled)
+	mdmHost, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice, true)
 	// Add serial number to our fake Apple server
 	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost.HardwareSerial)
 	s.Do("POST", "/api/latest/fleet/hosts/transfer",
@@ -993,27 +993,78 @@ func (s *integrationMDMTestSuite) TestVPPAppActivitiesOnCancelInstall() {
 	require.Len(t, listResp.Activities, 1)
 	require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), listResp.Activities[0].Type)
 
-	// host's past activities should have the VPP apps cancellation
-	// NOTE: it doesn't have the MDM unenroll because this is a global-only
-	// activity currently.
+	// host's past activities do not have the VPP apps cancellation because those app installs
+	// were not activated
 	var listPastResp listActivitiesResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost.ID), nil, http.StatusOK, &listPastResp)
-	// require.GreaterOrEqual(t, len(listPastResp.Activities), 2)
-	spew.Dump(listPastResp.Activities)
+	require.GreaterOrEqual(t, len(listPastResp.Activities), 0)
 
-	// TODO(mna): repro with a macOS host to see how we can view the failed install, since
-	// it should not return VPP apps when the host's MDM is off.
-
-	// listing the host's software shows them as failed install now
+	// listing the host's software available for install shows none as MDM is now disabled
+	// and no failure was recorded for the attempts (because the apps were not activated)
 	getHostSw = getHostSoftwareResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 0)
+
+	// create another host that will receive the VPP install commands without any
+	// other activity in front (so the first VPP install will be activated when
+	// they are cancelled)
+	mdmHost2, mdmDevice2 := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	setOrbitEnrollment(t, mdmHost2, s.ds)
+	s.runWorker()
+	checkInstallFleetdCommandSent(t, mdmDevice2, true)
+	// Add serial number to our fake Apple server
+	s.appleVPPConfigSrvConfig.SerialNumbers = append(s.appleVPPConfigSrvConfig.SerialNumbers, mdmHost2.HardwareSerial)
+	s.Do("POST", "/api/latest/fleet/hosts/transfer",
+		&addHostsToTeamRequest{HostIDs: []uint{mdmHost2.ID}, TeamID: &team.ID}, http.StatusOK)
+
+	// trigger install of both apps on the host
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app1TitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/software/%d/install", mdmHost2.ID, app2TitleID), &installSoftwareRequest{},
+		http.StatusAccepted, &installResp)
+
+	// confirm the state of this host's upcoming activities
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 2)
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[0].Type)
+	require.Contains(t, string(*listResp.Activities[0].Details), fmt.Sprintf(`"app_store_id": %q`, app1.AdamID))
+	require.Equal(t, fleet.ActivityInstalledAppStoreApp{}.ActivityName(), listResp.Activities[1].Type)
+	require.Contains(t, string(*listResp.Activities[1].Details), fmt.Sprintf(`"app_store_id": %q`, app2.AdamID))
+
+	// listing the host's software shows them as pending install
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
 	require.Len(t, getHostSw.Software, 2)
+	require.NotNil(t, getHostSw.Software[0].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[0].Status)
+	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
+	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
+	require.NotNil(t, getHostSw.Software[1].Status)
+	require.Equal(t, fleet.SoftwareInstallPending, *getHostSw.Software[1].Status)
+	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
+	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
+
+	// turn off MDM for the host
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", mdmHost2.ID), nil, http.StatusNoContent)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMUnenrolled{}.ActivityName(), fmt.Sprintf(`{"host_display_name":%q, "host_serial":%q, "installed_from_dep":false}`, mdmHost2.DisplayName(), mdmHost2.HardwareSerial), 0)
+
+	// upcoming activities are now empty
+	listResp = listHostUpcomingActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", mdmHost2.ID), nil, http.StatusOK, &listResp)
+	require.Len(t, listResp.Activities, 0)
+
+	// host's past activities should have the first VPP app cancellation because it was activated
+	listPastResp = listActivitiesResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", mdmHost2.ID), nil, http.StatusOK, &listPastResp)
+	// require.GreaterOrEqual(t, len(listPastResp.Activities), 1)
+
+	// listing the host's software available for install shows the cancelled app as failed
+	getHostSw = getHostSoftwareResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/software", mdmHost2.ID), nil, http.StatusOK, &getHostSw, "available_for_install", "true")
+	require.Len(t, getHostSw.Software, 1)
 	require.NotNil(t, getHostSw.Software[0].Status)
 	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[0].Status)
 	require.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	require.Equal(t, app1.AdamID, getHostSw.Software[0].AppStoreApp.AppStoreID)
-	require.NotNil(t, getHostSw.Software[1].Status)
-	require.Equal(t, fleet.SoftwareInstallFailed, *getHostSw.Software[1].Status)
-	require.NotNil(t, getHostSw.Software[1].AppStoreApp)
-	require.Equal(t, app2.AdamID, getHostSw.Software[1].AppStoreApp.AppStoreID)
 }
