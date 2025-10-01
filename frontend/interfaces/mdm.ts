@@ -261,7 +261,7 @@ export interface IMdmCommandResult {
   host_uuid: string;
   command_uuid: string;
   /** Status is the status of the command. It can be one of Acknowledged, Error, or NotNow for
-	// Apple, or 200, 400, etc for Windows.  */
+  // Apple, or 200, 400, etc for Windows.  */
   status: string;
   updated_at: string;
   request_type: string;
@@ -288,4 +288,11 @@ export const isPersonalEnrollmentInMdm = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (personal)";
+};
+
+/** determines if the host enrolled in mdm is a company owned device (ie. enrolled via ADE) */
+export const isCompanyOwnedEnrollmentInMdm = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (automatic)";
 };
