@@ -2115,7 +2115,15 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) OSVersions(
+	ctx context.Context,
+	teamID *uint,
+	platform *string,
+	name *string,
+	version *string,
+	opts fleet.ListOptions,
+	includeCVSS bool,
+) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
@@ -2133,12 +2141,17 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
+	// Default to 20 per page if no pagination is specified to avoid returning too many results
+	// and slowing down the response time significantly.
+	if opts.Page == 0 && opts.PerPage == 0 {
+		opts.PerPage = 20
+	}
+
 	if teamID != nil {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 			return nil, count, nil, err
 		}
-
 		if *teamID != 0 {
 			exists, err := svc.ds.TeamExists(ctx, *teamID)
 			if err != nil {
@@ -2154,6 +2167,8 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	if !ok {
 		return nil, count, nil, fleet.ErrNoContext
 	}
+
+	// Load all OS versions (unpaged)
 	osVersions, err := svc.ds.OSVersions(
 		ctx, &fleet.TeamFilter{
 			User:            vc.User,
@@ -2162,47 +2177,12 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}, platform, name, version,
 	)
 	if err != nil && fleet.IsNotFound(err) {
-		// It is possible that os exists, but aggregation job has not run yet.
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
 		return nil, count, nil, err
 	}
 
-	// Use batch query for better performance.
-	// Note: The OSVersions API endpoint does not include kernels (ds.ListKernelsByOS).
-	if len(osVersions.OSVersions) > 0 {
-		vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, osVersions.OSVersions, includeCVSS, teamID)
-		if err != nil {
-			return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions")
-		}
-
-		// Populate each OS version with its vulnerabilities
-		for i := range osVersions.OSVersions {
-			osV := &osVersions.OSVersions[i]
-			key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
-
-			// Populate GeneratedCPEs for Darwin
-			if osV.Platform == "darwin" {
-				osV.GeneratedCPEs = []string{
-					fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
-					fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
-				}
-			}
-
-			// Populate Vulnerabilities from batch result
-			osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-			if vulns, ok := vulnsMap[key]; ok {
-				for _, vuln := range vulns {
-					vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
-					osV.Vulnerabilities = append(osV.Vulnerabilities, vuln)
-				}
-			}
-
-			// Initialize Kernels array to avoid null in JSON
-			osV.Kernels = make([]*fleet.Kernel, 0)
-		}
-	}
-
+	// Sort by hosts_count (default: desc to match previous behavior)
 	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
@@ -2213,12 +2193,54 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		})
 	}
 
+	// Total count BEFORE pagination
 	count = len(osVersions.OSVersions)
 
-	var metaData *fleet.PaginationMetadata
-	osVersions.OSVersions, metaData = paginateOSVersions(osVersions.OSVersions, opts)
+	// Paginate first
+	paged, meta := paginateOSVersions(osVersions.OSVersions, opts)
 
-	return osVersions, count, metaData, nil
+	// Pull vulnerabilities ONLY for the paginated slice, as the full list slows
+	// response times down significantly with many CVEs.
+	if len(paged) == 0 {
+		return &fleet.OSVersions{
+			CountsUpdatedAt: osVersions.CountsUpdatedAt,
+			OSVersions:      []fleet.OSVersion{},
+		}, count, meta, nil
+	}
+
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
+	if err != nil {
+		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
+	}
+
+	// Populate only the paginated entries
+	for i := range paged {
+		osV := &paged[i]
+
+		if osV.Platform == "darwin" {
+			osV.GeneratedCPEs = []string{
+				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
+				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
+			}
+		}
+
+		osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
+		key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
+		if vulns, ok := vulnsMap[key]; ok {
+			for _, v := range vulns {
+				v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
+				osV.Vulnerabilities = append(osV.Vulnerabilities, v)
+			}
+		}
+
+		osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
+	}
+
+	// Return only the page, but with total count
+	return &fleet.OSVersions{
+		CountsUpdatedAt: osVersions.CountsUpdatedAt,
+		OSVersions:      paged,
+	}, count, meta, nil
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
