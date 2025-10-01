@@ -180,6 +180,55 @@ func (svc *Service) handlePubSubStatusReport(ctx context.Context, token string, 
 		level.Debug(svc.logger).Log("msg", "Error updating Android host", "data", rawData)
 		return ctxerr.Wrap(ctx, err, "enrolling Android host")
 	}
+	err = svc.updateHostSoftware(ctx, &device, host)
+	if err != nil {
+		level.Debug(svc.logger).Log("msg", "Error updating Android host software", "data", rawData)
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
+	return nil
+}
+
+// largely based on refetch apps code from Apple MDM service methods
+func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanagement.Device, host *fleet.AndroidHost) error {
+
+	// Do nothing if no app reports returned
+	if len(device.ApplicationReports) == 0 {
+		return nil
+	}
+	truncateString := func(item any, length int) string {
+		str, ok := item.(string)
+		if !ok {
+			return ""
+		}
+		runes := []rune(str)
+		if len(runes) > length {
+			return string(runes[:length])
+		}
+		return str
+	}
+	software := []fleet.Software{}
+	for _, app := range device.ApplicationReports {
+		if app.State != "INSTALLED" {
+			continue
+		}
+		sw := fleet.Software{
+			Name:             truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
+			Version:          truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
+			BundleIdentifier: truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength),
+			Source:           "android_apps",
+			Installed:        true,
+		}
+		software = append(software, sw)
+	}
+	// TODO better way to access this?
+	baseDS, ok := svc.ds.(fleet.Datastore)
+	if !ok {
+		return ctxerr.New(ctx, "failed to type assert datastore")
+	}
+	_, err := baseDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "updating Android host software")
+	}
 	return nil
 }
 

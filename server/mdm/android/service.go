@@ -18,6 +18,7 @@ type Service interface {
 
 	// UnenrollAndroidHost triggers unenrollment (work profile removal) for the given Android host ID.
 	UnenrollAndroidHost(ctx context.Context, hostID uint) error
+	JordanEndpoint(ctx context.Context) error
 }
 
 // /////////////////////////////////////////////

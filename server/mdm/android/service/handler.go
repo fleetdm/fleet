@@ -35,6 +35,7 @@ func attachFleetAPIRoutes(r *mux.Router, fleetSvc fleet.Service, svc android.Ser
 	ne.GET("/api/_version_/fleet/android_enterprise/connect/{token}", enterpriseSignupCallbackEndpoint, enterpriseSignupCallbackRequest{})
 	ne.GET("/api/_version_/fleet/android_enterprise/enrollment_token", enrollmentTokenEndpoint, enrollmentTokenRequest{})
 	ne.POST(pubSubPushPath, pubSubPushEndpoint, pubSubPushRequest{})
+	ne.GET("/api/_version_/jordan_android", jordanEndpoint, nil)
 }
 
 func apiVersions() []string {

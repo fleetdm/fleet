@@ -53,6 +53,16 @@ type Client interface {
 
 	// SetAuthenticationSecret sets the secret used for authentication.
 	SetAuthenticationSecret(secret string) error
+
+	// TODO: remove before merge? Using mainly for testing
+	// EnterprisesPoliciesPatch updates or creates a policy.
+	// See: https://developers.google.com/android/management/reference/rest/v1/enterprises.policies/patch
+	// On success it returns the applied policy, with its version number set.
+	EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error)
+
+	EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, appIDs []string) (*androidmanagement.Policy, error)
+
+	EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error)
 }
 
 type EnterprisesCreateRequest struct {

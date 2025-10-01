@@ -273,6 +273,39 @@ func (p *ProxyClient) EnterprisesList(ctx context.Context, serverURL string) ([]
 	return resp.Enterprises, nil
 }
 
+func (p *ProxyClient) PoliciesList(ctx context.Context, enterpriseName string) ([]*androidmanagement.Policy, error) {
+	// TODO
+	return nil, nil
+}
+
+func (p *ProxyClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	// TODO
+	return nil, nil
+}
+
+func (p *ProxyClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	return nil, nil
+}
+
+func (p *ProxyClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: policy,
+			},
+		},
+	}
+	ret, err := p.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		p.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s: %w", policyName, err)
+	}
+	return ret.Policy, nil
+}
+
 func isErrorCode(err error, code int) bool {
 	if err == nil {
 		return false

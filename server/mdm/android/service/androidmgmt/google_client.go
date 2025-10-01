@@ -298,3 +298,52 @@ func getLastPart(ctx context.Context, name string) (string, error) {
 	}
 	return nameParts[len(nameParts)-1], nil
 }
+
+func (g *GoogleClient) EnterprisesApplications(ctx context.Context, enterpriseName, packageName string) (*androidmanagement.Application, error) {
+	if g == nil || g.mgmt == nil {
+		return nil, errors.New("android management service not initialized")
+	}
+	path := fmt.Sprintf("%s/applications/%s", enterpriseName, packageName)
+
+	fmt.Printf("Getting application with path %s\n", path)
+	app, err := g.mgmt.Enterprises.Applications.Get(path).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("getting application %s: %w", packageName, err)
+	}
+	return app, nil
+}
+
+func (g *GoogleClient) EnterprisesPoliciesModifyPolicyApplications(ctx context.Context, policyName string, policy *androidmanagement.ApplicationPolicy) (*androidmanagement.Policy, error) {
+	req := androidmanagement.ModifyPolicyApplicationsRequest{
+		Changes: []*androidmanagement.ApplicationPolicyChange{
+			{
+				Application: policy,
+			},
+		},
+	}
+	ret, err := g.mgmt.Enterprises.Policies.ModifyPolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s: %w", policyName, err)
+	}
+	return ret.Policy, nil
+}
+
+func (g *GoogleClient) EnterprisesPoliciesRemovePolicyApplications(ctx context.Context, policyName string, packageNames []string) (*androidmanagement.Policy, error) {
+	req := androidmanagement.RemovePolicyApplicationsRequest{
+		PackageNames: packageNames,
+	}
+	ret, err := g.mgmt.Enterprises.Policies.RemovePolicyApplications(policyName, &req).Context(ctx).Do()
+	switch {
+	case googleapi.IsNotModified(err):
+		g.logger.Log("msg", "Android application policy not modified", "policy_name", policyName)
+		return nil, err
+	case err != nil:
+		return nil, fmt.Errorf("modifying application policy %s to remove apps %v: %w", policyName, packageNames, err)
+	}
+	return ret.Policy, nil
+}
