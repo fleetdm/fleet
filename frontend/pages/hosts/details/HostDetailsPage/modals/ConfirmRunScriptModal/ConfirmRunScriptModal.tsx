@@ -8,7 +8,7 @@ const baseClass = "confirm-run-script-modal";
 interface IConfirmRunScriptModal {
   onCancel: () => void;
   onClose: () => void;
-  onRunScript: () => void;
+  onConfirmRunScript: () => void;
   scriptName?: string;
   hostName: string;
   isRunningScript: boolean;
@@ -18,7 +18,7 @@ interface IConfirmRunScriptModal {
 const ConfirmRunScriptModal = ({
   onCancel,
   onClose,
-  onRunScript,
+  onConfirmRunScript,
   scriptName,
   hostName,
   isRunningScript,
@@ -39,7 +39,7 @@ const ConfirmRunScriptModal = ({
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            onClick={onRunScript}
+            onClick={onConfirmRunScript}
             className="save-loading"
             isLoading={isRunningScript}
           >
