@@ -7,6 +7,22 @@ After several fast-paced weeks of planning, testing, and collaboration, our corp
 **— Mike Meyer, Manager, Corporate Engineering at Foursquare**
 </div>
 
+## Their story
+
+Foursquare is a global technology company specializing in combining the physical world with the digital through location intelligence and data science. By leveraging extensive location data, Foursquare provides businesses with actionable insights to drive engagement, improve customer experiences, and optimize operations.
+
+They were looking to:
+
+- Eliminate tool overlap.
+
+- Centralize definitive data.
+
+- Provide a better user experience.
+
+- Integrate and surface data across teams.
+
+- Enable next-gen change management and open-source flexibility.
+
 ## Challenge
 
 [Foursquare](https://foursquare.com/), a leading location technology company, faced significant challenges with their existing device management solution. The platform's limited support and slow feature rollout hindered innovation and responsiveness, while its inflexible integrations with solutions like Okta Workflows and external logging destinations constrained infrastructure flexibility. Additionally, the lack of advanced DevOps capabilities and a complex, cluttered user interface resulted in operational inefficiencies and a poor user experience for their teams.
@@ -29,23 +45,6 @@ Smooth and seamless migration.
 </div>
 
 The Foursquare engineering team valued Fleet's cleaner and more intuitive user interface, especially when managing multiple operating systems. They appreciate Fleet’s commitment to [transparency](https://fleetdm.com/better), enabling full visibility for both the team and their users, and dedication to providing industry-leading support. Fleet also provided ready-to-use GUI tools that streamlined the [migration](https://fleetdm.com/guides/seamless-mdm-migration) process without additional development.
-
-## Their story
-
-Foursquare is a global technology company specializing in combining the physical world with the digital through location intelligence and data science. By leveraging extensive location data, Foursquare provides businesses with actionable insights to drive engagement, improve customer experiences, and optimize operations.
-
-They were looking to:
-
-- Eliminate tool overlap.
-
-- Centralize definitive data.
-
-- Provide a better user experience.
-
-- Integrate and surface data across teams.
-
-- Enable next-gen change management and open-source flexibility.
-
 
 ### Eliminate tool overlap
 
@@ -73,7 +72,6 @@ Fleet provides the flexibility for engineering teams to audit, customize, and ex
 ### Improved support and feature access
 
 Fleet is open-source and has a three-week [release schedule](https://github.com/fleetdm/fleet/releases) that quickly rolls out new features like automated software updates, VPP app support, and [policy-based scripts](https://fleetdm.com/guides/policy-automation-run-script). Faster rollouts and best-in-class support from Fleet enable Foursquare to stay ahead of their device management needs.
-
 
 ## Conclusion
 
