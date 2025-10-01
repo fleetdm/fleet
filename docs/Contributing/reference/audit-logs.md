@@ -1821,6 +1821,51 @@ This activity contains the following fields:
 }
 ```
 
+## added_smallstep
+
+Generated when Smallstep certificate authority configuration is added in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## deleted_smallstep
+
+Generated when Smallstep certificate authority configuration is deleted in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
+## edited_smallstep
+
+Generated when Smallstep certificate authority configuration is edited in Fleet.
+
+This activity contains the following fields:
+- "name": Name of the certificate authority.
+
+#### Example
+
+```json
+{
+  "name": "SMALLSTEP_WIFI"
+}
+```
+
 ## enabled_activity_automations
 
 Generated when activity automations are enabled

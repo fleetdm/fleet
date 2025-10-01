@@ -329,6 +329,8 @@ var knownBadNames = map[string]struct{}{
 
 var idTranslations = map[string]string{
 	"com.sentinelone.sentinel-agent": "com.sentinelone.SentinelAgent",
+	// This is present in Privileges.pkg/PackageInfo, however, current logic doesn't parse PackageInfo files if Distribution file is present
+	"corp.sap.privileges.pkg": "corp.sap.privileges",
 }
 
 // getDistributionInfo gets the name, bundle identifier and version of a PKG distribution file

@@ -1,14 +1,10 @@
 .dashboard-info-card {
-  padding: 32px;
-  width: 100%;
-  background-color: $core-white;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: 8px;
-  box-sizing: border-box;
+  @include vertical-card-layout;
 
   &__section-title-cta {
     display: flex;
     justify-content: space-between;
+    align-items: center;
 
     h2 {
       font-weight: $bold;
@@ -21,8 +17,8 @@
     span {
       display: flex;
       align-items: center;
-      background-color: $core-vibrant-blue;
-      color: $core-white;
+      background-color: $ui-fleet-black-75;
+      color: $core-fleet-white;
       font-size: $xx-small;
       font-weight: $bold;
       padding: 2px 4px;
@@ -49,22 +45,5 @@
     p {
       margin: 8px 0 0 0;
     }
-  }
-
-  &__action-button {
-    display: flex;
-    align-items: center;
-    font-size: $x-small;
-    color: $core-vibrant-blue;
-    font-weight: $bold;
-    text-decoration: none !important;
-    gap: $pad-small;
-
-    &:focus-visible {
-      outline: 1px solid $core-vibrant-blue;
-    }
-  }
-  &__action-button-text {
-    text-align: right;
   }
 }

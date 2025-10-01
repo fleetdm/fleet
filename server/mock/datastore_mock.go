@@ -23,6 +23,14 @@ import (
 
 var _ fleet.Datastore = (*DataStore)(nil)
 
+// Added to satisfy fleet.Datastore interface after Android unenroll additions.
+func (s *DataStore) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
+
+// Added to satisfy fleet.Datastore interface after Android reconcile additions.
+func (s *DataStore) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	return nil, nil
+}
+
 type HealthCheckFunc func() error
 
 type NewCarveFunc func(ctx context.Context, metadata *fleet.CarveMetadata) (*fleet.CarveMetadata, error)
