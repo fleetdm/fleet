@@ -1419,6 +1419,36 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, now, vers.CountsUpdatedAt)
 }
 
+func TestOSVersionsDefaultPagination(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testVersions := []fleet.OSVersion{}
+	for i := range 50 {
+		testVersions = append(testVersions, fleet.OSVersion{NameOnly: fmt.Sprintf("Version %02d", i), HostsCount: i, Platform: "windows"})
+	}
+
+	ds.OSVersionsFunc = func(
+		ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+	) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByMultipleOSVersionsFunc = func(ctx context.Context, osVersions []fleet.OSVersion, includeCVSS bool,
+		teamID *uint,
+	) (map[string]fleet.Vulnerabilities, error) {
+		return nil, nil
+	}
+
+	// test default descending count sort + default pagination (page 0, per_page 20)
+	opts := fleet.ListOptions{}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 20)
+	assert.Equal(t, "Version 49", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Version 30", vers.OSVersions[19].NameOnly)
+}
+
 func TestHostEncryptionKey(t *testing.T) {
 	cases := []struct {
 		name            string

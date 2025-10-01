@@ -2157,6 +2157,12 @@ func (svc *Service) OSVersions(
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
+	// Default to 20 per page if no pagination is specified to avoid returning too many results
+	// and slowing down the response time significantly.
+	if opts.Page == 0 && opts.PerPage == 0 {
+		opts.PerPage = 20
+	}
+
 	if teamID != nil {
 		// This auth check ensures we return 403 if the user doesn't have access to the team
 		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
@@ -2207,43 +2213,50 @@ func (svc *Service) OSVersions(
 	count = len(osVersions.OSVersions)
 
 	// Paginate first
-	var meta *fleet.PaginationMetadata
 	paged, meta := paginateOSVersions(osVersions.OSVersions, opts)
 
 	// Pull vulnerabilities ONLY for the paginated slice, as the full list slows
 	// response times down significantly with many CVEs.
-	if len(paged) > 0 {
-		vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
-		if err != nil {
-			return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
+	if len(paged) == 0 {
+		return &fleet.OSVersions{
+			CountsUpdatedAt: osVersions.CountsUpdatedAt,
+			OSVersions:      []fleet.OSVersion{},
+		}, count, meta, nil
+	}
+
+	vulnsMap, err := svc.ds.ListVulnsByMultipleOSVersions(ctx, paged, includeCVSS, teamID)
+	if err != nil {
+		return nil, count, nil, ctxerr.Wrap(ctx, err, "list vulns by multiple os versions (paged)")
+	}
+
+	// Populate only the paginated entries
+	for i := range paged {
+		osV := &paged[i]
+
+		if osV.Platform == "darwin" {
+			osV.GeneratedCPEs = []string{
+				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
+				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
+			}
 		}
 
-		// Populate only the paginated entries
-		for i := range paged {
-			osV := &paged[i]
-
-			if osV.Platform == "darwin" {
-				osV.GeneratedCPEs = []string{
-					fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osV.Version),
-					fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osV.Version),
-				}
+		osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
+		key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
+		if vulns, ok := vulnsMap[key]; ok {
+			for _, v := range vulns {
+				v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
+				osV.Vulnerabilities = append(osV.Vulnerabilities, v)
 			}
-
-			osV.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null
-			key := fmt.Sprintf("%s-%s", osV.NameOnly, osV.Version)
-			if vulns, ok := vulnsMap[key]; ok {
-				for _, v := range vulns {
-					v.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", v.CVE)
-					osV.Vulnerabilities = append(osV.Vulnerabilities, v)
-				}
-			}
-
-			osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
 		}
+
+		osV.Kernels = make([]*fleet.Kernel, 0) // avoid null
 	}
 
 	// Return only the page, but with total count
-	return &fleet.OSVersions{OSVersions: paged}, count, meta, nil
+	return &fleet.OSVersions{
+		CountsUpdatedAt: osVersions.CountsUpdatedAt,
+		OSVersions:      paged,
+	}, count, meta, nil
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
