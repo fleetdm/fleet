@@ -56,6 +56,9 @@ module.exports = {
         'Forked the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
         'Attended a Fleet training course'
+        'Submitted the "Send a message" form',
+        'Scheduled a "Talk to us" meeting',
+        'Scheduled a "Let\'s get you set up" meeting',
       ]
     },
     eventContent: {
