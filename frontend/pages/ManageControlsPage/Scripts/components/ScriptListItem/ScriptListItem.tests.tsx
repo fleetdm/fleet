@@ -78,7 +78,7 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("Uploaded over 4 years ago"));
+    await user.click(screen.getByText(/years ago/));
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
