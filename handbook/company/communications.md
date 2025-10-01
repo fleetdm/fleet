@@ -251,11 +251,17 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 ### Key Slack channels
 
 We use these prefixes to organize the Fleet Slack:
+ - ***2025***: for temporary channels that will be closed in a matter of weeks or months. _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***_***: An automated feed.
+ - ***test***: For testing custom Slack integrations before connecting to real channels.
+ - ***oooh-***: For sharing news/tips/cool finds about a non-political, work-related subject.
+ - ***2025-hiring***: For private communication during the hiring process.
+ - ***help-***: For questions, assistance, and resources on a topic or from a vendor.
  - ***g-***: for cross-functional group channels (i.e. a product or GTM group) *(Note: "g-" is short for "grupo" or "group")*.
- - ***oooh-***: used to discuss and share interesting information about a topic.
- - ***help-***: for asking for help on specific topics.
- - ***at*** or ***fleet-at***: for customer channels.
- - ***2023-***: for temporary channels _(Note: specify the relevant year in four digits, like "YYYY-`)_
+ - ***op***: Private internal channel about a new revenue opportunity.
+ - ***acc***: Private internal channel about a customer account.
+ - ***fleet-at***: Fleet support+sales channel for a customer or prospect, with them in it.
+
 
 We have specific channels for various topics, but we also have more general channels for the teams at Fleet. The following Slack channels are useful for every fleetie:
 
