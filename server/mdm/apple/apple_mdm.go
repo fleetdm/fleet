@@ -1379,7 +1379,10 @@ func (pb *ProfileBimap) add(wantedProfile, currentProfile *fleet.MDMAppleProfile
 	pb.currentState[currentProfile] = wantedProfile
 }
 
-func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger) error {
+// NewActivityFunc is the function signature for creating a new activity.
+type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
+
+func IOSiPadOSRefetch(ctx context.Context, ds fleet.Datastore, commander *MDMAppleCommander, logger kitlog.Logger, newActivityFn NewActivityFunc) error {
 	appCfg, err := ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -1485,7 +1488,8 @@ func turnOffMDMIfAPNSFailed(ctx context.Context, ds fleet.Datastore, err error, 
 	for uuid, err := range e.errorsByUUID {
 		if strings.Contains(err.Error(), "device token is inactive") {
 			level.Info(logger).Log("msg", "turning off MDM for device with inactive device token", "uuid", uuid)
-			if err := ds.MDMTurnOff(ctx, uuid); err != nil {
+			// TODO(mna): handle the activities
+			if _, _, err := ds.MDMTurnOff(ctx, uuid); err != nil {
 				return false, ctxerr.Wrap(ctx, err, "turn off mdm for failed device")
 			}
 		}

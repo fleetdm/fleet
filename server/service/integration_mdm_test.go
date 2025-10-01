@@ -343,7 +343,9 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 						ctx, name, s.T().Name(), 1*time.Hour, ds, ds,
 						schedule.WithLogger(logger),
 						schedule.WithJob("cron_iphone_ipad_refetcher", func(ctx context.Context) error {
-							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger)
+							return apple_mdm.IOSiPadOSRefetch(ctx, ds, mdmCommander, logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+								return newActivity(ctx, user, act, ds, logger)
+							})
 						}),
 					)
 					return refetcherSchedule, nil
@@ -18137,7 +18139,9 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 		return nil, errors.New("unknown device")
 	}
 
-	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger)
+	err = apple_mdm.IOSiPadOSRefetch(ctx, s.ds, s.mdmCommander, s.logger, func(ctx context.Context, user *fleet.User, act fleet.ActivityDetails) error {
+		return newActivity(ctx, user, act, s.ds, s.logger)
+	})
 	require.NoError(s.T(), err) // Verify it not longer throws an error
 
 	// Verify successful is still enrolled

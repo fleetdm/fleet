@@ -118,14 +118,18 @@ func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	}
 }
 
-type uuidFn func(ctx context.Context, uuid string) error
+type uuidFn func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error)
 
 func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn, opts HostOptions) error {
 	if opts.UUID == "" {
 		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
 
-	return action(ctx, opts.UUID)
+	users, acts, err := action(ctx, opts.UUID)
+	if err != nil {
+		return err
+	}
+	return t.createActivities(ctx, users, acts)
 }
 
 func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) error {
