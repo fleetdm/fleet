@@ -4386,9 +4386,9 @@ To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock 
 | id | integer | path | **Required**. ID of the host to be locked. |
 | view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
-#### Example
+#### Example with macOS unlock PIN
 
-`POST /api/v1/fleet/hosts/123/lock`
+`POST /api/v1/fleet/hosts/123/lock?view_pin=true`
 
 ##### Default response
 
@@ -4396,33 +4396,7 @@ To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock 
 
 ```json
 {
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
-
-#### Example
-
-`POST /api/v1/fleet/hosts/123/lock?view_pin=true`
-
-##### Default response (macOS hosts)
-
-`Status: 200`
-
-```json
-{
   "unlock_pin": "123456",
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
-
-##### Default response (iOS, iPadOS, Windows, or Linux hosts)
-
-`Status: 200`
-
-```json
-{
   "device_status": "unlocked",
   "pending_action": "lock"
 }
@@ -4451,26 +4425,13 @@ To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a W
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response (iOS, iPadOS, Windows, or Linux hosts)
+##### Default response
 
 `Status: 200`
 
 ```json
 {
   "host_id": 8,
-  "device_status": "locked",
-  "pending_action": "unlock"
-}
-```
-
-##### Default response (macOS hosts)
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "unlock_pin": "123456",
   "device_status": "locked",
   "pending_action": "unlock"
 }
