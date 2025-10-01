@@ -308,7 +308,7 @@ const DeviceUserPage = ({
   const {
     host,
     license,
-    org_logo_url: orgLogoURL = "",
+    org_logo_url_light_background: orgLogoURL = "",
     org_contact_url: orgContactURL = "",
     global_config: globalConfig = null as IDeviceGlobalConfig | null,
     self_service: hasSelfService = false,

@@ -145,34 +145,29 @@ const ActionsDropdown = ({
     };
   }, [menuIsOpen]);
 
-  // Shows a brand "Action" button instead
-  const ButtonControl = (
-    props: DropdownIndicatorProps<IDropdownOption, false>
-  ) => {
-    const { selectProps } = props;
-    const handleButtonClick = () => {
-      if (selectProps.menuIsOpen) {
-        setMenuIsOpen(false);
-        if (selectProps.onMenuClose) selectProps.onMenuClose();
-      } else {
-        setMenuIsOpen(true);
-        if (selectProps.onMenuOpen) selectProps.onMenuOpen();
-      }
-    };
+  const isBrandButton = variant === "brand-button";
 
-    return (
-      <Button
-        type="button"
-        onClick={handleButtonClick}
-        className={`${baseClass}__button`}
-        disabled={selectProps.isDisabled}
-        aria-haspopup="listbox"
-        aria-expanded={selectProps.menuIsOpen}
-      >
-        Actions
-      </Button>
-    );
-  };
+  // CustomControl rerenders on state change, preventing arrow animation
+  // Render brand button outside of CustomControl instead
+  const renderBrandButton = () => (
+    <Button
+      type="button"
+      onClick={() => setMenuIsOpen((v) => !v)}
+      className={`${baseClass}__button`}
+      disabled={disabled}
+      aria-haspopup="listbox"
+      aria-expanded={menuIsOpen}
+    >
+      <span>Actions</span>
+      <Icon
+        name="chevron-down"
+        color="core-fleet-white"
+        className={`actions-dropdown__icon${
+          menuIsOpen ? " actions-dropdown__icon--open" : ""
+        }`}
+      />
+    </Button>
+  );
 
   const handleChange = (newValue: IDropdownOption | null) => {
     if (newValue) {
@@ -191,7 +186,7 @@ const ActionsDropdown = ({
       // Need minHeight to override default
       minHeight: variant === "small-button" ? "20px" : "32px", // Match button height
       padding: variant === "small-button" ? "2px 4px" : "8px", // Match button padding
-      backgroundColor: "initial",
+      backgroundColor: state.isFocused ? COLORS["ui-fleet-black-5"] : "initial",
       border: 0,
       boxShadow: "none",
       cursor: "pointer",
@@ -205,8 +200,11 @@ const ActionsDropdown = ({
           stroke: COLORS["ui-fleet-black-75-over"],
         },
       },
-      "&:active .actions-dropdown-select__indicator path": {
-        stroke: COLORS["ui-fleet-black-75-down"],
+      "&:active": {
+        background: COLORS["ui-fleet-black-5"], // Match button hover
+        ".actions-dropdown-select__indicator path": {
+          stroke: COLORS["ui-fleet-black-75-down"],
+        },
       },
       // TODO: Figure out a way to apply separate &:focus-visible styling
       // Currently only relying on &:focus styling for tabbing through app
@@ -255,7 +253,7 @@ const ActionsDropdown = ({
       borderRadius: "4px",
       zIndex: 6,
       border: 0,
-      margin: 0,
+      marginTop: isBrandButton ? "20px" : "0",
       width: "auto",
       minWidth: "100%",
       position: "absolute",
@@ -298,10 +296,11 @@ const ActionsDropdown = ({
 
   return (
     <div className={`${baseClass}__wrapper`} ref={wrapperRef}>
+      {isBrandButton && renderBrandButton()}
       <Select<IDropdownOption, false>
         ref={selectRef}
         options={options}
-        placeholder={variant === "brand-button" ? "" : placeholder}
+        placeholder={isBrandButton ? "" : placeholder}
         onChange={handleChange}
         isDisabled={disabled}
         isSearchable={isSearchable}
@@ -315,7 +314,7 @@ const ActionsDropdown = ({
           Option: CustomOption,
           SingleValue: () => null, // Doesn't replace placeholder text with selected text
           // Note: react-select doesn't support skipping disabled options when keyboarding through
-          ...(variant === "brand-button" && { Control: ButtonControl }), // Needed for brand-action button
+          ...(isBrandButton && { Control: () => null }), // Remove Control entirely and renderBrandButton instead
         }}
         controlShouldRenderValue={false} // Doesn't change placeholder text to selected text
         isOptionSelected={() => false} // Hides any styling on selected option

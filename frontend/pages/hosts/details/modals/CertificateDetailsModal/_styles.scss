@@ -1,9 +1,6 @@
 .certificate-details-modal {
-
   &__content {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xlarge;
+    @include vertical-card-layout;
   }
 
   h3 {
@@ -15,18 +12,12 @@
     display: flex;
     gap: $pad-small;
     flex-direction: column;
-    padding-top: $pad-xlarge;
+    padding-top: $gap-modal-component;
     border-top: 1px solid $ui-fleet-black-10;
 
     &:first-child {
       padding-top: 0;
       border-top: none;
-    }
-
-    dl {
-      display: flex;
-      flex-direction: column;
-      gap: $pad-xsmall;
     }
   }
 }

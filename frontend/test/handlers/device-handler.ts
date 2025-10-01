@@ -21,6 +21,7 @@ export const defaultDeviceHandler = http.get(baseUrl("/device/:token"), () => {
     host: createMockHost(),
     license: createMockLicense(),
     org_logo_url: "",
+    org_logo_url_light_background: "",
     global_config: {
       mdm: { enabled_and_configured: false },
     },
@@ -35,6 +36,7 @@ export const customDeviceHandler = (overrides?: Partial<IDeviceUserResponse>) =>
           host: createMockHost(),
           license: createMockLicense(),
           org_logo_url: "",
+          org_logo_url_light_background: "",
           global_config: {
             mdm: { enabled_and_configured: false },
           },
