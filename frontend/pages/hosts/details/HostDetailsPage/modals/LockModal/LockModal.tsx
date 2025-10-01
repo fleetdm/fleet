@@ -13,6 +13,8 @@ import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 
+import IphoneLockPreview from "../../../../../../../assets/images/iphone.png";
+
 const baseClass = "lock-modal";
 
 const IosOrIpadLockPreview = () => {
@@ -24,6 +26,7 @@ const IosOrIpadLockPreview = () => {
         <b>Organization Name</b> that you configured in{" "}
         <Link to={PATHS.ADMIN_ORGANIZATION_INFO}>Organization settings</Link>.
       </p>
+      <img src={IphoneLockPreview} alt="iPhone with a lock screen message" />
     </Card>
   );
 };
