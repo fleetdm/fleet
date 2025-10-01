@@ -3216,12 +3216,55 @@ func TestSoftwareInstallerReplicaLag(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, installerID)
 	require.NotZero(t, titleID)
+	// opts.RunReplication()
 
-	opts.RunReplication()
+	query := `
+SELECT
+  si.id,
+  si.team_id,
+  si.title_id,
+  si.storage_id,
+  si.fleet_maintained_app_id,
+  si.package_ids,
+  si.upgrade_code,
+  si.filename,
+  si.extension,
+  si.version,
+  si.platform,
+  si.install_script_content_id,
+  si.pre_install_query,
+  si.post_install_script_content_id,
+  si.uninstall_script_content_id,
+  si.uploaded_at,
+  si.self_service,
+  si.url,
+  COALESCE(st.name, '') AS software_title
+FROM
+  software_installers si
+  JOIN software_titles st ON st.id = si.title_id`
+	var dest fleet.SoftwareInstaller
+	err = sqlx.GetContext(ctx, ds.writer(ctx), &dest, query)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("Errorwreter: NO ROWS get software installer metadata")
+		}
+		fmt.Println("Error:wrter get software installer metadata")
+	}
+	fmt.Printf("__________________ teamID: %d    writer\n %+v \n\n", *dest.TeamID, dest)
+
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			fmt.Println("ERROR:readear NO ROWS get software installer metadata")
+		}
+		fmt.Println("Error:reader get software installer metadata")
+	}
+	fmt.Printf("__________________ teamID: %d    reader\n %+v \n\n", *dest.TeamID, dest)
 
 	// then validate it GetSoftwareInstallerMetadataByTeamAndTitleID()
 	// This should be fine if iinstaller was created
-	gotTitleID, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
+	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
 	require.NoError(t, err)
-	require.NotZero(t, gotTitleID)
+	require.NotNil(t, gotInstaller)
+	fmt.Printf("%+v\n", gotInstaller)
 }
