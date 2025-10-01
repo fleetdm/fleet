@@ -181,19 +181,19 @@ const HostSoftwareTable = ({
     [onShowInventoryVersions]
   );
 
-  if (isAndroid(platform)) {
-    return (
-      <EmptyTable
-        header="Software is not supported for this host"
-        info={
-          <>
-            Interested in viewing software for Android hosts?{" "}
-            <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
-          </>
-        }
-      />
-    );
-  }
+  // if (isAndroid(platform)) {
+  //   return (
+  //     <EmptyTable
+  //       header="Software is not supported for this host"
+  //       info={
+  //         <>
+  //           Interested in viewing software for Android hosts?{" "}
+  //           <CustomLink url={SUPPORT_LINK} text="Let us know" newTab />
+  //         </>
+  //       }
+  //     />
+  //   );
+  // }
 
   const renderCustomFiltersButton = () => {
     return (
