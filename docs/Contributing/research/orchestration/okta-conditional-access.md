@@ -161,13 +161,37 @@ sequenceDiagram
 
 ## Other alternatives to Okta Verify
 
+### Shared Signals Framework (SSF)
+
+**Overview.** [SSF](https://openid.net/wg/sharedsignals/) is an OpenID protocol for transmitting security events and posture signals between providers asynchronously. It enables continuous monitoring by broadcasting events like "device became non-compliant" to multiple receivers (Okta, Cisco, SGNL, Google Workspace, etc.).
+
+**Why it doesn't solve our use case.**
+
+SSF has no native mechanism to identify which device the user is logging in from during authentication. The critical gap:
+
+1. **Device identification problem**: SSF events are keyed by user identifiers (email, subject) or session identifiers, but there's no standard way for the browser to communicate "I'm device X" to Okta during login.
+2. **No presence proof**: Unlike Okta Verify (which proves device presence via localhost/deep links) or our mTLS approach (which uses client certificates), SSF has no mechanism to link the browser session to a specific Fleet-managed device.
+
+**When SSF is useful.**
+
+SSF would be valuable for continuous monitoring use cases:
+- Notifying Okta when a Fleet device becomes non-compliant (triggering session revocation)
+- Sharing security events with other systems (EDR, SIEM)
+- Multi-vendor risk correlation
+
+**Recommendation.** SSF does not replace the need for synchronous device identification and authentication. Consider SSF as a future enhancement for continuous monitoring, but it cannot substitute for our possession factor + mTLS approach.
+
+### Other certificate-based alternatives
+
 * Issue a device certificate if it is passing policies, and use the certificate as a factor in Okta flow.
   * [Use your own certificate authority for managed devices](https://help.okta.com/oie/en-us/content/topics/identity-engine/devices/config-customer-provided-ca.htm)
   * Cert remains valid until revoked/expired (potential security gap for several hours)
     * Okta checks CRL (Certificate Revocation List) endpoint a few times per day
   * Can't show custom remediation messages
-* Using inline hooks
-  * Can work for OIDC to block access, but not for SAML.
+
+### Inline hooks
+
+* Can work for OIDC to block access, but not for SAML.
 
 ---
 
