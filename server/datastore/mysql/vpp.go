@@ -1917,8 +1917,9 @@ WHERE
 	}
 
 	for _, cmd := range failedCmds {
-		// TODO(mna): I don't think we need to check/set the from setup experience field, as it should
-		// not be possible to turn MDM off during setup experience (host is not released).
+		// NOTE: I don't think we need to check/set the from setup experience
+		// field, as it should not be possible to turn MDM off during setup
+		// experience (host is not released).
 		user, act, err := ds.GetPastActivityDataForVPPAppInstall(ctx, &mdm.CommandResults{CommandUUID: cmd, Status: fleet.MDMAppleStatusError})
 		if err != nil {
 			if fleet.IsNotFound(err) {
