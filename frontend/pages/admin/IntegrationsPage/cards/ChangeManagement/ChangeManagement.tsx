@@ -1,6 +1,6 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useState } from "react";
 
-import { useQuery, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 
@@ -53,7 +53,6 @@ const validate = (formData: IChangeManagementFormData) => {
 };
 
 const ChangeManagement = () => {
-  const queryClient = useQueryClient();
   const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -65,35 +64,22 @@ const ChangeManagement = () => {
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const formInitialized = useRef(false);
-
-  const {
-    data: config,
-    isLoading: isLoadingConfig,
-    error: isLoadingConfigError,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(
-    ["integrations"],
-    () => configAPI.loadAll(),
-    {
-      onSuccess: (data) => {
-        setConfig(data);
-      },
-    }
-  );
-
-  useEffect(() => {
-    if (config && !formInitialized.current) {
+  const { isLoading: isLoadingConfig, error: isLoadingConfigError } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["integrations"], () => configAPI.loadAll(), {
+    onSuccess: (data) => {
       const {
         gitops: {
           gitops_mode_enabled: gitOpsModeEnabled,
           repository_url: repoURL,
         },
-      } = config;
+      } = data;
       setFormData({ gitOpsModeEnabled, repoURL });
-      formInitialized.current = true;
-    }
-  }, [config]);
+      setConfig(data);
+    },
+  });
 
   const { isPremiumTier } = useContext(AppContext);
 
@@ -125,7 +111,11 @@ const ChangeManagement = () => {
         },
       });
 
-      queryClient.setQueryData(["integrations"], updatedConfig);
+      setFormData({
+        gitOpsModeEnabled: updatedConfig.gitops.gitops_mode_enabled,
+        repoURL: updatedConfig.gitops.repository_url,
+      });
+
       setConfig(updatedConfig);
 
       renderFlash("success", "Successfully updated settings");
