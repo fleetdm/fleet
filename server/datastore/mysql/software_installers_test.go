@@ -14,6 +14,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql/testing_utils"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
@@ -3185,4 +3186,42 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &fmaID, `SELECT fleet_maintained_app_id FROM software_installers WHERE id = ?`, installerID)
 	require.NoError(t, err)
 	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
+}
+
+func TestSoftwareInstallerReplicaLag(t *testing.T) {
+	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
+	ds := CreateMySQLDSWithOptions(t, opts)
+	// ds := CreateMySQLDS(t)
+	defer ds.Close()
+
+	ctx := context.Background()
+	test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
+	require.NoError(t, err)
+
+	// we want to upload a software installer MatchOrCreateSoftwareInstaller()
+	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		Title:            "foo",
+		Source:           "apps",
+		Version:          "1.0",
+		InstallScript:    "echo",
+		StorageID:        "storage",
+		Filename:         "installer.pkg",
+		BundleIdentifier: "com.foo.installer",
+		UserID:           user.ID,
+		TeamID:           &team.ID,
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+	require.NotZero(t, installerID)
+	require.NotZero(t, titleID)
+
+	opts.RunReplication()
+
+	// then validate it GetSoftwareInstallerMetadataByTeamAndTitleID()
+	// This should be fine if iinstaller was created
+	gotTitleID, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
+	require.NoError(t, err)
+	require.NotZero(t, gotTitleID)
 }
