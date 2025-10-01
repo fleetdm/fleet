@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 6 * * *"
+  pull_request: # TODO(lucas): Remove before merge
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
