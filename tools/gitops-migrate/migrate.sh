@@ -122,7 +122,7 @@ add_keys_to_team_file() {
 }
 
 # Process a single team file (Pass 1: Add keys to team files only)
-process_team_file_pass1() {
+process_team_file() {
     local team_file="$1"
     echo -e "${GREEN}Processing team file: $team_file${NC}"
     
@@ -300,7 +300,7 @@ main() {
     echo -e "${GREEN}=== PASS 1: UPDATING TEAM FILES ===${NC}"
     for team_file in "${team_files[@]}"; do
         if [ -f "$team_file" ]; then
-            process_team_file_pass1 "$team_file"
+            process_team_file "$team_file"
         fi
     done
     
