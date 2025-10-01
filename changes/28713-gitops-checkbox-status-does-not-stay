@@ -1,3 +1,2 @@
-* Fixed bug with the ChangeManagement component where server state was overriding local UI state.
 * Fixed bug with the ChangeManagement component where the GitOps checkbox local UI state was being reset due to GET request after PATCH request.
 * Refactored PATH fleet/config end-point to use the primary DB node for both persisting changes and fetching modified App Config.
