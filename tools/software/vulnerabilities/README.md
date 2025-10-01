@@ -5,7 +5,7 @@ into your local development Fleet server without needing a real host or osquery-
 
 ## Usage
 
-1. Ensure your local development enviornment is running using `docker-compose up` and `fleet serve`
+1. Ensure your local development environment is running using `docker-compose up` and `fleet serve`
 
 2. Optional: Review and modify the software titles in the following files in this folder:
 
@@ -18,7 +18,7 @@ into your local development Fleet server without needing a real host or osquery-
 3. Run the data seeder
 
 ```bash
-go run ./tools/seed_data/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
+go run ./tools/software/vulnerabilities/seed_data/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
 ```
 
 You should now see new hosts with the configured software attached in the UI and database.  This

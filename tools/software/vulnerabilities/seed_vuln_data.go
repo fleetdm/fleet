@@ -26,8 +26,9 @@ var (
 	mysqlDB   = "fleet"
 
 	// CSV paths
-	macCSVPath = "./tools/software/vulnerabilities/software-macos.csv"
-	winCSVPath = "./tools/software/vulnerabilities/software-win.csv"
+	macCSVPath    = "./tools/software/vulnerabilities/software-macos.csv"
+	winCSVPath    = "./tools/software/vulnerabilities/software-win.csv"
+	ubuntuCSVPath = "./tools/software/vulnerabilities/software-ubuntu.csv"
 )
 
 func readCSVFile(filePath string) ([]fleet.Software, error) {
@@ -209,6 +210,20 @@ func main() {
 			for _, h := range winHosts {
 				if _, err := ds.UpdateHostSoftware(ctx, h.ID, winSoftware); err != nil {
 					fmt.Printf("update Windows host software failed (%s): %v\n", h.Hostname, err)
+				}
+			}
+		}
+	}
+
+	// Ubuntu software
+	if len(ubuntuIDs) > 0 {
+		ubuntuSoftware, err := readCSVFile(ubuntuCSVPath)
+		if err != nil {
+			fmt.Printf("read Ubuntu software csv failed: %v\n", err)
+		} else {
+			for _, ubuntuID := range ubuntuIDs {
+				if _, err := ds.UpdateHostSoftware(ctx, ubuntuID, ubuntuSoftware); err != nil {
+					fmt.Printf("update Ubuntu host software failed (%d): %v\n", ubuntuID, err)
 				}
 			}
 		}
