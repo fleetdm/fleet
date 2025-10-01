@@ -18,7 +18,7 @@ const getTooltipCopy = (android = false) => {
   return (
     <>
       {android ? "Android" : "Apple"} MDM must be turned on in <b>Settings</b>{" "}
-      &gt; <b>Integrations</b> &gt; <b>Mobile Device Management(MDM)</b> to turn
+      &gt; <b>Integrations</b> &gt; <b>Mobile Device Management (MDM)</b> to turn
       on end user authentication.
     </>
   );
