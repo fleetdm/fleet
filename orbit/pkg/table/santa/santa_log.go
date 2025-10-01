@@ -1,5 +1,4 @@
 //go:build darwin
-// +build darwin
 
 // Package santa implements the tables for getting Santa data
 // (logs, rules, status) on macOS.
@@ -27,6 +26,8 @@ const (
 	kLogEntryPreface = "santad: "
 	defaultLogPath   = "/var/db/santa/santa.log"
 )
+
+var maxEntries = 10 * 1024 * 1024 // 10 MB worth of log entries (approximately 60,000 lines of 170 bytes each)
 
 // SantaDecisionType represents the type of Santa decision
 type santaDecisionType int
@@ -154,15 +155,21 @@ func scrapeStream(ctx context.Context, scanner *bufio.Scanner, decision santaDec
 		}
 
 		values := extractValues(line)
-		if values["timestamp"] != "" {
-			entry := logEntry{
-				Timestamp:   values["timestamp"],
-				Application: values["path"],
-				Reason:      values["reason"],
-				SHA256:      values["sha256"],
-			}
-			entries = append(entries, entry)
+
+		if values["timestamp"] == "" {
+			continue
 		}
+
+		if len(entries) >= maxEntries {
+			return entries, fmt.Errorf("santa log exceeds maximum entries (%d), aborting", maxEntries)
+		}
+
+		entries = append(entries, logEntry{
+			Timestamp:   values["timestamp"],
+			Application: values["path"],
+			Reason:      values["reason"],
+			SHA256:      values["sha256"],
+		})
 	}
 
 	return entries, nil

@@ -4,6 +4,7 @@
 package santa
 
 import (
+	"bufio"
 	"compress/gzip"
 	"context"
 	"fmt"
@@ -194,6 +195,30 @@ func TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	require.Equal(t, "/A", got[0].Application)
+}
+
+func TestScrapeStream_Enforces10MBCap(t *testing.T) {
+	// Lower the cap to make the test fast.
+	oldCap := maxEntries
+	maxEntries = 1_000
+	defer func() { maxEntries = oldCap }()
+
+	// Generate slightly more than the cap so we trigger the error quickly.
+	const perLine = `[` +
+		`2025-09-18 12:00:00.000` +
+		`] santad: decision=ALLOW | path=/Applications/App.app | reason=ok | sha256=abc123` + "\n"
+
+	var sb strings.Builder
+	sb.Grow(len(perLine) * (maxEntries + 50))
+	for i := 0; i < maxEntries+50; i++ {
+		sb.WriteString(perLine)
+	}
+
+	sc := bufio.NewScanner(strings.NewReader(sb.String()))
+	entries, err := scrapeStream(context.Background(), sc, decisionAllowed)
+
+	require.Error(t, err, "expected cap error")
+	require.Len(t, entries, maxEntries, "should stop at the cap")
 }
 
 func writeFile(tb testing.TB, path, content string) {
