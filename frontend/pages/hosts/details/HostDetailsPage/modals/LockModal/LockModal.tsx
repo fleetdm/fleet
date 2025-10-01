@@ -13,13 +13,17 @@ import Checkbox from "components/forms/fields/Checkbox";
 import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 
-import IphoneLockPreview from "../../../../../../../assets/images/iphone.png";
+import IphoneLockPreview from "../../../../../../../assets/images/iphone-lock-preview.png";
 
 const baseClass = "lock-modal";
 
 const IosOrIpadLockPreview = () => {
   return (
-    <Card className={`${baseClass}__ios-ipad-lock-preview`}>
+    <Card
+      color="grey"
+      paddingSize="xlarge"
+      className={`${baseClass}__ios-ipad-lock-preview`}
+    >
       <h3>End user experience</h3>
       <p>
         Instead of &quot;Fleet&quot;, the message will show the{" "}
@@ -109,7 +113,8 @@ const LockModal = ({
             </Checkbox>
           </div>
         </div>
-        {isIPadOrIPhone(platform) && <IosOrIpadLockPreview />}
+        {/* {isIPadOrIPhone(platform) && <IosOrIpadLockPreview />} */}
+        {true && <IosOrIpadLockPreview />}
         <div className="modal-cta-wrap">
           <Button
             type="button"
@@ -118,7 +123,7 @@ const LockModal = ({
             disabled={!lockChecked}
             isLoading={isLocking}
           >
-            Done
+            Lock
           </Button>
           <Button onClick={onClose} variant="inverse">
             Cancel
