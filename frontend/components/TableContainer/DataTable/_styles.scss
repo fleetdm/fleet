@@ -11,7 +11,6 @@ $shadow-transition-width: 10px;
       position: relative;
       border: 1px solid $ui-fleet-black-10;
       border-radius: 6px;
-      margin-top: $pad-small;
       flex-grow: 1;
       width: 100%;
 
@@ -47,7 +46,7 @@ $shadow-transition-width: 10px;
       position: relative;
       width: 100%;
       border-collapse: collapse;
-      color: $core-fleet-black;
+      color: $ui-fleet-black-75;
       font-size: $x-small;
     }
 
@@ -99,10 +98,11 @@ $shadow-transition-width: 10px;
       }
 
       th {
-        padding: $pad-medium $pad-large;
+        padding: 0 $pad-large;
         white-space: nowrap;
         border-left: 1px solid $ui-fleet-black-10;
         font-weight: $bold;
+        height: 40px; // Match body row height
 
         &:first-child {
           border-top-left-radius: 6px;
@@ -111,7 +111,7 @@ $shadow-transition-width: 10px;
 
         &.selection__header {
           width: 22px;
-          padding: $pad-medium;
+          padding: 0 $pad-medium;
         }
 
         &:last-child {
@@ -119,7 +119,7 @@ $shadow-transition-width: 10px;
         }
 
         &.actions__header,
-        &.id__header, // Same as actions__header on some pages
+        &.id__header // Same as actions__header on some pages
         {
           border-left: none;
           width: 99px;
@@ -133,10 +133,35 @@ $shadow-transition-width: 10px;
         }
 
         .column-header {
+          // Filters next to header name
+          display: flex;
+          min-width: max-content;
+          gap: $pad-small;
+
           span {
             display: flex;
             align-items: center;
             gap: 3px;
+          }
+        }
+
+        .header-cell {
+          font-weight: $bold;
+        }
+
+        // Sort arrows change color on hover
+        .sortable-header {
+          &:hover {
+            .header-cell:not(.ascending) {
+              .ascending-arrow {
+                border-bottom-color: $ui-fleet-black-50;
+              }
+            }
+            .header-cell.ascending {
+              .descending-arrow {
+                border-top-color: $ui-fleet-black-50;
+              }
+            }
           }
         }
       }
@@ -168,12 +193,11 @@ $shadow-transition-width: 10px;
       border-radius: 6px;
 
       &__checkbox {
-        padding: 16px;
-        width: 20px;
+        width: 16px;
       }
 
       &__container {
-        padding: 0 24px;
+        padding: 0 20px;
       }
 
       &__inner {
@@ -218,8 +242,9 @@ $shadow-transition-width: 10px;
           background-color: $ui-off-white-opaque; // opaque needed for horizontal scroll shadow
         }
         &:focus-visible {
-          outline: 2px solid $ui-vibrant-blue-25;
+          outline: 2px solid $core-focused-outline;
           background: $ui-off-white;
+          border-radius: $border-radius;
         }
       }
 
@@ -257,6 +282,8 @@ $shadow-transition-width: 10px;
         {
           text-align: right;
           max-width: 140px;
+          display: flex;
+          align-items: center;
         }
 
         &.selection__cell {
@@ -266,7 +293,6 @@ $shadow-transition-width: 10px;
         .link-cell,
         .text-cell {
           display: block; // inline-block is not vertically centered
-          overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
           margin: 0;
@@ -274,16 +300,48 @@ $shadow-transition-width: 10px;
             white-space: normal;
           }
         }
+
+        // Caution: LinkCell depends on this to have animation only under text and not icons etc
         .link-cell {
-          padding: $pad-small 0; // larger clickable area
+          display: inline-block; // Underline only words
+          overflow: visible;
+          @include link;
+
+          &:not(.link-cell--tooltip-truncate) {
+            @include animated-bottom-border;
+          }
+
+          &.link-cell--tooltip-truncate {
+            .data-table__tooltip-truncated-text-container {
+              position: relative;
+              @include bottom-border;
+            }
+
+            &:hover,
+            &:focus {
+              margin-bottom: 0; // Undo margin-bottom of animated bottom border
+
+              .data-table__tooltip-truncated-text::after,
+              .data-table__tooltip-truncated-text::after {
+                transform: scaleX(1);
+              }
+            }
+          }
 
           &:hover {
-            // Underlines only the text and not the suffix like badges
-            .tooltip-truncated-cell {
-              text-decoration: none;
-            }
-            .data-table__tooltip-truncated-text {
-              text-decoration: underline;
+            .data-table__tooltip-truncated-text-container {
+              // @include link;
+              @include animated-bottom-border;
+
+              &:hover {
+                margin-bottom: 0; // Undo margin-bottom of animated bottom border
+              }
+
+              &::after {
+                transform: scaleX(
+                  1
+                ); // This gets the animation on the text only when hovering over the whole link-cell
+              }
             }
           }
 
@@ -291,7 +349,6 @@ $shadow-transition-width: 10px;
             display: flex;
             align-items: center;
             gap: $pad-small;
-            overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
           }

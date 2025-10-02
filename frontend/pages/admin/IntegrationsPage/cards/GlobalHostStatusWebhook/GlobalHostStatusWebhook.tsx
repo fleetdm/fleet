@@ -9,6 +9,8 @@ import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
+import SettingsSection from "pages/admin/components/SettingsSection";
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
@@ -16,7 +18,6 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
-import SectionHeader from "components/SectionHeader";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 
 import { IAppConfigFormProps } from "../../../OrgSettingsPage/cards/constants";
@@ -141,12 +142,12 @@ const GlobalHostStatusWebhook = ({
   );
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section`}>
-        <SectionHeader title="Host status webhook" />
+      <SettingsSection title="Host status webhook">
+        <PageDescription
+          variant="right-panel"
+          content={<>Send an alert if a portion of your hosts go offline.</>}
+        />
         <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-          <p className={`${baseClass}__section-description`}>
-            Send an alert if a portion of your hosts go offline.
-          </p>
           <div
             className={`form ${
               gitOpsModeEnabled ? "disabled-by-gitops-mode" : ""
@@ -167,7 +168,7 @@ const GlobalHostStatusWebhook = ({
             </p>
             <Button
               type="button"
-              variant="text-link"
+              variant="inverse"
               onClick={toggleHostStatusWebhookPreviewModal}
             >
               Preview request
@@ -247,7 +248,7 @@ const GlobalHostStatusWebhook = ({
             )}
           />
         </form>
-      </div>
+      </SettingsSection>
       {showHostStatusWebhookPreviewModal && (
         <HostStatusWebhookPreviewModal
           toggleModal={toggleHostStatusWebhookPreviewModal}

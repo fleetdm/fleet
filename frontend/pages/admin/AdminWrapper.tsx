@@ -77,9 +77,9 @@ const AdminWrapper = ({
 
   return (
     <MainContent className={classNames}>
-      <div className={`${baseClass}_wrapper`}>
-        <TabNav sticky>
-          <h1>Settings</h1>
+      <>
+        <h1>Settings</h1>
+        <TabNav>
           <Tabs
             selectedIndex={getTabIndex(pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -98,7 +98,7 @@ const AdminWrapper = ({
           </Tabs>
         </TabNav>
         {children}
-      </div>
+      </>
     </MainContent>
   );
 };

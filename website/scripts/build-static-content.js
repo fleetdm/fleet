@@ -807,7 +807,7 @@ module.exports = {
             }
             let pageTitle = openPosition.jobTitle;
 
-            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [Series B](https://www.businesswire.com/news/home/20250617550974/en/Fleet-Adds-%2427M-to-Usher-in-New-Era-of-Open-Device-Management) startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\n[Message us your Linkedin profile](/contact#message). \n\n\n >The salary range for this role is ${openPosition.onTargetEarnings ? openPosition.onTargetEarnings : '$48,000 - $480,000'}. Fleet provides competitive compensation based on our [compensation philosophy](https://fleetdm.com/handbook/company/communications#compensation), as well as comprehensive [benefits](https://fleetdm.com/handbook/company/communications#benefits).`;
 
 
             let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
@@ -1179,7 +1179,7 @@ module.exports = {
         });
 
         let githubLabelsToCheck = {};
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually'];
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly', 'Annually', 'Quarterly'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
@@ -1229,6 +1229,9 @@ module.exports = {
               }
               if(!_.contains(['fleet', 'confidential'], ritual.autoIssue.repo)) {
                 throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The "autoIssue.repo" value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`);
+              }
+              if(ritual.autoIssue.issueDescription && typeof ritual.autoIssue.issueDescription !== 'string') {
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" has an 'autoIssue' value that has an invalid "issueDescription" value. Please change this value to be a string (currently ${typeof ritual.autoIssue.issueDescription}) that contains the issue description of this rituals GitHub issue and try running this script again.`);
               }
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
@@ -1375,6 +1378,118 @@ module.exports = {
         });
         builtStaticContent.appLibrary = appLibrary;
       },
+      //
+      //  ███████╗ ██████╗██████╗ ██╗██████╗ ████████╗███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔════╝██╔══██╗██║██╔══██╗╚══██╔══╝██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ███████╗██║     ██████╔╝██║██████╔╝   ██║   ███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ╚════██║██║     ██╔══██╗██║██╔═══╝    ██║   ╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ███████║╚██████╗██║  ██║██║██║        ██║   ███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //  ╚══════╝ ╚═════╝╚═╝  ╚═╝╚═╝╚═╝        ╚═╝   ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      //
+      async()=>{
+        let RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO = 'docs/scripts.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find scripts YAML file at "${RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let scripts = YAML.parse(yaml, {prettyErrors: true});
+        let scriptsLibrary = [];
+        let scriptSlugsSeen = [];
+
+        for(let script of scripts) {
+          if(!script.name) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script}) is missing a "name" value. To resolve, add a name to this script, and try running this script again.`);
+          }
+
+          if(!script.description) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a description value. To resolve, add a description to this script and try running this script again.`);
+          }
+
+          if(!script.platform) {
+            throw new Error('missing platform', script);
+          } else if(!['windows', 'macos', 'linux'].includes(script.platform)){
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) has an unsupported platform value (${script.platform}). To resolve, change the platform value to be 'windows', 'macos', or 'linux'`);
+          }
+
+          if(!script.script) {
+            throw new Error(`Could not build script library configuration from YAML. A script (${script.name}) is missing a script value. To resolve, add a script value and try running this script again.`);
+          }
+
+          // Format the script so it be safely stored as a string in the website's JSON configuration.
+          script.script = _.escape(script.script);
+
+          // Create a url slug for this script
+          script.slug = _.kebabCase(script.platform+' '+script.name);// ex: macos-collect-fleetd-logs
+
+          // Throw an error if there are any duplicate slugs.
+          if(scriptSlugsSeen.includes(script.slug)){
+            throw new Error(`Could not build script library configuration from YAML: scripts as currently named would result in colliding (duplicate) slugs (${script.slug}).  To resolve, rename the ${script.name} script`);
+          }
+          scriptSlugsSeen.push(script.slug);
+
+          scriptsLibrary.push(script);
+        }
+        builtStaticContent.scripts = scriptsLibrary;
+        builtStaticContent.scriptsLibraryYmlRepoPath = RELATIVE_PATH_TO_SCRIPTS_YML_IN_FLEET_REPO;
+      },
+      //   ██████╗ ██████╗ ███╗   ███╗███╗   ███╗ █████╗ ███╗   ██╗██████╗ ███████╗    ██╗     ██╗██████╗ ██████╗  █████╗ ██████╗ ██╗   ██╗
+      //  ██╔════╝██╔═══██╗████╗ ████║████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝    ██║     ██║██╔══██╗██╔══██╗██╔══██╗██╔══██╗╚██╗ ██╔╝
+      //  ██║     ██║   ██║██╔████╔██║██╔████╔██║███████║██╔██╗ ██║██║  ██║███████╗    ██║     ██║██████╔╝██████╔╝███████║██████╔╝ ╚████╔╝
+      //  ██║     ██║   ██║██║╚██╔╝██║██║╚██╔╝██║██╔══██║██║╚██╗██║██║  ██║╚════██║    ██║     ██║██╔══██╗██╔══██╗██╔══██║██╔══██╗  ╚██╔╝
+      //  ╚██████╗╚██████╔╝██║ ╚═╝ ██║██║ ╚═╝ ██║██║  ██║██║ ╚████║██████╔╝███████║    ███████╗██║██████╔╝██║  ██║██║  ██║██║  ██║   ██║
+      //   ╚═════╝ ╚═════╝ ╚═╝     ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝    ╚══════╝╚═╝╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝
+      async()=>{
+        let RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO = 'docs/mdm-commands.yml';
+        let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find MDM commands YAML file at "${RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
+        let linesInYamlFile = yaml.split('\n');
+        let mdmCommands = YAML.parse(yaml, {prettyErrors: true});
+
+        let mdmCommandsLibrary = [];
+        let commandSlugsSeen = [];
+
+        for(let command of mdmCommands) {
+          if(!command.name) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command}) is missing a "name" value. To resolve, add a name to this command, and try running this script again.`);
+          }
+          if(!command.platform) {
+            throw new Error('missing platform', command);
+          } else if(!['windows', 'apple'].includes(command.platform)){
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an unsupported platform value. To resolve, change the platform value to be either 'windows' or 'apple'`);
+          }
+          if(!command.description) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a description value. To resolve, add a description to this command and try running this script again.`);
+          }
+          if(!command.supportedDeviceTypes) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a supportedDeviceTypes value. To resolve, add a supportedDeviceTypes that contains a list of all operating systems that support this command and try running this script again.`);
+          } else if(!_.isArray(command.supportedDeviceTypes)) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) has an invalid supportedDeviceTypes value. To resolve, change the supportedDeviceTypes value to be an array of all operating systems that support this command and try running this script again.`);
+          }
+          if(!command.command) {
+            throw new Error(`Could not build MDM command library configuration from YAML. A command (${command.name}) is missing a command value. To resolve, add a command that contains an XML (for Windows commands) or plist (for Apple commands) MDM command, and try running this script again.`);
+          }
+
+          // Determine the line in the yaml that this command starts on.
+          // this will allow us to link users directly to the commands position in the YAML file (currently >1500 lines) when users want to make a change.
+          let lineWithThisCommandsNameKey = _.find(linesInYamlFile, (line)=>{
+            return line.includes('name: '+command.name);
+          });
+          let lineNumberForEdittingThisCommand = linesInYamlFile.indexOf(lineWithThisCommandsNameKey) + 1;
+          command.lineNumberInYaml = lineNumberForEdittingThisCommand; // Set the line number for edits.
+
+
+          command.command = _.escape(command.command);
+          command.description = _.escape(command.description);
+          // Create a url slug for this script
+          command.slug = _.kebabCase(command.platform+' '+command.name);
+
+          // Throw an error if there are any duplicate slugs.
+          if(commandSlugsSeen.includes(command.slug)){
+            throw new Error(`Could not build MDM command library configuration from YAML: commands as currently named would result in colliding (duplicate) slugs.  To resolve, rename the ${command.name} (platform: ${command.platform}) command`);
+          }
+          commandSlugsSeen.push(command.slug);
+
+          mdmCommandsLibrary.push(command);
+        }
+        builtStaticContent.mdmCommands = mdmCommandsLibrary;
+        builtStaticContent.commandsLibraryYmlRepoPath = RELATIVE_PATH_TO_MDM_COMMANDS_YML_IN_FLEET_REPO;
+      }
     ]);
     //  ██████╗ ███████╗██████╗ ██╗      █████╗  ██████╗███████╗       ███████╗ █████╗ ██╗██╗     ███████╗██████╗  ██████╗
     //  ██╔══██╗██╔════╝██╔══██╗██║     ██╔══██╗██╔════╝██╔════╝       ██╔════╝██╔══██╗██║██║     ██╔════╝██╔══██╗██╔════╝██╗

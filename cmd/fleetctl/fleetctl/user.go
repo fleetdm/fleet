@@ -236,13 +236,13 @@ func createBulkUsersCommand() *cli.Command {
 				globalRoleString := record[4]
 				teamStrings := strings.Split(record[5], " ")
 				if ssoErr != nil {
-					return fmt.Errorf("SSO is not a vailed Boolean value: %w", err)
+					return fmt.Errorf("SSO is not a vailed Boolean value: %w", ssoErr)
 				}
 				if apiErr != nil {
-					return fmt.Errorf("API Only is not a vailed Boolean value: %w", err)
+					return fmt.Errorf("API Only is not a vailed Boolean value: %w", apiErr)
 				}
 				if passErr != nil {
-					return fmt.Errorf("not able to generate a random password: %w", err)
+					return fmt.Errorf("not able to generate a random password: %w", passErr)
 				}
 
 				var globalRole *string

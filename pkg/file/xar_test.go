@@ -211,7 +211,7 @@ func TestParseRealDistributionFiles(t *testing.T) {
 			file:               "distribution-sentinelone.xml",
 			expectedName:       "SentinelOne",
 			expectedVersion:    "24.3.2.7753",
-			expectedBundleID:   "com.sentinelone.sentinel-agent",
+			expectedBundleID:   "com.sentinelone.SentinelAgent",
 			expectedPackageIDs: []string{"com.sentinelone.pkg.sentinel-agent", "com.sentinelone.sentinel-agent"},
 		},
 		{
@@ -223,6 +223,13 @@ func TestParseRealDistributionFiles(t *testing.T) {
 				"com.getcoldturkey.blocker-chrome-ext", "com.getcoldturkey.blocker-edge-ext",
 				"com.getcoldturkey.blocker-firefox-ext", "com.getcoldturkey.coldturkeyblocker",
 			},
+		},
+		{
+			file:               "distribution-privileges.xml",
+			expectedName:       "Privileges",
+			expectedVersion:    "2.4.0",
+			expectedBundleID:   "corp.sap.privileges",
+			expectedPackageIDs: []string{"corp.sap.privileges.pkg"},
 		},
 	}
 

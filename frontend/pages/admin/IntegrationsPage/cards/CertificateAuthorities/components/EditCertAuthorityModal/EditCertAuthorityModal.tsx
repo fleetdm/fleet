@@ -22,6 +22,7 @@ import { ICertFormData } from "../AddCertAuthorityModal/AddCertAuthorityModal";
 import NDESForm from "../NDESForm";
 import CustomSCEPForm from "../CustomSCEPForm";
 import HydrantForm from "../HydrantForm";
+import SmallstepForm from "../SmallstepForm";
 
 const baseClass = "edit-cert-authority-modal";
 
@@ -92,6 +93,16 @@ const EditCertAuthorityModal = ({
     if (certAuthority.type === "hydrant") {
       return HydrantForm;
     }
+    if (certAuthority.type === "smallstep") {
+      return SmallstepForm;
+    }
+
+    // FIXME: seems like we have some competing patterns in here where we sometimes do switch
+    // statements with a default and sometimes do if or if/else if with a final default return. We
+    // should probably standardize on one or the other. Also, do we really want this to be the
+    // default? Why not have an explicit check for custom_scep_proxy and have the final
+    // else throw an error?
+
     return CustomSCEPForm;
   };
 

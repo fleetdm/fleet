@@ -18,7 +18,7 @@ Install fleetctl with npm (included in Node.js).
 sudo npm install -g fleetctl
 ```
 
-Alternatively, and for Windows and Linux, you can download the fleectl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
+Alternatively, and for Windows and Linux, you can download the fleetctl binary from [GitHub](https://github.com/fleetdm/fleet/releases). 
 
 Double-click the `tar.gz` or `zip` file to extract the binary. To run fleetctl commands, use the binary's path (`/path/to/fleetctl`). For convenience, copy or move the binary to a directory in your `$PATH` (ex: `/usr/local/bin`). This allows you to execute fleetctl without specifying its location.
 

@@ -38,6 +38,18 @@ agent_options:
   overrides:
     platforms:
       darwin:
+        decorators:
+          load:
+            - SELECT uuid AS host_uuid FROM system_info;
+            - SELECT hostname AS hostname FROM system_info;
+        options:
+          disable_distributed: false
+          distributed_interval: 10
+          distributed_plugin: tls
+          distributed_tls_max_attempts: 3
+          logger_tls_endpoint: /api/osquery/log
+          logger_tls_period: 10
+          pack_delimiter: /
         auto_table_construction:
           tcc_system:
             path: /Library/Application Support/com.apple.TCC/TCC.db
@@ -112,15 +124,13 @@ controls:
         labels_include_any:
           - "Santa test devices"
       - path: ../lib/macos/configuration-profiles/nudge-configuration.mobileconfig
-        labels_include_any:
-          - "Nudge test devices"
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: false
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2025-08-31"
-    minimum_version: "15.6"
+    deadline: 
+    minimum_version: 
   windows_settings:
     custom_settings:
       - path: ../lib/windows/configuration-profiles/Enable firewall.xml
@@ -128,6 +138,7 @@ controls:
       - path: ../lib/windows/configuration-profiles/Advanced PowerShell logging.xml
       - path: ../lib/windows/configuration-profiles/Disable OneDrive.xml
       - path: ../lib/windows/configuration-profiles/Disable Guest account.xml
+      - path: ../lib/windows/configuration-profiles/Windows Defender compliance settings.xml
   windows_updates:
     deadline_days: 7
     grace_period_days: 2
@@ -154,6 +165,7 @@ controls:
     - path: ../lib/macos/scripts/install-macos-compatibility-extension.sh
     - path: ../lib/macos/scripts/install-nudge.sh
 policies:
+  # macOS policies
   - path: ../lib/macos/policies/1password-emergency-kit-check.yml
   - path: ../lib/macos/policies/update-firefox.yml
   - path: ../lib/macos/policies/update-slack.yml
@@ -168,11 +180,14 @@ policies:
   - path: ../lib/macos/policies/company-portal-installed.yml
   - path: ../lib/macos/policies/entra-conditional-access-check.yml
   - path: ../lib/macos/policies/install-nudge.yml
+  # Windows policies
   - path: ../lib/windows/policies/antivirus-signatures-up-to-date.yml
   - path: ../lib/windows/policies/all-windows-updates-installed.yml
   - path: ../lib/windows/policies/disk-encryption-check.yml
   - path: ../lib/windows/policies/1password-installed.yml
   - path: ../lib/windows/policies/update-1password.yml
+  - path: ../lib/windows/policies/windows-defender-compliance-check.yml
+  # Linux policies
   - path: ../lib/linux/policies/disk-encryption-check.yml
   - path: ../lib/linux/policies/check-fleet-desktop-extension-enabled.yml
 queries:

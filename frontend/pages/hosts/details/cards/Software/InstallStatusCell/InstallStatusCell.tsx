@@ -225,7 +225,7 @@ export const INSTALL_STATUS_DISPLAY_OPTIONS: Record<
   },
   update_available: {
     iconName: "error-outline",
-    iconColor: "ui-fleet-black-50",
+    iconColor: "ui-fleet-black-75",
     displayText: "Update available",
     tooltip: ({ isSelfService, isHostOnline }) =>
       isSelfService || isHostOnline ? (

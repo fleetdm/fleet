@@ -1044,9 +1044,10 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	hostUUID := "uuid"
 	hostPlatform := "windows"
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		ID:       hostID,
-		UUID:     hostUUID,
-		Platform: hostPlatform,
+		ID:            hostID,
+		UUID:          hostUUID,
+		Platform:      hostPlatform,
+		OsqueryHostID: &hostUUID,
 	})
 	require.NoError(t, err)
 
@@ -2082,7 +2083,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 
@@ -2424,7 +2425,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 
@@ -2458,6 +2459,32 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
 
+	// Schedule another batch that we will cancel.
+	execID3, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID3)
+
+	// Update the batch activity status to "started"
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status='started' WHERE execution_id = ?", execID3)
+		return err
+	})
+
+	// Cancel the batch.
+	err = ds.CancelBatchScript(ctx, execID3)
+	require.NoError(t, err)
+
+	// First activity should be marked as finished and updated accordingly.
+	batchActivity, err = ds.GetBatchActivity(ctx, execID3)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(5), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumRan)
+	require.Equal(t, uint(0), *batchActivity.NumErrored)
+	require.Equal(t, uint(2), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(3), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
+
 	// Edge case -- batch activity with no hosts.
 	// In reality this could happen if all the hosts in a batch get deleted.
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
@@ -2470,7 +2497,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	err = ds.MarkActivitiesAsCompleted(ctx)
 	require.NoError(t, err)
 
-	// First activity should be marked as finished and updated accordingly.
+	// Activity should be marked as finished and updated accordingly.
 	batchActivity, err = ds.GetBatchActivity(ctx, "abc123")
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)

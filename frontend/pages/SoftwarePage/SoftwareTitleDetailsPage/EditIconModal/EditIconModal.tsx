@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosError } from "axios";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { IAppStoreApp, ISoftwarePackage } from "interfaces/software";
 
@@ -116,6 +115,7 @@ interface IEditIconModalProps {
     versions?: number;
     source?: string;
     currentIconUrl: string | null;
+    /** Name used in preview UI but also for FMA default icon matching */
     name: string;
     countsUpdatedAt?: string;
   };
@@ -461,7 +461,7 @@ const EditIconModal = ({
             // Known limitation: we cannot see VPP app icons as the fallback when a custom icon
             // is set as VPP icon is not returned by the API if a custom icon is returned
             <SoftwareIcon
-              name={software.name}
+              name={previewInfo.name}
               source={previewInfo.source}
               url={isSoftwarePackage ? undefined : software.icon_url} // fallback PNG icons only exist for VPP apps
               uploadedAt={iconUploadedAt}
@@ -486,7 +486,7 @@ const EditIconModal = ({
         message={UPLOAD_MESSAGE}
         onFileUpload={onFileSelect}
         buttonMessage="Choose file"
-        buttonType="link"
+        buttonType="brand-inverse-icon"
         className={`${baseClass}__file-uploader`}
         fileDetails={fileDetails}
         gitopsCompatible={false}

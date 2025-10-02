@@ -3,13 +3,14 @@ import classnames from "classnames";
 import { noop } from "lodash";
 
 import { IHostEndUser } from "interfaces/host";
-import { HostPlatform, isAppleDevice } from "interfaces/platform";
+import { HostPlatform, isAndroid, isAppleDevice } from "interfaces/platform";
 
 import Card from "components/Card";
 import CardHeader from "components/CardHeader";
 import DataSet from "components/DataSet";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
+import Icon from "components/Icon";
 
 import UserValue from "./components/UserValue";
 import {
@@ -50,7 +51,7 @@ const User = ({
   const otherEmailsDisplayValues = generateOtherEmailsValues(endUsers);
 
   const endUser = endUsers[0];
-  const showUsername = isAppleDevice(platform);
+  const showUsername = isAppleDevice(platform) || isAndroid(platform);
   const showFullName = showUsername && userNameDisplayValues.length > 0;
   const showGroups = showUsername && userNameDisplayValues.length > 0;
   const showChromeProfiles = chromeProfilesDisplayValues.length > 0;
@@ -65,17 +66,17 @@ const User = ({
       className={classNames}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <div className={`${baseClass}__header`}>
         <CardHeader header="User" />
         {enableAddEndUser && (
           <Button
             className={`${baseClass}__add-user-btn`}
-            variant="text-link"
+            variant="inverse"
             onClick={onAddEndUser}
+            size="small"
           >
-            + Add user
+            <Icon name="plus" /> Add user
           </Button>
         )}
       </div>

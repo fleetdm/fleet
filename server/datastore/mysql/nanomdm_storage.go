@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"errors"
 	"fmt"
 	"strings"
@@ -22,6 +23,30 @@ import (
 	"github.com/jmoiron/sqlx"
 	nanomdm_log "github.com/micromdm/nanolib/log"
 )
+
+// lockConflictError indicates a lock command already exists for the host
+type lockConflictError struct {
+	hostUUID string
+}
+
+func (e lockConflictError) Error() string {
+	return "host already has a pending lock command"
+}
+
+func (e lockConflictError) IsConflict() bool {
+	return true
+}
+
+// isConflict checks if an error implements the IsConflict() interface
+func isConflict(err error) bool {
+	type conflictInterface interface {
+		IsConflict() bool
+	}
+	if c, ok := err.(conflictInterface); ok {
+		return c.IsConflict()
+	}
+	return false
+}
 
 // NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
 type NanoMDMStorage struct {
@@ -114,12 +139,57 @@ func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []by
 	return errors.New("please use fleet.Datastore to manage MDM assets")
 }
 
+// GetPendingLockCommand returns the most recent unacknowledged DeviceLock command
+// for the given host, along with its unlock PIN.
+// Returns nil, "", nil if no pending lock command exists.
+func (s *NanoMDMStorage) GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+	query := `
+		SELECT nc.command_uuid, nc.request_type, nc.command, hma.unlock_pin
+		FROM nano_commands nc
+		INNER JOIN host_mdm_actions hma ON hma.lock_ref = nc.command_uuid
+		LEFT JOIN nano_command_results ncr ON ncr.command_uuid = nc.command_uuid
+		INNER JOIN nano_enrollment_queue neq ON neq.command_uuid = nc.command_uuid
+		WHERE neq.id = ?
+		AND nc.request_type = 'DeviceLock'
+		AND ncr.command_uuid IS NULL
+		ORDER BY nc.created_at DESC
+		LIMIT 1`
+
+	var result struct {
+		CommandUUID string `db:"command_uuid"`
+		RequestType string `db:"request_type"`
+		Command     []byte `db:"command"`
+		UnlockPIN   string `db:"unlock_pin"`
+	}
+
+	err := sqlx.GetContext(ctx, s.db, &result, query, hostUUID)
+	if err == sql.ErrNoRows {
+		return nil, "", nil
+	}
+	if err != nil {
+		return nil, "", ctxerr.Wrap(ctx, err, "getting pending lock command")
+	}
+
+	cmd := &mdm.Command{
+		CommandUUID: result.CommandUUID,
+		Command: struct {
+			RequestType string
+		}{
+			RequestType: result.RequestType,
+		},
+		Raw: result.Command,
+	}
+
+	return cmd, result.UnlockPIN, nil
+}
+
 // EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
 //
 // A few implementation details:
 //   - It can only be called for a single hosts, to ensure we don't use the same
 //     pin for multiple hosts.
 //   - The method performs fleet-specific actions after the command is enqueued.
+//   - It will fail with a ConflictError if a lock command already exists.
 func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	ctx context.Context,
 	host *fleet.Host,
@@ -127,10 +197,29 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	pin string,
 ) error {
 	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		// check if a lock already exists using SELECT FOR UPDATE to prevent a race
+		var existingLockRef *string
+		err := sqlx.GetContext(ctx, tx, &existingLockRef,
+			`SELECT lock_ref FROM host_mdm_actions WHERE host_id = ? FOR UPDATE`,
+			host.ID)
+
+		// If we got a row and it has a lock_ref, fail with conflict
+		if err == nil && existingLockRef != nil && *existingLockRef != "" {
+			// A lock command already exists, don't overwrite
+			return lockConflictError{hostUUID: host.UUID}
+		}
+
+		// If the row doesn't exist, that's OK, we'll insert it
+		if err != nil && err != sql.ErrNoRows {
+			return ctxerr.Wrap(ctx, err, "checking for existing lock")
+		}
+
+		// Now enqueue the command
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
 
+		// Insert or update the host_mdm_actions row
 		stmt := `
 			INSERT INTO host_mdm_actions (
 				host_id,

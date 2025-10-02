@@ -3,6 +3,8 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/unicode/norm"
 	"gopkg.in/yaml.v2"
 
@@ -23,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kithttp "github.com/go-kit/kit/transport/http"
 )
@@ -285,7 +289,7 @@ func (c *Client) authenticatedRequest(params interface{}, verb string, path stri
 
 func (c *Client) CheckAnyMDMEnabled() error {
 	return c.runAppConfigChecks(func(ac *fleet.EnrichedAppConfig) error {
-		if !ac.MDM.EnabledAndConfigured && !ac.MDM.WindowsEnabledAndConfigured {
+		if !ac.MDM.EnabledAndConfigured && !ac.MDM.WindowsEnabledAndConfigured && !ac.MDM.AndroidEnabledAndConfigured {
 			return errors.New(fleet.MDMNotConfiguredMessage)
 		}
 		return nil
@@ -331,7 +335,7 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 
 // getProfilesContents takes file paths and creates a slice of profile payloads
 // ready to batch-apply.
-func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, windowsProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
+func getProfilesContents(baseDir string, macProfiles, windowsProfiles, androidProfiles []fleet.MDMProfileSpec, expandEnv bool) ([]fleet.MDMProfileBatchPayload, error) {
 	// map to check for duplicate names across all profiles
 	extByName := make(map[string]string, len(macProfiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(macProfiles))
@@ -340,12 +344,28 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 	for platform, profiles := range map[string][]fleet.MDMProfileSpec{
 		"macos":   macProfiles,
 		"windows": windowsProfiles,
+		"android": androidProfiles,
 	} {
 		for _, profile := range profiles {
 			filePath := resolveApplyRelativePath(baseDir, profile.Path)
 			fileContents, err := os.ReadFile(filePath)
 			if err != nil {
 				return nil, fmt.Errorf("applying custom settings: %w", err)
+			}
+
+			ext := filepath.Ext(filePath)
+			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
+			// their PayloadDisplayName when we parse the profile below)
+			name := strings.TrimSuffix(filepath.Base(filePath), ext)
+			// for validation errors, we want to include the platform and file name in the error message
+			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
+
+			if platform == "macos" && (ext == ".mobileconfig" || ext == ".xml") {
+				// Parse and check for signed mobile configs before expanding.
+				mc := mobileconfig.Mobileconfig(fileContents)
+				if mc.IsSignedProfile() {
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Configuration profiles can't be signed. Fleet will sign the profile for you. Learn more: https://fleetdm.com/learn-more-about/unsigning-configuration-profiles")
+				}
 			}
 
 			if expandEnv {
@@ -355,13 +375,6 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 					return nil, fmt.Errorf("expanding environment on file %q: %w", profile.Path, err)
 				}
 			}
-
-			ext := filepath.Ext(filePath)
-			// by default, use the file name (for macOS mobileconfig profiles, we'll switch to
-			// their PayloadDisplayName when we parse the profile below)
-			name := strings.TrimSuffix(filepath.Base(filePath), ext)
-			// for validation errors, we want to include the platform and file name in the error message
-			prefixErrMsg := fmt.Sprintf("Couldn't edit %s_settings.custom_settings (%s%s)", platform, name, ext)
 
 			// validate macOS profiles
 			if platform == "macos" {
@@ -413,6 +426,17 @@ func getProfilesContents(baseDir string, macProfiles []fleet.MDMProfileSpec, win
 					}
 				default:
 					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "macOS configuration profiles must be .mobileconfig or .json files.")
+				}
+			}
+
+			if platform == "android" {
+				switch ext {
+				case ".json":
+					if mdm.GetRawProfilePlatform(fileContents) != "android" {
+						return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Android profiles should include valid JSON.")
+					}
+				default:
+					return nil, fmt.Errorf("%s: %s", prefixErrMsg, "Android configuration profiles must be .json files.")
 				}
 			}
 
@@ -553,6 +577,7 @@ func (c *Client) ApplyGroup(
 	if specs.AppConfig != nil {
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+		androidCustomSettings := extractAppCfgAndroidCustomSettings(specs.AppConfig)
 
 		if macosSetup := extractAppCfgMacOSSetup(specs.AppConfig); macosSetup != nil {
 			switch {
@@ -655,8 +680,8 @@ func (c *Client) ApplyGroup(
 		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
 		// custom settings but windows is present and empty (but mac is absent),
 		// shouldn't that clear the windows ones?
-		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings) > 0 {
-			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, opts.ExpandEnvConfigProfiles)
+		if (windowsCustomSettings != nil || macosCustomSettings != nil || androidCustomSettings != nil) || len(windowsCustomSettings)+len(macosCustomSettings)+len(androidCustomSettings) > 0 {
+			fileContents, err := getProfilesContents(baseDir, macosCustomSettings, windowsCustomSettings, androidCustomSettings, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				return nil, nil, nil, nil, err
 			}
@@ -705,7 +730,7 @@ func (c *Client) ApplyGroup(
 
 		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
 		for k, profileSpecs := range tmMDMSettings {
-			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, opts.ExpandEnvConfigProfiles)
+			fileContents, err := getProfilesContents(baseDir, profileSpecs.macos, profileSpecs.windows, profileSpecs.android, opts.ExpandEnvConfigProfiles)
 			if err != nil {
 				// TODO: consider adding team name to improve error messages generally for other parts of the config because multiple team configs can be processed at once
 				return nil, nil, nil, nil, fmt.Errorf("Team %s: %w", k, err)
@@ -835,6 +860,11 @@ func (c *Client) ApplyGroup(
 					installDuringSetup = &app.InstallDuringSetup.Value
 				}
 
+				iconHash, err := getIconHashIfValid(app.Icon.Path)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", app.AppStoreID, app.Icon.Path, err)
+				}
+
 				appPayloads = append(appPayloads, fleet.VPPBatchPayload{
 					AppStoreID:         app.AppStoreID,
 					SelfService:        app.SelfService,
@@ -842,6 +872,8 @@ func (c *Client) ApplyGroup(
 					LabelsExcludeAny:   app.LabelsExcludeAny,
 					LabelsIncludeAny:   app.LabelsIncludeAny,
 					Categories:         app.Categories,
+					IconPath:           app.Icon.Path,
+					IconHash:           iconHash,
 				})
 				// can be referenced by macos_setup.software.app_store_id
 				if tmSoftwareAppsByAppID[tmName] == nil {
@@ -1133,6 +1165,11 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			}
 		}
 
+		iconHash, err := getIconHashIfValid(si.Icon.Path)
+		if err != nil {
+			return nil, fmt.Errorf("Couldn't edit software (%s). Invalid icon file %s: %w", si.URL, si.Icon.Path, err)
+		}
+
 		var ic []byte
 		if si.InstallScript.Path != "" {
 			installScriptFile := si.InstallScript.Path
@@ -1186,6 +1223,8 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 			LabelsExcludeAny:   si.LabelsExcludeAny,
 			SHA256:             si.SHA256,
 			Categories:         si.Categories,
+			IconPath:           si.Icon.Path,
+			IconHash:           iconHash,
 		}
 
 		if si.Slug != nil {
@@ -1194,6 +1233,35 @@ func buildSoftwarePackagesPayload(specs []fleet.SoftwarePackageSpec, installDuri
 	}
 
 	return softwarePayloads, nil
+}
+
+func getIconHashIfValid(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	// TODO cache hash for a given path so we don't have to duplicate reads for multiple references to the same icon
+	iconReader, err := os.OpenFile(path, os.O_RDONLY, 0o0755)
+	if err != nil {
+		return "", fmt.Errorf("reading icon file: %w", err)
+	}
+
+	defer iconReader.Close()
+	if err = ValidateIcon(iconReader); err != nil {
+		return "", err
+	}
+
+	// Reset file pointer to beginning before hashing
+	if _, err := iconReader.Seek(0, io.SeekStart); err != nil {
+		return "", fmt.Errorf("seeking icon file: %w", err)
+	}
+
+	h := sha256.New()
+	if _, err := io.Copy(h, iconReader); err != nil {
+		return "", fmt.Errorf("hashing icon file: %w", err)
+	}
+	hash := hex.EncodeToString(h.Sum(nil))
+	return hash, nil
 }
 
 func extractAppCfgMacOSSetup(appCfg any) *fleet.MacOSSetup {
@@ -1331,6 +1399,10 @@ func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSp
 	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
+func extractAppCfgAndroidCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "android_settings")
+}
+
 func extractAppCfgScripts(appCfg interface{}) []string {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
@@ -1403,6 +1475,7 @@ func extractAppCfgYaraRules(appCfg interface{}) ([]fleet.YaraRuleSpec, error) {
 type profileSpecsByPlatform struct {
 	macos   []fleet.MDMProfileSpec
 	windows []fleet.MDMProfileSpec
+	android []fleet.MDMProfileSpec
 }
 
 func extractTeamName(tmSpec json.RawMessage) string {
@@ -1415,7 +1488,7 @@ func extractTeamName(tmSpec json.RawMessage) string {
 	return norm.NFC.String(s.Name)
 }
 
-// returns the custom macOS and Windows settings keyed by team name.
+// returns the custom macOS, Windows and Android settings keyed by team name.
 func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profileSpecsByPlatform {
 	var m map[string]profileSpecsByPlatform
 	for _, tm := range tmSpecs {
@@ -1428,6 +1501,9 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 				WindowsSettings struct {
 					CustomSettings json.RawMessage `json:"custom_settings"`
 				} `json:"windows_settings"`
+				AndroidSettings struct {
+					CustomSettings json.RawMessage `json:"custom_settings"`
+				} `json:"android_settings"`
 			} `json:"mdm"`
 		}
 		if err := json.Unmarshal(tm, &spec); err != nil {
@@ -1438,11 +1514,13 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 		if spec.Name != "" {
 			var macOSSettings []fleet.MDMProfileSpec
 			var windowsSettings []fleet.MDMProfileSpec
+			var androidSettings []fleet.MDMProfileSpec
 
 			// to keep existing bahavior, if any of the custom
 			// settings is provided, make the map a non-nil map
 			if len(spec.MDM.MacOSSettings.CustomSettings) > 0 ||
-				len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
+				len(spec.MDM.WindowsSettings.CustomSettings) > 0 ||
+				len(spec.MDM.AndroidSettings.CustomSettings) > 0 {
 				if m == nil {
 					m = make(map[string]profileSpecsByPlatform)
 				}
@@ -1470,6 +1548,17 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 					windowsSettings = []fleet.MDMProfileSpec{}
 				}
 			}
+			if len(spec.MDM.AndroidSettings.CustomSettings) > 0 {
+				if err := json.Unmarshal(spec.MDM.AndroidSettings.CustomSettings, &androidSettings); err != nil {
+					// ignore, will fail in apply team specs call
+					continue
+				}
+				if androidSettings == nil {
+					// to be consistent with the AppConfig custom settings, set it to an
+					// empty slice if the provided custom settings are present but empty.
+					androidSettings = []fleet.MDMProfileSpec{}
+				}
+			}
 
 			// TODO: validate equal names here and API?
 			var result profileSpecsByPlatform
@@ -1479,8 +1568,11 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string]profi
 			if windowsSettings != nil {
 				result.windows = windowsSettings
 			}
+			if androidSettings != nil {
+				result.android = androidSettings
+			}
 
-			if macOSSettings != nil || windowsSettings != nil {
+			if macOSSettings != nil || windowsSettings != nil || androidSettings != nil {
 				m[spec.Name] = result
 			}
 		}
@@ -1683,6 +1775,7 @@ func (c *Client) DoGitOps(
 	teamsSoftwareInstallers map[string][]fleet.SoftwarePackageResponse,
 	teamsVPPApps map[string][]fleet.VPPAppResponse,
 	teamsScripts map[string][]fleet.ScriptResponse,
+	iconSettings *fleet.IconGitOpsSettings,
 ) (*fleet.TeamSpecsDryRunAssumptions, []func() error, error) {
 	baseDir := filepath.Dir(fullFilename)
 	filename := filepath.Base(fullFilename)
@@ -1887,6 +1980,22 @@ func (c *Client) DoGitOps(
 			}
 		}
 
+		mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
+		if incoming.Controls.AndroidEnabledAndConfigured != nil {
+			mdmAppConfig["android_enabled_and_configured"] = incoming.Controls.AndroidEnabledAndConfigured
+		} else {
+			mdmAppConfig["android_enabled_and_configured"] = false
+		}
+		if androidEnabledAndConfiguredAssumption, ok := mdmAppConfig["android_enabled_and_configured"].(bool); ok {
+			if teamAssumptions == nil {
+				teamAssumptions = &fleet.TeamSpecsDryRunAssumptions{
+					AndroidEnabledAndConfigured: optjson.SetBool(androidEnabledAndConfiguredAssumption),
+				}
+			} else {
+				teamAssumptions.AndroidEnabledAndConfigured = optjson.SetBool(androidEnabledAndConfiguredAssumption)
+			}
+		}
+
 		// check for the eula in the mdmAppConfig. If it exists we want to assign it
 		// to eulaPath so that it will be applied later. We always delete it from
 		// mdmAppConfig so it will not be applied to the group/team though the
@@ -1902,6 +2011,9 @@ func (c *Client) DoGitOps(
 
 		// we want to apply the EULA only for the global settings
 		if appConfig.License.IsPremium() && appConfig.MDM.EnabledAndConfigured {
+			if eulaPath != "" {
+				eulaPath = resolveApplyRelativePath(baseDir, eulaPath)
+			}
 			err = c.doGitOpsEULA(eulaPath, logFn, dryRun)
 			if err != nil {
 				return nil, nil, err
@@ -2062,6 +2174,15 @@ func (c *Client) DoGitOps(
 				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
 			}
 		}
+		// Put in default values for android_settings
+		if incoming.Controls.AndroidSettings != nil {
+			mdmAppConfig["android_settings"] = incoming.Controls.AndroidSettings
+		} else {
+			mdmAppConfig["android_settings"] = fleet.AndroidSettings{
+				CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Value: []fleet.MDMProfileSpec{}},
+			}
+		}
+
 		// Put in default values for windows_updates
 		if incoming.Controls.WindowsUpdates != nil {
 			mdmAppConfig["windows_updates"] = incoming.Controls.WindowsUpdates
@@ -2160,6 +2281,20 @@ func (c *Client) DoGitOps(
 		return nil, nil, err
 	}
 
+	// apply icon changes from software installers and VPP apps
+	if len(teamSoftwareInstallers) > 0 || len(teamVPPApps) > 0 {
+		iconUpdates := fleet.IconChanges{}.WithUploadedHashes(iconSettings.UploadedHashes).WithSoftware(teamSoftwareInstallers, teamVPPApps)
+		if dryRun {
+			logFn("[+] Would've set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+		} else {
+			if err = c.doGitOpsIcons(iconUpdates, iconSettings.ConcurrentUploads, iconSettings.ConcurrentUpdates); err != nil {
+				return nil, nil, err
+			}
+			logFn("[+] Set icons on %d software titles and deleted icons on %d titles\n", len(iconUpdates.IconsToUpdate)+len(iconUpdates.IconsToUpload), len(iconUpdates.TitleIDsToRemoveIconsFrom))
+			iconSettings.UploadedHashes = iconUpdates.UploadedHashes
+		}
+	}
+
 	// We currently don't support queries for "No team" thus
 	// we just do GitOps for queries for global and team files.
 	if !incoming.IsNoTeam() {
@@ -2170,6 +2305,53 @@ func (c *Client) DoGitOps(
 	}
 
 	return teamAssumptions, postOps, nil
+}
+
+func (c *Client) doGitOpsIcons(iconUpdates fleet.IconChanges, concurrentUploads int, concurrentUpdates int) error {
+	var uploads errgroup.Group
+	uploads.SetLimit(concurrentUploads)
+
+	for _, toUpload := range iconUpdates.IconsToUpload {
+		uploads.Go(func() error {
+			iconReader, err := os.OpenFile(toUpload.Path, os.O_RDONLY, 0o0755)
+			if err != nil {
+				return fmt.Errorf("failed to read software icon for upload %s: %w", toUpload.Path, err)
+			}
+
+			defer iconReader.Close()
+			if err = c.UploadIcon(iconUpdates.TeamID, toUpload.TitleID, filepath.Base(toUpload.Path), iconReader); err != nil {
+				return fmt.Errorf("failed to upload software icon %s: %w", toUpload.Path, err)
+			}
+
+			return nil
+		})
+	}
+	if uploadErr := uploads.Wait(); uploadErr != nil {
+		return uploadErr
+	}
+
+	var updates errgroup.Group
+	updates.SetLimit(concurrentUpdates)
+	for _, toUpdate := range iconUpdates.IconsToUpdate {
+		updates.Go(func() error {
+			if err := c.UpdateIcon(iconUpdates.TeamID, toUpdate.TitleID, filepath.Base(toUpdate.Path), toUpdate.Hash); err != nil {
+				return fmt.Errorf("failed to update software icon %s: %w", toUpdate.Path, err)
+			}
+
+			return nil
+		})
+	}
+	for _, titleToDelete := range iconUpdates.TitleIDsToRemoveIconsFrom {
+		updates.Go(func() error {
+			if err := c.DeleteIcon(iconUpdates.TeamID, titleToDelete); err != nil {
+				return fmt.Errorf("failed to delete software icon: %w", err)
+			}
+
+			return nil
+		})
+	}
+
+	return updates.Wait()
 }
 
 func (c *Client) doGitOpsNoTeamSetupAndSoftware(
@@ -2238,10 +2420,17 @@ func (c *Client) doGitOpsNoTeamSetupAndSoftware(
 				installDuringSetup = vppApp.InstallDuringSetup.Value
 			}
 
+			iconHash, err := getIconHashIfValid(vppApp.Icon.Path)
+			if err != nil {
+				return nil, nil, fmt.Errorf("Couldn't edit app store app (%s). Invalid custom icon file %s: %w", vppApp.AppStoreID, vppApp.Icon.Path, err)
+			}
+
 			appsPayload = append(appsPayload, fleet.VPPBatchPayload{
 				AppStoreID:         vppApp.AppStoreID,
 				SelfService:        vppApp.SelfService,
 				InstallDuringSetup: &installDuringSetup,
+				IconPath:           vppApp.Icon.Path,
+				IconHash:           iconHash,
 			})
 		}
 	}

@@ -5,6 +5,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 ## fleetd and Fleet Desktop
 - Fleet Free and Fleet Premium
 - Windows/Mac/Linux, including supported Linux distros (at least one each of RPM-based and DEB-based)
+- If there's a new SwiftDialog version, test the new Mac setup and MDM migration flow and verify that there's no regressions.
 
 ## User
 
@@ -154,7 +155,7 @@ This is meant to be a helpful checklist of 'events' or 'transactions' to help ca
 - States: Default, Hover (with mouse), Active (when clicked), Focus (keyboard highlight)
 
 ## User permissions
-- Premium vs. Free
+- Premium vs. Free. Premium-only API endpoints and parameters return an easy to understand error message if you're using Fleet Free
 - Global user (Admin, Maintainer, Observer, Observer+, API only)
 - Team level user (Admin, Maintainer, Observer, Observer+, API only)
 

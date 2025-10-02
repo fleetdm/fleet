@@ -368,6 +368,45 @@ func (svc *Service) ListDevicePolicies(ctx context.Context, host *fleet.Host) ([
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// Resend configuration profile
+////////////////////////////////////////////////////////////////////////////////
+
+type resendDeviceConfigurationProfileRequest struct {
+	Token       string `url:"token"`
+	ProfileUUID string `url:"profile_uuid"`
+}
+
+func (r *resendDeviceConfigurationProfileRequest) deviceAuthToken() string {
+	return r.Token
+}
+
+type resendDeviceConfigurationProfileResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r resendDeviceConfigurationProfileResponse) Error() error { return r.Err }
+
+func (r resendDeviceConfigurationProfileResponse) Status() int { return http.StatusAccepted }
+
+func resendDeviceConfigurationProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (fleet.Errorer, error) {
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		err := ctxerr.Wrap(ctx, fleet.NewAuthRequiredError("internal error: missing host from request context"))
+		return resendDeviceConfigurationProfileResponse{Err: err}, nil
+	}
+
+	req := request.(*resendDeviceConfigurationProfileRequest)
+	err := svc.ResendDeviceHostMDMProfile(ctx, host, req.ProfileUUID)
+	if err != nil {
+		return resendDeviceConfigurationProfileResponse{
+			Err: err,
+		}, nil
+	}
+
+	return resendDeviceConfigurationProfileResponse{}, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Get software MDM command results
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -844,6 +883,7 @@ func (r *listDeviceCertificatesRequest) deviceAuthToken() string {
 type listDeviceCertificatesResponse struct {
 	Certificates []*fleet.HostCertificatePayload `json:"certificates"`
 	Meta         *fleet.PaginationMetadata       `json:"meta,omitempty"`
+	Count        uint                            `json:"count"`
 	Err          error                           `json:"error,omitempty"`
 }
 
@@ -864,7 +904,7 @@ func listDeviceCertificatesEndpoint(ctx context.Context, request interface{}, sv
 	if res == nil {
 		res = []*fleet.HostCertificatePayload{}
 	}
-	return listDeviceCertificatesResponse{Certificates: res, Meta: meta}, nil
+	return listDeviceCertificatesResponse{Certificates: res, Meta: meta, Count: meta.TotalResults}, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -21,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
 
-> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
+> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
 
 ### Approve a new position
@@ -246,7 +246,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Interim Head of People in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
 4. Once compensation decisions have been finalized, the Interim Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell,
+6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
   - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
@@ -268,7 +268,7 @@ First: Advisor agreements are sent through [DocuSign](https://www.docusign.com/)
 - Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
 - Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
 - Complete the first step of signing, which involves filling in the number of shares.
-- Then wait for the advisor to sign.  (Fleet's CEO will sign after that.)
+- Then wait for the advisor to sign. (Fleet's CEO will sign after that)
 
 Then, to finalize a new advisor after signing is complete:
 - Schedule quarterly recurring 1h meeting between the CEO and the advisor, with 30m of recurring prep scheduled back to back ahead of the meeting.

@@ -57,8 +57,10 @@ export const generateFormValidations = (
           isValid: (formData: IDigicertFormData) => {
             return (
               isEditing ||
-              certAuthorities.find((cert) => cert.name === formData.name) ===
-                undefined
+              certAuthorities.find(
+                (cert) =>
+                  cert.type === "digicert" && cert.name === formData.name
+              ) === undefined
             );
           },
           message: "Name is already used by another DigiCert CA.",

@@ -6,13 +6,13 @@ import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
 
 import mdmAPI from "services/entities/mdm";
-import { isIPadOrIPhone } from "interfaces/platform";
-import CustomLink from "components/CustomLink";
+import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 
 interface IUnenrollMdmModalProps {
   hostId: number;
   hostPlatform: string;
   hostName: string;
+  isBYODEnrollment?: boolean;
   onClose: () => void;
 }
 
@@ -22,6 +22,7 @@ const UnenrollMdmModal = ({
   hostId,
   hostPlatform,
   hostName,
+  isBYODEnrollment = false,
   onClose,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
@@ -33,23 +34,82 @@ const UnenrollMdmModal = ({
   const submitUnenrollMdm = async () => {
     setRequestState("unenrolling");
     try {
-      await mdmAPI.unenrollHostFromMdm(hostId, 5000);
-      renderFlash(
-        "success",
-        <>
-          MDM will be turned off for <b>{hostName}</b> next time this host
-          checks in.
-        </>
-      );
+      if (isAndroid(hostPlatform)) {
+        await mdmAPI.unenrollAndroidHostFromMdm(hostId, 5000);
+      } else {
+        await mdmAPI.unenrollHostFromMdm(hostId, 5000);
+      }
+      const successMessage =
+        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+          <>
+            <b>{hostName}</b> will be unenrolled next time this host checks in.
+          </>
+        ) : (
+          <>
+            MDM will be turned off for <b>{hostName}</b> next time this host
+            checks in.
+          </>
+        );
+      renderFlash("success", successMessage);
+      onClose();
     } catch (unenrollMdmError: unknown) {
-      renderFlash(
-        "error",
+      const errorMessage =
+        isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform) ? (
+          "Couldn't unenroll. Please try again."
+        ) : (
+          <>
+            Failed to turn off MDM for <b>{hostName}</b>. Please try again.
+          </>
+        );
+      renderFlash("error", errorMessage);
+    }
+    setRequestState(undefined);
+  };
+
+  const generateDescription = () => {
+    if (isIPadOrIPhone(hostPlatform)) {
+      return (
         <>
-          Failed to turn off MDM for <b>{hostName}</b>.
+          <p>Settings configured by Fleet will be removed.</p>
+          {isBYODEnrollment ? (
+            <p>
+              To re-enroll, ask your end user to navigate to{" "}
+              <b>
+                Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign
+                in to Work or School Account...
+              </b>{" "}
+              on their host and to log in with their work email.
+            </p>
+          ) : (
+            <p>
+              To re-enroll, make sure that the host is still in Apple Business
+              Manager (ABM). The host will automatically enroll after it&apos;s
+              reset.
+            </p>
+          )}
         </>
       );
     }
-    onClose();
+    if (isAndroid(hostPlatform)) {
+      return (
+        <>
+          <p>Company data and OS settings (work profile) will be deleted.</p>
+          <p>
+            To re-enroll, go to <b>Hosts &gt; Add hosts &gt; Android</b> and
+            share the link with end user.
+          </p>
+        </>
+      );
+    }
+    return (
+      <>
+        <p>Settings configured by Fleet will be removed.</p>
+        <p>
+          To turn on MDM again, ask the device user to follow the{" "}
+          <b>Turn on MDM</b> instructions on their <b>My device</b> page.
+        </p>
+      </>
+    );
   };
 
   const renderModalContent = () => {
@@ -57,30 +117,16 @@ const UnenrollMdmModal = ({
       return <DataError />;
     }
 
-    const turnOnMDMInstructions = isIPadOrIPhone(hostPlatform) ? (
-      <>
-        invite the end user to{" "}
-        <CustomLink
-          text="enroll a BYOD iPhone or iPad"
-          url="https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts"
-          newTab
-        />
-      </>
-    ) : (
-      <>
-        ask the device user to follow the <b>Turn on MDM</b> instructions on
-        their <b>My device</b> page.
-      </>
-    );
+    const buttonText =
+      isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform)
+        ? "Unenroll"
+        : "Turn off";
 
     return (
       <>
-        <p className={`${baseClass}__description`}>
-          Settings configured by Fleet will be removed.
-          <br />
-          <br />
-          To turn on MDM again, {turnOnMDMInstructions}
-        </p>
+        <div className={`${baseClass}__description`}>
+          {generateDescription()}
+        </div>
         <div className="modal-cta-wrap">
           <Button
             type="submit"
@@ -88,7 +134,7 @@ const UnenrollMdmModal = ({
             onClick={submitUnenrollMdm}
             isLoading={requestState === "unenrolling"}
           >
-            Turn off
+            {buttonText}
           </Button>
           <Button onClick={onClose} variant="inverse-alert">
             Cancel
@@ -98,12 +144,18 @@ const UnenrollMdmModal = ({
     );
   };
 
+  const title =
+    isIPadOrIPhone(hostPlatform) || isAndroid(hostPlatform)
+      ? "Unenroll"
+      : "Turn off MDM";
+
   return (
     <Modal
-      title="Turn off MDM"
+      title={title}
       onExit={onClose}
       className={baseClass}
       width="medium"
+      isContentDisabled={requestState === "unenrolling"}
     >
       {renderModalContent()}
     </Modal>

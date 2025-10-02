@@ -37,22 +37,31 @@ func GetMDMTicketsEstimated() ([]ProjectItem, error) {
 
 // GetEstimatedTicketsForProject gets estimated tickets from the drafting project filtered by the project's label.
 func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) {
+	items, _, err := GetEstimatedTicketsForProjectWithTotal(projectID, limit)
+	return items, err
+}
+
+// GetEstimatedTicketsForProjectWithTotal returns filtered estimated issues and the total
+// number of items in the drafting project (unfiltered). This allows callers to warn when
+// the drafting project's total exceeds the fetch limit (some estimated items might be
+// beyond the first page).
+func GetEstimatedTicketsForProjectWithTotal(projectID, limit int) ([]ProjectItem, int, error) {
 	// Get the label for this project
 	label, exists := ProjectLabels[projectID]
 	if !exists {
-		return nil, fmt.Errorf("no label mapping found for project ID %d. Available projects: %v", projectID, getProjectIDsWithLabels())
+		return nil, 0, fmt.Errorf("no label mapping found for project ID %d. Available projects: %v", projectID, getProjectIDsWithLabels())
 	}
 
 	// Grab issues from Drafting project
 	draftingProjectID := Aliases["draft"]
 	estimatedName, err := FindFieldValueByName(draftingProjectID, "Status", "estimated")
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	issues, err := GetProjectItems(draftingProjectID, limit)
+	issues, total, err := GetProjectItemsWithTotal(draftingProjectID, limit)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	// filter down to issues that are estimated with the specified label
@@ -69,7 +78,7 @@ func GetEstimatedTicketsForProject(projectID, limit int) ([]ProjectItem, error) 
 			}
 		}
 	}
-	return estimatedIssues, nil
+	return estimatedIssues, total, nil
 }
 
 // getProjectIDsWithLabels returns a slice of project IDs that have label mappings.

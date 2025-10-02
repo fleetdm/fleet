@@ -26,6 +26,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/filesystem"
+	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/errorstore"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
@@ -418,7 +419,6 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	if len(opts) > 0 && opts[0].MDMPusher != nil {
 		mdmPusher = opts[0].MDMPusher
 	}
-	limitStore, _ := memstore.New(0)
 	rootMux := http.NewServeMux()
 
 	if len(opts) > 0 {
@@ -441,6 +441,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				},
 				commander,
 				"https://test-url.com",
+				cfg,
 			)
 			require.NoError(t, err)
 		}
@@ -458,8 +459,20 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 				ds,
 				logger,
 				timeout,
+				&cfg,
 			)
 			require.NoError(t, err)
+		}
+	}
+
+	memLimitStore, _ := memstore.New(0)
+	var limitStore throttled.GCRAStore = memLimitStore
+	var redisPool fleet.RedisPool
+	if len(opts) > 0 && opts[0].Pool != nil {
+		redisPool = opts[0].Pool
+		limitStore = &redis.ThrottledStore{
+			Pool:      opts[0].Pool,
+			KeyPrefix: "ratelimit::",
 		}
 	}
 
@@ -479,13 +492,13 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	extra = append(extra, WithLoginRateLimit(throttled.PerMin(1000)))
 
 	if len(opts) > 0 && opts[0].HostIdentity != nil {
-		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger))
+		require.NoError(t, hostidentity.RegisterSCEP(rootMux, opts[0].HostIdentity.SCEPStorage, ds, logger, &cfg))
 		var httpSigVerifier func(http.Handler) http.Handler
 		httpSigVerifier, err := httpsig.Middleware(ds, opts[0].HostIdentity.RequireHTTPMessageSignature, kitlog.With(logger, "component", "http-sig-verifier"))
 		require.NoError(t, err)
 		extra = append(extra, WithHTTPSigVerifier(httpSigVerifier))
 	}
-	apiHandler := MakeHandler(svc, cfg, logger, limitStore, featureRoutes, extra...)
+	apiHandler := MakeHandler(svc, cfg, logger, limitStore, redisPool, featureRoutes, extra...)
 	rootMux.Handle("/api/", apiHandler)
 	var errHandler *errorstore.Handler
 	ctxErrHandler := ctxerr.FromContext(ctx)
@@ -497,7 +510,7 @@ func RunServerForTestsWithServiceWithDS(t *testing.T, ctx context.Context, ds fl
 	rootMux.Handle("/enroll", ServeEndUserEnrollOTA(svc, "", ds, logger))
 
 	if len(opts) > 0 && opts[0].EnableSCIM {
-		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger))
+		require.NoError(t, scim.RegisterSCIM(rootMux, ds, svc, logger, &cfg))
 		rootMux.Handle("/api/v1/fleet/scim/details", apiHandler)
 		rootMux.Handle("/api/latest/fleet/scim/details", apiHandler)
 	}

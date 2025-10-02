@@ -19,6 +19,7 @@ import {
 
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import TooltipWrapper from "components/TooltipWrapper";
 import Icon from "components/Icon/Icon";
 import Card from "components/Card";
@@ -102,7 +103,13 @@ const getHostDiskEncryptionTooltipMessage = (
     return "Fleet does not check for disk encryption on Chromebooks, as they are encrypted by default.";
   }
 
-  if (platform === "rhel" || platform === "ubuntu") {
+  if (
+    platform === "rhel" ||
+    platform === "ubuntu" ||
+    platform === "arch" ||
+    platform === "archarm" ||
+    platform === "manjaro"
+  ) {
     return DISK_ENCRYPTION_MESSAGES.linux[
       diskEncryptionEnabled ? "enabled" : "unknown"
     ];
@@ -168,6 +175,14 @@ const HostSummary = ({
   );
 
   const renderDiskSpaceSummary = () => {
+    // Hide disk space field if storage measurement is not supported (sentinel value -1)
+    if (
+      typeof summaryData.gigs_disk_space_available === "number" &&
+      summaryData.gigs_disk_space_available < 0
+    ) {
+      return null;
+    }
+
     const title = isAndroidHost ? (
       <TooltipWrapper tipContent="Includes internal and removable storage (e.g. microSD card).">
         Disk space
@@ -181,10 +196,8 @@ const HostSummary = ({
         title={title}
         value={
           <DiskSpaceIndicator
-            baseClass="info-flex"
             gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
             percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
-            id={`disk-space-tooltip-${summaryData.id}`}
             platform={platform}
             tooltipPosition="bottom"
           />
@@ -238,9 +251,22 @@ const HostSummary = ({
   const renderOperatingSystemSummary = () => {
     // No tooltip if minimum version is not set, including all Windows, Linux, ChromeOS, Android operating systems
     if (!osVersionRequirement?.minimum_version) {
-      return (
-        <DataSet title="Operating system" value={summaryData.os_version} />
-      );
+      let value = summaryData.os_version;
+      if (
+        value === "Arch Linux rolling" ||
+        value === "Arch Linux ARM rolling" ||
+        value === "Manjaro Linux rolling" ||
+        value === "Manjaro Linux ARM rolling"
+      ) {
+        const archLinuxPrefix = value.slice(0, -8); // removing lowercase "rolling" suffix
+        value = (
+          <>
+            {archLinuxPrefix}&nbsp;
+            <TooltipWrapperArchLinuxRolling />
+          </>
+        );
+      }
+      return <DataSet title="Operating system" value={value} />;
     }
 
     const osVersionWithoutPrefix = removeOSPrefix(summaryData.os_version);
@@ -391,7 +417,6 @@ const HostSummary = ({
     <Card
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
       className={classNames}
     >
       {!isIosOrIpadosHost && !isAndroidHost && (

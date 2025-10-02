@@ -13,6 +13,7 @@ import RunScript from "./cards/RunScript";
 export interface ISetupExperienceCardProps {
   currentTeamId: number;
   router: InjectedRouter;
+  urlPlatformParam?: string; // not yet guaranteed to be a valid platform
 }
 
 const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
@@ -31,7 +32,7 @@ const SETUP_EXPERIENCE_NAV_ITEMS: ISideNavItem<ISetupExperienceCardProps>[] = [
   {
     title: "3. Install software",
     urlSection: "install-software",
-    path: PATHS.CONTROLS_INSTALL_SOFTWARE,
+    path: PATHS.CONTROLS_INSTALL_SOFTWARE("macos"),
     Card: InstallSoftware,
   },
   {

@@ -27,6 +27,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import PageDescription from "components/PageDescription";
 
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
@@ -380,10 +381,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
     }
     return (
-      <p>
+      <>
         Manage software and search for installed software, OS, and
         vulnerabilities{suffix}.
-      </p>
+      </>
     );
   };
 
@@ -430,29 +431,29 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   };
 
   return (
-    <MainContent>
-      <div className={`${baseClass}__wrapper`}>
+    <MainContent className={baseClass}>
+      <>
         <div className={`${baseClass}__header-wrap`}>
           <div className={`${baseClass}__header`}>
-            <div className={`${baseClass}__text`}>
-              <div className={`${baseClass}__title`}>
-                {isPremiumTier && !isPrimoMode ? (
-                  <TeamsHeader
-                    isOnGlobalTeam={isOnGlobalTeam}
-                    currentTeamId={currentTeamId}
-                    userTeams={userTeams}
-                    onTeamChange={onTeamChange}
-                  />
-                ) : (
-                  <h1>Software</h1>
-                )}
+            <div className={`${baseClass}__header`}>
+              <div className={`${baseClass}__text`}>
+                <div className={`${baseClass}__title`}>
+                  {isPremiumTier && !isPrimoMode ? (
+                    <TeamsHeader
+                      isOnGlobalTeam={isOnGlobalTeam}
+                      currentTeamId={currentTeamId}
+                      userTeams={userTeams}
+                      onTeamChange={onTeamChange}
+                    />
+                  ) : (
+                    <h1>Software</h1>
+                  )}
+                </div>
               </div>
             </div>
+            {renderPageActions()}
           </div>
-          {renderPageActions()}
-        </div>
-        <div className={`${baseClass}__description`}>
-          {renderHeaderDescription()}
+          <PageDescription content={renderHeaderDescription()} />
         </div>
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
@@ -480,7 +481,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
             isPremiumTier={isPremiumTier || false}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

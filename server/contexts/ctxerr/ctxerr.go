@@ -25,6 +25,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type key int
@@ -291,20 +294,61 @@ func FromContext(ctx context.Context) Handler {
 
 // Handle handles err by passing it to the registered error handler,
 // deduplicating it and storing it for a configured duration. It also takes
-// care of sending it to the configured APM, if any.
+// care of sending it to the configured OpenTelemetry/APM/Sentry, if any.
 func Handle(ctx context.Context, err error) {
+	if err == nil {
+		return
+	}
+
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
 	var ferr *FleetError
 	if !errors.As(err, &ferr) {
-		err = Wrap(ctx, err, "missing FleetError in chain")
+		wrapped := wrapError(ctx, "missing FleetError in chain", err, nil)
+		if wrapped == nil {
+			return // shouldn't happen since err is not nil, but be safe
+		}
+		// wrapError returns an error interface, but we know it's a *FleetError
+		ferr = wrapped.(*FleetError)
 	}
 
-	cause := err
-	if ferr := FleetCause(err); ferr != nil {
+	cause := ferr
+	if rootCause := FleetCause(ferr); rootCause != nil {
 		// use the FleetCause error so we send the most relevant stacktrace to APM
 		// (the one from the initial New/Wrap call).
-		cause = ferr
+		cause = rootCause
+	}
+
+	// send to OpenTelemetry if there's an active span
+	if span := trace.SpanFromContext(ctx); span != nil && span.IsRecording() {
+		// Mark the current span as failed by setting the error status.
+		// This status can be overridden if we recovered from the error.
+		span.SetStatus(codes.Error, cause.Error())
+
+		// Build attributes for the exception event
+		attrs := []attribute.KeyValue{
+			attribute.String("exception.type", fmt.Sprintf("%T", cause)),
+			attribute.String("exception.message", cause.Error()),
+			attribute.String("exception.stacktrace", strings.Join(cause.Stack(), "\n")),
+		}
+
+		// Add contextual information if available (same as Sentry)
+		v, _ := viewer.FromContext(ctx)
+		h, _ := host.FromContext(ctx)
+
+		if v.User != nil {
+			attrs = append(attrs,
+				// Not sending the email here as it may contain sensitive information (PII).
+				attribute.Int64("user.id", int64(v.User.ID)), //nolint:gosec
+			)
+		} else if h != nil {
+			attrs = append(attrs,
+				attribute.String("host.hostname", h.Hostname),
+				attribute.Int64("host.id", int64(h.ID)), //nolint:gosec
+			)
+		}
+
+		span.AddEvent("exception", trace.WithAttributes(attrs...))
 	}
 
 	// send to elastic APM
@@ -338,7 +382,7 @@ func Handle(ctx context.Context, err error) {
 	}
 
 	if eh := FromContext(ctx); eh != nil {
-		eh.Store(err)
+		eh.Store(ferr)
 	}
 }
 

@@ -844,7 +844,7 @@ func (svc *Service) hostIsInSetupExperience(ctx context.Context, host *fleet.Hos
 			return false, ctxerr.Wrap(ctx, err, "check if host is in setup experience")
 		}
 		return inSetupExperience, nil
-	case fleet.IsLinux(host.Platform):
+	case fleet.IsLinux(host.Platform) || host.Platform == "windows":
 		hostUUID, err := fleet.HostUUIDForSetupExperience(host)
 		if err != nil {
 			return false, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
@@ -1384,6 +1384,9 @@ func preProcessSoftwareResults(
 	pythonPackagesWithUsersExtraQuery := hostDetailQueryPrefix + "software_python_packages_with_users_dir"
 	preProcessSoftwareExtraResults(pythonPackagesWithUsersExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
 
+	fleetdPacmanPackagesExtraQuery := hostDetailQueryPrefix + "software_linux_fleetd_pacman"
+	preProcessSoftwareExtraResults(fleetdPacmanPackagesExtraQuery, host.ID, results, statuses, messages, osquery_utils.DetailQuery{}, logger)
+
 	for name, query := range overrides {
 		fullQueryName := hostDetailQueryPrefix + "software_" + name
 		preProcessSoftwareExtraResults(fullQueryName, host.ID, results, statuses, messages, query, logger)
@@ -1391,6 +1394,34 @@ func preProcessSoftwareResults(
 
 	// Filter out python packages that are also deb packages on ubuntu/debian
 	pythonPackageFilter(host.Platform, results, statuses)
+
+	updateFleetdVersion(host.Platform, results)
+}
+
+// updateFleetdVersion updates the version of the fleetd package using the orbit version from the orbit_info table for Linux hosts.
+// We do this because orbit uses an auto-update mechanism which does not update the host's package manager database.
+func updateFleetdVersion(hostPlatform string, results fleet.OsqueryDistributedQueryResults) {
+	// Just update the versions for Linux.
+	if !fleet.IsLinux(hostPlatform) {
+		return
+	}
+
+	orbitInfoResults := results[hostDetailQueryPrefix+"orbit_info"]
+	if len(orbitInfoResults) != 1 {
+		return
+	}
+	orbitVersion := orbitInfoResults[0]["version"]
+	if orbitVersion == "" {
+		return
+	}
+
+	for _, row := range results[hostDetailQueryPrefix+"software_linux"] {
+		if row["name"] != "fleet-osquery" {
+			continue
+		}
+		row["version"] = orbitVersion
+		break
+	}
 }
 
 // pythonPackageFilter filters out duplicate python_packages that are installed under deb_packages on Ubuntu and Debian.
@@ -1399,11 +1430,12 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	const pythonPrefix = "python3-"
 	const pythonSource = "python_packages"
 	const debSource = "deb_packages"
+	const rpmSource = "rpm_packages"
 	const linuxSoftware = hostDetailQueryPrefix + "software_linux"
 
-	// Return early if platform is not Ubuntu or Debian
+	// Return early if platform is not Ubuntu, Debian, or RHEL (Inc. Fedora)
 	// We may need to add more platforms in the future
-	if platform != "ubuntu" && platform != "debian" {
+	if platform != "ubuntu" && platform != "debian" && platform != "rhel" {
 		return
 	}
 
@@ -1421,6 +1453,7 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 	// a fresh ubuntu 24.04 install
 	pythonPackages := make(map[string]int, 40)
 	debPackages := make(map[string]struct{}, 40)
+	rpmPackages := make(map[string]struct{}, 60)
 
 	// Track indexes of rows to remove
 	indexesToRemove := []int{}
@@ -1436,6 +1469,10 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 			if strings.HasPrefix(row["name"], pythonPrefix) {
 				debPackages[row["name"]] = struct{}{}
 			}
+		case rpmSource:
+			if strings.HasPrefix(row["name"], pythonPrefix) {
+				rpmPackages[row["name"]] = struct{}{}
+			}
 		}
 	}
 
@@ -1450,6 +1487,8 @@ func pythonPackageFilter(platform string, results fleet.OsqueryDistributedQueryR
 
 		// Filter out Python packages that are also Debian packages
 		if _, found := debPackages[convertedName]; found {
+			indexesToRemove = append(indexesToRemove, index)
+		} else if _, found := rpmPackages[convertedName]; found {
 			indexesToRemove = append(indexesToRemove, index)
 		} else {
 			// Update remaining Python package names to match OVAL definitions

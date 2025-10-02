@@ -273,7 +273,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		// Override EnterprisesListFunc to return empty list (enterprise deleted)
-		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
 				{Name: "enterprises/some-other-enterprise"},
 			}, nil
@@ -322,7 +322,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		// Override EnterprisesListFunc to return the enterprise
-		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{
 				{Name: "enterprises/existing-enterprise-id"},
 				{Name: "enterprises/some-other-enterprise"},
@@ -364,7 +364,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		// Override EnterprisesListFunc to fail
-		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return nil, &googleapi.Error{
 				Code:    http.StatusUnauthorized,
 				Message: "Invalid credentials for list operation.",
@@ -387,7 +387,7 @@ func TestGetEnterprise(t *testing.T) {
 
 		// Check that it returns the LIST error
 		assert.Contains(t, err.Error(), "verifying enterprise with Google")
-		assert.Contains(t, err.Error(), "Invalid credentials for list operation")
+		assert.Contains(t, err.Error(), "authentication error")
 	})
 
 	t.Run("SetAndroidEnabledAndConfigured fails - still return 404", func(t *testing.T) {
@@ -409,7 +409,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		// Override EnterprisesListFunc to return empty list (enterprise deleted)
-		androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+		androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 			return []*androidmanagement.Enterprise{}, nil
 		}
 
@@ -475,7 +475,7 @@ func TestGetEnterprise(t *testing.T) {
 					return nil
 				}
 
-				androidAPIClient.EnterprisesListFunc = func(_ context.Context) ([]*androidmanagement.Enterprise, error) {
+				androidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
 					return []*androidmanagement.Enterprise{
 						{Name: tc.enterpriseNameInList},
 					}, nil

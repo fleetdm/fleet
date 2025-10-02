@@ -53,7 +53,7 @@ setup () {
     # Passphrases need to be exported for use by `fleetctl updates` commands.
     #
 
-    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable"  ]]; then
+    if [[ $ACTION == "release-to-edge" ]] || [[ $ACTION == "promote-edge-to-stable" ]] || [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
         FLEET_TARGETS_PASSPHRASE=$(op read "op://$TARGETS_PASSPHRASE_1PASSWORD_PATH")
         export FLEET_TARGETS_PASSPHRASE
         FLEET_SNAPSHOT_PASSPHRASE=$(op read "op://$SNAPSHOT_PASSPHRASE_1PASSWORD_PATH")
@@ -327,6 +327,18 @@ print_reminder () {
     if [[ $ACTION == "release-to-edge" ]]; then
         if [[ $COMPONENT == "fleetd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --update-interval=1m --orbit-channel=edge --desktop-channel=edge' on Linux amd64, Linux arm64, Windows, and macOS."
+            milestone_url=$(curl -s 'https://api.github.com/repos/fleetdm/fleet/milestones?per_page=100' | jq -r ".[]|select(.title | contains(\"$VERSION\")).html_url")
+            echo "Milestone checks:"
+            if [[ -n $milestone_url ]]; then
+                prompt "1. It seems fleetd version $VERSION milestone is: $milestone_url"
+            else
+                prompt "1. fleetd $VERSION has a milestone in https://github.com/fleetdm/fleet/milestones"
+            fi
+            echo "Orbit changes:"
+            cat orbit/changes/*
+            echo 
+            prompt "2. All items above under orbit/changes/ correspond to a Github issue"
+            prompt "3. All items in the $VERSION milestone are in 'Ready for release'"
         elif [[ $COMPONENT == "osqueryd" ]]; then
             prompt "To smoke test the release make sure to generate and install fleetd with 'fleetctl package [...] --update-url=https://updates-staging.fleetdm.com --osqueryd-channel=edge --update-interval=1m' on Linux amd64, Linux arm64, Windows, and macOS."
         fi
@@ -340,6 +352,8 @@ print_reminder () {
         :
     elif [[ $ACTION == "update-osquery-schema" ]]; then
         :
+    elif [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
+        prompt "We don't have/use edge channel for swiftDialog, so (currently) we can only release to stable."
     else
         echo "Unsupported action: $ACTION"
         exit 1
@@ -350,6 +364,12 @@ fleetctl_version_check () {
     echo "Using '$GIT_REPOSITORY_DIRECTORY/build/fleetctl'"
     "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" --version
     prompt "Make sure the fleetctl executable and version are correct."
+}
+
+release_swiftDialog_to_stable () {
+    pushd "$TUF_DIRECTORY"
+    "$GIT_REPOSITORY_DIRECTORY/build/fleetctl" updates add --target "$SWIFT_DIALOG_PATH" --platform macos --name swiftDialog --version "$VERSION" -t stable
+    popd
 }
 
 print_reminder
@@ -367,6 +387,23 @@ elif [[ $ACTION == "promote-edge-to-stable" ]]; then
     fleetctl_version_check
     pull_from_staging
     promote_edge_to_stable
+    push_to_staging
+elif [[ $ACTION == "release-swiftDialog-to-stable" ]]; then
+    if [[ -z $SWIFT_DIALOG_PATH ]]; then
+        echo "Missing $SWIFT_DIALOG_PATH"
+        exit 1
+    fi
+
+    if [ ! -f "$SWIFT_DIALOG_PATH" ]; then
+        echo "Path SWIFT_DIALOG_PATH='$SWIFT_DIALOG_PATH' does not exist or is not accessible."
+    fi
+    prompt "Using $SWIFT_DIALOG_PATH"
+
+    trap clean_up EXIT
+    setup
+    fleetctl_version_check
+    pull_from_staging
+    release_swiftDialog_to_stable
     push_to_staging
 elif [[ $ACTION == "update-timestamp" ]]; then
     trap clean_up EXIT

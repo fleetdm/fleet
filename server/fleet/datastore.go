@@ -209,7 +209,7 @@ type Datastore interface {
 	// based on its host vitals criteria.
 	UpdateLabelMembershipByHostCriteria(ctx context.Context, hvl HostVitalsLabel) (*Label, error)
 
-	NewLabel(ctx context.Context, Label *Label, opts ...OptionalArg) (*Label, error)
+	NewLabel(ctx context.Context, label *Label, opts ...OptionalArg) (*Label, error)
 	// SaveLabel updates the label and returns the label and an array of host IDs
 	// members of this label, or an error.
 	SaveLabel(ctx context.Context, label *Label, teamFilter TeamFilter) (*Label, []uint, error)
@@ -656,6 +656,12 @@ type Datastore interface {
 	// SetHostSoftwareInstallResult records the result of a software installation
 	// attempt on the host.
 	SetHostSoftwareInstallResult(ctx context.Context, result *HostSoftwareInstallResultPayload) (wasCanceled bool, err error)
+
+	// CreateIntermediateInstallFailureRecord creates a completed failure record for an
+	// installation attempt that will be retried, while keeping the original pending.
+	// Returns the execution ID of the failure record, the software install result details,
+	// and a boolean indicating whether a new record was created (true) or an existing one was updated (false).
+	CreateIntermediateInstallFailureRecord(ctx context.Context, result *HostSoftwareInstallResultPayload) (string, *HostSoftwareInstallerResult, bool, error)
 
 	// UploadedSoftwareExists checks if a software title with the given bundle identifier exists in
 	// the given team.
@@ -1110,6 +1116,9 @@ type Datastore interface {
 	// OperatingSystemVulnerabilities Store
 	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
 	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool, teamID *uint) (Vulnerabilities, error)
+	// ListVulnsByMultipleOSVersions is an optimized batch query that fetches vulnerabilities for multiple OS versions
+	// in a single efficient operation.
+	ListVulnsByMultipleOSVersions(ctx context.Context, osVersions []OSVersion, includeCVSS bool, teamID *uint) (map[string]Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
 	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
@@ -1775,7 +1784,7 @@ type Datastore interface {
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile,
-		macDeclarations []*MDMAppleDeclaration, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
+		macDeclarations []*MDMAppleDeclaration, androidProfiles []*MDMAndroidConfigProfile, profilesVariables []MDMProfileIdentifierFleetVariables) (updates MDMProfilesUpdates, err error)
 
 	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
 	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
@@ -2054,6 +2063,7 @@ type Datastore interface {
 	GetTeamIdsForIconStorageId(ctx context.Context, storageID string) ([]uint, error)
 	GetSoftwareIconsByTeamAndTitleIds(ctx context.Context, teamID uint, titleIDs []uint) (map[uint]SoftwareTitleIcon, error)
 	DeleteSoftwareTitleIcon(ctx context.Context, teamID, titleID uint) error
+	DeleteIconsAssociatedWithTitlesWithoutInstallers(ctx context.Context, teamID uint) error
 	ActivityDetailsForSoftwareTitleIcon(ctx context.Context, teamID uint, titleID uint) (DetailsForSoftwareIconActivity, error)
 
 	BatchInsertVPPApps(ctx context.Context, apps []*VPPApp) error
@@ -2167,6 +2177,10 @@ type Datastore interface {
 	// set of slugs.
 	ClearRemovedFleetMaintainedApps(ctx context.Context, slugsToKeep []string) error
 
+	// GetSetupExperienceCount returns the number of installers, vpp apps, and scritps available for
+	// a team and platform
+	GetSetupExperienceCount(ctx context.Context, platform string, teamID *uint) (*SetupExperienceCount, error)
+
 	// GetMaintainedAppByID gets a Fleet-maintained app by its ID, including software title ID if
 	// either the maintained app or a custom package/VPP app for the same app is installed on the specified team,
 	// if a team is specified.
@@ -2237,6 +2251,45 @@ type Datastore interface {
 	// Android
 
 	AndroidDatastore
+
+	// NewMDMAndroidConfigProfile creates a new Android MDM config profile.
+	NewMDMAndroidConfigProfile(ctx context.Context, cp MDMAndroidConfigProfile) (*MDMAndroidConfigProfile, error)
+
+	// GetMDMAndroidConfigProfile returns the Android MDM profile corresponding
+	// to the specified profile uuid.
+	GetMDMAndroidConfigProfile(ctx context.Context, profileUUID string) (*MDMAndroidConfigProfile, error)
+
+	// DeleteMDMAndroidConfigProfile deletes the Android MDM profile corresponding to
+	// the specified profile uuid.
+	DeleteMDMAndroidConfigProfile(ctx context.Context, profileUUID string) error
+
+	// GetMDMAndroidProfilesSummary summarizes the current state of Android profiles on each
+	// Android host in the specified team (or, if no team is specified, each host that is not
+	// assigned to any team).
+	GetMDMAndroidProfilesSummary(ctx context.Context, teamID *uint) (*MDMProfilesSummary, error)
+
+	// GetHostMDMAndroidProfiles retrieves the Android MDM profiles for a specific host.
+	GetHostMDMAndroidProfiles(ctx context.Context, hostUUID string) ([]HostMDMAndroidProfile, error)
+
+	// NewAndroidPolicyRequest saves details about a new Android AMAPI request.
+	NewAndroidPolicyRequest(ctx context.Context, req *MDMAndroidPolicyRequest) error
+
+	// GetAndroidPolicyRequestByUUID retrieves an Android policy request by ID.
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
+
+	// ListMDMAndroidProfilesToSend lists the Android hosts that need to have
+	// their configuration profiles (Android policy) sent. It returns two lists,
+	// the list of profiles to apply and the list of profiles to remove.
+	ListMDMAndroidProfilesToSend(ctx context.Context) ([]*MDMAndroidProfilePayload, []*MDMAndroidProfilePayload, error)
+
+	// GetMDMAndroidProfilesContents retrieves the contents of the Android
+	// profiles with the specified UUIDs.
+	GetMDMAndroidProfilesContents(ctx context.Context, uuids []string) (map[string]json.RawMessage, error)
+
+	// ListAndroidEnrolledDevicesForReconcile returns the list of Android devices
+	// that are currently marked as enrolled in Fleet (host_mdm.enrolled=1).
+	// It returns a minimal device struct with host and device identifiers.
+	ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// SCIM
@@ -2358,8 +2411,10 @@ type Datastore interface {
 type AndroidDatastore interface {
 	android.Datastore
 	AndroidHostLite(ctx context.Context, enterpriseSpecificID string) (*AndroidHost, error)
+	AndroidHostLiteByHostUUID(ctx context.Context, hostUUID string) (*AndroidHost, error)
 	AppConfig(ctx context.Context) (*AppConfig, error)
 	BulkSetAndroidHostsUnenrolled(ctx context.Context) error
+	SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error
 	DeleteMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName) error
 	GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []MDMAssetName,
 		queryerContext sqlx.QueryerContext) (map[MDMAssetName]MDMConfigAsset, error)
@@ -2373,6 +2428,14 @@ type AndroidDatastore interface {
 	AssociateHostMDMIdPAccount(ctx context.Context, hostUUID, idpAcctUUID string) error
 	TeamIDsWithSetupExperienceIdPEnabled(ctx context.Context) ([]uint, error)
 	Team(ctx context.Context, tid uint) (*Team, error)
+	// BulkUpsertMDMAndroidHostProfiles bulk-adds/updates records to track the
+	// status of a profile in a host.
+	BulkUpsertMDMAndroidHostProfiles(ctx context.Context, payload []*MDMAndroidProfilePayload) error
+	// BulkDeleteMDMAndroidHostProfiles bulk removes records from the host's profile, that is pending or failed remove and less than or equals to the policy version.
+	BulkDeleteMDMAndroidHostProfiles(ctx context.Context, hostUUID string, policyVersionID int64) error
+	// ListHostMDMAndroidProfilesPendingInstallWithVersion returns a list of all android profiles that are pending install, and where version is less than or equals to the policyVersion.
+	ListHostMDMAndroidProfilesPendingInstallWithVersion(ctx context.Context, hostUUID string, policyVersion int64) ([]*MDMAndroidProfilePayload, error)
+	GetAndroidPolicyRequestByUUID(ctx context.Context, requestUUID string) (*MDMAndroidPolicyRequest, error)
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -2380,6 +2443,7 @@ type AndroidDatastore interface {
 type MDMAppleStore interface {
 	storage.AllStorage
 	MDMAssetRetriever
+	GetPendingLockCommand(ctx context.Context, hostUUID string) (*mdm.Command, string, error)
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
 	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }

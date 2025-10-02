@@ -3261,14 +3261,15 @@ Lists the software installed on the current device.
 
 ```json
 {
-  "count": 2,
+  "count": 3,
   "software": [
     {
       "id": 121,
       "name": "Google Chrome.app",
+      "display_name": "Chrome",
       "software_package": {
-        "name": "GoogleChrome.pkg"
-        "version": "125.12.2"
+        "name": "GoogleChrome.pkg",
+        "version": "125.12.2",
         "self_service": true,
         "categories": ["Browsers"],
      	"last_install": {
@@ -3299,6 +3300,7 @@ Lists the software installed on the current device.
     {
       "id": 143,
       "name": "Firefox.app",
+      "display_name": "Firefox",
       "software_package": null,
       "app_store_app": null,
       "source": "apps",
@@ -3320,6 +3322,23 @@ Lists the software installed on the current device.
         "icon_url": "https://example.com/logo-light.jpg",
         "last_install": null
       },
+    },
+    {
+      "id": 144,
+      "name": "Prettier",
+      "software_package": null,
+      "app_store_app": null,
+      "source": "vscode_extensions",
+      "extesnion_for": "cursor",
+      "status": null,
+      "installed_versions": [
+        {
+          "version": "1.2.6",
+          "last_opened_at": "2024-04-01T23:03:07Z",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+          "installed_paths": ["/Users/admin/.cursor/extensions/prettier"]
+        }
+      ],
     }
   ],
   "meta": {
@@ -3602,32 +3621,6 @@ Lists the certificates installed on the current device.
 }
 ```
 
-#### Get device's API features
-
-This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
-
-`GET /api/v1/fleet/device/{token}/api_features`
-
-##### Parameters
-
-| Name  | Type   | In   | Description                        |
-| ----- | ------ | ---- | ---------------------------------- |
-| token | string | path | The device's authentication token. |
-
-##### Example
-
-`GET /api/v1/fleet/device/abcdef012456789/api_features`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "features": {}
-}
-```
-
 #### Get device's transparency URL
 
 Returns the URL to open when clicking the "About Fleet" menu item in Fleet Desktop. Note that _Fleet Premium_ is required to configure a custom transparency URL.
@@ -3723,6 +3716,47 @@ Signals the Fleet server to queue up the LUKS disk encryption escrow process (LU
 ##### Default response
 
 `Status: 204`
+
+---
+
+### Get the setup experience status for the device
+
+_Available in Fleet Premium_
+
+`POST /api/v1/fleet/device/{token}/setup_experience/status`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`POST /api/v1/fleet/device/7d940b6e-130a-493b-b58a-2b6e9f9f8bfc/setup_experience/status`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "setup_experience_results": {
+    "software": [
+      {
+        "name": "1password-latest.tar.gz",
+        "status": "running",
+        "software_title_id": 3007
+      },
+      {
+        "name": "slack.deb",
+        "status": "pending",
+        "software_title_id": 3008
+      }
+    ]
+  }
+}
+```
 
 ---
 
@@ -3873,7 +3907,42 @@ Notifies the server about an agent error, resulting in two outcomes:
         "org_logo_url": ""
     }
 }
+```
 
+### Start the setup experience
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| orbit_node_key | string | body | The Orbit node key for authentication. |
+
+##### Example
+
+`POST /api/fleet/orbit/setup_experience/init`
+
+##### Request body
+
+```json
+{
+  "orbit_node_key":"TuvSsWf0RwBEecUlNBTLmBcjGFAdzqt/"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+Returns `enabled` set to `true` if items (e.g. software) for the setup experience were queued for the host.
+
+```json
+{
+  "result": {
+    "enabled": true
+  }
+}
 ```
 
 ### Set or update device token
@@ -4124,6 +4193,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 | install_script_output         | string | body | The output from the install script.                     |
 | post_install_script_exit_code | number | body | The exit code from the post-install script.             |
 | post_install_script_output    | string | body | The output from the post-install script.                |
+| retries_remaining             | number | body | The number of retries remaining for this installation. When > 0, the server treats this as an intermediate failure. |
 
 ##### Example
 
@@ -4140,7 +4210,8 @@ Notifies the server about an agent error, resulting in two outcomes:
   "install_script_exit_code ": 0,
   "install_script_output ": "software installed",
   "post_install_script_exit_code ": 1,
-  "post_install_script_output ": "error: post-install script failed"
+  "post_install_script_output ": "error: post-install script failed",
+  "retries_remaining": 0
 }
 ```
 
@@ -4224,6 +4295,7 @@ Body: <blob>
   "uninstall_script": "sudo run-uninstaller",
   "post_install_script": "echo done",
   "self_service": true,
+  "max_retries": 2,
   "installer_url": {
     "url": "https://d1nsa5964r3p4i.cloudfront.net/software-installers/98330e7e6db3507b444d576dc437a9ac4d82333a88a6bb6ef36a91fe3d85fa92?Expires=1736178766&Signature=HpcpyniNSBkS695mZhkZRjXo6UQ5JtXQ2sk0poLEMDMeF063IjsBj2O56rruzk3lomYFjqoxc3BdnFqEjrEXQSieSALiCufZ2LjTfWffs7f7qnNVZwlkg-upZd5KBfrCHSIyzMYSPhgWFPOpNRVqOc4NFXx8fxRLagK7NBKFAEfCAwo0~KMCSJiof0zWOdY0a8p0NNAbBn0uLqK7vZLwSttVpoK6ytWRaJlnemofWNvLaa~Et3p5wJJRfYGv73AK-pe4FMb8dc9vqGNSZaDAqw2SOdXrLhrpvSMjNmMO3OvTcGS9hVHMtJvBmgqvCMAWmHBK6v5C9BobSh4TCNLIuA__&Key-Pair-Id=K1HFGXOMBB6TFF",
     "filename": "my-installer.pkg"

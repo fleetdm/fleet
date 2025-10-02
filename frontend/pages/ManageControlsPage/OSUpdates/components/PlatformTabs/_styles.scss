@@ -1,11 +1,35 @@
 .platform-tabs {
-  .react-tabs__tab-list {
-    margin-bottom: $pad-large;
-  }
-  &__coming-soon {
-    p {
-      margin: 0;
-      padding-bottom: $pad-small;
+  &__tab-panel {
+    display: grid;
+    gap: $pad-medium;
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas: "target nudge-preview";
+
+    @media (max-width: $break-md) {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "target"
+        "nudge-preview";
     }
+  }
+
+  &__target-container {
+    grid-area: target;
+  }
+
+  &__nudge-preview-container {
+    grid-area: nudge-preview;
+
+    &__coming-soon {
+      p {
+        margin: 0;
+        padding-bottom: $pad-small;
+      }
+    }
+  }
+
+  .apple-os-target-form,
+  .windows-target-form {
+    padding-right: $pad-xlarge; // match figma
   }
 }
