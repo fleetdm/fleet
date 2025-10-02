@@ -248,22 +248,40 @@ export const SoftwareInstallDetailsModal = ({
     return "If you uninstalled it outside of Fleet it will still show as installed.";
   };
 
-  const renderInstallDetailsSection = () => (
-    <>
-      <RevealButton
-        isShowing={showInstallDetails}
-        showText="Details"
-        hideText="Details"
-        caretPosition="after"
-        onClick={toggleInstallDetails}
-      />
-      {showInstallDetails && swInstallResult?.output && (
-        <Textarea label="Install script output:" variant="code">
-          {swInstallResult.output}
-        </Textarea>
-      )}
-    </>
-  );
+  const renderInstallDetailsSection = () => {
+    const outputs = [
+      {
+        label: "Install script output:",
+        value: swInstallResult?.output,
+      },
+      {
+        label: "Post-install script output:",
+        value: swInstallResult?.post_install_script_output,
+      },
+    ];
+
+    return (
+      <>
+        <RevealButton
+          isShowing={showInstallDetails}
+          showText="Details"
+          hideText="Details"
+          caretPosition="after"
+          onClick={toggleInstallDetails}
+        />
+        {showInstallDetails &&
+          outputs.map(
+            ({ label, value }) =>
+              value && (
+                <Textarea key={label} label={label} variant="code">
+                  {value}
+                </Textarea>
+              )
+          )}
+      </>
+    );
+  };
+
   const excludeVersions = ["pending_install", "failed_install"].includes(
     swInstallResult?.status || ""
   );
