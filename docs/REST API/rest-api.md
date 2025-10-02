@@ -903,7 +903,7 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 
 ##### Request header
 
-```
+```http
 Content-Digest: sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+T\aPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==
 Signature: sig1=:e8UJ5wMiRaonlth5ERtE8GIiEH7Akcr493nQ07VPNo6y3qvjdK\t0fo8VHO8xXDjmtYoatGYBGJVlMfIp06eVMEyNW2I4vN7XDAz7m5v1108vGzaDljr\d0H8+SJ28g7bzn6h2xeL/8q+qUwahWA/JmC8aOC9iVnwbOKCc0WSrLgWQwTY6VLp4\2Qt7jjhYT5W7/wCvfK9A1VmHH1lJXsV873Z6hpxesd50PSmO+xaNeYvDLvVdZlhtw\5PCtUYzKjHqwmaQ6DEuM8udRjYsoNqp2xZKcuCO1nKc0V3RjpqMZLuuyVbHDAbCzr\ 0pg2d2VM/OC33JAU7meEjjaNz+d7LWPg==:
 Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest" "content-type" "content-length")\;created=1618884475;keyid="test-key-rsa-pss"
