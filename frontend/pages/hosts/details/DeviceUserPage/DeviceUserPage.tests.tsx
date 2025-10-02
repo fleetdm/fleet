@@ -2,7 +2,7 @@ import React from "react";
 import { screen, waitFor } from "@testing-library/react";
 
 import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
-import createMockHost, { createMockHostEndUser } from "__mocks__/hostMock";
+import createMockHost from "__mocks__/hostMock";
 import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
@@ -28,6 +28,7 @@ const mockLocation = {
     query: undefined,
     order_key: undefined,
     order_direction: undefined,
+    setup_only: "",
   },
   search: undefined,
 };
@@ -140,7 +141,8 @@ describe("Device User Page", () => {
 
     const setupTest = async (
       deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
-      setupExperienceOverrides?: Partial<IGetSetupExperienceStatusesResponse>
+      setupExperienceOverrides?: Partial<IGetSetupExperienceStatusesResponse>,
+      mockLocationOverrides = {}
     ) => {
       mockServer.use(customDeviceHandler(deviceUserResponseOverrides));
       mockServer.use(defaultDeviceCertificatesHandler);
@@ -154,11 +156,12 @@ describe("Device User Page", () => {
         <DeviceUserPage
           router={mockRouter}
           params={{ device_auth_token: "testToken" }}
-          location={mockLocation}
+          location={{
+            ...(mockLocation || {}),
+            ...(mockLocationOverrides || {}),
+          }}
         />
       );
-
-      await screen.findByText(/My device/);
 
       return user;
     };
@@ -174,7 +177,7 @@ describe("Device User Page", () => {
       });
     });
 
-    it("checks for setup experience software on Fleet Premium, and renders Setting Up Your Device if there is such software", async () => {
+    it("checks for setup experience steps on Fleet Premium, and renders Setting Up Your Device if there are such steps", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -188,7 +191,7 @@ describe("Device User Page", () => {
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
-    it("checks for setup experience software on Fleet Premium, and renders the normal device user page if there is no such software", async () => {
+    it("checks for setup experience items on Fleet Premium, and renders the normal device user page if there are such steps", async () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
@@ -199,6 +202,23 @@ describe("Device User Page", () => {
       });
 
       expect(screen.queryByText(SETTING_UP_YOUR_DEVICE_MATCHER)).toBeNull();
+    });
+    it("checks for setup experience items on Fleet Premium, and renders Setting Up Your Device even there are no such steps if setup_only=1 is in the query", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest(
+        { host },
+        { setup_experience_results: {} },
+        { query: { setup_only: "1" } }
+      );
+      await waitFor(() => {
+        expect(
+          screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
+        ).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
     });
   });
 
