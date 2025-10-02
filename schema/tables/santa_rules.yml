@@ -1,0 +1,27 @@
+name: santa_rules
+description: The [Santa](https://github.com/google/santa) rules that are currently installed on a macOS host.
+platforms: 
+  - darwin
+evented: false
+examples: |-
+  Verify that running WhatsApp will be denied (blocked) by Santa via WhatsApp's Team ID.
+  ```
+  SELECT state FROM santa_rules WHERE identifier = '57T9237FN3';
+  ```
+columns:
+  - name: identifier
+    description: Rule identifier (SHA256, Team ID, etc.
+    required: false
+    type: text
+  - name: type
+    description: Type of rule (Binary, Certificate, TeamID)
+    required: false
+    type: text
+  - name: state
+    description: Rule state (Allowlist, Denylist)
+    required: false
+    type: text
+  - name: custom_message
+    description: Custom message associated with the rule
+    required: false
+    type: text
