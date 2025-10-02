@@ -37,7 +37,7 @@ const BitLockerPinModal = ({
               <li>
                 <p>
                   Click <b>Change how the drive is unlocked at startup</b>. If 
-                  this option doesn&apos;t show up, wait a minute and relaunch{" "}
+                  this option doesn&apos;t show up, wait a minute and relaunch{" "}
                   <b>Manage BitLocker</b>.
                 </p>
               </li>
