@@ -2,15 +2,15 @@ import React from "react";
 
 import { CellProps, Column } from "react-table";
 
-import { ISetupSoftwareStatus } from "interfaces/software";
+import { ISetupStep } from "interfaces/software";
 
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
 
-type ISetupSoftwareStatusTableConfig = Column<ISetupSoftwareStatus>;
-type ITableCellProps = CellProps<ISetupSoftwareStatus>;
+type ISetupStatusTableConfig = Column<ISetupStep>;
+type ITableCellProps = CellProps<ISetupStep>;
 
-const generateColumnConfigs = (): ISetupSoftwareStatusTableConfig[] => [
+const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
   {
     Header: "Process",
     accessor: "name",

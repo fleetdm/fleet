@@ -595,7 +595,7 @@ export interface IFleetMaintainedAppDetails {
   categories: SoftwareCategory[];
 }
 
-export const SETUP_SOFTWARE_STATUSES = [
+export const SETUP_STEP_STATUSES = [
   "pending",
   "running",
   "success",
@@ -603,9 +603,14 @@ export const SETUP_SOFTWARE_STATUSES = [
   "cancelled", // server should be aggregating cancelled installs with failed, check here just in case
 ] as const;
 
-export type SetupSoftwareStatus = typeof SETUP_SOFTWARE_STATUSES[number];
+export type SetupStepStatus = typeof SETUP_STEP_STATUSES[number];
 
-export interface ISetupSoftwareStatus {
+export const SETUP_STEP_TYPES = ["software_install", "script_run"];
+
+export type SetupStepType = typeof SETUP_STEP_TYPES[number];
+
+export interface ISetupStep {
   name: string | null;
-  status: SetupSoftwareStatus;
+  status: SetupStepStatus;
+  type: SetupStepType;
 }

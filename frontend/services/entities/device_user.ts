@@ -1,6 +1,6 @@
 import { IDeviceUserResponse } from "interfaces/host";
 import { IListOptions } from "interfaces/list_options";
-import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
+import { IDeviceSoftware, ISetupStep } from "interfaces/software";
 import { IHostCertificate } from "interfaces/certificates";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
@@ -52,7 +52,7 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupSoftwareStatusesResponse {
-  setup_experience_results: { software?: ISetupSoftwareStatus[] };
+  setup_experience_results: { software?: ISetupStep[] };
 }
 
 export interface IGetSetupSoftwareStatusesParams {

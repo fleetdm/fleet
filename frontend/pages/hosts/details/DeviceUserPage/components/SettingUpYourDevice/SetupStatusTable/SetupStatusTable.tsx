@@ -1,21 +1,19 @@
 import React from "react";
 
-import { ISetupSoftwareStatus } from "interfaces/software";
+import { ISetupStep } from "interfaces/software";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 
-import generateColumnConfigs from "./SetupSoftwareStatusTableConfig";
+import generateColumnConfigs from "./SetupStatusTableConfig";
 
-const baseClass = "setup-software-status-table";
+const baseClass = "setup-status-table";
 
-interface ISetupSoftwareStatusTableProps {
-  statuses: ISetupSoftwareStatus[];
+interface ISetupStatusTableProps {
+  statuses: ISetupStep[];
 }
 
-const SetupSoftwareStatusTable = ({
-  statuses,
-}: ISetupSoftwareStatusTableProps) => {
+const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
   const columnConfigs = generateColumnConfigs();
 
   return (
@@ -32,8 +30,8 @@ const SetupSoftwareStatusTable = ({
         emptyComponent={() => (
           // will never be empty
           <EmptyTable
-            header="No software to install"
-            info="Software setup status will appear here"
+            header="No setup steps to complete"
+            info="Setup items will appear here"
           />
         )}
       />
@@ -41,4 +39,4 @@ const SetupSoftwareStatusTable = ({
   );
 };
 
-export default SetupSoftwareStatusTable;
+export default SetupStatusTable;

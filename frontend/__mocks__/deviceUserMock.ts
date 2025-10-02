@@ -1,5 +1,5 @@
 import { IDeviceUser } from "interfaces/host";
-import { IDeviceSoftware, ISetupSoftwareStatus } from "interfaces/software";
+import { IDeviceSoftware, ISetupStep } from "interfaces/software";
 import {
   IGetDeviceSoftwareResponse,
   IGetSetupSoftwareStatusesResponse,
@@ -53,14 +53,15 @@ export const createMockDeviceSoftwareResponse = (
   };
 };
 
-const DEFAULT_SETUP_SOFTWARE_STATUS_MOCK: ISetupSoftwareStatus = {
+const DEFAULT_SETUP_SOFTWARE_STATUS_MOCK: ISetupStep = {
   name: "Slack",
+  type: "software_install",
   status: "pending",
 };
 
 export const createMockSetupSoftwareStatus = (
-  overrides?: Partial<ISetupSoftwareStatus>
-): ISetupSoftwareStatus => {
+  overrides?: Partial<ISetupStep>
+): ISetupStep => {
   return { ...DEFAULT_SETUP_SOFTWARE_STATUS_MOCK, ...overrides };
 };
 

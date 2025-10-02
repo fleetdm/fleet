@@ -53,7 +53,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage, getIsSettingUpSoftware } from "./helpers";
+import { getErrorMessage, hasRemainingSetupSteps } from "./helpers";
 
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -110,6 +110,7 @@ interface IDeviceUserPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      setup_only?: string;
     };
     search?: string;
   };
@@ -316,7 +317,9 @@ const DeviceUserPage = ({
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isSetupExperienceSoftwareEnabledPlatform =
-    isLinuxLike(host?.platform || "") || host?.platform === "windows";
+    isLinuxLike(host?.platform || "") ||
+    host?.platform === "windows" ||
+    host?.platform === "darwin";
 
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
@@ -340,7 +343,7 @@ const DeviceUserPage = ({
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.setup_experience_results.software,
       enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
-      refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
+      refetchInterval: (data) => (hasRemainingSetupSteps(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
     }
   );
@@ -493,7 +496,8 @@ const DeviceUserPage = ({
     }
     if (
       checkForSetupExperienceSoftware &&
-      getIsSettingUpSoftware(softwareSetupStatuses)
+      (hasRemainingSetupSteps(softwareSetupStatuses) ||
+        location.query.setup_only)
     ) {
       // at this point, softwareSetupStatuses will be non-empty
       return (
