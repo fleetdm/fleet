@@ -54,28 +54,30 @@ export const createMockDeviceSoftwareResponse = (
   };
 };
 
-const DEFAULT_SETUP_SOFTWARE_STATUS_MOCK: ISetupStep = {
+const DEFAULT_SETUP_STEP_STATUS_MOCK: ISetupStep = {
   name: "Slack",
-  type: "software_install",
   status: "pending",
+  type: "",
 };
 
-export const createMockSetupSoftwareStatus = (
+export const createMockSetupStepStatus = (
   overrides?: Partial<ISetupStep>
 ): ISetupStep => {
-  return { ...DEFAULT_SETUP_SOFTWARE_STATUS_MOCK, ...overrides };
+  return { ...DEFAULT_SETUP_STEP_STATUS_MOCK, ...overrides };
 };
 
 const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatusesResponse = {
   setup_experience_results: {
     software: [
-      createMockSetupSoftwareStatus({ name: "1Password", status: "pending" }),
-      createMockSetupSoftwareStatus({ name: "Chrome", status: "failure" }),
-      createMockSetupSoftwareStatus({ name: "Firefox", status: "cancelled" }),
-      createMockSetupSoftwareStatus({ name: "Slack", status: "success" }),
-      createMockSetupSoftwareStatus({ name: "Zoom", status: "running" }),
+      createMockSetupStepStatus({ name: "1Password", status: "pending" }),
+      createMockSetupStepStatus({ name: "Chrome", status: "failure" }),
+      createMockSetupStepStatus({ name: "Firefox", status: "cancelled" }),
+      createMockSetupStepStatus({ name: "Slack", status: "success" }),
+      createMockSetupStepStatus({ name: "Zoom", status: "running" }),
     ],
-    scripts: [],
+    scripts: [
+      createMockSetupStepStatus({ name: "test.sh", status: "pending" }),
+    ],
   },
 };
 

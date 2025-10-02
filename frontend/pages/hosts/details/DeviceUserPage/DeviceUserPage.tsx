@@ -10,7 +10,6 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
-  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
