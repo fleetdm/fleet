@@ -75,6 +75,7 @@ const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatuses
       createMockSetupSoftwareStatus({ name: "Slack", status: "success" }),
       createMockSetupSoftwareStatus({ name: "Zoom", status: "running" }),
     ],
+    scripts: [],
   },
 };
 

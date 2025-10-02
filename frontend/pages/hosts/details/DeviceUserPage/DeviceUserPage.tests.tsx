@@ -195,7 +195,10 @@ describe("Device User Page", () => {
       const host = createMockHost() as IHostDevice;
       host.platform = "linux";
 
-      await setupTest({ host }, { setup_experience_results: {} });
+      await setupTest(
+        { host },
+        { setup_experience_results: { software: [], scripts: [] } }
+      );
 
       await waitFor(() => {
         expect(screen.getByText(REGULAR_DUP_MATCHER)).toBeInTheDocument();
@@ -209,7 +212,7 @@ describe("Device User Page", () => {
 
       await setupTest(
         { host },
-        { setup_experience_results: {} },
+        { setup_experience_results: { software: [], scripts: [] } },
         { query: { setup_only: "1" } }
       );
       await waitFor(() => {

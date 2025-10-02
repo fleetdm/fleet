@@ -53,7 +53,7 @@ export interface IGetVppInstallCommandResultsResponse {
   results: IMdmCommandResult[];
 }
 export interface IGetSetupExperienceStatusesResponse {
-  setup_experience_results: { software?: ISetupStep[]; scripts?: ISetupStep[] };
+  setup_experience_results: { software: ISetupStep[]; scripts: ISetupStep[] };
 }
 
 export interface IGetSetupExperienceStatusesParams {
@@ -176,10 +176,23 @@ export default {
 
   getSetupExperienceStatuses: ({
     token,
-  }: IGetSetupExperienceStatusesParams): Promise<IGetSetupExperienceStatusesResponse> => {
+  }: IGetSetupExperienceStatusesParams): Promise<ISetupStep[]> => {
     const { DEVICE_SETUP_EXPERIENCE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_EXPERIENCE_STATUSES(token);
-    return sendRequest("POST", path);
+    return sendRequest("POST", path).then(
+      (response: IGetSetupExperienceStatusesResponse) => {
+        return [
+          ...(response.setup_experience_results.software ?? []).map((s) => ({
+            ...s,
+            type: "software" as const,
+          })),
+          ...(response.setup_experience_results.scripts ?? []).map((s) => ({
+            ...s,
+            type: "script" as const,
+          })),
+        ];
+      }
+    );
   },
 
   resendProfile: (deviceToken: string, profileUUID: string) => {

@@ -96,5 +96,5 @@ export const deviceSetupExperienceHandler = (
   });
 
 export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
-  setup_experience_results: { software: [] },
+  setup_experience_results: { software: [], scripts: [] },
 });
