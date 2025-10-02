@@ -441,6 +441,7 @@ export interface IHostSoftware {
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;
   bundle_identifier?: string;
+  extension_for?: ExtensionForType;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }

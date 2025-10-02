@@ -2,9 +2,9 @@ import React from "react";
 import { CellProps, Column } from "react-table";
 
 import {
+  formatSoftwareType,
   IHostSoftware,
   SoftwareSource,
-  SOURCE_TYPE_CONVERSION,
 } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
@@ -24,11 +24,6 @@ type IInstalledVersionsCellProps = CellProps<
   IHostSoftware["installed_versions"]
 >;
 type IVulnerabilitiesCellProps = IInstalledVersionsCellProps;
-
-const formatSoftwareType = (source: SoftwareSource) => {
-  const DICT = SOURCE_TYPE_CONVERSION;
-  return DICT[source] || "Unknown";
-};
 
 export const generateSoftwareTableData = (
   software: IHostSoftware[]
@@ -78,7 +73,15 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableGlobalFilter: true,
       accessor: "source",
       Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell value={cellProps.cell.value} formatter={formatSoftwareType} />
+        <TextCell
+          value={cellProps.cell.value}
+          formatter={() =>
+            formatSoftwareType({
+              source: cellProps.cell.value as SoftwareSource,
+              extension_for: cellProps.row.original.extension_for,
+            })
+          }
+        />
       ),
     },
     {
