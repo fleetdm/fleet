@@ -115,9 +115,8 @@ if [ "$policy_version_number" != "$latest_1password_macos_version" ]; then
     # Prepare the reviewers data payload
     reviewers_data=$(jq -n \
         --arg r1 "harrisonravazzolo" \
-        --arg r2 "nonpunctual" \
-        --arg r3 "ddribeiro" \
-        '{reviewers: [$r1, $r2, $r3]}')
+        --arg r2 "tux234" \
+        '{reviewers: [$r1, $r2]}')
 
     # Request reviewers for the pull request
     review_response=$(curl -s -X POST \

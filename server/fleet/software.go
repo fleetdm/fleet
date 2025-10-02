@@ -94,6 +94,7 @@ type Software struct {
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
 	Installed bool `json:"-"`
+	IsKernel  bool `json:"-"`
 }
 
 func (Software) AuthzType() string {
@@ -180,6 +181,8 @@ type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"icon_url"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -209,6 +212,8 @@ type SoftwareTitle struct {
 	// the software installed. It's surfaced in software_titles to match
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
+	// IsKernel indicates if the software title is a Linux kernel.
+	IsKernel bool `json:"-" db:"is_kernel"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -218,6 +223,8 @@ type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -320,7 +327,7 @@ type PathSignatureInformation struct {
 // HostSoftware is the set of software installed on a specific host
 type HostSoftware struct {
 	// Software is the software information.
-	Software []HostSoftwareEntry `json:"software,omitempty" csv:"-"`
+	Software []HostSoftwareEntry `json:"software" csv:"-"`
 
 	// SoftwareUpdatedAt is the time that the host software was last updated
 	SoftwareUpdatedAt time.Time `json:"software_updated_at" db:"software_updated_at" csv:"software_updated_at"`
@@ -469,6 +476,7 @@ func SoftwareFromOsqueryRow(
 	if !lastOpenedAtTime.IsZero() {
 		software.LastOpenedAt = &lastOpenedAtTime
 	}
+
 	return &software, nil
 }
 
@@ -480,6 +488,8 @@ type VPPBatchPayload struct {
 	LabelsIncludeAny   []string `json:"labels_include_any"`
 	// Categories is the list of names of software categories associated with this VPP app.
 	Categories []string `json:"categories"`
+	IconPath   string   `json:"-"`
+	IconHash   string   `json:"-"`
 }
 
 type VPPBatchPayloadWithPlatform struct {

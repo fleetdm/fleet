@@ -2,7 +2,7 @@
   task: "🦢📊 Product design sprint review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. 2. Retro: What went well? What could go better? What to remember for next time?" 
+  description: "1. For all stories that are not estimated, update their target engineering sprint on the roadmap board and add their respective customer requests to the feature fest board. For stories that we're no longer working on, remove them from the drafting board, remove them from the roadmap board, remove their respective customer requests from the 💝 Customer requests board, and notify stakeholders. Prepare the '🎁 Feature fest' board. 2. Retro: What went well? What could go better? What to remember for next time?" 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
@@ -23,7 +23,7 @@
   task: "Sprint kickoff review" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. After the call, the Head of Product Design @ mentions the API design DRI in #help-design about stories that didn't make it into the sprint so that they can update the reference docs release branches." 
+  description: "Review stories that made it into this sprint and stories that didn't make it into this sprint. Ensure stories/bugs have been effectively prioritized across teams. For stories that didn't make it into the sprint, API design DRI updates the reference docs release branches." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -44,8 +44,8 @@
   task: "Quarterly roadmap blog post"
   startedOn: "2024-11-05" 
   frequency: "Monthly" 
-  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this." 
-  moreInfoUrl: "" 
+  description: "Every quarter, Head of Product Design (HPD) meets with the CEO to run through the current quarter objectives and the 3 biggest open opportunities in the product and the solutions we're envisioning for next quarter. Then, the HPD writes a short blog with the objectives, opportunities, and an embedded YouTube video in which HPD walks through this. Last, the HPD assigns the Content Specialist, let's them know the blogpost is ready for the 'tweet storm', and moves the issue to the :help-marketing board." 
+  moreInfoUrl: "https://docs.google.com/document/d/1z4tr65V8Y2izJXKKswYA9nexOIqTzvsTUigC8-serP4/edit?tab=t.0#heading=h.m7i247715hl" 
   dri: "noahtalerman"
   autoIssue:   
     labels: [ ":product" ]
@@ -68,7 +68,7 @@
   task: "Maintenance" # 2024-03-06 TODO: Link to responsibility or corresponding "how to" info e.g. https://fleetdm.com/handbook/company/product-groups#making-changes
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
-  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #g-mdm and #g-endpoint-ops Slack channel." 
+  description: "Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and if necessary, creates user stories to test new macOS major versions or update CIS Benchmarks." 
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1IWfQtSkOQgm_JIQZ0i2y3A8aaK5vQW1ayWRk6-4FOp0/edit?gid=0#gid=0" 
   dri: "noahtalerman"
 -
@@ -98,3 +98,17 @@
   autoIssue:   
     labels: [ ":product" ]
     repo: "fleet"
+-
+  task: "Regenerate messaging framework"
+  startedOn: "2024-07-15"
+  frequency: "Quarterly"
+  description: "Run through the entire website in `?utm_content=clear` mode and build a fresh outline of the headings to make sure they all still make sense."
+  moreInfoUrl: ""
+  dri: "mike-j-thomas"
+- 
+  task: "Check brand fronts are up to date"
+  startedOn: "2024-08-01"
+  frequency: "Quarterly"
+  description: "Check all brand fronts for consistancy and update as needed with the current product pitch and graphics."
+  moreInfoUrl: "https://fleetdm.com/handbook/product-design#update-a-company-brand-front"
+  dri: "mike-j-thomas"

@@ -21,6 +21,7 @@ org_settings:
       metadata: |-
         $DOGFOOD_END_USER_SSO_METADATA
       metadata_url: ""
+    end_user_license_agreement: ../it-and-security/lib/macos/misc/eula.pdf
     apple_business_manager:
     - organization_name: Fleet Device Management Inc.
       macos_team: "💻 Workstations" 
@@ -33,6 +34,7 @@ org_settings:
       - "💻🐣 Workstations (canary)"
       - "📱🏢 Company-owned mobile devices"
       - "📱🔐 Personal mobile devices"
+      - "🧪 Testing & QA"
   org_info:
     contact_url: https://fleetdm.slack.com/archives/C071NNMSP2R
     org_logo_url: ""
@@ -107,3 +109,4 @@ labels:
   - path: ./lib/all/labels/macos-compatibility-extension-installed.yml
   - path: ./lib/all/labels/team-g-mdm.yml
   - path: ./lib/all/labels/conditional-access-test-group.yml
+  - path: ./lib/all/labels/nudge-test-devices.yml

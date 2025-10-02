@@ -2,7 +2,7 @@
 apk add coreutils openssl
         
 wget --quiet  https://truststore.pki.rds.amazonaws.com/${aws_region}/${aws_region}-bundle.pem -O ${aws_region}-bundle.dl.pem
-csplit -k -f cert. -b '%02d.pem' ${aws_region}-bundle.dl.pem '/-----BEGIN CERTIFICATE-----/' '{*}'
+csplit -z -k -f cert. -b '%02d.pem' ${aws_region}-bundle.dl.pem '/-----BEGIN CERTIFICATE-----/' '{*}'
 
 for filename in cert.*;
 do 

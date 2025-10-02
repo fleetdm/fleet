@@ -9,7 +9,9 @@
       "install_script_ref": "60d5492f",
       "uninstall_script_ref": "881f68dc",
       "sha256": "67dfa6f184794373a490d5d7ae1ae00b5db80d710c946f8be1ee210d12e54a05",
-      "default_categories": null
+      "default_categories": [
+        "Communication"
+      ]
     }
   ],
   "refs": {

@@ -19,6 +19,7 @@ const baseClass = "paginated-list";
 // the list of dirty items.
 export interface IPaginatedListHandle<TItem> {
   getDirtyItems: () => TItem[];
+  reload: () => Promise<void>;
 }
 interface IPaginatedListProps<TItem> {
   /** Function to fetch one page of data.
@@ -45,7 +46,7 @@ interface IPaginatedListProps<TItem> {
   isItemDisabled?: (item: TItem) => boolean;
   /** How to determine the tooltip to show on hover over the item's checkbox */
   getItemTooltipContent?: (item: TItem) => React.ReactNode;
-  /** Custom function to render the label for an item. */
+  /** Custom function to render the label for an item. Only considered if !!useCheckboxes */
   renderItemLabel?: (item: TItem) => ReactElement | null;
   /** Custom function to render extra markup (besides the label) in an item row. */
   renderItemRow?: (
@@ -56,7 +57,7 @@ interface IPaginatedListProps<TItem> {
   ) => ReactElement | false | null | undefined;
   /** Parents can use this to change whatever item metadata is needed to toggle
   the value indicated by `isSelected`. */
-  onClickRow: (item: TItem) => TItem;
+  onClickRow?: (item: TItem) => TItem;
   /** whether clicking a row should set the item as dirty. Default true. */
   setDirtyOnClickRow?: boolean;
   /** The size of the page to fetch and show. */
@@ -182,6 +183,16 @@ function PaginatedListInner<TItem extends Record<string, any>>(
     };
   }, [fetchCount]);
 
+  // If the total items count is passed in, set it.
+  // This is useful if the parent already knows the total count
+  // and doesn't need to fetch it.
+  useEffect(() => {
+    // If the total items count is passed in, set it.
+    if (count !== undefined && count !== null) {
+      setTotalItems(count);
+    }
+  }, [count]);
+
   // Whenever the dirty items list changes, notify the parent.
   useEffect(() => {
     if (onUpdate) {
@@ -194,6 +205,18 @@ function PaginatedListInner<TItem extends Record<string, any>>(
   useImperativeHandle(ref, () => ({
     getDirtyItems() {
       return Object.values(dirtyItems);
+    },
+    reload: async () => {
+      try {
+        setIsLoadingPage(true);
+        setError(null);
+        const result = await fetchPage(currentPage);
+        setItems(result);
+      } catch (e) {
+        setError(e as Error);
+      } finally {
+        setIsLoadingPage(false);
+      }
     },
   }));
 
@@ -240,7 +263,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
               key={item[idKey]}
               onClick={() => {
                 if (itemDisabled) return;
-                const clickedItem = onClickRow(item);
+                const clickedItem = onClickRow ? onClickRow(item) : item;
                 if (setDirtyOnClickRow)
                   setDirtyItems({
                     ...dirtyItems,
@@ -281,7 +304,7 @@ function PaginatedListInner<TItem extends Record<string, any>>(
           );
         })}
       </ul>
-      {helpText && <p className="form-field__help-text">{helpText}</p>}
+      {helpText && <div className="form-field__help-text">{helpText}</div>}
       <Pagination
         disablePrev={currentPage === 0}
         disableNext={disableNext}

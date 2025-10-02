@@ -1,0 +1,1 @@
+- Disabled debug logging by default in `fleetctl preview` and reformatted login information

@@ -1,11 +1,11 @@
 # Configuration for contributors
 
+Don't use these Fleet server configuration options. For Fleet server configuraiton, please use the public [Fleet server configuration documentation](https://fleetdm.com/docs/configuration/fleet-server-configuration) instead. For YAML, please use the [public GitOps documentation](https://fleetdm.com/docs/configuration/yaml-files) instead.
+
+These options in this document are only used when contributing to Fleet. They frequently change to reflect current functionality.
+
 - [Fleet server configuration](#fleet-server-configuration)
 - [YAML files](#yaml-files)
-
-This document includes Fleet server configuration settings that are helpful when developing or contributing to Fleet.
-
-Unlike the [fleetctl apply format](https://github.com/fleetdm/fleet/tree/main/docs/Contributing/guides/cli/fleetctl-apply.md), the files and settings in this document are not recommended for production use. Each setting includes the best practice for being successful in production.
 
 ## Fleet server configuration
 
@@ -159,7 +159,7 @@ This is the content of the PEM-encoded private key for the Apple Business Manage
 The number of requests per minute allowed to [Initiate SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#initiate-sso-during-dep-enrollment) and
 [Complete SSO during DEP enrollment](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/reference/api-for-contributors.md#complete-sso-during-dep-enrollment) endpoints, combined.
 
-The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users setup their Macs simultaneously).
+The best practice is to set this to 3x the number of new employees (end users) that onboard at the same time (ex. `300` if 100 end users set up their Macs simultaneously).
 
 - Default value: 10 (same rate limit for [Log in endpoint](https://fleetdm.com/docs/rest-api/rest-api#log-in))
 - Environment variable: `FLEET_MDM_SSO_RATE_LIMIT_PER_MINUTE`

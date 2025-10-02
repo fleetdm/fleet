@@ -180,20 +180,22 @@ const PackComposerPage = ({ router }: IPackComposerPageProps): JSX.Element => {
   // ...
 
   return (
-    <>
-      <MainContent className={baseClass}>
-        <PackForm
-          className={`${baseClass}__pack-form`}
-          handleSubmit={handleSubmit}
-          onFetchTargets={onFetchTargets}
-          selectedTargetsCount={selectedTargetsCount}
-          isPremiumTier={isPremiumTier}
-        />
-      </MainContent>
-      <SidePanelContent>
-        <PackInfoSidePanel />
+    <SidePanelPage>
+      <>
+        <MainContent className={baseClass}>
+          <PackForm
+            className={`${baseClass}__pack-form`}
+            handleSubmit={handleSubmit}
+            onFetchTargets={onFetchTargets}
+            selectedTargetsCount={selectedTargetsCount}
+            isPremiumTier={isPremiumTier}
+          />
+        </MainContent>
+        <SidePanelContent>
+          <PackInfoSidePanel />
       </SidePanelContent>
     </>
+  </SidePanelPage>
   );
 };
 
@@ -241,7 +243,7 @@ away from a field or hit enter, actions which imply they are finished editing th
 an error as soon as possible, that is, as soon as they make the fixing change. e.g.
 
 ```tsx
-const onInputChange = ({ name, value }: IFormField) => {
+const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
   const newFormData = { ...formData, [name]: value };
   setFormData(newFormData);
   const newErrs = validateFormData(newFormData);

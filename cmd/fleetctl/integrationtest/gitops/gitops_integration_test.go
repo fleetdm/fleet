@@ -129,7 +129,6 @@ func (s *integrationGitopsTestSuite) TestFleetGitops() {
 
 	// Real run
 	_ = fleetctl.RunAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
-
 }
 
 func (s *integrationGitopsTestSuite) createFleetctlConfig() *os.File {
@@ -157,7 +156,7 @@ func (s *integrationGitopsTestSuite) TestFleetGitopsWithFleetSecrets() {
 	t := s.T()
 	const (
 		secretName1 = "NAME"
-		secretName2 = "length"
+		secretName2 = "LENGTH"
 	)
 	ctx := context.Background()
 	fleetctlConfig := s.createFleetctlConfig()

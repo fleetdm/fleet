@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -39,7 +40,7 @@ func mdmRunCommand() *cli.Command {
 		Flags: []cli.Flag{
 			contextFlag(),
 			debugFlag(),
-			&cli.StringSliceFlag{
+			&cli.StringFlag{
 				Name:     "hosts",
 				Usage:    "Comma-separated hosts to target. Hosts can be specified by hostname, UUID, or serial number.",
 				Required: true,
@@ -62,14 +63,14 @@ func mdmRunCommand() *cli.Command {
 			}
 
 			// dedupe and remove any empty host identifier
-			hostIdents := c.StringSlice("hosts")
+			hostIdents := strings.Split(c.String("hosts"), ",")
 			slices.Sort(hostIdents)
 			hostIdents = slices.Compact(hostIdents)
 			if len(hostIdents) > 0 && hostIdents[0] == "" {
 				// because it is sorted, an empty ident can only be at the start
 				hostIdents = hostIdents[1:]
 			}
-			if len(hostIdents) == 0 {
+			if len(hostIdents) == 0 || c.String("hosts") == "" {
 				return errors.New(`Required flag "hosts" not set`)
 			}
 

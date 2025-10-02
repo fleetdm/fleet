@@ -66,7 +66,9 @@ const generateSoftwareOptionHelpText = (title: IEnhancedSoftwareTitle) => {
 
   if (vppOption) {
     platformString = "macOS (App Store)";
-    versionString = title.app_store_app?.version || "";
+    versionString = title.app_store_app?.version
+      ? ` • ${title.app_store_app?.version}`
+      : "";
   } else {
     if (title.platform && title.extension) {
       platformString = `${PLATFORM_DISPLAY_NAMES[title.platform]} (.${

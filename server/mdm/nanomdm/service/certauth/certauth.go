@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
@@ -106,9 +107,31 @@ func HashCert(cert *x509.Certificate) string {
 	return hex.EncodeToString(b)
 }
 
+// wrapCertAuthError wraps certificate authentication errors with appropriate HTTP status codes
+func wrapCertAuthError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	case errors.Is(err, ErrNoCertAssoc):
+		// cert not associated - authentication/authorization failure
+		return service.NewHTTPStatusError(http.StatusForbidden, err)
+	case errors.Is(err, ErrNoCertReuse):
+		// cert reuse attempt - authentication/authorization failure
+		return service.NewHTTPStatusError(http.StatusForbidden, err)
+	case errors.Is(err, ErrMissingCert):
+		// missing cert - bad request
+		return service.NewHTTPStatusError(http.StatusBadRequest, err)
+	default:
+		// Don't wrap other errors - let them bubble up as-is
+		return err
+	}
+}
+
 func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 	if r.Certificate == nil {
-		return ErrMissingCert
+		return wrapCertAuthError(ErrMissingCert)
 	}
 	if err := r.EnrollID.Validate(); err != nil {
 		return err
@@ -139,7 +162,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 				"hash", hash,
 			)
 			if !s.warnOnly {
-				return ErrNoCertReuse
+				return wrapCertAuthError(ErrNoCertReuse)
 			}
 		}
 	}
@@ -157,7 +180,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 
 func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 	if r.Certificate == nil {
-		return ErrMissingCert
+		return wrapCertAuthError(ErrMissingCert)
 	}
 	if err := r.EnrollID.Validate(); err != nil {
 		return err
@@ -177,7 +200,7 @@ func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 			"hash", hash,
 		)
 		if !s.warnOnly {
-			return ErrNoCertAssoc
+			return wrapCertAuthError(ErrNoCertAssoc)
 		}
 	}
 	// even if allowRetroactive is true we don't want to allow arbitrary
@@ -193,7 +216,7 @@ func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 			"id", r.ID,
 		)
 		if !s.warnOnly {
-			return ErrNoCertReuse
+			return wrapCertAuthError(ErrNoCertReuse)
 		}
 	}
 	// even if allowDup were true we don't want to allow arbitrary
@@ -211,7 +234,7 @@ func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 			"hash", hash,
 		)
 		if !s.warnOnly {
-			return ErrNoCertReuse
+			return wrapCertAuthError(ErrNoCertReuse)
 		}
 	}
 	if s.warnOnly {

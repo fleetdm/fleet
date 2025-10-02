@@ -4,28 +4,13 @@
   // we turn off overflow on the settings page as it seems to mess with our
   // header and navigation
   overflow: visible;
+  @include vertical-page-layout;
 
   h1 {
     display: flex;
     align-items: center;
     height: 38px;
     position: relative;
-
-    // fake padding for h1 while sticky
-    &::before {
-      content: "";
-      width: 100%;
-      height: $pad-xxlarge;
-      position: absolute;
-      top: -$pad-xxlarge;
-      background-color: $core-white;
-    }
-  }
-
-  .tab-nav {
-    top: $pad-xxlarge; // for sticky
-    z-index: 3;
-    padding-bottom: $pad-xxlarge;
   }
 
   .side-nav__card-container {

@@ -29,6 +29,7 @@ func SetUpSuite(t *testing.T, uniqueTestName string) *Suite {
 		ds,
 		&proxy,
 		fleetSvc,
+		"test-private-key",
 	)
 	require.NoError(t, err)
 	androidSvc.(*android_service.Service).AllowLocalhostServerURL = true

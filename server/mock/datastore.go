@@ -2,8 +2,10 @@ package mock
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/android"
 )
 
 //go:generate go run ./mockimpl/impl.go -o datastore_mock.go "s *DataStore" "fleet.Datastore"
@@ -30,6 +32,10 @@ func (m *Store) LoadHostByOrbitNodeKey(ctx context.Context, orbitNodeKey string)
 	return nil, nil
 }
 
+func (m *Store) GetCurrentTime(ctx context.Context) (time.Time, error) {
+	return time.Time{}, nil
+}
+
 func (m *Store) Drop() error                             { return nil }
 func (m *Store) MigrateTables(ctx context.Context) error { return nil }
 func (m *Store) MigrateData(ctx context.Context) error   { return nil }
@@ -37,3 +43,11 @@ func (m *Store) MigrationStatus(ctx context.Context) (*fleet.MigrationStatus, er
 	return &fleet.MigrationStatus{}, nil
 }
 func (m *Store) Name() string { return "mock" }
+
+// Added to satisfy fleet.Datastore interface after Android unenroll additions.
+func (m *Store) SetAndroidHostUnenrolled(ctx context.Context, hostID uint) error { return nil }
+
+// Added to satisfy fleet.Datastore interface after Android reconcile additions.
+func (m *Store) ListAndroidEnrolledDevicesForReconcile(ctx context.Context) ([]*android.Device, error) {
+	return nil, nil
+}

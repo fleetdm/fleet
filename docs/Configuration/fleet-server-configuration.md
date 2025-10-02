@@ -619,7 +619,7 @@ cloud providers that have limitations on their API gateways, such as GCP Cloud R
 
 ### server_private_key
 
-This key is required for enabling macOS MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
+This key is required for enabling Apple, Windows, and Android MDM features and/or storing sensitive configs (passwords, API keys, etc.) in Fleet. If you are using the `FLEET_APPLE_APNS_*` and `FLEET_APPLE_SCEP_*` variables, Fleet will automatically encrypt the values of those variables using `FLEET_SERVER_PRIVATE_KEY` and save them in the database when you restart after updating.
 
 The key must be at least 32 bytes long. Run `openssl rand -base64 32` in the Terminal app to generate one on macOS.
 
@@ -675,6 +675,20 @@ The key size of the salt which is generated when hashing user passwords.
   ```yaml
   auth:
     salt_key_size: 36
+  ```
+
+### auth_require_http_message_signature
+
+*Available in Fleet Premium.*
+
+When enabled, Fleet server will require HTTP message signatures for all incoming fleetd (orbit and osquery) requests to verify request authenticity and integrity. The fleetd agents must run with `--fleet-managed-client-certificate` flag so they can request a host identity certificate from Fleet server and then use it to create HTTP message signatures (requires orbit 1.46.0 or higher).
+
+- Default value: `false`
+- Environment variable: `FLEET_AUTH_REQUIRE_HTTP_MESSAGE_SIGNATURE`
+- Config file format:
+  ```yaml
+  auth:
+    require_http_message_signature: true
   ```
 
 ## App
@@ -913,7 +927,7 @@ to the amount of time it takes for Fleet to give the host the label queries.
 
 ### osquery_enable_async_host_processing
 
-**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asyncronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
+**Experimental feature**. Enable asynchronous processing of hosts' query results. Currently, asynchronous processing is only supported for label query execution, policy membership results, hosts' last seen timestamp, and hosts' scheduled query statistics. This may improve the performance and CPU usage of the Fleet instances and MySQL database servers for setups with a large number of hosts while requiring more resources from Redis server(s).
 
 Note that currently, if both the failing policies webhook *and* this `osquery.enable_async_host_processing` option are set, some failing policies webhooks could be missing (some transitions from succeeding to failing or vice-versa could happen without triggering a webhook request).
 
@@ -2391,6 +2405,22 @@ When not defined, Fleet downloads CVE information from the nvd.nist.gov host usi
   ```yaml
   vulnerabilities:
     cve_feed_prefix_url: ""
+  ```
+
+### cisa_known_exploits_url
+
+The CISA known exploited vulnerabilities catalog is downloaded from this URL. This catalog contains
+vulnerabilities that are known to be actively exploited in the wild and is used to enhance vulnerability
+reporting with exploit status information. When this value is defined, it will download the file from
+the specified URL. If this value is not defined, Fleet uses the default CISA catalog URL. Fleet expects this
+path to be a JSON file. For a specification on the catalog you can view https://www.cisa.gov/known-exploited-vulnerabilities-catalog.
+
+- Default value: `https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json`
+- Environment variable: `FLEET_VULNERABILITIES_CISA_KNOWN_EXPLOITS_URL`
+- Config file format:
+  ```yaml
+  vulnerabilities:
+    cisa_known_exploits_url: https://custom-cisa-path.gov/main/known_exploited_vulnerabilities.json
   ```
 
 ### disable_schedule

@@ -1,1 +1,0 @@
-- Fixed an issue where the detected date for software vulnerabilities was not being pulled correctly from the database.

@@ -807,7 +807,7 @@ func getAppConfigCommand() *cli.Command {
 func getHostsCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "hosts",
-		Aliases: []string{"host", "h"},
+		Aliases: []string{"host", "H"},
 		Usage:   "List information about hosts",
 		Flags: []cli.Flag{
 			&cli.UintFlag{
@@ -1135,15 +1135,6 @@ func printTable(c *cli.Context, columns []string, data [][]string) {
 func printKeyValueTable(c *cli.Context, rows [][]string) {
 	table := borderlessTabularTable(c.App.Writer)
 	table.AppendBulk(rows)
-	table.Render()
-}
-
-func printTableWithXML(c *cli.Context, columns []string, data [][]string) {
-	table := defaultTable(c.App.Writer)
-	table.SetHeader(columns)
-	table.SetReflowDuringAutoWrap(false)
-	table.SetAutoWrapText(false)
-	table.AppendBulk(data)
 	table.Render()
 }
 
@@ -1511,7 +1502,7 @@ func getMDMCommandResultsCommand() *cli.Command {
 			}
 
 			// print the results as a table
-			data := [][]string{}
+			data := []string{}
 			for _, r := range res {
 				formattedResult, err := formatXML(r.Result)
 				// if we get an error, just log it and use the
@@ -1535,18 +1526,32 @@ func getMDMCommandResultsCommand() *cli.Command {
 				if len(reqType) == 0 {
 					reqType = "InstallProfile"
 				}
-				data = append(data, []string{
-					r.CommandUUID,
-					r.UpdatedAt.Format(time.RFC3339),
-					reqType,
-					r.Status,
-					r.Hostname,
-					string(formattedPayload),
-					string(formattedResult),
-				})
+
+				idField := strings.Join([]string{"ID:", r.CommandUUID}, "\n")
+				timeField := strings.Join([]string{"TIME:", r.UpdatedAt.Format(time.RFC3339)}, "\n")
+				typeField := strings.Join([]string{"TYPE:", reqType}, "\n")
+				statusField := strings.Join([]string{"STATUS:", r.Status}, "\n")
+				payloadField := strings.Join([]string{"PAYLOAD:", string(formattedPayload)}, "\n")
+				resultsField := strings.Join([]string{"RESULTS:", string(formattedResult)}, "\n")
+				hostnameField := strings.Join([]string{"HOSTNAME:", r.Hostname}, "\n")
+
+				data = append(data, strings.Join([]string{
+					idField,
+					timeField,
+					typeField,
+					statusField,
+					hostnameField,
+					payloadField,
+					resultsField,
+				}, "\n\n"))
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
-			printTableWithXML(c, columns, data)
+
+			if len(data) == 0 {
+				fmt.Fprint(c.App.Writer, "No results received. Please check again later.\n")
+				return nil
+			}
+
+			fmt.Fprint(c.App.Writer, strings.Join(data, "\n---\n\n"))
 
 			return nil
 		},

@@ -33,7 +33,7 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
 For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [MySQL configuration](https://fleetdm.com/docs/configuration/fleet-server-configuration#mysql) documentation.
 
-Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.5, and 9.3.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L47).
+Fleet requires at least MySQL version 8.0.36, and is tested using the InnoDB storage engine [with versions 8.0.36, 8.4.6, and 9.4.0](https://github.com/fleetdm/fleet/blob/main/.github/workflows/test-go.yaml#L51).
 
 There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
 
@@ -187,7 +187,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.t4g.small | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.t4g.medium   | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.t4g.medium   | 2     |
 
 
 ###### [Up to 25000 hosts](https://calculator.aws/#/estimate?id=d735758715f059118dbce8dc42f3ff2410adc621)
@@ -199,7 +199,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.large    | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.large    | 2     |
 
 
 ###### [Up to 150000 hosts](https://calculator.aws/#/estimate?id=689fea65efff361ee070b15044a01224b8d26621)
@@ -211,7 +211,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.4xlarge  | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.4xlarge  | 2     |
 
 
 ###### [Up to 300000 hosts](https://calculator.aws/#/estimate?id=19b667fde567df0d64d9fae632d4885d7fdc726a)
@@ -223,7 +223,7 @@ See https://fleetdm.com/docs/deploy/deploy-fleet#render
 | Dependencies | Version                 | Instance type   | Nodes |
 | ------------ | ----------------------- | --------------- | ----- |
 | Redis        | 6                       | cache.m6g.large | 3     |
-| MySQL        | 8.0.mysql_aurora.3.07.1 | db.r6g.16xlarge | 2     |
+| MySQL        | 8.0.mysql_aurora.3.08.2 | db.r6g.16xlarge | 2     |
 
 AWS reference architecture can be found in the [reference terraform](https://github.com/fleetdm/fleet-terraform/tree/main/example). This configuration includes:
 
@@ -299,7 +299,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 - Cloud SQL MySQL 8.0 (Fleet database)
 - Memorystore Redis (Fleet cache & live query orchestrator)
 
-GCP support for add/install software and file carve features is coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+GCP support for add/install software and file carve features is coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 ##### Example configuration breakpoints
 ###### [Up to 1000 hosts](https://cloud.google.com/products/calculator/#id=59670518-9af4-4044-af4a-cc100a9bed2f)
@@ -338,7 +338,7 @@ GCP support for add/install software and file carve features is coming soon. Get
 
 #### Azure
 
-Coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
+Coming soon. Get [community support](https://chat.osquery.io/c/fleet).
 
 #### Render
 

@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/pkg/certificate"
-	"github.com/fleetdm/fleet/v4/pkg/file"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/file"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/osquery"
@@ -70,18 +71,28 @@ var shellCommand = &cli.Command{
 		opt.LocalStore = localStore
 		opt.InsecureTransport = c.Bool("insecure")
 
-		updater, err := update.NewUpdater(opt)
+		disableUpdates := c.Bool("disable-updates")
+		updater, err := getUpdater(disableUpdates, opt)
 		if err != nil {
 			return err
 		}
-		if err := updater.UpdateMetadata(); err != nil {
-			log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+
+		var osquerydPath string
+		if !disableUpdates {
+			if err := updater.UpdateMetadata(); err != nil {
+				log.Info().Err(err).Msg("failed to update metadata. using saved metadata.")
+			}
+			osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
+			if err != nil {
+				return err
+			}
+			osquerydPath = osquerydLocalTarget.ExecPath
+		} else {
+			osquerydPath, err = updater.ExecutableLocalPath(constant.OsqueryTUFTargetName)
+			if err != nil {
+				log.Fatal().Err(err).Msgf("locate %s", constant.OsqueryTUFTargetName)
+			}
 		}
-		osquerydLocalTarget, err := updater.Get(constant.OsqueryTUFTargetName)
-		if err != nil {
-			return err
-		}
-		osquerydPath := osquerydLocalTarget.ExecPath
 
 		var g run.Group
 
@@ -176,4 +187,12 @@ func getCertPath(rootDir, fleetCertPath string) (string, error) {
 	}
 
 	return certPath, nil
+}
+
+func getUpdater(disableUpdates bool, opt update.Options) (*update.Updater, error) {
+	if disableUpdates {
+		log.Info().Msg("running with auto updates disabled")
+		return update.NewDisabled(opt), nil
+	}
+	return update.NewUpdater(opt)
 }

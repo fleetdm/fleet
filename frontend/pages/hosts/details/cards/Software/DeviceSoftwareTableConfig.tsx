@@ -13,7 +13,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/tables/VulnerabilitiesCell";
 import VersionCell from "pages/SoftwarePage/components/tables/VersionCell";
-import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/SoftwareTitlesTableConfig";
+import { getVulnerabilities } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 
 type ISoftwareTableConfig = Column<IHostSoftware>;
@@ -48,11 +48,12 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       disableSortBy: false,
       disableGlobalFilter: false,
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
         return (
           <SoftwareNameCell
             name={name}
             source={source}
+            iconUrl={icon_url}
             pageContext="deviceUser"
           />
         );

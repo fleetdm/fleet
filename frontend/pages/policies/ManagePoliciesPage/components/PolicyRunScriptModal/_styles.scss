@@ -2,23 +2,28 @@
   .policy-run-script-modal {
     .form-field--dropdown {
       width: 276px;
+
       .Select-placeholder {
         color: $ui-fleet-black-50;
       }
+
       .Select-menu {
         max-height: none;
         overflow: visible;
       }
+
       .Select-menu-outer {
-        max-height: 240px;
+        max-height: 165px; // Prevent scrolling off modal
         overflow-y: auto;
       }
     }
+
     .paginated-list__row {
       height: 40px;
       padding-top: 4px;
       padding-bottom: 4px;
     }
+
     &__no-scripts {
       display: flex;
       height: 178px;
@@ -31,11 +36,13 @@
       div {
         color: $ui-fleet-black-75;
         font-size: $xx-small;
+
         a {
           font-size: inherit;
         }
       }
     }
+
     .data-error {
       padding: 78px;
     }

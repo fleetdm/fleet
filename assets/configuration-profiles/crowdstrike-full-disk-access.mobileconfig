@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>PayloadDescription</key>
+            <string>Configures Privacy Preferences Policy Control settings for CrowdStrike</string>
+            <key>PayloadDisplayName</key>
+            <string>Full Disk Access - Crowdstrike</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.privacy</string>
+            <key>PayloadOrganization</key>
+            <string>CrowdStrike Inc.</string>
+            <key>PayloadType</key>
+            <string>com.apple.TCC.configuration-profile-policy</string>
+            <key>PayloadUUID</key>
+            <string>C7B25543-8A46-4782-B5F1-FABF2CC07934</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+            <key>Services</key>
+            <dict>
+                <key>SystemPolicyAllFiles</key>
+                <array>
+                    <dict>
+                        <key>Allowed</key>
+                        <true/>
+                        <key>CodeRequirement</key>
+                        <string>identifier "com.crowdstrike.falcon.Agent" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X9E956P446</string>
+                        <key>Comment</key>
+                        <string></string>
+                        <key>Identifier</key>
+                        <string>com.crowdstrike.falcon.Agent</string>
+                        <key>IdentifierType</key>
+                        <string>bundleID</string>
+                        <key>StaticCode</key>
+                        <false/>
+                    </dict>
+                    <dict>
+                        <key>Allowed</key>
+                        <true/>
+                        <key>CodeRequirement</key>
+                        <string>identifier "com.crowdstrike.falcon.App" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = X9E956P446</string>
+                        <key>Comment</key>
+                        <string></string>
+                        <key>Identifier</key>
+                        <string>com.crowdstrike.falcon.App</string>
+                        <key>IdentifierType</key>
+                        <string>bundleID</string>
+                        <key>StaticCode</key>
+                        <false/>
+                    </dict>
+                </array>
+            </dict>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>CrowdStrike Falcon Full Disk Access</string>
+    <key>PayloadDisplayName</key>
+    <string>CrowdStrike - Privacy Preferences</string>
+    <key>PayloadEnabled</key>
+    <true/>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.privacy</string>
+    <key>PayloadOrganization</key>
+    <string>Fleet</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>A4A2274E-370D-4641-A248-7A637ADFB169</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

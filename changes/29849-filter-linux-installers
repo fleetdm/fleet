@@ -1,1 +1,0 @@
-* Removed DEB and RPM installers from installable software lists on hosts with incompatible Linux distributions (e.g. Ubuntu for an RPM)

@@ -25,7 +25,7 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import { ScriptBatchExecutionStatus } from "services/entities/scripts";
+import { ScriptBatchHostCountV1 } from "services/entities/scripts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -84,7 +84,7 @@ interface IHostsFilterBlockProps {
     configProfileStatus?: string;
     configProfileUUID?: string;
     configProfile?: IMdmProfile;
-    scriptBatchExecutionStatus?: ScriptBatchExecutionStatus;
+    scriptBatchExecutionStatus?: ScriptBatchHostCountV1;
     scriptBatchExecutionId?: string;
     scriptBatchRanAt: string | null;
     scriptBatchScriptName: string | null;
@@ -106,11 +106,10 @@ interface IHostsFilterBlockProps {
     newStatus: SoftwareAggregateStatus
   ) => void;
   onChangeConfigProfileStatusFilter: (newStatus: string) => void;
-  onChangeScriptBatchStatusFilter: (
-    newStatus: ScriptBatchExecutionStatus
-  ) => void;
+  onChangeScriptBatchStatusFilter: (newStatus: ScriptBatchHostCountV1) => void;
   onClickEditLabel: (evt: React.MouseEvent<HTMLButtonElement>) => void;
   onClickDeleteLabel: () => void;
+  isLoading?: boolean;
 }
 
 /**
@@ -164,8 +163,13 @@ const HostsFilterBlock = ({
   onChangeScriptBatchStatusFilter,
   onClickEditLabel,
   onClickDeleteLabel,
+  isLoading = false,
 }: IHostsFilterBlockProps) => {
   const { currentUser, isOnGlobalTeam } = useContext(AppContext);
+
+  if (isLoading) {
+    return <></>;
+  }
 
   const renderLabelFilterPill = () => {
     if (selectedLabel) {
@@ -568,6 +572,8 @@ const HostsFilterBlock = ({
       { value: "ran", label: "Ran" },
       { value: "errored", label: "Error" },
       { value: "pending", label: "Pending" },
+      { value: "incompatible", label: "Incompatible" },
+      { value: "canceled", label: "Canceled" },
     ];
     return (
       <>
@@ -652,6 +658,17 @@ const HostsFilterBlock = ({
         case !!softwareStatus:
           return renderSoftwareInstallStatusBlock();
         case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+          // Software version can be combined with os name and os version
+          // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+          // Note: This is our only double filter available in the UI, are there others?
+          if (!!osVersionId || (!!osName && !!osVersion)) {
+            return (
+              <div className={`${baseClass}__multi-filter`}>
+                {renderSoftwareFilterBlock()}
+                {renderOSFilterBlock()}
+              </div>
+            );
+          }
           return renderSoftwareFilterBlock();
         case !!mdmId:
           return renderMDMSolutionFilterBlock();

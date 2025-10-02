@@ -137,7 +137,13 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-export type ProfilePlatform = "darwin" | "windows" | "ios" | "ipados" | "linux";
+export type ProfilePlatform =
+  | "darwin"
+  | "windows"
+  | "ios"
+  | "ipados"
+  | "linux"
+  | "android";
 
 export interface IProfileLabel {
   name: string;
@@ -167,6 +173,7 @@ export type MdmDDMProfileStatus =
   | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
+export type ProfileScope = "device" | "user";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -175,6 +182,8 @@ export interface IHostMdmProfile {
   platform: ProfilePlatform;
   status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
   detail: string;
+  scope: ProfileScope | null;
+  managed_local_account: string | null;
 }
 
 // TODO - move disk encryption related types to dedicated file
@@ -190,7 +199,7 @@ export type DiskEncryptionStatus =
 values. In the future we may add more. */
 export type WindowsDiskEncryptionStatus = Extract<
   DiskEncryptionStatus,
-  "verified" | "verifying" | "enforcing" | "failed"
+  "verified" | "verifying" | "enforcing" | "failed" | "action_required"
 >;
 
 export const isWindowsDiskEncryptionStatus = (
@@ -201,6 +210,7 @@ export const isWindowsDiskEncryptionStatus = (
     case "verifying":
     case "enforcing":
     case "failed":
+    case "action_required":
       return true;
     default:
       return false;
@@ -271,4 +281,11 @@ export const isEnrolledInMdm = (
   return ["On (automatic)", "On (manual)", "On (personal)"].includes(
     hostMdmEnrollmentStatus
   );
+};
+
+/** determines if the host enrolled in mdm is a personal device */
+export const isPersonalEnrollmentInMdm = (
+  enrollmentStatus: MdmEnrollmentStatus | null
+) => {
+  return enrollmentStatus === "On (personal)";
 };

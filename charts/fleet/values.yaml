@@ -3,7 +3,7 @@
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
 imageRepository: fleetdm/fleet
-imageTag: v4.71.0 # Version of Fleet to deploy
+imageTag: v4.74.0 # Version of Fleet to deploy
 # imagePullSecrets is optional.
 # imagePullSecrets:
 #   - name: docker
@@ -13,10 +13,10 @@ serviceAnnotations: {} # Additional annotations to add to the Fleet service
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
   limits:
-    cpu: 1 # 1GHz
+    cpu: 1 # 1 CPU Core
     memory: 4Gi
   requests:
-    cpu: 0.1 # 100Mhz
+    cpu: 0.1 # 0.1 CPU Core
     memory: 50Mi
 
 # Node labels for pod assignment

@@ -62,6 +62,11 @@ controls:
     webhook_url: ""
   windows_enabled_and_configured: true
   windows_migration_enabled: false
+labels:
+  - name: a
+    description: A cool global label
+    query: SELECT 1 FROM osquery_info
+    label_membership_type: dynamic
 queries:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery
@@ -145,8 +150,15 @@ software:
     - app_store_id: "123456"
   packages:
     - path: ./microsoft-teams.pkg.software.yml
+      labels_include_any:
+        - a
+      categories:
+        - Communication
+        - Productivity
     - url: https://ftp.mozilla.org/pub/firefox/releases/129.0.2/mac/en-US/Firefox%20129.0.2.pkg
       self_service: true
+      labels_exclude_any:
+        - a
   fleet_maintained_apps:
     - slug: slack/darwin
       self_service: true
@@ -154,6 +166,14 @@ software:
         - Productivity
         - Communication
     - slug: box-drive/windows
+      install_script:
+        path: ./lib/install.sh
+      uninstall_script:
+        path: ./lib/uninstall-box.sh
+      post_install_script:
+        path: ./lib/post-install.sh
+      pre_install_query:
+        path: ./lib/preinstall-query.yml
       self_service: true
       categories:
         - Productivity

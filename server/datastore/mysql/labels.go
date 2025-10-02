@@ -19,11 +19,43 @@ func (ds *Datastore) ApplyLabelSpecs(ctx context.Context, specs []*fleet.LabelSp
 }
 
 func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fleet.LabelSpec, authorID *uint) (err error) {
+	// First, get existing labels to detect platform changes
+	labelNames := make([]string, 0, len(specs))
+	for _, s := range specs {
+		if s.Name != "" {
+			labelNames = append(labelNames, s.Name)
+		}
+	}
+
+	type existingLabel struct {
+		ID       uint   `db:"id"`
+		Name     string `db:"name"`
+		Platform string `db:"platform"`
+	}
+	existingLabels := make(map[string]existingLabel, len(specs))
+
 	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// TODO: do we want to allow on duplicate updating label_type or
 		// label_membership_type or should those always be immutable?
 		// are we ok depending solely on the caller to ensure that these fields
 		// are not changed?
+
+		if len(labelNames) > 0 {
+			stmt := `SELECT id, name, platform FROM labels WHERE name IN (?)`
+			stmt, args, err := sqlx.In(stmt, labelNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build existing labels query")
+			}
+
+			var labels []existingLabel
+			if err := sqlx.SelectContext(ctx, tx, &labels, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "query existing labels")
+			}
+
+			for _, label := range labels {
+				existingLabels[label.Name] = label
+			}
+		}
 
 		sql := `
 		INSERT INTO labels (
@@ -60,9 +92,23 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 			if s.Name == "" {
 				return ctxerr.New(ctx, "label name must not be empty")
 			}
-			_, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, s.HostVitalsCriteria, authorID)
+			insertLabelResult, err := stmt.ExecContext(ctx, s.Name, s.Description, s.Query, s.Platform, s.LabelType, s.LabelMembershipType, s.HostVitalsCriteria, authorID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyLabelSpecs insert")
+			}
+
+			// Check if this is an existing label and platform changed -> clean up memberships if needed
+			if existing, ok := existingLabels[s.Name]; ok && existing.Platform != s.Platform {
+				// When a label's platform changes, we delete all existing memberships.
+				// This ensures a clean slate - the label's query will be re-evaluated
+				// by Fleet's label execution system, and only hosts matching the new
+				// platform will be added back. This is simpler than trying to selectively
+				// remove hosts and handles all edge cases consistently.
+				cleanupSQL := `DELETE FROM label_membership WHERE label_id = ?`
+				_, err = tx.ExecContext(ctx, cleanupSQL, existing.ID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "cleanup label membership for platform change")
+				}
 			}
 
 			if s.LabelType == fleet.LabelTypeBuiltIn ||
@@ -71,12 +117,18 @@ func (ds *Datastore) ApplyLabelSpecsWithAuthor(ctx context.Context, specs []*fle
 				continue
 			}
 
+			// For manual labels, we need the label ID to update membership
 			var labelID uint
-			sql = `
-SELECT id from labels WHERE name = ?
-`
-			if err := sqlx.GetContext(ctx, tx, &labelID, sql, s.Name); err != nil {
-				return ctxerr.Wrap(ctx, err, "get label ID")
+			if existing, ok := existingLabels[s.Name]; ok {
+				// Use the existing label ID
+				labelID = existing.ID
+			} else {
+				// New label - fetch the ID we just created
+				id, err := insertLabelResult.LastInsertId()
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "get new label ID for manual membership")
+				}
+				labelID = uint(id) //nolint:gosec
 			}
 
 			sql = `
@@ -96,9 +148,9 @@ DELETE FROM label_membership WHERE label_id = ?
 				// Use ignore because duplicate hostnames could appear in
 				// different batches and would result in duplicate key errors.
 				sql = `
-INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?))
+INSERT IGNORE INTO label_membership (label_id, host_id) (SELECT DISTINCT ?, id FROM hosts where hostname IN (?) OR hardware_serial IN (?) OR uuid IN (?) OR id IN (?))
 `
-				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers)
+				sql, args, err := sqlx.In(sql, labelID, hostIdentifiers, hostIdentifiers, hostIdentifiers, hostIdentifiers)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "build membership IN statement")
 				}
@@ -122,10 +174,10 @@ func batchHostnames(hostnames []string) [][]string {
 	// https://github.com/golang/go/wiki/SliceTricks#batching-with-minimal-allocation
 	//
 	// WARNING: This is used in ApplyLabelSpecsWithAuthor and the batch sizes have to be small
-	// enough to allow for three copies each hostname list in the query. The batch size is 20_000
+	// enough to allow for three copies each hostname list in the query. The batch size is 15_000
 	// because 60_001 binding arguments is less than the maximum of 65,535.
 
-	const batchSize = 20_000 // Large, but well under the undocumented limit
+	const batchSize = 15_000 // Large, but well under the undocumented limit
 	batches := make([][]string, 0, (len(hostnames)+batchSize-1)/batchSize)
 
 	for batchSize < len(hostnames) {
@@ -786,7 +838,8 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.OSSettingsDiskEncryptionFilter.IsValid() {
 		query += `
 		  LEFT JOIN nano_enrollments ne ON ne.id = h.uuid AND ne.enabled = 1 AND ne.type IN ('Device', 'User Enrollment (Device)')
-		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?`
+		  LEFT JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid AND mwe.device_state = ?
+		  LEFT JOIN android_devices ad ON ad.host_id = h.id`
 		joinParams = append(joinParams, microsoft_mdm.MDMDeviceStateEnrolled)
 	}
 
@@ -794,6 +847,10 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		opt.MacOSSettingsFilter.IsValid() {
 		query += sqlJoinMDMAppleProfilesStatus()
 		query += sqlJoinMDMAppleDeclarationsStatus()
+	}
+
+	if opt.OSSettingsFilter.IsValid() {
+		query += sqlJoinMDMAndroidProfilesStatus()
 	}
 
 	query += fmt.Sprintf(` WHERE lm.label_id = ? AND %s `, ds.whereFilterHostsByTeams(filter, "h"))
@@ -814,15 +871,15 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	}
 	query, whereParams = filterHostsByMacOSDiskEncryptionStatus(query, opt, whereParams)
 	query, whereParams = filterHostsByMDMBootstrapPackageStatus(query, opt, whereParams)
-	if enableDiskEncryption, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
+	if diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		return "", nil, err
 	} else if opt.OSSettingsFilter.IsValid() {
-		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, enableDiskEncryption)
+		query, whereParams, err = ds.filterHostsByOSSettingsStatus(query, opt, whereParams, diskEncryptionConfig)
 		if err != nil {
 			return "", nil, err
 		}
 	} else if opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, whereParams, enableDiskEncryption)
+		query, whereParams = ds.filterHostsByOSSettingsDiskEncryptionStatus(query, opt, whereParams, diskEncryptionConfig)
 	}
 	// TODO: should search columns include display_name (requires join to host_display_names)?
 	query, whereParams, _ = hostSearchLike(query, whereParams, opt.MatchQuery, hostSearchColumns...)

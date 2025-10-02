@@ -130,17 +130,17 @@ Uploading the profile to a team in Fleet will automatically deliver it to all ma
 ## End user experience
 When the Company Portal app and Platform SSO configuration profile are deployed to a host, the end user will receive a notification that says **Registration Required: Please register with your identity provider**. You should direct your end users to interact with this notification by clicking the **Register** button that appears when they hover their mouse over the notification.
 
-![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification.png)
+![Registration Notification](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-registration-notification-370x83@2x.png)
 
 After clicking the register button in the notification, a Platform Single Sign-On Registration window will appear. After clicking **Continue**, the user will be prompted for the password they use to log into their Mac (this might be different than their Entra ID password).
 
-![Registration Window](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-register-window.png)
+![Registration Window](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-register-window-592x740@2x.png)
 
 Next, they’ll be prompted to sign into Microsoft Entra ID. This is what associates the user’s device to their Microsoft Entra ID account.
 
 Lastly, they’ll be prompted to enable the Company Portal app to be used as a Passkey. The notification will direct them to System Settings and enable the toggle next to the Company Portal app.
 
-![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey.gif)
+![Enable PSSO Passkey](../website/assets/images/articles/deploying-entra-platform-sso-with-fleet-passkey-717x605@2x.gif)
 
 Once registration is complete, the next time an employee logs into an Entra ID protected app in their web browser, the authentication will be seamless. The employee won’t be prompted for their password or be required to complete an MFA challenge. The Platform SSO extension will handle the entire authentication using the Secure Enclave-backed key.
 

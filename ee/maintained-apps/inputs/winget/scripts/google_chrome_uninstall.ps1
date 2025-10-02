@@ -49,7 +49,8 @@ try {
                 FilePath = $uninstallCommand
                 PassThru = $true
                 Wait = $true
-                ArgumentList = "$uninstallArgs"
+                ArgumentList = "$uninstallArgs --force-uninstall".Split(' ')
+                NoNewWindow = $true
             }
 
             # Start process and track exit code

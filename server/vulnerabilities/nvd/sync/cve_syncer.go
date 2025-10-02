@@ -455,7 +455,7 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 				return "", err
 			}
 			vulnerabilitiesReceived++
-			cvesByYear[year] = append(cvesByYear[year], transformVuln(vuln))
+			cvesByYear[year] = append(cvesByYear[year], transformVuln(year, vuln))
 		}
 
 		// Dump vulnerabilities to the year files to reduce memory footprint.
@@ -503,11 +503,41 @@ func (s *CVE) sync(ctx context.Context, lastModStartDate *string) (newLastModSta
 	return newLastModStartDate, nil
 }
 
+var (
+	dockerDesktopCVEs2023 = []string{
+		"CVE-2023-0627", "CVE-2023-0629", "CVE-2023-5165", "CVE-2023-5166", "CVE-2023-0633", "CVE-2023-0628",
+		"CVE-2023-0626", "CVE-2023-0625",
+	}
+	dockerDesktopCVEs2022 = []string{"CVE-2022-26659", "CVE-2022-23774"}
+	dockerDesktopCVEs2021 = []string{"CVE-2021-45449", "CVE-2021-44719"}
+	dockerDesktopCVEs2020 = []string{"CVE-2020-11492", "CVE-2020-15360"}
+)
+
 // cleans up vulnerability feed entries that are incorrect from NVD, allowing fixing bugged NVD rules without needing
 // to update Fleet server
-func transformVuln(item nvdapi.CVEItem) nvdapi.CVEItem {
+func transformVuln(year int, item nvdapi.CVEItem) nvdapi.CVEItem {
 	if item.CVE.ID != nil && *item.CVE.ID == "CVE-2024-54559" {
 		item.CVE.Configurations[0].Nodes[0].CPEMatch = item.CVE.Configurations[0].Nodes[0].CPEMatch[0:1]
+	}
+
+	// Docker Desktop CVEs prior to 2024 have the wrong CPE in NVD's database
+	if (year == 2023 && slices.Contains(dockerDesktopCVEs2023, *item.CVE.ID)) ||
+		(year == 2022 && slices.Contains(dockerDesktopCVEs2022, *item.CVE.ID)) ||
+		(year == 2021 && slices.Contains(dockerDesktopCVEs2021, *item.CVE.ID)) ||
+		(year == 2020 && slices.Contains(dockerDesktopCVEs2020, *item.CVE.ID)) {
+
+		for configID := range item.CVE.Configurations {
+			for nodeID := range item.CVE.Configurations[configID].Nodes {
+				for matchID := range item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch {
+					item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria =
+						strings.ReplaceAll(
+							item.CVE.Configurations[configID].Nodes[nodeID].CPEMatch[matchID].Criteria,
+							"docker_desktop",
+							"desktop",
+						)
+				}
+			}
+		}
 	}
 
 	return item

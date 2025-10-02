@@ -11,7 +11,6 @@ import {
   isSoftwarePackage,
 } from "interfaces/software";
 import softwareAPI from "services/entities/software";
-import PATHS from "router/paths";
 
 import { SELF_SERVICE_TOOLTIP } from "pages/SoftwarePage/helpers";
 
@@ -22,13 +21,11 @@ import Icon from "components/Icon";
 import Tag from "components/Tag";
 import Button from "components/buttons/Button";
 
-import { getPathWithQueryParams, QueryParams } from "utilities/url";
 import endpoints from "utilities/endpoints";
 import URL_PREFIX from "router/url_prefix";
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
 import CustomLink from "components/CustomLink";
 import InstallerDetailsWidget from "pages/SoftwarePage/SoftwareTitleDetailsPage/SoftwareInstallerCard/InstallerDetailsWidget";
-import CategoriesEndUserExperienceModal from "pages/SoftwarePage/components/modals/CategoriesEndUserExperienceModal";
 
 import DeleteSoftwareModal from "../DeleteSoftwareModal";
 import EditSoftwareModal from "../EditSoftwareModal";
@@ -49,50 +46,6 @@ interface IStatusDisplayOption {
   iconName: "success" | "pending-outline" | "error";
   tooltip: React.ReactNode;
 }
-
-// "pending" and "failed" each encompass both "_install" and "_uninstall" sub-statuses
-type SoftwareInstallDisplayStatus = "installed" | "pending" | "failed";
-
-const STATUS_DISPLAY_OPTIONS: Record<
-  SoftwareInstallDisplayStatus,
-  IStatusDisplayOption
-> = {
-  installed: {
-    displayName: "Installed",
-    iconName: "success",
-    tooltip: (
-      <>
-        Software was installed on these hosts (install script finished
-        <br />
-        with exit code 0). Currently, if the software is uninstalled, the
-        <br />
-        &quot;Installed&quot; status won&apos;t be updated.
-      </>
-    ),
-  },
-  pending: {
-    displayName: "Pending",
-    iconName: "pending-outline",
-    tooltip: (
-      <>
-        Fleet is installing/uninstalling or will
-        <br />
-        do so when the host comes online.
-      </>
-    ),
-  },
-  failed: {
-    displayName: "Failed",
-    iconName: "error",
-    tooltip: (
-      <>
-        These hosts failed to install/uninstall software.
-        <br />
-        Click on a host to view error(s).
-      </>
-    ),
-  },
-};
 
 interface IActionsDropdownProps {
   installerType: "package" | "vpp";
@@ -173,7 +126,7 @@ export const SoftwareActionButtons = ({
             }
             variant="icon"
           >
-            <Icon name={option.iconName} color="core-fleet-blue" />
+            <Icon name={option.iconName} color="ui-fleet-black-75" />
           </Button>
         );
 
@@ -206,6 +159,7 @@ interface ISoftwareInstallerCardProps {
   };
   isSelfService: boolean;
   softwareId: number;
+  iconUrl?: string | null;
   teamId: number;
   teamIdForApi?: number;
   softwareInstaller: ISoftwarePackage | IAppStoreApp;
@@ -228,6 +182,7 @@ const SoftwareInstallerCard = ({
   isSelfService,
   softwareInstaller,
   softwareId,
+  iconUrl,
   teamId,
   teamIdForApi,
   onDelete,
@@ -343,7 +298,7 @@ const SoftwareInstallerCard = ({
     isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer;
 
   return (
-    <Card borderRadiusSize="xxlarge" includeShadow className={baseClass}>
+    <Card borderRadiusSize="xxlarge" className={baseClass}>
       <div className={`${baseClass}__installer-header`}>
         <div className={`${baseClass}__row-1`}>
           <div className={`${baseClass}__row-1--responsive-wrap`}>
@@ -397,13 +352,13 @@ const SoftwareInstallerCard = ({
             )}
           </div>
         </div>
-        <div className={`${baseClass}__row-2`}>
-          {gitOpsModeEnabled && isCustomPackage && (
+        {gitOpsModeEnabled && isCustomPackage && (
+          <div className={`${baseClass}__row-2`}>
             <div className={`${baseClass}__yaml-button-wrapper`}>
               <Button onClick={onToggleViewYaml}>View YAML</Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
       <div className={`${baseClass}__installer-status-table`}>
         <InstallerStatusTable
@@ -448,6 +403,9 @@ const SoftwareInstallerCard = ({
       {showViewYamlModal && isCustomPackage && (
         <ViewYamlModal
           softwareTitleName={softwareTitleName}
+          softwareTitleId={softwareId}
+          teamId={teamId}
+          iconUrl={iconUrl}
           softwarePackage={softwareInstaller as ISoftwarePackage}
           onExit={onToggleViewYaml}
         />

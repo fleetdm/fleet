@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>PayloadContent</key>
+    <array>
+        <dict>
+            <key>NotificationSettings</key>
+            <array>
+                <dict>
+                    <key>AlertType</key>
+                    <integer>1</integer>
+                    <key>BundleIdentifier</key>
+                    <string>com.crowdstrike.falcon.UserAgent</string>
+                    <key>CriticalAlertEnabled</key>
+                    <false/>
+                    <key>NotificationsEnabled</key>
+                    <true/>
+                    <key>ShowInLockScreen</key>
+                    <false/>
+                    <key>ShowInNotificationCenter</key>
+                    <true/>
+                </dict>
+            </array>
+            <key>PayloadDisplayName</key>
+            <string>Notifications</string>
+            <key>PayloadIdentifier</key>
+            <string>com.fleet.notifications</string>
+            <key>PayloadType</key>
+            <string>com.apple.notificationsettings</string>
+            <key>PayloadUUID</key>
+            <string>F5E94A3F-6E76-4A28-AF32-068455731244</string>
+            <key>PayloadVersion</key>
+            <integer>1</integer>
+        </dict>
+    </array>
+    <key>PayloadDescription</key>
+    <string>CrowdStrike Falcon Notification settings</string>
+    <key>PayloadDisplayName</key>
+    <string>CrowdStrike - Notifications</string>
+    <key>PayloadEnabled</key>
+    <true/>
+    <key>PayloadIdentifier</key>
+    <string>com.fleet.notifications</string>
+    <key>PayloadOrganization</key>
+    <string>Fleet</string>
+    <key>PayloadRemovalDisallowed</key>
+    <false/>
+    <key>PayloadScope</key>
+    <string>System</string>
+    <key>PayloadType</key>
+    <string>Configuration</string>
+    <key>PayloadUUID</key>
+    <string>F749D9AF-DE8B-45B0-98F5-CACA98C67FEC</string>
+    <key>PayloadVersion</key>
+    <integer>1</integer>
+</dict>
+</plist>

@@ -599,7 +599,7 @@ fleetctl mdm unlock --host=%s
 		{appCfgMacMDM, "valid macos but pending", []string{"--host", macPending.host.UUID}, `Can't lock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.host.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.host.UUID}, "Host has pending lock request."},
-		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, "Host has pending lock request."},
+		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.host.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.host.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.host.UUID}, "Host has pending wipe request."},
 	}
@@ -1318,6 +1318,11 @@ func setupTestServer(t *testing.T) *mock.Store {
 		return nil
 	}
 
+	enqueuer.GetPendingLockCommandFunc = func(ctx context.Context, hostUUID string) (*mdm.Command, string, error) {
+		// Return nil to indicate no pending lock command
+		return nil, "", nil
+	}
+
 	_, ds := testing_utils.RunServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
 		MDMPusher:        testing_utils.MockPusher{},
@@ -1372,6 +1377,7 @@ func setupDSMocks(ds *mock.Store, hostByUUID map[string]testhost, hostsByID map[
 
 		return h.host, nil
 	}
+	ds.HostFunc = mock.HostFunc(ds.HostLiteFunc)
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
 		return nil, nil
 	}

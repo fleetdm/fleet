@@ -1,1 +1,0 @@
-* Added special handling for version extraction of Fleet-maintained app manifests that reference a download URL that isn't version-pinned

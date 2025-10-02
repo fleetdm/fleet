@@ -102,7 +102,7 @@ func writeTestScript(content string) (string, error) {
 		return "", err
 	}
 
-	err = os.Chmod(tmpfile.Name(), 0o700)
+	err = os.Chmod(tmpfile.Name(), 0o700) // nolint:gosec // G302
 	if err != nil {
 		return "", err
 	}

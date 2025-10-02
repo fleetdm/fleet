@@ -50,12 +50,15 @@ module.exports = {
         'Fleet channel member in MacAdmins Slack',
         'Fleet channel member in osquery Slack',
         'Implemented a trial key',
-        'Engaged with fleetie at community event',
+        'Engaged with Fleetie at event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
         'Subscribed to the Fleet newsletter',
-        'Attended a Fleet training course'
+        'Attended a Fleet training course',
+        'Submitted the "Send a message" form',
+        'Scheduled a "Talk to us" meeting',
+        'Scheduled a "Let\'s get you set up" meeting',
       ]
     },
     eventContent: {

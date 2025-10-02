@@ -1,16 +1,18 @@
-# Foreign vitals: map IdP users to hosts
+# Foreign host vitals: Identity provider (IdP) username, groups, and department
 
-![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img.png)
+![Import users from IdP to Fleet](../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png)
 
 _Available in Fleet Premium._
 
-To add IdP host vitals, like the end user's groups, department, and full name, follow steps for your IdP.
+Fleet can map an end user's IdP username, groups, and department to their host(s) in Fleet. Then, you can use these IdP host vitals as [variables in configuration profiles](https://fleetdm.com/docs/configuration/yaml-files#variables) or criteria for labels.
 
-Fleet currently gathers your end user's IdP username when [end users log in](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) during the automatic enrollment (DEP) setup process.  
+Fleet gathers IdP host vitals when an end user authenticates during these enrollment scenarios:
+- Automatic enrollment (ADE) for Apple (macOS, iOS, iPadOS) hosts.
+- Manual enrollment for personal (BYOD) iOS and iPadOS hosts (Android coming soon).
 
-By connecting Fleet to your IdP to sync user data, you can add additional information, like the end user's groups and full name to your host data in Fleet. This allows you to leverage IdP information as variables in macOS configuration profiles to, for example, [deploy a WiFi certificate](https://fleetdm.com/guides/connect-end-user-to-wifi-with-certificate#step-4-add-pkcs-12-configuration-profile-to-fleet).
+Learn how to enforce authentication in the [setup experience guide](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication).
 
-Fleet currently supports syncing data with [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace), with support for more IdPs coming soon.
+The IdPs Fleet currently supports are [Okta](#okta), [Microsoft Active Directory (AD) / Entra ID](#microsoft-entra-id), [Google Workspace](#google-workspace), and [authentik](#google-workspace).
 
 ## Okta
 
@@ -45,7 +47,7 @@ To map users from Okta to hosts in Fleet, we'll do the following steps:
 9. Back in Okta, select **Save**.
 10. Under the **Provisioning** tab, select **To App** and then select **Edit** in the **Provisioning to App** section. Enable **Create Users**, **Update User Attributes**, **Deactivate Users**, and then select **Save**.
 11. On the same page, make sure that `givenName` and `familyName` have Okta value assigned to it. Currently, Fleet requires the `userName`, `givenName`, and `familyName` SCIM attributes. Fleet also supports the `department` attribute (optional). Delete the rest of the attributes.
-![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping.png)
+![Okta SCIM attributes mapping](../website/assets/images/articles/okta-scim-attributes-mapping-402x181@2x.png)
 
 #### Step 3: Map users and groups to hosts in Fleet
 
@@ -53,7 +55,7 @@ To send users and groups information to Fleet, you have to assign them to your n
 
 1. In OKta's main menu **Directory > Groups** and then select **Add group**. Name it "Fleet human-device mapping".
 2. On the same page, select the **Rules** tab. Create a rule that will assign users to your  "Fleet human-device mapping" group.
-![Okta group rule](../website/assets/images/articles/okta-scim-group-rules.png)
+![Okta group rule](../website/assets/images/articles/okta-scim-group-rules-1000x522@2x.png)
 3. In the main menu, select **Applications > Applications**  and select your new SCIM app. Then, select the **Assignments** tab.
 4. Select **Assign > Assign to Groups** and then select **Assign** next to the "Fleet human-device mapping" group. Then, select **Done**. Now all users that you assigned to the  "Fleet human-device mapping" group will be provisioned to Fleet.
 5. On the same page, select **Push Groups** tab. Then, select **Push Groups > Find groups by name** and add all groups that you assigned to "Fleet human-device mapping" group previously (make sure that **Push group memberships immediately** is selected). All groups will be provisioned in Fleet, and Fleet will map those groups to users.
@@ -86,10 +88,10 @@ To map users from Entra ID to hosts in Fleet, we'll do the following steps:
 #### Step 3: Map users and groups to hosts in Fleet
 
 1. From the side menu, select **Attribute mapping** and then select **Provision Microsoft Entra ID Groups**.
-![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes.png)    
+![Entra SCIM attributes mapping for groups](../website/assets/images/articles/entra-group-scim-attributes-504x134@2x.png)    
 2. Select **Provision Microsoft Entra ID Users**.
 3. Ensure that the attributes `userName`, `givenName`, `familyName`, `department`, `active`, and `externalId` are mapped to **Microsoft Entra ID Attribute**. Currently, Fleet requires the `userName` `givenName`, and `familyName` SCIM attributes. Delete the rest of the attributes. Then, elect **Save** and select the close icon in the top right corner.
-![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes.png)  
+![Entra SCIM attributes mapping for users](../website/assets/images/articles/entra-user-scim-attributes-480x160@2x.png)  
 4. Next, from the side menu, select **Users and groups** , **+ Add user/group**, and **None Selected**.
 5. Select the users and groups that you want to map to hosts in Fleet and then select **Assign**. 
 6. From the side menu, select **Overview** and select **Start provisioning**.
@@ -218,20 +220,23 @@ To map users from Google Workspace to hosts in Fleet, we'll do the following ste
 
 1. From the side menu, select **Directory > Federation and Social login**.
 2. Select **Create**, **LDAP Source**, and **Next**.
-3. Add a friendly name (e.g. "Google LDA"P").
+3. Add a friendly name (e.g. "Google LDAP").
 4. Make sure that **Enable**, **Sync users** and **Sync groups** are toggled on.
 5. In the **Server URL** enter `ldap://ldap.google.com`. For more information, refer to [Google docs](https://support.google.com/a/answer/9089736?hl=en&ref_topic=9173976&sjid=5482490660946222035-EU#basic-instructions).
 6. For the **TLS client authentication certificate**, select your certificate created in 2nd section (Google LDAP certificate)
 7. For the **Bind CN**, enter the username that you saved in the first step. For **Bind Password**, enter the password you saved.
 8. In **Base DN**, enter your Google Workspace domain in a DN format (e.g. dc=yourcompany,dc=com).
 9. For the **User Property Mappings,** remove all selected properties by clicking the "X" icon, and select all user properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings.png)
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-user-ldap-attributes-custom-mappings-960x270@2x.png)
 10. For the **Group Property Mappings**, remove all selected properties by clicking the "X" icon, and select all group properties that we created in the left box and select the ">" icon between boxes.
-![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings.png)
+![authentik LDAP user property mappings](../website/assets/images/articles/authentik-group-ldap-attributes-custom-mappings-960x270@2x.png)
 11. Under **Additional settings**, enter values below:
-**User object filter** > `(objectClass=person)`,  **Group object filter** > `(objectClass= groupOfNames)`, **Group membership field** > `member`, **Object uniqueness field** > `objectSid`
-13. Select **Finish** to save your configuration. 
-14. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
+    - **User object filter** > `(objectClass=person)`
+    - **Group object filter** > `(objectClass= groupOfNames)`
+    - **Group membership field** > `member`
+    - **Object uniqueness field** > `objectSid`  
+12. Select **Finish** to save your configuration. 
+13. After a few minutes, on the **Directory > Users** page, you should see users from your Google Workspace.
 
 #### Step 5: Map users to hosts in Fleet
 
@@ -266,5 +271,5 @@ last name).
 <meta name="authorFullName" value="Marko Lisica">
 <meta name="publishedOn" value="2025-04-11">
 <meta name="articleTitle" value="Foreign vitals: map IdP users to hosts">
-<meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img.png">
+<meta name="articleImageUrl" value="../website/assets/images/articles/add-users-from-idp-cover-img-800x400@2x.png">
 <meta name="category" value="guides">

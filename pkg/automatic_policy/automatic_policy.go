@@ -153,7 +153,7 @@ func (m FullInstallerMetadata) PolicyQuery() (string, error) {
 			`SELECT 1 WHERE EXISTS (
 	SELECT 1 WHERE (SELECT COUNT(*) FROM deb_packages) = 0
 ) OR EXISTS (
-	SELECT 1 FROM deb_packages WHERE name = '%s'
+	SELECT 1 FROM deb_packages WHERE name = '%s' AND status = 'install ok installed'
 );`, m.Title,
 		), nil
 	case "rpm":

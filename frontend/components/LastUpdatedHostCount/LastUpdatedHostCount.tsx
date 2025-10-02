@@ -5,7 +5,7 @@ const baseClass = "last-updated-host-count";
 
 interface ILastUpdatedHostCount {
   hostCount?: string | number | JSX.Element;
-  lastUpdatedAt?: string;
+  lastUpdatedAt?: string | null;
 }
 
 const LastUpdatedHostCount = ({
@@ -23,10 +23,12 @@ const LastUpdatedHostCount = ({
   return (
     <div className={baseClass}>
       <>{hostCount}</>
-      <LastUpdatedText
-        lastUpdatedAt={lastUpdatedAt}
-        customTooltipText={tooltipContent}
-      />
+      {lastUpdatedAt !== undefined && (
+        <LastUpdatedText
+          lastUpdatedAt={lastUpdatedAt}
+          customTooltipText={tooltipContent}
+        />
+      )}
     </div>
   );
 };

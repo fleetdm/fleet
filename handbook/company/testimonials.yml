@@ -10,6 +10,14 @@
 #
 # TODO figure out what to do with this other quote that both Austin and Dre :+1:'d: "Fleet lets us be more actionable with fewer people. It helps us to filter out the noise better than we could with the other big name products we replaced."
 -
+  quote: Fleet is incredibly easy to deploy and perfect for lean IT teams. It's everything we need in a device management platform, simple, efficient, and powerful.
+  quoteAuthorName: Chayce O'Neal
+  quoteAuthorProfileImageFilename: testimonial-author-chayce-oneal-100x100@2x.png
+  quoteImageFilename: social-proof-logo-condunctorone-214x32@2x.png 
+  quoteLinkUrl: https://www.linkedin.com/in/chayceoneal/
+  quoteAuthorJobTitle: Head of IT @ ConductorOne
+  productCategories: [Device management] 
+-
   quote: Fleet aligns with the strategies that enabled me to help scale Uber’s global device deployments with a lean DevOps/systems engineering team.
   quoteAuthorName: Luis Madrigal
   quoteAuthorProfileImageFilename: testimonial-author-luis-madrigal-100x100@2x.png
@@ -281,4 +289,12 @@
   quoteAuthorName: Philip Chotipradit
   quoteAuthorJobTitle: System Administrator - Endpoint Engineering
   quoteAuthorProfileImageFilename: testimonial-author-philip-chotipradit-100x100@2x.png
+  productCategories: [Device management]
+-
+  quote: "The customer support and care has been 'world class'. Even on the other side of the world."
+  quoteImageFilename: logo-jumo-96x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/davidbodmer/
+  quoteAuthorName: David Bodmer
+  quoteAuthorJobTitle: IT Systems Engineer
+  quoteAuthorProfileImageFilename: testimonial-author-david-bodmer-48x48@2x.png
   productCategories: [Device management]

@@ -15,7 +15,7 @@ import { AppContext } from "context/app";
 
 import { ITeam } from "interfaces/team";
 import { IUserFormErrors, UserRole } from "interfaces/user";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 
 import { SingleValue } from "react-select-5";
 import Button from "components/buttons/Button";
@@ -122,8 +122,9 @@ const validate = (
     isExistingUserForcedToPasswordAuth ||
     (!initiallyPasswordAuth && !sso_enabled)
   ) {
-    if (password !== null && !validPassword(password)) {
-      newErrors.password = "Password must meet the criteria below";
+    const { isValid, error } = validPassword(password || "");
+    if (password !== null && !isValid) {
+      newErrors.password = error;
     }
     if (!validatePresence(password)) {
       newErrors.password = "Password field must be completed";
@@ -219,7 +220,7 @@ const UserForm = ({
     return () => window.removeEventListener("resize", checkScroll);
   }, [formData]);
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(
@@ -390,6 +391,7 @@ const UserForm = ({
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               text="Learn more about user permissions"
               newTab
+              variant="banner-link"
             />
           </InfoBanner>
         )}
@@ -447,6 +449,7 @@ const UserForm = ({
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
                   text="Learn more about user permissions"
                   newTab
+                  variant="banner-link"
                 />
               </InfoBanner>
               <SelectedTeamsForm

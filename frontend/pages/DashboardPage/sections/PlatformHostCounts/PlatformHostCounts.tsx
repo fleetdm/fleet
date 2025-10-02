@@ -6,8 +6,6 @@ import { PLATFORM_NAME_TO_LABEL_NAME } from "pages/DashboardPage/helpers";
 
 import { IHostSummary } from "interfaces/host_summary";
 import { PlatformValueOptions } from "utilities/constants";
-import DataError from "components/DataError";
-import Card from "components/Card";
 
 import HostCountCard from "../../cards/HostCountCard";
 

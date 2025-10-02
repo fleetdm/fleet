@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import configAPI from "services/entities/config";
 
 import { IConfig } from "interfaces/config";
-import { IFormField } from "interfaces/form_field";
+import { IInputFieldParseTarget } from "interfaces/form_field";
 import { getErrorReason } from "interfaces/errors";
 
 // @ts-ignore
@@ -21,6 +21,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
 import SectionHeader from "components/SectionHeader";
+import PageDescription from "components/PageDescription";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
@@ -43,8 +44,9 @@ const validate = (formData: IChangeManagementFormData) => {
     if (!repoURL) {
       errs.repository_url =
         "Git repository URL is required when GitOps mode is enabled";
-    } else if (!validUrl({ url: repoURL })) {
-      errs.repository_url = "Git repository URL must be a valid URL";
+    } else if (!validUrl({ url: repoURL, protocols: ["http", "https"] })) {
+      errs.repository_url =
+        "Git repository URL must include protocol (e.g. https://)";
     }
   }
   return errs;
@@ -122,7 +124,7 @@ const ChangeManagement = () => {
     }
   };
 
-  const onInputChange = ({ name, value }: IFormField) => {
+  const onInputChange = ({ name, value }: IInputFieldParseTarget) => {
     const newFormData = { ...formData, [name]: value };
     setFormData(newFormData);
     const newErrs = validate(newFormData);
@@ -146,15 +148,20 @@ const ChangeManagement = () => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Change management" />
-      <p className={`${baseClass}__page-description`}>
-        When using a git repository to manage Fleet, you can optionally put the
-        UI in GitOps mode. This prevents you from making changes in the UI that
-        would be overridden by GitOps workflows.
-      </p>
-      <CustomLink
-        newTab
-        url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
-        text="Learn more about GitOps"
+      <PageDescription
+        content={
+          <>
+            When using a git repository to manage Fleet, you can optionally put
+            the UI in GitOps mode. This prevents you from making changes in the
+            UI that would be overridden by GitOps workflows.{" "}
+            <CustomLink
+              newTab
+              url={`${LEARN_MORE_ABOUT_BASE_LINK}/gitops`}
+              text="Learn more about GitOps"
+            />
+          </>
+        }
+        variant="right-panel"
       />
       <form onSubmit={handleSubmit}>
         <Checkbox
@@ -179,13 +186,15 @@ const ChangeManagement = () => {
           helpText="When GitOps mode is enabled, you will be directed here to make changes."
           disabled={!gitOpsModeEnabled}
         />
-        <Button
-          type="submit"
-          disabled={!!Object.keys(formErrors).length}
-          isLoading={isUpdating}
-        >
-          Save
-        </Button>
+        <div className="button-wrap">
+          <Button
+            type="submit"
+            disabled={!!Object.keys(formErrors).length}
+            isLoading={isUpdating}
+          >
+            Save
+          </Button>
+        </div>
       </form>
     </div>
   );

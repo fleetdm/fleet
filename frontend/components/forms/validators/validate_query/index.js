@@ -1,5 +1,4 @@
 import { Parser } from "utilities/node-sql-parser/sqlite";
-import { includes, some } from "lodash";
 
 const invalidQueryResponse = (message) => {
   return { valid: false, error: message };

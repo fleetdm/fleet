@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -36,7 +35,6 @@ func TestAppConfig(t *testing.T) {
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
 		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 		{"IsEnrollSecretAvailable", testIsEnrollSecretAvailable},
-		{"NDESSCEPProxyPassword", testNDESSCEPProxyPassword},
 		{"YaraRulesRoundtrip", testYaraRulesRoundtrip},
 	}
 	for _, c := range cases {
@@ -449,9 +447,9 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.False(t, ac.MDM.EnableDiskEncryption.Value)
 	require.False(t, ac.MDM.RequireBitLockerPIN.Value)
 
-	enabled, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
+	diskEncryptionConfig, err := ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.False(t, enabled)
+	require.False(t, diskEncryptionConfig.Enabled)
 
 	// Enable disk encryption for no team
 	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
@@ -463,9 +461,9 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.True(t, ac.MDM.EnableDiskEncryption.Value)
 	require.True(t, ac.MDM.RequireBitLockerPIN.Value)
 
-	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, nil)
 	require.NoError(t, err)
-	require.True(t, enabled)
+	require.True(t, diskEncryptionConfig.Enabled)
 
 	// Create team
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
@@ -477,9 +475,9 @@ func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
 	require.False(t, tm.Config.MDM.EnableDiskEncryption)
 	require.False(t, tm.Config.MDM.RequireBitLockerPIN)
 
-	enabled, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
+	diskEncryptionConfig, err = ds.GetConfigEnableDiskEncryption(ctx, &team1.ID)
 	require.NoError(t, err)
-	require.False(t, enabled)
+	require.False(t, diskEncryptionConfig.Enabled)
 
 	// Enable disk encryption for the team
 	tm.Config.MDM.EnableDiskEncryption = true
@@ -539,78 +537,6 @@ func testIsEnrollSecretAvailable(t *testing.T, ds *Datastore) {
 			},
 		)
 	}
-}
-
-func testNDESSCEPProxyPassword(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	ctx = ctxdb.BypassCachedMysql(ctx, true)
-	defer TruncateTables(t, ds)
-
-	ac, err := ds.AppConfig(ctx)
-	require.NoError(t, err)
-
-	adminURL := "https://localhost:8080/mscep_admin/"
-	username := "admin"
-	url := "https://localhost:8080/mscep/mscep.dll"
-	password := "password"
-
-	ac.Integrations.NDESSCEPProxy = optjson.Any[fleet.NDESSCEPProxyIntegration]{
-		Valid: true,
-		Set:   true,
-		Value: fleet.NDESSCEPProxyIntegration{
-			AdminURL: adminURL,
-			Username: username,
-			Password: password,
-			URL:      url,
-		},
-	}
-
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-
-	checkProxyConfig := func() {
-		result, err := ds.AppConfig(ctx)
-		require.NoError(t, err)
-		require.NotNil(t, result.Integrations.NDESSCEPProxy)
-		assert.Equal(t, url, result.Integrations.NDESSCEPProxy.Value.URL)
-		assert.Equal(t, adminURL, result.Integrations.NDESSCEPProxy.Value.AdminURL)
-		assert.Equal(t, username, result.Integrations.NDESSCEPProxy.Value.Username)
-		assert.Equal(t, fleet.MaskedPassword, result.Integrations.NDESSCEPProxy.Value.Password)
-	}
-
-	checkProxyConfig()
-
-	checkPassword := func() {
-		assets, err := ds.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetNDESPassword}, nil)
-		require.NoError(t, err)
-		require.Len(t, assets, 1)
-		assert.Equal(t, password, string(assets[fleet.MDMAssetNDESPassword].Value))
-	}
-	checkPassword()
-
-	// Set password to masked password -- should not update
-	ac.Integrations.NDESSCEPProxy.Value.Password = fleet.MaskedPassword
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkProxyConfig()
-	checkPassword()
-
-	// Set password to empty -- password should not update
-	url = "https://newurl.com"
-	ac.Integrations.NDESSCEPProxy.Value.Password = ""
-	ac.Integrations.NDESSCEPProxy.Value.URL = url
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkProxyConfig()
-	checkPassword()
-
-	// Set password to a new value
-	password = "newpassword"
-	ac.Integrations.NDESSCEPProxy.Value.Password = password
-	err = ds.SaveAppConfig(ctx, ac)
-	require.NoError(t, err)
-	checkProxyConfig()
-	checkPassword()
 }
 
 func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
@@ -700,6 +626,100 @@ func testYaraRulesRoundtrip(t *testing.T, ds *Datastore) {
 	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
 	require.NoError(t, err)
 	assert.Equal(t, &expectedRules[1], rule)
+
+	// Apply the same rules again - this should be a no-op due to optimization
+	// (rules haven't changed, so no DELETE/INSERT should occur)
+	err = ds.ApplyYaraRules(ctx, expectedRules)
+	require.NoError(t, err)
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, expectedRules, rules)
+
+	// Test edge case: Apply same rules but in different order
+	reorderedRules := []fleet.YaraRule{expectedRules[1], expectedRules[0]}
+	err = ds.ApplyYaraRules(ctx, reorderedRules)
+	require.NoError(t, err)
+	// Verify both rules still exist
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[0].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[0], rule)
+	rule, err = ds.YaraRuleByName(ctx, expectedRules[1].Name)
+	require.NoError(t, err)
+	assert.Equal(t, &expectedRules[1], rule)
+
+	// Test: Modify only the content of one rule (same name, different content)
+	modifiedContentRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		},
+		{
+			Name: "jump-modified.yar",
+			Contents: `rule JumpExample
+{
+    strings:
+        $hex_string = true
+
+    condition:
+        $hex_string
+}`,
+		},
+	}
+	err = ds.ApplyYaraRules(ctx, modifiedContentRules)
+	require.NoError(t, err)
+	// Verify the content was actually updated
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+	assert.Contains(t, rule.Contents, "E2 34 ?? C8 A? FB FF")
+
+	// Test: Mixed operations - add new, keep one unchanged, delete one
+	mixedRules := []fleet.YaraRule{
+		{
+			Name: "wildcard.yar",
+			Contents: `rule WildcardExampleModified
+{
+    strings:
+        $hex_string = { E2 34 ?? C8 A? FB FF }
+
+    condition:
+        $hex_string
+}`,
+		}, // unchanged from previous
+		// jump-modified.yar is deleted
+		{
+			Name:     "new-rule.yar",
+			Contents: `rule NewRule { condition: true }`,
+		}, // new rule
+	}
+	err = ds.ApplyYaraRules(ctx, mixedRules)
+	require.NoError(t, err)
+
+	// Verify mixed operation results
+	rules, err = ds.GetYaraRules(ctx)
+	require.NoError(t, err)
+	require.Len(t, rules, 2)
+
+	// Check wildcard.yar is unchanged
+	rule, err = ds.YaraRuleByName(ctx, "wildcard.yar")
+	require.NoError(t, err)
+	assert.Contains(t, rule.Contents, "WildcardExampleModified")
+
+	// Check jump-modified.yar is deleted
+	_, err = ds.YaraRuleByName(ctx, "jump-modified.yar")
+	require.Error(t, err)
+
+	// Check new-rule.yar is added
+	rule, err = ds.YaraRuleByName(ctx, "new-rule.yar")
+	require.NoError(t, err)
+	assert.Equal(t, `rule NewRule { condition: true }`, rule.Contents)
 
 	// Clear rules
 	expectedRules = []fleet.YaraRule{}

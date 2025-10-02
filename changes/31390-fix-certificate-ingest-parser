@@ -1,0 +1,2 @@
+* Fixed certificate ingest parser to no longer break on multiple equal signs in certificate key pair values
+* Fixed certificate ingest parser to allow for only multiple relative distinguished names separated by +

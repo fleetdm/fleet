@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Background Apps</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.servicemanagement.673823C3-5AE5-4339-A36A-ECA3BBA25D24</string>
+			<key>PayloadType</key>
+			<string>com.apple.servicemanagement</string>
+			<key>PayloadUUID</key>
+			<string>673823C3-5AE5-4339-A36A-ECA3BBA25D24</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>Rules</key>
+			<array>
+				<dict>
+					<key>RuleType</key>
+					<string>TeamIdentifier</string>
+					<key>RuleValue</key>
+					<string>EQHXZ8M8AV</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDisplayName</key>
+	<string>Google Updater background task</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.google.updater.70FE5A48-1035-49FE-84E4-93E0416666D4</string>
+	<key>PayloadOrganization</key>
+	<string>Fleet</string>
+	<key>PayloadRemovalDisallowed</key>
+	<true/>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>A2EC78CA-5E19-4531-BE46-D0D722C6070A</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -21,7 +21,8 @@ import (
 )
 
 type MockClient struct {
-	IsFree bool
+	IsFree           bool
+	TeamNameOverride string
 }
 
 func (c *MockClient) GetAppConfig() (*fleet.EnrichedAppConfig, error) {
@@ -53,19 +54,19 @@ func (MockClient) GetEnrollSecretSpec() (*fleet.EnrollSecretSpec, error) {
 	return spec, nil
 }
 
-func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
+func (c *MockClient) ListTeams(query string) ([]fleet.Team, error) {
+	var config fleet.TeamConfig
 	b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 	if err != nil {
 		return nil, err
 	}
-	var config fleet.TeamConfig
 	if err := json.Unmarshal(b, &config); err != nil {
 		return nil, err
 	}
 	teams := []fleet.Team{
 		{
 			ID:     1,
-			Name:   "Team A",
+			Name:   "Team A 👍",
 			Config: config,
 			Secrets: []*fleet.EnrollSecret{
 				{
@@ -73,6 +74,9 @@ func (MockClient) ListTeams(query string) ([]fleet.Team, error) {
 				},
 			},
 		},
+	}
+	if c.TeamNameOverride != "" {
+		teams[0].Name = c.TeamNameOverride
 	}
 	return teams, nil
 }
@@ -129,10 +133,14 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 				ProfileUUID: "global-windows-profile-uuid",
 				Name:        "Global Windows Profile",
 				Platform:    "windows",
-				Identifier:  "com.example.global-windows-profile",
 				LabelsIncludeAny: []fleet.ConfigurationProfileLabel{{
 					LabelName: "Label D",
 				}},
+			},
+			{
+				ProfileUUID: "global-android-profile-uuid",
+				Name:        "Global Android Profile",
+				Platform:    "android",
 			},
 		}, nil
 	}
@@ -146,7 +154,7 @@ func (MockClient) ListConfigurationProfiles(teamID *uint) ([]*fleet.MDMConfigPro
 			},
 		}, nil
 	}
-	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 {
+	if *teamID == 0 || *teamID == 2 || *teamID == 3 || *teamID == 4 || *teamID == 5 || *teamID == 6 {
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %v", *teamID)
@@ -170,6 +178,8 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 		return []byte(`{"profile": "global macos json profile"}`), nil
 	case "global-windows-profile-uuid":
 		return []byte("<xml>global windows profile</xml>"), nil
+	case "global-android-profile-uuid":
+		return []byte(`{"name": "Global Android Profile", "cameraDisabled": true}`), nil
 	case "test-mobileconfig-profile-uuid":
 		return []byte("<xml>test mobileconfig profile</xml>"), nil
 	}
@@ -177,6 +187,23 @@ func (MockClient) GetProfileContents(profileID string) ([]byte, error) {
 }
 
 func (MockClient) GetTeam(teamID uint) (*fleet.Team, error) {
+	if teamID == 0 {
+		// Return "No Team" configuration with webhook settings
+		return &fleet.Team{
+			ID:   0,
+			Name: "No team",
+			Config: fleet.TeamConfig{
+				WebhookSettings: fleet.TeamWebhookSettings{
+					FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+						Enable:         true,
+						DestinationURL: "https://example.com/no-team-webhook",
+						PolicyIDs:      []uint{1, 2, 3},
+						HostBatchSize:  100,
+					},
+				},
+			},
+		}, nil
+	}
 	if teamID == 1 {
 		b, err := os.ReadFile("./testdata/generateGitops/teamConfig.json")
 		if err != nil {
@@ -333,7 +360,9 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				SelfService:       true,
 				Platform:          "darwin",
 				URL:               "https://example.com/download/my-software.pkg",
+				Categories:        []string{"Browsers"},
 			},
+			IconUrl: ptr.String("/api/icon1.png"),
 		}, nil
 	case 2:
 		if *teamID != 1 {
@@ -347,11 +376,18 @@ func (MockClient) GetSoftwareTitleByID(ID uint, teamID *uint) (*fleet.SoftwareTi
 				}, {
 					LabelName: "Label D",
 				}},
+				Categories:  []string{"Productivity", "Utilities"},
+				SelfService: true,
 			},
+			IconUrl: ptr.String("/api/icon2.png"),
 		}, nil
 	default:
 		return nil, errors.New("software title not found")
 	}
+}
+
+func (MockClient) GetSoftwareTitleIcon(titleID uint, teamID uint) ([]byte, error) {
+	return []byte(fmt.Sprintf("icon for title %d on team %d", titleID, teamID)), nil
 }
 
 func (MockClient) GetLabels() ([]*fleet.LabelSpec, error) {
@@ -394,7 +430,7 @@ func (MockClient) GetEULAContent(token string) ([]byte, error) {
 	return []byte("This is the EULA content."), nil
 }
 
-func (MockClient) GetSetupExperienceSoftware(teamID uint) ([]fleet.SoftwareTitleListResult, error) {
+func (MockClient) GetSetupExperienceSoftware(platform string, teamID uint) ([]fleet.SoftwareTitleListResult, error) {
 	if teamID == 1 {
 		return []fleet.SoftwareTitleListResult{
 			{
@@ -470,6 +506,64 @@ func (MockClient) GetAppleMDMEnrollmentProfile(teamID uint) (*fleet.MDMAppleSetu
 		return nil, nil
 	}
 	return nil, fmt.Errorf("unexpected team ID: %d", teamID)
+}
+
+func (MockClient) GetCertificateAuthoritiesSpec(includeSecrets bool) (*fleet.GroupedCertificateAuthorities, error) {
+	res := fleet.GroupedCertificateAuthorities{
+		DigiCert: []fleet.DigiCertCA{
+			{
+				Name:                  "some-digicert-name",
+				URL:                   "https://some-digicert-url.com",
+				APIToken:              maskSecret("some-digicert-api-token", includeSecrets),
+				ProfileID:             "some-digicert-profile-id",
+				CertificateCommonName: "some-digicert-certificate-common-name",
+				CertificateUserPrincipalNames: []string{
+					"some-digicert-certificate-user-principal-name",
+					"some-other-digicert-certificate-user-principal-name",
+				},
+				CertificateSeatID: "some-digicert-certificate-seat-id",
+			},
+		},
+		NDESSCEP: &fleet.NDESSCEPProxyCA{
+			URL:      "https://some-ndes-scep-proxy-url.com",
+			AdminURL: "https://some-ndes-admin-url.com",
+			Username: "some-ndes-username",
+			Password: maskSecret("some-ndes-password", includeSecrets),
+		},
+		CustomScepProxy: []fleet.CustomSCEPProxyCA{
+			{
+				Name:      "some-custom-scep-proxy-name",
+				URL:       "https://some-custom-scep-proxy-url.com",
+				Challenge: maskSecret("some-custom-scep-proxy-challenge", includeSecrets),
+			},
+		},
+		Hydrant: []fleet.HydrantCA{
+			{
+				Name:         "some-hydrant-name",
+				URL:          "https://some-hydrant-url.com",
+				ClientID:     "some-hydrant-client-id",
+				ClientSecret: maskSecret("some-hydrant-client-secret", includeSecrets),
+			},
+		},
+		Smallstep: []fleet.SmallstepSCEPProxyCA{
+			{
+				Name:         "some-smallstep-name",
+				URL:          "https://some-smallstep-url.com",
+				ChallengeURL: "https://some-smallstep-challenge-url.com",
+				Username:     "some-smallstep-username",
+				Password:     maskSecret("some-smallstep-password", includeSecrets),
+			},
+		},
+	}
+
+	return &res, nil
+}
+
+func maskSecret(value string, shouldShowSecret bool) string {
+	if shouldShowSecret {
+		return value
+	}
+	return "********"
 }
 
 func compareDirs(t *testing.T, sourceDir, targetDir string) {
@@ -816,6 +910,12 @@ func TestGenerateControls(t *testing.T) {
 		t.Fatalf("Expected file not found")
 	}
 
+	if fileContents, ok := cmd.FilesToWrite["lib/profiles/global-android-profile.json"]; ok {
+		require.Equal(t, `{"name": "Global Android Profile", "cameraDisabled": true}`, fileContents)
+	} else {
+		t.Fatalf("Expected file not found")
+	}
+
 	// Generate controls for no-team, sending in an MDM config with "EndUserAuthentication" disabled.
 	// Mocks for no team don't return any scripts, bootstrap, software, or profiles,
 	// so it should _not_ generate a macos_setup config.
@@ -913,7 +1013,7 @@ func TestGenerateSoftware(t *testing.T) {
 		SoftwareList: make(map[uint]Software),
 	}
 
-	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team")
+	softwareRaw, err := cmd.generateSoftware("team.yml", 1, "some-team", false)
 	require.NoError(t, err)
 	require.NotNil(t, softwareRaw)
 	var software map[string]interface{}
@@ -1167,5 +1267,52 @@ func TestGenerateControlsAndMDMWithoutMDMEnabledAndConfigured(t *testing.T) {
 	} {
 		require.Contains(t, mdmRaw, key)
 		require.Empty(t, mdmRaw[key])
+	}
+}
+
+func TestSillyTeamNames(t *testing.T) {
+	sillyTeamNames := map[string]string{
+		"🫆": "🫆.yml",
+		"🪾": "🪾.yml",
+		"🫜": "🫜.yml",
+		"🪉": "🪉.yml",
+		"🪏": "🪏.yml",
+		"🫟": "🫟.yml",
+		"👍": "👍.yml",
+		"a/team\\with:all*the?footguns\"in<it>omg|": "aateambwithcalldtheefootgunsfingithomgi.yml",
+	}
+
+	fleetClient := &MockClient{}
+	tempDir := os.TempDir() + "/" + uuid.New().String()
+
+	t.Cleanup(func() {
+		if err := os.RemoveAll(tempDir); err != nil {
+			t.Fatalf("failed to remove temp dir: %v", err)
+		}
+	})
+
+	for name, expectedFilename := range sillyTeamNames {
+		t.Run(name, func(t *testing.T) {
+			flagSet := flag.NewFlagSet("test", flag.ContinueOnError)
+			flagSet.String("dir", tempDir, "")
+			flagSet.Bool("force", true, "")
+			fleetClient.TeamNameOverride = name
+			action := createGenerateGitopsAction(fleetClient)
+			buf := new(bytes.Buffer)
+			cliContext := cli.NewContext(&cli.App{
+				Name:      "test",
+				Usage:     "test",
+				Writer:    buf,
+				ErrWriter: buf,
+			}, flagSet, nil)
+			// Get the test app config.
+			err := action(cliContext)
+			require.NoError(t, err, buf.String())
+
+			// Expect a correctly-named .yaml
+			tgtPath := filepath.Join(tempDir, "teams", expectedFilename)
+			_, err = os.Stat(tgtPath)
+			require.NoError(t, err)
+		})
 	}
 }

@@ -1836,9 +1836,9 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 
 	// insert the relationship between profile and variables
 	varsPerProfile := map[string][]string{
-		profUsername.ProfileUUID: {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart},
-		profGroup.ProfileUUID:    {fleet.FleetVarHostEndUserIDPGroups},
-		profAll.ProfileUUID:      {fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarHostEndUserIDPUsernameLocalPart, fleet.FleetVarHostEndUserIDPGroups},
+		profUsername.ProfileUUID: {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart)},
+		profGroup.ProfileUUID:    {string(fleet.FleetVarHostEndUserIDPGroups)},
+		profAll.ProfileUUID:      {string(fleet.FleetVarHostEndUserIDPUsername), string(fleet.FleetVarHostEndUserIDPUsernameLocalPart), string(fleet.FleetVarHostEndUserIDPGroups)},
 	}
 	for profUUID, vars := range varsPerProfile {
 		for _, v := range vars {
@@ -1937,7 +1937,7 @@ func testTriggerResendIdPProfiles(t *testing.T, ds *Datastore) {
 	// user1, does not trigger anything
 	group2, err := ds.CreateScimGroup(ctx, &fleet.ScimGroup{DisplayName: "g2"})
 	require.NoError(t, err)
-	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", GivenName: ptr.String("A")})
+	err = ds.ReplaceScimUser(ctx, &fleet.ScimUser{ID: scimUser1, UserName: "A@example.com", ExternalID: ptr.String("A")})
 	require.NoError(t, err)
 
 	assertHostProfileStatus(t, ds, host1.UUID,
@@ -2145,7 +2145,7 @@ func testTriggerResendIdPProfilesOnTeam(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// create some profiles with/without vars on the team
-	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []string{fleet.FleetVarHostEndUserIDPGroups})
+	profGroup, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("a", "a", team.ID), []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 	require.NoError(t, err)
 	profNone, err := ds.NewMDMAppleConfigProfile(ctx, *generateCP("b", "b", team.ID), nil)
 	require.NoError(t, err)
@@ -2211,13 +2211,15 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 	require.NoError(t, err)
 	appleProfs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
 	require.NoError(t, err)
+	androidProfs, err := ds.GetHostMDMAndroidProfiles(ctx, hostUUID)
+	require.NoError(t, err)
 
 	type commonHostProf struct {
 		Status      fleet.MDMDeliveryStatus
 		Type        fleet.MDMOperationType
 		ProfileUUID string
 	}
-	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs))
+	profs := make([]commonHostProf, 0, len(appleProfs)+len(winProfs)+len(androidProfs))
 	for _, wp := range winProfs {
 		var status fleet.MDMDeliveryStatus
 		if wp.Status == nil {
@@ -2242,6 +2244,19 @@ func assertHostProfileOpStatus(t *testing.T, ds *Datastore, hostUUID string, wan
 			ProfileUUID: ap.ProfileUUID,
 			Status:      status,
 			Type:        ap.OperationType,
+		})
+	}
+	for _, anp := range androidProfs {
+		var status fleet.MDMDeliveryStatus
+		if anp.Status == nil {
+			status = fleet.MDMDeliveryPending
+		} else {
+			status = *anp.Status
+		}
+		profs = append(profs, commonHostProf{
+			ProfileUUID: anp.ProfileUUID,
+			Status:      status,
+			Type:        anp.OperationType,
 		})
 	}
 
@@ -2341,50 +2356,4 @@ func testScimUsersExist(t *testing.T, ds *Datastore) {
 	exist, err = ds.ScimUsersExist(t.Context(), largeExistingIDs)
 	require.NoError(t, err)
 	assert.True(t, exist, "Large batch with only existing users should return true")
-}
-
-func forceSetWindowsHostProfileStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMWindowsConfigProfile, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
-	ctx := t.Context()
-
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
-	}
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_windows_profiles
-				(host_uuid, status, operation_type, command_uuid, profile_name, checksum, profile_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, UNHEX(MD5(?)), ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.SyncML, profile.ProfileUUID)
-		return err
-	})
-}
-
-func forceSetAppleHostDeclarationStatus(t *testing.T, ds *Datastore, hostUUID string, profile *fleet.MDMAppleDeclaration, operation fleet.MDMOperationType, status fleet.MDMDeliveryStatus) {
-	ctx := t.Context()
-
-	// empty status string means set to NULL
-	var actualStatus *fleet.MDMDeliveryStatus
-	if status != "" {
-		actualStatus = &status
-	}
-
-	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `INSERT INTO host_mdm_apple_declarations
-				(declaration_identifier, host_uuid, status, operation_type, token, declaration_name, declaration_uuid)
-			VALUES
-				(?, ?, ?, ?, ?, ?, ?)
-			ON DUPLICATE KEY UPDATE
-				status = VALUES(status),
-				operation_type = VALUES(operation_type)
-			`,
-			profile.Identifier, hostUUID, actualStatus, operation, uuid.NewString(), profile.Name, profile.DeclarationUUID)
-		return err
-	})
 }

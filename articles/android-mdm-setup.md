@@ -17,45 +17,23 @@ When you select **Connect Android Enterprise**, Fleet will open the Google signu
 1. If your organization already uses Google Workspace, use your admin account to signup for Android Enterprise. If you don't know your admin account credentials, ask your Google Workspace admin.
 2. Follow the steps in Google's signup flow.
 3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
-4. Head to your [Google Admin console](https://admin.google.com).
-5. From the side menu, select [Devices > Mobile & endpoints > Settings > Third-party integrations](https://admin.google.com/ac/devices/settings/thirdparty).
-6. Select **Android EMM**, check **Enable third-party Android mobile management**, and then select **Manage EMM providers**.
-7. Toggle **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
 
 ### Microsoft 365
 
-1. If your organization uses Microsoft 365, you can use your Microsoft email to signup for Android Enterprise. After you select **Connect Android Enterprise**, select **Sign in with Microsoft**. Your Microsoft account must have access to an email.
-2. Follow the steps in Google's signup flow.
+1. If your organization uses Microsoft 365, you can sign up for Android Enterprise with your Microsoft email. First, select **Connect Android Enterprise**. Then, enter your Microsoft email, click **Next**, and choose **Sign in with Microsoft**. Your Microsoft account must have access to an email.
+2. After signing in with your Microsoft account, follow the steps in Google's signup process.
 3. After successful signup, a free Android Enterprise subscription is added to your Google Workspace. In Fleet, you can confirm Android MDM is turned on in **Settings > Integrations > MDM**.
 4. Go to your [Google Admin console](https://admin.google.com).
 5. Follow [these steps](https://support.google.com/a/answer/60216?hl=en) to verify your domain name. This way, only you can use your domain to sign up for Google Workspace.
 
 Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the free Android Enterprise subscription is required for Android MDM features.
 
-#### Add users from Microsoft to Google Workspace
-
-To require your end users to enroll to Fleet using their Microsoft accounts, follow steps below:
-
-1. In Google Workspace, from the side menu, select [Devices > Mobile & endpoints > Settings > Third-party integrations](https://admin.google.com/ac/devices/settings/thirdparty).
-2. Select **Android EMM**, check **Enable third-party Android mobile management**, and then select **Manage EMM providers**.
-3. Toggle the **Authenticate Using Google** switch for your Android Enterprise, select the cross icon in the top left corner, and select **Save**.
-4. From the side menu, select **Directory > Directory Sync** and select **Add Azure Active Directory** to sync users from your Microsoft 365 to Google Workspace. Now, your end users can enroll with their Microsoft account.
-5. Select **Continue**, add name and description, and then select **Authorize and save**.
-6. In popup window, login with your Microsoft account, select **Consent on behalf of your organization**, and select **Accept**.
-7. When you see the **Connection successful** page, select **Continue**. On the directory sync details page, select **Set up user sync**.
-8. Enter the names of the groups that you want to sync from Microsoft 365, select **Verify**, and select **Continue**.
-9. Now choose organizational unit to add users to by selecting **Select organizational unit** button and then **Continue**.
-10. You can keep default user attribute mapping. Select **Continue**, **Don't send activation email**, and **Continue**.
-11. Keep **Suspend user in Google Directory** checked and select **Continue**
-12. Keep default safeguards. Select **Simulate sync** and, after successful simulation, select **Close**. The sync can [take up to the hour](https://support.google.com/a/answer/10344342) to complete.
-13. In the dialog, select **Activate and start sync**.
-
 ### Other
 
 1. If your organization doesn't use Google Workspace or Microsoft 365, in the Google signup page, use a work email to signup for Android Enterprise (don't use personal emails like "@gmail.com").
 2. After you enter your email, you'll get a verification email. Open the link from the email.
 3. Enter information about you and your company and select **Continue**.
-4. You'll see your free Android Enterprise subscription will be selected. Select **Next**.
+4. You'll see that your free Android Enterprise subscription will be selected. Select **Next**.
 5. Enter a password for your account and select **Agree and continue**.
 6. Select **Allow and create account** on the next screen.
 8. You'll be asked to log in with your account that you just created and confirm your phone number.
@@ -64,15 +42,23 @@ To require your end users to enroll to Fleet using their Microsoft accounts, fol
 
 Now you have managed Google domain with an Android Enterprise subscription. Optionally, if you want to add additional subscriptions later (i.e. Google Workspace) you can use this domain. Only the free Android Enterprise subscription is required for Android MDM features.
 
+## Enrollment
+
+Learn how to enroll Android hosts in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
+
+## Migration
+
+To migrate hosts from other MDM solution, you must first unenroll hosts from your old solution and share a link with your end users so they can enroll to Fleet. Learn how to find your enrollment link in the [enroll hosts guide](https://fleetdm.com/guides/enroll-hosts#ui).
+
 ## Turn off
 
 1. In Fleet, head to **Settings > Integrations > MDM**.
 2. In the **Mobile Device Management (MDM)** section, select **Edit** next to "Android MDM turned on."
 3. Select **Turn off Android MDM**
 
-When you turn off Android MDM, your Android Enterprise will be deleted, and MDM will be turned off
-on all hosts. The work profile from all BYOD hosts is deleted.
+When you turn off Android MDM in Fleet, your Android Enterprise will be deleted, MDM will be turned off on all hosts, and the work profile will be deleted from all Android hosts.
 
+If you ever delete your Android Enterprise in your [Google Admin console](https://admin.google.com) instead of in Fleet, Android MDM will be turned off in Fleet, and the work profile will be deleted from all Android hosts.
 
 <meta name="articleTitle" value="Android MDM setup">
 <meta name="authorFullName" value="Marko Lisica">

@@ -1,57 +1,42 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
-import { ISoftwareTitle } from "interfaces/software";
-import { APPLE_PLATFORM_DISPLAY_NAMES } from "interfaces/platform";
+import { IStringCellProps } from "interfaces/datatable_config";
+import { ISoftwareTitle, SoftwareSource } from "interfaces/software";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import SoftwareNameCell from "components/TableContainer/DataTable/SoftwareNameCell";
 import Checkbox from "components/forms/fields/Checkbox";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { SetupExperiencePlatform } from "interfaces/platform";
 
-export interface EnhancedSoftwareTitle extends ISoftwareTitle {
-  isSelected: boolean;
-}
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 type ISelectSoftwareTableConfig = Column<ISoftwareTitle>;
-type ITableHeaderProps = IHeaderProps<ISoftwareTitle>;
 type ITableStringCellProps = IStringCellProps<ISoftwareTitle>;
 type ISelectionCellProps = CellProps<ISoftwareTitle>;
 
+const getSetupExperienceLinuxPackageCopy = (source: SoftwareSource) => {
+  switch (source) {
+    case "rpm_packages":
+      return "rpm";
+    case "deb_packages":
+      return "deb";
+    case "tgz_packages":
+      return "tar";
+    default:
+      return null;
+  }
+};
+
 const generateTableConfig = (
-  onSelectAll: (selectAll: boolean) => void,
+  platform: SetupExperiencePlatform,
   onSelectSoftware: (select: boolean, id: number) => void
 ): ISelectSoftwareTableConfig[] => {
   const headerConfigs: ISelectSoftwareTableConfig[] = [
     {
       id: "selection",
       disableSortBy: true,
-      Header: (cellProps: ITableHeaderProps) => {
-        const {
-          checked,
-          indeterminate,
-        } = cellProps.getToggleAllRowsSelectedProps();
-
-        const checkboxProps = {
-          value: checked,
-          indeterminate,
-          onChange: () => {
-            onSelectAll(!checked);
-            cellProps.toggleAllRowsSelected();
-          },
-        };
-        return (
-          <GitOpsModeTooltipWrapper
-            position="right"
-            tipOffset={6}
-            fixedPositionStrategy
-            renderChildren={(disableChildren) => (
-              <Checkbox disabled={disableChildren} {...checkboxProps} />
-            )}
-          />
-        );
-      },
       Cell: (cellProps: ISelectionCellProps) => {
         const { checked } = cellProps.row.getToggleRowSelectedProps();
         const checkboxProps = {
@@ -78,22 +63,32 @@ const generateTableConfig = (
       disableSortBy: true,
       accessor: "name",
       Cell: (cellProps: ITableStringCellProps) => {
-        const { name, source, app_store_app } = cellProps.row.original;
+        const { name, source, icon_url } = cellProps.row.original;
 
-        const url = app_store_app?.icon_url;
-
-        return <SoftwareNameCell name={name} source={source} iconUrl={url} />;
+        return (
+          <SoftwareNameCell name={name} source={source} iconUrl={icon_url} />
+        );
       },
       sortType: "caseInsensitive",
     },
     {
-      Header: "Platform",
+      Header: "Version",
       disableSortBy: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        // TODO: this will need to be updated when we add support for other platforms
-        <TextCell value={APPLE_PLATFORM_DISPLAY_NAMES.darwin} />
-      ),
+      Cell: (cellProps: ITableStringCellProps) => {
+        const title = cellProps.row.original;
+        let versionFoRender = title.software_package?.version;
+        if (platform === "linux") {
+          const packageTypeCopy = getSetupExperienceLinuxPackageCopy(
+            title.source
+          );
+          if (packageTypeCopy) {
+            versionFoRender = (
+              versionFoRender ?? DEFAULT_EMPTY_CELL_VALUE
+            ).concat(` (.${packageTypeCopy})`);
+          }
+        }
+        return <TextCell value={versionFoRender} />;
+      },
       sortType: "caseInsensitive",
     },
   ];

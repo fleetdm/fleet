@@ -46,10 +46,10 @@ jobs:
 
       - name: Verify golang generated documentation is up-to-date
         run: |
-          make doc
+          make generate-doc
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
-            echo "please run 'make doc' and commit the changes"
+            echo "please run 'make generate-doc' and commit the changes"
             git --no-pager diff
             exit 1
           fi
@@ -62,6 +62,16 @@ jobs:
           if [[ $(git diff) ]]; then
             echo "❌ fail: uncommited changes"
             echo "please run 'cd website && npm install && ./node_modules/sails/bin/sails.js run generate-merged-schema' and commit the changes"
+            git --no-pager diff
+            exit 1
+          fi
+
+      - name: Verify VEX report is up-to-date
+        run: |
+          make vex-report
+          if [[ $(git diff) ]]; then
+            echo "❌ fail: uncommited changes"
+            echo "please run 'make vex-report' and commit the changes"
             git --no-pager diff
             exit 1
           fi

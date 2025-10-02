@@ -102,7 +102,7 @@ func saveConfigProfileVars(tx *sql.Tx, profileUUID string, vars map[string]any, 
 	return nil
 }
 
-// this is a copy of the code in the server/service package so that any future
+// this is a copy of the code in the server/fleet package so that any future
 // change to it does not impact the behavior of this DB migration.
 func findFleetVariables(contents string) map[string]interface{} {
 	resultSlice := findFleetVariablesKeepDuplicates(contents)

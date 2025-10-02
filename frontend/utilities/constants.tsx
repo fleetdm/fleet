@@ -15,13 +15,13 @@ export enum PolicyResponse {
 }
 
 export const DEFAULT_GRAVATAR_LINK =
-  "https://fleetdm.com/images/permanent/icon-avatar-default-transparent-64x64%402x.png";
+  "https://fleetdm.com/images/permanent/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK =
   "https://fleetdm.com/images/permanent/icon-avatar-default-dark-24x24%402x.png";
 
 export const DEFAULT_GRAVATAR_LINK_FALLBACK =
-  "/assets/images/icon-avatar-default-transparent-64x64%402x.png";
+  "/assets/images/icon-avatar-default-gray-transparent-64x64@2x.png";
 
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
@@ -85,6 +85,7 @@ export const MAX_OSQUERY_SCHEDULED_QUERY_INTERVAL = 604800;
 
 export const MIN_OSQUERY_VERSION_OPTIONS = [
   { label: "All", value: "" },
+  { label: "5.19.0 +", value: "5.19.0" },
   { label: "5.18.1 +", value: "5.18.1" },
   { label: "5.18.0 +", value: "5.18.0" },
   { label: "5.17.0 +", value: "5.17.0" },

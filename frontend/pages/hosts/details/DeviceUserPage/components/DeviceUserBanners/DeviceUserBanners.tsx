@@ -6,7 +6,6 @@ import { MacDiskEncryptionActionRequired } from "interfaces/host";
 import { IHostBannersBaseProps } from "pages/hosts/details/HostDetailsPage/components/HostDetailsBanners/HostDetailsBanners";
 import CustomLink from "components/CustomLink";
 import { isDiskEncryptionSupportedLinuxPlatform } from "interfaces/platform";
-import { Link } from "react-router";
 
 const baseClass = "device-user-banners";
 
@@ -14,6 +13,7 @@ interface IDeviceUserBannersProps extends IHostBannersBaseProps {
   mdmEnabledAndConfigured: boolean;
   diskEncryptionActionRequired: MacDiskEncryptionActionRequired | null;
   onTurnOnMdm: () => void;
+  onClickCreatePIN: () => void;
   onTriggerEscrowLinuxKey: () => void;
 }
 
@@ -26,6 +26,7 @@ const DeviceUserBanners = ({
   macDiskEncryptionStatus,
   diskEncryptionActionRequired,
   onTurnOnMdm,
+  onClickCreatePIN,
   diskEncryptionOSSetting,
   diskIsEncrypted,
   diskEncryptionKeyAvailable,
@@ -45,7 +46,7 @@ const DeviceUserBanners = ({
     diskEncryptionActionRequired === "rotate_key";
 
   const turnOnMdmButton = (
-    <Button variant="text-link" onClick={onTurnOnMdm}>
+    <Button variant="text-link-dark" onClick={onTurnOnMdm}>
       Turn on MDM
     </Button>
   );
@@ -107,7 +108,7 @@ const DeviceUserBanners = ({
           <InfoBanner
             cta={
               <Button
-                variant="text-link"
+                variant="inverse"
                 onClick={onTriggerEscrowLinuxKey}
                 className="create-key-button"
               >
@@ -124,10 +125,31 @@ const DeviceUserBanners = ({
       }
     }
 
+    if (
+      hostPlatform === "windows" &&
+      diskEncryptionOSSetting?.status === "action_required"
+    ) {
+      return (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <Button variant="text-link-dark" onClick={onClickCreatePIN}>
+              Create PIN
+            </Button>
+          }
+        >
+          Disk encryption: Create a BitLocker PIN to safeguard your data in case
+          your device is lost or stolen. After, select <strong>Refetch</strong>{" "}
+          to clear this banner.
+        </InfoBanner>
+      );
+    }
+
     return null;
   };
 
-  return <div className={baseClass}>{renderBanner()}</div>;
+  const banner = renderBanner();
+  return banner ? <div className={baseClass}>{banner}</div> : null;
 };
 
 export default DeviceUserBanners;

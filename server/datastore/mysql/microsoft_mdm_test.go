@@ -38,6 +38,7 @@ func TestMDMWindows(t *testing.T) {
 		{"TestBulkOperationsMDMWindowsHostProfilesBatch3", testBulkOperationsMDMWindowsHostProfilesBatch3},
 		{"TestGetMDMWindowsProfilesContents", testGetMDMWindowsProfilesContents},
 		{"TestMDMWindowsConfigProfiles", testMDMWindowsConfigProfiles},
+		{"TestMDMWindowsConfigProfilesWithFleetVars", testMDMWindowsConfigProfilesWithFleetVars},
 		{"TestSetOrReplaceMDMWindowsConfigProfile", testSetOrReplaceMDMWindowsConfigProfile},
 		{"TestMDMWindowsDiskEncryption", testMDMWindowsDiskEncryption},
 		{"TestMDMWindowsProfilesSummary", testMDMWindowsProfilesSummary},
@@ -85,14 +86,14 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	require.Equal(t, enrolledDevice.MDMDeviceID, gotEnrolledDevice.MDMDeviceID)
 	require.Equal(t, enrolledDevice.MDMHardwareID, gotEnrolledDevice.MDMHardwareID)
 
-	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
+	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
+	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 
 	// Test using device ID instead of hardware ID
@@ -116,7 +117,7 @@ func testMDMWindowsEnrolledDevice(t *testing.T, ds *Datastore) {
 	_, err = ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, enrolledDevice.MDMDeviceID)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMWindowsDeleteEnrolledDevice(ctx, enrolledDevice.MDMHardwareID)
+	err = ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(ctx, enrolledDevice.MDMHardwareID)
 	require.ErrorAs(t, err, &nfe)
 }
 
@@ -263,8 +264,10 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			return err
 		})
 	}
@@ -336,7 +339,8 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
 			})
 
-			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
+			require.NoError(t, err)
 			checkExpected(t, nil, hostIDsByDEStatus{
 				// status is still pending because hosts_disks hasn't been updated yet
 				fleet.DiskEncryptionEnforcing: []uint{hosts[0].ID, hosts[1].ID, hosts[2].ID, hosts[3].ID, hosts[4].ID},
@@ -440,7 +444,8 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 		})
 
 		// ensure hosts[0] is set to verified for the rest of the tests
-		require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+		_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
+		require.NoError(t, err)
 		require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
 		checkExpected(t, nil, hostIDsByDEStatus{
 			fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
@@ -449,7 +454,8 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 
 		t.Run("BitLocker failed status", func(t *testing.T) {
 			// set hosts[1] to failed
-			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1], "", "test-error", ptr.Bool(false)))
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[1], "", "test-error", ptr.Bool(false))
+			require.NoError(t, err)
 
 			expected := hostIDsByDEStatus{
 				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
@@ -477,6 +483,54 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			checkExpected(t, nil, expected, expectedProfiles)
 
 			cleanupHostProfiles(t)
+		})
+
+		t.Run("BitLocker profile status with PIN required", func(t *testing.T) {
+			// Turn on Bitlocker requirement
+			ac.MDM.RequireBitLockerPIN = optjson.SetBool(true)
+			require.NoError(t, ds.SaveAppConfig(ctx, ac))
+			ac, err = ds.AppConfig(ctx)
+			require.NoError(t, err)
+			require.True(t, ac.MDM.RequireBitLockerPIN.Value)
+
+			// Expect that the host that would be "verified"
+			// is now in "action required" status.
+			// This will also verify that when filtering by profile status,
+			// the "verified" host is now counted as "pending".
+			expected := hostIDsByDEStatus{
+				fleet.DiskEncryptionActionRequired: []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:         []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing:      []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+
+			checkExpected(t, nil, expected)
+
+			// Set the "tpm_pin_set" to true for the host that would be "verified"
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = true WHERE host_id = ?`, hosts[0].ID)
+				return err
+			})
+
+			expected = hostIDsByDEStatus{
+				fleet.DiskEncryptionVerified:  []uint{hosts[0].ID},
+				fleet.DiskEncryptionFailed:    []uint{hosts[1].ID},
+				fleet.DiskEncryptionEnforcing: []uint{hosts[2].ID, hosts[3].ID, hosts[4].ID},
+			}
+
+			checkExpected(t, nil, expected)
+
+			// Reset the "tpm_pin_set" to false for the host.
+			ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+				_, err := q.ExecContext(ctx, `UPDATE host_disks SET tpm_pin_set = false WHERE host_id = ?`, hosts[0].ID)
+				return err
+			})
+
+			// Reset "RequireBitLockerPIN" to false
+			ac.MDM.RequireBitLockerPIN = optjson.SetBool(false)
+			require.NoError(t, ds.SaveAppConfig(ctx, ac))
+			ac, err = ds.AppConfig(ctx)
+			require.NoError(t, err)
+			require.False(t, ac.MDM.RequireBitLockerPIN.Value)
 		})
 
 		t.Run("BitLocker team filtering", func(t *testing.T) {
@@ -594,7 +648,8 @@ func testMDMWindowsDiskEncryption(t *testing.T, ds *Datastore) {
 			updateHostDisks(t, targetHost.ID, true, time.Now().Add(-3*time.Hour))
 
 			// simulate targetHost reporting disk encryption key
-			require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, targetHost, "test-key", "", ptr.Bool(true)))
+			_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, targetHost, "test-key", "", ptr.Bool(true))
+			require.NoError(t, err)
 
 			// check that targetHost is now counted as verifying (not verified because host_disks still needs to be updated)
 			checkExpected(t, nil, hostIDsByDEStatus{
@@ -663,8 +718,10 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
-			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
-			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, status)
+			// Generate a command UUID for the profile
+			commandUUID := "cmd-" + profUUID
+			stmt := `INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, status, command_uuid) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE status = ?`
+			_, err := q.ExecContext(ctx, stmt, hostUUID, profUUID, status, commandUUID, status)
 			if err != nil {
 				return err
 			}
@@ -816,7 +873,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				checkExpected(t, nil, expected)
 
 				require.NoError(t, ds.SetOrUpdateHostDisksEncryption(ctx, hosts[0].ID, true))
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
+				require.NoError(t, err)
 				// simulate bitlocker verifying status by ensuring host_disks updated at timestamp is before host_disk_encryption_key
 				updateHostDisks(t, hosts[0].ID, true, time.Now().Add(-10*time.Minute))
 				// status for hosts[0] now verifying because bitlocker status is verifying and host[0] has
@@ -868,7 +926,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// all hosts are pending because no profiles and disk encryption is enabled
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
+				require.NoError(t, err)
 				// status is still pending because hosts_disks hasn't been updated yet
 				checkExpected(t, nil, expected)
 
@@ -924,7 +983,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// timestamp is in the past
 				updateHostDisks(t, hosts[0].ID, true, time.Now().Add(-2*time.Hour))
 
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true)))
+				_, err := ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "test-key", "", ptr.Bool(true))
+				require.NoError(t, err)
 				// status is verifying because hosts_disks hasn't been updated again
 				checkExpected(t, nil, hostIDsByProfileStatus{
 					fleet.MDMDeliveryVerifying: []uint{hosts[0].ID},
@@ -949,7 +1009,8 @@ func testMDMWindowsProfilesSummary(t *testing.T, ds *Datastore) {
 				// all hosts are pending because no profiles and disk encryption is enabled
 				checkExpected(t, nil, expected)
 
-				require.NoError(t, ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "", "some-bitlocker-error", nil))
+				_, err = ds.SetOrUpdateHostDiskEncryptionKey(ctx, hosts[0], "", "some-bitlocker-error", nil)
+				require.NoError(t, err)
 				// status for hosts[0] now failed because any failed status takes precedence
 				expected = hostIDsByProfileStatus{
 					fleet.MDMDeliveryFailed:  []uint{hosts[0].ID},
@@ -1898,10 +1959,10 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// create a couple Windows profiles for no-team (nil and 0 means no team)
-	profA, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	profA, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: nil, SyncML: []byte("<Replace></Replace>")}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profA.ProfileUUID)
-	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(0), SyncML: []byte("<Replace></Replace>")})
+	profB, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(0), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profB.ProfileUUID)
 	// create an Apple profile for no-team
@@ -1911,7 +1972,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NotEmpty(t, profC.ProfileUUID)
 
 	// create the same name for team 1 as Windows profile
-	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	profATm, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profATm.ProfileUUID)
 	require.NotNil(t, profATm.TeamID)
@@ -1924,19 +1985,19 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 
 	var existsErr *existsError
 	// create a duplicate of Windows for no-team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: nil, SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate of Apple for no-team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "c", TeamID: nil, SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate of Windows for team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate of Apple for team
-	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
+	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "b", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")}, nil)
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 	// create a duplicate name with an Apple profile for no-team
@@ -1956,7 +2017,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 			TeamID:           nil,
 			SyncML:           []byte("<Replace></Replace>"),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
-		})
+		}, nil)
 	require.NotNil(t, err)
 	require.True(t, fleet.IsForeignKey(err))
 
@@ -1976,7 +2037,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 			TeamID:           nil,
 			SyncML:           []byte("<Replace></Replace>"),
 			LabelsIncludeAll: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
-		})
+		}, nil)
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
 
@@ -2019,6 +2080,132 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
+}
+
+func testMDMWindowsConfigProfilesWithFleetVars(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Test that usesFleetVars parameter correctly persists variables in the database
+	// Create a profile with Fleet variables
+	profWithVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_with_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+	require.NotEmpty(t, profWithVars.ProfileUUID)
+
+	// Query the mdm_configuration_profile_variables table to verify the variables were persisted
+	var varNames []string
+	stmt := `
+		SELECT fv.name
+		FROM mdm_configuration_profile_variables mcpv
+		JOIN fleet_variables fv ON mcpv.fleet_variable_id = fv.id
+		WHERE mcpv.windows_profile_uuid = ?
+		ORDER BY fv.name
+	`
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profWithVars.ProfileUUID)
+	require.NoError(t, err)
+
+	// Assert that the returned variable names exactly match the provided slice
+	// Note: the database stores the full name with FLEET_VAR_ prefix
+	expectedVarNames := []string{"FLEET_VAR_" + string(fleet.FleetVarHostUUID)}
+	require.Equal(t, expectedVarNames, varNames, "Variable names in database should match the provided usesFleetVars slice")
+
+	// Test with empty usesFleetVars slice
+	profNoVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_no_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVars</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{})
+	require.NoError(t, err)
+	require.NotEmpty(t, profNoVars.ProfileUUID)
+
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profNoVars.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "No variables should be persisted when usesFleetVars is empty")
+
+	// Test with nil usesFleetVars
+	profNilVars, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "profile_nil_vars",
+		TeamID: nil,
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NilVars</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+	require.NotEmpty(t, profNilVars.ProfileUUID)
+
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, profNilVars.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "No variables should be persisted when usesFleetVars is nil")
+
+	// Test that BatchSetMDMProfiles properly clears stale variable associations
+	// Create a team profile with variables
+	teamProf1, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}, []fleet.FleetVarName{fleet.FleetVarHostUUID})
+	require.NoError(t, err)
+
+	// Verify the variable was persisted
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedVarNames, varNames, "Team profile should have HOST_UUID variable")
+
+	// Now update the profile via BatchSetMDMProfiles to remove the variable
+	teamProf1Updated := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/NoVarsAnymore</LocURI></Target></Item></Replace>"),
+	}
+
+	// BatchSetMDMProfiles should process this profile and clear its variable associations
+	// since the content no longer contains variables
+	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1Updated}, nil, nil, nil)
+	require.NoError(t, err)
+
+	// Verify the variable associations were cleared
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "Variables should be cleared when profile is updated without variables")
+
+	// Create another team profile to test multiple profiles with mixed variables
+	teamProf2, err := ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_2",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Profile2</LocURI></Target></Item></Replace>"),
+	}, nil)
+	require.NoError(t, err)
+
+	// Update both profiles - one adds variables, one keeps no variables
+	teamProf1WithVarsAgain := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_1",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/WithVarsAgain/$FLEET_VAR_HOST_UUID</LocURI></Target></Item></Replace>"),
+	}
+	teamProf2NoChange := &fleet.MDMWindowsConfigProfile{
+		Name:   "team_profile_2",
+		TeamID: ptr.Uint(1),
+		SyncML: []byte("<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/Test/Profile2Updated</LocURI></Target></Item></Replace>"),
+	}
+
+	// Mock the profilesVariablesByIdentifier that would be passed from service layer
+	profilesVars := []fleet.MDMProfileIdentifierFleetVariables{
+		{Identifier: "team_profile_1", FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostUUID}},
+	}
+
+	_, err = ds.BatchSetMDMProfiles(ctx, ptr.Uint(1), nil, []*fleet.MDMWindowsConfigProfile{teamProf1WithVarsAgain, teamProf2NoChange}, nil, nil, profilesVars)
+	require.NoError(t, err)
+
+	// Verify profile 1 has variables again
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf1.ProfileUUID)
+	require.NoError(t, err)
+	require.Equal(t, expectedVarNames, varNames, "Profile 1 should have variables again")
+
+	// Verify profile 2 still has no variables
+	err = ds.writer(ctx).SelectContext(ctx, &varNames, stmt, teamProf2.ProfileUUID)
+	require.NoError(t, err)
+	require.Empty(t, varNames, "Profile 2 should still have no variables")
 }
 
 func testSetOrReplaceMDMWindowsConfigProfile(t *testing.T, ds *Datastore) {
@@ -2190,6 +2377,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	includeAnyProf, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-include-any", "./Foo/Bar", l1, l2, l3),
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, includeAnyProf.ProfileUUID)
@@ -2201,6 +2389,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	includeAllProf, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-include-all", "./Foo/Bar", l4, l5),
+		nil,
 	)
 	require.NoError(t, err)
 	require.NotEmpty(t, includeAllProf.ProfileUUID)
@@ -2211,6 +2400,7 @@ func testMDMWindowsProfileLabels(t *testing.T, ds *Datastore) {
 	excludeAllProf, err := ds.NewMDMWindowsConfigProfile(
 		ctx,
 		*windowsConfigProfileForTest(t, "prof-exclude-any", "./Foo/Bar", l6, l7),
+		nil,
 	)
 	require.NoError(t, err)
 	checksum = md5.Sum(excludeAllProf.SyncML) // nolint:gosec // used only to hash for efficient comparisons
@@ -2369,7 +2559,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 		wantUpdated bool,
 	) map[string]string {
 		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
+			updatedDB, err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet, nil)
 			require.NoError(t, err)
 			assert.Equal(t, wantUpdated, updatedDB)
 			return err
@@ -2688,7 +2878,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 
 	ctx := context.Background()
 
-	checkProfileVariables := func(profUUID string, teamID uint, wantVars []string) {
+	checkProfileVariables := func(profUUID string, teamID uint, wantVars []fleet.FleetVarName) {
 		var gotVars []string
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			return sqlx.SelectContext(ctx, q, &gotVars, `
@@ -2702,10 +2892,11 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 					mwcp.name = ? AND
 					mwcp.team_id = ?`, "name-"+profUUID, teamID) // test profiles are created with a name = "name-" + uuid
 		})
+		wantVarStrings := make([]string, len(wantVars))
 		for i := range wantVars {
-			wantVars[i] = "FLEET_VAR_" + wantVars[i]
+			wantVarStrings[i] = "FLEET_VAR_" + string(wantVars[i])
 		}
-		require.ElementsMatch(t, wantVars, gotVars)
+		require.ElementsMatch(t, wantVarStrings, gotVars)
 	}
 
 	globalProfiles := []string{
@@ -2714,7 +2905,7 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	}
 
 	// both profiles have no variable
-	err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+	_, err := batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
 		{ProfileUUID: globalProfiles[0], FleetVariables: nil},
 		{ProfileUUID: globalProfiles[1], FleetVariables: nil},
 	}, "windows")
@@ -2724,12 +2915,12 @@ func testSetMDMWindowsProfilesWithVariables(t *testing.T, ds *Datastore) {
 	checkProfileVariables(globalProfiles[1], 0, nil)
 
 	// add some variables
-	err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
-		{ProfileUUID: globalProfiles[0], FleetVariables: []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix + "ZZZ"}},
-		{ProfileUUID: globalProfiles[1], FleetVariables: []string{fleet.FleetVarHostEndUserIDPGroups}},
+	_, err = batchSetProfileVariableAssociationsDB(ctx, ds.writer(ctx), []fleet.MDMProfileUUIDFleetVariables{
+		{ProfileUUID: globalProfiles[0], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarName(string(fleet.FleetVarDigiCertDataPrefix) + "ZZZ")}},
+		{ProfileUUID: globalProfiles[1], FleetVariables: []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups}},
 	}, "windows")
 	require.NoError(t, err)
 
-	checkProfileVariables(globalProfiles[0], 0, []string{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
-	checkProfileVariables(globalProfiles[1], 0, []string{fleet.FleetVarHostEndUserIDPGroups})
+	checkProfileVariables(globalProfiles[0], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPUsername, fleet.FleetVarDigiCertDataPrefix})
+	checkProfileVariables(globalProfiles[1], 0, []fleet.FleetVarName{fleet.FleetVarHostEndUserIDPGroups})
 }
