@@ -860,7 +860,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) certificate authorities (CAs). DigiCert, NDES, and custom SCEP coming soon.
 
-As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can use an `http_signature`.
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can send an [HTTP signature in the request header](#example-http-signature).
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -878,6 +878,37 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 #### Example
 
 `POST /api/v1/fleet/certificate_authorities/5/request_certificate`
+
+##### Request body
+
+```json
+{
+  "csr": "-----BEGIN CERTIFICATE REQUEST-----\nMIIC/jCCAeYCAQAwITEfMB0GA1UEAwwWQ2lzY29Vc2VyTmV0d29ya0FjY2VzczCC\nASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJZtbxathh+RfK+Z613ar4E\nYSIem8yAvv2JZJtopjD3noy1yF+nGRyF/ocm+FhYvjR5u7teJXlcv24tAAHuWL4U\nuPIql0Slakjdsfl098salkj324lkjmtElWDi6XRjUIXEj1zyCnZTCxGmyHcYB/+f3fyv/\ngZ8SkPqocNOCpX6cSW8hxOlaF9aZUC+xMHRdjQgxQ79hleb5K/n2gCJjiW1sV0Es\nRg+MX0cbPCpahpzlvIAkzA7TTUTOd7ZN+V0GW0fH86uMstrqeW2QUuZmSDC9fNyj\nQhk6n5iURaHXdFjSmyrhW5AVvw1nIblHodhUtD6J+g9kjhBg1frss3ndQtnNrnMC\nAwEAAaCBlzCkldflkjc098dlkj2KoZIhvcNAQkOMYGGMIGDMIGABgNVHREEeTB3ggljaXNjby5j\nb22BEWthYW53YXJAY2lzY28uY29thjRJRDpGbGVldERNOkdVSUQ6Y2FkMTM4OTEt\nMzU3Ni00NzhmLTk1MzAtZmM1Y2VlZTEzZTkwoCEGCisGAQQBgjcUAgOgEwwRa2Fh\nbndhckBjaXNjby5jb20wDQYJKoZIhvcNAQELBQADggEBAH2U6Or14b4O22YjM22k\nXI9QDC5P+sDczcLjivv4MyXQL1ks8R6B1nXCrOmiLPPLaZ09f+UkeMnyuGAxW8Ce\n6LTKquwvlifZ+5TjyANz0I/d9ETLQF2MTphEZd4ySNLtq2RwYyDOBKaxMdW0sUsd\n6M3WyAuTBVgBkTVIqbMJBzFsgXSrr2a0LJEHszOO2BN3yT5muDQsKPJ1uXL7tNUv\n16pGaYpQZR8yGAmWyISHhAyLaJ1N1R8L77SLxdd/Sj7RunNNxqFqaEgIJMgsyu08\nGharLkQcIoW7qPHZuaLa54xMF/s/vfKH6rgGbbCAgw9kw8Klt+6H3OH1FSMeRfZ/\nDWs=\n-----END CERTIFICATE REQUEST-----",
+  "idp_oauth_url": "https://idp.oauth.com/introspection",
+  "idp_token": "88683de5858044aaacaf4046aeeef778044aaacaf4046",
+  "idp_client_id": "1o2czkDnUVwTqSOc747"
+}
+```
+
+#### Default response
+
+`Status: 200`
+
+```json
+{
+  "certificate": "-----BEGIN CERTIFICATE-----\nMIIC5DCCAcwCCQChs1cFRAzRCTANBgkqhkiG9w0BAQsFADA0MTIwMAYDVQQDDClD\ndXN0b21lclVzZXJOZXR3b3JrQWNjZXNzOmJvYkBleGFtcGxlLmNvbTAeFw0yNTA5\nMDgxODM0MzNaFw0yODA2MDUxODM0MzNaMDQxMjAwBgNVBAMMKUN1c3RvbWVyVXNl\nck5ldHdvcmtBY2Nlc3M6Ym9iQGV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAuojcu8UBxTjpz5krPX4KmWNAmWvJ4U7yh8pGXOp6kngz\n1iRmGkBYdr0CQXlkrASejqglbdDfaRt3hz8S4raIlKyiU59gFK6f2Lory54ndzJw\nhVeNGqpLrnW1T763zvjcSKaASfVzdnsa66v6pZQte2fZAk7+q5o9ezyirSQmTuks\ndxXAZ5OiDafFwzXlanGZIvCsHBTJtbi881/QU701aTdFFrxLd+jsiaFhKSoQQcL5\nt0zu96cPS2dJivxpaogZ1f8dispWeRiMbt3njaxfWazm4RqvwvDouTSstqUxTzC8\n28Kbh7bnxPcSiuajnf35q53juhTLmB2CKEf0m1eqEwIDAQABMA0GCSqGSIb3DQEB\nCwUAA4IBAQCp75tK8cxR6A0Sfu3vg7TMPD3MkGrpdgh2giAVoCa4hOxOdHl/nYgu\nfPHodsRUfXi1SXo/77jLldGOLE6Ro447FMgrN94mRkaFUZbuLC5z2VciF9x1fdus\nIFfASIFnb4Zw24F2RDBbbGqXqRrA/1m1fWjHTb20+8rHeZW+FCJmxQrL27OG7n/n\nqDr8QmfNwTm8l72FBvUIz1xisuba5nXNAEc6rxTFw6WhPq5fgtBlVZCm55h87hHd\nQbzDGlkIXf+nypg9kwk3fDQ7VY9hrqc74wAefbIkvUSTk9rNaoncxI5Mod/imyan\ngCioUdMGd7M/dpEDDXKJNyI6lfscpG1D\n-----END CERTIFICATE-----\n"
+}
+```
+
+#### Example (HTTP signature)
+
+##### Request header
+
+```
+Content-Digest: sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+T\aPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==
+Signature: sig1=:e8UJ5wMiRaonlth5ERtE8GIiEH7Akcr493nQ07VPNo6y3qvjdK\t0fo8VHO8xXDjmtYoatGYBGJVlMfIp06eVMEyNW2I4vN7XDAz7m5v1108vGzaDljr\d0H8+SJ28g7bzn6h2xeL/8q+qUwahWA/JmC8aOC9iVnwbOKCc0WSrLgWQwTY6VLp4\2Qt7jjhYT5W7/wCvfK9A1VmHH1lJXsV873Z6hpxesd50PSmO+xaNeYvDLvVdZlhtw\5PCtUYzKjHqwmaQ6DEuM8udRjYsoNqp2xZKcuCO1nKc0V3RjpqMZLuuyVbHDAbCzr\ 0pg2d2VM/OC33JAU7meEjjaNz+d7LWPg==:
+Signature-Input: sig1=("@method" "@authority" "@path" "@query" \"content-digest" "content-type" "content-length")\;created=1618884475;keyid="test-key-rsa-pss"
+```
 
 ##### Request body
 
