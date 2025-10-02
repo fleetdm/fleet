@@ -15,18 +15,32 @@ const SettingUpYourDevice = ({
   setupSteps,
   toggleInfoModal,
 }: ISettingUpYourDevice) => {
+  const stepsAllComplete = setupSteps.every(
+    (step) => step.status !== "pending" && step.status !== "running"
+  );
+  let title;
+  let message;
+  if (stepsAllComplete) {
+    title = "Configuration complete";
+    message =
+      "Your computer has been successfully configured. Setup will continue momentarily.";
+  } else {
+    title = "Setting up your device...";
+    message = `
+      Your computer is currently being configured by your organization.
+      Please don&apos;t attempt to restart or shut down the computer unless
+      prompted to do so.
+    `;
+  }
+
   return (
     <div className={`${baseClass} main-content device-user`}>
       <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
         <div className={`${baseClass}__header`}>
-          <h2>Setting up your device...</h2>
+          <h2>{title}</h2>
           <InfoButton onClick={toggleInfoModal} />
         </div>
-        <p>
-          Your computer is currently being configured by your organization.
-          Please don&apos;t attempt to restart or shut down the computer unless
-          prompted to do so.
-        </p>
+        <p>{message}</p>
         <SetupStatusTable statuses={setupSteps} />
       </Card>
     </div>
