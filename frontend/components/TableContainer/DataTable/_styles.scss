@@ -282,7 +282,7 @@ $shadow-transition-width: 10px;
         {
           text-align: right;
           max-width: 140px;
-          display: flex;
+          // display: flex causes layout issues on /software/vulnerabilities table
           align-items: center;
         }
 
