@@ -5,8 +5,8 @@ import { createMockHostSoftware } from "__mocks__/hostMock";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 import {
   getDefaultSoftwareInstallHandler,
-  softwareInstallHandlerNoOutputs,
-  softwareInstallHandlerOnlyInstallOutput,
+  getSoftwareInstallHandlerNoOutputs,
+  getSoftwareInstallHandlerOnlyInstallOutput,
 } from "test/handlers/software-handlers";
 import mockServer from "test/mock-server";
 import { noop } from "lodash";
@@ -194,9 +194,7 @@ describe("SoftwareInstallDetailsModal", () => {
     });
 
     it("does not show install details outputs until Details is clicked", async () => {
-      mockServer.use(
-        getDefaultSoftwareInstallHandler({ install_uuid: "uuid-123" })
-      );
+      mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
 
       renderWithServer(
@@ -222,11 +220,7 @@ describe("SoftwareInstallDetailsModal", () => {
     });
 
     it("shows install and post-install outputs after clicking Details", async () => {
-      mockServer.use(
-        getDefaultSoftwareInstallHandler({
-          install_uuid: baseDetails.install_uuid,
-        })
-      );
+      mockServer.use(getDefaultSoftwareInstallHandler);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
         <SoftwareInstallDetailsModal
@@ -250,7 +244,7 @@ describe("SoftwareInstallDetailsModal", () => {
     });
 
     it("does not render output textareas if script outputs are empty", async () => {
-      mockServer.use(softwareInstallHandlerNoOutputs);
+      mockServer.use(getSoftwareInstallHandlerNoOutputs);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
         <SoftwareInstallDetailsModal
@@ -274,7 +268,7 @@ describe("SoftwareInstallDetailsModal", () => {
     });
 
     it("shows only the install output if post-install output is empty", async () => {
-      mockServer.use(softwareInstallHandlerOnlyInstallOutput);
+      mockServer.use(getSoftwareInstallHandlerOnlyInstallOutput);
       const renderWithServer = createCustomRenderer({ withBackendMock: true });
       const { user } = renderWithServer(
         <SoftwareInstallDetailsModal

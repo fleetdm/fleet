@@ -1,25 +1,24 @@
 import { http, HttpResponse } from "msw";
 import { baseUrl } from "test/test-utils";
-import { ISoftwareInstallResult } from "interfaces/software";
 import { createMockSoftwareInstallResult } from "__mocks__/softwareMock";
 
 // Installed with outputs
-export const getDefaultSoftwareInstallHandler = (
-  overrides: Partial<ISoftwareInstallResult>
-) =>
-  http.get(baseUrl("/software/install/:install_uuid/results"), ({ params }) => {
+export const getDefaultSoftwareInstallHandler = http.get(
+  baseUrl("/software/install/:install_uuid/results"),
+  ({ params }) => {
     return HttpResponse.json({
       results: createMockSoftwareInstallResult({
-        install_uuid: overrides.install_uuid ?? "abc-123",
+        install_uuid: params.install_uuid as string,
         status: "installed",
         output: "Install script ran",
         post_install_script_output: "Post-install success",
       }),
     });
-  });
+  }
+);
 
 // Installed, no outputs
-export const softwareInstallHandlerNoOutputs = http.get(
+export const getSoftwareInstallHandlerNoOutputs = http.get(
   baseUrl("/software/install/:install_uuid/results"),
   ({ params }) => {
     return HttpResponse.json({
@@ -34,7 +33,7 @@ export const softwareInstallHandlerNoOutputs = http.get(
 );
 
 // Installed, only install output
-export const softwareInstallHandlerOnlyInstallOutput = http.get(
+export const getSoftwareInstallHandlerOnlyInstallOutput = http.get(
   baseUrl("/software/install/:install_uuid/results"),
   ({ params }) => {
     return HttpResponse.json({
