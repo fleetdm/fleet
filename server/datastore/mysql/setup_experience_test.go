@@ -682,13 +682,14 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
-	// iOS software
+	// iOS software. iOS only supports VPP apps so should not check installers
+	// even if one somehow exists
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
-	require.ErrorContains(t, err, "is not supported")
+	require.ErrorContains(t, err, "not available")
 
 	// ios vpp app
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
-	require.ErrorContains(t, err, "not available")
+	require.ErrorContains(t, err, "invalid platform for requested AppStoreApp")
 
 	// wrong team
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["3"]})

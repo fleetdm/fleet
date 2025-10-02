@@ -198,7 +198,7 @@ WHERE
 	vat.global_or_team_id = ?
 AND
 	st.id IN (%s)
-AND va.platform IN ('macos', 'ios', 'ipados')
+AND va.platform IN ('darwin', 'ios', 'ipados')
 `, titleIDQuestionMarks)
 
 	stmtUnsetInstallers := `
@@ -238,19 +238,21 @@ WHERE id IN (%s)`
 		}
 
 		// Select requested software installers
-		if len(titleIDs) > 0 {
-			if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
-				return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+		if platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
+			if len(titleIDs) > 0 {
+				if err := sqlx.SelectContext(ctx, tx, &softwareIDPlatforms, stmtSelectInstallersIDs, titleIDAndTeam...); err != nil {
+					return ctxerr.Wrap(ctx, err, "selecting software IDs using title IDs")
+				}
 			}
-		}
 
-		// Validate software titles match the expected platform.
-		for _, tuple := range softwareIDPlatforms {
-			delete(missingTitleIDs, tuple.TitleID)
-			if tuple.Platform != platform {
-				return ctxerr.Errorf(ctx, "invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
+			// Validate software titles match the expected platform.
+			for _, tuple := range softwareIDPlatforms {
+				delete(missingTitleIDs, tuple.TitleID)
+				if tuple.Platform != platform {
+					return ctxerr.Errorf(ctx, "invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
+				}
+				softwareIDs = append(softwareIDs, tuple.ID)
 			}
-			softwareIDs = append(softwareIDs, tuple.ID)
 		}
 
 		// Select requested VPP apps
