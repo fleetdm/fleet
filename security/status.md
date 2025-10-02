@@ -5,6 +5,14 @@ Following is the vulnerability report of Fleet and its dependencies.
 
 ## `fleetdm/fleet` docker image
 
+### [CVE-2025-9230](https://nvd.nist.gov/vuln/detail/CVE-2025-9230)
+- **Author:** @lucasmrod
+- **Status:** `not_affected`
+- **Status notes:** Fleet uses Go cryptography packages.
+- **Products:**: `fleet`,`pkg:apk/alpine/openssl@3.3.3-r0?os_name=alpine&os_version=3.21`
+- **Justification:** `vulnerable_code_not_in_execute_path`
+- **Timestamp:** 2025-10-01 10:09:03
+
 ### [CVE-2025-46569](https://nvd.nist.gov/vuln/detail/CVE-2025-46569)
 - **Author:** @lucasmrod
 - **Status:** `not_affected`
