@@ -860,22 +860,20 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) certificate authorities (CAs). DigiCert, NDES, and custom SCEP coming soon.
 
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can use
+
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
-
-OR
-
-`POST /api/v1/fleet/device/:token/certificate_authorities/:id/request_certificate`
 
 #### Parameters
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
-| token   | string | path | A host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). If specified, [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) isn't required. |
 | id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
+| http_signature | string | header | The HTTP message signature generated using a host's [hardware-backed client certificate](https://fleetdm.com/guides/enroll-hosts#using-host-identity-certificates). If supplied, [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) isn't required. Requires that the Fleet server requires HTTP message signatures via the `auth​.require​_http​_message​_signature` server configuration option.|
 
 #### Example
 
