@@ -889,7 +889,7 @@ func (svc *Service) JordanEndpoint(ctx context.Context) error {
 
 	// Testing different install types
 	installType := "AVAILABLE"
-	if calls > 3 {
+	if calls > 0 {
 		installType = "FORCE_INSTALLED"
 	}
 	fmt.Printf("Checking if app %s exists", packageName)

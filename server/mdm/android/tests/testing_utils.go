@@ -2,9 +2,11 @@ package tests
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -20,8 +22,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/auth"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
+	"github.com/go-json-experiment/json"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -240,4 +244,102 @@ func CreateNamedMySQLDS(t *testing.T, name string) *mysql.Datastore {
 	}
 	// use the standard Fleet datastore for Android integration tests
 	return mysql.CreateMySQLDS(t)
+}
+
+func CreateEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	return EnrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, strings.ToUpper(uuid.New().String()))
+}
+
+func EnrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: enterpriseSpecificID,
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+	}
+
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free in system partition
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
+}
+
+func CreateAndroidDeviceID(name string) string {
+	return "enterprises/mock-enterprise-id/devices/" + name
+}
+
+func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	device := androidmanagement.Device{
+		Name:                 CreateAndroidDeviceID(name),
+		NonComplianceDetails: nonComplianceDetails,
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: deviceId,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+			SerialNumber:         "test-serial",
+			Hardware:             "test-hardware",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidBuildNumber: "test-build",
+			AndroidVersion:     "1",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+		},
+		AppliedPolicyName:    policyName,
+		AppliedPolicyVersion: int64(*policyVersion),
+		LastPolicySyncTime:   "2001-01-01T00:00:00Z",
+		ApplicationReports: []*androidmanagement.ApplicationReport{{
+			DisplayName: "Google Chrome",
+			PackageName: "com.google.chrome",
+			VersionName: "1.0.0",
+		}},
+	}
+
+	data, err := json.Marshal(device)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubStatusReport),
+		},
+		Data: encodedData,
+	}
 }

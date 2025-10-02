@@ -18,13 +18,13 @@ import (
 	"google.golang.org/api/androidmanagement/v1"
 )
 
-type pubSubPushRequest struct {
+type PubSubPushRequest struct {
 	Token                 string `query:"token"`
 	android.PubSubMessage `json:"message"`
 }
 
 func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Service) fleet.Errorer {
-	req := request.(*pubSubPushRequest)
+	req := request.(*PubSubPushRequest)
 	err := svc.ProcessPubSubPush(ctx, req.Token, &req.PubSubMessage)
 	return android.DefaultResponse{Err: err}
 }
@@ -32,6 +32,7 @@ func pubSubPushEndpoint(ctx context.Context, request interface{}, svc android.Se
 func (svc *Service) ProcessPubSubPush(ctx context.Context, token string, message *android.PubSubMessage) error {
 	notificationType, ok := message.Attributes["notificationType"]
 	if !ok || len(notificationType) == 0 {
+		fmt.Printf("skipping cause nothing in message\nmessage: %v\n", message)
 		// Nothing to process
 		svc.authz.SkipAuthorization(ctx)
 		return nil
