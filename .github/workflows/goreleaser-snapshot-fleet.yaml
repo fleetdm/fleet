@@ -16,8 +16,6 @@ on:
       - "website/**"
       - "mdm-profiles/**"
   workflow_dispatch: # Manual
-  schedule:
-    - cron: '0 4 * * *' # Every day at 4 AM
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -94,8 +92,8 @@ jobs:
 
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
       - name: Check high/critical vulnerabilities before publishing (trivy)
-        # Only run this on the schedule run or when tagging RCs.
-        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
+        # Only run this when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -116,8 +114,8 @@ jobs:
             fleetdm/fleet:${{ steps.generate_tag.outputs.FLEET_IMAGE_TAG }}
 
       - name: Check high/critical vulnerabilities before publishing (docker scout)
-        # Only run this on the schedule run or when tagging RCs.
-        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') || github.event.schedule == '0 4 * * *'
+        # Only run this when tagging RCs.
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-')
         uses: docker/scout-action@381b657c498a4d287752e7f2cfb2b41823f566d9 # v1.17.1
         with:
           command: cves
@@ -157,7 +155,7 @@ jobs:
           done
 
       - name: Slack notification
-        if: github.event.schedule == '0 4 * * *' && failure()
+        if: startsWith(github.ref, 'rc-minor-') || startsWith(github.ref, 'rc-patch-') && failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
           payload: |

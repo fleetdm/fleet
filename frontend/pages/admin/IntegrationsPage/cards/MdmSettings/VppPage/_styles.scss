@@ -1,12 +1,8 @@
 .vpp-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
+  @include vertical-page-layout;
 
   &__page-content {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xxlarge;
+    @include vertical-page-layout;
   }
 
   &__page-header-section {
@@ -19,26 +15,6 @@
     h1 {
       margin-bottom: 0;
       font-size: $large;
-    }
-  }
-
-  &__add-vpp-message {
-    margin: 0 auto;
-    text-align: center;
-    width: 450px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-
-    > h2 {
-      margin-bottom: $pad-small;
-      font-size: $small;
-      font-weight: $bold;
-    }
-
-    > p {
-      margin: 0 0 $pad-medium;
     }
   }
 
