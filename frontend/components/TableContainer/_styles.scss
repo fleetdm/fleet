@@ -118,6 +118,7 @@
     justify-content: space-between;
     flex-direction: row;
     align-items: center;
+    gap: $gap-table-elements; // space between filters and host count on low screen widths
 
     &.stack-table-controls {
       flex-direction: column;
