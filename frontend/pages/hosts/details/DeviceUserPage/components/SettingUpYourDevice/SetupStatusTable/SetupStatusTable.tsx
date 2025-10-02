@@ -16,6 +16,17 @@ interface ISetupStatusTableProps {
 const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
   const columnConfigs = generateColumnConfigs();
 
+  // Sort the statuses so that scripts are always at the bottom.
+  statuses.sort((a, b) => {
+    if (a.type === b.type) {
+      return 0;
+    }
+    if (a.type === "script") {
+      return 1;
+    }
+    return -1;
+  });
+
   return (
     <div className={baseClass}>
       <TableContainer
@@ -26,6 +37,7 @@ const SetupStatusTable = ({ statuses }: ISetupStatusTableProps) => {
         isAllPagesSelected={false}
         disableTableHeader={false}
         disablePagination
+        manualSortBy
         pageSize={statuses.length}
         emptyComponent={() => (
           // will never be empty
