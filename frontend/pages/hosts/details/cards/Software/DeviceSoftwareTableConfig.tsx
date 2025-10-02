@@ -1,11 +1,7 @@
 import React from "react";
 import { CellProps, Column } from "react-table";
 
-import {
-  formatSoftwareType,
-  IHostSoftware,
-  SoftwareSource,
-} from "interfaces/software";
+import { formatSoftwareType, IHostSoftware } from "interfaces/software";
 import { IHeaderProps, IStringCellProps } from "interfaces/datatable_config";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -71,18 +67,16 @@ export const generateSoftwareTableHeaders = (): ISoftwareTableConfig[] => {
       Header: "Type",
       disableSortBy: true,
       disableGlobalFilter: true,
-      accessor: "source",
-      Cell: (cellProps: ITableStringCellProps) => (
-        <TextCell
-          value={cellProps.cell.value}
-          formatter={() =>
-            formatSoftwareType({
-              source: cellProps.cell.value as SoftwareSource,
-              extension_for: cellProps.row.original.extension_for,
-            })
-          }
-        />
-      ),
+      id: "source",
+      Cell: (cellProps: ITableStringCellProps) => {
+        const { source, extension_for } = cellProps.row.original;
+        return (
+          <TextCell
+            value={source}
+            formatter={() => formatSoftwareType({ source, extension_for })}
+          />
+        );
+      },
     },
     {
       Header: "Vulnerabilities",
