@@ -194,6 +194,8 @@ func IsSetupExperienceSupported(hostPlatform string) bool {
 type DeviceSetupExperienceStatusPayload struct {
 	// Software holds the status of the software to install on the device.
 	Software []*SetupExperienceStatusResult `json:"software,omitempty"`
+	// Scripts holds the status of the scripts to run on the device.
+	Scripts []*SetupExperienceStatusResult `json:"scripts,omitempty"`
 }
 
 // HostUUIDForSetupExperience returns the host "UUID" to use during the "Setup experience"

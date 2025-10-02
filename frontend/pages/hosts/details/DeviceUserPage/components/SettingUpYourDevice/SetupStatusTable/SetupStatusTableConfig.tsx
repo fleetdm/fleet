@@ -6,6 +6,8 @@ import { ISetupStep } from "interfaces/setup";
 
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";
+import SetupScriptProcessCell from "components/TableContainer/DataTable/SetupScriptProcessCell";
+import SetupScriptStatusCell from "components/TableContainer/DataTable/SetupScriptStatusCell";
 
 type ISetupStatusTableConfig = Column<ISetupStep>;
 type ITableCellProps = CellProps<ISetupStep>;
@@ -16,9 +18,14 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     accessor: "name",
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
-      const { name } = cellProps.row.original;
-
-      return <SetupSoftwareProcessCell name={name || "Unknown software"} />;
+      const { name, type } = cellProps.row.original;
+      if (type === "software") {
+        return <SetupSoftwareProcessCell name={name || "Unknown software"} />;
+      }
+      if (type === "script") {
+        return <SetupScriptProcessCell name={name || "Unknown script"} />;
+      }
+      return null;
     },
   },
   {
@@ -26,9 +33,14 @@ const generateColumnConfigs = (): ISetupStatusTableConfig[] => [
     accessor: "status",
     disableSortBy: true,
     Cell: (cellProps: ITableCellProps) => {
-      const { status } = cellProps.row.original;
-
-      return <SetupSoftwareStatusCell status={status || "pending"} />;
+      const { status, type } = cellProps.row.original;
+      if (type === "software") {
+        return <SetupSoftwareStatusCell status={status || "pending"} />;
+      }
+      if (type === "script") {
+        return <SetupScriptStatusCell status={status || "pending"} />;
+      }
+      return null;
     },
   },
 ];

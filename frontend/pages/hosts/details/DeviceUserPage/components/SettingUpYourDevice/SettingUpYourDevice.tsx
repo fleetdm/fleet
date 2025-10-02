@@ -2,17 +2,17 @@ import Card from "components/Card";
 import { ISetupStep } from "interfaces/setup";
 import React from "react";
 import InfoButton from "../InfoButton";
-import SetupSoftwareStatusTable from "./SetupStatusTable";
+import SetupStatusTable from "./SetupStatusTable";
 
 const baseClass = "setting-up-your-device";
 
 interface ISettingUpYourDevice {
-  softwareStatuses: ISetupStep[];
+  setupSteps: ISetupStep[];
   toggleInfoModal: () => void;
 }
 
 const SettingUpYourDevice = ({
-  softwareStatuses,
+  setupSteps,
   toggleInfoModal,
 }: ISettingUpYourDevice) => {
   return (
@@ -31,7 +31,7 @@ const SettingUpYourDevice = ({
           Please don&apos;t attempt to restart or shut down the computer unless
           prompted to do so.
         </p>
-        <SetupSoftwareStatusTable statuses={softwareStatuses} />
+        <SetupStatusTable statuses={setupSteps} />
       </Card>
     </div>
   );

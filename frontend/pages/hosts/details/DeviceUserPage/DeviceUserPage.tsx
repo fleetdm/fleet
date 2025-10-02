@@ -27,6 +27,7 @@ import {
 } from "interfaces/certificates";
 import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -335,13 +336,22 @@ const DeviceUserPage = ({
   } = useQuery<
     IGetSetupExperienceStatusesResponse,
     Error,
-    IGetSetupExperienceStatusesResponse["setup_experience_results"]["software"]
+    ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
     () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (res) => res.setup_experience_results.software,
+      select: (res) => [
+        ...(res.setup_experience_results.software ?? []).map((s) => ({
+          ...s,
+          type: "software",
+        })),
+        ...(res.setup_experience_results.scripts ?? []).map((s) => ({
+          ...s,
+          type: "script",
+        })),
+      ],
       enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
       refetchInterval: (data) => (hasRemainingSetupSteps(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
@@ -501,7 +511,7 @@ const DeviceUserPage = ({
       // at this point, softwareSetupStatuses will be non-empty
       return (
         <SettingUpYourDevice
-          softwareStatuses={setupStepStatuses || []}
+          setupSteps={setupStepStatuses || []}
           toggleInfoModal={toggleInfoModal}
         />
       );
