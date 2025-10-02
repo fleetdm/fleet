@@ -365,13 +365,14 @@ type entityCount struct {
 
 type softwareEntityCount struct {
 	entityCount
-	vulnerable                   int
-	withLastOpened               int
-	lastOpenedProb               float64
-	commonSoftwareUninstallCount int
-	commonSoftwareUninstallProb  float64
-	uniqueSoftwareUninstallCount int
-	uniqueSoftwareUninstallProb  float64
+	vulnerable                        int
+	withLastOpened                    int
+	lastOpenedProb                    float64
+	commonSoftwareUninstallCount      int
+	commonSoftwareUninstallProb       float64
+	uniqueSoftwareUninstallCount      int
+	uniqueSoftwareUninstallProb       float64
+	duplicateBundleIdentifiersPercent int
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -1692,6 +1693,23 @@ func (a *agent) softwareMacOS() []map[string]string {
 		uniqueSoftware = uniqueSoftware[:a.softwareCount.unique-a.softwareCount.uniqueSoftwareUninstallCount]
 	}
 
+	// Software with Duplicate Bundle identifiers
+	duplicateCount := (a.softwareCount.common * a.softwareCount.duplicateBundleIdentifiersPercent) / 100
+	duplicateBundleSoftware := make([]map[string]string, duplicateCount)
+	groupSize := 4
+	for i := 0; i < duplicateCount; i++ {
+		bundleIDIndex := i / groupSize
+		bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%a.softwareCount.common)
+
+		duplicateBundleSoftware[i] = map[string]string{
+			"name":              fmt.Sprintf("RENAMED_DuplicateBundle_%d", i),
+			"version":           fmt.Sprintf("1.0.%d", i),
+			"bundle_identifier": bundleID,
+			"source":            "apps",
+			"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", i),
+		}
+	}
+
 	// Vulnerable Software
 	var vCount int
 	if a.softwareCount.vulnerable < 0 {
@@ -1741,6 +1759,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 	software := commonSoftware
 	software = append(software, uniqueSoftware...)
 	software = append(software, vulnerableSoftware...)
+	software = append(software, duplicateBundleSoftware...)
 	a.installedSoftware.Range(func(key, value interface{}) bool {
 		software = append(software, value.(map[string]string))
 		return true
@@ -2869,6 +2888,7 @@ func main() {
 		uniqueSoftwareUninstallProb                  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
+		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -3051,13 +3071,14 @@ func main() {
 					common: *commonSoftwareCount,
 					unique: *uniqueSoftwareCount,
 				},
-				vulnerable:                   *vulnerableSoftwareCount,
-				withLastOpened:               *withLastOpenedSoftwareCount,
-				lastOpenedProb:               *lastOpenedChangeProb,
-				commonSoftwareUninstallCount: *commonSoftwareUninstallCount,
-				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
-				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
-				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
+				vulnerable:                        *vulnerableSoftwareCount,
+				withLastOpened:                    *withLastOpenedSoftwareCount,
+				lastOpenedProb:                    *lastOpenedChangeProb,
+				commonSoftwareUninstallCount:      *commonSoftwareUninstallCount,
+				commonSoftwareUninstallProb:       *commonSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount:      *uniqueSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
+				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

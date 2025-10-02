@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -422,7 +421,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	}
 
 	// PHASE 2: Main transaction for host-specific operations
-	err = ds.withRetryTxx(
+	err = ds.withTx(
 		ctx, func(tx sqlx.ExtContext) error {
 			deleted, err := deleteUninstalledHostSoftwareDB(ctx, tx, hostID, current, incoming)
 			if err != nil {
@@ -469,12 +468,9 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 					}
 				}
 
-				// Update software names for bundle ID matches
-				// TEMPORARILY COMMENTED OUT: Performance issue with updateTargetedBundleIDs SQL statement
-				// TODO: Re-enable after gathering more info and optimizing the query
-				// if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-				// 	return err
-				// }
+				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+					return err
+				}
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -500,7 +496,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 // updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
 // softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error { //nolint:unused
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
 	if len(softwareRenames) == 0 {
 		return nil
 	}
@@ -512,18 +508,68 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 	}
 
 	const batchSize = 100
-	return common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
-		updateCases := make([]string, 0, len(batch))
-		updateCaseArgs := make([]any, 0, len(batch)*2)
-		updateWhereArgs := make([]any, 0, len(batch))
-		updateIDs := make([]string, 0, len(batch))
 
-		for _, id := range batch {
-			newName := softwareRenames[id]
+	err := common_mysql.BatchProcessSimple(softwareIDs, batchSize, func(batch []uint) error {
+		placeholders := make([]string, len(batch))
+		args := make([]any, len(batch))
+		for i, id := range batch {
+			placeholders[i] = "?"
+			args[i] = id
+		}
 
+		lockQuery := fmt.Sprintf(
+			"SELECT id, name FROM software WHERE id IN (%s) FOR UPDATE SKIP LOCKED",
+			strings.Join(placeholders, ","),
+		)
+
+		rows, err := tx.QueryContext(ctx, lockQuery, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock software rows for rename")
+		}
+		defer rows.Close()
+
+		type lockedRow struct {
+			id          uint
+			currentName string
+		}
+		var lockedRows []lockedRow
+		for rows.Next() {
+			var lr lockedRow
+			if err := rows.Scan(&lr.id, &lr.currentName); err != nil {
+				return ctxerr.Wrap(ctx, err, "scan locked row")
+			}
+			lockedRows = append(lockedRows, lr)
+		}
+		if err := rows.Err(); err != nil {
+			return ctxerr.Wrap(ctx, err, "iterate locked rows")
+		}
+
+		if len(lockedRows) == 0 {
+			return nil
+		}
+
+		var rowsToUpdate []lockedRow
+		for _, lr := range lockedRows {
+			newName := softwareRenames[lr.id]
+			if lr.currentName != newName {
+				rowsToUpdate = append(rowsToUpdate, lr)
+			}
+		}
+
+		if len(rowsToUpdate) == 0 {
+			return nil
+		}
+
+		updateCases := make([]string, 0, len(rowsToUpdate))
+		updateCaseArgs := make([]any, 0, len(rowsToUpdate)*2)
+		updateWhereArgs := make([]any, 0, len(rowsToUpdate))
+		updateIDs := make([]string, 0, len(rowsToUpdate))
+
+		for _, lr := range rowsToUpdate {
+			newName := softwareRenames[lr.id]
 			updateCases = append(updateCases, "WHEN ? THEN ?")
-			updateCaseArgs = append(updateCaseArgs, id, newName)
-			updateWhereArgs = append(updateWhereArgs, id)
+			updateCaseArgs = append(updateCaseArgs, lr.id, newName)
+			updateWhereArgs = append(updateWhereArgs, lr.id)
 			updateIDs = append(updateIDs, "?")
 		}
 
@@ -533,12 +579,15 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 			strings.Join(updateIDs, ","),
 		)
 
-		if _, err := tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...); err != nil {
+		_, err = tx.ExecContext(ctx, updateStmt, append(updateCaseArgs, updateWhereArgs...)...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "batch update software names")
 		}
 
 		return nil
 	})
+
+	return err
 }
 
 func checkForDeletedInstalledSoftware(ctx context.Context, tx sqlx.ExtContext, deleted []fleet.Software, inserted []fleet.Software,
@@ -655,10 +704,11 @@ func (ds *Datastore) getExistingSoftware(
 		for _, s := range currentSoftware {
 			sw, ok := incomingChecksumToSoftware[s.Checksum]
 			if !ok {
-				// This should never happen. If it does, we have a bug.
-				return nil, nil, nil, nil, ctxerr.New(
-					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
-				)
+				// This can happen due to replication lag. Another host may have inserted
+				// software with this checksum between when we computed our incoming checksums
+				// and when we queried the replica
+				delete(newSoftware, s.Checksum)
+				continue
 			}
 			if s.BundleIdentifier != nil && s.Source == "apps" {
 				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
