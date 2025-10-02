@@ -860,7 +860,7 @@ When the CA is deleted, the issued certificates will remain on existing hosts.
 
 Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only supported for [Hydrant](#hydrant) and [custom EST](#custom-est-proxy) certificate authorities (CAs). DigiCert, NDES, and custom SCEP coming soon.
 
-As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can use
+As an alternative to [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token), you can use an `http_signature`.
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
@@ -873,7 +873,7 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| http_signature | string | header | The HTTP message signature generated using a host's [hardware-backed client certificate](https://fleetdm.com/guides/enroll-hosts#using-host-identity-certificates). If supplied, [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) isn't required. Requires that the Fleet server requires HTTP message signatures via the `auth​.require​_http​_message​_signature` server configuration option.|
+| http_signature | string | header | The HTTP message signature generated using a host's [hardware-backed client certificate](https://fleetdm.com/guides/enroll-hosts#using-host-identity-certificates). If supplied, API token authentication isn't required. |
 
 #### Example
 
