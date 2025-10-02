@@ -1,0 +1,11 @@
+- name: "Team: g-software"
+  description: Workstations used by team g-software
+  label_membership_type: manual
+  hosts:
+    - "653" # George
+    - "1308" # Marko
+    #- "-" # Carlo
+    - "924" # Jahziel
+    - "1429" # Rachel
+    - "841" # Jonathan
+    - "917" # Janis
