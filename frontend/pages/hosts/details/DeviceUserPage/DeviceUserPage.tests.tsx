@@ -7,7 +7,7 @@ import mockServer from "test/mock-server";
 import { createCustomRenderer, createMockRouter } from "test/test-utils";
 import createMockLicense from "__mocks__/licenseMock";
 
-import { IGetSetupSoftwareStatusesResponse } from "services/entities/device_user";
+import { IGetSetupExperienceStatusesResponse } from "services/entities/device_user";
 
 import {
   customDeviceHandler,
@@ -140,7 +140,7 @@ describe("Device User Page", () => {
 
     const setupTest = async (
       deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
-      setupExperienceOverrides?: Partial<IGetSetupSoftwareStatusesResponse>
+      setupExperienceOverrides?: Partial<IGetSetupExperienceStatusesResponse>
     ) => {
       mockServer.use(customDeviceHandler(deviceUserResponseOverrides));
       mockServer.use(defaultDeviceCertificatesHandler);

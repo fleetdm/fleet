@@ -1,6 +1,6 @@
 import React from "react";
 
-import { ISetupStep } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";

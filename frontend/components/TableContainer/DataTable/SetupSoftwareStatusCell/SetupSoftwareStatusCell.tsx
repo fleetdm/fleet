@@ -1,6 +1,6 @@
 import React from "react";
 
-import { SetupStepStatus } from "interfaces/software";
+import { SetupStepStatus } from "interfaces/setup";
 
 import Icon from "components/Icon";
 import { IconNames } from "components/icons";

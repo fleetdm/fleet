@@ -1,5 +1,5 @@
 import Card from "components/Card";
-import { ISetupStep } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import React from "react";
 import InfoButton from "../InfoButton";
 import SetupSoftwareStatusTable from "./SetupStatusTable";

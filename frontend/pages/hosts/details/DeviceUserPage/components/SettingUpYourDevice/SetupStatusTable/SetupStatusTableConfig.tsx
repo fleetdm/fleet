@@ -2,7 +2,7 @@ import React from "react";
 
 import { CellProps, Column } from "react-table";
 
-import { ISetupStep } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 import SetupSoftwareProcessCell from "components/TableContainer/DataTable/SetupSoftwareProcessCell";
 import SetupSoftwareStatusCell from "components/TableContainer/DataTable/SetupSoftwareStatusCell";

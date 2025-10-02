@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -329,16 +329,16 @@ const DeviceUserPage = ({
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const {
-    data: softwareSetupStatuses,
-    isLoading: isLoadingSetupSoftware,
-    isError: isErrorSetupSoftware,
+    data: setupStepStatuses,
+    isLoading: isLoadingSetupSteps,
+    isError: isErrorSetupSteps,
   } = useQuery<
-    IGetSetupSoftwareStatusesResponse,
+    IGetSetupExperienceStatusesResponse,
     Error,
-    IGetSetupSoftwareStatusesResponse["setup_experience_results"]["software"]
+    IGetSetupExperienceStatusesResponse["setup_experience_results"]["software"]
   >(
     ["software-setup-statuses", deviceAuthToken],
-    () => deviceUserAPI.getSetupSoftwareStatuses({ token: deviceAuthToken }),
+    () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
       select: (res) => res.setup_experience_results.software,
@@ -487,22 +487,21 @@ const DeviceUserPage = ({
       !host ||
       isLoadingHost ||
       isLoadingDeviceCertificates ||
-      isLoadingSetupSoftware
+      isLoadingSetupSteps
     ) {
       return <Spinner />;
     }
-    if (isErrorSetupSoftware) {
+    if (isErrorSetupSteps) {
       return <DataError description="Could not get software setup status." />;
     }
     if (
       checkForSetupExperienceSoftware &&
-      (hasRemainingSetupSteps(softwareSetupStatuses) ||
-        location.query.setup_only)
+      (hasRemainingSetupSteps(setupStepStatuses) || location.query.setup_only)
     ) {
       // at this point, softwareSetupStatuses will be non-empty
       return (
         <SettingUpYourDevice
-          softwareStatuses={softwareSetupStatuses || []}
+          softwareStatuses={setupStepStatuses || []}
           toggleInfoModal={toggleInfoModal}
         />
       );

@@ -1,8 +1,9 @@
 import { IDeviceUser } from "interfaces/host";
-import { IDeviceSoftware, ISetupStep } from "interfaces/software";
+import { IDeviceSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 import {
   IGetDeviceSoftwareResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { createMockHostSoftwarePackage } from "./hostMock";
 
@@ -65,7 +66,7 @@ export const createMockSetupSoftwareStatus = (
   return { ...DEFAULT_SETUP_SOFTWARE_STATUS_MOCK, ...overrides };
 };
 
-const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupSoftwareStatusesResponse = {
+const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatusesResponse = {
   setup_experience_results: {
     software: [
       createMockSetupSoftwareStatus({ name: "1Password", status: "pending" }),
@@ -78,8 +79,8 @@ const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupSoftwareStatusesRe
 };
 
 export const createMockSetupSoftwareStatusesResponse = (
-  overrides?: Partial<IGetSetupSoftwareStatusesResponse>
-): IGetSetupSoftwareStatusesResponse => {
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
+): IGetSetupExperienceStatusesResponse => {
   return {
     ...DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK,
     ...overrides,

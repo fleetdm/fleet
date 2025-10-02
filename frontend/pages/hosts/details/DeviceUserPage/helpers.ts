@@ -1,4 +1,4 @@
-import { ISetupStep } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 const DEFAULT_ERROR_MESSAGE = "refetch error.";
 
