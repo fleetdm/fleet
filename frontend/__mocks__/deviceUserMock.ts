@@ -76,7 +76,7 @@ const DEFAULT_SETUP_SOFTWARE_STATUSES_RESPONSE_MOCK: IGetSetupExperienceStatuses
       createMockSetupStepStatus({ name: "Zoom", status: "running" }),
     ],
     scripts: [
-      createMockSetupStepStatus({ name: "test.sh", status: "pending" }),
+      createMockSetupStepStatus({ name: "test.sh", status: "running" }),
     ],
   },
 };
