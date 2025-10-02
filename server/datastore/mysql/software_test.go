@@ -96,6 +96,7 @@ func TestSoftware(t *testing.T) {
 		{"LabelScopingTimestampLogic", testLabelScopingTimestampLogic},
 		{"InventoryPendingSoftware", testInventoryPendingSoftware},
 		{"PreInsertSoftwareInventory", testPreInsertSoftwareInventory},
+		{"ListHostSoftwareWithExtensionFor", testListHostSoftwareWithExtensionFor},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -9328,4 +9329,84 @@ func testUpdateHostBrowserExtensions(t *testing.T, ds *Datastore) {
 			require.Equal(t, "browser_plugins", s.Source)
 		}
 	}
+}
+
+func testListHostSoftwareWithExtensionFor(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Create a test host
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now(), test.WithPlatform("darwin"))
+
+	// Add software with extension_for set (browser extensions)
+	// Same extension name but different extension_for values creates different titles
+	software := []fleet.Software{
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "edge"},    // Same name, different extension_for
+		{Name: "Adblock Plus", Version: "3.14", Source: "chrome_extensions", ExtensionFor: "firefox"}, // Same name, another extension_for
+		{Name: "uBlock Origin", Version: "1.42.0", Source: "chrome_extensions", ExtensionFor: "chrome"},
+		{Name: "Regular App", Version: "1.0", Source: "apps"}, // No extension_for
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	// Reconcile software titles
+	err = ds.ReconcileSoftwareTitles(ctx)
+	require.NoError(t, err)
+
+	// List host software
+	opts := fleet.HostSoftwareTitleListOptions{
+		ListOptions: fleet.ListOptions{
+			PerPage:               10,
+			IncludeMetadata:       true,
+			OrderKey:              "name",
+			TestSecondaryOrderKey: "extension_for", // Sort by extension_for to get deterministic order
+		},
+	}
+	sw, meta, err := ds.ListHostSoftware(ctx, host, opts)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	require.Len(t, sw, 5, "Should return 5 software titles (3 Adblock Plus for different browsers, 1 uBlock Origin, 1 Regular App)")
+
+	// Find each Adblock Plus variant
+	adblockChrome := findSoftware(sw, "Adblock Plus", "chrome")
+	adblockEdge := findSoftware(sw, "Adblock Plus", "edge")
+	adblockFirefox := findSoftware(sw, "Adblock Plus", "firefox")
+	ublock := findSoftware(sw, "uBlock Origin", "chrome")
+	regularApp := findSoftware(sw, "Regular App", "")
+
+	// Verify Adblock Plus for Chrome
+	require.NotNil(t, adblockChrome, "Should find Adblock Plus for chrome")
+	require.Equal(t, "chrome_extensions", adblockChrome.Source)
+	require.Equal(t, "chrome", adblockChrome.ExtensionFor)
+
+	// Verify Adblock Plus for Edge
+	require.NotNil(t, adblockEdge, "Should find Adblock Plus for edge")
+	require.Equal(t, "chrome_extensions", adblockEdge.Source)
+	require.Equal(t, "edge", adblockEdge.ExtensionFor)
+
+	// Verify Adblock Plus for Firefox
+	require.NotNil(t, adblockFirefox, "Should find Adblock Plus for firefox")
+	require.Equal(t, "chrome_extensions", adblockFirefox.Source)
+	require.Equal(t, "firefox", adblockFirefox.ExtensionFor)
+
+	// Verify uBlock Origin
+	require.NotNil(t, ublock, "Should find uBlock Origin")
+	require.Equal(t, "chrome_extensions", ublock.Source)
+	require.Equal(t, "chrome", ublock.ExtensionFor)
+
+	// Verify Regular App has empty extension_for
+	require.NotNil(t, regularApp, "Should find Regular App")
+	require.Equal(t, "apps", regularApp.Source)
+	require.Equal(t, "", regularApp.ExtensionFor)
+}
+
+// Helper function to find software by name and extension_for
+func findSoftware(sw []*fleet.HostSoftwareWithInstaller, name, extensionFor string) *fleet.HostSoftwareWithInstaller {
+	for _, s := range sw {
+		if s.Name == name && s.ExtensionFor == extensionFor {
+			return s
+		}
+	}
+	return nil
 }

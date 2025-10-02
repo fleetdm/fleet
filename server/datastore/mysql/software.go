@@ -2629,33 +2629,35 @@ type hostSoftware struct {
 	LastUninstallUninstalledAt     *time.Time `db:"last_uninstall_uninstalled_at"`
 	LastUninstallScriptExecutionID *string    `db:"last_uninstall_script_execution_id"`
 
-	ExitCode           *int       `db:"exit_code"`
-	LastOpenedAt       *time.Time `db:"last_opened_at"`
-	BundleIdentifier   *string    `db:"bundle_identifier"`
-	Version            *string    `db:"version"`
-	SoftwareID         *uint      `db:"software_id"`
-	SoftwareSource     *string    `db:"software_source"`
-	InstallerID        *uint      `db:"installer_id"`
-	PackageSelfService *bool      `db:"package_self_service"`
-	PackageName        *string    `db:"package_name"`
-	PackagePlatform    *string    `db:"package_platform"`
-	PackageVersion     *string    `db:"package_version"`
-	VPPAppSelfService  *bool      `db:"vpp_app_self_service"`
-	VPPAppAdamID       *string    `db:"vpp_app_adam_id"`
-	VPPAppVersion      *string    `db:"vpp_app_version"`
-	VPPAppPlatform     *string    `db:"vpp_app_platform"`
-	VPPAppIconURL      *string    `db:"vpp_app_icon_url"`
+	ExitCode             *int       `db:"exit_code"`
+	LastOpenedAt         *time.Time `db:"last_opened_at"`
+	BundleIdentifier     *string    `db:"bundle_identifier"`
+	Version              *string    `db:"version"`
+	SoftwareID           *uint      `db:"software_id"`
+	SoftwareSource       *string    `db:"software_source"`
+	SoftwareExtensionFor *string    `db:"software_extension_for"`
+	InstallerID          *uint      `db:"installer_id"`
+	PackageSelfService   *bool      `db:"package_self_service"`
+	PackageName          *string    `db:"package_name"`
+	PackagePlatform      *string    `db:"package_platform"`
+	PackageVersion       *string    `db:"package_version"`
+	VPPAppSelfService    *bool      `db:"vpp_app_self_service"`
+	VPPAppAdamID         *string    `db:"vpp_app_adam_id"`
+	VPPAppVersion        *string    `db:"vpp_app_version"`
+	VPPAppPlatform       *string    `db:"vpp_app_platform"`
+	VPPAppIconURL        *string    `db:"vpp_app_icon_url"`
 
-	VulnerabilitiesList   *string `db:"vulnerabilities_list"`
-	SoftwareIDList        *string `db:"software_id_list"`
-	SoftwareSourceList    *string `db:"software_source_list"`
-	VersionList           *string `db:"version_list"`
-	BundleIdentifierList  *string `db:"bundle_identifier_list"`
-	VPPAppSelfServiceList *string `db:"vpp_app_self_service_list"`
-	VPPAppAdamIDList      *string `db:"vpp_app_adam_id_list"`
-	VPPAppVersionList     *string `db:"vpp_app_version_list"`
-	VPPAppPlatformList    *string `db:"vpp_app_platform_list"`
-	VPPAppIconUrlList     *string `db:"vpp_app_icon_url_list"`
+	VulnerabilitiesList      *string `db:"vulnerabilities_list"`
+	SoftwareIDList           *string `db:"software_id_list"`
+	SoftwareSourceList       *string `db:"software_source_list"`
+	SoftwareExtensionForList *string `db:"software_extension_for_list"`
+	VersionList              *string `db:"version_list"`
+	BundleIdentifierList     *string `db:"bundle_identifier_list"`
+	VPPAppSelfServiceList    *string `db:"vpp_app_self_service_list"`
+	VPPAppAdamIDList         *string `db:"vpp_app_adam_id_list"`
+	VPPAppVersionList        *string `db:"vpp_app_version_list"`
+	VPPAppPlatformList       *string `db:"vpp_app_platform_list"`
+	VPPAppIconUrlList        *string `db:"vpp_app_icon_url_list"`
 }
 
 func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*hostSoftware, error) {
@@ -2665,6 +2667,7 @@ func hostInstalledSoftware(ds *Datastore, ctx context.Context, hostID uint) ([]*
 			host_software.software_id AS software_id,
 			host_software.last_opened_at,
 			software.source AS software_source,
+			software.extension_for AS software_extension_for,
 			software.version AS version,
 			software.bundle_identifier AS bundle_identifier
 		FROM
@@ -3255,6 +3258,7 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 	if softwareTitleRecord.SoftwareIDList == nil {
 		softwareTitleRecord.SoftwareIDList = ptr.String("")
 		softwareTitleRecord.SoftwareSourceList = ptr.String("")
+		softwareTitleRecord.SoftwareExtensionForList = ptr.String("")
 		softwareTitleRecord.VersionList = ptr.String("")
 		softwareTitleRecord.BundleIdentifierList = ptr.String("")
 		seperator = ""
@@ -3271,6 +3275,9 @@ func pushVersion(softwareIDStr string, softwareTitleRecord *hostSoftware, hostIn
 		*softwareTitleRecord.SoftwareIDList += seperator + softwareIDStr
 		if hostInstalledSoftware.SoftwareSource != nil {
 			*softwareTitleRecord.SoftwareSourceList += seperator + *hostInstalledSoftware.SoftwareSource
+		}
+		if hostInstalledSoftware.SoftwareExtensionFor != nil {
+			*softwareTitleRecord.SoftwareExtensionForList += seperator + *hostInstalledSoftware.SoftwareExtensionFor
 		}
 		*softwareTitleRecord.VersionList += seperator + *hostInstalledSoftware.Version
 		*softwareTitleRecord.BundleIdentifierList += seperator + *hostInstalledSoftware.BundleIdentifier
@@ -3529,6 +3536,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					s.LastOpenedAt = installedTitle.LastOpenedAt
 					s.SoftwareID = installedTitle.SoftwareID
 					s.SoftwareSource = installedTitle.SoftwareSource
+					s.SoftwareExtensionFor = installedTitle.SoftwareExtensionFor
 					s.Version = installedTitle.Version
 					s.BundleIdentifier = installedTitle.BundleIdentifier
 					if !opts.VulnerableOnly && !hasCVEMetaFilters {
@@ -3578,6 +3586,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 			}
 			s.SoftwareID = installedTitle.SoftwareID
 			s.SoftwareSource = installedTitle.SoftwareSource
+			s.SoftwareExtensionFor = installedTitle.SoftwareExtensionFor
 			s.Version = installedTitle.Version
 			s.BundleIdentifier = installedTitle.BundleIdentifier
 		}
@@ -3604,6 +3613,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				st.id,
 				st.name,
 				st.source,
+				st.extension_for,
 				si.id as installer_id,
 				si.self_service as package_self_service,
 				si.filename as package_name,
@@ -4278,6 +4288,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source AS source,
+					software_titles.extension_for AS extension_for,
 					software_installers.id AS installer_id,
 					software_installers.self_service AS package_self_service,
 					software_installers.filename AS package_name,
@@ -4285,6 +4296,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_installers.platform as package_platform,
 					GROUP_CONCAT(software.id) AS software_id_list,
 					GROUP_CONCAT(software.source) AS software_source_list,
+					GROUP_CONCAT(software.extension_for) AS software_extension_for_list,
 					GROUP_CONCAT(software.version) AS version_list,
 					GROUP_CONCAT(software.bundle_identifier) AS bundle_identifier_list,
 					NULL AS vpp_app_adam_id_list,
@@ -4297,6 +4309,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source,
+					software_titles.extension_for,
 					software_installers.id,
 					software_installers.self_service,
 					software_installers.filename,
@@ -4312,6 +4325,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					software_titles.id,
 					software_titles.name,
 					software_titles.source AS source,
+					software_titles.extension_for AS extension_for,
 					NULL AS installer_id,
 					NULL AS package_self_service,
 					NULL AS package_name,
@@ -4319,6 +4333,7 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 					NULL as package_platform,
 					NULL AS software_id_list,
 					NULL AS software_source_list,
+					NULL AS software_extension_for_list,
 					NULL AS version_list,
 					NULL AS bundle_identifier_list,
 					GROUP_CONCAT(vpp_apps.adam_id) AS vpp_app_adam_id_list,
@@ -4330,7 +4345,8 @@ func (ds *Datastore) ListHostSoftware(ctx context.Context, host *fleet.Host, opt
 				GROUP BY
 					software_titles.id,
 					software_titles.name,
-					software_titles.source
+					software_titles.source,
+					software_titles.extension_for
 			`)
 		}
 		stmt = fmt.Sprintf(stmt, replacements...)
