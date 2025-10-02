@@ -873,7 +873,6 @@ As an alternative to [API token authentication](https://fleetdm.com/docs/rest-ap
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
 | idp_client_id | string | body | Client ID for which the token was isseud from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
-| http_signature | string | header | The HTTP message signature generated using a host's [hardware-backed client certificate](https://fleetdm.com/guides/enroll-hosts#using-host-identity-certificates). If supplied, API token authentication isn't required. |
 
 #### Example
 
