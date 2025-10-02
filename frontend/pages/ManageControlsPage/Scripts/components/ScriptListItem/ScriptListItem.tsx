@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { format } from "date-fns";
 import FileSaver from "file-saver";
 import React, { useContext } from "react";
 
@@ -11,6 +11,7 @@ import Icon from "components/Icon";
 import ListItem from "components/ListItem";
 import { ISupportedGraphicNames } from "components/ListItem/ListItem";
 import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
 const baseClass = "script-list-item";
 
@@ -67,7 +68,9 @@ const ScriptListItemDetails = ({
         <span>&bull;</span>
       </>
     )}
-    <span>{`Uploaded ${formatDistanceToNow(new Date(createdAt))} ago`}</span>
+    <span>
+      Uploaded <HumanTimeDiffWithDateTip timeString={createdAt} />
+    </span>
   </div>
 );
 

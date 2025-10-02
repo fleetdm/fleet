@@ -203,12 +203,13 @@ func getDeviceHostEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}
 
 	return getDeviceHostResponse{
-		Host:          resp,
-		OrgLogoURL:    ac.OrgInfo.OrgLogoURL,
-		OrgContactURL: ac.OrgInfo.ContactURL,
-		License:       *license,
-		GlobalConfig:  deviceGlobalConfig,
-		SelfService:   hasSelfService,
+		Host:                      resp,
+		OrgLogoURL:                ac.OrgInfo.OrgLogoURL,
+		OrgLogoURLLightBackground: ac.OrgInfo.OrgLogoURLLightBackground,
+		OrgContactURL:             ac.OrgInfo.ContactURL,
+		License:                   *license,
+		GlobalConfig:              deviceGlobalConfig,
+		SelfService:               hasSelfService,
 	}, nil
 }
 

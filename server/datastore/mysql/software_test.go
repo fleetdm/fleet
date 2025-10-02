@@ -1847,6 +1847,10 @@ func testUpdateHostSoftware(t *testing.T, ds *Datastore) {
 // When software with the same bundle ID but different name is added, the system
 // reuses the existing software entry (matched by bundle ID) and links it to the host
 func testUpdateHostSoftwareSameBundleIDDifferentNames(t *testing.T, ds *Datastore) {
+	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
+	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
+	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
+
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "bundle-host", "", "bundlekey", "bundleuuid", time.Now())
 
@@ -1943,6 +1947,10 @@ func testUpdateHostSoftwareSameNameDifferentBundleIDs(t *testing.T, ds *Datastor
 // Test edge case: Multiple software entries with the same bundle ID
 // This validates that bundle ID renaming affects all software with that bundle ID
 func testUpdateHostSoftwareMultipleSameBundleID(t *testing.T, ds *Datastore) {
+	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
+	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
+	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
+
 	ctx := t.Context()
 	host1 := test.NewHost(t, ds, "multi-bundle-host1", "", "multikey1", "multiuuid1", time.Now())
 	host2 := test.NewHost(t, ds, "multi-bundle-host2", "", "multikey2", "multiuuid2", time.Now())
@@ -9061,6 +9069,10 @@ func testPreInsertSoftwareInventory(t *testing.T, ds *Datastore) {
 // testUpdateHostBundleIDRenameOnlyNoNewSoftware tests if a host reports ONLY renamed software
 // (same bundle ID, different name) with NO new software
 func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) {
+	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
+	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
+	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
+
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "rename-test-host", "", "renamekey", "renameuuid", time.Now())
 
@@ -9119,6 +9131,10 @@ func testUpdateHostBundleIDRenameOnlyNoNewSoftware(t *testing.T, ds *Datastore) 
 // 2. Existing software with renamed bundle IDs that needs updating
 // This tests that both operations work correctly in the same update.
 func testUpdateHostBundleIDRenameWithNewSoftware(t *testing.T, ds *Datastore) {
+	// TEMPORARILY SKIPPED: updateTargetedBundleIDs is commented out for performance reasons
+	// TODO: Re-enable when updateTargetedBundleIDs is re-enabled
+	t.Skip("Skipping test: updateTargetedBundleIDs is temporarily disabled for performance reasons")
+
 	ctx := t.Context()
 	host := test.NewHost(t, ds, "mixed-test-host", "", "mixedkey", "mixeduuid", time.Now())
 

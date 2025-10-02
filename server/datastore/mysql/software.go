@@ -363,6 +363,19 @@ WHERE
 	return softwares, nil
 }
 
+// filterSoftwareWithEmptyNames removes software entries with empty names in-place.
+// This is a well-known Go idiom: https://go.dev/wiki/SliceTricks#filter-in-place
+func filterSoftwareWithEmptyNames(software []fleet.Software) []fleet.Software {
+	n := 0
+	for _, sw := range software {
+		if sw.Name != "" {
+			software[n] = sw
+			n++
+		}
+	}
+	return software[:n]
+}
+
 // applyChangesForNewSoftwareDB returns the current host software and the applied mutations: what
 // was inserted and what was deleted
 func (ds *Datastore) applyChangesForNewSoftwareDB(
@@ -371,6 +384,9 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 	software []fleet.Software,
 ) (*fleet.UpdateHostSoftwareDBResult, error) {
 	r := &fleet.UpdateHostSoftwareDBResult{}
+
+	// We want to make sure we have valid data before proceeding. We've seen Windows programs with empty names.
+	software = filterSoftwareWithEmptyNames(software)
 
 	// This code executes once an hour for each host, so we should optimize for MySQL master (writer) DB performance.
 	// We use a slave (reader) DB to avoid accessing the master. If nothing has changed, we avoid all access to the master.
@@ -454,9 +470,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				}
 
 				// Update software names for bundle ID matches
-				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-					return err
-				}
+				// TEMPORARILY COMMENTED OUT: Performance issue with updateTargetedBundleIDs SQL statement
+				// TODO: Re-enable after gathering more info and optimizing the query
+				// if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+				// 	return err
+				// }
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -482,7 +500,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 // updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
 // softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error { //nolint:unused
 	if len(softwareRenames) == 0 {
 		return nil
 	}
@@ -707,12 +725,16 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		)
 		existingChecksums := uniqueTitleStrToChecksums[titleStr]
 		if len(existingChecksums) > 0 {
-			// Log when multiple checksums map to the same title. If we see this regularly, we should fix it.
-			level.Error(ds.logger).Log(
+			// Log when multiple checksums map to the same title.
+			existingChecksumsHex := make([]string, len(existingChecksums))
+			for i, cs := range existingChecksums {
+				existingChecksumsHex[i] = fmt.Sprintf("%x", cs)
+			}
+			level.Debug(ds.logger).Log(
 				"msg", "multiple checksums mapping to same title",
 				"title_str", titleStr,
-				"new_checksum", checksum,
-				"existing_checksums", fmt.Sprintf("%v", existingChecksums),
+				"new_checksum", fmt.Sprintf("%x", checksum),
+				"existing_checksums", fmt.Sprintf("%v", existingChecksumsHex),
 				"software_name", sw.Name,
 				"software_version", sw.Version,
 			)
@@ -1160,7 +1182,7 @@ func (ds *Datastore) linkSoftwareToHost(
 			// Log missing software but continue
 			level.Warn(ds.logger).Log(
 				"msg", "software not found after pre-insertion",
-				"checksum", checksum,
+				"checksum", fmt.Sprintf("%x", checksum),
 				"name", sw.Name,
 				"version", sw.Version,
 			)

@@ -7398,7 +7398,7 @@ func (s *integrationMDMTestSuite) TestValidRequestSecurityTokenRequestWithDevice
 	windowsHost := createOrbitEnrolledHost(t, "windows", "h1", s.ds)
 
 	// Delete the host from the list of MDM enrolled devices if present
-	_ = s.ds.MDMWindowsDeleteEnrolledDevice(context.Background(), windowsHost.UUID)
+	_ = s.ds.MDMWindowsDeleteEnrolledDeviceOnReenrollment(context.Background(), windowsHost.UUID)
 
 	// Preparing the RequestSecurityToken Request message
 	encodedBinToken, err := fleet.GetEncodedBinarySecurityToken(fleet.WindowsMDMProgrammaticEnrollmentType, *windowsHost.OrbitNodeKey)
@@ -18193,4 +18193,109 @@ func (s *integrationMDMTestSuite) TestIOSiPadOSRefetch() {
 	require.NoError(s.T(), err)
 	require.NotNil(s.T(), failedHostMDMTokenInactive)
 	require.False(s.T(), failedHostMDMTokenInactive.Enrolled)
+}
+
+// for https://github.com/fleetdm/fleet/issues/29086
+func (s *integrationMDMTestSuite) TestWipeWindowsReenrollAsNewHost() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create an MDM-enrolled Windows host
+	host, winMDMClient := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// update its serial number to empty, to simulate the DreamQuest device (and
+	// others) where this can happen
+	host.HardwareSerial = ""
+	err := s.ds.UpdateHost(ctx, host)
+	require.NoError(t, err)
+
+	// get the host's information
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// wipe the host
+	var wipeResp wipeHostResponse
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
+
+	// refresh the host's status, it is unlocked, pending wipe
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionWipe), *getHostResp.Host.MDM.PendingAction)
+
+	status, err := s.ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	// simulate a successful wipe from the Windows device's MDM response
+	cmds, err := winMDMClient.StartManagementSession()
+	require.NoError(t, err)
+
+	// two status + the wipe command we enqueued
+	require.Len(t, cmds, 3)
+	wipeCmd := cmds[status.WipeMDMCommand.CommandUUID]
+	require.NotNil(t, wipeCmd)
+	require.Equal(t, wipeCmd.Verb, fleet.CmdExec)
+	require.Len(t, wipeCmd.Cmd.Items, 1)
+	require.EqualValues(t, "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected", *wipeCmd.Cmd.Items[0].Target)
+
+	msgID, err := winMDMClient.GetCurrentMsgID()
+	require.NoError(t, err)
+
+	winMDMClient.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: fleet.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &status.WipeMDMCommand.CommandUUID,
+		Cmd:     ptr.String("Exec"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
+	})
+	cmds, err = winMDMClient.SendResponse()
+	require.NoError(t, err)
+	// the ack of the message should be the only returned command
+	require.Len(t, cmds, 1)
+
+	// refresh the host's status, it is wiped
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusWiped), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// enroll a new host that will re-enroll as the same host for Windows MDM
+	// (via the same hardware device ID).
+	newHost := createOrbitEnrolledHost(t, "windows", uuid.NewString(), s.ds)
+	require.NotEqual(t, host.ID, newHost.ID)
+
+	// now re-enroll in MDM for the new host but with the same hardware device ID
+	newHostDevice := mdmtest.NewTestMDMClientWindowsProgramatic(s.server.URL, *newHost.OrbitNodeKey)
+	newHostDevice.HardwareID = winMDMClient.HardwareID
+	err = newHostDevice.Enroll()
+	require.NoError(t, err)
+	err = s.ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, newHost.UUID, newHostDevice.DeviceID)
+	require.NoError(t, err)
+	err = s.ds.SetOrUpdateMDMData(ctx, newHost.ID, false, true, s.server.URL, false, fleet.WellKnownMDMFleet, "", false)
+	require.NoError(t, err)
+
+	// refresh the (old) host's status, it should not 500
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, string(fleet.DeviceStatusUnlocked), *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, string(fleet.PendingActionNone), *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to wipe the old host entry should fail, as it is not reported
+	// as enrolled in Fleet MDM anymore
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity, &wipeResp)
+
+	// attempting to wipe the new host entry works
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", newHost.ID), nil, http.StatusOK, &wipeResp)
+	require.Equal(t, fleet.PendingActionWipe, wipeResp.PendingAction)
+	require.Equal(t, fleet.DeviceStatusUnlocked, wipeResp.DeviceStatus)
 }
