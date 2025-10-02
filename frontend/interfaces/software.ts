@@ -143,11 +143,11 @@ export interface ISoftwareTitle {
   icon_url: string | null;
   versions_count: number;
   source: SoftwareSource;
+  extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
-  extension_for?: ExtensionForType;
 }
 
 export interface ISoftwareTitleDetails {
@@ -157,11 +157,11 @@ export interface ISoftwareTitleDetails {
   software_package: ISoftwarePackage | null;
   app_store_app: IAppStoreApp | null;
   source: SoftwareSource;
+  extension_for?: SoftwareExtensionFor;
   hosts_count: number;
   versions: ISoftwareTitleVersion[] | null;
   counts_updated_at?: string;
   bundle_identifier?: string;
-  extension_for?: ExtensionForType;
   versions_count?: number;
 }
 
@@ -183,7 +183,7 @@ export interface ISoftwareVersion {
   version: string; // e.g., "2.1.11"
   bundle_identifier?: string; // e.g., "com.figma.Desktop"
   source: SoftwareSource;
-  extension_for: ExtensionForType;
+  extension_for: SoftwareExtensionFor;
   release: string; // TODO: on software/verions/:id?
   vendor: string;
   arch: string; // e.g., "x86_64" // TODO: on software/verions/:id?
@@ -267,14 +267,16 @@ const EXTENSION_FOR_TYPE_CONVERSION = {
   cursor: "Cursor",
 } as const;
 
-export type ExtensionForType = keyof typeof EXTENSION_FOR_TYPE_CONVERSION | "";
+export type SoftwareExtensionFor =
+  | keyof typeof EXTENSION_FOR_TYPE_CONVERSION
+  | "";
 
 export const formatSoftwareType = ({
   source,
   extension_for,
 }: {
   source: SoftwareSource;
-  extension_for?: ExtensionForType;
+  extension_for?: SoftwareExtensionFor;
 }) => {
   let type: string = SOURCE_TYPE_CONVERSION[source] || "Unknown";
   if (extension_for) {
@@ -440,8 +442,8 @@ export interface IHostSoftware {
   software_package: IHostSoftwarePackage | null;
   app_store_app: IHostAppStoreApp | null;
   source: SoftwareSource;
+  extension_for?: SoftwareExtensionFor;
   bundle_identifier?: string;
-  extension_for?: ExtensionForType;
   status: Exclude<SoftwareInstallStatus, "uninstalled"> | null;
   installed_versions: ISoftwareInstallVersion[] | null;
 }

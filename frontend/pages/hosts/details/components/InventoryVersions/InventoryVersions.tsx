@@ -3,7 +3,7 @@ import React from "react";
 import { dateAgo } from "utilities/date_format";
 
 import {
-  ExtensionForType,
+  SoftwareExtensionFor,
   formatSoftwareType,
   INSTALLABLE_SOURCE_PLATFORM_CONVERSION,
   IHostSoftware,
@@ -41,8 +41,8 @@ const baseClass = "inventory-versions";
 interface IInventoryVersionProps {
   version: ISoftwareInstallVersion;
   source: SoftwareSource;
+  extension_for?: SoftwareExtensionFor;
   bundleIdentifier?: string;
-  extension_for?: ExtensionForType;
 }
 
 const InventoryVersion = ({

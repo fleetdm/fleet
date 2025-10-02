@@ -1,4 +1,4 @@
-import { formatSoftwareType, ExtensionForType } from "./software";
+import { formatSoftwareType, SoftwareExtensionFor } from "./software";
 
 describe("formatSoftwareType", () => {
   describe("basic source type conversion", () => {
@@ -178,7 +178,7 @@ describe("formatSoftwareType", () => {
       expect(
         formatSoftwareType({
           source: "chrome_extensions",
-          extension_for: "unknown_browser" as ExtensionForType,
+          extension_for: "unknown_browser" as SoftwareExtensionFor,
         })
       ).toBe("Browser plugin (Unknown Browser)");
     });
@@ -187,7 +187,7 @@ describe("formatSoftwareType", () => {
       expect(
         formatSoftwareType({
           source: "vscode_extensions",
-          extension_for: "unknown_editor" as ExtensionForType,
+          extension_for: "unknown_editor" as SoftwareExtensionFor,
         })
       ).toBe("IDE extension (Unknown Editor)");
     });
