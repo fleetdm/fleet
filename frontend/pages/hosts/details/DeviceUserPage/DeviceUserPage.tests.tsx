@@ -138,6 +138,7 @@ describe("Device User Page", () => {
   describe("Setup experience software installation", () => {
     const REGULAR_DUP_MATCHER = /Last fetched/;
     const SETTING_UP_YOUR_DEVICE_MATCHER = /Setting up your device/;
+    const CONFIG_COMPLETE_MATCHER = /Configuration complete/;
 
     const setupTest = async (
       deviceUserResponseOverrides?: Partial<IDeviceUserResponse>,
@@ -218,9 +219,29 @@ describe("Device User Page", () => {
         { query: { setup_only: "1" } }
       );
       await waitFor(() => {
-        expect(
-          screen.getByText(SETTING_UP_YOUR_DEVICE_MATCHER)
-        ).toBeInTheDocument();
+        expect(screen.getByText(CONFIG_COMPLETE_MATCHER)).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();
+    });
+    it("checks for setup experience items on Fleet Premium, and renders Setting Up Your Device when all steps are complete if setup_only=1 is in the query", async () => {
+      const host = createMockHost() as IHostDevice;
+      host.platform = "linux";
+
+      await setupTest(
+        { host },
+        {
+          setup_experience_results: {
+            software: [
+              { type: "software_installer", name: "step 1", status: "success" },
+            ],
+            scripts: [{ type: "script", name: "step 2", status: "failure" }],
+          },
+        },
+        { query: { setup_only: "1" } }
+      );
+      await waitFor(() => {
+        expect(screen.getByText(CONFIG_COMPLETE_MATCHER)).toBeInTheDocument();
       });
 
       expect(screen.queryByText(REGULAR_DUP_MATCHER)).toBeNull();

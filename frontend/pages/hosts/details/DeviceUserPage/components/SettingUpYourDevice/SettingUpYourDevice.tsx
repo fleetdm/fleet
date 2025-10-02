@@ -4,6 +4,8 @@ import React from "react";
 import InfoButton from "../InfoButton";
 import SetupStatusTable from "./SetupStatusTable";
 
+import { hasRemainingSetupSteps } from "../../helpers";
+
 const baseClass = "setting-up-your-device";
 
 interface ISettingUpYourDevice {
@@ -15,22 +17,19 @@ const SettingUpYourDevice = ({
   setupSteps,
   toggleInfoModal,
 }: ISettingUpYourDevice) => {
-  const stepsAllComplete = setupSteps.every(
-    (step) => step.status !== "pending" && step.status !== "running"
-  );
   let title;
   let message;
-  if (stepsAllComplete) {
-    title = "Configuration complete";
-    message =
-      "Your computer has been successfully configured. Setup will continue momentarily.";
-  } else {
+  if (hasRemainingSetupSteps(setupSteps)) {
     title = "Setting up your device...";
     message = `
       Your computer is currently being configured by your organization.
       Please don&apos;t attempt to restart or shut down the computer unless
       prompted to do so.
     `;
+  } else {
+    title = "Configuration complete";
+    message =
+      "Your computer has been successfully configured. Setup will continue momentarily.";
   }
 
   return (
