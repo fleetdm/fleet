@@ -54,8 +54,8 @@ Fleet is successful because of our customers and community, and those relationsh
 | SWAG                                 | <sup><sub>_See [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
-| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Onboarding and training              | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
+| Payroll and benefits                 | <sup><sub>_See [🧑‍🚀 Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
 | Information technology (IT)          | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Internal tools & equipment           | <sup><sub>_See [🌐 IT & Enablement](https://fleetdm.com/handbook/it-and-enablement#team)_</sup></sub>
 | Bookkeeping, AR/AP                   | <sup><sub>_See [💸 Finance](https://fleetdm.com/handbook/finance#team)_</sup></sub>
@@ -218,7 +218,7 @@ There are [several special email addresses](https://docs.google.com/document/d/1
 Fleet uses these levels to standardize a commitment to minimal esotericism across the company.  
 - **Public:**   _Share with anyone, anywhere in the world_
 - **Confidential:**  _Share only with team members who've signed an NDA, consulting agreement, or employment agreement_
-- **Classified:**  _Share only with the CEO, Executive Assitant, Interim Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
+- **Classified:**  _Share only with the CEO, Executive Assitant, Head of People, Head of Digital Workplace & GTM Systems, and/or the people involved.  e.g., US social security numbers during hiring_
 
 
 ### Document titles
@@ -227,7 +227,7 @@ Fleet uses these levels to standardize a commitment to minimal esotericism acros
 - **"Public":** _(Available to public)_ 
 - _(Confidential - for Fleet eyes only)_     
 - **"¶":** _(E-group - Direct reports the the CEO)_
-- **"¶¶":** _(Classified - CEO, Executive Assistant, Interim Head of People, and Head of Digital Workplace & GTM Systems)_
+- **"¶¶":** _(Classified - CEO, Executive Assistant, Head of People, and Head of Digital Workplace & GTM Systems)_
 
 
 ## Company database
@@ -857,7 +857,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 
 #### Compensation changes
 
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
 
 
 #### Exercise stock options
