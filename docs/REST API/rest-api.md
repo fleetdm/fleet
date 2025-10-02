@@ -39,7 +39,7 @@ This page includes a list of available resources and their API routes.
 
 ### Retrieve your API token
 
-All API requests to the Fleet server require API token and/or Fleet Desktop token authentication unless noted in the documentation. API tokens are tied to a Fleet user account. Fleet Desktop tokens are tied to a host and [rotate every hour](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop).
+All API requests to the Fleet server require API token authentication unless noted in the documentation. API tokens are tied to your Fleet user account.
 
 To get an API token, retrieve it from "My account" > "Get API token" in the Fleet UI (`/profile`). Or, you can send a request to the [login API endpoint](#log-in) to get your token.
 
@@ -47,12 +47,6 @@ Then, use that API token to authenticate all subsequent API requests by sending 
 
 ```http
 Authorization: Bearer <your token>
-```
-
-Fleet Desktop tokens are located locally in `/opt/orbit/identifier` on macOS and Linux hosts and `C:\Program Files\Orbit\identifier` on Windows hosts. You can use the token to authenticate API requests by attatching it to the end of the URL:
-
-```
-`POST /api/v1/fleet/certificate_authorities/:id/request_certificate/:fleet_desktop_token`
 ```
 
 > For SSO and MFA users, email/password login is disabled. The API token can instead be retrieved from the "My account" page in the UI (/profile). On this page, choose "Get API token".
@@ -868,11 +862,16 @@ Requests a base64 encoded certificate (`.pem`). Currently, this endpoint is only
 
 `POST /api/v1/fleet/certificate_authorities/:id/request_certificate`
 
+OR
+
+`POST /api/v1/fleet/device/:token/certificate_authorities/:id/request_certificate`
+
 #### Parameters
 
 | Name     | Type    | In   | Description                                 |
 | -------- | ------- | ---- | ------------------------------------------- |
-| id   | integer | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
+| token   | string | path | A host's [Fleet Desktop token](https://fleetdm.com/guides/fleet-desktop#secure-fleet-desktop). If specified, [API token authentication](https://fleetdm.com/docs/rest-api/rest-api#retrieve-your-api-token) isn't required. |
+| id   | string | path | **Required.** The certificate authority (CA) ID in Fleet. You can see your CAs IDs using the [List certificate authorities endpoint](#list-certificate-authorities-cas). |
 | csr       | string | body |**Required** The signed certificate signing request (CSR).    |
 | idp_oauth_url | string | body | OAuth introspection URL from your identity provider (IdP). Required if `idp_token` is specified. |
 | idp_token | string | body | Active session token from your identity provider (IdP). Required if `idp_oauth_url` is specified.|
