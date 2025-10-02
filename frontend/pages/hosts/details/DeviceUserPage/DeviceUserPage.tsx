@@ -10,6 +10,7 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -332,7 +333,11 @@ const DeviceUserPage = ({
     data: setupStepStatuses,
     isLoading: isLoadingSetupSteps,
     isError: isErrorSetupSteps,
-  } = useQuery<ISetupStep[], Error, ISetupStep[] | null | undefined>(
+  } = useQuery<
+    IGetSetupExperienceStatusesResponse,
+    Error,
+    ISetupStep[] | null | undefined
+  >(
     ["software-setup-statuses", deviceAuthToken],
     () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
     {
@@ -340,6 +345,20 @@ const DeviceUserPage = ({
       enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
       refetchInterval: (data) => (hasRemainingSetupSteps(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
+      select: (response) => {
+        // Marshal the response to include a `type` property so we can differentiate
+        // between software and script setup steps in the UI.
+        return [
+          ...(response.setup_experience_results.software ?? []).map((s) => ({
+            ...s,
+            type: "software" as const,
+          })),
+          ...(response.setup_experience_results.scripts ?? []).map((s) => ({
+            ...s,
+            type: "script" as const,
+          })),
+        ];
+      },
     }
   );
 

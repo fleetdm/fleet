@@ -15,5 +15,5 @@ export type SetupStepType = typeof SETUP_STEP_TYPES[number];
 export interface ISetupStep {
   name: string | null;
   status: SetupStepStatus;
-  type: SetupStepType;
+  type?: SetupStepType;
 }

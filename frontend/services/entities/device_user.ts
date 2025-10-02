@@ -176,23 +176,10 @@ export default {
 
   getSetupExperienceStatuses: ({
     token,
-  }: IGetSetupExperienceStatusesParams): Promise<ISetupStep[]> => {
+  }: IGetSetupExperienceStatusesParams): Promise<IGetSetupExperienceStatusesResponse> => {
     const { DEVICE_SETUP_EXPERIENCE_STATUSES } = endpoints;
     const path = DEVICE_SETUP_EXPERIENCE_STATUSES(token);
-    return sendRequest("POST", path).then(
-      (response: IGetSetupExperienceStatusesResponse) => {
-        return [
-          ...(response.setup_experience_results.software ?? []).map((s) => ({
-            ...s,
-            type: "software" as const,
-          })),
-          ...(response.setup_experience_results.scripts ?? []).map((s) => ({
-            ...s,
-            type: "script" as const,
-          })),
-        ];
-      }
-    );
+    return sendRequest("POST", path);
   },
 
   resendProfile: (deviceToken: string, profileUUID: string) => {
