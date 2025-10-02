@@ -4,7 +4,7 @@
   hosts:
     - "653" # George
     - "1308" # Marko
-    #- "-" # Carlo
+    - "1419" # Carlo
     - "924" # Jahziel
     - "1429" # Rachel
     - "841" # Jonathan
