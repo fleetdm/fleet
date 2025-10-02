@@ -1051,6 +1051,19 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		POST("/api/_version_/fleet/mdm/sso", initiateMDMSSOEndpoint, initiateMDMSSORequest{})
 	ne.WithCustomMiddleware(mdmSsoLimiter).
 		POST("/api/_version_/fleet/mdm/sso/callback", callbackMDMSSOEndpoint, callbackMDMSSORequest{})
+
+	// Okta device health SAML IdP endpoints (Okta conditional access POC)
+	// These are raw HTTP handlers because they need to serve SAML XML/responses directly
+	oktaDeviceHealthLogger := kitlog.With(logger, "component", "okta-device-health")
+	oktaBaseURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_URL")
+	if oktaBaseURL == "" {
+		level.Error(oktaDeviceHealthLogger).Log("msg", "FLEET_CONDITIONAL_ACCESS_URL is not set, Okta device health WILL NOT WORK")
+	}
+	r.Handle("/api/v1/fleet/okta/device_health/metadata",
+		makeOktaDeviceHealthMetadataHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
+	r.Handle("/api/v1/fleet/okta/device_health/sso",
+		makeOktaDeviceHealthSSOHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
+
 }
 
 // WithSetup is an http middleware that checks if setup procedures have been completed.
