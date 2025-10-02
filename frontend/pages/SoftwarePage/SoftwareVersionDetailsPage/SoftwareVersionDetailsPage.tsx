@@ -22,6 +22,7 @@ import {
   ISoftwareVersion,
   formatSoftwareType,
   isIpadOrIphoneSoftwareSource,
+  isAndroidSoftwareSource,
 } from "interfaces/software";
 import { ignoreAxiosError } from "interfaces/errors";
 
@@ -118,9 +119,17 @@ const SoftwareVersionDetailsPage = ({
   );
 
   const renderVulnTable = (swVersion: ISoftwareVersion) => {
-    if (isIpadOrIphoneSoftwareSource(swVersion.source)) {
-      const platformText = swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
-      return <VulnsNotSupported platformText={platformText} />;
+    if (
+      isIpadOrIphoneSoftwareSource(swVersion.source) ||
+      isAndroidSoftwareSource(swVersion.source)
+    ) {
+      const platformText = () => {
+        if (isAndroidSoftwareSource(swVersion.source)) {
+          return "Android";
+        }
+        return swVersion.source === "ios_apps" ? "iOS" : "iPadOS";
+      };
+      return <VulnsNotSupported platformText={platformText()} />;
     }
     return (
       <SoftwareVulnerabilitiesTable
