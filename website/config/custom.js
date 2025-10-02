@@ -421,6 +421,9 @@ module.exports.custom = {
     excludeWeekends: true
   },
 
+  // Docsearch search-only public key.
+  algoliaPublicKey: 'f3c02b646222734376a5e94408d6fead',// [?]: https://docsearch.algolia.com/docs/legacy/faq/#can-i-share-the-apikey-in-my-repo
+
   // Zapier:
   // zapierWebhookSecret: '…',
 
