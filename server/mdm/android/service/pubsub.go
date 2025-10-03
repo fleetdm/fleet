@@ -213,20 +213,22 @@ func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanag
 			continue
 		}
 		sw := fleet.Software{
-			Name:             truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
-			Version:          truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
-			BundleIdentifier: truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength),
-			Source:           "android_apps",
-			Installed:        true,
+			Name:          truncateString(app.DisplayName, fleet.SoftwareNameMaxLength),
+			Version:       truncateString(app.VersionName, fleet.SoftwareVersionMaxLength),
+			ApplicationID: truncateString(app.PackageName, fleet.SoftwareBundleIdentifierMaxLength),
+			Source:        "android_apps",
+			Installed:     true,
 		}
 		software = append(software, sw)
 	}
 	// TODO better way to access this?
-	baseDS, ok := svc.ds.(fleet.Datastore)
-	if !ok {
-		return ctxerr.New(ctx, "failed to type assert datastore")
-	}
-	_, err := baseDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+	fmt.Printf("svc.ds: %T\n", svc.ds)
+	// baseDS, ok := svc.ds.(fleet.Datastore)
+	// if !ok {
+	// 	return ctxerr.New(ctx, "failed to type assert datastore")
+	// }
+	fmt.Printf("software: %v\n", software)
+	_, err := svc.ogDS.UpdateHostSoftware(ctx, host.Host.ID, software)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating Android host software")
 	}

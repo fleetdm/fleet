@@ -113,16 +113,9 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "android_enterprises")
-		mysql.DumpTable(t, q, "mdm_config_assets")
-		mysql.DumpTable(t, q, "enroll_secrets")
-		mysql.DumpTable(t, q, "android_devices")
-		return nil
-	})
-
+	device := CreateAndroidDevice(t, enterpriseSpecificID, "test-android", CreateAndroidDeviceID("test-policy"), ptr.Int(1), nil)
 	req = service.PubSubPushRequest{
-		PubSubMessage: CreateStatusReportMessage(t, enterpriseSpecificID, "test-android", CreateAndroidDeviceID("test-policy"), ptr.Int(1), nil),
+		PubSubMessage: CreateStatusReportMessageFromDevice(t, device),
 	}
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
@@ -132,7 +125,17 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		var software []*fleet.Software
 		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, source FROM software")
 		require.NoError(t, err)
-		fmt.Printf("software: %v\n", software)
+		assert.Len(t, software, len(device.ApplicationReports))
+
+		return nil
+	})
+
+	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "android_enterprises")
+		mysql.DumpTable(t, q, "mdm_config_assets")
+		mysql.DumpTable(t, q, "enroll_secrets")
+		mysql.DumpTable(t, q, "android_devices")
+		mysql.DumpTable(t, q, "software_titles")
 		return nil
 	})
 }

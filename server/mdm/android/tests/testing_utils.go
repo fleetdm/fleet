@@ -113,7 +113,7 @@ func (ts *WithServer) SetupSuite(t *testing.T, dbName string) {
 	ts.createCommonProxyMocks(t)
 
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
-	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key")
+	svc, err := service.NewServiceWithClient(logger, &ts.DS, &ts.AndroidAPIClient, &ts.FleetSvc, "test-private-key", ts.DS.Datastore)
 	require.NoError(t, err)
 	ts.Svc = svc
 
@@ -302,8 +302,8 @@ func CreateAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
-func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
-	device := androidmanagement.Device{
+func CreateAndroidDevice(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) androidmanagement.Device {
+	return androidmanagement.Device{
 		Name:                 CreateAndroidDeviceID(name),
 		NonComplianceDetails: nonComplianceDetails,
 		HardwareInfo: &androidmanagement.HardwareInfo{
@@ -328,9 +328,12 @@ func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, 
 			DisplayName: "Google Chrome",
 			PackageName: "com.google.chrome",
 			VersionName: "1.0.0",
+			State:       "INSTALLED",
 		}},
 	}
+}
 
+func CreateStatusReportMessageFromDevice(t *testing.T, device androidmanagement.Device) android.PubSubMessage {
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 
@@ -342,4 +345,9 @@ func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, 
 		},
 		Data: encodedData,
 	}
+}
+
+func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	return CreateStatusReportMessageFromDevice(t, CreateAndroidDevice(t, deviceId, name, policyName, policyVersion, nonComplianceDetails))
+
 }

@@ -41,6 +41,7 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
+	ogDS             fleet.Datastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
 	serverPrivateKey string
@@ -58,9 +59,10 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
+	ogDS fleet.Datastore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, ogDS)
 }
 
 func NewServiceWithClient(
@@ -69,6 +71,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 	serverPrivateKey string,
+	ogDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -83,6 +86,7 @@ func NewServiceWithClient(
 		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
+		ogDS:              ogDS,
 	}, nil
 }
 
