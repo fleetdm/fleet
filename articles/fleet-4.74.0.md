@@ -24,7 +24,7 @@ A new page gives you a full view of all batch scripts that are scheduled or runn
 
 ### Linux setup experience
 
-You can now install required software as part of your Linux setup process and show live progress to the end user. This ensures new Linux workstations are ready for day one, with less needing manual setup. Learn more in the [Linux setup experience guide](TODO).
+You can now install required software as part of your Linux setup process and show live progress to the end user. This ensures new Linux workstations are ready for day one, with less needing manual setup. Learn more in the [Linux setup experience guide](https://fleetdm.com/guides/windows-linux-setup-experience).
 
 ### Self-service software intructions
 
