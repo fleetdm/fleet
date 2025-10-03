@@ -12,13 +12,18 @@ func init() {
 func Up_20251003094629(tx *sql.Tx) error {
 	_, err := tx.Exec(`ALTER TABLE software_titles ADD COLUMN application_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
 	if err != nil {
-		return fmt.Errorf("failed to add software_titles.is_kernel column: %w", err)
+		return fmt.Errorf("failed to add software_titles.application_id column: %w", err)
+	}
+
+	_, err = tx.Exec(`ALTER TABLE software ADD COLUMN application_id VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL`)
+	if err != nil {
+		return fmt.Errorf("failed to add software.application_id column: %w", err)
 	}
 
 	// Drop the column to update the definition
 	_, err = tx.Exec(`ALTER TABLE software_titles DROP COLUMN unique_identifier`)
 	if err != nil {
-		return fmt.Errorf("failed to add software_titles.is_kernel column: %w", err)
+		return fmt.Errorf("failed to drop softwre_titles.unique_identifier column: %w", err)
 	}
 
 	_, err = tx.Exec(`
