@@ -1136,6 +1136,57 @@ func main() {
 		)
 		orbitClient.RegisterConfigReceiver(scriptConfigReceiver)
 
+		var trw *token.ReadWriter
+		var deviceClient *service.DeviceClient
+		// Note that the deviceClient used by orbit must not define a retry on
+		// invalid token, because its goal is to detect invalid tokens when
+		// making requests with this client.
+		deviceClient, err = service.NewDeviceClient(
+			fleetURL,
+			c.Bool("insecure"),
+			c.String("fleet-certificate"),
+			fleetClientCertificate,
+			c.String("fleet-desktop-alternative-browser-host"),
+		)
+		if err != nil {
+			return fmt.Errorf("initializing client: %w", err)
+		}
+
+		// Create a new token read/writer that will store the token on disk.
+		// This token will be used to identify this desktop to the Fleet server.
+		trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName), deviceClient.CheckToken)
+		if err := trw.LoadOrGenerate(); err != nil {
+			return fmt.Errorf("initializing token read writer: %w", err)
+		}
+
+		// we enable remote updates only if the server supports them by setting
+		// this function.
+		trw.SetRemoteUpdateFunc(
+			func(token string) error {
+				return orbitClient.SetOrUpdateDeviceToken(token)
+			},
+		)
+
+		// Check if the token is not expired and still good.
+		// If not, rotate the token iff the server is reachable.
+		if serverIsReachable {
+			expired, _ := trw.HasExpired()
+			if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
+				if err := trw.Rotate(); err != nil {
+					return fmt.Errorf("rotating token: %w", err)
+				}
+			}
+		}
+
+		if c.Bool("fleet-desktop") {
+			// Ensure that the token rotation checker is started,
+			// so that we have a valid token to launch the
+			// My Device page.
+			//
+			// Note that we leave this running forever.
+			trw.StartRotation()
+		}
+
 		switch runtime.GOOS {
 		case "darwin":
 			orbitClient.RegisterConfigReceiver(update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(
@@ -1144,7 +1195,7 @@ func main() {
 			orbitClient.RegisterConfigReceiver(update.ApplyNudgeConfigReceiverMiddleware(update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			}))
-			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, c.String("root-dir"))
+			setupExperiencer := setupexperience.NewSetupExperiencer(orbitClient, deviceClient, c.String("root-dir"), trw)
 			orbitClient.RegisterConfigReceiver(setupExperiencer)
 			orbitClient.RegisterConfigReceiver(update.ApplySwiftDialogDownloaderMiddleware(updateRunner))
 
@@ -1231,111 +1282,6 @@ func main() {
 			execute:   orbitClient.ExecuteConfigReceivers,
 			interrupt: orbitClient.InterruptConfigReceivers,
 		})
-
-		var trw *token.ReadWriter
-		var deviceClient *service.DeviceClient
-		if c.Bool("fleet-desktop") {
-			trw = token.NewReadWriter(filepath.Join(c.String("root-dir"), constant.DesktopTokenFileName))
-			if err := trw.LoadOrGenerate(); err != nil {
-				return fmt.Errorf("initializing token read writer: %w", err)
-			}
-
-			log.Info().Msg("token rotation is enabled")
-
-			// we enable remote updates only if the server supports them by setting
-			// this function.
-			trw.SetRemoteUpdateFunc(
-				func(token string) error {
-					return orbitClient.SetOrUpdateDeviceToken(token)
-				},
-			)
-
-			// Note that the deviceClient used by orbit must not define a retry on
-			// invalid token, because its goal is to detect invalid tokens when
-			// making requests with this client.
-			deviceClient, err = service.NewDeviceClient(
-				fleetURL,
-				c.Bool("insecure"),
-				c.String("fleet-certificate"),
-				fleetClientCertificate,
-				c.String("fleet-desktop-alternative-browser-host"),
-			)
-			if err != nil {
-				return fmt.Errorf("initializing client: %w", err)
-			}
-
-			// Check if the token is not expired and still good.
-			// If not, rotate the token iff the server is reachable.
-			if serverIsReachable {
-				expired, _ := trw.HasExpired()
-				if expired || deviceClient.CheckToken(trw.GetCached()) != nil {
-					if err := trw.Rotate(); err != nil {
-						return fmt.Errorf("rotating token: %w", err)
-					}
-				}
-			}
-
-			go func() {
-				// This timer is used to check if the token should be rotated if at
-				// least one hour has passed since the last modification of the token
-				// file.
-				//
-				// This is better than using a ticker that ticks every hour because the
-				// we can't ensure the tick actually runs every hour (eg: the computer is
-				// asleep).
-				localCheckDuration := 30 * time.Second
-				localCheckTicker := time.NewTicker(localCheckDuration)
-				defer localCheckTicker.Stop()
-
-				// This timer is used to periodically check if the token is valid. The
-				// server might deem a toked as invalid for reasons out of our control,
-				// for example if the database is restored to a back-up or if somebody
-				// manually invalidates the token in the db.
-				remoteCheckDuration := 5 * time.Minute
-				remoteCheckTicker := time.NewTicker(remoteCheckDuration)
-				defer remoteCheckTicker.Stop()
-
-				for {
-					select {
-					case <-localCheckTicker.C:
-						localCheckTicker.Reset(localCheckDuration)
-
-						log.Debug().Msgf("initiating local token check, cached mtime: %s", trw.GetMtime())
-						hasChanged, err := trw.HasChanged()
-						if err != nil {
-							log.Error().Err(err).Msg("error checking if token has changed")
-						}
-
-						exp, remain := trw.HasExpired()
-
-						// rotate if the token file has been modified, if the token is
-						// expired or if it is very close to expire.
-						if hasChanged || exp || remain <= time.Second {
-							log.Info().Msg("token TTL expired, rotating token")
-
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
-							}
-						} else if remain > 0 && remain < localCheckDuration {
-							// check again when the token will expire, which will happen
-							// before the next rotation check
-							localCheckTicker.Reset(remain)
-							log.Debug().Msgf("token will expire soon, checking again in: %s", remain)
-						}
-
-					case <-remoteCheckTicker.C:
-						log.Debug().Msgf("initiating remote token check after %s", remoteCheckDuration)
-						if err := deviceClient.CheckToken(trw.GetCached()); err != nil {
-							log.Info().Err(err).Msg("periodic check of token failed, initiating rotation")
-
-							if err := trw.Rotate(); err != nil {
-								log.Error().Err(err).Msg("error rotating token")
-							}
-						}
-					}
-				}
-			}()
-		}
 
 		// On Windows, where augeas doesn't work, we have a stubbed CopyLenses that always returns
 		// `"", nil`. Therefore there's no platform-specific stuff required here
