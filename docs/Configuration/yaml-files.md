@@ -438,6 +438,21 @@ The `macos_migration` section lets you control the [end user migration workflow]
 
 Can only be configured for all teams (`default.yml`).
 
+## vulnerabilities
+
+```yaml
+vulnerabilities:
+  dismissed:
+    - cve: CVE-2025-23432
+      reason: dkdkda
+      notes:
+      owner:
+    - cve: CVE-2025-23432
+      reason: dkdkda
+      notes:
+      owner:
+```
+
 ## software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
