@@ -13,11 +13,10 @@ import {
 } from "pages/SoftwarePage/SoftwareTitles/SoftwareTable/helpers";
 
 import {
-  ApplePlatform,
-  APPLE_PLATFORM_DISPLAY_NAMES,
   HostPlatform,
-  isIPadOrIPhone,
   isAndroid,
+  PLATFORM_DISPLAY_NAMES,
+  isVulnUnsupportedPlatform,
 } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
@@ -52,11 +51,9 @@ interface IEmptyComponentProps {
 const EmptyComponent = React.memo(
   ({ hasVulnFilters, platform, searchQuery }: IEmptyComponentProps) => {
     const vulnFilterAndNotSupported =
-      hasVulnFilters && isIPadOrIPhone(platform);
+      hasVulnFilters && isVulnUnsupportedPlatform(platform);
     return vulnFilterAndNotSupported ? (
-      <VulnsNotSupported
-        platformText={APPLE_PLATFORM_DISPLAY_NAMES[platform as ApplePlatform]}
-      />
+      <VulnsNotSupported platformText={PLATFORM_DISPLAY_NAMES[platform]} />
     ) : (
       <EmptySoftwareTable noSearchQuery={searchQuery === ""} />
     );

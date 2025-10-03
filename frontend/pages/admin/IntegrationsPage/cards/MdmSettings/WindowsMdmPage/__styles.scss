@@ -1,16 +1,7 @@
 .windows-mdm-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
-
-  h1 {
-    margin-bottom: $pad-large;
-    font-size: $large;
-  }
+  @include vertical-page-layout;
 
   form {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
+    @include vertical-form-layout;
   }
 }
