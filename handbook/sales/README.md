@@ -76,7 +76,7 @@ Once a week, during the "🤝❌ Closed (for now) opportunity review" meeting, t
 4. The CRO will paste a screenshot of the progress toward the goal and the actionable next steps from the [🤝❌ Closed (for now) opportunity review (confidential doc)](https://docs.google.com/document/d/12cXSZAervdpAuOImN0Lx0B9n-uYND_tzmPbFr4gMwkU/edit?tab=t.0) in the [#g-unicorns Slack channel](https://fleetdm.slack.com/archives/C08BTMFTUCR). 
 
 
-### Send a subscription quote
+### Send a subscription quote (for a reseller)
 
 Reseller partners occasionally reach out and ask Fleet for a quote on behalf of customers. Use the following steps to provide a subscription quote:
 1. Navigate to the [Google Docs template gallery](https://docs.google.com/document/u/0/?ftv=1&tgif=d) and make a copy of the "TEMPLATE - 3EYE - Subscription quote" document.
@@ -86,7 +86,7 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
 
-### Send an order form
+### Send an order form (including a quote for a direct sale)
 
 In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
 
