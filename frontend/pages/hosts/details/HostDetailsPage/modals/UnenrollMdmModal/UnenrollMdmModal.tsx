@@ -4,25 +4,32 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import { NotificationContext } from "context/notification";
+import CustomLink from "components/CustomLink";
 
 import mdmAPI from "services/entities/mdm";
 import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
+import {
+  isBYODAccountDrivenEnrollment,
+  isBYODManualEnrollment,
+  isBYODCompanyOwnedEnrollment,
+  MdmEnrollmentStatus,
+} from "interfaces/mdm";
+
+const baseClass = "unenroll-mdm-modal";
 
 interface IUnenrollMdmModalProps {
   hostId: number;
   hostPlatform: string;
   hostName: string;
-  isBYODEnrollment?: boolean;
+  enrollmentStatus: MdmEnrollmentStatus | null;
   onClose: () => void;
 }
-
-const baseClass = "unenroll-mdm-modal";
 
 const UnenrollMdmModal = ({
   hostId,
   hostPlatform,
   hostName,
-  isBYODEnrollment = false,
+  enrollmentStatus,
   onClose,
 }: IUnenrollMdmModalProps) => {
   const [requestState, setRequestState] = useState<
@@ -66,27 +73,47 @@ const UnenrollMdmModal = ({
     setRequestState(undefined);
   };
 
+  const generateIosOrIpadosDescription = () => {
+    if (isBYODManualEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, invite the end user to{" "}
+          <CustomLink
+            text="enroll a BYOD iPhone or iPad"
+            url="https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts"
+            newTab
+          />
+        </p>
+      );
+    } else if (isBYODAccountDrivenEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, ask your end user to navigate to{" "}
+          <b>
+            Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign in
+            to Work or School Account...
+          </b>{" "}
+          on their host and to log in with their work email.
+        </p>
+      );
+    } else if (isBYODCompanyOwnedEnrollment(enrollmentStatus)) {
+      return (
+        <p>
+          To re-enroll, make sure that the host is still in Apple Business
+          Manager (ABM). The host will automatically enroll after it&apos;s
+          reset.
+        </p>
+      );
+    }
+    return null;
+  };
+
   const generateDescription = () => {
     if (isIPadOrIPhone(hostPlatform)) {
       return (
         <>
           <p>Settings configured by Fleet will be removed.</p>
-          {isBYODEnrollment ? (
-            <p>
-              To re-enroll, ask your end user to navigate to{" "}
-              <b>
-                Settings &gt; General &gt; VPN &amp; Device Management &gt; Sign
-                in to Work or School Account...
-              </b>{" "}
-              on their host and to log in with their work email.
-            </p>
-          ) : (
-            <p>
-              To re-enroll, make sure that the host is still in Apple Business
-              Manager (ABM). The host will automatically enroll after it&apos;s
-              reset.
-            </p>
-          )}
+          {generateIosOrIpadosDescription()}
         </>
       );
     }
