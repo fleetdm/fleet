@@ -4300,6 +4300,23 @@ func (ds *Datastore) GetHostEmails(ctx context.Context, hostUUID string, source 
 	return emails, nil
 }
 
+func (ds *Datastore) HostIDByEmail(ctx context.Context, email string) (uint, error) {
+	stmt := `
+	SELECT host_id
+	FROM host_emails
+	WHERE email = ?
+	LIMIT 1
+	`
+	var hostID uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostID, stmt, email); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, ctxerr.Wrap(ctx, notFound("Host").WithMessage(fmt.Sprintf("with email %s", email)))
+		}
+		return 0, ctxerr.Wrap(ctx, err, "select host id by email")
+	}
+	return hostID, nil
+}
+
 // SetOrUpdateHostDisksSpace sets the available gigs and percentage of the
 // disks for the specified host.
 func (ds *Datastore) SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {

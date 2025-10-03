@@ -1,4 +1,4 @@
-package service
+package okta
 
 import (
 	"crypto"
@@ -16,6 +16,20 @@ import (
 	"github.com/go-kit/log/level"
 	dsig "github.com/russellhaering/goxmldsig"
 )
+
+// Service handles Okta conditional access integration
+type Service struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+}
+
+// NewService creates a new Okta service
+func NewService(ds fleet.Datastore, logger kitlog.Logger) *Service {
+	return &Service{
+		ds:     ds,
+		logger: logger,
+	}
+}
 
 // kitlogAdapter adapts kitlog.Logger to saml logger.Interface
 type kitlogAdapter struct {
@@ -176,35 +190,196 @@ FqU+KJOed6qlzj7qy+u5l6CQeajLGdjUxFlFyw==</ds:X509Certificate></ds:X509Data></ds:
 
 // oktaDeviceHealthSessionProvider implements saml.SessionProvider
 type oktaDeviceHealthSessionProvider struct {
-	svc fleet.Service
+	svc *Service
 }
 
 func (o *oktaDeviceHealthSessionProvider) GetSession(w http.ResponseWriter, r *http.Request, req *saml.IdpAuthnRequest) *saml.Session {
+	ctx := r.Context()
+
 	// Extract email from request
 	email := ""
 	if req.Request.Subject != nil && req.Request.Subject.NameID != nil {
 		email = req.Request.Subject.NameID.Value
 	}
 
-	// Phase 1: Always return valid session (always pass)
+	// Phase 2: Look up device by user email and check policies
+	if email == "" {
+		// No email provided, deny access
+		o.renderRemediationPage(w, "No Email Provided", "Your account does not have an email address associated with it.", nil)
+		return nil
+	}
+
+	// Look up host ID by email
+	hostID, err := o.svc.ds.HostIDByEmail(ctx, email)
+	if err != nil {
+		// No host found for this email, deny access
+		o.renderRemediationPage(w, "Device Not Found", fmt.Sprintf("No device found for email: %s", email), nil)
+		return nil
+	}
+
+	// Get full host record
+	host, err := o.svc.ds.Host(ctx, hostID)
+	if err != nil {
+		// Host not found, deny access
+		o.renderRemediationPage(w, "Device Error", "Unable to retrieve device information.", nil)
+		return nil
+	}
+
+	// Check device health policies
+	// For Phase 2: Check if device has any failing policies
+	health, err := o.svc.ds.GetHostHealth(ctx, host.ID)
+	if err != nil {
+		// Cannot determine health, deny access
+		o.renderRemediationPage(w, "Health Check Failed", "Unable to determine device health status.", nil)
+		return nil
+	}
+
+	// If device has failing policies, get the details and show remediation
+	if health.FailingPoliciesCount > 0 {
+		policies, err := o.svc.ds.ListPoliciesForHost(ctx, host)
+		if err != nil {
+			o.renderRemediationPage(w, "Policy Check Failed", "Unable to retrieve policy information.", nil)
+			return nil
+		}
+
+		// Filter to only failing policies
+		var failingPolicies []*fleet.HostPolicy
+		for _, policy := range policies {
+			if policy.Response == "fail" {
+				failingPolicies = append(failingPolicies, policy)
+			}
+		}
+
+		o.renderRemediationPage(w, "Device health check failed",
+			fmt.Sprintf("Your device has %d failing policy check(s). Please resolve the issues below:", len(failingPolicies)),
+			failingPolicies)
+		return nil
+	}
+
+	// Device is healthy, allow access
 	return &saml.Session{
 		NameID: email,
 	}
 }
 
-// oktaDeviceHealthSPProvider implements saml.ServiceProviderProvider
-type oktaDeviceHealthSPProvider struct {
-	svc fleet.Service
+func (o *oktaDeviceHealthSessionProvider) renderRemediationPage(w http.ResponseWriter, title, message string, failingPolicies []*fleet.HostPolicy) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusForbidden)
+
+	html := `<!DOCTYPE html>
+<html>
+<head>
+    <title>Device Access Denied</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 40px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #d32f2f;
+            margin-top: 0;
+        }
+        .message {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .policy {
+            border-left: 4px solid #d32f2f;
+            background-color: #ffebee;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .policy-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #d32f2f;
+            margin-bottom: 8px;
+        }
+        .policy-description {
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .policy-resolution {
+            background-color: #fff3cd;
+            border-left: 4px solid #ff9800;
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 4px;
+        }
+        .resolution-title {
+            font-weight: bold;
+            color: #ff6f00;
+            margin-bottom: 5px;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>` + title + `</h1>
+        <div class="message">` + message + `</div>`
+
+	if len(failingPolicies) > 0 {
+		for _, policy := range failingPolicies {
+			html += `
+        <div class="policy">
+            <div class="policy-name">` + policy.Name + `</div>`
+
+			if policy.Description != "" {
+				html += `<div class="policy-description">` + policy.Description + `</div>`
+			}
+
+			if policy.Resolution != nil && *policy.Resolution != "" {
+				html += `
+            <div class="policy-resolution">
+                <div class="resolution-title">How to resolve:</div>
+                ` + *policy.Resolution + `
+            </div>`
+			}
+
+			html += `</div>`
+		}
+	}
+
+	html += `
+        <div class="footer">
+            Once you have resolved these issues, to to Fleet Desktop -> My device, refetch your device, and please try signing in again.
+        </div>
+    </div>
+</body>
+</html>`
+
+	_, _ = w.Write([]byte(html))
 }
 
+// oktaDeviceHealthSPProvider implements saml.ServiceProviderProvider
+type oktaDeviceHealthSPProvider struct{}
+
 func (o *oktaDeviceHealthSPProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
-	// Phase 1: Return hardcoded Okta SP metadata
-	// TODO: Look up from database
+	// Return hardcoded Okta SP metadata
+	// TODO: Look up from database by serviceProviderID
 	return oktaServiceProviderMetadata, nil
 }
 
 // getOktaDeviceHealthIDP creates and configures the SAML IdP
-func getOktaDeviceHealthIDP(svc fleet.Service, baseURL string, logger kitlog.Logger) (*saml.IdentityProvider, error) {
+func (s *Service) getOktaDeviceHealthIDP(baseURL string) (*saml.IdentityProvider, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
@@ -216,11 +391,11 @@ func getOktaDeviceHealthIDP(svc fleet.Service, baseURL string, logger kitlog.Log
 	ssoURL := *u
 	ssoURL.Path = "/api/v1/fleet/okta/device_health/sso"
 
-	sessionProvider := &oktaDeviceHealthSessionProvider{svc: svc}
-	spProvider := &oktaDeviceHealthSPProvider{svc: svc}
+	sessionProvider := &oktaDeviceHealthSessionProvider{svc: s}
+	spProvider := &oktaDeviceHealthSPProvider{}
 
 	// Use kitlog adapter to satisfy saml logger.Interface
-	samlLogger := &kitlogAdapter{logger: kitlog.With(logger, "component", "saml-idp")}
+	samlLogger := &kitlogAdapter{logger: kitlog.With(s.logger, "component", "saml-idp")}
 
 	idp := &saml.IdentityProvider{
 		Key:                     oktaDeviceHealthKey,
@@ -234,40 +409,4 @@ func getOktaDeviceHealthIDP(svc fleet.Service, baseURL string, logger kitlog.Log
 	}
 
 	return idp, nil
-}
-
-// //////////////////////////////////////////////////////////////////////////////
-// GET /api/v1/fleet/okta/device_health/metadata
-// //////////////////////////////////////////////////////////////////////////////
-
-func makeOktaDeviceHealthMetadataHandler(svc fleet.Service, baseURL string, logger kitlog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		idp, err := getOktaDeviceHealthIDP(svc, baseURL, logger)
-		if err != nil {
-			logger.Log("err", "error creating IdP", "details", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		// ServeMetadata writes XML directly to the response
-		idp.ServeMetadata(w, r)
-	}
-}
-
-// //////////////////////////////////////////////////////////////////////////////
-// POST /api/v1/fleet/okta/device_health/sso
-// //////////////////////////////////////////////////////////////////////////////
-
-func makeOktaDeviceHealthSSOHandler(svc fleet.Service, baseURL string, logger kitlog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		idp, err := getOktaDeviceHealthIDP(svc, baseURL, logger)
-		if err != nil {
-			logger.Log("err", "error creating IdP", "details", err)
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		// ServeSSO handles the SAML AuthnRequest and sends back a response
-		idp.ServeSSO(w, r)
-	}
 }
