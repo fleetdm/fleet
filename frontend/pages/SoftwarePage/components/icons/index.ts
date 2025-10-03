@@ -213,7 +213,7 @@ export const getMatchedSoftwareIcon = ({
   if (!Icon) {
     Icon = SOFTWARE_SOURCE_TO_ICON_MAP.package;
   }
-  Icon = SOFTWARE_SOURCE_TO_ICON_MAP.android_apps;
+
   return Icon;
 };
 
