@@ -32,17 +32,8 @@ type softwareTestSuite struct {
 }
 
 func (s *softwareTestSuite) SetupSuite() {
-	s.WithServer.SetupSuite(s.T(), "androidEnterpriseTestSuite")
+	s.WithServer.SetupSuite(s.T(), "androidSoftwareTestSuite")
 	s.Token = "bozo"
-}
-
-func (s *softwareTestSuite) SetupTest() {
-	s.AppConfig.MDM.AndroidEnabledAndConfigured = false
-	s.CreateCommonDSMocks()
-	// Override EnterprisesListFunc to return empty list initially (no enterprises exist)
-	s.AndroidAPIClient.EnterprisesListFunc = func(_ context.Context, _ string) ([]*androidmanagement.Enterprise, error) {
-		return []*androidmanagement.Enterprise{}, nil
-	}
 }
 
 func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
@@ -77,11 +68,8 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	s.DoJSON("GET", "/api/v1/fleet/android_enterprise", nil, http.StatusOK, &resp)
 	assert.Equal(s.T(), EnterpriseID, resp.EnterpriseID)
 
+	// Need to set this because app config is mocked in this setup
 	s.AppConfig.MDM.AndroidEnabledAndConfigured = true
-
-	// rawData, err := os.ReadFile("./testdata/status_report.json")
-	// require.NoError(t, err)
-	// data := base64.StdEncoding.EncodeToString(rawData)
 
 	err = s.DS.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: "enrollsecret"}})
 	require.NoError(t, err)
@@ -140,4 +128,5 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		mysql.DumpTable(t, q, "software_titles")
 		return nil
 	})
+
 }

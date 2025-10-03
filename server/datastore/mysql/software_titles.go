@@ -44,6 +44,7 @@ SELECT
 	st.source,
 	st.browser,
 	st.bundle_identifier,
+	st.application_id,
 	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
@@ -363,6 +364,7 @@ SELECT
 	,st.source
 	,st.browser
 	,st.bundle_identifier
+	,st.application_id
 	,MAX(COALESCE(sthc.hosts_count, 0)) as hosts_count
 	,MAX(COALESCE(sthc.updated_at, date('0001-01-01 00:00:00'))) as counts_updated_at
 	{{if hasTeamID .}}
@@ -386,10 +388,10 @@ FROM software_titles st
 		{{$installerJoin := printf "%s JOIN software_installers si ON si.title_id = st.id AND si.global_or_team_id = %d" (yesNo .PackagesOnly "INNER" "LEFT") (teamID .)}}
 		{{$installerJoin}}
 		LEFT JOIN vpp_apps vap ON vap.title_id = st.id AND {{yesNo .PackagesOnly "FALSE" "TRUE"}}
-		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND 
+		LEFT JOIN vpp_apps_teams vat ON vat.adam_id = vap.adam_id AND vat.platform = vap.platform AND
 			{{if .PackagesOnly}} FALSE {{else}} vat.global_or_team_id = {{teamID .}}{{end}}
 	{{end}}
-	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND 
+	LEFT JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id AND
 		(sthc.team_id = {{teamID .}} AND sthc.global_stats = {{if hasTeamID .}} 0 {{else}} 1 {{end}})
 {{with $softwareJoin := " "}}
 	{{if or $.ListOptions.MatchQuery $.VulnerableOnly}}
@@ -414,7 +416,7 @@ FROM software_titles st
 	{{end}}
 	{{$softwareJoin}}
 {{end}}
-WHERE 
+WHERE
 	{{with $additionalWhere := "TRUE"}}
 		{{if $.ListOptions.MatchQuery}}
 			{{$additionalWhere = "(st.name LIKE ? OR scve.cve LIKE ?)"}}
@@ -436,7 +438,7 @@ WHERE
 		{{end}}
 		AND ({{$defFilter}})
 	{{end}}
-GROUP BY 
+GROUP BY
 	st.id
 	{{if hasTeamID .}}
 		,package_self_service
