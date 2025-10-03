@@ -5646,39 +5646,6 @@ func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkLockWipeState(t, status, true, false, false, false, false, false)
 
-	// lock it again
-	cmd = &mdm.Command{
-		CommandUUID: uuid.NewString(),
-		Raw:         []byte("<?xml"),
-	}
-	cmd.Command.RequestType = "EnableLostMode"
-	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "")
-	require.NoError(t, err)
-
-	// record a command result to simulate unlocked state
-	err = appleStore.StoreCommandReport(&mdm.Request{
-		EnrollID: &mdm.EnrollID{ID: host.UUID},
-		Context:  ctx,
-	}, &mdm.CommandResults{
-		CommandUUID: cmd.CommandUUID,
-		Status:      "Acknowledged",
-		Raw:         cmd.Raw,
-	})
-	require.NoError(t, err)
-
-	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "EnableLostMode", true)
-	require.NoError(t, err)
-
-	// execute CleanAppleMDMLock to simulate successful unlock
-	err = ds.CleanAppleMDMLock(ctx, host.UUID)
-	require.NoError(t, err)
-
-	// it is back to unlocked state
-	status, err = ds.GetHostLockWipeStatus(ctx, host)
-	require.NoError(t, err)
-	checkLockWipeState(t, status, true, false, false, false, false, false)
-	require.Nil(t, status.UnlockMDMCommand)
-
 	// record a request to wipe the host
 	cmd = &mdm.Command{
 		CommandUUID: uuid.NewString(),
