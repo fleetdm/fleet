@@ -11,7 +11,6 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Executive Assistant | <sup><sub> _See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
 
 
-
 ## Contact us
 
 **Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention him in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
