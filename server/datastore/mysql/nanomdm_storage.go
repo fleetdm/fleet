@@ -257,8 +257,7 @@ func (s *NanoMDMStorage) EnqueueDeviceUnlockCommand(ctx context.Context, host *f
 			VALUES (?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 				unlock_ref = VALUES(unlock_ref),
-				unlock_pin = NULL,
-				lock_ref   = NULL`
+				unlock_pin = NULL`
 
 		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
 			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceUnlock")

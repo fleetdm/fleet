@@ -1254,12 +1254,18 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 	ctx := context.Background()
 	t := s.T()
 
+	model := "iPhone14,6"
+	if platform == "ipados" {
+		model = "iPad13,18"
+	}
+
 	// create a host with minimal information and the serial, no uuid/osquery id
 	// (as when created via DEP sync).
 	dbZeroTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	serialNumber := mdmtest.RandSerialNumber()
 	fleetHost, err := s.ds.NewHost(ctx, &fleet.Host{
 		HardwareSerial:   serialNumber,
+		HardwareModel:    model,
 		Platform:         platform,
 		LastEnrolledAt:   dbZeroTime,
 		DetailUpdatedAt:  time.Now(), // so that we don't trigger a cron detail update
@@ -1274,10 +1280,7 @@ func (s *integrationMDMTestSuite) createAppleMobileHostThenEnrollMDM(platform st
 		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
 		MDMURL:        s.server.URL + apple_mdm.MDMPath,
 	}
-	model := "iPhone14,6"
-	if platform == "ipados" {
-		model = "iPad13,18"
-	}
+
 	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo, model)
 	mdmDevice.SerialNumber = serialNumber
 	err = mdmDevice.Enroll()
