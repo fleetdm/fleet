@@ -3606,7 +3606,9 @@ func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.
 
 	var hasSetupExpItems bool
 	if m.AwaitingConfiguration {
-		if !info.MigrationInProgress {
+		// Always run setup experience on non-macOS hosts(i.e. iOS/iPadOS), only run it on macOS if
+		// this is not an ABM MDM migration
+		if info.Platform != "darwin" || !info.MigrationInProgress {
 			// Enqueue setup experience items and mark the host as being in setup experience
 			hasSetupExpItems, err = svc.ds.EnqueueSetupExperienceItems(r.Context, info.Platform, r.ID, info.TeamID)
 			if err != nil {
