@@ -2213,6 +2213,7 @@ func testSoftwareTitleHostCount(t *testing.T, ds *Datastore) {
 
 	// install software on host
 	updateSw, err := fleet.SoftwareFromOsqueryRow("foo", "1.0", "apps", "", "", "", "", "com.foo.installer", "", "", "")
+	require.NoError(t, err)
 
 	hostInstall1, err := ds.InsertSoftwareInstallRequest(ctx, host1.ID, installers[0], fleet.HostSoftwareInstallOptions{})
 	require.NoError(t, err)
