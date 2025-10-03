@@ -12,7 +12,7 @@ If you configure software for setup experience, users will see a web browser thi
 
 ![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser.png)
 
-This page shows the status of the software installations. The browser can be closed, and the installation will continue in the background. Users can return to the Setup Experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
+This page shows the status of the software installations. The browser can be closed, and the installation will continue in the background. Users can return to the setup experience page by clicking **My Device** from Fleet Desktop.  Once all steps have completed, the **My Device** page will show the host information as usual.
 
 To replace the Fleet logo with your organization's logo:
 
