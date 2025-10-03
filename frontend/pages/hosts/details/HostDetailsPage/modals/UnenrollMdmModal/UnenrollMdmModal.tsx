@@ -77,12 +77,8 @@ const UnenrollMdmModal = ({
     if (isBYODManualEnrollment(enrollmentStatus)) {
       return (
         <p>
-          To re-enroll, invite the end user to{" "}
-          <CustomLink
-            text="enroll a BYOD iPhone or iPad"
-            url="https://fleetdm.com/guides/enroll-byod-ios-ipados-hosts"
-            newTab
-          />
+          To re-enroll, go to <b>Hosts &gt; Add hosts &gt; iOS/iPadOS</b> and
+          share the link with end user.
         </p>
       );
     } else if (isBYODAccountDrivenEnrollment(enrollmentStatus)) {
