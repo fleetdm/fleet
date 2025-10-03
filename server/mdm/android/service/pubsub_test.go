@@ -13,7 +13,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/android"
 	android_mock "github.com/fleetdm/fleet/v4/server/mdm/android/mock"
-	"github.com/fleetdm/fleet/v4/server/mdm/android/tests"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
@@ -27,7 +26,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
 	require.NoError(t, err)
 
 	return svc, mockDS
@@ -76,8 +75,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
-			enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-				Name:                tests.CreateAndroidDeviceID("test-android"),
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "invalid", enrollmentMessage)
@@ -99,8 +98,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
-			enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-				Name:                tests.CreateAndroidDeviceID("test-android"),
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "invalid", enrollmentMessage)
@@ -122,8 +121,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
-			enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-				Name:                tests.CreateAndroidDeviceID("test-android"),
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -150,8 +149,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
-			enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-				Name:                tests.CreateAndroidDeviceID("test-android"),
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -183,8 +182,8 @@ func TestPubSubEnrollment(t *testing.T) {
 			}
 			enrollTokenData, err := json.Marshal(enrollmentToken)
 			require.NoError(t, err)
-			enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-				Name:                tests.CreateAndroidDeviceID("test-android"),
+			enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+				Name:                createAndroidDeviceId("test-android"),
 				EnrollmentTokenData: string(enrollTokenData),
 			})
 			err = svc.ProcessPubSubPush(context.Background(), "value", enrollmentMessage)
@@ -204,7 +203,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			UUID: uuid.NewString(),
 		},
 		Device: &android.Device{
-			DeviceID: tests.CreateAndroidDeviceID("test"),
+			DeviceID: createAndroidDeviceId("test"),
 		},
 	}
 	mockDS.AndroidHostLiteFunc = func(ctx context.Context, enterpriseSpecificID string) (*fleet.AndroidHost, error) {
@@ -247,7 +246,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := tests.CreateStatusReportMessage(t, androidDevice.UUID, "test", tests.CreateAndroidDeviceID("test-policy"), policyVersion, nil)
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, nil)
 
 		err := svc.ProcessPubSubPush(context.Background(), "value", &enrollmentMessage)
 		require.NoError(t, err)
@@ -335,7 +334,7 @@ func TestStatusReportPolicyValidation(t *testing.T) {
 			return nil
 		}
 
-		enrollmentMessage := tests.CreateStatusReportMessage(t, androidDevice.UUID, "test", tests.CreateAndroidDeviceID("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
+		enrollmentMessage := createStatusReportMessage(t, androidDevice.UUID, "test", createAndroidDeviceId("test-policy"), policyVersion, []*androidmanagement.NonComplianceDetail{
 			{
 				SettingName:         "DefaultPermissionPolicy",
 				NonComplianceReason: "INVALID_VALUE",
@@ -412,7 +411,7 @@ func TestUpdateHostEmptyUUIDGetsPopulated(t *testing.T) {
 
 	// status report with valid EnterpriseSpecificId
 	device := androidmanagement.Device{
-		Name: tests.CreateAndroidDeviceID(deviceName),
+		Name: createAndroidDeviceId(deviceName),
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: enterpriseSpecificID,
 			Brand:                "TestBrand",
@@ -513,7 +512,7 @@ func TestHostPayloadUUIDForFrontend(t *testing.T) {
 
 			// Create status report from Google
 			device := androidmanagement.Device{
-				Name: tests.CreateAndroidDeviceID(deviceName),
+				Name: createAndroidDeviceId(deviceName),
 				HardwareInfo: &androidmanagement.HardwareInfo{
 					EnterpriseSpecificId: enterpriseSpecificID,
 					Brand:                "Google",
@@ -597,7 +596,7 @@ func TestUpdateHost(t *testing.T) {
 	t.Run("UUID gets populated from EnterpriseSpecificId", func(t *testing.T) {
 		// Create status report message that triggers updateHost
 		device := androidmanagement.Device{
-			Name: tests.CreateAndroidDeviceID(deviceName),
+			Name: createAndroidDeviceId(deviceName),
 			HardwareInfo: &androidmanagement.HardwareInfo{
 				EnterpriseSpecificId: enterpriseSpecificID,
 				Brand:                "UpdatedBrand",
@@ -650,7 +649,7 @@ func TestUpdateHost(t *testing.T) {
 
 		// Create a status report message
 		device := androidmanagement.Device{
-			Name: tests.CreateAndroidDeviceID(deviceName),
+			Name: createAndroidDeviceId(deviceName),
 			HardwareInfo: &androidmanagement.HardwareInfo{
 				EnterpriseSpecificId: enterpriseSpecificID,
 				Brand:                "UpdatedBrand",
@@ -689,7 +688,7 @@ func TestUpdateHost(t *testing.T) {
 
 		// Create a device with empty EnterpriseSpecificId (edge case)
 		device := androidmanagement.Device{
-			Name: tests.CreateAndroidDeviceID(deviceName + "-empty"),
+			Name: createAndroidDeviceId(deviceName + "-empty"),
 			HardwareInfo: &androidmanagement.HardwareInfo{
 				EnterpriseSpecificId: "", // Empty UUID
 				Brand:                "TestBrand",
@@ -773,8 +772,8 @@ func TestAndroidStorageExtraction(t *testing.T) {
 	t.Run("extracts storage data from AMAPI device", func(t *testing.T) {
 		createdHost = nil // Reset
 
-		enrollmentMessage := tests.CreateEnrollmentMessage(t, androidmanagement.Device{
-			Name:                tests.CreateAndroidDeviceID("storage-test"),
+		enrollmentMessage := createEnrollmentMessage(t, androidmanagement.Device{
+			Name:                createAndroidDeviceId("storage-test"),
 			EnrollmentTokenData: `{"enroll_secret": "global"}`,
 		})
 
@@ -796,7 +795,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		createdHost = nil // Reset
 
 		enrollmentMessage := createEnrollmentMessageWithoutMeasuredEvents(t, androidmanagement.Device{
-			Name:                tests.CreateAndroidDeviceID("work-profile-test"),
+			Name:                createAndroidDeviceId("work-profile-test"),
 			EnrollmentTokenData: `{"enroll_secret": "global"}`,
 		})
 
@@ -818,7 +817,7 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		createdHost = nil // Reset
 
 		enrollmentMessage := createEnrollmentMessageWithMultipleExternalDetectedEvents(t, androidmanagement.Device{
-			Name:                tests.CreateAndroidDeviceID("multiple-external-test"),
+			Name:                createAndroidDeviceId("multiple-external-test"),
 			EnrollmentTokenData: `{"enroll_secret": "global"}`,
 		})
 
@@ -838,6 +837,54 @@ func TestAndroidStorageExtraction(t *testing.T) {
 		// Percentage: 96/121 * 100 = 79.34%
 		require.InDelta(t, 79.34, createdHost.Host.PercentDiskSpaceAvailable, 0.1, "should calculate percentage correctly")
 	})
+}
+
+func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
+		EnterpriseSpecificId: strings.ToUpper(uuid.New().String()),
+		Brand:                "TestBrand",
+		Model:                "TestModel",
+		SerialNumber:         "test-serial",
+		Hardware:             "test-hardware",
+	}
+	deviceInfo.SoftwareInfo = &androidmanagement.SoftwareInfo{
+		AndroidBuildNumber: "test-build",
+		AndroidVersion:     "1",
+	}
+	deviceInfo.MemoryInfo = &androidmanagement.MemoryInfo{
+		TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+		TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+	}
+
+	deviceInfo.MemoryEvents = []*androidmanagement.MemoryEvent{
+		{
+			EventType:  "EXTERNAL_STORAGE_DETECTED",
+			ByteCount:  int64(64 * 1024 * 1024 * 1024), // 64GB external/built-in storage total capacity
+			CreateTime: "2024-01-15T09:00:00Z",
+		},
+		{
+			EventType:  "INTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(10 * 1024 * 1024 * 1024), // 10GB free in system partition
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+		{
+			EventType:  "EXTERNAL_STORAGE_MEASURED",
+			ByteCount:  int64(25 * 1024 * 1024 * 1024), // 25GB free in external/built-in storage
+			CreateTime: "2024-01-15T10:00:00Z",
+		},
+	}
+
+	data, err := json.Marshal(deviceInfo)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return &android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubEnrollment),
+		},
+		Data: encodedData,
+	}
 }
 
 func createEnrollmentMessageWithoutMeasuredEvents(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
@@ -948,4 +995,45 @@ func createEnrollmentMessageWithMultipleExternalDetectedEvents(t *testing.T, dev
 		},
 		Data: encodedData,
 	}
+}
+
+func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	device := androidmanagement.Device{
+		Name:                 createAndroidDeviceId(name),
+		NonComplianceDetails: nonComplianceDetails,
+		HardwareInfo: &androidmanagement.HardwareInfo{
+			EnterpriseSpecificId: deviceId,
+			Brand:                "TestBrand",
+			Model:                "TestModel",
+			SerialNumber:         "test-serial",
+			Hardware:             "test-hardware",
+		},
+		SoftwareInfo: &androidmanagement.SoftwareInfo{
+			AndroidBuildNumber: "test-build",
+			AndroidVersion:     "1",
+		},
+		MemoryInfo: &androidmanagement.MemoryInfo{
+			TotalRam:             int64(8 * 1024 * 1024 * 1024),  // 8GB RAM in bytes
+			TotalInternalStorage: int64(64 * 1024 * 1024 * 1024), // 64GB system partition
+		},
+		AppliedPolicyName:    policyName,
+		AppliedPolicyVersion: int64(*policyVersion),
+		LastPolicySyncTime:   "2001-01-01T00:00:00Z",
+	}
+
+	data, err := json.Marshal(device)
+	require.NoError(t, err)
+
+	encodedData := base64.StdEncoding.EncodeToString(data)
+
+	return android.PubSubMessage{
+		Attributes: map[string]string{
+			"notificationType": string(android.PubSubStatusReport),
+		},
+		Data: encodedData,
+	}
+}
+
+func createAndroidDeviceId(name string) string {
+	return "enterprises/mock-enterprise-id/devices/" + name
 }
