@@ -171,12 +171,12 @@ When Fleeties need a contact created in Fleet's CRM but are unable to do so in t
 
 On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 To do this:
-1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful
+1. Go to the ["Orders"](https://www.printful.com/ca/dashboard/default/orders) page in Printful.
 2. Look for an order status of "Draft" and click that order.
 3. Copy the address displayed in the draft order. Close the modal.
 4. Under "Order list", there's a search box for customers that you will need to paste the address.
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
-6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
+6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment."
 
 
 ### Request swag
