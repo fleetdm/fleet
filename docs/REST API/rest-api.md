@@ -4591,9 +4591,9 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 _Available in Fleet Premium_
 
-Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+Sends a command to lock the specified macOS, iOS, iPadOS, Linux, or Windows host. The host is locked once it comes online.
 
-To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To lock a macOS, iOS, or iPadOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 
 `POST /api/v1/fleet/hosts/:id/lock`
@@ -4605,26 +4605,11 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 | id | integer | path | **Required**. ID of the host to be locked. |
 | view_pin | boolean | query | For macOS hosts, whether to return the unlock PIN. |
 
-#### Example
-
-`POST /api/v1/fleet/hosts/123/lock`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "device_status": "unlocked",
-  "pending_action": "lock"
-}
-```
-
-#### Example
+#### Example with macOS unlock PIN
 
 `POST /api/v1/fleet/hosts/123/lock?view_pin=true`
 
-##### Default response (macOS hosts)
+##### Default response
 
 `Status: 200`
 
@@ -4642,9 +4627,10 @@ To lock a macOS host, the host must have MDM turned on. To lock a Windows or Lin
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+Sends a command to unlock the specified iOS, iPadOS, Windows, or Linux host, or retrieves the unlock PIN for a macOS host.
 
-To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+To unlock an iOS or iPadOS host, the host must have MDM turned on. To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -4658,26 +4644,13 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response (Windows or Linux hosts)
+##### Default response
 
 `Status: 200`
 
 ```json
 {
   "host_id": 8,
-  "device_status": "locked",
-  "pending_action": "unlock"
-}
-```
-
-##### Default response (macOS hosts)
-
-`Status: 200`
-
-```json
-{
-  "host_id": 8,
-  "unlock_pin": "123456",
   "device_status": "locked",
   "pending_action": "unlock"
 }
