@@ -905,6 +905,9 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					if sw.BundleIdentifier != "" {
 						st.BundleIdentifier = ptr.String(sw.BundleIdentifier)
 					}
+					if sw.ApplicationID != "" {
+						st.ApplicationID = ptr.String(sw.ApplicationID)
+					}
 					newTitlesNeeded[checksum] = st
 				}
 			}
@@ -944,12 +947,12 @@ func (ds *Datastore) preInsertSoftwareInventory(
 
 				// Insert software titles
 				const numberOfArgsPerSoftwareTitles = 5
-				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
-				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel) VALUES %s", titlesValues)
+				titlesValues := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(uniqueTitlesToInsert)), ",")
+				titlesStmt := fmt.Sprintf("INSERT IGNORE INTO software_titles (name, source, browser, bundle_identifier, is_kernel, application_id) VALUES %s", titlesValues)
 				titlesArgs := make([]any, 0, len(uniqueTitlesToInsert)*numberOfArgsPerSoftwareTitles)
 
 				for _, title := range uniqueTitlesToInsert {
-					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel)
+					titlesArgs = append(titlesArgs, title.Name, title.Source, title.Browser, title.BundleIdentifier, title.IsKernel, title.ApplicationID)
 				}
 
 				if _, err := tx.ExecContext(ctx, titlesStmt, titlesArgs...); err != nil {
@@ -1007,7 +1010,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 			// Insert software entries
 			const numberOfArgsPerSoftware = 11
 			values := strings.TrimSuffix(
-				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
+				strings.Repeat("(?,?,?,?,?,?,?,?,?,?,?,?),", len(batchKeys)), ",",
 			)
 			stmt := fmt.Sprintf(
 				`INSERT IGNORE INTO software (
@@ -1021,7 +1024,8 @@ func (ds *Datastore) preInsertSoftwareInventory(
 					extension_id,
 					browser,
 					title_id,
-					checksum
+					checksum,
+					application_id
 				) VALUES %s`,
 				values,
 			)
@@ -1041,7 +1045,7 @@ func (ds *Datastore) preInsertSoftwareInventory(
 				}
 				args = append(
 					args, sw.Name, sw.Version, sw.Source, sw.Release, sw.Vendor, sw.Arch,
-					sw.BundleIdentifier, sw.ExtensionID, sw.Browser, titleID, checksum,
+					sw.BundleIdentifier, sw.ExtensionID, sw.Browser, titleID, checksum, sw.ApplicationID,
 				)
 			}
 
@@ -4687,7 +4691,7 @@ func (ds *Datastore) SetHostSoftwareInstallResult(ctx context.Context, result *f
 func (ds *Datastore) CreateIntermediateInstallFailureRecord(ctx context.Context, result *fleet.HostSoftwareInstallResultPayload) (string, *fleet.HostSoftwareInstallerResult, bool, error) {
 	// Get the original installation details first, including software title and package info
 	const getDetailsStmt = `
-		SELECT 
+		SELECT
 			hsi.software_installer_id,
 			hsi.user_id,
 			hsi.policy_id,

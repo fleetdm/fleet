@@ -120,13 +120,15 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	// TODO: how can we hit "normal" server/service endpoints? Can't do it now because those types are private to that package...
 	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
 		var software []*fleet.Software
-		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, source FROM software")
+		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source FROM software")
 		require.NoError(t, err)
 		assert.Len(t, software, len(device.ApplicationReports))
 
+		for i, s := range software {
+			assert.Equal(t, device.ApplicationReports[i].PackageName, s.ApplicationID)
+		}
 		return nil
 	})
 

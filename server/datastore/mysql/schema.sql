@@ -2326,6 +2326,7 @@ CREATE TABLE `software` (
   `title_id` int unsigned DEFAULT NULL,
   `checksum` binary(16) NOT NULL,
   `name_source` enum('basic','bundle_4.67') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'basic',
+  `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_software_checksum` (`checksum`),
   KEY `software_source_vendor_idx` (`source`,`vendor_old`),
@@ -2511,8 +2512,8 @@ CREATE TABLE `software_titles` (
   `application_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `unique_identifier` varchar(255) COLLATE utf8mb4_unicode_ci GENERATED ALWAYS AS (coalesce(`bundle_identifier`,coalesce(`application_id`,`name`))) VIRTUAL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_unique_sw_titles` (`source`,`browser`),
   UNIQUE KEY `idx_software_titles_bundle_identifier` (`bundle_identifier`,`additional_identifier`),
+  UNIQUE KEY `idx_unique_sw_titles` (`unique_identifier`,`source`,`browser`),
   KEY `idx_sw_titles` (`name`,`source`,`browser`)
 ) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
