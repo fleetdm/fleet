@@ -454,9 +454,11 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 				}
 
 				// Update software names for bundle ID matches
-				if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
-					return err
-				}
+				// TEMPORARILY COMMENTED OUT: Performance issue with updateTargetedBundleIDs SQL statement
+				// TODO: Re-enable after gathering more info and optimizing the query
+				// if err = updateTargetedBundleIDs(ctx, tx, softwareRenames); err != nil {
+				// 	return err
+				// }
 			}
 
 			// Use r.Inserted which contains all inserted items (including bundle ID matches)
@@ -482,7 +484,7 @@ func (ds *Datastore) applyChangesForNewSoftwareDB(
 
 // updateTargetedBundleIDs updates software names when bundle IDs match but names differ.
 // softwareRenames maps software IDs to their new names.
-func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error {
+func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRenames map[uint]string) error { //nolint:unused
 	if len(softwareRenames) == 0 {
 		return nil
 	}
@@ -707,8 +709,8 @@ func (ds *Datastore) getIncomingSoftwareChecksumsToExistingTitles(
 		)
 		existingChecksums := uniqueTitleStrToChecksums[titleStr]
 		if len(existingChecksums) > 0 {
-			// Log when multiple checksums map to the same title. If we see this regularly, we should fix it.
-			level.Error(ds.logger).Log(
+			// Log when multiple checksums map to the same title.
+			level.Debug(ds.logger).Log(
 				"msg", "multiple checksums mapping to same title",
 				"title_str", titleStr,
 				"new_checksum", checksum,
