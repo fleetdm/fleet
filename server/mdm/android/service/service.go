@@ -41,7 +41,7 @@ type Service struct {
 	logger           kitlog.Logger
 	authz            *authz.Authorizer
 	ds               fleet.AndroidDatastore
-	ogDS             fleet.Datastore
+	fleetDS          fleet.Datastore
 	androidAPIClient androidmgmt.Client
 	fleetSvc         fleet.Service
 	serverPrivateKey string
@@ -59,10 +59,10 @@ func NewService(
 	fleetSvc fleet.Service,
 	licenseKey string,
 	serverPrivateKey string,
-	ogDS fleet.Datastore,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	client := newAMAPIClient(ctx, logger, licenseKey)
-	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, ogDS)
+	return NewServiceWithClient(logger, ds, client, fleetSvc, serverPrivateKey, fleetDS)
 }
 
 func NewServiceWithClient(
@@ -71,7 +71,7 @@ func NewServiceWithClient(
 	client androidmgmt.Client,
 	fleetSvc fleet.Service,
 	serverPrivateKey string,
-	ogDS fleet.Datastore,
+	fleetDS fleet.Datastore,
 ) (android.Service, error) {
 	authorizer, err := authz.NewAuthorizer()
 	if err != nil {
@@ -86,7 +86,7 @@ func NewServiceWithClient(
 		fleetSvc:          fleetSvc,
 		serverPrivateKey:  serverPrivateKey,
 		SignupSSEInterval: DefaultSignupSSEInterval,
-		ogDS:              ogDS,
+		fleetDS:           fleetDS,
 	}, nil
 }
 
@@ -852,93 +852,5 @@ func (svc *Service) UnenrollAndroidHost(ctx context.Context, hostID uint) error 
 	}); err != nil {
 		return ctxerr.Wrap(ctx, err, "create android unenroll activity")
 	}
-	return nil
-}
-
-func jordanEndpoint(ctx context.Context, _ interface{}, svc android.Service) fleet.Errorer {
-	err := svc.JordanEndpoint(ctx)
-	return android.DefaultResponse{Err: err}
-}
-
-var calls int
-
-func (svc *Service) JordanEndpoint(ctx context.Context) error {
-	// skipauth: Testing porpoises only
-	svc.authz.SkipAuthorization(ctx)
-	enterprise, err := svc.ds.GetEnterprise(ctx)
-	if err != nil {
-		return err
-	}
-
-	// Just here for debug purposes
-	// policies, err := svc.androidAPIClient.PoliciesList(ctx, enterprise.Name())
-	// if err != nil {
-	// 	return ctxerr.Wrap(ctx, err, "listing policies")
-	// }
-	// fmt.Printf("Found %d policies\n", len(policies))
-	// for _, p := range policies {
-	// 	fmt.Printf("Policy: %s (version %d) with %d apps\n", p.Name, p.Version, len(p.Applications))
-	// }
-
-	policyName := fmt.Sprintf("%s/policies/1", enterprise.Name())
-	packages := []string{"com.google.android.youtube", "com.android.chrome", "com.roblox.client", "com.walmart.android", "com.whatsapp", "com.zhiliaoapp.musically", "com.instagram.android"}
-	packageName := ""
-	if calls < len(packages) {
-		packageName = packages[calls]
-	}
-	if packageName == "" {
-		fmt.Printf("Out of apps\n")
-		packageName = "com.example.app"
-	}
-
-	// Testing different install types
-	installType := "AVAILABLE"
-	if calls > 0 {
-		installType = "FORCE_INSTALLED"
-	}
-	fmt.Printf("Checking if app %s exists", packageName)
-	app, err := svc.androidAPIClient.EnterprisesApplications(ctx, enterprise.Name(), packageName)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "checking if application exists")
-	}
-	if app == nil {
-		fmt.Printf("Application %s does not exist\n", packageName)
-	} else {
-		jsonBytes, _ := json.Marshal(app)
-		fmt.Printf("Application %s exists: %s\n", packageName, string(jsonBytes))
-	}
-	fmt.Printf("Call %d: Patching policy %s to add app %s\n", calls+1, policyName, packageName)
-	policy, err := svc.androidAPIClient.EnterprisesPoliciesModifyPolicyApplications(ctx, policyName, &androidmanagement.ApplicationPolicy{
-		PackageName: packageName,
-		InstallType: installType,
-	})
-	calls++
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Call %d: Successfully patched policy %s to add app %s got policy version %d\n", calls, policyName, packageName, policy.Version)
-	/*
-		// Uncomment this code and comment out the install code above to test uninstalls
-		fmt.Printf("Call %d: Patching policy %s to remove app %s\n", calls+1, policyName, packageName)
-		policy, err := svc.androidAPIClient.EnterprisesPoliciesRemovePolicyApplications(ctx, policyName, []string{packageName})
-		calls++
-		if err != nil {
-			return err
-		}
-	*/
-	if policy.StatusReportingSettings != nil && !policy.StatusReportingSettings.ApplicationReportsEnabled {
-		fmt.Printf("Enabling application reports in policy %s\n", policyName)
-		policy.StatusReportingSettings.ApplicationReportsEnabled = true
-		policy, err = svc.androidAPIClient.EnterprisesPoliciesPatch(ctx, policyName, policy)
-	} else {
-		fmt.Printf("Application reports are already enabled in policy %s\n", policyName)
-	}
-
-	// DEbugging info about the returned policy
-	fmt.Printf("Policy has %d apps\n", len(policy.Applications))
-	jsonBytes, _ := json.Marshal(policy)
-	fmt.Printf("Apps of returned policy: %s\n", string(jsonBytes))
-
 	return nil
 }

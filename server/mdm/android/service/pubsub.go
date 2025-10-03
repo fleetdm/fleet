@@ -221,14 +221,8 @@ func (svc *Service) updateHostSoftware(ctx context.Context, device *androidmanag
 		}
 		software = append(software, sw)
 	}
-	// TODO better way to access this?
-	fmt.Printf("svc.ds: %T\n", svc.ds)
-	// baseDS, ok := svc.ds.(fleet.Datastore)
-	// if !ok {
-	// 	return ctxerr.New(ctx, "failed to type assert datastore")
-	// }
-	fmt.Printf("software: %v\n", software)
-	_, err := svc.ogDS.UpdateHostSoftware(ctx, host.Host.ID, software)
+
+	_, err := svc.fleetDS.UpdateHostSoftware(ctx, host.Host.ID, software)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating Android host software")
 	}

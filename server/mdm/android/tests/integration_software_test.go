@@ -80,10 +80,10 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 
-	deviceID := CreateAndroidDeviceID("test-android")
+	deviceID := createAndroidDeviceID("test-android")
 
 	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
-	enrollmentMessage := EnrollmentMessageWithEnterpriseSpecificID(
+	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
 		t,
 		androidmanagement.Device{
 			Name:                deviceID,
@@ -103,9 +103,9 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	device := CreateAndroidDevice(t, enterpriseSpecificID, "test-android", CreateAndroidDeviceID("test-policy"), ptr.Int(1), nil)
+	device := createAndroidDevice(enterpriseSpecificID, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil)
 	req = service.PubSubPushRequest{
-		PubSubMessage: CreateStatusReportMessageFromDevice(t, device),
+		PubSubMessage: createStatusReportMessageFromDevice(t, device),
 	}
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
@@ -122,21 +122,13 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 		return nil
 	})
 
-	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "android_enterprises")
-		mysql.DumpTable(t, q, "mdm_config_assets")
-		mysql.DumpTable(t, q, "enroll_secrets")
-		mysql.DumpTable(t, q, "android_devices")
-		mysql.DumpTable(t, q, "software_titles")
-		return nil
-	})
 }
 
-func CreateEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
-	return EnrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, strings.ToUpper(uuid.New().String()))
+func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
+	return enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, strings.ToUpper(uuid.New().String()))
 }
 
-func EnrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
+func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		EnterpriseSpecificId: enterpriseSpecificID,
 		Brand:                "TestBrand",
@@ -184,13 +176,13 @@ func EnrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidm
 	}
 }
 
-func CreateAndroidDeviceID(name string) string {
+func createAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
-func CreateAndroidDevice(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) androidmanagement.Device {
+func createAndroidDevice(deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) androidmanagement.Device {
 	return androidmanagement.Device{
-		Name:                 CreateAndroidDeviceID(name),
+		Name:                 createAndroidDeviceID(name),
 		NonComplianceDetails: nonComplianceDetails,
 		HardwareInfo: &androidmanagement.HardwareInfo{
 			EnterpriseSpecificId: deviceId,
@@ -219,7 +211,7 @@ func CreateAndroidDevice(t *testing.T, deviceId, name, policyName string, policy
 	}
 }
 
-func CreateStatusReportMessageFromDevice(t *testing.T, device androidmanagement.Device) android.PubSubMessage {
+func createStatusReportMessageFromDevice(t *testing.T, device androidmanagement.Device) android.PubSubMessage {
 	data, err := json.Marshal(device)
 	require.NoError(t, err)
 
@@ -233,6 +225,6 @@ func CreateStatusReportMessageFromDevice(t *testing.T, device androidmanagement.
 	}
 }
 
-func CreateStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
-	return CreateStatusReportMessageFromDevice(t, CreateAndroidDevice(t, deviceId, name, policyName, policyVersion, nonComplianceDetails))
+func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
+	return createStatusReportMessageFromDevice(t, createAndroidDevice(deviceId, name, policyName, policyVersion, nonComplianceDetails))
 }
