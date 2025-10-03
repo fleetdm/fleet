@@ -156,27 +156,28 @@ func TestScrapeSantaLogFromBase_EndToEnd(t *testing.T) {
 	current.WriteString(mkLine("decision=DENY", "2025-09-18 12:00:01.000", "/Applications/B.app", "rule", "bbb"))
 	writeFile(t, base, current.String())
 
-	// archive 0 (gz): a DENY that should appear for denied queries
+	// archive 0 (gz): a DENY (older)
 	writeGz(t, base+".0.gz", mkLine("decision=DENY", "2025-09-18 11:59:59.000", "/Blocked/X", "blacklist", "xxx"))
 
-	// archive 1 (gz): an ALLOW
+	// archive 1 (gz): an ALLOW (older)
 	writeGz(t, base+".1.gz", mkLine("decision=ALLOW", "2025-09-18 11:59:58.000", "/OK/C", "scope", "ccc"))
 
 	ctx := context.Background()
 
 	denied, err := scrapeSantaLogFromBase(ctx, decisionDenied, base)
 	require.NoError(t, err)
-	// expect 2: one from current, one from archive 0
+	// With current scanned first, chronological (insertion) order is:
+	// current DENY, then archive 0 DENY.
 	require.Len(t, denied, 2)
-	require.Equal(t, "/Applications/B.app", denied[0].Application)
-	require.Equal(t, "/Blocked/X", denied[1].Application)
+	require.Equal(t, "/Blocked/X", denied[0].Application)
+	require.Equal(t, "/Applications/B.app", denied[1].Application)
 
 	allowed, err := scrapeSantaLogFromBase(ctx, decisionAllowed, base)
 	require.NoError(t, err)
-	// expect 2: one from current and one from archive 1
+	// current ALLOW, then archive 1 ALLOW.
 	require.Len(t, allowed, 2)
-	require.Equal(t, "/Applications/A.app", allowed[0].Application)
-	require.Equal(t, "/OK/C", allowed[1].Application)
+	require.Equal(t, "/OK/C", allowed[0].Application)
+	require.Equal(t, "/Applications/A.app", allowed[1].Application)
 }
 
 // TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss verifies that archive
@@ -197,28 +198,87 @@ func TestScrapeSantaLogFromBase_IgnoresGapsAfterFirstMiss(t *testing.T) {
 	require.Equal(t, "/A", got[0].Application)
 }
 
-func TestScrapeStream_Enforces10MBCap(t *testing.T) {
-	// Lower the cap to make the test fast.
+func TestScrapeStream_EnforcesGlobalCap(t *testing.T) {
+	// Lower the global cap to make the test fast and predictable.
 	oldCap := maxEntries
 	maxEntries = 1_000
 	defer func() { maxEntries = oldCap }()
 
-	// Generate slightly more than the cap so we trigger the error quickly.
 	const perLine = `[` +
 		`2025-09-18 12:00:00.000` +
 		`] santad: decision=ALLOW | path=/Applications/App.app | reason=ok | sha256=abc123` + "\n"
 
 	var sb strings.Builder
-	sb.Grow(len(perLine) * (maxEntries + 50))
+	sb.Grow(len(perLine) * (maxEntries + 50)) // generate a bit more than the cap
 	for i := 0; i < maxEntries+50; i++ {
 		sb.WriteString(perLine)
 	}
 
 	sc := bufio.NewScanner(strings.NewReader(sb.String()))
-	entries, err := scrapeStream(context.Background(), sc, decisionAllowed)
+	rb := newRingBuffer(maxEntries)
 
-	require.Error(t, err, "expected cap error")
-	require.Len(t, entries, maxEntries, "should stop at the cap")
+	err := scrapeStream(context.Background(), sc, decisionAllowed, rb)
+
+	require.NoError(t, err, "cap should not surface as an error")
+	require.Len(t, rb.SliceChrono(), maxEntries, "SliceReverse should return exactly maxEntries items")
+}
+
+func TestScrapeSantaLogFromBase_PrefersLatestWithinArchiveOnCap(t *testing.T) {
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "santa.log")
+
+	// Keep the test fast and intentional.
+	oldCap := maxEntries
+	maxEntries = 3
+	defer func() { maxEntries = oldCap }()
+
+	writeFile(t, base, mkLine("decision=DENY", "2025-09-18 12:00:00.000", "/CUR-DENY", "ok", "aaa"))
+
+	writeGz(t, base+".0.gz", mkLine("decision=DENY", "2025-09-18 11:59:59.500", "/ARC0-DENY", "ok", "bbb"))
+
+	// Older archive (.1.gz): many DENY lines with increasing timestamps.
+	// We want to ensure that when the cap is hit *inside this archive*,
+	// the buffer ends up holding the *latest* lines from within it.
+	var arc1 strings.Builder
+	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.001", "/DENY-1", "r", "d1"))
+	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.002", "/DENY-2", "r", "d2"))
+	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.003", "/DENY-3", "r", "d3"))
+	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.004", "/DENY-4", "r", "d4"))
+	arc1.WriteString(mkLine("decision=DENY", "2025-09-18 11:59:59.005", "/DENY-5", "r", "d5"))
+	writeGz(t, base+".1.gz", arc1.String())
+
+	// Scan: archives oldest→newest (.1.gz then .0.gz), then current last.
+	// Since only .1.gz has DENY lines and it contains more than maxEntries,
+	// the ring should end up with the last 3 from that archive:
+	// "/DENY-3", "/DENY-4", "/DENY-5" (chronological).
+	got, err := scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]string{"/DENY-5", "/ARC0-DENY", "/CUR-DENY"},
+		[]string{got[0].Application, got[1].Application, got[2].Application},
+		"should keep the latest entries within the archive when hitting the cap",
+	)
+
+	maxEntries = 2
+	got, err = scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]string{"/ARC0-DENY", "/CUR-DENY"},
+		[]string{got[0].Application, got[1].Application},
+		"with a smaller cap, should keep the latest entries within the archive",
+	)
+
+	maxEntries = 1
+	got, err = scrapeSantaLogFromBase(context.Background(), decisionDenied, base)
+	require.NoError(t, err)
+
+	require.Equal(t,
+		[]string{"/CUR-DENY"},
+		[]string{got[0].Application},
+		"with a cap of 1, should keep only the latest entry overall",
+	)
 }
 
 func writeFile(tb testing.TB, path, content string) {

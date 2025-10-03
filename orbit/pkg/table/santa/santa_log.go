@@ -1,11 +1,5 @@
 //go:build darwin
 
-// Package santa implements the tables for getting Santa data
-// (logs, rules, status) on macOS.
-//
-// Santa is an open source macOS endpoint security system with
-// binary whitelisting and blacklisting capabilities.
-// Based on https://github.com/allenhouchins/fleet-extensions/tree/main/santa
 package santa
 
 import (
@@ -27,9 +21,8 @@ const (
 	defaultLogPath   = "/var/db/santa/santa.log"
 )
 
-var maxEntries = 10 * 1024 * 1024 // 10 MB worth of log entries (approximately 60,000 lines of 170 bytes each)
+var maxEntries = 10_000
 
-// SantaDecisionType represents the type of Santa decision
 type santaDecisionType int
 
 const (
@@ -37,7 +30,6 @@ const (
 	decisionDenied
 )
 
-// LogEntry represents a Santa log entry
 type logEntry struct {
 	Timestamp   string
 	Application string
@@ -47,7 +39,6 @@ type logEntry struct {
 
 var timestampRegex = regexp.MustCompile(`\[([^\]]+)\]`)
 
-// LogColumns returns the column definitions for the santa_allowed table
 func LogColumns() []table.ColumnDefinition {
 	return []table.ColumnDefinition{
 		table.TextColumn("timestamp"),
@@ -57,12 +48,10 @@ func LogColumns() []table.ColumnDefinition {
 	}
 }
 
-// GenerateAllowed generates data for the santa_allowed table
 func GenerateAllowed(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	return generate(ctx, decisionAllowed)
 }
 
-// GenerateDenied generates data for the santa_denied table
 func GenerateDenied(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error) {
 	return generate(ctx, decisionDenied)
 }
@@ -70,35 +59,29 @@ func GenerateDenied(ctx context.Context, queryContext table.QueryContext) ([]map
 func generate(ctx context.Context, dec santaDecisionType) ([]map[string]string, error) {
 	entries, err := scrapeSantaLog(ctx, dec)
 	if err != nil {
-		// Gracefully return an empty result if log cannot be scraped
-		log.Debug().Err(err).Msg("failed to scrape santa log for denied entries")
+		log.Debug().Err(err).Msg("failed to scrape santa log")
 		return []map[string]string{}, nil
 	}
 
-	var results []map[string]string
+	results := make([]map[string]string, 0, len(entries))
 	for _, entry := range entries {
-		row := map[string]string{
+		results = append(results, map[string]string{
 			"timestamp":   entry.Timestamp,
 			"application": entry.Application,
 			"reason":      entry.Reason,
 			"sha256":      entry.SHA256,
-		}
-		results = append(results, row)
+		})
 	}
-
 	return results, nil
 }
 
-// extractValues extracts key-value pairs from a Santa log line
 func extractValues(line string) map[string]string {
 	values := make(map[string]string, 8)
 
-	// Timestamp (keep your precompiled regex if you already have one)
 	if m := timestampRegex.FindStringSubmatch(line); len(m) > 1 {
 		values["timestamp"] = m[1]
 	}
 
-	// Parse after santad preface
 	pos := strings.Index(line, kLogEntryPreface)
 	if pos == -1 {
 		return values
@@ -110,61 +93,47 @@ func extractValues(line string) map[string]string {
 		if seg == "" {
 			continue
 		}
-
 		k, v, ok := strings.Cut(seg, "=")
 		if !ok {
 			continue
 		}
-
 		k = strings.ToLower(strings.TrimSpace(k))
-		v = strings.TrimSpace(v)
-		// Trim optional quotes
-		v = strings.Trim(v, `"'`)
-
+		v = strings.Trim(strings.TrimSpace(v), `"'`)
 		if k != "" && v != "" {
 			values[k] = v
 		}
 	}
-
 	return values
 }
 
-// scrapeStream processes a stream of log lines and extracts relevant entries
-func scrapeStream(ctx context.Context, scanner *bufio.Scanner, decision santaDecisionType) ([]logEntry, error) {
-	var entries []logEntry
-
+func scrapeStream(ctx context.Context, scanner *bufio.Scanner, decision santaDecisionType, rb *ringBuffer) error {
 	for scanner.Scan() {
-
 		select {
 		case <-ctx.Done():
-			return nil, ctx.Err()
+			return ctx.Err()
 		default:
 		}
 
 		line := scanner.Text()
 
-		// Filter by decision type
-		if decision == decisionAllowed {
+		// Filter by decision type early to keep it fast.
+		switch decision {
+		case decisionAllowed:
 			if !strings.Contains(line, "decision=ALLOW") {
 				continue
 			}
-		} else if decision == decisionDenied {
+		case decisionDenied:
 			if !strings.Contains(line, "decision=DENY") {
 				continue
 			}
 		}
 
 		values := extractValues(line)
-
 		if values["timestamp"] == "" {
 			continue
 		}
 
-		if len(entries) >= maxEntries {
-			return entries, fmt.Errorf("santa log exceeds maximum entries (%d), aborting", maxEntries)
-		}
-
-		entries = append(entries, logEntry{
+		rb.Add(logEntry{
 			Timestamp:   values["timestamp"],
 			Application: values["path"],
 			Reason:      values["reason"],
@@ -172,50 +141,47 @@ func scrapeStream(ctx context.Context, scanner *bufio.Scanner, decision santaDec
 		})
 	}
 
-	return entries, nil
+	return scanner.Err()
 }
 
-// scrapeCurrentLog reads the current Santa log file
-func scrapeCurrentLog(ctx context.Context, path string, decision santaDecisionType) ([]logEntry, error) {
+func scrapeCurrentLog(ctx context.Context, path string, decision santaDecisionType, rb *ringBuffer) error {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open Santa log file: %v", err)
+		return fmt.Errorf("failed to open Santa log file: %v", err)
 	}
 	defer file.Close()
 
 	scanner := makeBufferedScanner(file)
-	return scrapeStream(ctx, scanner, decision)
+	return scrapeStream(ctx, scanner, decision, rb)
 }
 
-// scrapeCompressedSantaLog reads a compressed Santa log file
-func scrapeCompressedSantaLog(ctx context.Context, path string, decision santaDecisionType) ([]logEntry, error) {
+func scrapeCompressedSantaLog(ctx context.Context, path string, decision santaDecisionType, rb *ringBuffer) error {
 	file, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open compressed log file %s: %v", path, err)
+		return fmt.Errorf("failed to open compressed log file %s: %v", path, err)
 	}
 	defer file.Close()
 
 	gzReader, err := gzip.NewReader(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader for %s: %v", path, err)
+		return fmt.Errorf("failed to create gzip reader for %s: %v", path, err)
 	}
 	defer gzReader.Close()
 
 	scanner := makeBufferedScanner(gzReader)
-	return scrapeStream(ctx, scanner, decision)
+	return scrapeStream(ctx, scanner, decision, rb)
 }
 
 func makeBufferedScanner(r io.Reader) *bufio.Scanner {
 	s := bufio.NewScanner(r)
-	// buf := make([]byte, 0, 64*1024)
-	// s.Buffer(buf, 1024*1024)
+	// Uncomment to support very large lines if needed:
+	// buf := make([]byte, 64*1024)
+	// s.Buffer(buf, 1<<20) // 1 MiB
 	return s
 }
 
-// newArchiveFileExists checks if a new archive file exists
 func newArchiveFileExists(archiveIndex int, path string) bool {
 	archivePath := fmt.Sprintf("%s.%d.gz", path, archiveIndex)
-
 	_, err := os.Stat(archivePath)
 	return err == nil
 }
@@ -224,32 +190,32 @@ func scrapeSantaLog(ctx context.Context, decision santaDecisionType) ([]logEntry
 	return scrapeSantaLogFromBase(ctx, decision, defaultLogPath)
 }
 
-// scrapeSantaLog reads all Santa log files (current and archived)
 func scrapeSantaLogFromBase(ctx context.Context, decision santaDecisionType, path string) ([]logEntry, error) {
-	var allEntries []logEntry
+	rb := newRingBuffer(maxEntries)
 
-	// Read current log
-	currentEntries, err := scrapeCurrentLog(ctx, path, decision)
-	if err != nil {
-		return nil, err
-	}
-	allEntries = append(allEntries, currentEntries...)
-
-	// Read archived logs
+	// Find highest archive index (0 = newest archive, higher = older)
+	maxIdx := -1
 	for i := 0; ; i++ {
-		if !newArchiveFileExists(i, path) {
+		if _, err := os.Stat(fmt.Sprintf("%s.%d.gz", path, i)); err != nil {
 			break
 		}
-
-		archivePath := fmt.Sprintf("%s.%d.gz", path, i)
-
-		archiveEntries, err := scrapeCompressedSantaLog(ctx, archivePath, decision)
-		if err != nil {
-			return nil, err // osquery expects full results or an error
-		}
-
-		allEntries = append(allEntries, archiveEntries...)
+		maxIdx = i
 	}
 
-	return allEntries, nil
+	// 1) Archives oldest → newest: maxIdx, maxIdx-1, ..., 0
+	for i := maxIdx; i >= 0; i-- {
+		archivePath := fmt.Sprintf("%s.%d.gz", path, i)
+		if err := scrapeCompressedSantaLog(ctx, archivePath, decision, rb); err != nil {
+			return nil, err
+		}
+	}
+
+	// 2) Current log last (newest overall)
+	if err := scrapeCurrentLog(ctx, path, decision, rb); err != nil {
+		return nil, err
+	}
+
+	// Return the last N entries (oldest → newest among those last N).
+	// If you prefer newest-first, use rb.SliceReverse().
+	return rb.SliceChrono(), nil
 }
