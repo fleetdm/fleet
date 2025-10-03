@@ -249,7 +249,9 @@ WHERE id IN (%s)`
 			for _, tuple := range softwareIDPlatforms {
 				delete(missingTitleIDs, tuple.TitleID)
 				if tuple.Platform != platform {
-					return ctxerr.Errorf(ctx, "invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested software installer: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
 				}
 				softwareIDs = append(softwareIDs, tuple.ID)
 			}
@@ -267,7 +269,9 @@ WHERE id IN (%s)`
 			for _, tuple := range vppIDPlatforms {
 				delete(missingTitleIDs, tuple.TitleID)
 				if tuple.Platform != platform {
-					return ctxerr.Errorf(ctx, "invalid platform for requested AppStoreApp title: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform)
+					return ctxerr.Wrap(ctx, &fleet.BadRequestError{
+						Message: fmt.Sprintf("invalid platform for requested AppStoreApp title: %d (%s, %s), vs. expected %s", tuple.ID, tuple.Name, tuple.Platform, platform),
+					})
 				}
 				vppAppTeamIDs = append(vppAppTeamIDs, tuple.ID)
 			}
@@ -288,7 +292,7 @@ WHERE id IN (%s)`
 		}
 
 		// Unset all vpp apps
-		if platform == string(fleet.MacOSPlatform) {
+		if platform == string(fleet.MacOSPlatform) || platform == string(fleet.IOSPlatform) || platform == string(fleet.IPadOSPlatform) {
 			if _, err := tx.ExecContext(ctx, stmtUnsetVPPAppsTeams, platform, teamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "unsetting vpp app teams")
 			}

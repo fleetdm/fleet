@@ -682,12 +682,33 @@ func testSetSetupExperienceTitles(t *testing.T, ds *Datastore) {
 	assert.False(t, *titles[0].SoftwarePackage.InstallDuringSetup)
 	assert.False(t, *titles[1].AppStoreApp.InstallDuringSetup)
 
+	// VPP app can be added for iOS
+	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, []uint{titleVPP["2:ios"]})
+	require.NoError(t, err)
+	titles, count, meta, err = ds.ListSetupExperienceSoftwareTitles(ctx, "ios", team1.ID, fleet.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.NotNil(t, meta)
+	installDuringSetupApps := 0
+	for _, title := range titles {
+		// iOS should only have vpp apps
+		require.NotNil(t, title.AppStoreApp)
+		if title.ID == titleVPP["2:ios"] {
+			require.True(t, *title.AppStoreApp.InstallDuringSetup)
+			installDuringSetupApps++
+		} else {
+			require.False(t, *title.AppStoreApp.InstallDuringSetup)
+		}
+	}
+	require.Equal(t, 1, installDuringSetupApps)
+
 	// iOS software. iOS only supports VPP apps so should not check installers
 	// even if one somehow exists
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "ios", team2.ID, []uint{titleSoftware["file4"]})
 	require.ErrorContains(t, err, "not available")
 
-	// ios vpp app
+	// ios vpp app is invalid for darwin platform
 	err = ds.SetSetupExperienceSoftwareTitles(ctx, "darwin", team1.ID, []uint{titleVPP["2:ios"]})
 	require.ErrorContains(t, err, "invalid platform for requested AppStoreApp")
 
