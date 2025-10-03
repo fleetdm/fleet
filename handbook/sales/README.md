@@ -86,7 +86,7 @@ Reseller partners occasionally reach out and ask Fleet for a quote on behalf of 
 5. Insert the total effective price in the "Total amount (USD)" field and send the quote. 
 
 
-### Send an order form (including a quote for a direct sale)
+### Send an order form
 
 In order to be transparent, Fleet sends order forms within 30 days of opportunity creation in most cases. All quotes and purchase orders must be approved by the CRO and 💸 [Deal Desk](https://fleetdm.com/handbook/finance#team) before being sent to the prospect or customer. Often, the CRO will [request legal review](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed) of any unique terms required. To prepare and send a subscription order form, the Fleet owner of the opportunity (usually AE or CSM) will: 
 
