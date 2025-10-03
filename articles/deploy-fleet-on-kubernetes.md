@@ -15,7 +15,9 @@ In this guide, we will focus on deploying Fleet only on a Kubernetes cluster usi
 Before we get started with deploying Fleet, you will need 
 1. Access to a Kubernetes cluster
 2. Access to a MySQL database (or you can deploy one to your Kubernetes cluster using Helm)
+  - This guide will be leveraging bitnamilegacy/mysql images.
 3. Access to a Redis cluster (or you can deploy one to your Kubernetes cluster using Helm)
+  - This guide will be leveraging bitnamilegacy/redis images.
 
 Additionally, ensure a namespace is created or already exists for your Fleet deployment resources. 
 - Example of creating a kubernetes namespace
@@ -41,6 +43,7 @@ To install MySQL from Helm, run the following command.
 helm install fleet-database \
   --namespace <namespace> \
   --set auth.username=fleet,auth.database=fleet,auth.password=<password> \
+  --set image.repository=bitnamilegacy/mysql \
   oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
@@ -62,6 +65,7 @@ We will use this address when we configure the Kubernetes deployment and databas
 helm install fleet-cache \
   --namespace <namespace> \
   --set persistence.enabled=false \
+  --set image.repository=bitnamilegacy/redis \
   oci://registry-1.docker.io/bitnamicharts/redis
 ```
 
