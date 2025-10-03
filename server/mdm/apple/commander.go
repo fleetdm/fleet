@@ -182,7 +182,7 @@ func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Ho
 			"Message":     msg,
 		},
 	}
-	rawBytes, err := plist.Marshal(cmdPayload)
+	rawBytes, err := plist.MarshalIndent(cmdPayload, "    ")
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "marshalling EnableLostMode payload")
 	}
