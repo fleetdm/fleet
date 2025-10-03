@@ -11,7 +11,7 @@ import { isAndroid, isIPadOrIPhone } from "interfaces/platform";
 import {
   isBYODAccountDrivenEnrollment,
   isBYODManualEnrollment,
-  isBYODCompanyOwnedEnrollment,
+  isCompanyOwnedEnrollment,
   MdmEnrollmentStatus,
 } from "interfaces/mdm";
 
@@ -96,7 +96,7 @@ const UnenrollMdmModal = ({
           on their host and to log in with their work email.
         </p>
       );
-    } else if (isBYODCompanyOwnedEnrollment(enrollmentStatus)) {
+    } else if (isCompanyOwnedEnrollment(enrollmentStatus)) {
       return (
         <p>
           To re-enroll, make sure that the host is still in Apple Business

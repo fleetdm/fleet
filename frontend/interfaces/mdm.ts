@@ -303,7 +303,7 @@ export const isBYODAccountDrivenEnrollment = (
   return enrollmentStatus === "On (personal)";
 };
 
-export const isBYODCompanyOwnedEnrollment = (
+export const isCompanyOwnedEnrollment = (
   enrollmentStatus: MdmEnrollmentStatus | null
 ) => {
   return enrollmentStatus === "On (company-owned)";
