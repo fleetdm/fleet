@@ -50,6 +50,7 @@ func TestSoftwareInstallers(t *testing.T) {
 		{"EditDeleteSoftwareInstallersActivateNextActivity", testEditDeleteSoftwareInstallersActivateNextActivity},
 		{"BatchSetSoftwareInstallersActivateNextActivity", testBatchSetSoftwareInstallersActivateNextActivity},
 		{"SaveInstallerUpdatesClearsFleetMaintainedAppID", testSaveInstallerUpdatesClearsFleetMaintainedAppID},
+		{"SoftwareInstallerReplicaLag", testSoftwareInstallerReplicaLag},
 	}
 
 	for _, c := range cases {
@@ -3188,10 +3189,9 @@ func testSaveInstallerUpdatesClearsFleetMaintainedAppID(t *testing.T, ds *Datast
 	assert.Nil(t, fmaID, "fleet_maintained_app_id should be NULL after update")
 }
 
-func TestSoftwareInstallerReplicaLag(t *testing.T) {
+func testSoftwareInstallerReplicaLag(t *testing.T, unused *Datastore) {
 	opts := &testing_utils.DatastoreTestOptions{DummyReplica: true}
 	ds := CreateMySQLDSWithOptions(t, opts)
-	// ds := CreateMySQLDS(t)
 	defer ds.Close()
 
 	ctx := context.Background()
@@ -3199,8 +3199,9 @@ func TestSoftwareInstallerReplicaLag(t *testing.T) {
 	user := test.NewUser(t, ds, "Alice", "alice@example.com", true)
 	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "Team 1"})
 	require.NoError(t, err)
+	opts.RunReplication()
 
-	// we want to upload a software installer MatchOrCreateSoftwareInstaller()
+	// upload software installer
 	installerID, titleID, err := ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
 		Title:            "foo",
 		Source:           "apps",
@@ -3216,55 +3217,10 @@ func TestSoftwareInstallerReplicaLag(t *testing.T) {
 	require.NoError(t, err)
 	require.NotZero(t, installerID)
 	require.NotZero(t, titleID)
-	// opts.RunReplication()
-
-	query := `
-SELECT
-  si.id,
-  si.team_id,
-  si.title_id,
-  si.storage_id,
-  si.fleet_maintained_app_id,
-  si.package_ids,
-  si.upgrade_code,
-  si.filename,
-  si.extension,
-  si.version,
-  si.platform,
-  si.install_script_content_id,
-  si.pre_install_query,
-  si.post_install_script_content_id,
-  si.uninstall_script_content_id,
-  si.uploaded_at,
-  si.self_service,
-  si.url,
-  COALESCE(st.name, '') AS software_title
-FROM
-  software_installers si
-  JOIN software_titles st ON st.id = si.title_id`
-	var dest fleet.SoftwareInstaller
-	err = sqlx.GetContext(ctx, ds.writer(ctx), &dest, query)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Println("Errorwreter: NO ROWS get software installer metadata")
-		}
-		fmt.Println("Error:wrter get software installer metadata")
-	}
-	fmt.Printf("__________________ teamID: %d    writer\n %+v \n\n", *dest.TeamID, dest)
-
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &dest, query)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			fmt.Println("ERROR:readear NO ROWS get software installer metadata")
-		}
-		fmt.Println("Error:reader get software installer metadata")
-	}
-	fmt.Printf("__________________ teamID: %d    reader\n %+v \n\n", *dest.TeamID, dest)
+	// opts.RunReplication() // - replication should not be needed after fix
 
 	// then validate it GetSoftwareInstallerMetadataByTeamAndTitleID()
-	// This should be fine if iinstaller was created
 	gotInstaller, err := ds.GetSoftwareInstallerMetadataByTeamAndTitleID(ctx, &team.ID, titleID, false)
 	require.NoError(t, err)
 	require.NotNil(t, gotInstaller)
-	fmt.Printf("%+v\n", gotInstaller)
 }
