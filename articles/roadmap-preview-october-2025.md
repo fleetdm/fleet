@@ -9,19 +9,19 @@ The Fleet roadmap is set for fall 2025. Watch the video above for a walkthrough,
 In the next 3 months, Fleet will ship...
 
 - 👔 Customize first-time Linux and Windows setup
+- 🔧 Self-service scripts on macOS, Linux, and Windows
 - 📄 Deploy certificates for Wi-Fi and VPN on company-owned Linux & Windows computers and personal mobile devices (iOS/iPadOS, Android)
-- 🔧 Self-service scripts on Linux, macOS, and Windows
+- 🤖 Manage personal (BYOD) Android: enforce OS settings and manage software in work profiles
+- 📦 Self-service software for BYOD iOS/iPadOS & Android
+- 🧪 Deploy your proprietary in-house iOS apps to the entire company
 - 🛡️ Integration with Okta for conditional access on macOS
 - 👨‍💻 More Windows Fleet-maintained apps: Mozilla Firefox, Slack, and Zoom
-- 🧪 Deploy your proprietary in-house iOS apps to the entire company
-- 🤖 Manage personal (BYOD) Android: enforce OS settings and manage software in work profiles
-- 📦 Self-service software for personal mobile devices (iOS/iPadOS, Android)
-- ⬇️ Downloadable Fleet agents (fleetd)
+- ⬇️ Download signed installers in one click with no Terminal or certificates required
 
 Big opportunities that Fleet is building towards in the near future (next 180 days):
 
-- 📊 Vulnerability burn-down chart (open CVEs over time)
-- 🔊 Find missing assets and their vulnerabilities (via Nmap)
+- 📊 Vulnerability burn-down chart
+- 🚨 Critical issues heat map
 
 Any feedback or questions? Contributions welcome! You can find us [where we hang out](https://fleetdm.com/support).
 
