@@ -167,10 +167,6 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 
 }
 
-func createEnrollmentMessage(t *testing.T, deviceInfo androidmanagement.Device) *android.PubSubMessage {
-	return enrollmentMessageWithEnterpriseSpecificID(t, deviceInfo, strings.ToUpper(uuid.New().String()))
-}
-
 func enrollmentMessageWithEnterpriseSpecificID(t *testing.T, deviceInfo androidmanagement.Device, enterpriseSpecificID string) *android.PubSubMessage {
 	deviceInfo.HardwareInfo = &androidmanagement.HardwareInfo{
 		EnterpriseSpecificId: enterpriseSpecificID,
