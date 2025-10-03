@@ -77,7 +77,8 @@ INNER JOIN vpp_apps_teams vat
 INNER JOIN software_titles st
 	ON va.title_id = st.id
 WHERE vat.install_during_setup = true
-AND vat.global_or_team_id = ?`
+AND vat.global_or_team_id = ?
+AND va.platform = ?`
 
 	stmtSetupScripts := `
 INSERT INTO setup_experience_status_results (
@@ -118,7 +119,7 @@ WHERE global_or_team_id = ?`
 
 		// VPP apps
 		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
-			res, err := tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+			res, err := tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID, fleetPlatform)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
