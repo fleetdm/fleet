@@ -1057,12 +1057,13 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oktaDeviceHealthLogger := kitlog.With(logger, "component", "okta-device-health")
 	oktaBaseURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_URL")
 	if oktaBaseURL == "" {
-		level.Error(oktaDeviceHealthLogger).Log("msg", "FLEET_CONDITIONAL_ACCESS_URL is not set, Okta device health WILL NOT WORK")
+		level.Error(oktaDeviceHealthLogger).Log("msg", "FLEET_CONDITIONAL_ACCESS_URL is not set; disabling Okta device health endpoints")
+	} else {
+		r.Handle("/api/v1/fleet/okta/device_health/metadata",
+			makeOktaDeviceHealthMetadataHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
+		r.Handle("/api/v1/fleet/okta/device_health/sso",
+			makeOktaDeviceHealthSSOHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
 	}
-	r.Handle("/api/v1/fleet/okta/device_health/metadata",
-		makeOktaDeviceHealthMetadataHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
-	r.Handle("/api/v1/fleet/okta/device_health/sso",
-		makeOktaDeviceHealthSSOHandler(svc, oktaBaseURL, oktaDeviceHealthLogger))
 
 }
 
