@@ -4993,17 +4993,14 @@ func (ds *Datastore) MDMResetEnrollment(ctx context.Context, hostUUID string, sc
 	})
 }
 
-func (ds *Datastore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
+func (ds *Datastore) CleanAppleMDMLock(ctx context.Context, hostUUID string) error {
 	const stmt = `
 UPDATE host_mdm_actions hma
 JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
-WHERE h.uuid = ?
-  AND hma.unlock_ref IS NOT NULL
-  AND hma.unlock_pin IS NOT NULL
-  `
+WHERE h.uuid = ?`
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")

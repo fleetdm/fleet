@@ -242,6 +242,32 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	}, s.logger)
 }
 
+func (s *NanoMDMStorage) EnqueueDeviceUnlockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
+			return err
+		}
+
+		stmt := `
+			INSERT INTO host_mdm_actions (
+				host_id,
+				unlock_ref,
+				fleet_platform
+			)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+				unlock_ref = VALUES(unlock_ref),
+				unlock_pin = NULL,
+				lock_ref   = NULL`
+
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceUnlock")
+		}
+
+		return nil
+	}, s.logger)
+}
+
 // EnqueueDeviceWipeCommand enqueues a EraseDevice command for the given host.
 func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
 	return common_mysql.WithRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
@@ -268,7 +294,8 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 }
 
 func (s *NanoMDMStorage) GetAllMDMConfigAssetsByName(ctx context.Context, assetNames []fleet.MDMAssetName,
-	queryerContext sqlx.QueryerContext) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
+	queryerContext sqlx.QueryerContext,
+) (map[fleet.MDMAssetName]fleet.MDMConfigAsset, error) {
 	return s.ds.GetAllMDMConfigAssetsByName(ctx, assetNames, queryerContext)
 }
 
@@ -291,7 +318,6 @@ func (s *NanoMDMStorage) ClearQueue(r *mdm.Request) error {
 		}
 		return nil
 	}, s.logger)
-
 	if err != nil {
 		return err
 	}

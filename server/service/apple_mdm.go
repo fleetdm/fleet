@@ -3768,6 +3768,15 @@ func (svc *MDMAppleCheckinAndCommandService) GetToken(_ *mdm.Request, _ *mdm.Get
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
 func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
 	if cmdResult.Status == "Idle" {
+
+		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.Identifier())
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "command service")
+		}
+
+		if host.Platform == "ios" || host.Platform == "ipados" {
+			level.Info(svc.logger).Log("msg", "iOS/iPadOS host checked in as Idle", "host_id", host.ID, "host_name", host.DisplayName(), "host_serial", host.HardwareSerial, "host_udid", host.UUID)
+		}
 		// NOTE: iPhone/iPad devices that are still enroled in Fleet's MDM but have
 		// been deleted from Fleet (no host entry) will still send checkin
 		// requests from time to time. Those should be Idle requests without a
@@ -3818,9 +3827,9 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		//
 		// TODO: sanity check if this approach is still valid after we implement wipe
 
-		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
+		// if there is not a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 			}
 		}
@@ -3860,7 +3869,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
-	case "DeviceLock", "EraseDevice":
+	case "DeviceLock", "EraseDevice", "EnableLostMode", "DisableLostMode":
 		// these commands will always fail if sent to a User Enrolled device as of iOS/iPadOS 18
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
 			cmdResult.Status == fleet.MDMAppleStatusError ||
