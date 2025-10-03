@@ -17,7 +17,7 @@ Before we get started with deploying Fleet, you will need
 2. Access to a MySQL database (or you can deploy one to your Kubernetes cluster using Helm)
   - This guide will use bitnamilegacy/mysql images.
 3. Access to a Redis cluster (or you can deploy one to your Kubernetes cluster using Helm)
-  - This guide will be leveraging bitnamilegacy/redis images.
+  - This guide will use bitnamilegacy/redis images.
 
 Additionally, ensure a namespace is created or already exists for your Fleet deployment resources. 
 - Example of creating a kubernetes namespace
