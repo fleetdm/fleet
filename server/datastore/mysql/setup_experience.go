@@ -160,7 +160,6 @@ WHERE global_or_team_id = ?`
 }
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
-	// TODO EJM clean up
 	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
 		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
 	}
