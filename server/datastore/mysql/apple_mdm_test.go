@@ -5623,7 +5623,7 @@ func testLockUnlockWipeIphone(t *testing.T, ds *Datastore) {
 	// it is now pending unlock
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkLockWipeState(t, status, true, false, false, true, false, false)
+	checkLockWipeState(t, status, false, true, false, true, false, false)
 
 	// record a command result to simulate unlocked state
 	err = appleStore.StoreCommandReport(&mdm.Request{
