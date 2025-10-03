@@ -173,6 +173,70 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	return unlockPIN, nil
 }
 
+func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Host, commandUUID string, orgName string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>EnableLostMode</string>
+		<key>Message</key>
+		<string>This device is locked. It belongs to %s.</string>
+	</dict>
+</dict>
+</plist>`, commandUUID, orgName)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, ""); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for EnableLostMode")
+	}
+
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for EnableLostMode")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) DisableLostMode(ctx context.Context, host *fleet.Host, commandUUID string) error {
+	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+	<key>CommandUUID</key>
+	<string>%s</string>
+	<key>Command</key>
+	<dict>
+		<key>RequestType</key>
+		<string>DisableLostMode</string>
+	</dict>
+</dict>
+</plist>`, commandUUID)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command for DisableLostMode")
+	}
+
+	if err := svc.storage.EnqueueDeviceUnlockCommand(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing device unlock command for DisableLostMode")
+	}
+
+	if err := svc.SendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DisableLostMode")
+	}
+
+	return nil
+}
+
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
 	pin := GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
@@ -336,6 +400,7 @@ func (svc *MDMAppleCommander) DeviceInformation(ctx context.Context, hostUUIDs [
             <string>OSVersion</string>
             <string>WiFiMAC</string>
             <string>ProductName</string>
+			<string>IsMDMLostModeEnabled</string>
         </array>
         <key>RequestType</key>
         <string>DeviceInformation</string>

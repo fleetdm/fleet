@@ -22,6 +22,8 @@ type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) (unlockPIN string, err error)
+	EnableLostMode(ctx context.Context, host *Host, commandUUID string, orgName string) error
+	DisableLostMode(ctx context.Context, host *Host, commandUUID string) error
 	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 	DeviceConfigured(ctx context.Context, hostUUID, cmdUUID string) error
