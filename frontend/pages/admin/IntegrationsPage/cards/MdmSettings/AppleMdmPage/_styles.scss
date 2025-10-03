@@ -1,12 +1,5 @@
 .apple-mdm-page {
-  &__back-to-mdm {
-    margin-bottom: $pad-xlarge;
-  }
-
-  h1 {
-    margin-bottom: $pad-xxlarge;
-    font-size: $large;
-  }
+  @include vertical-page-layout;
 
   h4 {
     margin-bottom: 0;
@@ -83,7 +76,6 @@
     display: flex;
     gap: $pad-medium;
     align-items: center;
-    margin-top: $pad-xxlarge;
   }
 
   &__file-uploader {

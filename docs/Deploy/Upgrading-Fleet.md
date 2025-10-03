@@ -4,7 +4,7 @@ This guide explains how to upgrade your Fleet instance to the latest version in 
 
 There are four steps to perform a typical Fleet upgrade:
 
-1. [Bringing Fleet offline](#bring_fleet_offline)
+1. [Bringing Fleet offline](#bring-fleet-offline)
 2. [Installing the latest version](#install-the-latest-version-of-fleet)
 3. [Preparing the database](#prepare-the-database)
 4. [Serving the new Fleet instance](#serve-the-new-version)

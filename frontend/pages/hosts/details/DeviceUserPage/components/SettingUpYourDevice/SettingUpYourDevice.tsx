@@ -21,7 +21,7 @@ const SettingUpYourDevice = ({
         <h1 className={`${baseClass}__title`}>My device</h1>
         <InfoButton onClick={toggleInfoModal} />
       </span>
-      <Card borderRadiusSize="xxlarge" paddingSize="xlarge" includeShadow>
+      <Card borderRadiusSize="xxlarge" paddingSize="xlarge">
         <h2>Setting up your device...</h2>
         <p>
           Your computer is currently being configured by your organization.

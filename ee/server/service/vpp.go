@@ -96,18 +96,18 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 		}}...)
 	}
 
-	if dryRun {
-		// On dry runs return early because the VPP token might not exist yet
-		// and we don't want to apply the VPP apps.
-		return nil, nil
-	}
-
 	var vppAppTeams []fleet.VPPAppTeam
 	// Don't check for token if we're only disassociating assets
 	if len(payloads) > 0 {
 		token, err := svc.getVPPToken(ctx, teamID)
 		if err != nil {
 			return nil, fleet.NewUserMessageError(ctxerr.Wrap(ctx, err, "could not retrieve vpp token"), http.StatusUnprocessableEntity)
+		}
+
+		if dryRun {
+			// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+			// That way we validate if a VPP token is available even on dry runs keeping it consistent.
+			return nil, nil
 		}
 
 		for _, payload := range payloadsWithPlatform {
@@ -170,6 +170,12 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 			reqErr := ctxerr.Errorf(ctx, "requested app not available on vpp account: %s", strings.Join(missingAssets, ","))
 			return nil, fleet.NewUserMessageError(reqErr, http.StatusUnprocessableEntity)
 		}
+	}
+
+	if dryRun {
+		// If we're doing a dry run, we stop here and return no error to avoid making any changes.
+		// Another dry run check is inside the payload size > 0 statement.
+		return nil, nil
 	}
 
 	if len(vppAppTeams) > 0 {

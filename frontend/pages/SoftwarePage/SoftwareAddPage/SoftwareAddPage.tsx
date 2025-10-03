@@ -106,36 +106,36 @@ const SoftwareAddPage = ({
     <SidePanelPage>
       <>
         <MainContent className={baseClass}>
-          <>
+          <div className={`${baseClass}__header-links`}>
             <BackButton
               text="Back to software"
               path={backUrl}
               className={`${baseClass}__back-to-software`}
             />
-            <h1>Add software</h1>
-            <TabNav>
-              <Tabs
-                selectedIndex={getTabIndex(location?.pathname || "")}
-                onSelect={navigateToNav}
-              >
-                <TabList>
-                  {addSoftwareSubNav.map((navItem) => {
-                    return (
-                      <Tab key={navItem.name} data-text={navItem.name}>
-                        <TabText>{navItem.name}</TabText>
-                      </Tab>
-                    );
-                  })}
-                </TabList>
-              </Tabs>
-            </TabNav>
-            {React.cloneElement(children, {
-              router,
-              currentTeamId: parseInt(location.query.team_id, 10),
-              isSidePanelOpen,
-              setSidePanelOpen,
-            })}
-          </>
+          </div>
+          <h1>Add software</h1>
+          <TabNav>
+            <Tabs
+              selectedIndex={getTabIndex(location?.pathname || "")}
+              onSelect={navigateToNav}
+            >
+              <TabList>
+                {addSoftwareSubNav.map((navItem) => {
+                  return (
+                    <Tab key={navItem.name} data-text={navItem.name}>
+                      <TabText>{navItem.name}</TabText>
+                    </Tab>
+                  );
+                })}
+              </TabList>
+            </Tabs>
+          </TabNav>
+          {React.cloneElement(children, {
+            router,
+            currentTeamId: parseInt(location.query.team_id, 10),
+            isSidePanelOpen,
+            setSidePanelOpen,
+          })}
         </MainContent>
         {isSidePanelOpen && (
           <SidePanelContent>

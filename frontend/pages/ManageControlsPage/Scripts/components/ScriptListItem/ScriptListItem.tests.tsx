@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 import { IScript } from "interfaces/script";
 import React from "react";
 import ScriptListItem from "./ScriptListItem";
@@ -54,8 +55,8 @@ describe("ScriptListItem", () => {
     expect(screen.getByText(/Windows/)).toBeInTheDocument();
   });
 
-  it("calls onClickScript when script name is clicked", () => {
-    render(
+  it("calls onClickScript when script name is clicked", async () => {
+    const { user } = renderWithSetup(
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
@@ -64,12 +65,12 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("test_mac_script.sh"));
+    await user.click(screen.getByText("test_mac_script.sh"));
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
   });
 
-  it("only calls onClickScript when clicking elsewhere in the script list item (except 'Edit', see below)", () => {
-    render(
+  it("only calls onClickScript when clicking elsewhere in the script list item (except 'Edit', see below)", async () => {
+    const { user } = renderWithSetup(
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
@@ -78,14 +79,14 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByText("over 4 years ago"));
+    await user.click(screen.getByText(/years ago/));
     expect(onClickScript).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onEdit).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();
   });
 
-  it("only calls onDelete when delete button is clicked", () => {
-    render(
+  it("only calls onDelete when delete button is clicked", async () => {
+    const { user } = renderWithSetup(
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
@@ -94,14 +95,14 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("trash-icon"));
+    await user.click(screen.getByTestId("trash-icon"));
     expect(onDelete).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onClickScript).not.toHaveBeenCalled();
     expect(onEdit).not.toHaveBeenCalled();
   });
 
-  it("only calls onEdit when pencil button is clicked", () => {
-    render(
+  it("only calls onEdit when pencil button is clicked", async () => {
+    const { user } = renderWithSetup(
       <ScriptListItem
         script={MAC_SCRIPT}
         onDelete={onDelete}
@@ -110,7 +111,7 @@ describe("ScriptListItem", () => {
       />
     );
 
-    fireEvent.click(screen.getByTestId("pencil-icon"));
+    await user.click(screen.getByTestId("pencil-icon"));
     expect(onEdit).toHaveBeenCalledWith(MAC_SCRIPT);
     expect(onClickScript).not.toHaveBeenCalled();
     expect(onDelete).not.toHaveBeenCalled();

@@ -17,6 +17,8 @@ import DataError from "components/DataError";
 import Spinner from "components/Spinner";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import TurnOnMdmMessage from "components/TurnOnMdmMessage";
+import PageDescription from "components/PageDescription";
+import EmptyTable from "components/EmptyTable";
 
 import AddVppModal from "./components/AddVppModal";
 import RenewVppModal from "./components/RenewVppModal";
@@ -32,13 +34,11 @@ interface IAddVppMessageProps {
 
 const AddVppMessage = ({ onAddVpp }: IAddVppMessageProps) => {
   return (
-    <div className={`${baseClass}__add-vpp-message`}>
-      <h2>Add your VPP</h2>
-      <p>
-        Install Apple App Store apps purchased through Apple Business Manager.
-      </p>
-      <Button onClick={onAddVpp}>Add VPP</Button>
-    </div>
+    <EmptyTable
+      header="Add your VPP"
+      info="Install Apple App Store apps purchased through Apple Business Manager."
+      primaryButton={<Button onClick={onAddVpp}>Add VPP</Button>}
+    />
   );
 };
 
@@ -164,10 +164,10 @@ const VppPage = ({ router }: IVppPageProps) => {
     if (vppTokens) {
       return (
         <>
-          <p>
-            Add your VPP to install Apple App Store apps purchased through Apple
-            Business Manager.
-          </p>
+          <PageDescription
+            content="Add your VPP to install Apple App Store apps purchased through Apple
+            Business Manager."
+          />
           <VppTable
             vppTokens={vppTokens}
             onEditTokenTeam={onEditTokenTeams}
@@ -184,11 +184,9 @@ const VppPage = ({ router }: IVppPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackButton
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton text="Back to MDM" path={PATHS.ADMIN_INTEGRATIONS_MDM} />
+        </div>
         <div className={`${baseClass}__page-content`}>
           <div className={`${baseClass}__page-header-section`}>
             <h1>Volume Purchasing Program (VPP)</h1>

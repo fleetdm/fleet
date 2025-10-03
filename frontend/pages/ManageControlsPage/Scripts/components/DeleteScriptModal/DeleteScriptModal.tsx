@@ -15,7 +15,7 @@ interface IDeleteScriptModalProps {
   scriptName: string;
   scriptId: number;
   onCancel: () => void;
-  onDone: () => void;
+  afterDelete: () => void;
   isHidden?: boolean;
 }
 
@@ -23,7 +23,7 @@ const DeleteScriptModal = ({
   scriptName,
   scriptId,
   onCancel,
-  onDone,
+  afterDelete,
   isHidden = false,
 }: IDeleteScriptModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -45,7 +45,7 @@ const DeleteScriptModal = ({
       );
     }
     setIsDeleting(false);
-    onDone();
+    afterDelete();
   };
 
   return (

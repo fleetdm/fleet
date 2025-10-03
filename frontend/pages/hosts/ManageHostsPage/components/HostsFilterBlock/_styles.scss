@@ -2,7 +2,6 @@
   &__labels-active-filter-wrap {
     display: flex;
     align-items: center;
-    margin-bottom: $pad-small;
     gap: $pad-small; // between multiple filter pills
 
     .form-field {

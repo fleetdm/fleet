@@ -456,7 +456,7 @@ const NewLabelPage = ({
             </span>
             <span className="form-field__help-text">
               Currently, label criteria can be IdP group or department on macOS
-              hosts.
+              and Android hosts.
             </span>
           </div>
         );

@@ -1,9 +1,5 @@
 .agent-options {
-  font-size: $x-small;
-
-  &__page-description {
-    margin: $pad-large 0;
-  }
+  @include vertical-page-tab-panel-layout;
 
   &__osquery-options-form {
     display: flex;

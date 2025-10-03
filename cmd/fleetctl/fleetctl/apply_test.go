@@ -277,7 +277,7 @@ spec:
         deadline_days: 5
         grace_period_days: 1
 `)
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	newMDMSettings = fleet.TeamMDM{
 		MacOSUpdates: fleet.AppleOSUpdateSettings{
 			MinimumVersion: optjson.SetString("12.3.1"),
@@ -323,7 +323,7 @@ spec:
 		},
 	}
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 team\n")
 	// enroll secret not provided, so left unchanged
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
@@ -381,7 +381,7 @@ spec:
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
@@ -399,7 +399,7 @@ spec:
       macos_settings:
 `)
 
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	// agent options provided but empty, clears the value
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates still the same (not cleared) because only the
@@ -471,7 +471,7 @@ spec:
 		},
 	}
 
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 team\n")
 	// agent options still cleared
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates are now cleared.
@@ -496,7 +496,7 @@ spec:
 `,
 	)
 
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	// Ensure the webhook settings are applied
 	assert.Equal(
 		t, fleet.HostStatusWebhookSettings{
@@ -522,7 +522,7 @@ spec:
 `,
 	)
 
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	// Ensure the webhook settings have not changed
 	assert.Equal(
 		t, fleet.HostStatusWebhookSettings{
@@ -547,7 +547,7 @@ spec:
         webhook_url: https://example.com/webhook
 `,
 	)
-	require.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", filename}))
+	require.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", filename}))
 	require.NotNil(t, teamsByName["team1"].Config.Integrations.GoogleCalendar)
 	assert.Equal(
 		t, fleet.TeamGoogleCalendarIntegration{
@@ -1534,10 +1534,10 @@ spec:
 `, mobileConfigPath))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 team\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 team\n")
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
@@ -1573,10 +1573,10 @@ spec:
 `, emptySetupAsst))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 team\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 team\n")
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
@@ -1613,10 +1613,10 @@ spec:
 `, bootstrapURL))
 
 	// first apply with dry-run
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 team\n")
 
 	// then apply for real
-	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
+	assert.Contains(t, RunAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 team\n")
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
@@ -1674,7 +1674,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, labelsSpec)
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
@@ -1690,7 +1690,7 @@ spec:
 		return nil, nil
 	}
 	name = writeTmpYml(t, packsSpec)
-	assert.Equal(t, "[+] applied 1 packs\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 pack\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
@@ -1706,7 +1706,7 @@ spec:
 		return nil
 	}
 	name = writeTmpYml(t, queriesSpec)
-	assert.Equal(t, "[+] applied 1 queries\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
@@ -1771,7 +1771,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name := writeTmpYml(t, labelsSpec)
 
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "pending_updates", appliedLabels[0].Name)
@@ -1782,7 +1782,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, manualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "manual_label", appliedLabels[0].Name)
@@ -1793,7 +1793,7 @@ func TestApplyLabels(t *testing.T) {
 
 	name = writeTmpYml(t, emptyManualLabelSpec)
 
-	assert.Equal(t, "[+] applied 1 labels\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 label\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyLabelSpecsWithAuthorFuncInvoked)
 	require.Len(t, appliedLabels, 1)
 	assert.Equal(t, "empty_manual_label", appliedLabels[0].Name)
@@ -1853,7 +1853,7 @@ func TestApplyPacks(t *testing.T) {
 
 	name := writeTmpYml(t, packsSpec)
 
-	assert.Equal(t, "[+] applied 1 packs\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 pack\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyPackSpecsFuncInvoked)
 	require.Len(t, appliedPacks, 1)
 	assert.Equal(t, "osquery_monitoring", appliedPacks[0].Name)
@@ -1899,7 +1899,7 @@ func TestApplyQueries(t *testing.T) {
 
 	name := writeTmpYml(t, queriesSpec)
 
-	assert.Equal(t, "[+] applied 1 queries\n", RunAppForTest(t, []string{"apply", "-f", name}))
+	assert.Equal(t, "[+] applied 1 query\n", RunAppForTest(t, []string{"apply", "-f", name}))
 	assert.True(t, ds.ApplyQueriesFuncInvoked)
 	require.Len(t, appliedQueries, 1)
 	assert.Equal(t, "app_schemes", appliedQueries[0].Name)
@@ -2483,7 +2483,7 @@ spec:
 
 		// apply team 1 without the setup assistant key
 		name = writeTmpYml(t, team1NoKeySpec)
-		assert.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
@@ -2517,7 +2517,7 @@ spec:
 		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
 		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
 		ds.SaveTeamFuncInvoked = false
-		assert.Equal(t, "[+] applied 1 teams\n", RunAppForTest(t, []string{"apply", "-f", name}))
+		assert.Equal(t, "[+] applied 1 team\n", RunAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveTeamFuncInvoked)
@@ -2932,7 +2932,7 @@ apiVersion: v1
 kind: team
 spec:
 `,
-			wantOutput: "[+] applied 1 teams",
+			wantOutput: "[+] applied 1 team",
 		},
 		{
 			desc: "empty team name",
@@ -2994,7 +2994,7 @@ spec:
     blah: true
 `,
 			flags:      []string{"--force"},
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "invalid agent options for new team",
@@ -3038,7 +3038,7 @@ spec:
         blah: nope
 `,
 			flags:      []string{"--force"},
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "invalid agent options field type",
@@ -3082,7 +3082,7 @@ spec:
       command_line_flags:
         enable_tables: "abc"
 `,
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "invalid agent options field type in overrides",
@@ -3295,7 +3295,7 @@ spec:
 			flags: []string{"--dry-run"},
 			wantOutput: `[!] ignoring labels, dry run mode only supported for 'config' and 'team' specs
 [+] would've applied fleet config
-[+] would've applied 1 teams`,
+[+] would've applied 1 team`,
 		},
 		{
 			desc: "macos_updates deadline set but minimum_version empty",
@@ -3486,7 +3486,7 @@ spec:
         deadline_days: 5
         grace_period_days: 1
 `,
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "windows_updates unset valid",
@@ -3501,7 +3501,7 @@ spec:
         deadline_days:
         grace_period_days:
 `,
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "missing required sso entity_id",
@@ -3912,7 +3912,7 @@ spec:
       macos_settings:
         enable_disk_encryption: false
 `,
-			wantOutput: `[+] applied 1 teams`,
+			wantOutput: `[+] applied 1 team`,
 		},
 		{
 			desc: "team config mac setup assistant",

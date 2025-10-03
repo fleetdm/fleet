@@ -1,12 +1,11 @@
 .software-installer-card {
-  display: flex;
-  flex-direction: column;
+  @include vertical-card-layout;
   justify-content: space-between;
   align-items: center;
-  gap: $pad-medium;
 
   &__actions {
     display: flex;
+    align-items: center;
 
     .component__tooltip-wrapper__element {
       display: flex; // Required for vertical align icons that have and don't have tooltip

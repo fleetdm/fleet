@@ -1,4 +1,4 @@
-name: Build fleetctl docker dependencies and check vulnerabilities
+name: Build fleetdm/bomutils and check vulnerabilities
 
 on:
   workflow_dispatch:
@@ -38,22 +38,16 @@ jobs:
         with:
           go-version-file: "go.mod"
 
-      - name: Build fleetdm/wix
-        run: make wix-docker
-
       - name: Build fleetdm/bomutils
         run: make bomutils-docker
-
-      - name: Build fleetdm/fleetctl
-        run: make fleetctl-docker
 
       - name: List VEX files
         id: generate_vex_files
         run: |
-          echo "VEX_FILES=$(ls -1 ./security/vex/fleetctl/ | while IFS= read -r line; do echo "./security/vex/fleetctl/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
+          echo "VEX_FILES=$(ls -1 ./security/vex/bomutils/ | while IFS= read -r line; do echo "./security/vex/bomutils/$line"; done | tr '\n' ',' | sed 's/.$//')" >> $GITHUB_OUTPUT
 
       # We use the trivy command and not the github action because it doesn't support loading VEX files yet.
-      - name: Run Trivy vulnerability scanner on fleetdm/fleetctl
+      - name: Run Trivy vulnerability scanner on fleetdm/bomutils
         env:
           TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
           TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
@@ -71,35 +65,9 @@ jobs:
             --pkg-types=os,library \
             --severity=HIGH,CRITICAL \
             --vex="${{ steps.generate_vex_files.outputs.VEX_FILES }}" \
-            fleetdm/fleetctl
+            fleetdm/bomutils
 
-      - name: Run Trivy vulnerability scanner on fleetdm/wix
-        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # 0.30.0
-        env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-        with:
-          image-ref: "fleetdm/wix"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL"
-
-      - name: Run Trivy vulnerability scanner on fleetdm/bomutils
-        uses: aquasecurity/trivy-action@6c175e9c4083a92bbca2f9724c8a5e33bc2d97a5 # 0.30.0
-        env:
-          TRIVY_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-db
-          TRIVY_JAVA_DB_REPOSITORY: public.ecr.aws/aquasecurity/trivy-java-db
-        with:
-          image-ref: "fleetdm/bomutils"
-          format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          vuln-type: "os,library"
-          severity: "CRITICAL"
-
-      - name: Slack root notification
+      - name: Slack notification
         if: github.event.schedule == '0 6 * * *' && failure()
         uses: slackapi/slack-github-action@e28cf165c92ffef168d23c5c9000cffc8a25e117 # v1.24.0
         with:
@@ -111,7 +79,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "⚠️ Build fleetctl docker dependencies and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
+                    "text": "⚠️ Build fleetdm/bomutils and check vulnerabilities failed.\nhttps://github.com/fleetdm/fleet/actions/runs/${{  github.run_id }}"
                   }
                 }
               ]

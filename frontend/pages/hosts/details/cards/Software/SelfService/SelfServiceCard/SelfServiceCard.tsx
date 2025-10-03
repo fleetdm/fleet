@@ -177,7 +177,6 @@ const SelfServiceCard = ({
       className={`${baseClass}__self-service-card`}
       borderRadiusSize="xxlarge"
       paddingSize="xlarge"
-      includeShadow
     >
       <CardHeader
         header="Self-service"
