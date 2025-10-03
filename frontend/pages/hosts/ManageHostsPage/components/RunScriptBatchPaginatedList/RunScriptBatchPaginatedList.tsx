@@ -88,7 +88,7 @@ const RunScriptBatchPaginatedList = ({
     <>
       <a>{script.name}</a>
       <Button
-        variant="text-icon"
+        variant="inverse"
         iconStroke={!script.hasRun}
         onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
           e.stopPropagation();
@@ -98,7 +98,7 @@ const RunScriptBatchPaginatedList = ({
         {script.hasRun ? (
           <>
             Run again
-            <Icon name="refresh" color="core-fleet-blue" />
+            <Icon name="refresh" color="ui-fleet-black-75" />
           </>
         ) : (
           <>

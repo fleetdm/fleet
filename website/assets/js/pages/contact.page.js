@@ -91,9 +91,6 @@ parasails.registerPage('contact', {
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
       }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
-      }
       // Show the success message.
       this.cloudSuccess = true;
 
@@ -105,9 +102,6 @@ parasails.registerPage('contact', {
       }
       if(typeof window.lintrk !== 'undefined') {
         window.lintrk('track', { conversion_id: 18587089 });// eslint-disable-line camelcase
-      }
-      if(typeof analytics !== 'undefined'){
-        analytics.track('fleet_website__contact_forms');
       }
       let eventUrl = await Cloud.deliverTalkToUsFormSubmission.with(argins);
 

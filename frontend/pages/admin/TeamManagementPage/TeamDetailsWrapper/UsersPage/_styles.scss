@@ -1,9 +1,5 @@
 .team-users {
-  &__page-description {
-    font-size: $x-small;
-    padding-bottom: $pad-medium;
-    margin: 0;
-  }
+  @include vertical-page-tab-panel-layout;
 
   &__api-only-user {
     @include grey-badge;

@@ -8,7 +8,7 @@ import { pick } from "lodash";
 const baseClass = "link-with-context";
 
 interface ILinkWithContextProps {
-  children: React.ReactChild | React.ReactChild[];
+  children: React.ReactNode;
   currentQueryParams: QueryParams;
   to: string;
   withParams: {

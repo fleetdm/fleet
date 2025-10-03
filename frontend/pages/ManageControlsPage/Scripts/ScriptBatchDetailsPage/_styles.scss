@@ -1,7 +1,5 @@
 .script-batch-details-page {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+  @include vertical-page-layout;
 
   &__header {
     margin-bottom: 0;

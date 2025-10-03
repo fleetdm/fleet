@@ -29,6 +29,7 @@ The goal of the 🦄 Unicorns group is to provide the best possible customer exp
 | Revenue DRI                       | [Alex Mitchell](https://www.linkedin.com/in/alexandercmitchell/) _([@alexmitchelliii](https://github.com/alexmitchelliii))_
 | Solutions Consultant (SC)         | [Allen Houchins](https://www.linkedin.com/in/allenhouchins/) _([@allenhouchins](https://github.com/allenhouchins))_ <br> [Harrison Ravazzolo](https://www.linkedin.com/in/harrison-ravazzolo/) _([@harrisonravazzolo](https://github.com/harrisonravazzolo))_ <br> [Mitch Francese](https://www.linkedin.com/in/mitchell-francese/) _([@tux234](https://github.com/tux234))_
 | Account Executive (AE)           | [Patricia Ambrus](https://www.linkedin.com/in/pambrus/) _([@ambrusps](https://github.com/ambrusps))_ <br> [Anthony Snyder](https://www.linkedin.com/in/anthonysnyder8/) _([@anthonysnyder8](https://github.com/AnthonySnyder8))_ <br> [Paul Tardif](https://www.linkedin.com/in/paul-t-750833/) _([@phtardif1](https://github.com/phtardif1))_ <br> [Tom Ostertag](https://www.linkedin.com/in/tom-ostertag-77212791/) _([@tomostertag](https://github.com/TomOstertag))_ <br> [Connor Hughes](https://www.linkedin.com/in/connor-hughes444/)_([@MunkiMind](https://github.com/MunkiMind))_ <br> [Kevin Malkin](https://www.linkedin.com/in/kevin-malkin-04247120/) _([@kevinmalkin12](https://github.com/kevinmalkin12))_ <br> [Eric Swenson](https://www.linkedin.com/in/eswenson1/) _([@ericswenson0](https://github.com/ericswenson0))_ <br> [Nick Blee](https://www.linkedin.com/in/nickablee/) _([@NickBlee](https://github.com/NickBlee))_
+| Solutions Specialist              | [Thomas Salomon](https://www.linkedin.com/in/Seedity/) _([@Seedity](https://github.com/Seedity))_
 | Pipeline DRI                      | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 | Account Development Rep (ADR)     | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_  <br> [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 | Customer Success DRI              | [Zay Hanlon](https://www.linkedin.com/in/zayhanlon/) _([@zayhanlon](https://github.com/zayhanlon))_
@@ -210,6 +211,15 @@ You can set up a Fleet Managed Cloud environment for a prospect with >700 hosts,
 
 - **To set up a new Fleet Managed Cloud environment** for a user: First, [create a "New customer environment" issue](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key).  Then, once the environment is set up, you'll get a notification and you can let the user know.
 - **To set up only a trial license key** for a user's self-managed Fleet server: Point the user towards fleetdm.com/start, where they can sign up and choose to "Run your own trial with Docker".  On that page, they'll see a license key located in the `fleectl preview` CLI instructions, and they can configure this by copying and pasting it as the [`FLEET_LICENSE_KEY`](https://fleetdm.com/docs/configuration/fleet-server-configuration#license-key)  environment variable on the server(s) where Fleet is deployed.
+
+
+### NFR instances
+
+NFR (Not For Resale) instances are Fleet environments deployed for partners and resellers who need to demo Fleet functionality or test integrations. Solutions Consulting sets up these instances to support partner enablement and evaluation activities outside of the standard sales process.
+
+#### Deploy an NFR instance
+
+**To deploy an NFR instance:** Create a [new NFR instance issue](https://github.com/fleetdm/confidential/issues/new?template=new-nfr-request.yml). Solutions Consulting will deploy the instance. The infrastructure team will then configure DNS and email, and the requester will be notified in #help-solutions-consulting when the instance is ready.
 
 
 ## Signatures

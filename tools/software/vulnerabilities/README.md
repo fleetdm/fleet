@@ -1,13 +1,13 @@
 # Vulnerability Data Seeder
 
-The purpose of `seed_vuln_data.go` is to provide developers an easy way to insert software titles
-into your local development Fleet server in order to troubleshoot false positive|negative vulnerabilities.
+The purpose of `seed_vuln_data.go` is to provide developers an easy way to insert hosts and software
+into your local development Fleet server without needing a real host or osquery-perf
 
 ## Usage
 
-1. Ensure your local development enviornment is running using `docker-compose up` and `fleet serve`
+1. Ensure your local development environment is running using `docker-compose up` and `fleet serve`
 
-2. Review and modify the software titles in the following files in this folder:
+2. Optional: Review and modify the software titles in the following files in this folder:
 
     - software_macos.csv
     - software_ubuntu.csv
@@ -18,7 +18,7 @@ into your local development Fleet server in order to troubleshoot false positive
 3. Run the data seeder
 
 ```bash
-go run ./tools/seed_data/seed_vuln_data.go
+go run ./tools/software/vulnerabilities/seed_data/seed_vuln_data.go --ubuntu 1 --macos 1 --windows 1 --linux-kernels 1
 ```
 
 You should now see new hosts with the configured software attached in the UI and database.  This

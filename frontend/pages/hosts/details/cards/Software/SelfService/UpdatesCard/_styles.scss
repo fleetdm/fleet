@@ -1,4 +1,6 @@
 .updates-card {
+  @include vertical-card-layout;
+
   &__header {
     display: flex;
     align-items: center;

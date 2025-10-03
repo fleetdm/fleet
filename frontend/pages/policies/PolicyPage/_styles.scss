@@ -1,6 +1,8 @@
 .policy-page {
+  @include vertical-page-layout;
+
   &__form {
-    @include flex-column-1rem-gap;
+    @include vertical-form-layout;
   }
 
   &__results {

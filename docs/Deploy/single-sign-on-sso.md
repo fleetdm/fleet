@@ -13,7 +13,7 @@ Create a new SAML app in Okta:
 
 ![Example Okta IdP Configuration](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/okta-idp-setup.png)
 
-If you're configuring [end user authentication](../Using%20Fleet/MDM-macOS-setup-experience.md#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
+If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` for the **Single sign on URL** instead.
 
 Once configured, you will need to retrieve the issuer URI from **View Setup Instructions** and metadata URL from the **Identity Provider metadata** link within the application **Sign on** settings. See below for where to find them:
 
@@ -38,7 +38,7 @@ Create a new SAML app in Google Workspace:
   ![Download metadata](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/google-sso-configuration-step-3.png)
 
 4. Configure the **Service provider details**:
-    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+    - For **ACS URL**, use `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
     - For Entity ID, use **the same unique identifier from step four** (e.g., "fleet.example.com").
     - For **Name ID format**, choose `EMAIL`.
     - For **Name ID**, choose `Basic Information > Primary email`.
@@ -73,7 +73,7 @@ Create a new SAML app in Microsoft Entra Admin Center:
 4. In your newly crated Fleet app, select **Single sign-on** from the menu on the left. Then, on the Single sign-on page, select **SAML**.
 5. Click the **Edit** button in the (1) Basic SAML Configuration Box.
    - For **Identifier (Entity ID)**, click **Add identifier** and enter `fleet`.
-   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
+   - For **Reply URL (Assertion Consumer Service URL)**, enter `https://<your_fleet_url>/api/v1/fleet/sso/callback`. If you're configuring [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula), use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback` instead.
    - Click **Save**.
 6. In the **(3) SAML Certificates** box, click the copy button in the **App Federation Metadata Url** field.
  ![The new SAML app's details page in Enta Admin Center](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/entra-sso-configuration-step-6.png)
@@ -108,7 +108,7 @@ Fleet can be configured to use authentik as an identity provider. To continue, y
     - For **Authorization flow**, choose `default-provider-authorization-implicit-consent (Authorize Application)`.
     - In the **Protocol settings** section, configure the following:
       - For **Assertion Consumer Service URL** use `https://<your_fleet_url>/api/v1/fleet/sso/callback`.
-        - If you're configuring **[end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
+        - If you're configuring **[end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication-and-end-user-license-agreement-eula)**, use `https://<your_fleet_url>/api/v1/fleet/mdm/sso/callback`.
       - For **Issuer**, use `authentik`.
       - For **Service Provider Binding**, choose `Post`.
       - For **audience**, use `https://<your_fleet_url>`.

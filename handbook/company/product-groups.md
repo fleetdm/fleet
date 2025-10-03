@@ -85,7 +85,7 @@ The goal of the orchestration group is to increase and exceed [Fleet's product m
 > The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
 
 
-### Security & Compliance group
+### Security & compliance group
 
 The goal of the security and compliance group is to increase and exceed Fleet's product maturity goals in the security and compliance category.
 
@@ -98,7 +98,7 @@ The goal of the security and compliance group is to increase and exceed Fleet's 
 | Quality Assurance                 | [Andrey Kizimenko](https://www.linkedin.com/in/andrey-kizimenko-988900214/) _([@AndreyKizimenko](https://github.com/AndreyKizimenko))_
 | Developer                         | [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_, [Jacob Shandling](https://www.linkedin.com/in/jacob-shandling/) _([@jacobshandling](https://github.com/jacobshandling))_,  [Tim Lee](https://www.linkedin.com/in/mostlikelee/) _([@mostlikelee](https://github.com/mostlikelee))_
 
-> The [Slack channel](https://fleetdm.slack.com/archives/C084F4MKYSJ), [kanban release board](https://github.com/orgs/fleetdm/projects/71), and [GitHub label](https://github.com/fleetdm/fleet/labels/%23g-orchestration) for this product group is `#g-orchestration`.
+> The [Slack channel](https://fleetdm.slack.com/archives/C09HG9VMRSS), [kanban release board](https://github.com/orgs/fleetdm/projects/97), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=state%3Aopen%20label%3A%23g-security-compliance) for this product group is `#g-security-compliance`.
 
 
 ### Website group
@@ -176,7 +176,7 @@ To make a change to Fleet:
 - Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
 - Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
-Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
+Occasionally, a contributor outside of the [product groups](https://fleetdm.com/handbook/product-groups#current-product-groups) (open source contributor, member of the Customer Success team, etc.) will implement a change that was prioritized and drafted. On the user story for these changes, add the product group label (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`), the `:release` label, and notify the product group's Engineer Manager to make sure the changes go through testing (QA) before release.
 
 When an [open source contributor](https://fleetdm.com/handbook/company#open-source) proposes a change in the form of a pull request (PR), the PR will be [reviewed](https://fleetdm.com/handbook/engineering#review-a-community-pull-request) and then merged or closed.
 
@@ -250,7 +250,7 @@ The DRI for defining and drafting issues for a product group is the product mana
 
 A user story is considered ready for implementation once:
 - [ ] User story [issue created](https://github.com/fleetdm/fleet/issues/new/choose)
-- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`)
+- [ ] [Product group](https://fleetdm.com/handbook/company/product-groups) label added (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`)
 - [ ] Changes [specified](https://fleetdm.com/handbook/company/development-groups#drafting) and [designed](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach)
 - [ ] [Designs revised and settled](#design-reviews)
 - [ ] Reviewed and approved during [weekly user story review](#user-story-reviews)
@@ -436,7 +436,7 @@ All unreleased bugs are addressed before publishing a release. Released bugs tha
 
 ### Notify the community about a critical bug
 
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm`, `#g-software`, or `#g-orchestration` channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the `#g-mdm`, `#g-software`, `#g-orchestration`, or `#g-security-compliance` channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
@@ -502,7 +502,7 @@ At the **🎁🗣 Feature Fest** meeting, the Feature prioritization DRI weighs 
 
 If a feature is not prioritized during a 🎁🗣 Feature Fest meeting, it only means the feature has been rejected _at that time_. Requestors will be notified by the Feature prioritization DRI, and they can add their request back to the feature fest board (`~feature fest` label) to bring it back to a future meeting.
 
-> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the #g-mdm, #g-software, or #g-orchestration channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
+> If a feature request has an urgent Fleet need and can't wait until the next feature fest, @ mention the Head of Product Design in the `#g-mdm`, `#g-software`, `#g-orchestration`, or `#g-security-compliance` channel with a link to the request's GitHub issue. It's up to the HPD to decide whether it is immediately prioritized to go through drafting or put to the side. If prioritized, the HPD will decide to de-prioritize one or more feature requests to make room in the current design sprint and notify requesters.
 
 
 ### After the feature is accepted
@@ -571,7 +571,7 @@ If the bug is missing reproduction steps, it's removed from the drafting board a
 
 Remove the “:reproduce” label, add the following labels:
 
-1. The relevant product group (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`). Make your best guess, and product design will change if necessary.
+1. The relevant product group (e.g. `#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`). Make your best guess, and product design will change if necessary.
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates that it is a new bug to be triaged.
 3. If this is a **released bug**, add the `:product` label to place the bug on the product drafting board. If it is an **unreleased bug**, add the `:release` label to place it directly on the release board so it is fixed before the next release.
@@ -929,7 +929,7 @@ See the [rituals contributor docs](https://github.com/fleetdm/fleet/tree/main/do
 
 Each sprint is marked by five essential ceremonies:
 
-1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
+1. **Sprint kickoff**: On the first day of the sprint, the team, along with stakeholders, selects issues from the [🦢 Drafting board](https://github.com/orgs/fleetdm/projects/67) to work on. To move issues to the sprint board, add `:release` and the product group label (`#g-mdm`, `#g-orchestration`, `#g-software`, `#g-security-compliance`) and remove the 🦢 Drafting project. The team then commits to completing these items within the sprint.
 2. **Daily standup**: Every day, the team convenes for updates. During this session, each team member shares what they accomplished since the last standup, their plans until the next meeting, and any blockers they are experiencing. The team briefly reviews the [bug Inbox](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug+label%3A%3Areproduce) to identify any bugs ready to move forward or that need a QA engineer assigned, the goal is that these bugs are timeboxed for 30m-1hr to reproduce or ask for additional details. Standups should last no longer than fifteen minutes. If additional discussion is necessary, it takes place after the standup with only the required participants.
 3. **Weekly estimation sessions**: The team estimates backlog items once a week (three times per sprint). These sessions help to schedule work completion and align the roadmap with business needs. They also provide estimated work units for upcoming sprints. The EM is responsible for the point values assigned to each item and ensures they are as realistic as possible.
 4. **Sprint demo**: On the last day of each sprint, all engineering teams and stakeholders come together to review the next release. Engineers are allotted 3-10 minutes to showcase features, improvements, and bug fixes they have contributed to the upcoming release. We focus on changes that can be demoed live and avoid overly technical details so the presentation is accessible to everyone. Features should show what is capable and bugs should identify how this might have impacted existing customers and how this resolution fixed that. (These meetings are recorded and posted publicly to YouTube or other platforms, so participants should avoid mentioning customer names.  For example, instead of "Fastly", you can say "a publicly-traded hosting company", or use the [customer's codename](https://fleetdm.com/handbook/customers#customer-codenames).)

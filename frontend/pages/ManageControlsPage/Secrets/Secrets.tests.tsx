@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, waitFor } from "@testing-library/react";
+import { getByText, screen, waitFor } from "@testing-library/react";
 
 import { ISecret } from "interfaces/secrets";
 import { UserEvent } from "@testing-library/user-event";

@@ -39,7 +39,7 @@ const TurnOffAndroidMdmCard = ({
       className={baseClass}
       iconName="success"
       cta={
-        <Button onClick={onClickEdit} variant="text-icon">
+        <Button onClick={onClickEdit} variant="inverse">
           <Icon name="pencil" />
           Edit
         </Button>

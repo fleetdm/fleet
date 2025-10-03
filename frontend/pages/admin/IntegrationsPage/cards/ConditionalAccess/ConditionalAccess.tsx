@@ -381,7 +381,7 @@ const ConditionalAccess = () => {
               <TooltipTruncatedText value={formData[MSETID]} />
             </div>
             <Button
-              variant="text-icon"
+              variant="inverse"
               onClick={toggleDeleteConditionalAccessModal}
             >
               Delete

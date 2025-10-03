@@ -1,4 +1,6 @@
 .agent-options-card {
+  @include vertical-card-layout;
+
   .component__tooltip-wrapper__tip-text {
     max-width: 326px;
   }
