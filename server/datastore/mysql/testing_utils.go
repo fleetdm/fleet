@@ -210,7 +210,7 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
                                                 FROM information_schema.columns 
                                                 WHERE table_schema = '%s' AND table_name = '%s'
 												  AND NOT (EXTRA LIKE '%%GENERATED%%' AND EXTRA NOT LIKE '%%DEFAULT_GENERATED%%');`, replicaDB, tbl)
-					replica.GetContext(ctx, &columns, columnsStmt)
+					err = replica.GetContext(ctx, &columns, columnsStmt)
 					require.NoError(t, err)
 
 					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s) 
