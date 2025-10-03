@@ -30,6 +30,9 @@
   &__details-panel {
     display: grid;
     gap: $pad-medium;
+    // this gives a single column grid layout for the details panel content
+    // at smaller screen widths
+    grid-template-columns: minmax(0, 1fr);
   }
 
   @media screen and (min-width: $break-md) {
@@ -66,10 +69,6 @@
 
   .policies-card .data-table-block .data-table__table thead .response__header {
     width: $col-md;
-  }
-
-  .modal__content-wrapper {
-    margin-top: 0;
   }
 }
 

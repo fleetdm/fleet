@@ -274,8 +274,10 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		old := struct {
 			UserName   string  `db:"user_name"`
 			Department *string `db:"department"`
+			GivenName  *string `db:"given_name"`
+			FamilyName *string `db:"family_name"`
 		}{}
-		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department FROM scim_users WHERE id = ?`, user.ID)
+		err := sqlx.GetContext(ctx, tx, &old, `SELECT user_name, department, given_name, family_name FROM scim_users WHERE id = ?`, user.ID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return notFound("scim user").WithID(user.ID)
@@ -318,6 +320,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 
 		usernameChanged := old.UserName != user.UserName
 		departmentChanged := !cmp.Equal(old.Department, user.Department)
+		nameChanged := !cmp.Equal(old.GivenName, user.GivenName) || !cmp.Equal(old.FamilyName, user.FamilyName)
 
 		// Only update emails if they've changed
 		if emailsNeedUpdate {
@@ -346,7 +349,7 @@ func (ds *Datastore) ReplaceScimUser(ctx context.Context, user *fleet.ScimUser) 
 		user.Groups = groups
 
 		// resend profiles that depend on this username if it changed
-		if usernameChanged || departmentChanged {
+		if usernameChanged || departmentChanged || nameChanged {
 			err = triggerResendProfilesForIDPUserChange(ctx, tx, user.ID)
 			if err != nil {
 				return err
@@ -1177,6 +1180,7 @@ func triggerResendProfilesForIDPUserChange(ctx context.Context, tx sqlx.ExtConte
 			fleet.FleetVarHostEndUserIDPUsername,
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 
@@ -1191,6 +1195,7 @@ func triggerResendProfilesForIDPUserDeleted(ctx context.Context, tx sqlx.ExtCont
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPGroups,
 			fleet.FleetVarHostEndUserIDPDepartment,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 
@@ -1243,6 +1248,7 @@ func triggerResendProfilesForIDPUserAddedToHost(ctx context.Context, tx sqlx.Ext
 			fleet.FleetVarHostEndUserIDPUsernameLocalPart,
 			fleet.FleetVarHostEndUserIDPDepartment,
 			fleet.FleetVarHostEndUserIDPGroups,
+			fleet.FleetVarHostEndUserIDPFullname,
 		})
 }
 

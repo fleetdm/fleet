@@ -146,6 +146,13 @@ const UserMenu = ({
     dropdownItems.unshift(manageUserNavItem);
   }
 
+  const manageLabelsMenuItem = {
+    label: "Labels",
+    value: "labels",
+    onClick: () => onUserMenuItemClick(PATHS.MANAGE_LABELS),
+  };
+  dropdownItems.unshift(manageLabelsMenuItem);
+
   if (currentUser && (isAnyTeamAdmin || isGlobalAdmin)) {
     const userAdminTeams = currentUser.teams.filter(
       (thisTeam: ITeam) => thisTeam.role === "admin"
@@ -155,12 +162,13 @@ const UserMenu = ({
       currentUser.global_role === "admin"
         ? PATHS.ADMIN_ORGANIZATION
         : `${PATHS.TEAM_DETAILS_USERS(sortedTeams[0].value)}`;
-    const adminNavItem = {
+    const adminMenuItem = {
       label: "Settings",
       value: "settings",
       onClick: () => onUserMenuItemClick(settingsPath),
     };
-    dropdownItems.unshift(adminNavItem);
+
+    dropdownItems.unshift(adminMenuItem);
   }
 
   const customStyles: StylesConfig<IDropdownOption, false> = {

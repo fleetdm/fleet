@@ -1,6 +1,6 @@
 # Software self-service
 
-![Software self-service](../website/assets/images/articles/software-self-service-2670x1514.png)
+![Software self-service](../website/assets/images/articles/software-self-service-1335x757@2x.png)
 
 _Available in Fleet Premium_
 
@@ -19,7 +19,7 @@ You can also add the software and later make it available in self-service:
 1. Select the team to which you added the software from the dropdown in the upper left corner of the page.
 2. Select **Software** in the main navigation menu.
 3. Select the **All software** dropdown and choose **Available for install.** This filters the results in the table to show only software that can be installed on hosts. If you don’t see your software, page through the results or search for your software's name in the search bar. Once you find the software, select its title.
-4. Select the pencil (edit) icon, then check **Self-service** in the **Options** section. You can also assign categories to your software, which will organize the display of software to end users on the **My device > Self-service** page.
+4. Select the pencil (edit) icon and check **Self-service** in the **Options** section. You can also assign categories and add a custom icon to your software to customize the end user experience on the **My device > Self-service** page. Custom icons are only available for [custom packages](https://fleetdm.com/guides/deploy-software-packages) and [App Store (VPP) apps](https://fleetdm.com/guides/install-vpp-apps-on-macos-using-fleet).
 5. Select the **Save** button.
 
 If a software item isn't made available in self-service, end users will not see it in **Fleet Desktop > Self-service**. IT admins can still install, update, and uninstall the software from Fleet.
@@ -33,7 +33,7 @@ How to view, update, install, or uninstall self-service software:
 3. Open the **Software > Library** tab and select **Self-service** in the dropdown.
 4. To update, install, or uninstall, select **Update**, **Install**, or **Uninstall**.
 
-**Update** appears for [eligible updates](#how-updates-works), regardless of whether the app is set to self-service.
+**Update** appears for [eligible updates](#how-updates-work), regardless of whether the app is set to self-service.
 
 Tips:
 

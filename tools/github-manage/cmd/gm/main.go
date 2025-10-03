@@ -39,15 +39,12 @@ func main() {
 		Long:  "A CLI tool to manage GitHub repositories and workflows.",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			cmdSent := fmt.Sprintf("Command: %s Args: %v Flags: ", cmd.CommandPath(), args)
-			// Debug log the command and its arguments/flags before execution
-
-			// Log all flags that were set for this command
 			cmd.Flags().VisitAll(func(flag *pflag.Flag) {
 				if flag.Changed {
 					cmdSent = fmt.Sprintf("%s --%s: %s", cmdSent, flag.Name, flag.Value.String())
 				}
 			})
-			logger.Debugf(cmdSent)
+			logger.Debugf("%s", cmdSent)
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			// Placeholder for the default command behavior
@@ -59,6 +56,7 @@ func main() {
 	rootCmd.AddCommand(issuesCmd)
 	rootCmd.AddCommand(projectCmd)
 	rootCmd.AddCommand(estimatedCmd)
+	rootCmd.AddCommand(sprintCmd)
 
 	// Test command to test SetCurrentSprint functionality
 	rootCmd.AddCommand(&cobra.Command{
@@ -67,9 +65,7 @@ func main() {
 		Run: func(cmd *cobra.Command, args []string) {
 			// Useful to test new custom functions
 			testIssueNumber := 31541
-			//mdmProjectID := 58 // MDM project
 			ghapi.GetIssues(fmt.Sprintf("%d", testIssueNumber))
-			return
 		},
 	})
 

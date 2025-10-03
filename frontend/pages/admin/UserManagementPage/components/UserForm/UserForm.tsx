@@ -122,8 +122,9 @@ const validate = (
     isExistingUserForcedToPasswordAuth ||
     (!initiallyPasswordAuth && !sso_enabled)
   ) {
-    if (password !== null && !validPassword(password)) {
-      newErrors.password = "Password must meet the criteria below";
+    const { isValid, error } = validPassword(password || "");
+    if (password !== null && !isValid) {
+      newErrors.password = error;
     }
     if (!validatePresence(password)) {
       newErrors.password = "Password field must be completed";
@@ -390,6 +391,7 @@ const UserForm = ({
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
               text="Learn more about user permissions"
               newTab
+              variant="banner-link"
             />
           </InfoBanner>
         )}
@@ -447,6 +449,7 @@ const UserForm = ({
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"
                   text="Learn more about user permissions"
                   newTab
+                  variant="banner-link"
                 />
               </InfoBanner>
               <SelectedTeamsForm

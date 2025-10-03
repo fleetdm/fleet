@@ -1,11 +1,7 @@
-<div id="os-settings" v-cloak>
+<div id="os-settings-page" v-cloak>
   <div purpose="page-container">
     <div purpose="page-content">
-      <docs-nav-and-search  current-section="osSettings" :algolia-public-key="algoliaPublicKey" ></docs-nav-and-search>
-      <div purpose="page-headline">
-        <h1>OS settings</h1>
-        <p>In Fleet, you can restrict or preset any OS setting that's supported by popular MDMs, like Jamf and Intune. Choose your platform for more information.</p>
-      </div>
+      <docs-nav-and-search  current-section="controls" :algolia-public-key="algoliaPublicKey" ></docs-nav-and-search>
       <div purpose="platform-filters" class="d-flex justify-content-center"  >
         <div purpose="platform-filter" :class="[selectedPlatform === 'apple' ? 'selected' : '']+' '+[bowser.windows ? 'order-2' : '']" class="d-flex flex-row justify-content-center align-items-center" @click="clickSelectPlatform('apple')">
           <h1 class="d-flex align-items-center">
@@ -26,75 +22,60 @@
           </h1>
         </div>
       </div>
-      <div purpose="platform-content" v-if="selectedPlatform === 'apple'">
-        <ul>
-          <li><p>You can use <a href="https://imazing.com/" target="_blank">iMazing</a> profile editor to create, edit, and sign Apple configuration profiles.</p></li>
-          <li><p>Check out Fleet’s <a href="/vitals/battery#apple">built-in checks</a> for Mac.</p></li>
-          <li><p>View the complete <a href="https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf" target="_blank">Apple reference</a>.</p></li>
-          <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
-        </ul>
-      </div>
-      <div purpose="platform-content" v-if="selectedPlatform === 'windows'">
-        <ul>
-          <li><p>Check out Fleet’s <a href="/vitals/battery#windows">built-in checks</a> for Windows.</p></li>
-          <li><p>View the complete <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/" target="_blank">Windows docs</a>.</p></li>
-          <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
-        </ul>
-      </div>
-      <div purpose="platform-content" v-if="selectedPlatform === 'linux'">
-        <ul>
-          <li><p>Most admins like to use scripts for the many flavors of Linux. See the baked-in <a href="/policies">Linux controls</a> available with Fleet.</p></li>
-          <li><p>Check out Fleet’s <a href="/vitals/disk-encryption-linux#linux">built-in checks</a> for Linux.</p></li>
-          <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
-        </ul>
-      </div>
-      <%/*
-      <div purpose="page-headline">
-        <h1>OS settings</h1>
-        <p>Generate OS settings in CSP, .mobileconfig, and DDM format. Just click the sparkle button.</p>
-      </div>
-      <div purpose="mobile-generate-button" class="d-flex d-md-none" @click="modal = 'generate-profile'"><img alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">Generate OS settings</div>
-      <div class="d-flex flex-lg-row flex-column mb-4">
-        <div purpose="profile-editor">
-          <div id="editor" @paste="getUpdatedValueFromEditor" @input="getUpdatedValueFromEditor" purpose="ace-editor"  mode="xml" :value.sync="generatedOutput"></div>
-          <div purpose="generate-button" @click="modal = 'generate-profile'"><img alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png"></div>
+      <div purpose="sidebar-and-content">
+        <div purpose="sidebar" class="d-lg-flex d-none">
+          <a purpose="sidebar-link" :href="'/mdm-commands#'+selectedPlatform">MDM commands</a>
+          <a purpose="sidebar-link" :href="'/scripts#'+selectedPlatform">Scripts</a>
+          <a purpose="sidebar-link" class="active" :href="'/os-settings#'+selectedPlatform">OS settings</a>
         </div>
-        <div purpose="enforced-settings">
-          <p><strong>Settings enforced:</strong></p>
-          <div v-for="item in parsedItemsInProfile">
-            <p>{{item.name}}: {{item.value}}</p>
+        <div class="d-flex d-lg-none">
+          <div purpose="mobile-custom-select" class="d-flex flex-row justify-content-between align-items-center" @click="clickOpenTableOfContents()">
+            <div><p>Controls</p></div>
+            <div><img src="/images/icon-select-arrows-16x16@2x.png" alt="click to open the table of contents"></div>
+          </div>
+        </div>
+        <div purpose="content">
+          <div purpose="page-headline">
+            <h1>OS settings</h1>
+            <p>In Fleet, you can restrict or preset any OS setting that's supported by popular MDMs, like Jamf and Intune. Choose your platform for more information.</p>
+          </div>
+          <div purpose="platform-content" v-if="selectedPlatform === 'apple'">
+            <ul>
+              <li><p>You can use <a href="https://imazing.com/" target="_blank">iMazing</a> profile editor to create, edit, and sign Apple configuration profiles.</p></li>
+              <li><p>Check out Fleet’s <a href="/vitals/battery#apple">built-in checks</a> for Mac.</p></li>
+              <li><p>View the complete <a href="https://developer.apple.com/business/documentation/Configuration-Profile-Reference.pdf" target="_blank">Apple reference</a>.</p></li>
+              <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
+            </ul>
+          </div>
+          <div purpose="platform-content" v-if="selectedPlatform === 'windows'">
+            <ul>
+              <li><p>Check out Fleet’s <a href="/vitals/battery#windows">built-in checks</a> for Windows.</p></li>
+              <li><p>View the complete <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/" target="_blank">Windows docs</a>.</p></li>
+              <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
+            </ul>
+          </div>
+          <div purpose="platform-content" v-if="selectedPlatform === 'linux'">
+            <ul>
+              <li><p>Most admins like to use scripts for the many flavors of Linux. See the baked-in <a href="/policies">Linux controls</a> available with Fleet.</p></li>
+              <li><p>Check out Fleet’s <a href="/vitals/disk-encryption-linux#linux">built-in checks</a> for Linux.</p></li>
+              <li><p>Need more help? join us in the <a href="/support">support channel</a>.</p></li>
+            </ul>
           </div>
         </div>
       </div>
-      <p v-if="hasGeneratedProfile"><a @click="clickDownloadResult()">Download</a> this profile and deploy it using Fleet, Jamf, Intune or Airwatch.</p>
-        */%>
     </div>
   </div>
-  <%/*
-  <modal v-if="modal === 'generate-profile'" @close="closeModal()">
-    <div purpose="modal-form">
-      <ajax-form :handle-submitting="handleSubmittingForm" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules">
-        <div class="d-flex flex-row align-items-center mb-3">
-          <img style="height: 24px;" alt="Generate a configuration profile" src="/images/icon-generate-14x14@2x.png">
-          <p class="mb-0 ml-2"><strong>What would you like to happen?</strong></p>
+  <div purpose="table-of-contents-modal">
+    <modal purpose="table-of-contents-modal" v-if="modal === 'table-of-contents'" @close="closeModal()">
+      <p purpose="mobile-table-of-contents-header"><strong>Controls</strong></p>
+        <div purpose="table-of-contents" class="w-100">
+          <div purpose="modal-links">
+            <a class="d-block" purpose="modal-nav-link" href="/mdm-commands">MDM commands</a>
+            <a class="d-block active" purpose="modal-nav-link" href="/scripts">Scripts</a>
+            <a class="d-block" purpose="modal-nav-link" href="/os-settings">OS settings</a>
+          </div>
         </div>
-        <div class="form-group">
-          <select class="form-control" style="color: #515774;" purpose="profile-type-selector" id="profile-type" :class="[formErrors.profileType ? 'is-invalid' : '']" v-model.trim="formData.profileType">
-            <option value="mobileconfig" selected>.mobileconfig (Apple)</option>
-            <option value="ddm">DDM (Apple)</option>
-            <option value="csp">CSP (Windows)</option>
-          </select>
-          <div class="invalid-feedback" v-if="formErrors.profileType" focus-first>Select the type of profile that you want to generate.</div>
-        </div>
-        <div class="form-group">
-          <textarea class="form-control" type="textarea" id="profile" placeholder="Ensure users can’t change the system clock." :class="[formErrors.naturalLanguageInstructions ? 'is-invalid' : '']" v-model.trim="formData.naturalLanguageInstructions"></textarea>
-          <div class="invalid-feedback" v-if="formErrors.naturalLanguageInstructions" focus-first>Please provide instructions.</div>
-        </div>
-        <p v-if="cloudError" class="text-danger">Your request could not be processed. Please try again.</p>
-        <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-primary mt-4 float-left">Generate</ajax-button>
-      </ajax-form>
-    </div>
-  </modal>
-  */%>
+    </modal>
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

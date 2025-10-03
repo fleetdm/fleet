@@ -1,0 +1,1 @@
+- Added support for writing multiple packages in a single GitOps YAML file included under `software.packages`.

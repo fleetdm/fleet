@@ -32,31 +32,15 @@
     font-size: $large;
   }
 
-  &__description {
-    margin: 0;
-    margin-bottom: $pad-large;
-    max-width: 75%;
-
-    @media (min-width: $break-md) {
-      max-width: none;
-    }
-
-    h2 {
-      text-transform: uppercase;
-      color: $core-fleet-black;
-      font-weight: $regular;
-      font-size: $small;
-    }
-
-    p {
-      color: $ui-fleet-black-75;
-      margin: 0;
-      font-size: $x-small;
-      font-style: italic;
-    }
-  }
-
   &__wrapper {
+    .page-description {
+      margin-bottom: px-to-rem(30);
+      max-width: 75%;
+
+      @media (min-width: $break-md) {
+        max-width: none;
+      }
+    }
     .tab-nav {
       margin-bottom: $pad-xxlarge;
     }

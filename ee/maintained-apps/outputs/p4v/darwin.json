@@ -1,0 +1,21 @@
+{
+  "versions": [
+    {
+      "version": "2025.2",
+      "queries": {
+        "exists": "SELECT 1 FROM apps WHERE bundle_identifier = 'com.perforce.p4v';"
+      },
+      "installer_url": "https://filehost.perforce.com/perforce/r25.2/bin.macosx12u/P4V.dmg",
+      "install_script_ref": "30988d01",
+      "uninstall_script_ref": "53a94d03",
+      "sha256": "9df7be63e2014cd523ad4f0afc1d97014d53ed1754e701323ab71279687810ce",
+      "default_categories": [
+        "Developer tools"
+      ]
+    }
+  ],
+  "refs": {
+    "30988d01": "#!/bin/sh\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local timeout_duration=10\n  if ! osascript -e \"application id \\\"$bundle_id\\\" is running\" \u003e/dev/null 2\u003e\u00261; then return; fi\n  local console_user; console_user=$(stat -f \"%Su\" /dev/console)\n  if [[ $EUID -eq 0 \u0026\u0026 \"$console_user\" == \"root\" ]]; then echo \"Skipping quit for '$bundle_id'.\"; return; fi\n  echo \"Quitting '$bundle_id'...\"\n  SECONDS=0\n  while (( SECONDS \u003c timeout_duration )); do\n    osascript -e \"tell application id \\\"$bundle_id\\\" to quit\" \u003e/dev/null 2\u003e\u00261 || true\n    if ! pgrep -f \"$bundle_id\" \u003e/dev/null 2\u003e\u00261; then echo \"'$bundle_id' quit successfully.\"; return; fi\n    sleep 1\n  done\n  echo \"'$bundle_id' did not quit.\"\n}\n\n[[ -n \"$INSTALLER_PATH\" \u0026\u0026 -f \"$INSTALLER_PATH\" ]] || { echo \"missing installer\"; exit 1; }\n\nAPPDIR=\"/Applications\"\n\nquit_application \"com.perforce.p4v\"\nquit_application \"com.perforce.p4merge\"\nquit_application \"com.perforce.p4admin\"\n\nMOUNT_POINT=\"$(hdiutil attach -nobrowse -readonly \"$INSTALLER_PATH\" | awk '/\\/Volumes\\//{print $3; exit}')\"\n[[ -n \"$MOUNT_POINT\" ]] || { echo \"failed to mount dmg\"; exit 1; }\n\nfor app in p4v.app p4merge.app p4admin.app; do\n  if [[ -d \"$MOUNT_POINT/$app\" ]]; then\n    rm -rf \"$APPDIR/$app\" \u003e/dev/null 2\u003e\u00261 || true\n    ditto \"$MOUNT_POINT/$app\" \"$APPDIR/$app\" \u003e/dev/null 2\u003e\u00261\n  fi\ndone\n\nhdiutil detach \"$MOUNT_POINT\" \u003e/dev/null 2\u003e\u00261 || true\n\necho \"p4v installed\"\n",
+    "53a94d03": "#!/bin/sh\n\nquit_application() {\n  local bundle_id=\"$1\"\n  local timeout_duration=10\n  if ! osascript -e \"application id \\\"$bundle_id\\\" is running\" \u003e/dev/null 2\u003e\u00261; then return; fi\n  local console_user; console_user=$(stat -f \"%Su\" /dev/console)\n  if [[ $EUID -eq 0 \u0026\u0026 \"$console_user\" == \"root\" ]]; then return; fi\n  SECONDS=0\n  while (( SECONDS \u003c timeout_duration )); do\n    osascript -e \"tell application id \\\"$bundle_id\\\" to quit\" \u003e/dev/null 2\u003e\u00261 || true\n    if ! pgrep -f \"$bundle_id\" \u003e/dev/null 2\u003e\u00261; then break; fi\n    sleep 1\n  done\n}\n\nfor id in \"com.perforce.p4v\" \"com.perforce.p4merge\" \"com.perforce.p4admin\"; do\n  quit_application \"$id\"\ndone\n\nrm -rf \"/Applications/p4v.app\" \"/Applications/p4merge.app\" \"/Applications/p4admin.app\" \u003e/dev/null 2\u003e\u00261 || true\n\nfor udir in /Users/* /var/root; do\n  [[ -d \"$udir/Library\" ]] || continue\n  rm -f  \"$udir/Library/Preferences/com.perforce.p4v.plist\" \\\n         \"$udir/Library/Preferences/com.perforce.p4merge.plist\" \\\n         \"$udir/Library/Preferences/com.perforce.p4admin.plist\" \u003e/dev/null 2\u003e\u00261 || true\n  rm -rf \"$udir/Library/Caches/com.perforce.p4v\" \\\n         \"$udir/Library/Caches/com.perforce.p4merge\" \\\n         \"$udir/Library/Caches/com.perforce.p4admin\" \u003e/dev/null 2\u003e\u00261 || true\n  rm -rf \"$udir/Library/Application Support/Perforce\" \\\n         \"$udir/Library/Application Support/P4V\" \u003e/dev/null 2\u003e\u00261 || true\ndone\n\necho \"p4v suite uninstalled\"\n"
+  }
+}

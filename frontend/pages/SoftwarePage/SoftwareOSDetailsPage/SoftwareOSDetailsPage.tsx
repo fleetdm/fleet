@@ -136,6 +136,8 @@ export const KernelsCard = ({
   >
     <CardHeader header="Kernels" />
     <OSKernelsTable
+      osName={osVersion.name_only}
+      osVersion={osVersion.version}
       data={osVersion.kernels}
       isLoading={isLoading}
       router={router}

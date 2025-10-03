@@ -34,6 +34,10 @@ module.exports = {
   exits: {
     success: { description: 'An android enterprise was successfully created' },
     enterpriseAlreadyExists: { description: 'An android enterprise already exists for this Fleet instance.', statusCode: 409 },
+    invalidEnterpriseToken: {
+      description: 'The provided enterprise token is invalid or expired.',
+      responseType: 'badRequest'
+    }
   },
 
 
@@ -137,7 +141,21 @@ module.exports = {
         requestBody: enterprise,
       });
       return createEnterpriseResponse.data;
+    }).intercept({status: 400}, (err)=>{
+      // Check if it's specifically an invalid token error
+      let errorString = err.toString();
+      if (errorString.includes('INVALID_ENTERPRISE_TOKEN') ||
+          errorString.includes('ExpiredTokenException')) {
+        return {'invalidEnterpriseToken': 'The provided enterprise token is invalid or expired.'};
+      }
+      // For other 400 errors, still return as invalid token (client error)
+      return {'invalidEnterpriseToken': 'Invalid request to Android Management API.'};
+    }).intercept({status: 401}, ()=>{
+      return {'invalidEnterpriseToken': 'Authorization failed with Android Management API.'};
+    }).intercept({status: 403}, ()=>{
+      return {'invalidEnterpriseToken': 'Access forbidden to Android Management API.'};
     }).intercept((err)=>{
+      // For all other errors (5XX, network errors, etc.), maintain existing behavior
       return new Error(`When attempting to create a new Android enterprise, an error occurred. Error: ${require('util').inspect(err)}`);
     });
 

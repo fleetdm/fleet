@@ -816,7 +816,9 @@ func (h *Host) IsDEPAssignedToFleet() bool {
 // IsLUKSSupported returns true if the host's platform is Linux and running
 // one of the supported OS versions.
 func (h *Host) IsLUKSSupported() bool {
-	return h.Platform == "ubuntu" || strings.Contains(h.OSVersion, "Fedora") // fedora h.Platform reports as "rhel"
+	return h.Platform == "ubuntu" ||
+		strings.Contains(h.OSVersion, "Fedora") || // fedora h.Platform reports as "rhel"
+		h.Platform == "arch" || h.Platform == "archarm"
 }
 
 // IsEligibleForWindowsMDMUnenrollment returns true if the host must be
@@ -983,13 +985,35 @@ func PlatformSupportsOsquery(platform string) bool {
 }
 
 // HostLinuxOSs are the possible linux values for Host.Platform.
+// IMPORTANT: When updating this, also make sure to update HOST_LINUX_PLATFORMS in frontend code.
 var HostLinuxOSs = []string{
-	"linux", "ubuntu", "debian", "rhel", "centos", "sles", "kali", "gentoo", "amzn", "pop", "arch", "linuxmint", "void", "nixos", "endeavouros", "manjaro", "opensuse-leap", "opensuse-tumbleweed", "tuxedo", "neon",
+	"linux",
+	"ubuntu",
+	"debian",
+	"rhel",
+	"centos",
+	"sles",
+	"kali",
+	"gentoo",
+	"amzn",
+	"pop",
+	"arch",
+	"linuxmint",
+	"void",
+	"nixos",
+	"endeavouros",
+	"manjaro",
+	"opensuse-leap",
+	"opensuse-tumbleweed",
+	"tuxedo",
+	"neon",
+	"archarm",
 }
 
 // HostNeitherDebNorRpmPackageOSs are the list of known Linux platforms that support neither DEB nor RPM packages
 var HostNeitherDebNorRpmPackageOSs = map[string]struct{}{
 	"arch":        {},
+	"archarm":     {},
 	"gentoo":      {},
 	"void":        {},
 	"nixos":       {},
@@ -1022,6 +1046,10 @@ var HostRpmPackageOSs = map[string]struct{}{
 
 func IsLinux(hostPlatform string) bool {
 	return slices.Contains(HostLinuxOSs, hostPlatform)
+}
+
+func IsApplePlatform(hostPlatform string) bool {
+	return hostPlatform == "darwin" || hostPlatform == "ios" || hostPlatform == "ipados"
 }
 
 func IsUnixLike(hostPlatform string) bool {
@@ -1364,6 +1392,7 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
+	HostID             uint   `json:"-" db:"host_id"`
 	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
 	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
 	DisplayName        string `json:"display_name" db:"display_name"`
@@ -1372,6 +1401,7 @@ type HostMDMCheckinInfo struct {
 	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 
 	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
+	MigrationInProgress   bool   `json:"-" db:"migration_in_progress"`
 	Platform              string `json:"-" db:"platform"`
 }
 

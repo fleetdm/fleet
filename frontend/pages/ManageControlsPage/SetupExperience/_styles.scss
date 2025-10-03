@@ -8,23 +8,10 @@
     margin-top: 80px;
   }
 
-  &__empty-state {
-    margin-top: $pad-xxlarge;
-
-    text-align: center;
-
-    h2 {
-      font-size: $small;
-      margin: 0 0 $pad-xsmall;
-    }
-
-    p {
-      font-size: $x-small;
-      margin: 0 0 $pad-medium;
-    }
-
-    button {
-      margin: 0 auto;
-    }
+  .turn-on-mdm-message {
+    @include tab-empty-state;
+    max-width: none;
+    padding: 64px 170px;
+    margin: 0;
   }
 }

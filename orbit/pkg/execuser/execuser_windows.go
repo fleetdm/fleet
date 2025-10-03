@@ -1,3 +1,4 @@
+// nolint:gosec,G103,govet,unsafeptr // Reason: unsafe required for Windows API calls.
 package execuser
 
 // NOTE: The following was copied from
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"unsafe"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -117,7 +119,17 @@ func run(path string, opts eopts) (lastLogs string, err error) {
 	for _, nv := range opts.env {
 		os.Setenv(nv[0], nv[1])
 	}
-	return "", startProcessAsCurrentUser(path, "", "")
+
+	var args []string
+	for _, arg := range opts.args {
+		args = append(args, arg[0])
+		if arg[1] != "" {
+			args = append(args, arg[1])
+		}
+	}
+	cmdLine := strings.Join(args, " ")
+
+	return "", startProcessAsCurrentUser(path, cmdLine, "")
 }
 
 func runWithOutput(path string, opts eopts) (output []byte, exitCode int, err error) {

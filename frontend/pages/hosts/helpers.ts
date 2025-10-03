@@ -3,7 +3,10 @@ const getHostStatusTooltipText = (status: string): string => {
   if (status === "online") {
     return "Online hosts will respond to a live query.";
   }
-  return "Offline hosts won’t respond to a live query because they may be shut down, asleep, or not connected to the internet.";
+  if (status === "---") {
+    return "Device is pending enrollment in Apple Business Manager and status is not yet available.";
+  }
+  return "Offline hosts won't respond to a live query because they may be shut down, asleep, or not connected to the internet.";
 };
 
 export default getHostStatusTooltipText;

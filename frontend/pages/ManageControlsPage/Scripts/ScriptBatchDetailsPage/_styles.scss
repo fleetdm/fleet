@@ -1,0 +1,53 @@
+.script-batch-details-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  &__header {
+    margin-bottom: 0;
+    h2 {
+      font-weight: $bold;
+    }
+    .section-header__sub-title {
+      display: flex;
+      align-items: center;
+      gap: $pad-large;
+      font-size: $x-small;
+    }
+    .when {
+      display: inline-flex;
+      align-items: center;
+      gap: $pad-xsmall;
+    }
+  }
+
+  &__tab-content {
+    &__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: $x-small;
+    }
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border: 1px solid $ui-fleet-black-10;
+    border-radius: 4px;
+    padding: 40px;
+    gap: 8px;
+    font-size: $small;
+    p {
+      margin: 0;
+      @include help-text;
+    }
+  }
+  .back-link {
+    align-self: flex-start;
+  }
+  .react-tabs__tab-list {
+    margin-bottom: $pad-large;
+  }
+}

@@ -183,7 +183,8 @@
                 <div purpose="payload-option" v-for="option in selectedPayloadsGroupedByCategory[category]">
                   <div purpose="name-and-access-type" class="d-flex flex-row align-items-center justify-content-between w-100">
                     <p class="mb-0"><strong>{{option.name}}</strong></p>
-                    <div class="d-flex flex-column" v-if="selectedPlatform === 'windows'">
+                    <div class="d-flex flex-row align-items-center" v-if="selectedPlatform === 'windows'">
+                      <a href="https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-configuration-service-provider" target="_blank" no-icon><img style="margin-right: 6px; height: 14px" class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-html="true"  data-toggle="tooltip" tabindex="0" data-placement="top" title="<%= '<p class="text-white">A Windows CSP profile may require the ADD action to work on initial delivery. To modify a previously delivered setting, the REPLACE action may be needed.</p> <p class="d-flex flex-row align-items-center mb-0">Click <img src="/images/icon-more-info-25-14x14@2x.png" class="mx-1" style="height: 12px; display: inline;" alt="more info"> to learn more</p>'%>"></a>
                       <select :class="[formErrors[option.uniqueSlug+'-access-type'] ? 'is-invalid' : '']" purpose="access-type-select" v-model.trim="configurationBuilderFormData[option.uniqueSlug+'-access-type']" class="form-control" style="width: 120px">
                         <option selected value="undefined" >Access type</option>
                         <option :value="accessType" style="text-transform: uppercase;" v-for="accessType in option.supportedAccessTypes">{{accessType}}</option>
@@ -292,7 +293,7 @@
                       </div>
                     </div>
                   </div>
-                  <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove</a>
+                  <a @click="clickRemovePayloadOption(option)" purpose="remove-button">Remove payload</a>
                 </div>
                 </ajax-form>
               </div>

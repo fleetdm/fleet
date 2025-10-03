@@ -1,8 +1,11 @@
 import React from "react";
+import { capitalize } from "lodash";
 
 import PATHS from "router/paths";
 
 import { LEARN_MORE_ABOUT_BASE_LINK } from "utilities/constants";
+
+import { SetupExperiencePlatform } from "interfaces/platform";
 
 import Button from "components/buttons/Button";
 import CustomLink from "components/CustomLink";
@@ -23,6 +26,7 @@ interface IAddInstallSoftwareProps {
   hasManualAgentInstall: boolean;
   softwareTitles: ISoftwareTitle[] | null;
   onAddSoftware: () => void;
+  platform: SetupExperiencePlatform;
 }
 
 const AddInstallSoftware = ({
@@ -30,6 +34,7 @@ const AddInstallSoftware = ({
   hasManualAgentInstall,
   softwareTitles,
   onAddSoftware,
+  platform,
 }: IAddInstallSoftwareProps) => {
   const noSoftwareUploaded = hasNoSoftwareUploaded(softwareTitles);
   const installSoftwareDuringSetupCount = getInstallSoftwareDuringSetupCount(
@@ -40,44 +45,34 @@ const AddInstallSoftware = ({
     if (noSoftwareUploaded) {
       return (
         <>
-          No software available to add. Please{" "}
+          No {platform === "macos" ? "macOS" : capitalize(platform)} software
+          available. You can add software on the{" "}
           <LinkWithContext
             to={PATHS.SOFTWARE_ADD_FLEET_MAINTAINED}
             currentQueryParams={{ team_id: currentTeamId }}
             withParams={{ type: "query", names: ["team_id"] }}
           >
-            upload software
-          </LinkWithContext>{" "}
-          to be able to add during setup experience.
+            Software page
+          </LinkWithContext>
+          .
         </>
       );
     }
 
     return installSoftwareDuringSetupCount === 0 ? (
-      "No software added."
+      "No software selected."
     ) : (
       <>
-        {installSoftwareDuringSetupCount} software will be{" "}
+        {installSoftwareDuringSetupCount} software item
+        {installSoftwareDuringSetupCount > 1 && "s"} will be{" "}
         <TooltipWrapper tipContent="Software order will vary.">
-          installed during setup
+          installed during setup.
         </TooltipWrapper>
-        .
       </>
     );
   };
 
-  const getButtonText = () => {
-    if (noSoftwareUploaded) {
-      return "Add software";
-    }
-
-    return installSoftwareDuringSetupCount === 0
-      ? "Add software"
-      : "Show selected software";
-  };
-
   const addedText = getAddedText();
-  const buttonText = getButtonText();
   const manuallyInstallTooltipText = (
     <>
       Disabled because you manually install Fleet&apos;s agent (
@@ -99,30 +94,34 @@ const AddInstallSoftware = ({
         />
       </div>
       <span className={`${baseClass}__added-text`}>{addedText}</span>
-      <div>
-        <GitOpsModeTooltipWrapper
-          renderChildren={(disableChildren) => (
-            <TooltipWrapper
-              className={`${baseClass}__manual-install-tooltip`}
-              tipContent={manuallyInstallTooltipText}
-              disableTooltip={disableChildren || !hasManualAgentInstall}
-              position="top"
-              showArrow
-              underline={false}
-            >
-              <Button
-                className={`${baseClass}__button`}
-                onClick={onAddSoftware}
-                disabled={
-                  disableChildren || hasManualAgentInstall || noSoftwareUploaded
-                }
+      {!noSoftwareUploaded && (
+        <div>
+          <GitOpsModeTooltipWrapper
+            renderChildren={(disableChildren) => (
+              <TooltipWrapper
+                className={`${baseClass}__manual-install-tooltip`}
+                tipContent={manuallyInstallTooltipText}
+                disableTooltip={disableChildren || !hasManualAgentInstall}
+                position="top"
+                showArrow
+                underline={false}
               >
-                {buttonText}
-              </Button>
-            </TooltipWrapper>
-          )}
-        />
-      </div>
+                <Button
+                  className={`${baseClass}__button`}
+                  onClick={onAddSoftware}
+                  disabled={
+                    disableChildren ||
+                    hasManualAgentInstall ||
+                    noSoftwareUploaded
+                  }
+                >
+                  Select software
+                </Button>
+              </TooltipWrapper>
+            )}
+          />
+        </div>
+      )}
     </div>
   );
 };

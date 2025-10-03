@@ -10,11 +10,14 @@ import ScriptBatchProgress, {
 import ScriptLibrary, {
   IScriptLibraryProps,
 } from "./cards/ScriptLibrary/ScriptLibrary";
+import { ScriptsLocation } from "./Scripts";
 
 export interface IScriptsCommonProps {
   router: InjectedRouter;
+  location: ScriptsLocation;
   teamId: number;
 }
+/** no distinct props for each card as of now, keeping this as is for easy future updates to any cards  */
 type IScriptsCardProps = IScriptLibraryProps | IScriptBatchProgressProps;
 
 const useScriptNavItems = (

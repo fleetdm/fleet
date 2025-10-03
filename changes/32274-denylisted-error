@@ -1,0 +1,1 @@
+Downgraded "distributed query is denylisted" error to a warning on the Fleet server since this message indicates a likely issue on the host and not the server. We will surface this issue in the UI in the future.

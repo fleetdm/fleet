@@ -14,7 +14,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 ## Contact us
 
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________&template=1-custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/fleet/issues/new?labels=%3Ahelp-design&title=Product%20design%20request%C2%BB______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://github.com/orgs/fleetdm/projects/93) for this department, including pending tasks and the status of new requests.
 
@@ -127,7 +127,7 @@ You'll know it's time for expedited drafting when:
 What happens during expedited drafting?
 
 1. If we cut planned functionality, the PD notifies the [customer support DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris). Up to the PD to let the customer support DRI know if we're still planning on building the functionality in a later release and if so, when. The customer support DRI should confirm that the updated scope and/or timeline still meets the requester's needs.
-2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the the product group's Engineering Manager (EM) and Quality Assurance (QA) Engineer in the `#g-mdm`, `#g-orchestration`, or `#g-software` Slack channel.
+2. The PD notifies the [DRI for what goes in a release](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris) (release DRI), Head of Product Design, and the relevant product group's Engineering Manager (EM) in the `#help-leadership` Slack channel.
   - If the user story wasn't "Ready for spec" by the last estimation session, decision to allow the user story to make it into the next engineering sprint is up to the release DRI.
   - If the user story is in the current engineering sprint and there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
 3. Drafts are updated, changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the user story is estimated or brought back into the current sprint.
@@ -167,10 +167,11 @@ To signal that the reference docs branch is ready for release, the API design DR
 
 ### Interview a Product Designer candidate
 
-Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-position) through [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications).
+Ensure the interview process follows these steps in order. This process must follow [creating a new position](https://fleetdm.com/handbook/company/leadership#creating-a-new-role-at-fleet), [receiving job applications](https://fleetdm.com/handbook/company/leadership#receiving-job-applications), and [hiring a new team member](https://fleetdm.com/handbook/company/leadership#creating-a-new-role-at-fleet).
 
 1. **Reach out**: Send an email or LinkedIn message introducing yourself. Include the URL for the position, your Calendly URL, and invite the candidate to schedule a 30 minute introduction call.
 2. **Conduct screening call**: Discuss the requirements of the position with the candidate, and answer any questions they have about Fleet. Look for alignment with [Fleet's values](https://fleetdm.com/handbook/company#values) and technical expertise necessary to meet the requirements of the role.
+3. **IHOP interview**: Via email or LinkedIn message, connect the candidate with Fleet's Interim Head of People (IHOP) to set up the IHOP interview.
 2. **Deliver design challenge**: Share the [design challenge](https://docs.google.com/document/d/1S4fD5fPUU9YUjlKy2YAbRZPb_IK4EPkmmO7j09iPWR8/edit) and ask them to complete and send their project back within 5 business days.
 5. **Schedule design challenge interview**: Send the candidate a Calendly link for 1 hour call to review the candidate's project. The goal is to understand the design capabilities of the candidate. An additional Product Designer can optionally join if available.
 6. **Schedule EM interview**: Send the candidate a calendly link for 30m talk with the Engineering Manager (EM) of the [product group](https://fleetdm.com/handbook/company/product-groups#current-product-groups) the candidate will be working with.
@@ -201,6 +202,14 @@ If the original request is a customer request, the PD also assigns the relevant 
 Fleet has several brand fronts that need to be updated from time to time. Check each [brand front](https://docs.google.com/spreadsheets/d/1c15vwMZytpCLHUdGvXxi0d6WGgPcQU1UBMniC1F9oKk/edit?gid=0#gid=0) for consistency and update as needed with the following: 
 - The current pitch, found in the blurbs section of the [🎐 Why Fleet?](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#heading=h.uovxedjegxdc) doc. 
 - The current [brand imagery](https://www.figma.com/design/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?node-id=3962-65895). Check this [Loom video](https://www.loom.com/share/4432646cc9614046aaa4a74da1c0adb5?sid=2f84779f-f0bd-4055-be69-282c5a16f5c5) for more info.
+
+### Notify Customer Success about new macOS features
+
+Apple releases new major macOS versions every year (ex. [macOS Tahoe](https://fleetdm.com/announcements/fleet-supports-macos-26-tahoe-ios-26-and-ipados-26)).
+
+In the lead up to release, Apple will announce new MDM features that Fleet's customers may expect Fleet, their MDM solution, to support. 
+
+When a new major macOS version is annouced, it's the Head of Product Design's responsibility to provide the VP of Customer Success with a list of the new features. This way, Customer Success Managers (CSMs) can bring this list of features to upcoming customer calls. It's up to the CSM to file new feature requests for the new features that customers would like Fleet to support. These requests will go through Fleet's [prioritization process](https://fleetdm.com/handbook/company/product-groups#how-feature-requests-are-prioritized).
 
 
 ## Rituals

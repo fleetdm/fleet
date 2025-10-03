@@ -35,7 +35,7 @@
     "slug": {
       "type": "string",
       "description": "The slug identifies a specific app and platform combination. It is used to name the manifest files that contain the metadata that Fleet needs to add, install, and uninstall this app. Format: app-name/platform (e.g., adobe-acrobat-reader/darwin)",
-      "pattern": "^[a-z0-9-]+/darwin$",
+      "pattern": "^[a-z0-9-+]+/darwin$",
       "minLength": 1
     },
     "pre_uninstall_scripts": {

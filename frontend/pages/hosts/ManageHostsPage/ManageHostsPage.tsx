@@ -15,7 +15,7 @@ import FileSaver from "file-saver";
 
 import scriptsAPI, {
   IScriptBatchSummaryQueryKey,
-  IScriptBatchSummaryResponseV1,
+  IScriptBatchSummaryV1,
   ScriptBatchHostCountV1,
 } from "services/entities/scripts";
 import enrollSecretsAPI from "services/entities/enroll_secret";
@@ -306,6 +306,8 @@ const ManageHostsPage = ({
   const configProfileUUID = queryParams?.profile_uuid;
   const scriptBatchExecutionId =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_ID];
+  /** This actually represents HOST statuses, not the status of a batch script execution overall.
+   * Consider renaming this to `scriptBatchHostStatus` */
   const scriptBatchExecutionStatus: ScriptBatchHostCountV1 =
     queryParams?.[HOSTS_QUERY_PARAMS.SCRIPT_BATCH_EXECUTION_STATUS] ??
     (scriptBatchExecutionId ? "ran" : undefined);
@@ -472,9 +474,9 @@ const ManageHostsPage = ({
     isLoading: isLoadingScriptBatchSummary,
     isError: isErrorScriptBatchSummary,
   } = useQuery<
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     Error,
-    IScriptBatchSummaryResponseV1,
+    IScriptBatchSummaryV1,
     IScriptBatchSummaryQueryKey[]
   >(
     [
@@ -484,7 +486,7 @@ const ManageHostsPage = ({
       },
     ],
     ({ queryKey: [{ batch_execution_id }] }) =>
-      scriptsAPI.getRunScriptBatchSummary({ batch_execution_id }),
+      scriptsAPI.getRunScriptBatchSummaryV1({ batch_execution_id }),
     {
       enabled: !!scriptBatchExecutionId && isRouteOk,
       ...DEFAULT_USE_QUERY_OPTIONS,
@@ -503,7 +505,7 @@ const ManageHostsPage = ({
     }
   );
 
-  const { data: osVersions } = useQuery<
+  const { data: osVersions, isLoading: isLoadingOsVersions } = useQuery<
     IOSVersionsResponse,
     Error,
     IOperatingSystemVersion[],
@@ -1044,6 +1046,13 @@ const ManageHostsPage = ({
         newQueryParams.software_id = softwareId;
       } else if (softwareVersionId) {
         newQueryParams.software_version_id = softwareVersionId;
+        // Software version can be combined with os name and os version
+        // e.g. Kernel version 6.8.0-71.71 (software version) on Ubuntu 24.04.2LTS (os name and os version)
+        if (osVersionId || (osName && osVersion)) {
+          newQueryParams.os_version_id = osVersionId;
+          newQueryParams.os_name = osName;
+          newQueryParams.os_version = osVersion;
+        }
       } else if (softwareTitleId) {
         newQueryParams.software_title_id = softwareTitleId;
         if (softwareStatus && teamIdForApi !== API_ALL_TEAMS_ID) {
@@ -1676,6 +1685,15 @@ const ManageHostsPage = ({
       filter in queryParams // TODO: replace this with `Object.hasOwn(queryParams, filter)` when we upgrade to es2022
   );
 
+  // Ensures rendering table/pills simultaneously when all API calls are done
+  const isLoading =
+    isLoadingHosts ||
+    isLoadingHostsCount ||
+    isLoadingPolicy ||
+    isLoadingOsVersions ||
+    isLoadingConfigProfile ||
+    isLoadingScriptBatchSummary;
+
   const renderTable = () => {
     if (!config || !currentUser || !isRouteOk) {
       return <Spinner />;
@@ -1819,13 +1837,7 @@ const ManageHostsPage = ({
         resultsTitle="hosts"
         columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
-        isLoading={
-          isLoadingHosts ||
-          isLoadingHostsCount ||
-          isLoadingPolicy ||
-          isLoadingConfigProfile ||
-          isLoadingScriptBatchSummary
-        }
+        isLoading={isLoading}
         manualSortBy
         defaultSortHeader={(sortBy[0] && sortBy[0].key) || DEFAULT_SORT_HEADER}
         defaultSortDirection={
@@ -1991,6 +2003,7 @@ const ManageHostsPage = ({
             }
             onClickEditLabel={onEditLabelClick}
             onClickDeleteLabel={toggleDeleteLabelModal}
+            isLoading={isLoading}
           />
           {renderNoEnrollSecretBanner()}
           {renderTable()}

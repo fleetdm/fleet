@@ -1,6 +1,7 @@
 import React, { useContext, useState } from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import TooltipTruncatedText from "components/TooltipTruncatedText";
 import { ISecret } from "interfaces/secrets";
 import { NotificationContext } from "context/notification";
 
@@ -9,16 +10,16 @@ import secretsAPI from "services/entities/secrets";
 
 interface DeleteSecretModalProps {
   secret: ISecret | undefined;
-  onCancel: () => void;
-  onDelete: () => void;
+  onExit: () => void;
+  reloadList: () => void;
 }
 
 const baseClass = "fleet-delete-secret-modal";
 
 const DeleteSecretModal = ({
   secret,
-  onCancel,
-  onDelete,
+  onExit,
+  reloadList,
 }: DeleteSecretModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -31,7 +32,8 @@ const DeleteSecretModal = ({
     setIsDeleting(true);
     try {
       await secretsAPI.deleteSecret(secret.id);
-      onDelete();
+      renderFlash("success", "Variable successfully deleted.");
+      reloadList();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
       const isInUseError =
@@ -44,25 +46,31 @@ const DeleteSecretModal = ({
       renderFlash("error", message);
     } finally {
       setIsDeleting(false);
+      onExit();
     }
   };
 
   return (
     <Modal
       title="Delete custom variable?"
-      onExit={onCancel}
+      onExit={onExit}
       className={baseClass}
     >
       <>
-        <p>
-          This will delete the <b>{secret?.name}</b> custom variable.
-        </p>
-        <p>
-          If this custom variable is used in any configuration profiles or
-          scripts, they will fail.
+        <div className={`${baseClass}__message`}>
+          <span>
+            This will delete the
+            <b>
+              <TooltipTruncatedText value={secret?.name} />
+            </b>
+            custom variable.
+          </span>
           <br />
-          To resolve, edit the configuration profile or script.
-        </p>
+          <br />
+          If this custom variable is used in any configuration profiles or
+          scripts, they will fail. To resolve, edit the configuration profile or
+          script.
+        </div>
         <div className="modal-cta-wrap">
           <Button
             variant="alert"
@@ -72,7 +80,7 @@ const DeleteSecretModal = ({
           >
             Delete
           </Button>
-          <Button variant="inverse-alert" onClick={onCancel}>
+          <Button variant="inverse-alert" onClick={onExit}>
             Cancel
           </Button>
         </div>

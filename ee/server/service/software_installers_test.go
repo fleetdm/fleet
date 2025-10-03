@@ -16,7 +16,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mock"
+	svcmock "github.com/fleetdm/fleet/v4/server/mock/service"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -212,6 +214,33 @@ func TestUninstallSoftwareTitle(t *testing.T) {
 	require.ErrorContains(t, svc.UninstallSoftwareTitle(context.Background(), 1, 10), fleet.RunScriptsOrbitDisabledErrMsg)
 }
 
+// TestInstallSoftwareTitle is mostly tested in enterprise integration test. This test hits is placed to hit some edge cases.
+func TestInstallSoftwareTitle(t *testing.T) {
+	t.Parallel()
+	ds := new(mock.Store)
+	svc := newTestService(t, ds)
+	ctx := viewer.NewContext(context.Background(), viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
+
+	host := &fleet.Host{
+		UUID:         "personal-ios",
+		OrbitNodeKey: ptr.String("orbit_key"),
+		Platform:     "ios",
+		TeamID:       ptr.Uint(1),
+	}
+
+	ds.HostFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
+		return host, nil
+	}
+
+	ds.GetNanoMDMEnrollmentFunc = func(ctx context.Context, id string) (*fleet.NanoEnrollment, error) {
+		return &fleet.NanoEnrollment{
+			Type: mdm.EnrollType(mdm.UserEnrollmentDevice).String(),
+		}, nil
+	}
+
+	require.ErrorContains(t, svc.InstallSoftwareTitle(ctx, 1, 10), fleet.InstallSoftwarePersonalAppleDeviceErrMsg)
+}
+
 func TestSoftwareInstallerPayloadFromSlug(t *testing.T) {
 	t.Parallel()
 	ds := new(mock.Store)
@@ -334,4 +363,17 @@ func newTestService(t *testing.T, ds fleet.Datastore) *Service {
 		ds:    ds,
 	}
 	return svc
+}
+
+func newTestServiceWithMock(t *testing.T, ds fleet.Datastore) (*Service, *svcmock.Service) {
+	t.Helper()
+	authorizer, err := authz.NewAuthorizer()
+	require.NoError(t, err)
+	baseSvc := new(svcmock.Service)
+	svc := &Service{
+		Service: baseSvc,
+		authz:   authorizer,
+		ds:      ds,
+	}
+	return svc, baseSvc
 }

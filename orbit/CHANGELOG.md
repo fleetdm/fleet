@@ -1,3 +1,21 @@
+## Orbit 1.47.4 (Sep 11, 2025)
+
+* Updated Swift Dialog in Fleet's TUF repo to 2.5.6 and modified Migration dialog layout to display properly with 2.5.6.
+
+## Orbit 1.47.3 (Sep 10, 2025)
+
+* Fixed a crash loop on Fleet Free when Fleet Desktop is enabled.
+
+## Orbit 1.47.2 (Sep 04, 2025)
+
+* Fixed bug where "Self-service" was still shown in Fleet Desktop menu when the host was offline.
+
+* Added automatic host identity certificate renewal for TPM-backed certificates. When a certificate is within 180 days of expiration, orbit will automatically renew it using proof-of-possession with the existing certificate's private key.
+
+* Updated go to 1.24.6
+
+* Fixed issues with attestations: https://github.com/fleetdm/fleet/attestations
+
 ## Orbit 1.46.0 (Aug 15, 2025)
 
 * Added support for fleetd TUF extensions on Linux arm64 and Windows arm64 devices.

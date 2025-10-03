@@ -254,7 +254,6 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 
 	var certs []*fleet.HostCertificateRecord
 	stmt, args, err := sqlx.In(stmt, binarySHA1s, hostID)
-
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building load host cert ids query")
 	}
@@ -271,7 +270,16 @@ func loadHostCertIDsForSHA1DB(ctx context.Context, tx sqlx.QueryerContext, hostI
 }
 
 func listHostCertsDB(ctx context.Context, tx sqlx.QueryerContext, hostID uint, opts fleet.ListOptions) ([]*fleet.HostCertificateRecord, *fleet.PaginationMetadata, error) {
-	stmt := `
+	const fromWhereClause = `
+FROM
+	host_certificates hc
+	INNER JOIN host_certificate_sources hcs ON hc.id = hcs.host_certificate_id
+WHERE
+	hc.host_id = ?
+	AND hc.deleted_at IS NULL
+	`
+
+	stmt := fmt.Sprintf(`
 SELECT
 	hc.id,
 	hc.sha1_sum,
@@ -297,15 +305,14 @@ SELECT
 	hc.issuer_common_name,
 	hcs.source,
 	hcs.username
-FROM
-	host_certificates hc
-	INNER JOIN host_certificate_sources hcs ON hc.id = hcs.host_certificate_id
-WHERE
-	hc.host_id = ?
-	AND hc.deleted_at IS NULL`
+	%s`, fromWhereClause)
 
-	args := []interface{}{hostID}
-	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, args, &opts)
+	countStmt := fmt.Sprintf(`
+    	SELECT COUNT(*) %s
+    	`, fromWhereClause)
+
+	baseArgs := []interface{}{hostID}
+	stmtPaged, args := appendListOptionsWithCursorToSQL(stmt, baseArgs, &opts)
 
 	var certs []*fleet.HostCertificateRecord
 	if err := sqlx.SelectContext(ctx, tx, &certs, stmtPaged, args...); err != nil {
@@ -314,7 +321,11 @@ WHERE
 
 	var metaData *fleet.PaginationMetadata
 	if opts.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		var count uint
+		if err := sqlx.GetContext(ctx, tx, &count, countStmt, baseArgs...); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "counting host certificates")
+		}
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0, TotalResults: count}
 		if len(certs) > int(opts.PerPage) { //nolint:gosec // dismiss G115
 			metaData.HasNextResults = true
 			certs = certs[:len(certs)-1]

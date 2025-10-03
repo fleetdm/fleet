@@ -37,7 +37,7 @@ func (c *Client) CreateTeam(teamPayload fleet.TeamPayload) (*fleet.Team, error) 
 func (c *Client) GetTeam(teamID uint) (*fleet.Team, error) {
 	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/teams/%d", teamID)
 	var responseBody getTeamResponse
-	if err := c.authenticatedRequest(getTeamRequest{}, verb, path, &responseBody); err != nil {
+	if err := c.authenticatedRequest(nil, verb, path, &responseBody); err != nil {
 		return nil, err
 	}
 	return responseBody.Team, nil

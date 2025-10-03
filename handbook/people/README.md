@@ -21,7 +21,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
 
-> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance)._
+> Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
 
 ### Approve a new position
@@ -50,7 +50,7 @@ When review is requested on a proposal to open a new position, the Interim Head 
 ### Inform managers about hours worked
 
 Every Friday, we collect hours worked for all hourly employees at Fleet, including core team members and consultants, regardless of their location. Consultants submit their hours through Gusto (US consultants) or Plane.com (international consultants) for DRI (generally their manager) review. Here's how:
-1. Find the DRI using the [Digital Experience KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
+1. Find the DRI using the [People KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0).
 2. Copy the template in the consultants column of the KPIs and send the teammate's DRI a direct message in Slack hours with an FYI including the total hours logged since last Saturday at midnight. For international teammates, they cannot enter hours weekly in Plane.com, so you will need to request the hours worked from them in order to have the DRI approve them.
 3. The following Monday, check for updates to logged hours and ensure the KPI sheet aligns with HRIS records. If there are discrepancies between what was previously reported, reconfirm logged hours with the teammate's DRI and update the KPI sheet to reflect the correct amount.
 
@@ -98,14 +98,14 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 ### Update personnel details
 
 When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
-1. Team member submits a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=x-teammate-relocation.md) to update their personnel details (or Digital Experience team creates if the request comes via email or is sensitive and needs a classified issue).
+1. Team member submits a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=x-teammate-relocation.md) to update their personnel details (or People team creates if the request comes via email or is sensitive and needs a classified issue).
     - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
-2. Digital Experience makes change to HRIS (Gusto or Plane) to reflect change. 
+2. People makes change to HRIS (Gusto or Plane) to reflect change. 
     - Note: if making the change requires follow-up steps, resolve those steps to action the change.
-3. Once change is effected in HRIS, Digital Experience makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
-4. If required, Digital Experience makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
-5. If required, Digital Experience makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
-6. If required, Digital Experience also makes changes to other core systems (e.g., creating a new email alias in Google Workspace, updating details in Carta, etc.).
+3. Once change is effected in HRIS, People makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+4. If required, People makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
+5. If required, People makes any relevant changes to the ["🗺️ Geographical factors"](https://docs.google.com/spreadsheets/d/1rCVCs-eOo-VSEG7fPLgdq5l7oSaActl5bewaWP7PnSE/edit#gid=1533353559) spreadsheet and follows through on any action items involving tax implications (i.e. registering with a new state for employer taxes).
+6. If required, People also makes changes to other core systems (e.g., creating a new email alias in Google Workspace, updating details in Carta, etc.).
 7. The change is now actioned, notify the team member and close the issue.
 
 > Note: if the Fleetie is US based and has a qualifying life event that impacts benefit coverage, they can [follow the Gusto steps](https://support.gusto.com/article/100895878100000/Change-your-benefits-with-a-qualifying-life-event) to update their coverage elections.
@@ -113,7 +113,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 
 ### Change a Fleetie's role
 
-When Digital Experience receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Interim Head of People will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Interim Head of People will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
+When People receives [notification of a Fleetie's role changing](https://fleetdm.com/handbook/company/leadership#request-a-role-change-for-a-fleetie), The Interim Head of People will bring the proposed title change to the next Roundup meeting with the CEO for approval. If the proposed change is rejected, the Interim Head of People will inform the requesting manager as to why. If approved, use the following steps to change a Fleetie's role:  
 1. Update ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search the spreadsheet for the Fleetie in need of a job title change.
     - Input the new job title in the Fleetie's row in the "Job title" cell.
@@ -135,7 +135,7 @@ When Digital Experience receives [notification of a Fleetie's role changing](htt
 
 ### Change a Fleetie's manager
 
-When Digital Experience receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
+When People receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 1. Update [🧑‍🚀 Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0):
     - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
     - Search for the Fleetie whose manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
@@ -170,7 +170,7 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 To complete payroll for a salaried US employee, use the following steps:
 1. Log in to your admin [Gusto](https://app.gusto.com/login) account.
 2. Navigate to Pay > Run payroll > Run payroll.
-3. Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+3. Navigate to the People board, and search for "welcoming" issues or "offboarding" issues.
 4. Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
 5. Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Gusto and the equity plan. 
 6. Once the above is verified correct, ensure payment is via direct deposit and select "Review summary".
@@ -183,14 +183,14 @@ To complete payroll for a salaried international employee, use the following ste
 3. Verify that all teammates have a planned (or already processed) payroll.
    - To check payroll for those Plane considers "employees", go to Payroll > History.
       - Verify that any employees getting paid more frequently than monthly have had their payments processed throughout the month (Canada only currently).
-      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues.
+      - Navigate to the People board, and search for "welcoming" issues or "offboarding" issues.
       - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
       - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
       - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
    - To check payroll for those Plane considers "contractors", go to "Payments" > "Pay contractors".
       - Navigate to the "scheduled" tab in the top right of screen to look at what is currently scheduled to be paid.
       - Ensure all teammates have a pending payment (except those that invoice for payment).
-      - Navigate to the Digital Experience board, and search for "welcoming" issues or "offboarding" issues
+      - Navigate to the People board, and search for "welcoming" issues or "offboarding" issues
       - Ensure that new hires during the payroll period have accurate hours and salary rates reflected (compare with the equity plan), and that offboarded employees' final hours are correctly recorded and their final payroll processed.
       - Check for any workiversary compensation changes for the month and ensure they're correctly reflected in both Plane and the equity plan.
       - If anything is incorrect, open a "help" ticket using the purple help button and schedule a change/correction for the following pay cycle (note Plane takes more time to process so it is not possible to make instantaneous changes to rectify issues)
@@ -230,12 +230,12 @@ At Fleet, everyone is recognized on their [workiversary](https://fleetdm.com/han
 
     ```
     Hey! Just a heads up, tomorrow is [teammate’s name] [number of years at Fleet] workiversary at Fleet.
-    Digital Experience can post something in the #random channel to recognize them, would you like to make that post instead?
+    People can post something in the #random channel to recognize them, would you like to make that post instead?
     ```
  
    > If a manager elects to post and hasn't done so by 2pm ET on the day of the workiversary, send them a friendly reminder and offer to post instead.
 
-4. If the manager has deferred to Digital Experience, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
+4. If the manager has deferred to People, schedule a Slack post for the following day to recognize the teammate's contributions at Fleet. If you’re unsure about what to post, take a look at what’s been [posted previously](https://docs.google.com/document/d/1Va4TYAs9Tb0soDQPeoeMr-qHxk0Xrlf-DUlBe4jn29Q/edit).
 
 
 ### Update a team member's compensation
@@ -246,7 +246,7 @@ To [change a teammate's compensation](https://fleetdm.com/handbook/company/commu
 3. Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and at-mention the Interim Head of People in the workiversary issue. Add a "DISCUSS" item to the roundup doc so the compensation change can be reviewed with the CEO.
 4. Once compensation decisions have been finalized, the Interim Head of People will send the teammate's manager a Slack DM to communicate the compensation decision and asking them to inform the teammate.
 5. Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell,
+6. Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying Adding to the "Notes" cell.
   - Update the "¶¶ Annual OTE ($)" column with the new compensation information.
   - Update the "Last compensation change" column with the effective date from payroll platform.
   - Update the "¶¶ Notes" column. **⚠️ MAKE SURE NOT TO DELETE ANY EXISTING NOTES ⚠️** Add the note to the top of the cell using the following format: `As of YYYY-MM-DD OTE +15k` (pattern match off of other 2024 notes). Link your note to the relevant title in the ["¶¶ 💌 Compensation decisions (offer math)" (classified Google Doc)](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?tab=t.0#heading=h.slomq4whmyas).
@@ -268,7 +268,7 @@ First: Advisor agreements are sent through [DocuSign](https://www.docusign.com/)
 - Update the "Equity plan" sheet (which should have been automatically updated after updating "Advisors" thanks to the global unique IDs next to each row which are used to connect the spreadsheets) to reflect the default number of shares for advisor equity grants.
 - Send the advisor agreement [through Docusign](https://apps.docusign.com/send/templates?view=shared&folder=0482b0fd-a752-41be-93a0-185e2fb7ef54) using the CEO's account, pulling the advisor's email address from a recent calendar event on the CEO's calendar.
 - Complete the first step of signing, which involves filling in the number of shares.
-- Then wait for the advisor to sign.  (Fleet's CEO will sign after that.)
+- Then wait for the advisor to sign. (Fleet's CEO will sign after that)
 
 Then, to finalize a new advisor after signing is complete:
 - Schedule quarterly recurring 1h meeting between the CEO and the advisor, with 30m of recurring prep scheduled back to back ahead of the meeting.
@@ -279,8 +279,8 @@ Then, to finalize a new advisor after signing is complete:
 
 ### Convert a Fleetie to a consultant
 
-If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the Digital Experience team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=Request%3A+_______________________) to notify them of the change.
-Once notified, Digital Experience takes the following steps:
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the People team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Ahelp-people&projects=&template=1-custom-request.md&title=Request%3A+_______________________) to notify them of the change.
+Once notified, People takes the following steps:
 1. Confirm the following details with the Fleetie:
     - Date of change
     - Term of consultancy (time period)

@@ -181,6 +181,8 @@ type SoftwareTitle struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"icon_url"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
@@ -221,6 +223,8 @@ type SoftwareTitleListResult struct {
 	ID uint `json:"id" db:"id"`
 	// Name is the name reported by osquery.
 	Name string `json:"name" db:"name"`
+	// IconUrl is the URL for the software's icon, whether from VPP or via an uploaded override
+	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
 	// Browser is the browser type (e.g., "chrome", "firefox", "safari")

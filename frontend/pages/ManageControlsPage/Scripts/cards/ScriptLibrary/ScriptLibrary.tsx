@@ -30,16 +30,15 @@ import { IScriptsCommonProps } from "../../ScriptsNavItems";
 const baseClass = "script-library";
 
 const SCRIPTS_PER_PAGE = 10;
+const DEFAULT_PAGE = 0;
 
-export interface IScriptLibraryProps extends IScriptsCommonProps {
-  currentPage?: number;
-}
+export type IScriptLibraryProps = IScriptsCommonProps;
 
-const ScriptLibrary = ({
-  router,
-  teamId,
-  currentPage = 0,
-}: IScriptLibraryProps) => {
+const ScriptLibrary = ({ router, teamId, location }: IScriptLibraryProps) => {
+  const currentPage = location.query.page
+    ? parseInt(location.query.page, 10)
+    : DEFAULT_PAGE;
+
   const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
   const [showEditScriptModal, setShowEditScriptModal] = useState(false);

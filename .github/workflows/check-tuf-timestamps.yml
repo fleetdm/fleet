@@ -23,7 +23,7 @@ permissions:
   contents: read
 
 jobs:
-  test-go:
+  check-signatures-old-tuf:
     strategy:
       matrix:
         os: [ubuntu-latest]

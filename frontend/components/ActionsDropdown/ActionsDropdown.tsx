@@ -26,6 +26,7 @@ interface IActionsDropdownProps {
   className?: string;
   menuAlign?: "right" | "left" | "default";
   menuPlacement?: "top" | "bottom" | "auto";
+  variant?: "button";
 }
 
 const getOptionBackgroundColor = (state: any) => {
@@ -53,13 +54,13 @@ const getRightMenuAlign = (menuAlign: "right" | "left" | "default") => {
 };
 
 const CustomDropdownIndicator = (
-  props: DropdownIndicatorProps<any, false, any>
+  props: DropdownIndicatorProps<IDropdownOption, false>
 ) => {
   const { isFocused, selectProps } = props;
-  // no access to hover state here from react-select so that is done in the scss
-  // file of ActionsDropdown.
+  const variant = (selectProps as { variant?: "button" }).variant;
+
   const color =
-    isFocused || selectProps.menuIsOpen
+    isFocused || selectProps.menuIsOpen || variant === "button"
       ? "core-fleet-blue"
       : "core-fleet-black";
 
@@ -113,6 +114,7 @@ const ActionsDropdown = ({
   className,
   menuAlign = "default",
   menuPlacement = "bottom",
+  variant,
 }: IActionsDropdownProps): JSX.Element => {
   const dropdownClassnames = classnames(baseClass, className);
 
@@ -156,21 +158,31 @@ const ActionsDropdown = ({
     }),
     placeholder: (provided, state) => ({
       ...provided,
-      color: state.isFocused
-        ? COLORS["core-fleet-blue"]
-        : COLORS["core-fleet-black"],
+      color:
+        state.isFocused || variant === "button"
+          ? COLORS["core-fleet-blue"]
+          : COLORS["core-fleet-black"],
       fontSize: "14px",
+      fontWeight: variant === "button" ? "bold" : undefined,
       lineHeight: "normal",
       paddingLeft: 0,
       marginTop: "1px",
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
-    dropdownIndicator: (provided) => ({
+    dropdownIndicator: (provided, state) => ({
       ...provided,
       display: "flex",
       padding: "2px",
       svg: {
         transition: "transform 0.25s ease",
       },
+      ...(state.isDisabled && {
+        filter: "grayscale(0.5)",
+        opacity: 0.5,
+      }),
     }),
     menu: (provided) => ({
       ...provided,
@@ -242,6 +254,7 @@ const ActionsDropdown = ({
         classNamePrefix={`${baseClass}-select`}
         isOptionDisabled={(option) => !!option.disabled}
         menuPlacement={menuPlacement}
+        {...{ variant }} // Allows CustomDropdownIndicator to be blue for variant: "button"
       />
     </div>
   );

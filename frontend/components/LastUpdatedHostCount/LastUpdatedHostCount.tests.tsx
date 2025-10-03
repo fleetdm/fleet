@@ -1,5 +1,6 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import { renderWithSetup } from "test/test-utils";
 
 import LastUpdatedHostCount from ".";
 
@@ -17,21 +18,26 @@ describe("Last updated host count", () => {
     expect(hostCount).toBeInTheDocument();
     expect(updateText).toBeInTheDocument();
   });
-  it("renders never if missing timestamp", () => {
-    render(<LastUpdatedHostCount />);
 
-    const text = screen.getByText("Updated never");
-
-    expect(text).toBeInTheDocument();
+  it("renders 'Updated never' if lastUpdatedAt is explicitly null", () => {
+    render(<LastUpdatedHostCount lastUpdatedAt={null} />);
+    expect(screen.getByText("Updated never")).toBeInTheDocument();
   });
 
-  it("renders tooltip on hover", async () => {
-    render(<LastUpdatedHostCount hostCount={0} />);
+  it("does not render updated text if lastUpdatedAt is undefined", () => {
+    render(<LastUpdatedHostCount />);
+    expect(screen.queryByText(/Updated/i)).not.toBeInTheDocument();
+  });
 
-    await fireEvent.mouseEnter(screen.getByText("Updated never"));
-
-    expect(
-      screen.getByText(/last time host data was updated/i)
-    ).toBeInTheDocument();
+  it("renders tooltip on hover when 'Updated never'", async () => {
+    const { user } = renderWithSetup(
+      <LastUpdatedHostCount hostCount={0} lastUpdatedAt={null} />
+    );
+    await user.hover(screen.getByText("Updated never"));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/last time host data was updated/i)
+      ).toBeInTheDocument();
+    });
   });
 });

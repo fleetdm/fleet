@@ -289,6 +289,105 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'macos-restrictions',
+            description: 'Settings that configures restrictions on a device..',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+            docsLinkForFleetUsers: '/guides/enforce-disk-encryption',
+            payloads: [
+              {
+                name: 'Allow erasing all content and settings',
+                uniqueSlug: 'macos-disable-erase-content',
+                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowEraseContentAndSettings',
+                },
+              },
+              {
+                name: 'Allow device name modification',
+                uniqueSlug: 'macos-enable-device-name-modification',
+                tooltip: 'If false, the system prevents the user from changing the device name.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowDeviceNameModification',
+                },
+              },
+              {
+                name: 'Allow UI configuration profile installation',
+                uniqueSlug: 'macos-allow-configuration-profile-installation',
+                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowUIConfigurationProfileInstallation',
+                },
+              },
+              {
+                name: 'Allow content caching',
+                uniqueSlug: 'macos-allow-content-caching',
+                tooltip: 'If false, the system disables content caching.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowContentCaching',
+                },
+              },
+              {
+                name: 'Allow camera',
+                uniqueSlug: 'macos-allow-camera',
+                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in macOS 10.11 and later. Support for this restriction on unsupervised devices is deprecated.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowCamera',
+                },
+              },
+              {
+                name: 'Allow AirDrop',
+                uniqueSlug: 'macos-allow-airdrop',
+                tooltip: 'If false, the system disables AirDrop. Available in macOS 10.13 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowAirDrop',
+                },
+              },
+            ]
+          }
           // {
           //   subcategoryName: 'FileVault',
           //   subcategorySlug: 'macos-filevault',
@@ -1178,8 +1277,137 @@ parasails.registerPage('configuration-builder', {
               },
             ],
           },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'ios-restrictions',
+            description: 'Settings that configures restrictions on a device.',
+            learnMoreLinkUrl: 'https://developer.apple.com/documentation/devicemanagement/restrictions',
+            payloads: [
+              {
+                name: 'Allow erasing all content and settings',
+                uniqueSlug: 'ios-disable-erase-content',
+                tooltip: 'If false, the system disables the "Erase All Content and Settings" option in the Reset UI. Available in iOS 8 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowEraseContentAndSettings',
+                },
+              },
+              {
+                name: 'Allow device name modification',
+                uniqueSlug: 'ios-enable-device-name-modification',
+                tooltip: 'If false, the system prevents the user from changing the device name. Available in iOS 9 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowDeviceNameModification',
+                },
+              },
+              {
+                name: 'Allow UI configuration profile installation',
+                uniqueSlug: 'ios-allow-configuration-profile-installation',
+                tooltip: 'If false, the system prohibits the user from installing configuration profiles and certificates interactively.  Available in iOS 6 and later. Requires a supervised device.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowUIConfigurationProfileInstallation',
+                },
+              },
+              {
+                name: 'Allow camera',
+                uniqueSlug: 'ios-allow-camera',
+                tooltip: 'If false, the system disables the camera and removes its icon from the Home Screen, and users are unable to take photographs. Available in iOS 4 and later. Support for this restriction on unsupervised devices is deprecated.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowCamera',
+                },
+              },
+              {
+                name: 'Allow AirDrop',
+                uniqueSlug: 'ios-allow-airdrop',
+                tooltip: 'If false, the system disables AirDrop. Available in iOS 12 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowAirDrop',
+                },
+              },
+              {
+                name: 'Allow opening documents created by managed apps in unmanaged apps.',
+                uniqueSlug: 'ios-allow-open-from-managed',
+                tooltip: 'If false, documents in managed apps and accounts open only in other managed apps and accounts. Available in iOS 7 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowOpenFromManagedToUnmanaged',
+                },
+              },
+              {
+                name: 'Allow opening documents created by unmanaged apps in managed apps.',
+                uniqueSlug: 'ios-allow-open-from-unmanaged',
+                tooltip: 'If false, documents in unmanaged apps and accounts open only in other unmanaged apps and accounts. Available in iOS 7 and later.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'allowOpenFromUnmanagedToManaged',
+                },
+              },
+              {
+                name: 'Apply managed app restrictions to clipboard functionality.',
+                uniqueSlug: 'ios-managed-clipboard',
+                tooltip: 'If true, copy-and-paste functionality is limited by the "Allow opening documents created by unmanaged apps in managed apps" and "Allow opening documents created by managed apps in unmanaged apps." restrictions.',
+                category: 'Restrictions',
+                payload: 'Restrictions',
+                payloadType: 'com.apple.applicationaccess',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingKey: 'requireManagedPasteboard',
+                },
+              },
+            ]
+          },
         ]
       },
+
       {
         categoryName: 'Network',
         categorySlug: 'ios-network',
@@ -3202,7 +3430,7 @@ parasails.registerPage('configuration-builder', {
                 uniqueSlug: 'android-max-inactivity',
                 tooltip: 'Maximum time in milliseconds for user activity until the device locks. A value of 0 means there is no restriction.',
                 category: 'Device lock',
-                payloadGroup: 'Screen lock',// determines the
+                payloadGroup: 'Screen lock',
 
                 formInput: {
                   type: 'number',
@@ -3484,6 +3712,259 @@ parasails.registerPage('configuration-builder', {
                   settingTargetPath: 'passwordRequirements.passwordMinimumSymbols',
                 },
               },
+            ],
+          },
+          {
+            subcategoryName: 'Restrictions',
+            subcategorySlug: 'android-restrictions',
+            description: 'Settings related to restricting actions on an Android device.',
+            learnMoreLinkUrl: 'https://developers.google.com/android/management/reference/rest/v1/enterprises.policies',
+            payloads: [
+              {
+                name: 'Disable factory reset',
+                uniqueSlug: 'android-factory-reset-disabled',
+                tooltip: 'Whether factory resetting from settings is disabled.',
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'factoryResetDisabled',
+                },
+              },
+              {
+                name: 'Disable mounting physical external media',
+                uniqueSlug: 'android-disable-external-media-mount',
+                tooltip: `Whether the user mounting physical external media is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mountPhysicalMediaDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth',
+                uniqueSlug: 'android-disable-bluetooth',
+                tooltip: `Whether bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying bluetooth configuration',
+                uniqueSlug: 'android-disable-bluetooth-config',
+                tooltip: `Whether configuring bluetooth is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable bluetooth contact sharing',
+                uniqueSlug: 'android-disable-contact-sharing',
+                tooltip: `Whether bluetooth contact sharing is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'bluetoothContactSharingDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying cell broadcast configuration',
+                uniqueSlug: 'android-disable-cell-broadcast-config',
+                tooltip: `Whether configuring cell broadcast is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'cellBroadcastsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying mobile network configuration',
+                uniqueSlug: 'android-disable-mobile-network-config',
+                tooltip: `Whether configuring mobile networks is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'mobileNetworksConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying VPN configuration',
+                uniqueSlug: 'android-disable-vpn-config',
+                tooltip: `Prevents users from adding, modifying, or removing VPN configurations in Settings.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'vpnConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable resetting network settings',
+                uniqueSlug: 'android-disable-reset-network',
+                tooltip: `Whether resetting network settings is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'networkResetDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing NFC connections',
+                uniqueSlug: 'android-disable-outgoing-nfc',
+                tooltip: `Whether using NFC to beam data from apps is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingBeamDisabled',
+                },
+              },
+              {
+                name: 'Disable outgoing calls',
+                uniqueSlug: 'android-disable-outgoing-calls',
+                tooltip: `Whether outgoing calls are disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'outgoingCallsDisabled',
+                },
+              },
+              {
+                name: 'Disable SMS messages',
+                uniqueSlug: 'android-disable-sms',
+                tooltip: `Whether sending and receiving SMS messages is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'smsDisabled',
+                },
+              },
+              {
+                name: 'Disable location sharing',
+                uniqueSlug: 'android-disable-location-sharing',
+                tooltip: `Whether location sharing is disabled. This setting is supported for both fully managed devices and personally owned work profiles.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'shareLocationDisabled',
+                },
+              },
+              {
+                name: 'Disable modifying user credentials',
+                uniqueSlug: 'android-disable-modify-user-credentials',
+                tooltip: `Whether configuring user credentials is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'credentialsConfigDisabled',
+                },
+              },
+              {
+                name: 'Disable adding users',
+                uniqueSlug: 'android-disable-add-users',
+                tooltip: `Whether adding new users and profiles is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'addUserDisabled',
+                },
+              },
+              {
+                name: 'Disable removing users',
+                uniqueSlug: 'android-disable-remove-users',
+                tooltip: `Whether removing other users is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'removeUserDisabled',
+                },
+              },
+              {
+                name: 'Disable adding and removing accounts',
+                uniqueSlug: 'android-disable-modifying-accounts',
+                tooltip: `Whether adding or removing accounts is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'modifyAccountsDisabled',
+                },
+              },
+              {
+                name: 'Disable screen capture',
+                uniqueSlug: 'android-disable-screen-capture',
+                tooltip: `Whether screen capture is disabled.`,
+                category: 'Restrictions',
+                formInput: {
+                  type: 'boolean',
+                },
+                formOutput: {
+                  settingFormat: 'boolean',
+                  settingTargetPath: 'screenCaptureDisabled',
+                },
+              },
+              // FUTURE: settings that would fit into this category:
+              // setUserIconDisabled
+              // setWallpaperDisabled
+              // dataRoamingDisabled
+              // funDisabled
+              // cameraAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#cameraaccess
+              // microphoneAccess « https://developers.google.com/android/management/reference/rest/v1/enterprises.policies#microphoneaccess
+              // keyguardDisabled
+              // adjustVolumeDisabled
+              // createWindowsDisabled
+              // installAppsDisabled & uninstallAppsDisabled « In applications settings
             ],
           },
         ]
@@ -4053,6 +4534,7 @@ parasails.registerPage('configuration-builder', {
         this.selectedPayloads = _.uniq(newSelectedPayloads);
         this.selectedPayloadsGroupedByCategory = _.groupBy(this.selectedPayloads, 'category');
       }
+      await this._enableToolTips();
       await this.forceRender();
     },
     clickOpenResetFormModal: function() {

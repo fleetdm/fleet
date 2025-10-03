@@ -74,8 +74,6 @@ interface IHostSoftwareTableProps {
   searchQuery: string;
   page: number;
   pagePath: string;
-  routeTemplate?: string;
-  pathPrefix: string;
   vulnFilters: ISoftwareVulnFiltersParams;
   onAddFiltersClick: () => void;
   isMyDevicePage?: boolean;
@@ -93,8 +91,6 @@ const HostSoftwareTable = ({
   searchQuery,
   page,
   pagePath,
-  routeTemplate,
-  pathPrefix,
   vulnFilters,
   onAddFiltersClick,
   isMyDevicePage,

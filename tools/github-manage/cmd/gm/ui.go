@@ -2,10 +2,12 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
 	"fleetdm/gm/pkg/ghapi"
+	"fleetdm/gm/pkg/logger"
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -21,6 +23,7 @@ const (
 	IssuesCommand CommandType = iota
 	ProjectCommand
 	EstimatedCommand
+	SprintCommand
 )
 
 type WorkflowState int
@@ -45,7 +48,17 @@ const (
 	BulkSprintKickoff
 	BulkMilestoneClose
 	BulkKickOutOfSprint
+	BulkDemoSummary
 )
+
+var WorkflowTypeValues = []string{
+	"Bulk Add Label",
+	"Bulk Remove Label",
+	"Bulk Sprint Kickoff",
+	"Bulk Milestone Close",
+	"Bulk Kick Out Of Sprint",
+	"Bulk Demo Summary",
+}
 
 type TaskStatus int
 
@@ -94,7 +107,6 @@ type actionStatusMsg struct {
 	index int
 	state string
 }
-
 type startAsyncWorkflowMsg struct {
 	actions []ghapi.Action
 }
@@ -104,12 +116,15 @@ type asyncStatusMsg struct {
 }
 
 type model struct {
-	choices       []ghapi.Issue
-	cursor        int
-	selected      map[int]struct{}
-	spinner       spinner.Model
-	totalCount    int
-	selectedCount int
+	choices         []ghapi.Issue
+	cursor          int
+	selected        map[int]struct{}
+	relatedCache    map[int][]int // issue number -> related issue numbers
+	spinner         spinner.Model
+	totalCount      int
+	totalAvailable  int // reported total items in project (may exceed totalCount if limited)
+	rawFetchedCount int // number of items actually fetched before mode-specific filtering
+	selectedCount   int
 	// Scrolling support
 	viewOffset int // Offset for scrolling view
 	viewHeight int // Number of visible lines for issues
@@ -140,9 +155,14 @@ type model struct {
 	githubOpInProgress bool              // Ensure only one GitHub operation at a time
 	currentActions     []ghapi.Action    // Store current actions being processed
 	statusChan         chan ghapi.Status // Channel for receiving status updates from AsyncManager
+	exitMessage        string
 }
 
-type issuesLoadedMsg []ghapi.Issue
+type issuesLoadedMsg struct {
+	issues         []ghapi.Issue
+	totalAvailable int
+	rawFetched     int
+}
 
 type workflowResultMsg struct {
 	message string
@@ -157,6 +177,11 @@ type taskUpdateMsg struct {
 }
 
 type workflowCompleteMsg struct {
+	success bool
+	message string
+}
+
+type workflowExitMsg struct {
 	success bool
 	message string
 }
@@ -186,8 +211,11 @@ func initializeModel() model {
 		choices:            nil,
 		cursor:             0,
 		selected:           make(map[int]struct{}),
+		relatedCache:       make(map[int][]int),
 		spinner:            s,
 		totalCount:         0,
+		totalAvailable:     0,
+		rawFetchedCount:    0,
 		selectedCount:      0,
 		viewOffset:         0,
 		viewHeight:         15, // Default height, will be adjusted based on screen size
@@ -228,6 +256,14 @@ func initializeModelForProject(projectID, limit int) model {
 func initializeModelForEstimated(projectID, limit int) model {
 	m := initializeModel()
 	m.commandType = EstimatedCommand
+	m.projectID = projectID
+	m.limit = limit
+	return m
+}
+
+func initializeModelForSprint(projectID, limit int) model {
+	m := initializeModel()
+	m.commandType = SprintCommand
 	m.projectID = projectID
 	m.limit = limit
 	return m
@@ -303,6 +339,8 @@ func (m *model) generateIssueContent(issue ghapi.Issue) string {
 func (m *model) applyFilter() {
 	if m.filterInput == "" {
 		// No filter, show all issues
+		// Ensure base list is sorted
+		ghapi.SortIssuesForDisplay(m.choices)
 		m.filteredChoices = m.choices
 		m.originalIndices = make([]int, len(m.choices))
 		for i := range m.originalIndices {
@@ -315,6 +353,8 @@ func (m *model) applyFilter() {
 	m.filteredChoices = nil
 	m.originalIndices = nil
 
+	// Ensure base list is sorted before applying filter
+	ghapi.SortIssuesForDisplay(m.choices)
 	for i, issue := range m.choices {
 		if m.matchesFilter(issue, filter) {
 			m.filteredChoices = append(m.filteredChoices, issue)
@@ -327,6 +367,11 @@ func (m *model) applyFilter() {
 		m.cursor = 0
 	}
 }
+
+// --- Sorting helpers for Normal view ordering ---
+
+// labelNamesLower returns a set of lowercase label names for fast lookup.
+// Sorting moved to ghapi.SortIssuesForDisplay
 
 func (m *model) matchesFilter(issue ghapi.Issue, filter string) bool {
 	// Check issue number
@@ -394,29 +439,41 @@ func fetchIssues(search string) tea.Cmd {
 		if err != nil {
 			return err
 		}
-		return issuesLoadedMsg(issues)
+		return issuesLoadedMsg{issues: issues, totalAvailable: len(issues), rawFetched: len(issues)}
 	}
 }
 
 func fetchProjectItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		items, err := ghapi.GetProjectItems(projectID, limit)
+		items, total, err := ghapi.GetProjectItemsWithTotal(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		return issuesLoadedMsg(issues)
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
 	}
 }
 
 func fetchEstimatedItems(projectID, limit int) tea.Cmd {
 	return func() tea.Msg {
-		items, err := ghapi.GetEstimatedTicketsForProject(projectID, limit)
+		items, total, err := ghapi.GetEstimatedTicketsForProjectWithTotal(projectID, limit)
 		if err != nil {
 			return err
 		}
 		issues := ghapi.ConvertItemsToIssues(items)
-		return issuesLoadedMsg(issues)
+		// totalAvailable reflects total items in drafting project; rawFetched is the fetch limit
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
+	}
+}
+
+func fetchSprintItems(projectID, limit int) tea.Cmd {
+	return func() tea.Msg {
+		items, total, err := ghapi.GetCurrentSprintItemsWithTotal(projectID, limit)
+		if err != nil {
+			return err
+		}
+		issues := ghapi.ConvertItemsToIssues(items)
+		return issuesLoadedMsg{issues: issues, totalAvailable: total, rawFetched: limit}
 	}
 }
 
@@ -429,6 +486,8 @@ func (m model) Init() tea.Cmd {
 		fetchCmd = fetchProjectItems(m.projectID, m.limit)
 	case EstimatedCommand:
 		fetchCmd = fetchEstimatedItems(m.projectID, m.limit)
+	case SprintCommand:
+		fetchCmd = fetchSprintItems(m.projectID, m.limit)
 	default:
 		fetchCmd = fetchIssues("")
 	}
@@ -546,6 +605,64 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.selectedCount = len(m.selected)
 				}
+			case "s":
+				// Toggle selection of related issues (parent/sub-tasks)
+				currentChoices := m.getCurrentChoices()
+				if m.cursor < len(currentChoices) {
+					issue := currentChoices[m.cursor]
+					// Load from cache or fetch
+					related, ok := m.relatedCache[issue.Number]
+					if !ok {
+						if rel, err := ghapi.GetRelatedIssueNumbers(issue.Number); err == nil {
+							related = rel
+							m.relatedCache[issue.Number] = related
+						}
+					}
+					related = append(related, issue.Number)
+					logger.Debugf("Related issues for #%d: %v", issue.Number, related)
+					if len(related) > 0 {
+						// Determine if all related currently selected
+						allSelected := true
+						for _, rn := range related {
+							// find index for issue number in m.choices
+							for idx, iss := range m.choices {
+								if iss.Number == rn {
+									if _, ok := m.selected[idx]; !ok {
+										allSelected = false
+									}
+									break
+								}
+							}
+						}
+						// Toggle accordingly
+						for _, rn := range related {
+							for idx, iss := range m.choices {
+								if iss.Number == rn {
+									if allSelected {
+										delete(m.selected, idx)
+									} else {
+										m.selected[idx] = struct{}{}
+									}
+									break
+								}
+							}
+						}
+						m.selectedCount = len(m.selected)
+					}
+				}
+			case "l":
+				// Select all visible (filtered) issues
+				m.selected = make(map[int]struct{})
+				currentChoices := m.getCurrentChoices()
+				for i := range currentChoices {
+					orig := m.getOriginalIndex(i)
+					m.selected[orig] = struct{}{}
+				}
+				m.selectedCount = len(m.selected)
+			case "h":
+				// Clear all selections
+				m.selected = make(map[int]struct{})
+				m.selectedCount = 0
 			case "q", "ctrl+c":
 				return m, tea.Quit
 			}
@@ -600,7 +717,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case WorkflowSelection:
 			switch msg.String() {
 			case "j", "down":
-				if m.workflowCursor < 4 {
+				if m.workflowCursor < len(WorkflowTypeValues)-1 {
 					m.workflowCursor++
 				}
 			case "k", "up":
@@ -613,6 +730,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				case BulkAddLabel, BulkRemoveLabel:
 					m.workflowState = LabelInput
 					m.labelInput = ""
+				case BulkDemoSummary:
+					return m, m.executeWorkflow()
 				case BulkSprintKickoff, BulkKickOutOfSprint:
 					if m.projectID != 0 {
 						// Use the provided project ID
@@ -668,8 +787,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case issuesLoadedMsg:
-		m.choices = []ghapi.Issue(msg)
+		m.choices = msg.issues
 		m.totalCount = len(m.choices)
+		m.totalAvailable = msg.totalAvailable
+		m.rawFetchedCount = msg.rawFetched
 		m.workflowState = NormalMode
 		m.applyFilter()         // Initialize filter state
 		m.adjustViewForCursor() // Ensure view is properly initialized
@@ -826,6 +947,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		}
+	case workflowExitMsg:
+		m.exitMessage = msg.message
+		return m, tea.Quit
 	case workflowCompleteMsg:
 		m.workflowState = WorkflowComplete
 		if !msg.success {
@@ -979,8 +1103,38 @@ func (m model) View() string {
 		// Show overall progress
 		s += fmt.Sprintf("Overall Progress: %s\n\n", m.overallProgress.View())
 
-		// Show individual task progress
-		for i, task := range m.tasks {
+		// Determine window of tasks to display (show most recent 10, auto-scroll)
+		totalTasks := len(m.tasks)
+		lastFinished := -1
+		for i := range m.tasks {
+			if m.tasks[i].Status == TaskSuccess || m.tasks[i].Status == TaskError {
+				lastFinished = i
+			}
+		}
+		// Prefer to keep the currently running task in view
+		lastIdx := lastFinished
+		if m.currentTask > lastIdx {
+			lastIdx = m.currentTask
+		}
+		if lastIdx < 0 {
+			lastIdx = 0
+		}
+		windowSize := 10
+		start := lastIdx - windowSize + 1
+		if start < 0 {
+			start = 0
+		}
+		end := start + windowSize
+		if end > totalTasks {
+			end = totalTasks
+		}
+
+		// Show individual task progress (windowed)
+		if start > 0 {
+			s += fmt.Sprintf("... %d earlier task(s) above ...\n", start)
+		}
+		for i := start; i < end; i++ {
+			task := m.tasks[i]
 			var statusIcon string
 			var statusText string
 
@@ -1011,10 +1165,12 @@ func (m model) View() string {
 			}
 			s += "\n"
 		}
+		if end < totalTasks {
+			s += fmt.Sprintf("... %d more task(s) below ...\n", totalTasks-end)
+		}
 
 		// Add progress counter at the bottom
 		completedTasks := 0
-		totalTasks := len(m.tasks)
 		for _, task := range m.tasks {
 			if task.Status == TaskSuccess {
 				completedTasks++
@@ -1081,14 +1237,29 @@ func (m model) View() string {
 		currentPos := m.cursor + 1
 		totalFiltered := len(currentChoices)
 
+		// Compute sum of estimates for currently selected issues
+		sumSelectedEstimates := 0
+		for idx := range m.selected {
+			if idx >= 0 && idx < len(m.choices) {
+				sumSelectedEstimates += m.choices[idx].Estimate
+			}
+		}
+
 		// Header with filter info
 		headerText := ""
 		if m.filterInput != "" {
-			headerText = fmt.Sprintf("GitHub Issues (%d/%d) - Filtered by: '%s':\n\n", currentPos, totalFiltered, m.filterInput)
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d, Σest sel=%d) - Filtered by: '%s':\n\n", currentPos, totalFiltered, sumSelectedEstimates, m.filterInput)
 		} else {
-			headerText = fmt.Sprintf("GitHub Issues (%d/%d):\n\n", currentPos, m.totalCount)
+			headerText = fmt.Sprintf("GitHub Issues (%d/%d, Σest sel=%d):\n\n", currentPos, m.totalCount, sumSelectedEstimates)
 		}
-		s = headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
+
+		warningBanner := ""
+		if m.totalAvailable > 0 && m.totalAvailable > m.rawFetchedCount {
+			missing := m.totalAvailable - m.rawFetchedCount
+			warningBanner = errorStyle.Render(fmt.Sprintf("⚠ %d items not shown (limit=%d, total=%d). Increase --limit to include all issues.", missing, m.rawFetchedCount, m.totalAvailable)) + "\n\n"
+		}
+
+		s = warningBanner + headerText + fmt.Sprintf(" %-2d/%-2d Number Estimate  Type       Labels                              Title\n",
 			m.selectedCount, m.totalCount)
 
 		// Show indicator if there are issues above the visible area
@@ -1130,7 +1301,7 @@ func (m model) View() string {
 		}
 
 		s += "\nNavigation: ↑/↓ or j/k (line), PgUp/PgDn (page), Home/End (top/bottom)\n"
-		s += "Actions: enter/space/x (select), 'o' (view details), '/' (filter), 'w' (workflow), 'q' (quit)\n"
+		s += "Actions: enter/space/x (select), 'l' select all, 'h' deselect all, 'o' (view details), '/' (filter), 'w' (workflow), 'q' (quit)\n"
 	case IssueDetail:
 		if len(m.choices) > 0 && m.cursor < len(m.choices) {
 			issue := m.choices[m.cursor]
@@ -1175,13 +1346,7 @@ func (m model) View() string {
 		s += "Actions: 'enter' (apply filter), 'esc' (cancel), 'q' (quit)\n"
 	case WorkflowSelection:
 		s = "\n--- Workflow Selection ---\n"
-		workflows := []string{
-			"Bulk Add Label",
-			"Bulk Remove Label",
-			"Bulk Sprint Kickoff",
-			"Bulk Milestone Close",
-			"Bulk Kick Out Of Sprint",
-		}
+		workflows := WorkflowTypeValues
 		for i, workflow := range workflows {
 			cursor := " "
 			if i == m.workflowCursor {
@@ -1247,6 +1412,78 @@ func (m *model) executeWorkflow() tea.Cmd {
 	// Create actions and tasks based on workflow type
 	var actions []ghapi.Action
 	switch m.workflowType {
+	case BulkDemoSummary:
+		// Build summary markdown grouped by label category and assignee
+		features := map[string][]ghapi.Issue{}
+		bugs := map[string][]ghapi.Issue{}
+		// if status lower ends with 'ready'
+		assigneeOrUnassigned := func(issue ghapi.Issue) string {
+			if len(issue.Assignees) > 0 {
+				return issue.Assignees[0].Login
+			}
+			return "unassigned"
+		}
+		for _, issue := range selectedIssues {
+			if issue.Status == "" || strings.HasSuffix(strings.ToLower(issue.Status), "ready") {
+				continue
+				// Do something
+			}
+			isFeature := false
+			isBug := false
+			for _, l := range issue.Labels {
+				if l.Name == "story" {
+					isFeature = true
+				}
+				if l.Name == "bug" {
+					isBug = true
+				}
+				if l.Name == "~unreleased bug" {
+					isBug = false
+				}
+			}
+			assignee := assigneeOrUnassigned(issue)
+			if isFeature {
+				features[assignee] = append(features[assignee], issue)
+			}
+			if isBug {
+				bugs[assignee] = append(bugs[assignee], issue)
+			}
+		}
+		// Generate markdown content
+		var builder strings.Builder
+		builder.WriteString("## Features Completed\n\n")
+		if len(features) == 0 {
+			builder.WriteString("_None_\n\n")
+		}
+		var featureAssignees []string
+		for a := range features {
+			featureAssignees = append(featureAssignees, a)
+		}
+		sort.Strings(featureAssignees)
+		for _, a := range featureAssignees {
+			builder.WriteString(fmt.Sprintf("%s\n", a))
+			for _, issue := range features[a] {
+				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d)%s\n", issue.Number, issue.Number, issue.Title))
+			}
+			builder.WriteString("\n")
+		}
+		builder.WriteString("## Bugs Completed\n\n")
+		if len(bugs) == 0 {
+			builder.WriteString("_None_\n\n")
+		}
+		var bugAssignees []string
+		for a := range bugs {
+			bugAssignees = append(bugAssignees, a)
+		}
+		sort.Strings(bugAssignees)
+		for _, a := range bugAssignees {
+			builder.WriteString(fmt.Sprintf("%s\n", a))
+			for _, issue := range bugs[a] {
+				builder.WriteString(fmt.Sprintf("[#%d](https://github.com/fleetdm/fleet/issues/%d)%s\n", issue.Number, issue.Number, issue.Title))
+			}
+			builder.WriteString("\n")
+		}
+		return func() tea.Msg { return workflowExitMsg{success: true, message: builder.String()} }
 	case BulkAddLabel:
 		actions = ghapi.CreateBulkAddLableAction(selectedIssues, m.labelInput)
 		// Create individual tasks for each issue

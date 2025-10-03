@@ -1,4 +1,5 @@
 controls:
+  android_enabled_and_configured: true
   enable_disk_encryption: true
   ios_updates:
     deadline: "2025-12-31"
@@ -33,3 +34,13 @@ policies:
   query: SELECT * FROM team_policy WHERE id = 1
   resolution: Do a team thing
 software:
+team_settings:
+  webhook_settings:
+    failing_policies_webhook:
+      destination_url: https://example.com/no-team-webhook
+      enable_failing_policies_webhook: true
+      host_batch_size: 100
+      policy_ids:
+      - 1
+      - 2
+      - 3

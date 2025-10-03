@@ -6,7 +6,7 @@ This page covers the things every team member needs to know to effectively contr
 
 Every month, Fleet holds a company-wide meeting called the "All hands". 
 
-All team members should attend the "All hands" every month.  "All hands" meetings are recorded, To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
+All team members should attend the "All hands" every month.  "All hands" meetings are recorded. To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
 
 
 ### E-group 
@@ -42,7 +42,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | -------------- | --- |
 | Revenue                              | <sup><sub>_See [🐋 Chief Revenue Officer](https://fleetdm.com/handbook/sales#team)_</sup></sub>
 | Pricing                              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
-| Illustrations                        | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Brand design & illustrations         | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Website                              | <sup><sub>_See [🕸️ #g-website group](https://fleetdm.com/handbook/company/product-groups#website-group)_
 | Product marketing (PMM)              | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Brand marketing                      | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
@@ -51,6 +51,7 @@ Fleet is successful because of our customers and community, and those relationsh
 | Ads                                  | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Video                                | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Social media                         | <sup><sub>_See [🫧 Marketing team](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
+| SWAG                                 | <sup><sub>_See [🫧 Content Specialist](https://fleetdm.com/handbook/marketing#team)_</sup></sub>
 | Guides                               | <sup><sub>_See [🌦️ Customer Success &amp; VP of Customer Success](https://fleetdm.com/handbook/customer-success#team)_</sup></sub>
 | Release article                      | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Onboarding and training              | <sup><sub>_See [🧑‍🚀 Interim Head of People](https://fleetdm.com/handbook/people#team)_</sup></sub>
@@ -68,12 +69,12 @@ Fleet is successful because of our customers and community, and those relationsh
 | Intentionality of Fleet's interfaces | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Design system for the [Fleet product](https://www.figma.com/design/8oXlYXpgCV1Sn4ek7OworP/%F0%9F%A7%A9-Design-system?node-id=1328-1329) and fleetdm.com | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Best practices for using Fleet       | <sup><sub>_See [🦢 Product Design team](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
+| [API design](https://fleetdm.com/docs/rest-api/rest-api) | <sup><sub>[Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_</sup></sub>
 | Structure of the [docs](https://fleetdm.com/docs/get-started/why-fleet) | <sup><sub>_See [🦢 Head of Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | Product introduction docs            | <sup><sub>_See [🛠️ CEO responsibilities](https://fleetdm.com/handbook/company/leadership#ceo-responsibilities)_</sup></sub>
 | Product deployment docs              | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_</sup></sub>
 | Product usage docs                   | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
-| Product reference docs               | <sup><sub>_See [🦢 Head of Product Design](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
+| Product reference docs               | <sup><sub>_[Rachael Shaw](https://fleetdm.com/handbook/product-design#team)_</sup></sub>
 | What goes in a release (Release DRI) | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub> 
 | Engineering output and architecture  | <sup><sub>_See [🚀 Chief Technology Officer](https://fleetdm.com/handbook/engineering#team)_ </sup></sub>
 | Product development                  | <sup><sub>_See [🛩️ Product groups](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_ </sup></sub>
@@ -244,7 +245,7 @@ At Fleet, we do not send internal emails to each other. Instead, we prefer to us
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
-> **Need an app that you don't see in Fleet Slack?** [Create a Digital Experience issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
+> **Need an app that you don't see in Fleet Slack?** [Create a IT & Enablement issue](https://fleetdm.com/handbook/it-and-enablement#contact-us) to request an app be added to the Fleet Slack workspace.
 
 
 ### Key Slack channels
@@ -271,7 +272,7 @@ Any change to fleetdm.com follows the same process as [making changes](https://f
 
 Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com. See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
-The [Digital Experience team](https://fleetdm.com/handbook/it-and-enablement#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
+The [IT & Enablement team](https://fleetdm.com/handbook/it-and-enablement#team) holds regular design review sessions to evaluate, revise, and approve wireframes before moving into production. Design review sessions are hosted by the [Head of Design](https://calendar.google.com/calendar/u/0?cid=bXRob21hc0BmbGVldGRtLmNvbQ) and typically take place daily, late afternoon (CT). Anyone is welcome to join.
 
 
 ## Docs
@@ -596,7 +597,7 @@ Fleet provides laptops, YubiKey security keys, and software licenses for core te
 
 ### Requesting new equipment
 
-As soon as an offer is accepted, Digital Experience will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with Digital Experience. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
+As soon as an offer is accepted, IT & Enablement will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company. If you are in need of additional equipment for any reason, [open a warehouse request](https://github.com/fleetdm/confidential/issues/new?template=warehouse-request.md) with IT & Enablement. When possible, Fleet will pull from its warehouse of existing assets before spending [more money on new equipment](https://fleetdm.com/handbook/company/why-this-way#why-spend-less).
 
 - **Tracking equipment:** All company-owned devices are tracked in Fleet's ["🍽️ Dogfood" instance](https://dogfood.fleetdm.com/dashboard). When a device is purchased, it's automatically enrolled in dogfood.
 
@@ -618,7 +619,7 @@ If you are in need of IT support, reach out to 🌐 [IT & Enablement](https://fl
 
 > Fleet is open source. Anyone can contribute at any time. Before a core team member's start date, they are welcome to contribute, but not expected to.
 
-The first 3 weekdays (excluding days off) for **every new team member** at Fleet are reserved for completing their onboarding tasks issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility. Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training). Onboarding time (all checkboxes checked) is a KPI for the Digital Experience team, our goal is 14 days or less.
+The first 3 weekdays (excluding days off) for **every new team member** at Fleet are reserved for completing their onboarding tasks issue.  New team members **should not work on anything else during this time**, whether or not other tasks are stacking up or assigned.  It is OK, expected, and appreciated for new team members to **remind their manager and colleagues** of this [important](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training) responsibility. Even after the first 3 days, during the rest of their first 2 weeks, completing onboarding tasks on time is a new team member's [highest priority](https://fleetdm.com/handbook/company/why-this-way#why-the-emphasis-on-training). Onboarding time (all checkboxes checked) is a KPI for the People team, our goal is 14 days or less.
 
 
 
@@ -724,7 +725,7 @@ When _receiving_ feedback:
 
 When attending a conference or traveling for Fleet, keep the following in mind:
 - **No reimbursements:** Use your company Brex card.  Reimbursements are time-consuming, so Fleet does not offer reimbursements for spending on personal credit cards.
-- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. _There are many good reasons to make exceptions to this allowance, such as dinners with customers.
+- **Food:** Be efficient and use your own credit card when it makes sense.  There is a $100 allowance per day for your own personal food and beverage on your company Brex card. There are many good reasons to make exceptions to this allowance, such as dinners with customers.
 - **Tipping:** Tipping norms vary by culture.  How you tip when representing the company reflects on Fleet's brand.  When traveling in the United States and using your company Brex card, prepare to tip between 18-20% at restaurants.  For rideshare, takeout, delivery, and other situations where tipping comes up, tip between 10-20%.
 - **Personal credit card:** Please use your personal credit card for hotel incidentals, personal consumables, movies, mini bars, and entertainment.  These expenses _will not_ be reimbursed.
 - **Company credit card:** We recommend you order a physical Brex card if you do not have one before traveling.
@@ -737,7 +738,7 @@ When attending a conference or traveling for Fleet, keep the following in mind:
 
 ### Flights
 
-Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/it-and-enablement#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
+Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo). For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 
 ### Lodging
@@ -748,7 +749,7 @@ Everyone at Fleet, including the CEO, uses the same [principles for booking flig
 - Please do not share bedrooms.  Shared bathrooms are OK, but make sure every hotel room or Airbnb has at least one bathroom per gender identity.   <!-- Make sure everyone is well-rested, efficiently primped, with sufficient privacy. -->
 - Be creative.  If Airbnb is the most efficient way to house the team, then do that.  If separate hotel rooms are more efficient, then do that.
 - If the stay is longer than 4 nights and an Airbnb with a washing machine is not available, then dry cleaning can be purchased with your Brex card.
-- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact Digital Experience](https://fleetdm.com/handbook/it-and-enablement#contact-us) for their help approving and booking additional event space.
+- If you need to meet with a large group that won't fit in your hotel room or Airbnb (e.g. more than 5 people), [contact People](https://fleetdm.com/handbook/people#contact-us) for their help approving and booking additional event space.
 
 > ***Tech Tip while traveling*** If you encounter issues connecting to airline or hotel Wi-Fi while on a Fleet-managed Mac, go to  > System Settings... > Network > Filters > Cloudflare DNS over HTTPS and temporarily toggle its status from Enabled to Disabled. Once you have an internet connection, you should toggle this status back to Enabled to stay protected while online. 
 
@@ -824,38 +825,56 @@ Fleet gives new parents six weeks of paid leave. After six weeks, if you don't f
 
 ### Retirement contributions
 
-**US based team members:** Starting August 2023, Fleet offers the ability for US based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employee’s contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
+**US-based team members:** Starting August 2023, Fleet offers the ability for US-based team members to contribute to a 401(k) retirement plan directly from their salary. Team members will be auto-enrolled in our plan with Guideline at a default 3% contribution unless they opt out or change their contribution amount within 30 days of commencement. Auto-enrolled employees' contributions will increase by 1% every year, on January 1, until 10% is reached. Fleet currently does not match any contributions made by team members to 401(k) plans.
 
 **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
+
+
+### Wellness budget 
+
+Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions.
 
 
 ### Compensation
 
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
 
-### Wellness budget 
 
-Every Fleetie gets up to $80/month on their Brex card to put toward their choice of wellness. [Contact the 🧑‍🚀 People department](https://fleetdm.com/handbook/people#contact-us) with any questions. 
+#### Payroll dates
 
+US-based Fleeties get paid on the last business day of the month. International teammates' pay dates follow the same structure as US pay unless there are in-country requirements that dictate a more frequent cadence.
 
-### Payroll dates
-
-US based Fleeties get paid on the last business day of the month. International teammates pay dates follow the same structure as US pay, unless there are in-country requirement that dictate a more frequent cadence.
-
-Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
+Variable compensation (i.e. commission) is reviewed and submitted for processing by the [💸 Finance team](https://fleetdm.com/handbook/finance#team) by the 7th of each month for the previous month or quarter's contributions. US-based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions.
 
 
-### Workiversaries
+#### Compensation changes
+
+Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation).
+
+
+#### Exercise stock options
+
+Fleet uses Carta to manage its cap table. Fleet option holders can [exercise shares via Carta](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569). Before exercising your options, consult your own independent tax advisors or counsel to determine whether you are subject to taxation in any jurisdiction.
+
+- For *Fleeties exercising Non-Qualified Stock Options (NSOs)*, once an exercise request is submitted, it will be reviewed by the CEO before the request is approved in Carta
+- For *Fleeties who are US tax residents and employees of the company*, Finance and People will update the withholding tax amount shown in Carta, based on estimates calculated by our US payroll system. If the "Fair Market Value" is less than or equal to the exercised price, the withholding tax amount is zero. If the withholding tax amount is larger than $500, Finance will reach out to confirm the total amount to be debited from your bank account before the request is approved.
+
+> FYI: You can calculate the "Taxable Income" by subtracting the exercised or "strike" price from the "Fair Market Value" of shares at the time of exercise. 
+> I.e. _"Fair Market Value" of shares at time of exercise_ - _strike price_ =  "*Taxable income*"
+
+As a US Fleetie, if you choose to "early exercise" your unvested options, you will need to file an 83(b) election within 30days of receiving the shares post exercise. As part of your exercise, Carta automatically generates the 83(b) election form when an option with early exercise enabled is issued. A tab for the 83(b) form will appear as soon as you decide to early exercise their option. This feature allows eligible U.S.-based equity holders to elect to be taxed at the time of grant rather than at the time of vesting. Additionally, Carta sends an email with instructions when a qualifying grant is accepted or an option is exercised. You can also access a pre-filled 83(b) election form directly within the platform.
+
+> Please note that the form must be printed, signed, and mailed to the IRS within 30 days of the grant date. You should also upload a signed copy to the platform for record-keeping purposes. Check out [how to track 83(b) election filings for early exercised option grants](https://support.carta.com/kb/guide/en/how-to-track-83-b-election-filings-for-early-exercised-option-grants-bZaiinjNng/Steps/3835066) for further guidance.
+
+- For *Fleeties who are non-US tax residents*, please follow the instructions on this [page](https://support.carta.com/kb/guide/en/how-to-exercise-your-options-on-carta-wTFnzZVVFs/Steps/3763569,3781094,3780904) to exercise your options
+
+
+## Workiversaries
 
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving teammates an opportunity to share their appreciation of your contribution!
 
 
-### Compensation changes
-
-Fleet benchmarks US-based team members based on the United States Dollar (USD). Non-US Fleeties are benchmarked in the local currency.  Compensation decisions are re-benchmarked yearly, shortly after the anniversary of a team member's start date. The Interim Head of People is responsible for the process to [update compensation](https://fleetdm.com/handbook/it-and-enablement#update-a-team-members-compensation). 
-
-
-### Relocating
+## Relocating
 
 When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please create a [💼 Teammate relocation](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-it-and-enablement&projects=&template=x-teammate-relocation.md) issue to [let the company know in advance](https://fleetdm.com/handbook/it-and-enablement#update-personnel-details) by following the directions listed in the relevant issue template.
 
@@ -930,14 +949,14 @@ In sentence case, we write and capitalize words as if they were in sentences:
 As we use sentence case, only the first word is capitalized. But, if a word would normally be capitalized in the sentence (e.g., a proper noun, an acronym, or a stylization) it should remain capitalized.
 
 - Proper nouns _("Nudge", "Skimbleshanks", "Kleenex")_
-  - "Yeah, we use Nudge"
-  - "Introducing our friend Skimbleshanks"
+  - "Yeah, we use Nudge."
+  - "Introducing our friend Skimbleshanks."
   - "Please, can I have a Kleenex?"
 - Acronyms _("MDM", "REST", "API", "JSON")_
-  - "MDM commands in Fleet are available over a REST API that returns JSON"
+  - "MDM commands in Fleet are available over a REST API that returns JSON."
 - Stylizations _("macOS", "osquery", "MySQL", "APNs")
-  - "Although 'macOS' is a proper noun, macOS uses its own style guide from Apple, to which we adhere"
-  - "Zach is the co-creator of osquery"
+  - "Although 'macOS' is a proper noun, macOS uses its own [style guide from Apple](https://developer.apple.com/design/human-interface-guidelines), to which we adhere."
+  - "Zach is the co-creator of osquery."
   - "Does it work with MySQL?"
   - "Does it use APNs (the Apple Push Notification service)?"
 
@@ -1462,7 +1481,9 @@ graph TD;
     A--D
 ```
 
-
+## Contributing to articles
+To propose an article for Fleet to publish, create an ["📝 Article" issue](https://github.com/fleetdm/fleet/issues/new?template=fleet-article.md) 
+ and follow the instructions in the template.
 
 ## Commonly used terms
 

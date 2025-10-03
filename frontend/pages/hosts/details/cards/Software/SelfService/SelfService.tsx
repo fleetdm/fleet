@@ -25,43 +25,23 @@ import deviceApi, {
 } from "services/entities/device_user";
 
 import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { getPathWithQueryParams } from "utilities/url";
 import { getExtensionFromFileName } from "utilities/file/fileUtils";
-
-import { SingleValue } from "react-select-5";
-import { CustomOptionType } from "components/forms/fields/DropdownWrapper/DropdownWrapper";
-import TableContainer from "components/TableContainer";
-import EmptySoftwareTable from "pages/SoftwarePage/components/tables/EmptySoftwareTable";
-
-import Card from "components/Card";
-import CardHeader from "components/CardHeader";
-import CustomLink from "components/CustomLink";
-import DeviceUserError from "components/DeviceUserError";
-import EmptyTable from "components/EmptyTable";
-import Spinner from "components/Spinner";
-import SearchField from "components/forms/fields/SearchField";
-import DropdownWrapper from "components/forms/fields/DropdownWrapper";
 
 import SoftwareUninstallDetailsModal, {
   ISWUninstallDetailsParentState,
 } from "components/ActivityDetails/InstallDetails/SoftwareUninstallDetailsModal/SoftwareUninstallDetailsModal";
 import SoftwareInstallDetailsModal from "components/ActivityDetails/InstallDetails/SoftwareInstallDetailsModal";
 import { VppInstallDetailsModal } from "components/ActivityDetails/InstallDetails/VppInstallDetailsModal/VppInstallDetailsModal";
-import { ITableQueryData } from "components/TableContainer/TableContainer";
 
 import UpdatesCard from "./UpdatesCard/UpdatesCard";
+import SelfServiceCard from "./SelfServiceCard/SelfServiceCard";
 import SoftwareUpdateModal from "../SoftwareUpdateModal";
 import UninstallSoftwareModal from "./UninstallSoftwareModal";
+import SoftwareInstructionsModal from "./OpenSoftwareModal";
 
 import { generateSoftwareTableHeaders } from "./SelfServiceTableConfig";
 import { getLastInstall } from "../../HostSoftwareLibrary/helpers";
 
-import {
-  CATEGORIES_NAV_ITEMS,
-  filterSoftwareByCategory,
-  ICategory,
-} from "./helpers";
-import CategoriesMenu from "./CategoriesMenu";
 import { getUiStatus } from "../helpers";
 
 const baseClass = "software-self-service";
@@ -80,6 +60,9 @@ const DEFAULT_SORT_DIRECTION = "asc";
 const DEFAULT_SORT_HEADER = "name";
 const DEFAULT_PAGE = 0;
 const DEFAULT_CLIENT_SIDE_PAGINATION = 20;
+
+export const SELF_SERVICE_SUBHEADER =
+  "Install organization-approved apps provided by your IT department.";
 
 export interface ISoftwareSelfServiceProps {
   contactUrl: string;
@@ -122,6 +105,16 @@ export const parseSelfServiceQueryParams = (queryParams: {
   };
 };
 
+const getInstallerName = (hostSW: IHostSoftwareWithUiStatus) => {
+  if (hostSW.source === "apps" && hostSW.installed_versions) {
+    const filePath = hostSW.installed_versions[0].installed_paths[0];
+    // Match the last segment ending in .app and extract the name before .app
+    const match = filePath.match(/\/([^/]+)\.app$/);
+    return match ? match[1] : hostSW.name;
+  }
+  return hostSW.name;
+};
+
 const SoftwareSelfService = ({
   contactUrl,
   deviceToken,
@@ -135,10 +128,6 @@ const SoftwareSelfService = ({
   hostDisplayName,
 }: ISoftwareSelfServiceProps) => {
   const { renderFlash, renderMultiFlash } = useContext(NotificationContext);
-
-  const initialSortHeader = queryParams.order_key || "name";
-  const initialSortDirection = queryParams.order_direction || "asc";
-  const initialSortPage = queryParams.page || 0;
 
   const [selfServiceData, setSelfServiceData] = useState<
     IGetDeviceSoftwareResponse | undefined
@@ -161,6 +150,9 @@ const SoftwareSelfService = ({
   const [showUninstallSoftwareModal, setShowUninstallSoftwareModal] = useState(
     false
   );
+  const [showOpenInstructionsModal, setShowOpenInstructionsModal] = useState(
+    false
+  );
 
   const enhancedSoftware = useMemo(() => {
     if (!selfServiceData) return [];
@@ -170,11 +162,16 @@ const SoftwareSelfService = ({
     }));
   }, [selfServiceData, hostSoftwareUpdatedAt]);
 
-  const selectedSoftware = useRef<{
+  const selectedSoftwareForUninstall = useRef<{
     softwareId: number;
     softwareName: string;
     softwareInstallerType?: string;
     version: string;
+  } | null>(null);
+
+  const selectedSoftwareForInstructions = useRef<{
+    softwareName: string;
+    softwareSource: string;
   } | null>(null);
 
   const pendingSoftwareSetRef = useRef<Set<string>>(new Set()); // Track for polling
@@ -364,7 +361,7 @@ const SoftwareSelfService = ({
 
   const onClickUninstallAction = useCallback(
     (hostSW: IHostSoftwareWithUiStatus) => {
-      selectedSoftware.current = {
+      selectedSoftwareForUninstall.current = {
         softwareId: hostSW.id,
         softwareName: hostSW.name,
         softwareInstallerType: getExtensionFromFileName(
@@ -373,6 +370,17 @@ const SoftwareSelfService = ({
         version: hostSW.software_package?.version || "",
       };
       setShowUninstallSoftwareModal(true);
+    },
+    []
+  );
+
+  const onClickOpenInstructionsAction = useCallback(
+    (hostSW: IHostSoftwareWithUiStatus) => {
+      selectedSoftwareForInstructions.current = {
+        softwareName: getInstallerName(hostSW),
+        softwareSource: hostSW.source,
+      };
+      setShowOpenInstructionsModal(true);
     },
     []
   );
@@ -472,48 +480,6 @@ const SoftwareSelfService = ({
     [setSelectedHostSWUninstallDetails]
   );
 
-  const onSearchQueryChange = (value: string) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        query: value,
-        category_id: queryParams.category_id,
-        order_key: initialSortHeader,
-        order_direction: initialSortDirection,
-        page: 0, // Always reset to page 0 when searching
-      })
-    );
-  };
-
-  const onSortChange = ({ sortHeader, sortDirection }: ITableQueryData) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        ...queryParams,
-        order_key: sortHeader,
-        order_direction: sortDirection,
-        query: queryParams.query !== undefined ? queryParams.query : undefined,
-        category_id:
-          queryParams.category_id !== undefined
-            ? queryParams.category_id
-            : undefined,
-        page: 0, // Always reset to page 0 when sorting
-      })
-    );
-  };
-
-  const onCategoriesDropdownChange = (
-    option: SingleValue<CustomOptionType>
-  ) => {
-    router.push(
-      getPathWithQueryParams(pathname, {
-        category_id: option?.value !== "undefined" ? option?.value : undefined,
-        query: queryParams.query,
-        order_key: initialSortHeader,
-        order_direction: initialSortDirection,
-        page: 0, // Always reset to page 0 when searching
-      })
-    );
-  };
-
   const onClickFailedUpdateStatus = (hostSoftware: IHostSoftware) => {
     const lastInstall = getLastInstall(hostSoftware);
 
@@ -533,38 +499,21 @@ const SoftwareSelfService = ({
     }
   };
 
+  const onExitSoftwareInstructionsModal = () => {
+    selectedSoftwareForUninstall.current = null;
+    setShowOpenInstructionsModal(false);
+  };
+
   const onExitUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
   };
 
   const onSuccessUninstallSoftwareModal = () => {
-    selectedSoftware.current = null;
+    selectedSoftwareForUninstall.current = null;
     setShowUninstallSoftwareModal(false);
     onInstallOrUninstall();
   };
-
-  const onClientSidePaginationChange = useCallback(
-    (page: number) => {
-      router.push(
-        getPathWithQueryParams(pathname, {
-          query: queryParams.query,
-          category_id: queryParams.category_id,
-          order_key: initialSortHeader,
-          order_direction: initialSortDirection,
-          page,
-        })
-      );
-    },
-    [
-      pathname,
-      queryParams.query,
-      queryParams.category_id,
-      initialSortDirection,
-      initialSortHeader,
-      router,
-    ]
-  );
 
   // TODO: handle empty state better, this is just a placeholder for now
   // TODO: what should happen if query params are invalid (e.g., page is negative or exceeds the
@@ -586,6 +535,7 @@ const SoftwareSelfService = ({
       onShowUninstallDetails,
       onClickInstallAction,
       onClickUninstallAction,
+      onClickOpenInstructionsAction,
     });
   }, [
     onShowUpdateDetails,
@@ -594,110 +544,8 @@ const SoftwareSelfService = ({
     onShowUninstallDetails,
     onClickInstallAction,
     onClickUninstallAction,
+    onClickOpenInstructionsAction,
   ]);
-
-  const renderSelfServiceCard = () => {
-    const renderHeaderFilters = () => (
-      <div className={`${baseClass}__header-filters`}>
-        <SearchField
-          placeholder="Search by name"
-          onChange={onSearchQueryChange}
-          defaultValue={queryParams.query}
-        />
-        <DropdownWrapper
-          options={CATEGORIES_NAV_ITEMS.map((category: ICategory) => ({
-            ...category,
-            value: String(category.id), // DropdownWrapper only accepts string
-          }))}
-          value={String(queryParams.category_id || 0)}
-          onChange={onCategoriesDropdownChange}
-          name="categories-dropdown"
-          className={`${baseClass}__categories-dropdown`}
-        />
-      </div>
-    );
-
-    const renderCategoriesMenu = () => (
-      <CategoriesMenu
-        queryParams={queryParams}
-        categories={CATEGORIES_NAV_ITEMS}
-      />
-    );
-
-    if (isLoading) {
-      return <Spinner />;
-    }
-
-    if (isError) {
-      return <DeviceUserError />; // Only shown on DeviceUserPage not HostDetailsPage
-    }
-
-    // No self-service software available hides categories menu and header filters
-    if ((isEmpty || !selfServiceData) && !isFetching) {
-      return (
-        <>
-          <EmptyTable
-            graphicName="empty-software"
-            header="No self-service software available yet"
-            info="Your organization didn't add any self-service software. If you need any, reach out to your IT department."
-          />
-        </>
-      );
-    }
-
-    return (
-      <>
-        {renderHeaderFilters()}
-        <div className={`${baseClass}__table`}>
-          {renderCategoriesMenu()}
-          <TableContainer
-            columnConfigs={tableConfig}
-            data={filterSoftwareByCategory(
-              enhancedSoftware || [],
-              queryParams.category_id
-            )}
-            isLoading={isFetching}
-            defaultSortHeader={initialSortHeader}
-            defaultSortDirection={initialSortDirection}
-            onQueryChange={onSortChange} // Only used for sort
-            pageIndex={initialSortPage} // Client-side pagination with URL source of truth
-            disableNextPage={selfServiceData?.meta.has_next_results === false}
-            pageSize={DEFAULT_CLIENT_SIDE_PAGINATION}
-            searchQuery={queryParams.query} // Search is now client-side to reduce API calls
-            searchQueryColumn="name"
-            isClientSideFilter
-            isClientSidePagination
-            disableAutoResetPage // Prevents resetting page to 0 on data change when clicking install/uninstall
-            onClientSidePaginationChange={onClientSidePaginationChange}
-            emptyComponent={() => {
-              return isEmptySearch ? (
-                <EmptyTable
-                  graphicName="empty-search-question"
-                  header="No items match the current search criteria"
-                  info={
-                    <>
-                      Not finding what you&apos;re looking for?{" "}
-                      <CustomLink
-                        url={contactUrl}
-                        text="Reach out to IT"
-                        newTab
-                      />
-                    </>
-                  }
-                />
-              ) : (
-                <EmptySoftwareTable />
-              );
-            }}
-            showMarkAllPages={false}
-            isAllPagesSelected={false}
-            disableTableHeader
-            disableCount
-          />
-        </div>
-      </>
-    );
-  };
 
   return (
     <div className={baseClass}>
@@ -709,35 +557,36 @@ const SoftwareSelfService = ({
         onClickUpdateAction={onClickUpdateAction}
         onClickFailedUpdateStatus={onClickFailedUpdateStatus}
       />
-      <Card
-        className={`${baseClass}__self-service-card`}
-        borderRadiusSize="xxlarge"
-        paddingSize="xlarge"
-        includeShadow
-      >
-        <CardHeader
-          header="Self-service"
-          subheader={
-            <>
-              Install organization-approved apps provided by your IT department.{" "}
-              {contactUrl && (
-                <span>
-                  If you need help,{" "}
-                  <CustomLink url={contactUrl} text="reach out to IT" newTab />
-                </span>
-              )}
-            </>
-          }
-        />
-        {renderSelfServiceCard()}
-      </Card>
-      {showUninstallSoftwareModal && selectedSoftware.current && (
+      <SelfServiceCard
+        contactUrl={contactUrl}
+        queryParams={queryParams}
+        enhancedSoftware={enhancedSoftware}
+        selfServiceData={selfServiceData}
+        tableConfig={tableConfig}
+        isLoading={isLoading}
+        isError={isError}
+        isFetching={isFetching}
+        isEmpty={isEmpty}
+        isEmptySearch={isEmptySearch}
+        router={router}
+        pathname={pathname}
+      />
+      {showUninstallSoftwareModal && selectedSoftwareForUninstall.current && (
         <UninstallSoftwareModal
-          softwareId={selectedSoftware.current.softwareId}
-          softwareName={selectedSoftware.current.softwareName}
+          softwareId={selectedSoftwareForUninstall.current.softwareId}
+          softwareName={selectedSoftwareForUninstall.current.softwareName}
           token={deviceToken}
           onExit={onExitUninstallSoftwareModal}
           onSuccess={onSuccessUninstallSoftwareModal}
+        />
+      )}
+      {showOpenInstructionsModal && selectedSoftwareForInstructions.current && (
+        <SoftwareInstructionsModal
+          softwareName={selectedSoftwareForInstructions.current.softwareName}
+          softwareSource={
+            selectedSoftwareForInstructions.current.softwareSource
+          }
+          onExit={onExitSoftwareInstructionsModal}
         />
       )}
       {selectedHostSWInstallDetails && (

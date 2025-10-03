@@ -1,0 +1,3 @@
+* Added clean up of live query campaign targets 24 hours after campaign completion. This keeps the DB size in check for performance of large and frequent live query campaigns.
+* Added index to distributed_query_campaign_targets table to speed up DB performance for live queries.
+> **Warning:** For deployments with millions of rows in `distributed_query_campaign_targets`, the database migration to add the index may take significant time. We recommend testing migration duration in a staging environment first. The initial cleanup of old campaign targets will occur progressively over multiple hours to avoid database overload.

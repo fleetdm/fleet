@@ -18,6 +18,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+const setupExperienceSoftwareInstallsRetries uint = 2 // 3 attempts = 1 initial + 2 retries
+
 func (ds *Datastore) ListPendingSoftwareInstalls(ctx context.Context, hostID uint) ([]string, error) {
 	return ds.listUpcomingSoftwareInstalls(ctx, hostID, false)
 }
@@ -142,6 +144,21 @@ func (ds *Datastore) GetSoftwareInstallDetails(ctx context.Context, executionId 
 	result.InstallScript = expandedInstallScript
 	result.PostInstallScript = expandedPostInstallScript
 	result.UninstallScript = expandedUninstallScript
+
+	// Check if this install is part of setup experience and set retry count accordingly
+	var setupExperienceCount int
+	setupExpStmt := `
+		SELECT EXISTS(
+			SELECT 1 FROM setup_experience_status_results
+			WHERE host_software_installs_execution_id = ? AND status IN (?, ?)
+		)`
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &setupExperienceCount, setupExpStmt, executionId, fleet.SetupExperienceStatusPending, fleet.SetupExperienceStatusRunning); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, ctxerr.Wrap(ctx, err, "check if install is part of setup experience")
+	}
+
+	if setupExperienceCount > 0 {
+		result.MaxRetries = setupExperienceSoftwareInstallsRetries
+	}
 
 	return result, nil
 }
@@ -744,6 +761,14 @@ WHERE
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
 		}
 		dest.AutomaticInstallPolicies = policies
+
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			dest.IconUrl = ptr.String(icon.IconUrl())
+		}
 	}
 
 	return &dest, nil

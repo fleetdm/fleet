@@ -103,15 +103,15 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 	}
 
 	if teamID == 0 {
-		teamName := "No Team"
+		noTeamID := int64(0)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeCreatedPolicy{
 				ID:       policy.ID,
 				Name:     policy.Name,
-				TeamID:   int64(teamID),
-				TeamName: &teamName,
+				TeamID:   &noTeamID,
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy creation")
@@ -133,13 +133,14 @@ func (svc Service) NewTeamPolicy(ctx context.Context, teamID uint, tp fleet.NewT
 		}
 	}
 
+	teamIDPtr := int64(teamID)
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeCreatedPolicy{
 			ID:       policy.ID,
 			Name:     policy.Name,
-			TeamID:   int64(teamID),
+			TeamID:   &teamIDPtr,
 			TeamName: teamName,
 		},
 	); err != nil {
@@ -451,7 +452,7 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	if teamID == 0 {
-		teamName := "No Team"
+		noTeamID := int64(0)
 		for _, id := range deletedIDs {
 			if err := svc.NewActivity(
 				ctx,
@@ -459,8 +460,8 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 				fleet.ActivityTypeDeletedPolicy{
 					ID:       id,
 					Name:     policiesByID[id].Name,
-					TeamID:   int64(teamID),
-					TeamName: &teamName,
+					TeamID:   &noTeamID,
+					TeamName: nil,
 				},
 			); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy deletion")
@@ -484,13 +485,14 @@ func (svc Service) DeleteTeamPolicies(ctx context.Context, teamID uint, ids []ui
 	}
 
 	for _, id := range deletedIDs {
+		teamIDPtr := int64(teamID)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeDeletedPolicy{
 				ID:       id,
 				Name:     policiesByID[id].Name,
-				TeamID:   int64(teamID),
+				TeamID:   &teamIDPtr,
 				TeamName: teamName,
 			},
 		); err != nil {
@@ -657,17 +659,34 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		return nil, ctxerr.Wrap(ctx, err, "populate run_script")
 	}
 
-	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
-	if teamID != nil && *teamID == 0 {
-		teamName := "No Team"
+	if teamID == nil {
+		globalTeamID := int64(-1)
 		if err := svc.NewActivity(
 			ctx,
 			authz.UserFromContext(ctx),
 			fleet.ActivityTypeEditedPolicy{
 				ID:       policy.ID,
 				Name:     policy.Name,
-				TeamID:   teamID,
-				TeamName: &teamName,
+				TeamID:   &globalTeamID,
+				TeamName: nil,
+			},
+		); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "create activity for global policy modification")
+		}
+		return policy, nil
+	}
+
+	// Add a special case for handling "No Team" (teamID = 0) in ModifyTeamPolicy
+	if *teamID == 0 {
+		noTeamID := int64(0)
+		if err := svc.NewActivity(
+			ctx,
+			authz.UserFromContext(ctx),
+			fleet.ActivityTypeEditedPolicy{
+				ID:       policy.ID,
+				Name:     policy.Name,
+				TeamID:   &noTeamID,
+				TeamName: nil,
 			},
 		); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "create activity for no-team policy modification")
@@ -679,7 +698,7 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 	// rollback an action in the event of an error writing the associated activity
 
 	var teamName *string
-	if teamID != nil && *teamID != 0 {
+	if *teamID != 0 {
 		if svc.EnterpriseOverrides != nil && svc.EnterpriseOverrides.TeamByIDOrName != nil {
 			team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
 			if err != nil {
@@ -689,13 +708,18 @@ func (svc *Service) modifyPolicy(ctx context.Context, teamID *uint, id uint, p f
 		}
 	}
 
+	// Convert *uint to *int64 for the activity
+	var activityTeamID *int64
+	teamIDInt64 := int64(*teamID)
+	activityTeamID = &teamIDInt64
+
 	if err := svc.NewActivity(
 		ctx,
 		authz.UserFromContext(ctx),
 		fleet.ActivityTypeEditedPolicy{
 			ID:       policy.ID,
 			Name:     policy.Name,
-			TeamID:   teamID,
+			TeamID:   activityTeamID,
 			TeamName: teamName,
 		},
 	); err != nil {

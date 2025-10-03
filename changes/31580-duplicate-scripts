@@ -1,0 +1,1 @@
+* Fixed error when updating a script to exactly match the contents of another script.

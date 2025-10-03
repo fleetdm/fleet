@@ -66,14 +66,14 @@ jobs:
               state: 'open',
               per_page: 100
             });
-            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'github-actions[bot]').map(pr => pr.number);
+            return pullRequests.filter(pr => pr.title.includes('Update Fleet-maintained apps') && pr.user.login === 'fleet-release').map(pr => pr.number);
 
       - name: Get Assignee IDs
         id: get_assignee_ids
         run: |
           # DEVS=$(awk '/### Software group/{flag=1; next} /#/{flag=0} flag' ./fleet/handbook/company/product-groups.md | awk '/\| Developer[ ]*\|/ {sub(/\| Developer[ ]*\|/, ""); print}' | grep -o '@[^]]*' | tr -d '@' | tr '\n' ',' | sed 's/,$//')
           # :-(
-          DEVS="iansltx,jahzielv,mostlikelee,ksykulev"
+          DEVS="iansltx,jahzielv,ksykulev,jkatz01"
           echo "github_ids=$DEVS" >> ${GITHUB_OUTPUT}
 
       - name: Log Info
@@ -96,7 +96,7 @@ jobs:
 
             Generated automatically with cmd/maintained-apps.
           body: Automated ingestion of latest Fleet-maintained app data.
-#          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
+          assignees: ${{ steps.get_assignee_ids.outputs.github_ids }}
 
       - name: Close Existing PRs
         if: steps.search_pr.outputs.result != '[]'

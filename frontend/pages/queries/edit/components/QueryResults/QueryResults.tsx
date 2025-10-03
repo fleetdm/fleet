@@ -295,7 +295,7 @@ const QueryResults = ({
           <TabList>
             <Tab className={firstTabClass}>{NAV_TITLES.RESULTS}</Tab>
             <Tab disabled={!errors?.length}>
-              <TabText count={errors?.length} isErrorCount>
+              <TabText count={errors?.length} countVariant="alert">
                 {NAV_TITLES.ERRORS}
               </TabText>
             </Tab>

@@ -7,7 +7,9 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 | Role                               | Contributor(s)
 |:-----------------------------------|:------------------------------------------------------------------------------------------------------------------------|
-| Interim Head of Marketing         | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Interim Head of Marketing          | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Content Specialist                 | [Irena Reedy](https://www.linkedin.com/in/irena-reedy-520ab9354/) _([@irenareedy](https://github.com/irenareedy))_
+| Data & Video Specialist            | [Onasis Munro](https://www.linkedin.com/in/onasismunro/) _([@onasismunro](https://github.com/onasismunro))_
 
 
 ## Contact us
@@ -37,6 +39,23 @@ Fleet's Head of Marketing is directly responsible for the accuracy of event loca
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
+### Manage duplicates in CRM
+
+1. For accounts, navigate to the ["Ω Possible duplicate accounts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000001FA1h2AG/view). For Contacts, navigate to the ["Ω Possible duplicate contacts" report](https://fleetdm.lightning.force.com/lightning/r/Report/00OUG000002qAoX2AU/view).
+2. Verify that each potential duplicate record is indeed a duplicate of the record it has been paired with.
+3. Open and compare the duplicate records to select the most up-to-date record to "Use as principal" (the record all other duplicates will be merged into). Consider the following:
+  - Is there an open opportunity on any of the records? If so, this is your "principal" account/contact.
+  - Do any of the accounts not have contacts? If no contacts found on the account and no significant activity, delete the account. 
+  - Do any of these accounts/contacts have activity that the others don't have (e.g. a rep sent an email or logged a call)? Be sure to preserve the maximum amount of historical activity on the principal record.
+4. Click "View duplicates", select all relevant records that appear. Click next.
+5. Select the best and most up-to-date data to combine into the single principal account/contact.
+
+> Do *NOT* change account owners if you can help it during this process. For "non-sales-ready" accounts default to the Integrations Admin. If the account is owned by an active user, be sure they maintain ownership of the principal account. 
+
+6. YOU CAN NOT UNDO THIS NEXT PART! Click next, click merge. 
+7. Verify that the principal record details match exactly what is on LinkedIn.
+
+
 ### Begin or modify an advertising campaign
 
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (:help-design)"](https://github.com/orgs/fleetdm/projects/93).
@@ -52,7 +71,7 @@ To propose an ad, or a change to an ad:
 
 ### Measure intent signals
 
-To measure and process intent signals, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals).  
+Daily, follow the steps in the [🦄⚡️🌐 Go-To-Market strategy doc (confidential)](https://github.com/fleetdm/confidential/edit/main/go-to-market-strategy.md#process-intent-signals) to measure and process intent signals.
 
 
 ### Research an account

@@ -137,7 +137,13 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSummaryMdmSolution[] | null;
 }
 
-export type ProfilePlatform = "darwin" | "windows" | "ios" | "ipados" | "linux";
+export type ProfilePlatform =
+  | "darwin"
+  | "windows"
+  | "ios"
+  | "ipados"
+  | "linux"
+  | "android";
 
 export interface IProfileLabel {
   name: string;
@@ -167,6 +173,7 @@ export type MdmDDMProfileStatus =
   | "acknowledged";
 
 export type ProfileOperationType = "remove" | "install";
+export type ProfileScope = "device" | "user";
 
 export interface IHostMdmProfile {
   profile_uuid: string;
@@ -175,6 +182,8 @@ export interface IHostMdmProfile {
   platform: ProfilePlatform;
   status: MdmProfileStatus | MdmDDMProfileStatus | LinuxDiskEncryptionStatus;
   detail: string;
+  scope: ProfileScope | null;
+  managed_local_account: string | null;
 }
 
 // TODO - move disk encryption related types to dedicated file

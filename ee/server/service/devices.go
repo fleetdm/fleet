@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
@@ -221,4 +222,82 @@ func (svc *Service) validateReadyForLinuxEscrow(ctx context.Context, host *fleet
 	}
 
 	return nil
+}
+
+func (svc *Service) GetDeviceSoftwareIconsTitleIcon(ctx context.Context, teamID uint, titleID uint) ([]byte, int64, string, error) {
+	// can't call the already made GetSoftwareTitleIcon(ctx, teamID, titleID) method
+	// because svc is the concrete open source service implementation despite it being in the ee/directory
+	var err error
+
+	icon, err := svc.ds.GetSoftwareTitleIcon(ctx, teamID, titleID)
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+	if icon == nil {
+		vppApp, err := svc.ds.GetVPPAppMetadataByTeamAndTitleID(ctx, &teamID, titleID)
+		if vppApp != nil && vppApp.IconURL != nil {
+			return nil, 0, "", &fleet.VPPIconAvailable{IconURL: *vppApp.IconURL}
+		}
+
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon")
+	}
+
+	iconData, size, err := svc.softwareTitleIconStore.Get(ctx, icon.StorageID)
+	if err != nil {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "getting software title icon data")
+	}
+	defer iconData.Close()
+	imageBytes, err := io.ReadAll(iconData)
+	if err != nil {
+		return nil, 0, "", ctxerr.Wrap(ctx, err, "reading icon data")
+	}
+
+	return imageBytes, size, icon.Filename, nil
+}
+
+func (svc *Service) GetDeviceSetupExperienceStatus(ctx context.Context) (*fleet.DeviceSetupExperienceStatusPayload, error) {
+	// This is a device endpoint, not a user-authenticated endpoint.
+	svc.authz.SkipAuthorization(ctx)
+
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, ctxerr.New(ctx, "internal error: missing host from request context")
+	}
+
+	return svc.getHostSetupExperienceStatus(ctx, host)
+}
+
+func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *fleet.Host) (*fleet.DeviceSetupExperienceStatusPayload, error) {
+	hostUUID, err := fleet.HostUUIDForSetupExperience(host)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failed to get host's UUID for the setup experience")
+	}
+
+	// Get current status of the setup experience.
+	results, err := svc.ds.ListSetupExperienceResultsByHostUUID(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing setup experience results")
+	}
+
+	// Mark canceled items as failed.
+	err = svc.failCancelledSetupExperienceInstalls(ctx, host.ID, hostUUID, host.DisplayName(), results)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "failing cancelled setup experience installs")
+	}
+
+	var software []*fleet.SetupExperienceStatusResult
+	for _, result := range results {
+		if result.IsForSoftware() {
+			software = append(software, result)
+		}
+	}
+
+	// Continue with next step in setup experience.
+	if _, err = svc.SetupExperienceNextStep(ctx, host); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting next step for host setup experience")
+	}
+
+	return &fleet.DeviceSetupExperienceStatusPayload{
+		Software: software,
+	}, nil
 }

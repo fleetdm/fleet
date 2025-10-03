@@ -42,6 +42,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	maintained_apps "github.com/fleetdm/fleet/v4/server/mdm/maintainedapps"
+	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	commonCalendar "github.com/fleetdm/fleet/v4/server/service/calendar"
@@ -70,9 +71,10 @@ func TestIntegrationsEnterprise(t *testing.T) {
 type integrationEnterpriseTestSuite struct {
 	withServer
 	suite.Suite
-	redisPool            fleet.RedisPool
-	calendarSchedule     *schedule.Schedule
-	softwareInstallStore fleet.SoftwareInstallerStore
+	redisPool              fleet.RedisPool
+	calendarSchedule       *schedule.Schedule
+	softwareInstallStore   fleet.SoftwareInstallerStore
+	softwareTitleIconStore fleet.SoftwareTitleIconStore
 
 	lq *live_query_mock.MockLiveQuery
 }
@@ -89,6 +91,12 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 	softwareInstallStore, err := filesystem.NewSoftwareInstallerStore(dir)
 	require.NoError(s.T(), err)
 	s.softwareInstallStore = softwareInstallStore
+
+	// Create a software title icon store
+	iconDir := s.T().TempDir()
+	softwareTitleIconStore, err := filesystem.NewSoftwareTitleIconStore(iconDir)
+	require.NoError(s.T(), err)
+	s.softwareTitleIconStore = softwareTitleIconStore
 
 	config := TestServerOpts{
 		License: &fleet.LicenseInfo{
@@ -117,6 +125,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			},
 		},
 		SoftwareInstallStore:            softwareInstallStore,
+		SoftwareTitleIconStore:          softwareTitleIconStore,
 		ConditionalAccessMicrosoftProxy: mockedConditionalAccessMicrosoftProxyInstance,
 	}
 	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
@@ -250,6 +259,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// an activity was created for team spec applied
@@ -352,6 +364,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
+		AndroidSettings: fleet.AndroidSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
 	}, team.Config.MDM)
 
 	// get the team via the GET endpoint, check that it properly returns the mdm settings
@@ -383,6 +398,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
@@ -418,6 +436,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
@@ -2347,6 +2368,231 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 	require.Len(t, appCfgResp.Integrations.Zendesk, 0)
 }
 
+func (s *integrationEnterpriseTestSuite) TestNoTeamWebhookConfig() {
+	t := s.T()
+
+	// Test that we can configure webhooks for "No Team" (team ID 0)
+	// Use a generic response that will work with DefaultTeam
+	var defaultTeamResp struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}
+
+	// First clear any existing webhook configuration for "No Team"
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+
+	// Get the default team config (team ID 0) - should be disabled now
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+
+	// Configure webhook settings for "No Team"
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/no-team-webhook",
+			PolicyIDs:      []uint{1, 2, 3},
+			HostBatchSize:  100,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Get the config again to verify it persisted
+	defaultTeamResp = struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/no-team-webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{1, 2, 3}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 100, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Update the webhook settings
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         false,
+			DestinationURL: "https://example.com/updated",
+			PolicyIDs:      []uint{4, 5},
+			HostBatchSize:  200,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/updated", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{4, 5}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+	require.Equal(t, 200, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.HostBatchSize)
+
+	// Clear the webhook settings
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable: false,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.False(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+}
+
+func (s *integrationEnterpriseTestSuite) TestNoTeamFailingPolicyWebhookTrigger() {
+	t := s.T()
+	ctx := t.Context()
+
+	// Track webhook calls
+	webhookCalled := false
+	var capturedPolicy *fleet.Policy
+
+	// Create a host without a team (team_id = nil means no team)
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String("no-team-host-key"),
+		UUID:            "no-team-host-uuid",
+		Hostname:        "no-team-host",
+		PrimaryIP:       "192.168.1.100",
+		PrimaryMac:      "00:11:22:33:44:55",
+		Platform:        "ubuntu",
+		OSVersion:       "Ubuntu 20.04",
+		Build:           "",
+		PlatformLike:    "debian",
+		OsqueryVersion:  "5.5.0",
+		TeamID:          nil, // nil means "No Team"
+	})
+	require.NoError(t, err)
+	require.Nil(t, host.TeamID)
+
+	// Create "No Team" policies (team_id = 0)
+	noTeamPol1, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:        "no-team-failing-policy-1",
+		Query:       "SELECT 1 WHERE 0", // Will always fail
+		Description: "Policy 1 for hosts without a team",
+		Resolution:  "Fix policy 1",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, noTeamPol1.TeamID)
+	require.Equal(t, uint(0), *noTeamPol1.TeamID)
+
+	noTeamPol2, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:        "no-team-failing-policy-2",
+		Query:       "SELECT 1 WHERE 0", // Will also fail
+		Description: "Policy 2 for hosts without a team",
+		Resolution:  "Fix policy 2",
+	})
+	require.NoError(t, err)
+
+	noTeamPol3, err := s.ds.NewTeamPolicy(ctx, 0, nil, fleet.PolicyPayload{
+		Name:  "no-team-failing-policy-3",
+		Query: "SELECT 1 WHERE 0", // Will also fail (not in webhook config)
+	})
+	require.NoError(t, err)
+
+	// Configure webhook for "No Team" - only include pol1 and pol2
+	var defaultTeamResp struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}
+	s.DoJSON("PATCH", "/api/latest/fleet/teams/0", fleet.TeamPayload{WebhookSettings: &fleet.TeamWebhookSettings{
+		FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+			Enable:         true,
+			DestinationURL: "https://example.com/webhook",
+			PolicyIDs:      []uint{noTeamPol1.ID, noTeamPol2.ID}, // pol3 is NOT included
+			HostBatchSize:  100,
+		},
+	}}, http.StatusOK, &defaultTeamResp)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+
+	// Record policy results - all fail
+	err = s.ds.RecordPolicyQueryExecutions(ctx, host, map[uint]*bool{
+		noTeamPol1.ID: ptr.Bool(false), // Fails and is in webhook config
+		noTeamPol2.ID: ptr.Bool(false), // Fails and is in webhook config
+		noTeamPol3.ID: ptr.Bool(false), // Fails but NOT in webhook config
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	// Initially, OutdatedAutomationBatch should be empty (policies haven't been triggered for automation yet)
+	pfs, err := s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Empty(t, pfs, "initially no policies should be marked for automation")
+
+	// Reset with empty arrays - should not mark any policies
+	var resetResp struct{}
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   nil,
+		PolicyIDs: []uint{},
+	}, http.StatusOK, &resetResp)
+
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Empty(t, pfs, "empty reset should not mark any policies")
+
+	// Test that we can configure and retrieve the "No Team" webhook settings
+	defaultTeamResp = struct {
+		Team *fleet.DefaultTeam `json:"team"`
+	}{}
+	s.DoJSON("GET", "/api/latest/fleet/teams/0", nil, http.StatusOK, &defaultTeamResp)
+	require.Equal(t, uint(0), defaultTeamResp.Team.ID)
+	require.Equal(t, fleet.ReservedNameNoTeam, defaultTeamResp.Team.Name)
+	require.True(t, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.Enable)
+	require.Equal(t, "https://example.com/webhook", defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.Equal(t, []uint{noTeamPol1.ID, noTeamPol2.ID}, defaultTeamResp.Team.WebhookSettings.FailingPoliciesWebhook.PolicyIDs)
+
+	// Now reset by team ID 0 to mark policies for automation
+	s.DoJSON("POST", "/api/latest/fleet/automations/reset", resetAutomationRequest{
+		TeamIDs:   []uint{0}, // Team ID 0 for "No Team"
+		PolicyIDs: nil,
+	}, http.StatusOK, &resetResp)
+
+	// After reset, policies should be marked for automation
+	pfs, err = s.ds.OutdatedAutomationBatch(ctx)
+	require.NoError(t, err)
+	require.Len(t, pfs, 2, "should have 2 policies marked for automation (pol1 and pol2, not pol3)")
+
+	// Create a failing policy set and trigger the webhook
+	failingPolicySet := NewMemFailingPolicySet()
+	for _, pf := range pfs {
+		err = failingPolicySet.AddHost(pf.PolicyID, pf.Host)
+		require.NoError(t, err)
+	}
+
+	// Trigger the webhook automation with a custom sendFunc that captures the call
+	err = policies.TriggerFailingPoliciesAutomation(ctx, s.ds, kitlog.NewNopLogger(), failingPolicySet,
+		func(pol *fleet.Policy, cfg policies.FailingPolicyAutomationConfig) error {
+			webhookCalled = true
+			capturedPolicy = pol
+			// Verify the config is correct
+			require.NotNil(t, cfg.WebhookURL)
+			require.Equal(t, "https://example.com/webhook", cfg.WebhookURL.String())
+			require.Equal(t, 100, cfg.HostBatchSize)
+			return nil
+		})
+	require.NoError(t, err)
+
+	// Verify the webhook was called
+	require.True(t, webhookCalled, "webhook should have been called for No Team failing policy")
+
+	// Verify the captured policy is one of the configured policies
+	require.NotNil(t, capturedPolicy)
+	require.Contains(t, []string{"no-team-failing-policy-1", "no-team-failing-policy-2"}, capturedPolicy.Name)
+
+	// Verify the policy has team_id = 0 for "No Team"
+	require.NotNil(t, capturedPolicy.TeamID)
+	require.Equal(t, uint(0), *capturedPolicy.TeamID, "team_id should be 0 for No Team")
+
+	// Verify the failing policy set has the correct host
+	hosts, err := failingPolicySet.ListHosts(capturedPolicy.ID)
+	require.NoError(t, err)
+	require.Len(t, hosts, 1, "should have one host")
+	require.Equal(t, "no-team-host", hosts[0].Hostname)
+}
+
 func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 	t := s.T()
 
@@ -2411,6 +2657,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			ManualAgentInstall:          optjson.Bool{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+		},
+		AndroidSettings: fleet.AndroidSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
@@ -4799,7 +5048,9 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
@@ -4813,7 +5064,13 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 			path = fmt.Sprintf(path, tkn)
 		}
 
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params any
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -6311,6 +6568,14 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	}`), http.StatusOK, &acr)
 	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
 
+	t.Cleanup(func() {
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	})
+
 	var orbitResp orbitGetConfigResponse
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
@@ -6661,6 +6926,24 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		0,
 	)
 
+	var batchPendingHostsResp batchScriptExecutionHostResultsResponse
+	res := s.Do("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results", batchRes.BatchExecutionID), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Param status is required")
+
+	// List pending hosts
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/batch/%s/host-results?status=pending", batchRes.BatchExecutionID), nil, http.StatusOK, &batchPendingHostsResp)
+	require.Len(t, batchPendingHostsResp.Hosts, 2)
+	require.Equal(t, batchPendingHostsResp.Count, uint(2))
+	require.Equal(t, batchPendingHostsResp.Meta.HasNextResults, false)
+	require.Equal(t, batchPendingHostsResp.Meta.HasPreviousResults, false)
+	require.Equal(t, batchPendingHostsResp.Hosts[0].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, batchPendingHostsResp.Hosts[0].DisplayName, host1.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[0].ID, host1.ID)
+	require.Equal(t, batchPendingHostsResp.Hosts[1].Status, fleet.BatchScriptExecutionPending)
+	require.Equal(t, batchPendingHostsResp.Hosts[1].DisplayName, host2.DisplayName())
+	require.Equal(t, batchPendingHostsResp.Hosts[1].ID, host2.ID)
+
 	// Another request so we can check the list endpoint
 	var batchRes2 batchScriptRunResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/batch", batchScriptRunRequest{
@@ -6674,8 +6957,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, batchListResp.Count, uint(2))
-	require.Equal(t, batchListResp.HasNextResults, true)
-	require.Equal(t, batchListResp.HasPreviousResults, false)
+	require.Equal(t, batchListResp.Meta.HasNextResults, true)
+	require.Equal(t, batchListResp.Meta.HasPreviousResults, false)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes2.BatchExecutionID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(1))
@@ -6684,8 +6967,8 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 	s.DoJSON("GET", "/api/latest/fleet/scripts/batch?team_id=0&page=1&per_page=1", nil, http.StatusOK, &batchListResp)
 	require.Len(t, batchListResp.BatchScriptExecutions, 1)
 	require.Equal(t, batchListResp.Count, uint(2))
-	require.Equal(t, batchListResp.HasNextResults, false)
-	require.Equal(t, batchListResp.HasPreviousResults, true)
+	require.Equal(t, batchListResp.Meta.HasNextResults, false)
+	require.Equal(t, batchListResp.Meta.HasPreviousResults, true)
 	require.Equal(t, batchListResp.BatchScriptExecutions[0].BatchExecutionID, batchRes.BatchExecutionID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].ScriptID, script.ID)
 	require.Equal(t, *batchListResp.BatchScriptExecutions[0].NumTargeted, uint(2))
@@ -6772,7 +7055,6 @@ func (s *integrationEnterpriseTestSuite) TestRunBatchScript() {
 		fmt.Sprintf(`{"batch_execution_id":"%s", "host_count":2, "script_name":"%s", "team_id":null, "not_before": "%s"}`, batchRes.BatchExecutionID, script.Name, scheduledTime.UTC().Format(time.RFC3339Nano)),
 		0,
 	)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestCancelBatchScripts() {
@@ -11187,7 +11469,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			TitleID:           titleID,
 			TeamID:            nil,
 		}, http.StatusOK, "")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "software_title_id": %d, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			titleID, labelResp.Label.ID, t.Name())
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11247,7 +11529,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			"", []byte{}, s.token, map[string][]string{"self_service": {"true"}, "team_id": {"0"}})
 		s.DoRawWithHeaders("PATCH", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package", titleID), body.Bytes(), http.StatusOK, headers)
 
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}], "software_title_id": %d}`,
 			labelResp.Label.ID, labelResp.Label.Name, titleID)
 		s.lastActivityMatches(fleet.ActivityTypeEditedSoftware{}.ActivityName(), activityData, 0)
@@ -11266,7 +11548,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 
 		// delete from team 0 succeeds
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
-		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null,
+		activityData = fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": null,
 		"team_id": null, "self_service": true, "labels_include_any": [{"id": %d, "name": %q}]}`,
 			labelResp.Label.ID, labelResp.Label.Name)
 		s.lastActivityMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), activityData, 0)
@@ -11390,7 +11672,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", fmt.Sprintf("%d", *payload.TeamID))
 
 		// check activity
-		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(), fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": null, "team_name": "%s", "team_id": %d, "self_service": true}`, createTeamResp.Team.Name, createTeamResp.Team.ID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", *payload.TeamID))
@@ -11475,12 +11757,26 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerUploadDownloadAndD
 			OrbitNodeKey: *hostInTeam.OrbitNodeKey,
 		}, http.StatusForbidden)
 
+		_, err := s.ds.CreateOrUpdateSoftwareTitleIcon(context.Background(), &fleet.UploadSoftwareTitleIconPayload{
+			TitleID:   titleID,
+			Filename:  "icon.png",
+			TeamID:    0,
+			StorageID: "icon_storage_id",
+		})
+		require.NoError(t, err)
+
 		// delete the installer
 		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/software/titles/%d/available_for_install", titleID), nil, http.StatusNoContent, "team_id", "0")
 
+		var count int
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(context.Background(), q, &count, `SELECT COUNT(1) FROM software_title_icons WHERE team_id = ? and software_title_id = ?`, 0, titleID)
+		})
+		require.Equal(t, 0, count)
+
 		// check activity
 		s.lastActivityOfTypeMatches(fleet.ActivityTypeDeletedSoftware{}.ActivityName(),
-			`{"software_title": "ruby", "software_package": "ruby.deb", "team_name": null, "team_id": null, "self_service": true}`, 0)
+			fmt.Sprintf(`{"software_title": "ruby", "software_package": "ruby.deb", "software_icon_url": "/api/latest/fleet/software/titles/%d/icon?team_id=0", "team_name": null, "team_id": null, "self_service": true}`, titleID), 0)
 
 		// download the installer, not found anymore
 		s.Do("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d/package?alt=media", titleID), nil, http.StatusNotFound, "team_id", fmt.Sprintf("%d", 0))
@@ -11687,26 +11983,30 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 
 	wantSoftwarePackages := []fleet.SoftwarePackageSpec{
 		{
-			URL:               "http://foo.com",
-			SelfService:       true,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			URL:                "http://foo.com",
+			SelfService:        true,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./foo/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./foo/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./foo/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			URL:               "http://bar.com",
-			SelfService:       false,
-			InstallScript:     fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
-			PostInstallScript: fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
-			PreInstallQuery:   fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			URL:                "http://bar.com",
+			SelfService:        false,
+			InstallScript:      fleet.TeamSpecSoftwareAsset{Path: "./bar/install-script.sh"},
+			PostInstallScript:  fleet.TeamSpecSoftwareAsset{Path: "./bar/post-install-script.sh"},
+			PreInstallQuery:    fleet.TeamSpecSoftwareAsset{Path: "./bar/query.yaml"},
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 	wantAppStoreApps := []fleet.TeamSpecAppStoreApp{
 		{
-			AppStoreID: "1234",
+			AppStoreID:         "1234",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 		{
-			AppStoreID: "5678",
+			AppStoreID:         "5678",
+			InstallDuringSetup: optjson.Bool{Set: true},
 		},
 	}
 
@@ -11839,6 +12139,307 @@ func (s *integrationEnterpriseTestSuite) TestApplyTeamsSoftwareConfig() {
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.Empty(t, teamResp.Team.Config.Software.AppStoreApps.Value)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareTitleIcons() {
+	t := s.T()
+	ctx := context.Background()
+
+	user, err := s.ds.UserByEmail(context.Background(), "admin1@example.com")
+	require.NoError(t, err)
+	host1 := test.NewHost(t, s.ds, "host1", "", "host1key", "host1uuid", time.Now())
+	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name:        t.Name(),
+		Description: "desc",
+	})
+	require.NoError(t, err)
+
+	// create software installer + software title
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "apps", BundleIdentifier: "foo.bundle.id"},
+	}
+	_, err = s.ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	tfr1, err := fleet.NewTempFileReader(strings.NewReader("hello"), t.TempDir)
+	require.NoError(t, err)
+	_, titleID, err := s.ds.MatchOrCreateSoftwareInstaller(ctx, &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:    "hello",
+		InstallerFile:    tfr1,
+		StorageID:        "storage1",
+		Filename:         "foo.pkg",
+		Title:            "foo",
+		Version:          "0.0.3",
+		Source:           "apps",
+		TeamID:           &tm.ID,
+		UserID:           user.ID,
+		BundleIdentifier: "foo.bundle.id",
+		ValidatedLabels:  &fleet.LabelIdentsWithScope{},
+	})
+	require.NoError(t, err)
+
+	parsePutResponse := func(resp *http.Response) putSoftwareTitleIconResponse {
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		result := putSoftwareTitleIconResponse{}
+		err = json.Unmarshal(body, &result)
+		require.NoError(t, err)
+		return result
+	}
+
+	// get icon from file system
+	file, err := os.Open("testdata/icons/valid-icon.png")
+	require.NoError(t, err)
+	defer file.Close()
+
+	// get icon size for later
+	fileInfo, err := file.Stat()
+	require.NoError(t, err)
+	iconSize := fileInfo.Size()
+
+	// create proper form data to post
+	var buf bytes.Buffer
+	writer := multipart.NewWriter(&buf)
+	fileWriter, err := writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fileWriter, file)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers := map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+
+	// get activities before the PUT request
+	activitiesBefore := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesBefore)
+
+	// PUT: create new software title icon
+	resp := s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result := parsePutResponse(resp)
+	iconUrl := fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// get activities after the PUT request
+	activitiesAfter := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfter)
+
+	// verify exactly 1 new edited_software activity was created
+	var editedSoftwareActivitiesBefore []fleet.Activity
+	var editedSoftwareActivitiesAfter []fleet.Activity
+
+	for _, activity := range activitiesBefore.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesBefore = append(editedSoftwareActivitiesBefore, *activity)
+		}
+	}
+
+	for _, activity := range activitiesAfter.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfter = append(editedSoftwareActivitiesAfter, *activity)
+		}
+	}
+
+	require.Len(t, editedSoftwareActivitiesAfter, len(editedSoftwareActivitiesBefore)+1, "Expected exactly 1 new edited_software activity")
+
+	// find the new activity by comparing before and after lists
+	var newActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfter {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesBefore {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			newActivity = &afterActivity
+			break
+		}
+	}
+	require.NotNil(t, newActivity, "Should have found exactly one new activity")
+
+	// verify the new activity has the correct details
+	var details fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*newActivity.Details, &details)
+	require.NoError(t, err)
+	require.Equal(t, "foo", details.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *details.SoftwarePackage)
+	require.Equal(t, iconUrl, *details.SoftwareIconURL)
+	require.Equal(t, titleID, details.SoftwareTitleID)
+
+	// PUT: Icon too large
+	// Create a fake large file (101KB of data)
+	largeData := make([]byte, 101*1024)
+	reader := bytes.NewReader(largeData)
+	iconFile, err := fleet.NewTempFileReader(reader, func() string { return t.TempDir() })
+	require.NoError(t, err)
+
+	var bufInvalid bytes.Buffer
+	writer = multipart.NewWriter(&bufInvalid)
+	fileWriter, err = writer.CreateFormFile("icon", "icon.png")
+	require.NoError(t, err)
+	_, err = io.Copy(fileWriter, iconFile)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		bufInvalid.Bytes(),
+		http.StatusBadRequest,
+		headers,
+	)
+	var errorResp struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Name   string `json:"name"`
+			Reason string `json:"reason"`
+		} `json:"errors"`
+	}
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(body, &errorResp)
+	require.NoError(t, err)
+	assert.Equal(t, "Bad request", errorResp.Message)
+	require.Len(t, errorResp.Errors, 1)
+	assert.Contains(t, errorResp.Errors[0].Reason, "icon must be less than 100KB")
+
+	// PUT: gitops workflow, passing in sha256 & filename
+	var storedIcons []fleet.SoftwareTitleIcon
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+
+	storedIcon := storedIcons[0]
+	var buf2 bytes.Buffer
+	writer = multipart.NewWriter(&buf2)
+	err = writer.WriteField("hash_sha256", storedIcon.StorageID)
+	require.NoError(t, err)
+	err = writer.WriteField("filename", storedIcon.Filename)
+	require.NoError(t, err)
+	err = writer.Close()
+	require.NoError(t, err)
+	headers = map[string]string{
+		"Content-Type":  writer.FormDataContentType(),
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"PUT",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		buf2.Bytes(),
+		http.StatusOK,
+		headers,
+	)
+	result = parsePutResponse(resp)
+	require.Nil(t, result.Err)
+	require.Contains(t, result.IconUrl, iconUrl)
+
+	// verify no new software title icons were created
+	storedIcons = make([]fleet.SoftwareTitleIcon, 0)
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		err := sqlx.SelectContext(ctx, q, &storedIcons, "SELECT storage_id, filename FROM software_title_icons")
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	require.Len(t, storedIcons, 1)
+	require.Equal(t, storedIcon.StorageID, storedIcons[0].StorageID)
+	require.Equal(t, storedIcon.Filename, storedIcons[0].Filename)
+
+	// verify no new activity was created (should still be the same count as before)
+	activitiesAfterGitops := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterGitops)
+	var editedSoftwareActivitiesAfterGitops []fleet.Activity
+	for _, activity := range activitiesAfterGitops.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfterGitops = append(editedSoftwareActivitiesAfterGitops, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivitiesAfterGitops, len(editedSoftwareActivitiesAfter), "No new activity should be created for gitops upload")
+
+	// GET software title icon
+	headers = map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", s.token),
+	}
+	resp = s.DoRawWithHeaders(
+		"GET",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	assert.Equal(t, "image/png", resp.Header.Get("Content-Type"))
+	assert.Equal(t, fmt.Sprintf(`inline; filename="%s"`, "icon.png"), resp.Header.Get("Content-Disposition"))
+	assert.Equal(t, fmt.Sprintf("%d", iconSize), resp.Header.Get("Content-Length"))
+
+	// DELETE software title icon
+	s.DoRawWithHeaders(
+		"DELETE",
+		fmt.Sprintf("/api/latest/fleet/software/titles/%d/icon?team_id=%d", titleID, tm.ID),
+		nil,
+		http.StatusOK,
+		headers,
+	)
+	require.NoError(t, err)
+
+	// verify new activity was created (should be one more than before)
+	activitiesAfterDelete := listActivitiesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activitiesAfterDelete)
+	var editedSoftwareActivitiesAfterDelete []fleet.Activity
+	for _, activity := range activitiesAfterDelete.Activities {
+		if activity.Type == "edited_software" {
+			editedSoftwareActivitiesAfterDelete = append(editedSoftwareActivitiesAfterDelete, *activity)
+		}
+	}
+	require.Len(t, editedSoftwareActivitiesAfterDelete, len(editedSoftwareActivitiesAfter)+1, "Expected exactly 1 new activity after delete")
+
+	// ensure there is an activity where the icon url is set to empty
+	// signifying it's deleted
+	var deleteActivity *fleet.Activity
+	for _, afterActivity := range editedSoftwareActivitiesAfterDelete {
+		isNew := true
+		for _, beforeActivity := range editedSoftwareActivitiesAfter {
+			if afterActivity.ID == beforeActivity.ID {
+				isNew = false
+				break
+			}
+		}
+		if isNew {
+			deleteActivity = &afterActivity
+			break
+		}
+	}
+	require.NotNil(t, deleteActivity, "Should have found exactly one new activity from delete operation")
+
+	// verify the delete activity has the correct details
+	var deleteDetails fleet.ActivityTypeEditedSoftware
+	err = json.Unmarshal(*deleteActivity.Details, &deleteDetails)
+	require.NoError(t, err)
+	require.Equal(t, titleID, deleteDetails.SoftwareTitleID)
+	require.Equal(t, "foo", deleteDetails.SoftwareTitle)
+	require.Equal(t, "foo.pkg", *deleteDetails.SoftwarePackage)
+	require.Equal(t, "", *deleteDetails.SoftwareIconURL, "Icon URL should be empty after deletion")
+
+	_, err = s.softwareInstallStore.Cleanup(ctx, nil, time.Now())
+	require.NoError(t, err)
 }
 
 func (s *integrationEnterpriseTestSuite) TestBatchSetSoftwareInstallers() {
@@ -12791,6 +13392,15 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareInstallerHostRequests() {
 	err = s.ds.SaveAppConfig(context.Background(), appConf)
 	require.NoError(s.T(), err)
 	time.Sleep(2 * time.Second) // Wait for the app config cache to clear
+
+	t.Cleanup(func() {
+		acr := appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	})
 
 	var createTeamResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{
@@ -17282,11 +17892,12 @@ func (s *integrationEnterpriseTestSuite) TestMaintainedApps() {
 	require.Equal(t, tpResp.Policy.ID, gotPolicy.ID)
 
 	// check that we created an activity for the policy creation
+	noTeamID := int64(0)
 	wantAct := fleet.ActivityTypeCreatedPolicy{
 		ID:       gotPolicy.ID,
 		Name:     gotPolicy.Name,
-		TeamID:   0,
-		TeamName: ptr.String("No Team"),
+		TeamID:   &noTeamID,
+		TeamName: nil,
 	}
 	s.lastActivityMatches(wantAct.ActivityName(), string(jsonMustMarshal(t, wantAct)), 0)
 
@@ -18859,4 +19470,1539 @@ func (s *integrationEnterpriseTestSuite) TestConditionalAccessPolicies() {
 	require.Equal(t, "entraUserPrincipalName3", h2s.UserPrincipalName)
 	require.Nil(t, h2s.Managed)
 	require.Nil(t, h2s.Compliant)
+}
+
+func (s *integrationEnterpriseTestSuite) TestOrbitSetupExperienceStatusChecksAuthBeforeMDM() {
+	t := s.T()
+
+	// macOS host should fail with MDM not enabled and configured.
+	h1 := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h1.OrbitNodeKey}, http.StatusBadRequest, &orbitRes,
+	)
+
+	// Linux host should not fail with MDM not enabled and configured.
+	h2 := createOrbitEnrolledHost(t, "ubuntu", "h2", s.ds)
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *h2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.Empty(t, orbitRes.Results)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftware() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Get "Setup experience" items.
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience,
+		"platform", "linux",
+		"team_id", fmt.Sprint(team.ID),
+	)
+	require.Empty(t, respGetSetupExperience.SoftwareTitles)
+
+	// Add a deb package to the team.
+	debPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
+		Title:         "vim",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, debPackage, http.StatusOK, "")
+	debVimTitleID := getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
+	// Add an rpm package to the team.
+	rpmPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for ruby.rpm",
+		Filename:      "ruby.rpm",
+		Title:         "ruby",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, rpmPackage, http.StatusOK, "")
+	rubyVimTitleID := getSoftwareTitleID(t, s.ds, "ruby", "rpm_packages")
+	// Add a tar.gz package to the team.
+	tarGzPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install script for test.tar.gz",
+		UninstallScript: "uninstall script for test.tar.gz",
+		Filename:        "test.tar.gz",
+		Title:           "test",
+		TeamID:          &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, tarGzPackage, http.StatusOK, "")
+	// (tar.gz include the extension on their title.)
+	tarGzPackageTitleID := getSoftwareTitleID(t, s.ds, "test.tar.gz", "tgz_packages")
+
+	// Configure the deb, rpm, and tar.gz packages to run as part of the setup experience for Linux hosts.
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{debVimTitleID, rubyVimTitleID, tarGzPackageTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"platform": "linux", "team_id": %d, "team_name": "%s"}`, team.ID, team.Name), 0)
+
+	// Get "Setup experience" items.
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
+		getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "linux",
+		"team_id", fmt.Sprint(team.ID),
+		"order_key", "id",
+		"order_direction", "asc",
+	)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 3)
+	require.Equal(t, "vim", respGetSetupExperience.SoftwareTitles[0].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.Equal(t, "ruby", respGetSetupExperience.SoftwareTitles[1].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.Equal(t, "test.tar.gz", respGetSetupExperience.SoftwareTitles[2].Name) // (tar.gz include the extension on their title.)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[2].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[2].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[2].SoftwarePackage.InstallDuringSetup)
+
+	createHost := func(hostPlatform, hostPlatformLike string) *fleet.Host {
+		name := t.Name() + "-" + hostPlatform
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Minute),
+			OsqueryHostID:   ptr.String(name),
+			NodeKey:         ptr.String(name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", name),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        hostPlatform,
+			PlatformLike:    hostPlatformLike,
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+		err = s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, "fleet-desktop-token-"+hostPlatform)
+		require.NoError(t, err)
+		return host
+	}
+
+	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
+	teamPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	ubuntuHost := createHost("ubuntu", "debian")
+	fedoraHost := createHost("rhel", "rhel")
+
+	t.Run("ubuntu-success", func(t *testing.T) {
+		// Get status of the "Setup experience" for the Ubuntu host (nothing yet).
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.Empty(t, getDeviceStatusResponse.Results.Software)
+
+		// Trigger "Setup experience" for the Ubuntu host.
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should not return policies because the host
+		// is running the setup experience).
+		s.lq.On("QueriesForHost", ubuntuHost.ID).Return(map[string]string{fmt.Sprintf("%d", ubuntuHost.ID): "SELECT 1 FROM osquery;"}, nil)
+		req := getDistributedQueriesRequest{NodeKey: *ubuntuHost.NodeKey}
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.NotContains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["vim"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+		// Record a result for vim.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["vim"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should now return policies because the host is done with the setup experience).
+		req = getDistributedQueriesRequest{NodeKey: *ubuntuHost.NodeKey}
+		dqResp = getDistributedQueriesResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+	})
+
+	t.Run("fedora-failure", func(t *testing.T) {
+		// Get status of the "Setup experience" for the Fedora host (nothing yet).
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-rhel/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.Empty(t, getDeviceStatusResponse.Results.Software)
+
+		// Trigger "Setup experience" for the Fedora host.
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *fedoraHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Fedora host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-rhel/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "ruby", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should not return policies because the host
+		// is running the setup experience).
+		s.lq.On("QueriesForHost", fedoraHost.ID).Return(map[string]string{fmt.Sprintf("%d", fedoraHost.ID): "SELECT 1 FROM osquery;"}, nil)
+		req := getDistributedQueriesRequest{NodeKey: *fedoraHost.NodeKey}
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.NotContains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		fedoraHostUUID, err := fleet.HostUUIDForSetupExperience(fedoraHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, fedoraHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["ruby"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+		// Record a result for vim.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*fedoraHost.OrbitNodeKey,
+				executionIDs["ruby"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Fedora host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-rhel/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "ruby", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 1,
+					"install_script_output": "failed"
+				}`,
+				*fedoraHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Fedora host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-rhel/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "ruby", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should now return policies because the host is done with the setup experience).
+		req = getDistributedQueriesRequest{NodeKey: *fedoraHost.NodeKey}
+		dqResp = getDistributedQueriesResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+	})
+
+	t.Run("ubuntu-canceled", func(t *testing.T) {
+		// Trigger "Setup experience" for the Ubuntu host (should clear any items from a previous setup experience).
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["vim"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+		// Cancel the software install for vim.
+		s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming/%s", ubuntuHost.ID, executionIDs["vim"]),
+			nil, http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+	})
+
+	t.Run("ubuntu-software-edited-during-se", func(t *testing.T) {
+		// Trigger "Setup experience" for the Ubuntu host (should clear any items from a previous setup experience).
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["vim"])
+		require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+		// Modify the vim installer, which should cause the setup experience item to fail.
+		// update should succeed
+		s.updateSoftwareInstaller(t, &fleet.UpdateSoftwareInstallerPayload{
+			SelfService:       ptr.Bool(true),
+			InstallScript:     ptr.String("some updated install script"),
+			PreInstallQuery:   ptr.String("some new pre install query"),
+			PostInstallScript: ptr.String("some new post install script"),
+			Filename:          "vim.deb",
+			TitleID:           debVimTitleID,
+			TeamID:            &team.ID,
+		}, http.StatusOK, "")
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+
+		s.lastActivityOfTypeMatches(fleet.ActivityTypeInstalledSoftware{}.ActivityName(), fmt.Sprintf(`{
+			"host_id": %d,
+			"host_display_name": %q,
+			"software_title": %q,
+			"software_package": %q,
+			"install_uuid": %q,
+			"status": "failed",
+			"self_service": false,
+			"policy_name": null,
+			"policy_id": null
+		}`, ubuntuHost.ID, ubuntuHost.DisplayName(), "vim", "vim.deb", executionIDs["vim"]), 0)
+
+		// Record a result for test.tar.gz.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				executionIDs["test.tar.gz"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		// Editing the software causes the queued setup experience installation to be marked as failure.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "test.tar.gz", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "vim", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[1].Status)
+	})
+
+	// Transfer the Ubuntu host to "No team".
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{ubuntuHost.ID}}, http.StatusOK)
+
+	// Add a deb package to "No team".
+	debEmacsPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for emacs.deb",
+		Filename:      "emacs.deb",
+		Title:         "emacs",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, debEmacsPackage, http.StatusOK, "")
+	debEmacsTitleID := getSoftwareTitleID(t, s.ds, "emacs", "deb_packages")
+
+	// Configure the deb package to run as part of the setup experience for Linux hosts in "No team".
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   0,
+		TitleIDs: []uint{debEmacsTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		`{"platform": "linux", "team_id": 0, "team_name": ""}`, 0)
+
+	// Get "Setup experience" items for "No team".
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
+		getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "linux",
+		"team_id", "0",
+		"order_key", "id",
+		"order_direction", "asc",
+	)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 1)
+	require.Equal(t, "emacs", respGetSetupExperience.SoftwareTitles[0].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+
+	t.Run("ubuntu-no-team", func(t *testing.T) {
+		// Trigger "Setup experience" for the Ubuntu host.
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 1)
+		require.Equal(t, "emacs", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NotNil(t, results[0].HostSoftwareInstallsExecutionID)
+		emacsExecutionID := *results[0].HostSoftwareInstallsExecutionID
+		require.NotEmpty(t, emacsExecutionID)
+
+		// Record a result for vim.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*ubuntuHost.OrbitNodeKey,
+				emacsExecutionID,
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Ubuntu host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-ubuntu/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 1)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 1)
+		require.Equal(t, "emacs", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestSetupExperienceLinuxWithSoftwareWithoutDesktop() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a deb package to the team.
+	debPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
+		Title:         "vim",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, debPackage, http.StatusOK, "")
+	debVimTitleID := getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
+	// Add a tar.gz package to the team.
+	tarGzPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install script for test.tar.gz",
+		UninstallScript: "uninstall script for test.tar.gz",
+		Filename:        "test.tar.gz",
+		Title:           "test",
+		TeamID:          &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, tarGzPackage, http.StatusOK, "")
+	// (tar.gz include the extension on their title.)
+	tarGzPackageTitleID := getSoftwareTitleID(t, s.ds, "test.tar.gz", "tgz_packages")
+
+	// Configure the deb and tar.gz packages to run as part of the setup experience for Linux hosts.
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{debVimTitleID, tarGzPackageTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	createHost := func(hostPlatform, hostPlatformLike string) *fleet.Host {
+		name := t.Name() + "-" + hostPlatform
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Minute),
+			OsqueryHostID:   ptr.String(name),
+			NodeKey:         ptr.String(name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", name),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        hostPlatform,
+			PlatformLike:    hostPlatformLike,
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+		err = s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, "fleet-desktop-token-"+hostPlatform)
+		require.NoError(t, err)
+		return host
+	}
+
+	ubuntuHost := createHost("ubuntu", "debian")
+
+	// Get status of the "Setup experience" for the Ubuntu host (nothing yet).
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.Empty(t, orbitRes.Results.Software)
+
+	// Trigger "Setup experience" for the Ubuntu host.
+	var orbitInitResponse orbitSetupExperienceInitResponse
+	s.DoJSON(
+		"POST",
+		"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			OrbitNodeKey: *ubuntuHost.OrbitNodeKey,
+		}, http.StatusOK, &orbitInitResponse,
+	)
+	require.NoError(t, orbitInitResponse.Err)
+	require.True(t, orbitInitResponse.Result.Enabled)
+
+	// Get status of the "Setup experience" now that it has been triggered.
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "pending", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "pending", orbitRes.Results.Software[1].Status)
+
+	// The setup_experience/status endpoint doesn't return the various IDs for executions,
+	// so pull it out manually
+	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(ubuntuHost)
+	require.NoError(t, err)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	executionIDs := make(map[string]string) // installer name -> install execution ID
+	for _, result := range results {
+		if result.HostSoftwareInstallsExecutionID != nil {
+			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+		}
+	}
+	require.NotEmpty(t, executionIDs["vim"])
+	require.NotEmpty(t, executionIDs["test.tar.gz"])
+
+	// Record a result for vim.
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+			*ubuntuHost.OrbitNodeKey,
+			executionIDs["vim"],
+		),
+	), http.StatusNoContent)
+
+	// Again get status of the "Setup experience" for the Ubuntu host.
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "running", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+
+	// Record a result for test.tar.gz.
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+			*ubuntuHost.OrbitNodeKey,
+			executionIDs["test.tar.gz"],
+		),
+	), http.StatusNoContent)
+
+	// One last time get status of the "Setup experience" for the Ubuntu host.
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *ubuntuHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "test.tar.gz", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "vim", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+}
+
+func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftware() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Get "Setup experience" items.
+	var respGetSetupExperience getSetupExperienceSoftwareResponse
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software", getSetupExperienceSoftwareRequest{}, http.StatusOK, &respGetSetupExperience,
+		"platform", "windows",
+		"team_id", fmt.Sprint(team.ID),
+	)
+	require.Empty(t, respGetSetupExperience.SoftwareTitles)
+
+	// Add a msi package to the team.
+	msiPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for fleet-osquery.msi",
+		Filename:      "fleet-osquery.msi",
+		Title:         "Fleet osquery",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, msiPackage, http.StatusOK, "")
+	msiPackageTitleID := getSoftwareTitleID(t, s.ds, "Fleet osquery", "programs")
+	// Add a exe installer to the team.
+	exePackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install script for hello-world-installer.exe",
+		UninstallScript: "uninstall script for hello-world-installer.exe", // required for .exe
+		Filename:        "hello-world-installer.exe",
+		Title:           "Hello world",
+		TeamID:          &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, exePackage, http.StatusOK, "")
+	exePackageTitleID := getSoftwareTitleID(t, s.ds, "Hello world", "programs")
+
+	// Configure the msi and exe packages to run as part of the setup experience for Windows hosts.
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "windows",
+		TeamID:   team.ID,
+		TitleIDs: []uint{msiPackageTitleID, exePackageTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		fmt.Sprintf(`{"platform": "windows", "team_id": %d, "team_name": "%s"}`, team.ID, team.Name), 0)
+
+	// Add a deb package to the Linux setup experience to test
+	// that only msi and exe are queued on Windows hosts.
+	debPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
+		Title:         "vim",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, debPackage, http.StatusOK, "")
+	debVimTitleID := getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{debVimTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	// Get "Setup experience" items.
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
+		getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "windows",
+		"team_id", fmt.Sprint(team.ID),
+		"order_key", "id",
+		"order_direction", "asc",
+	)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
+	require.Equal(t, "Fleet osquery", respGetSetupExperience.SoftwareTitles[0].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.Equal(t, "Hello world", respGetSetupExperience.SoftwareTitles[1].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+
+	i := 0
+	createHost := func(team *fleet.Team, hostPlatform, hostPlatformLike string) *fleet.Host {
+		name := t.Name() + "-" + hostPlatform + fmt.Sprint(i)
+		var teamID *uint
+		if team != nil {
+			teamID = &team.ID
+		}
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Minute),
+			OsqueryHostID:   ptr.String(name),
+			NodeKey:         ptr.String(name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", name),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        hostPlatform,
+			PlatformLike:    hostPlatformLike,
+			TeamID:          teamID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+		err = s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, "fleet-desktop-token-"+fmt.Sprint(i))
+		require.NoError(t, err)
+		i++
+		return host
+	}
+
+	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
+	teamPolicy, err := s.ds.NewTeamPolicy(ctx, team.ID, &user1.ID, fleet.PolicyPayload{
+		Name:  "foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	windowsHost1 := createHost(team, "windows", "windows")
+
+	t.Run("windows-success", func(t *testing.T) {
+		// Get status of the "Setup experience" for the Windows host (nothing yet).
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-0/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.Empty(t, getDeviceStatusResponse.Results.Software)
+
+		// Trigger "Setup experience" for the Windows host.
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *windowsHost1.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-0/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should not return policies because the host
+		// is running the setup experience).
+		s.lq.On("QueriesForHost", windowsHost1.ID).Return(map[string]string{fmt.Sprintf("%d", windowsHost1.ID): "SELECT 1 FROM osquery;"}, nil)
+		req := getDistributedQueriesRequest{NodeKey: *windowsHost1.NodeKey}
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.NotContains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost1)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["Fleet osquery"])
+		require.NotEmpty(t, executionIDs["Hello world"])
+
+		// Record a result for Fleet osquery.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*windowsHost1.OrbitNodeKey,
+				executionIDs["Fleet osquery"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-0/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Record a result for Hello world.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*windowsHost1.OrbitNodeKey,
+				executionIDs["Hello world"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-0/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should now return policies because the host is done with the setup experience).
+		req = getDistributedQueriesRequest{NodeKey: *windowsHost1.NodeKey}
+		dqResp = getDistributedQueriesResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", teamPolicy.ID))
+
+		// Get status of the "Setup experience" via orbit (orbit will use it to mark the setup experience as done).
+		var orbitRes getOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost1.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		)
+		require.NotNil(t, orbitRes.Results)
+		require.Len(t, orbitRes.Results.Software, 2)
+		sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+			return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
+		require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
+		require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
+		require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+	})
+
+	// Add a msi package to "No team".
+	msiPackageNoTeam := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for fleet-osquery.msi",
+		Filename:      "fleet-osquery.msi",
+		Title:         "Fleet osquery",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, msiPackageNoTeam, http.StatusOK, "")
+	msiPackageTitleID = getSoftwareTitleID(t, s.ds, "Fleet osquery", "programs")
+	// Add a exe installer to the team.
+	exePackageNoTeam := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install script for hello-world-installer.exe",
+		UninstallScript: "uninstall script for hello-world-installer.exe", // required for .exe
+		Filename:        "hello-world-installer.exe",
+		Title:           "Hello world",
+		TeamID:          nil,
+	}
+	s.uploadSoftwareInstaller(t, exePackageNoTeam, http.StatusOK, "")
+	exePackageTitleID = getSoftwareTitleID(t, s.ds, "Hello world", "programs")
+
+	// Configure the msi and exe packages to run as part of the setup experience for Windows hosts in "No team".
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "windows",
+		TeamID:   uint(0),
+		TitleIDs: []uint{msiPackageTitleID, exePackageTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	s.lastActivityOfTypeMatches(fleet.ActivityEditedSetupExperienceSoftware{}.ActivityName(),
+		`{"platform": "windows", "team_id": 0, "team_name": ""}`, 0)
+
+	// Add a deb package to the Linux setup experience to test
+	// that only msi and exe are queued on Windows hosts.
+	debPackageNoTeam := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
+		Title:         "vim",
+		TeamID:        nil,
+	}
+	s.uploadSoftwareInstaller(t, debPackageNoTeam, http.StatusOK, "")
+	debVimTitleID = getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   uint(0),
+		TitleIDs: []uint{debVimTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	// Get "Setup experience" items for "No team".
+	respGetSetupExperience = getSetupExperienceSoftwareResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/setup_experience/software",
+		getSetupExperienceSoftwareRequest{},
+		http.StatusOK,
+		&respGetSetupExperience,
+		"platform", "windows",
+		"team_id", "0",
+		"order_key", "id",
+		"order_direction", "asc",
+	)
+	require.Len(t, respGetSetupExperience.SoftwareTitles, 2)
+	require.Equal(t, "Fleet osquery", respGetSetupExperience.SoftwareTitles[0].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[0].SoftwarePackage.InstallDuringSetup)
+	require.Equal(t, "Hello world", respGetSetupExperience.SoftwareTitles[1].Name)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage)
+	require.NotNil(t, respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+	require.True(t, *respGetSetupExperience.SoftwareTitles[1].SoftwarePackage.InstallDuringSetup)
+
+	windowsHost2 := createHost(nil, "windows", "windows")
+
+	globalPolicy, err := s.ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
+		Name:  "foobar",
+		Query: "SELECT 1;",
+	})
+	require.NoError(t, err)
+
+	t.Run("windows-failure-no-team", func(t *testing.T) {
+		// Get status of the "Setup experience" for the Windows host (nothing yet).
+		var getDeviceStatusResponse getDeviceSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-1/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.Empty(t, getDeviceStatusResponse.Results.Software)
+
+		// Trigger "Setup experience" for the Windows host.
+		var orbitInitResponse orbitSetupExperienceInitResponse
+		s.DoJSON(
+			"POST",
+			"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+				OrbitNodeKey: *windowsHost2.OrbitNodeKey,
+			}, http.StatusOK, &orbitInitResponse,
+		)
+		require.NoError(t, orbitInitResponse.Err)
+		require.True(t, orbitInitResponse.Result.Enabled)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-1/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "pending", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should not return policies because the host
+		// is running the setup experience).
+		s.lq.On("QueriesForHost", windowsHost2.ID).Return(map[string]string{fmt.Sprintf("%d", windowsHost2.ID): "SELECT 1 FROM osquery;"}, nil)
+		req := getDistributedQueriesRequest{NodeKey: *windowsHost2.NodeKey}
+		var dqResp getDistributedQueriesResponse
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.NotContains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", globalPolicy.ID))
+
+		// The setup_experience/status endpoint doesn't return the various IDs for executions,
+		// so pull it out manually
+		windowsHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost2)
+		require.NoError(t, err)
+		results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, windowsHostUUID)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		executionIDs := make(map[string]string) // installer name -> install execution ID
+		for _, result := range results {
+			if result.HostSoftwareInstallsExecutionID != nil {
+				executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+			}
+		}
+		require.NotEmpty(t, executionIDs["Fleet osquery"])
+		require.NotEmpty(t, executionIDs["Hello world"])
+
+		// Record a failing result for Fleet osquery.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 1,
+					"install_script_output": "ok"
+				}`,
+				*windowsHost2.OrbitNodeKey,
+				executionIDs["Fleet osquery"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-1/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "running", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Record a result for Hello world.
+		s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+			fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+				*windowsHost2.OrbitNodeKey,
+				executionIDs["Hello world"],
+			),
+		), http.StatusNoContent)
+
+		// Get status of the "Setup experience" for the Windows host.
+		getDeviceStatusResponse = getDeviceSetupExperienceStatusResponse{}
+		s.DoJSON("POST", "/api/v1/fleet/device/fleet-desktop-token-1/setup_experience/status",
+			getDeviceSetupExperienceStatusRequest{}, http.StatusOK, &getDeviceStatusResponse,
+		)
+		require.NoError(t, getDeviceStatusResponse.Err)
+		require.NotNil(t, getDeviceStatusResponse.Results)
+		require.Len(t, getDeviceStatusResponse.Results.Software, 2)
+		sort.Slice(getDeviceStatusResponse.Results.Software, func(i, j int) bool {
+			return getDeviceStatusResponse.Results.Software[i].Name < getDeviceStatusResponse.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", getDeviceStatusResponse.Results.Software[0].Name)
+		require.EqualValues(t, "failure", getDeviceStatusResponse.Results.Software[0].Status)
+		require.Equal(t, "Hello world", getDeviceStatusResponse.Results.Software[1].Name)
+		require.EqualValues(t, "success", getDeviceStatusResponse.Results.Software[1].Status)
+
+		// Get distributed queries for the host (should now return policies because the host is done with the setup experience).
+		req = getDistributedQueriesRequest{NodeKey: *windowsHost2.NodeKey}
+		dqResp = getDistributedQueriesResponse{}
+		s.DoJSON("POST", "/api/osquery/distributed/read", req, http.StatusOK, &dqResp)
+		require.Contains(t, dqResp.Queries, fmt.Sprintf("fleet_policy_query_%d", globalPolicy.ID))
+
+		// Get status of the "Setup experience" via orbit (orbit will use it to mark the setup experience as done).
+		var orbitRes getOrbitSetupExperienceStatusResponse
+		s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+			getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost2.OrbitNodeKey}, http.StatusOK, &orbitRes,
+		)
+		require.NotNil(t, orbitRes.Results)
+		require.Len(t, orbitRes.Results.Software, 2)
+		sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+			return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+		})
+		require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
+		require.EqualValues(t, "failure", orbitRes.Results.Software[0].Status)
+		require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
+		require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
+	})
+}
+
+func (s *integrationEnterpriseTestSuite) TestSetupExperienceWindowsWithSoftwareWithoutDesktop() {
+	t := s.T()
+	ctx := context.Background()
+
+	team, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+	require.NoError(t, err)
+
+	// Add a msi package to the team.
+	msiPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for fleet-osquery.msi",
+		Filename:      "fleet-osquery.msi",
+		Title:         "Fleet osquery",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, msiPackage, http.StatusOK, "")
+	msiPackageTitleID := getSoftwareTitleID(t, s.ds, "Fleet osquery", "programs")
+	// Add a exe installer to the team.
+	exePackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript:   "install script for hello-world-installer.exe",
+		UninstallScript: "uninstall script for hello-world-installer.exe", // required for .exe
+		Filename:        "hello-world-installer.exe",
+		Title:           "Hello world",
+		TeamID:          &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, exePackage, http.StatusOK, "")
+	exePackageTitleID := getSoftwareTitleID(t, s.ds, "Hello world", "programs")
+	// Add a deb package to the team.
+	debPackage := &fleet.UploadSoftwareInstallerPayload{
+		InstallScript: "install script for vim.deb",
+		Filename:      "vim.deb",
+		Title:         "vim",
+		TeamID:        &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, debPackage, http.StatusOK, "")
+	debVimTitleID := getSoftwareTitleID(t, s.ds, "vim", "deb_packages")
+
+	// Configure the deb package to run as part of the setup experience for Linux hosts.
+	var swInstallResp putSetupExperienceSoftwareResponse
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "linux",
+		TeamID:   team.ID,
+		TitleIDs: []uint{debVimTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	// Configure the msi and exe packages to run as part of the setup experience for Windows hosts.
+	swInstallResp = putSetupExperienceSoftwareResponse{}
+	s.DoJSON("PUT", "/api/v1/fleet/setup_experience/software", putSetupExperienceSoftwareRequest{
+		Platform: "windows",
+		TeamID:   team.ID,
+		TitleIDs: []uint{msiPackageTitleID, exePackageTitleID},
+	}, http.StatusOK, &swInstallResp)
+	require.NoError(t, swInstallResp.Err)
+
+	createHost := func(hostPlatform, hostPlatformLike string) *fleet.Host {
+		name := t.Name() + "-" + hostPlatform
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Minute),
+			OsqueryHostID:   ptr.String(name),
+			NodeKey:         ptr.String(name),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%s.local", name),
+			HardwareSerial:  uuid.New().String(),
+			Platform:        hostPlatform,
+			PlatformLike:    hostPlatformLike,
+			TeamID:          &team.ID,
+		})
+		require.NoError(t, err)
+		orbitKey := setOrbitEnrollment(t, host, s.ds)
+		host.OrbitNodeKey = &orbitKey
+		err = s.ds.SetOrUpdateDeviceAuthToken(ctx, host.ID, "fleet-desktop-token-"+hostPlatform)
+		require.NoError(t, err)
+		return host
+	}
+
+	windowsHost := createHost("windows", "windows")
+
+	// Trigger "Setup experience" for the Windows host.
+	var orbitInitResponse orbitSetupExperienceInitResponse
+	s.DoJSON(
+		"POST",
+		"/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitRequest{
+			OrbitNodeKey: *windowsHost.OrbitNodeKey,
+		}, http.StatusOK, &orbitInitResponse,
+	)
+	require.NoError(t, orbitInitResponse.Err)
+	require.True(t, orbitInitResponse.Result.Enabled)
+
+	// Get status of the "Setup experience" now that it has been triggered.
+	var orbitRes getOrbitSetupExperienceStatusResponse
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "pending", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "pending", orbitRes.Results.Software[1].Status)
+
+	// The setup_experience/status endpoint doesn't return the various IDs for executions,
+	// so pull it out manually
+	ubuntuHostUUID, err := fleet.HostUUIDForSetupExperience(windowsHost)
+	require.NoError(t, err)
+	results, err := s.ds.ListSetupExperienceResultsByHostUUID(ctx, ubuntuHostUUID)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	executionIDs := make(map[string]string) // installer name -> install execution ID
+	for _, result := range results {
+		if result.HostSoftwareInstallsExecutionID != nil {
+			executionIDs[result.Name] = *result.HostSoftwareInstallsExecutionID
+		}
+	}
+	require.NotEmpty(t, executionIDs["Fleet osquery"])
+	require.NotEmpty(t, executionIDs["Hello world"])
+
+	// Record a result for Fleet osquery.
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+			*windowsHost.OrbitNodeKey,
+			executionIDs["Fleet osquery"],
+		),
+	), http.StatusNoContent)
+
+	// Again get status of the "Setup experience" for the Windos host.
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "running", orbitRes.Results.Software[1].Status)
+
+	// Record a result for Hello world.
+	s.Do("POST", "/api/fleet/orbit/software_install/result", json.RawMessage(
+		fmt.Sprintf(`{
+					"orbit_node_key": %q,
+					"install_uuid": %q,
+					"install_script_exit_code": 0,
+					"install_script_output": "ok"
+				}`,
+			*windowsHost.OrbitNodeKey,
+			executionIDs["Hello world"],
+		),
+	), http.StatusNoContent)
+
+	// One last time get status of the "Setup experience" for the Ubuntu host.
+	orbitRes = getOrbitSetupExperienceStatusResponse{}
+	s.DoJSON("POST", "/api/fleet/orbit/setup_experience/status",
+		getOrbitSetupExperienceStatusRequest{OrbitNodeKey: *windowsHost.OrbitNodeKey}, http.StatusOK, &orbitRes,
+	)
+	require.NotNil(t, orbitRes.Results)
+	require.NotNil(t, orbitRes.Results)
+	require.Len(t, orbitRes.Results.Software, 2)
+	sort.Slice(orbitRes.Results.Software, func(i, j int) bool {
+		return orbitRes.Results.Software[i].Name < orbitRes.Results.Software[j].Name
+	})
+	require.Equal(t, "Fleet osquery", orbitRes.Results.Software[0].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[0].Status)
+	require.Equal(t, "Hello world", orbitRes.Results.Software[1].Name)
+	require.EqualValues(t, "success", orbitRes.Results.Software[1].Status)
 }

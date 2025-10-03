@@ -39,6 +39,8 @@ const NoKernelsDetected = (): JSX.Element => {
 };
 
 interface ISoftwareVulnerabilitiesTableProps {
+  osName: string;
+  osVersion: string;
   data: IOperatingSystemKernels[];
   isLoading: boolean;
   className?: string;
@@ -53,6 +55,8 @@ interface IRowProps extends Row {
 }
 
 const OSKernelsTable = ({
+  osName,
+  osVersion,
   data,
   isLoading,
   className,
@@ -76,7 +80,11 @@ const OSKernelsTable = ({
     }
   };
 
-  const tableHeaders = generateTableConfig({ teamId: teamIdForApi });
+  const tableHeaders = generateTableConfig({
+    teamId: teamIdForApi,
+    osName,
+    osVersion,
+  });
 
   const rendersOsKernelsVersionCount = () => (
     <TableCount name="items" count={data?.length} />

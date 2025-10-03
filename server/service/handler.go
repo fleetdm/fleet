@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -29,6 +30,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/middleware/endpoint_utils"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/log"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/mdmconfigured"
+	"github.com/fleetdm/fleet/v4/server/service/middleware/otel"
 	"github.com/fleetdm/fleet/v4/server/service/middleware/ratelimit"
 	kithttp "github.com/go-kit/kit/transport/http"
 	kitlog "github.com/go-kit/log"
@@ -117,7 +119,13 @@ func MakeHandler(
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled {
 		if config.Logging.TracingType == "opentelemetry" {
-			r.Use(otmiddleware.Middleware("fleet"))
+			r.Use(otmiddleware.Middleware(
+				"service",
+				otmiddleware.WithSpanNameFormatter(func(route string, r *http.Request) string {
+					// Use the guideline for span names: {method} {target}
+					// See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+					return r.Method + " " + route
+				})))
 		} else {
 			apmgorilla.Instrument(r)
 		}
@@ -371,14 +379,22 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/software/batch", batchSetSoftwareInstallersEndpoint, batchSetSoftwareInstallersRequest{})
 	ue.GET("/api/_version_/fleet/software/batch/{request_uuid}", batchSetSoftwareInstallersResultEndpoint, batchSetSoftwareInstallersResultRequest{})
 
+	// software title custom icons
+	ue.GET("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", getSoftwareTitleIconsEndpoint, getSoftwareTitleIconsRequest{})
+	ue.PUT("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", putSoftwareTitleIconEndpoint, putSoftwareTitleIconRequest{})
+	ue.DELETE("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/icon", deleteSoftwareTitleIconEndpoint, deleteSoftwareTitleIconRequest{})
+
 	// App store software
 	ue.GET("/api/_version_/fleet/software/app_store_apps", getAppStoreAppsEndpoint, getAppStoreAppsRequest{})
 	ue.POST("/api/_version_/fleet/software/app_store_apps", addAppStoreAppEndpoint, addAppStoreAppRequest{})
 	ue.PATCH("/api/_version_/fleet/software/titles/{title_id:[0-9]+}/app_store_app", updateAppStoreAppEndpoint, updateAppStoreAppRequest{})
 
 	// Setup Experience
+	//
+	// Setup experience software endpoints:
 	ue.PUT("/api/_version_/fleet/setup_experience/software", putSetupExperienceSoftware, putSetupExperienceSoftwareRequest{})
 	ue.GET("/api/_version_/fleet/setup_experience/software", getSetupExperienceSoftware, getSetupExperienceSoftwareRequest{})
+	// Setup experience script endpoints:
 	ue.GET("/api/_version_/fleet/setup_experience/script", getSetupExperienceScriptEndpoint, getSetupExperienceScriptRequest{})
 	ue.POST("/api/_version_/fleet/setup_experience/script", setSetupExperienceScriptEndpoint, setSetupExperienceScriptRequest{})
 	ue.DELETE("/api/_version_/fleet/setup_experience/script", deleteSetupExperienceScriptEndpoint, deleteSetupExperienceScriptRequest{})
@@ -503,6 +519,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/cancel", batchScriptCancelEndpoint, batchScriptCancelRequest{})
 	// Deprecated, will remove in favor of batchScriptExecutionStatusEndpoint when batch script details page is ready.
 	ue.GET("/api/_version_/fleet/scripts/batch/summary/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionSummaryEndpoint, batchScriptExecutionSummaryRequest{})
+	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}/host-results", batchScriptExecutionHostResultsEndpoint, batchScriptExecutionHostResultsRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch/{batch_execution_id:[a-zA-Z0-9-]+}", batchScriptExecutionStatusEndpoint, batchScriptExecutionStatusRequest{})
 	ue.GET("/api/_version_/fleet/scripts/batch", batchScriptExecutionListEndpoint, batchScriptExecutionListRequest{})
 
@@ -736,6 +753,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// POST /configuration_profiles endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles/batch", batchModifyMDMConfigProfilesEndpoint, batchModifyMDMConfigProfilesRequest{})
 
 	// Deprecated: POST /hosts/{host_id:[0-9]+}/configuration_profiles/resend/{profile_uuid} is now deprecated, replaced by the
 	// POST /hosts/{host_id:[0-9]+}/configuration_profiles/{profile_uuid}/resend endpoint.
@@ -800,6 +818,16 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// input to `fleetctl apply`
 	ue.POST("/api/_version_/fleet/mdm/profiles/batch", batchSetMDMProfilesEndpoint, batchSetMDMProfilesRequest{})
 
+	// Certificate Authority endpoints
+	ue.POST("/api/_version_/fleet/certificate_authorities", createCertificateAuthorityEndpoint, createCertificateAuthorityRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities", listCertificateAuthoritiesEndpoint, listCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", getCertificateAuthorityEndpoint, getCertificateAuthorityRequest{})
+	ue.DELETE("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", deleteCertificateAuthorityEndpoint, deleteCertificateAuthorityRequest{})
+	ue.PATCH("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}", updateCertificateAuthorityEndpoint, updateCertificateAuthorityRequest{})
+	ue.POST("/api/_version_/fleet/certificate_authorities/{id:[0-9]+}/request_certificate", requestCertificateEndpoint, requestCertificateRequest{})
+	ue.POST("/api/_version_/fleet/spec/certificate_authorities", batchApplyCertificateAuthoritiesEndpoint, batchApplyCertificateAuthoritiesRequest{})
+	ue.GET("/api/_version_/fleet/spec/certificate_authorities", getCertificateAuthoritiesSpecEndpoint, getCertificateAuthoritiesSpecRequest{})
+
 	errorLimiter := ratelimit.NewErrorMiddleware(limitStore)
 
 	// device-authenticated endpoints
@@ -853,6 +881,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	de.WithCustomMiddleware(
 		errorLimiter.Limit("get_device_certificates", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/certificates", listDeviceCertificatesEndpoint, listDeviceCertificatesRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("setup_experience_status", desktopQuota, logger),
+	).POST("/api/_version_/fleet/device/{token}/setup_experience/status", getDeviceSetupExperienceStatusEndpoint, getDeviceSetupExperienceStatusRequest{})
+	de.WithCustomMiddleware(
+		errorLimiter.Limit("get_software_icon", desktopQuota, logger),
+	).GET("/api/_version_/fleet/device/{token}/software/titles/{software_title_id}/icon", getDeviceSoftwareIconEndpoint, getDeviceSoftwareIconRequest{})
 
 	// mdm-related endpoints available via device authentication
 	demdm := de.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
@@ -863,6 +897,9 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 		errorLimiter.Limit("get_device_software_mdm_command_results", desktopQuota, logger),
 	).GET("/api/_version_/fleet/device/{token}/software/commands/{command_uuid}/results", getDeviceMDMCommandResultsEndpoint,
 		getDeviceMDMCommandResultsRequest{})
+	demdm.WithCustomMiddleware(
+		errorLimiter.Limit("resend_configuration_profile", desktopQuota, logger),
+	).POST("/api/_version_/fleet/device/{token}/configuration_profiles/{profile_uuid}/resend", resendDeviceConfigurationProfileEndpoint, resendDeviceConfigurationProfileRequest{})
 
 	demdm.WithCustomMiddleware(
 		errorLimiter.Limit("post_device_migrate_mdm", desktopQuota, logger),
@@ -907,8 +944,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	oe.POST("/api/fleet/orbit/software_install/result", postOrbitSoftwareInstallResultEndpoint, orbitPostSoftwareInstallResultRequest{})
 	oe.POST("/api/fleet/orbit/software_install/package", orbitDownloadSoftwareInstallerEndpoint, orbitDownloadSoftwareInstallerRequest{})
 	oe.POST("/api/fleet/orbit/software_install/details", getOrbitSoftwareInstallDetails, orbitGetSoftwareInstallRequest{})
+	oe.POST("/api/fleet/orbit/setup_experience/init", orbitSetupExperienceInitEndpoint, orbitSetupExperienceInitRequest{})
 
-	oeAppleMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleMDM())
+	// POST /api/fleet/orbit/setup_experience/status is used by macOS and Linux hosts.
+	// For macOS hosts we verify Apple MDM is enabled and configured.
+	oeAppleMDM := oe.WithCustomMiddlewareAfterAuth(mdmConfiguredMiddleware.VerifyAppleMDMOnMacOSHosts())
 	oeAppleMDM.POST("/api/fleet/orbit/setup_experience/status", getOrbitSetupExperienceStatusEndpoint, getOrbitSetupExperienceStatusRequest{})
 
 	oeWindowsMDM := oe.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyWindowsMDM())
@@ -1138,14 +1178,15 @@ func RegisterAppleMDMProtocolServices(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
-	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger); err != nil {
+	if err := registerSCEP(mux, scepConfig, scepStorage, mdmStorage, logger, fleetConfig); err != nil {
 		return fmt.Errorf("scep: %w", err)
 	}
-	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger); err != nil {
+	if err := registerMDM(mux, mdmStorage, checkinAndCommandService, ddmService, profileService, logger, fleetConfig); err != nil {
 		return fmt.Errorf("mdm: %w", err)
 	}
-	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix); err != nil {
+	if err := registerMDMServiceDiscovery(mux, logger, serverURLPrefix, fleetConfig); err != nil {
 		return fmt.Errorf("service discovery: %w", err)
 	}
 	return nil
@@ -1155,6 +1196,7 @@ func registerMDMServiceDiscovery(
 	mux *http.ServeMux,
 	logger kitlog.Logger,
 	serverURLPrefix string,
+	fleetConfig config.FleetConfig,
 ) error {
 	serviceDiscoveryLogger := kitlog.With(logger, "component", "mdm-apple-service-discovery")
 	fullMDMEnrollmentURL := fmt.Sprintf("%s%s", serverURLPrefix, apple_mdm.AccountDrivenEnrollPath)
@@ -1168,7 +1210,7 @@ func registerMDMServiceDiscovery(
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		}
 	})
-	mux.Handle(apple_mdm.ServiceDiscoveryPath, serviceDiscoveryHandler)
+	mux.Handle(apple_mdm.ServiceDiscoveryPath, otel.WrapHandler(serviceDiscoveryHandler, apple_mdm.ServiceDiscoveryPath, fleetConfig))
 	return nil
 }
 
@@ -1180,6 +1222,7 @@ func registerSCEP(
 	scepStorage scep_depot.Depot,
 	mdmStorage fleet.MDMAppleStore,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	var signer scepserver.CSRSignerContext = scepserver.SignCSRAdapter(scep_depot.NewSigner(
 		scepStorage,
@@ -1204,7 +1247,7 @@ func registerSCEP(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandler(e, scepService, scepLogger)
-	mux.Handle(apple_mdm.SCEPPath, scepHandler)
+	mux.Handle(apple_mdm.SCEPPath, otel.WrapHandler(scepHandler, apple_mdm.SCEPPath, fleetConfig))
 	return nil
 }
 
@@ -1213,7 +1256,11 @@ func RegisterSCEPProxy(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	timeout *time.Duration,
+	fleetConfig *config.FleetConfig,
 ) error {
+	if fleetConfig == nil {
+		return errors.New("fleet config is nil")
+	}
 	scepService := eeservice.NewSCEPProxyService(
 		ds,
 		kitlog.With(logger, "component", "scep-proxy-service"),
@@ -1224,6 +1271,8 @@ func RegisterSCEPProxy(
 	e.GetEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.GetEndpoint)
 	e.PostEndpoint = scepserver.EndpointLoggingMiddleware(scepLogger)(e.PostEndpoint)
 	scepHandler := scepserver.MakeHTTPHandlerWithIdentifier(e, apple_mdm.SCEPProxyPath, scepLogger)
+	// Not using OTEL dynamic wrapper so as not to expose {identifier} in the span name
+	scepHandler = otel.WrapHandler(scepHandler, apple_mdm.SCEPProxyPath, *fleetConfig)
 	rootMux.Handle(apple_mdm.SCEPProxyPath, scepHandler)
 	return nil
 }
@@ -1262,6 +1311,7 @@ func registerMDM(
 	ddmService nanomdm_service.DeclarativeManagement,
 	profileService nanomdm_service.ProfileService,
 	logger kitlog.Logger,
+	fleetConfig config.FleetConfig,
 ) error {
 	certVerifier := mdmcrypto.NewSCEPVerifier(mdmStorage)
 	mdmLogger := NewNanoMDMLogger(kitlog.With(logger, "component", "http-mdm-apple-mdm"))
@@ -1275,7 +1325,7 @@ func registerMDM(
 	// the device.
 	// 5. Run actual MDM service operation (checkin handler or command and results handler).
 	coreMDMService := nanomdm.New(mdmStorage, nanomdm.WithLogger(mdmLogger), nanomdm.WithDeclarativeManagement(ddmService),
-		nanomdm.WithProfileService(profileService))
+		nanomdm.WithProfileService(profileService), nanomdm.WithUserAuthenticate(checkinAndCommandService))
 	// NOTE: it is critical that the coreMDMService runs first, as the first
 	// service in the multi-service feature is run to completion _before_ running
 	// the other ones in parallel. This way, subsequent services have access to
@@ -1293,7 +1343,7 @@ func registerMDM(
 	}
 	mdmHandler = httpmdm.CertExtractMdmSignatureMiddleware(mdmHandler, httpmdm.MdmSignatureVerifierFunc(cryptoutil.VerifyMdmSignature),
 		httpmdm.SigLogWithLogger(mdmLogger.With("handler", "cert-extract")))
-	mux.Handle(apple_mdm.MDMPath, mdmHandler)
+	mux.Handle(apple_mdm.MDMPath, otel.WrapHandler(mdmHandler, apple_mdm.MDMPath, fleetConfig))
 	return nil
 }
 

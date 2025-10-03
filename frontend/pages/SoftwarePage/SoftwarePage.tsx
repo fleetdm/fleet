@@ -27,6 +27,7 @@ import TeamsHeader from "components/TeamsHeader";
 import TooltipWrapper from "components/TooltipWrapper";
 import TabNav from "components/TabNav";
 import TabText from "components/TabText";
+import PageDescription from "components/PageDescription";
 
 import ManageAutomationsModal from "./components/modals/ManageSoftwareAutomationsModal";
 import AddSoftwareModal from "./components/modals/AddSoftwareModal";
@@ -380,10 +381,10 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
       suffix = isAllTeamsSelected ? " for all hosts" : " on this team";
     }
     return (
-      <p>
+      <>
         Manage software and search for installed software, OS, and
         vulnerabilities{suffix}.
-      </p>
+      </>
     );
   };
 
@@ -451,9 +452,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           </div>
           {renderPageActions()}
         </div>
-        <div className={`${baseClass}__description`}>
-          {renderHeaderDescription()}
-        </div>
+        <PageDescription content={renderHeaderDescription()} />
         {renderBody()}
         {showManageAutomationsModal && softwareConfig && (
           <ManageAutomationsModal

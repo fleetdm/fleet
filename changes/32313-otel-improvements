@@ -1,0 +1,1 @@
+Minor OpenTelemetry improvements: added tracing to async tasks (host seen, labels, policies, query stats). Improved HTTP span naming, enabled gzip compression, reduced batch size to prevent gRPC errors.

@@ -6961,7 +6961,7 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	res := s.Do("POST", "/api/latest/fleet/mdm/apple/profiles/batch",
 		map[string]interface{}{"profiles": [][]byte{[]byte(`xyz`)}}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Fleet MDM is not configured")
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
 	// update MDM disk encryption
 	_ = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, http.StatusPaymentRequired)
@@ -8266,7 +8266,7 @@ func (s *integrationTestSuite) TestOsqueryConfig() {
 	assert.Contains(t, errRes["error"], "invalid node key")
 }
 
-func (s *integrationTestSuite) TestEnrollHost() {
+func (s *integrationTestSuite) TestEnrollOsquery() {
 	t := s.T()
 
 	// set the enroll secret
@@ -10033,7 +10033,9 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 
 	// create a host with device token to test device authenticated routes
 	tkn := "D3V1C370K3N"
-	createHostAndDeviceToken(t, s.ds, tkn)
+	h := createHostAndDeviceToken(t, s.ds, tkn)
+	orbitKey := setOrbitEnrollment(t, h, s.ds)
+	h.OrbitNodeKey = &orbitKey
 
 	windowsOnly := windowsMDMConfigurationRequiredEndpoints()
 
@@ -10051,7 +10053,13 @@ func (s *integrationTestSuite) TestMDMNotConfiguredEndpoints() {
 		if route.deviceAuthenticated {
 			path = fmt.Sprintf(path, tkn)
 		}
-		res := s.Do(route.method, path, nil, expectedErr.StatusCode())
+		var params interface{}
+		if route.method == "POST" && route.path == "/api/fleet/orbit/setup_experience/status" {
+			params = getOrbitSetupExperienceStatusRequest{
+				OrbitNodeKey: *h.OrbitNodeKey,
+			}
+		}
+		res := s.Do(route.method, path, params, expectedErr.StatusCode())
 		errMsg := extractServerErrorText(res.Body)
 		assert.Contains(t, errMsg, expectedErr.Error(), fmt.Sprintf("%s %s", route.method, path))
 	}
@@ -10115,7 +10123,7 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	abmToken, err := s.ds.InsertABMToken(ctx, &fleet.ABMToken{OrganizationName: "unused", EncryptedToken: []byte(encTok), RenewAt: time.Now().Add(30 * 24 * time.Hour)})
 	require.NoError(t, err)
 	require.NotEmpty(t, abmToken.ID)
-	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM}, abmToken.ID)
+	err = s.ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*hFleetMDM}, abmToken.ID, make(map[uint]time.Time))
 	require.NoError(t, err)
 	err = s.ds.SetOrUpdateMDMData(context.Background(), hSimpleMDM.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "", false)
 	require.NoError(t, err)
@@ -10297,7 +10305,7 @@ func setOrbitEnrollment(t *testing.T, h *fleet.Host, ds fleet.Datastore) string 
 	return orbitKey
 }
 
-func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore) *fleet.Host {
+func createOrbitEnrolledHost(t *testing.T, platform, suffix string, ds fleet.Datastore) *fleet.Host {
 	name := t.Name() + suffix
 	h, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
@@ -10309,7 +10317,7 @@ func createOrbitEnrolledHost(t *testing.T, os, suffix string, ds fleet.Datastore
 		UUID:            uuid.New().String(),
 		Hostname:        fmt.Sprintf("%s.local", name),
 		HardwareSerial:  uuid.New().String(),
-		Platform:        os,
+		Platform:        platform,
 	})
 	require.NoError(t, err)
 
@@ -10795,7 +10803,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 			EnableScheduledQueryStats: true,
 		},
 	}, appConfig, &appConfig.Features, osquery_utils.Integrations{}, nil)
-	task := async.NewTask(s.ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(s.ds, nil, clock.C, nil)
 	err = detailQueries["scheduled_query_stats"].DirectTaskIngestFunc(
 		context.Background(),
 		log.NewNopLogger(),
@@ -13774,7 +13782,7 @@ func createAndroidHosts(t *testing.T, ds *mysql.Datastore, count int, teamID *ui
 			Device: &android.Device{
 				DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""), // Remove dashes to fit in VARCHAR(37)
 				EnterpriseSpecificID: ptr.String(uuid.NewString()),
-				AndroidPolicyID:      ptr.Uint(1),
+				AppliedPolicyID:      ptr.String("1"),
 				LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)), // 1 hour ago
 			},
 		}
@@ -13804,7 +13812,7 @@ func createAndroidHostWithStorage(t *testing.T, ds *mysql.Datastore, teamID *uin
 		Device: &android.Device{
 			DeviceID:             strings.ReplaceAll(uuid.NewString(), "-", ""),
 			EnterpriseSpecificID: ptr.String(uuid.NewString()),
-			AndroidPolicyID:      ptr.Uint(1),
+			AppliedPolicyID:      ptr.String("1"),
 			LastPolicySyncTime:   ptr.Time(time.Now().Add(-time.Hour)),
 		},
 	}

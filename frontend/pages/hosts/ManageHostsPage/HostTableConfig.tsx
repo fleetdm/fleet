@@ -6,9 +6,14 @@ import { CellProps, Column } from "react-table";
 import ReactTooltip from "react-tooltip";
 
 import { IDeviceUser, IHost } from "interfaces/host";
-import { isAndroid, isMobilePlatform } from "interfaces/platform";
+import {
+  isAndroid,
+  isAppleDevice,
+  isMobilePlatform,
+} from "interfaces/platform";
 import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
 
+import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceIndicator from "pages/hosts/components/DiskSpaceIndicator";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -231,6 +236,18 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       if (isMobilePlatform(cellProps.row.original.platform)) {
         return NotSupported;
       }
+
+      // Show "---" for ABM devices with Pending enrollment status
+      if (
+        cellProps.row.original.mdm?.enrollment_status === "Pending" &&
+        isAppleDevice(cellProps.row.original.platform)
+      ) {
+        const tooltip = {
+          tooltipText: getHostStatusTooltipText("---"),
+        };
+        return <StatusIndicator value="---" tooltip={tooltip} />;
+      }
+
       const value = cellProps.cell.value;
       const tooltip = {
         tooltipText: getHostStatusTooltipText(value),
@@ -269,20 +286,15 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     accessor: "gigs_disk_space_available",
     id: "gigs_disk_space_available",
     Cell: (cellProps: IHostTableNumberCellProps) => {
-      const {
-        id,
-        platform,
-        percent_disk_space_available,
-      } = cellProps.row.original;
+      const { platform, percent_disk_space_available } = cellProps.row.original;
       if (platform === "chrome") {
         return NotSupported;
       }
       return (
         <DiskSpaceIndicator
-          baseClass="gigs_disk_space_available__cell"
+          inTableCell
           gigsDiskSpaceAvailable={cellProps.cell.value}
           percentDiskSpaceAvailable={percent_disk_space_available}
-          id={`disk-space__${id}`}
           platform={platform}
         />
       );
@@ -298,10 +310,26 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
     accessor: "os_version",
     id: "os_version",
-    Cell: (cellProps: IHostTableStringCellProps) => (
-      // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
-      <TextCell value={cellProps.cell.value} />
-    ),
+    // TODO(android): is Android supported? what about the os versions endpoint and dashboard card?
+    Cell: (cellProps: IHostTableStringCellProps) => {
+      const value = cellProps.cell.value;
+      if (
+        value === "Arch Linux rolling" ||
+        value === "Arch Linux ARM rolling"
+      ) {
+        return (
+          <TextCell
+            value={
+              <span>
+                {value.slice(0, -7 /* removing lowercase rolling suffix */)}
+                <TooltipWrapperArchLinuxRolling />
+              </span>
+            }
+          />
+        );
+      }
+      return <TextCell value={value} />;
+    },
   },
   {
     title: "Osquery",

@@ -70,7 +70,7 @@ Fleet can pull detailed information on assets across every operating system in s
 By providing self-service instructions in [Fleet Desktop](https://fleetdm.com/guides/fleet-desktop#basic-article), end-users can resolve common policy issues without IT intervention, reducing support tickets and increasing efficiency. This empowerment optimizes resources and allowed their IT teams to focus on more strategic initiatives.
 
 
-## Conclusion:
+## Conclusion
 
 Fleet has become an integral part of the financial company's infrastructure, offering the scalability, transparency, and flexibility needed to support their growth. By choosing Fleet, they improved endpoint operations, streamlined device management, unified their device management strategy across all platforms, and empowered end-users—all while leveraging the benefits of an open-source solution with advanced [GitOps capabilities](https://github.com/fleetdm/fleet-gitops).
 

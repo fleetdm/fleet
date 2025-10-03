@@ -150,4 +150,10 @@
   autoIssue:  
     labels: [ ":help-finance" ] 
     repo: "confidential"
-
+-
+  task: "Monthly operating review" # TODO tie this to a responsibility
+  startedOn: "2025-09-01"
+  frequency: "Monthly"
+  description: "CEO + CFO + Head of People review operating model."
+  moreInfoUrl: 
+  dri: "rfoo2015"

@@ -43,6 +43,9 @@ func TestScripts(t *testing.T) {
 		{"TestDeleteScriptsAssignedToPolicy", testDeleteScriptsAssignedToPolicy},
 		{"TestDeletePendingHostScriptExecutionsForPolicy", testDeletePendingHostScriptExecutionsForPolicy},
 		{"UpdateScriptContents", testUpdateScriptContents},
+		{"UpdateScriptToDuplicateContent", testUpdateScriptToDuplicateContent},
+		{"UpdateSharedScriptContent", testUpdateSharedScriptContent},
+		{"UpdateScriptToSameContent", testUpdateScriptToSameContent},
 		{"UpdateDeletingUpcomingScriptExecutions", testUpdateDeletingUpcomingScriptExecutions},
 		{"BatchExecute", testBatchExecute},
 		{"BatchExecuteWithStatus", testBatchExecuteWithStatus},
@@ -1041,9 +1044,10 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	hostUUID := "uuid"
 	hostPlatform := "windows"
 	host, err := ds.NewHost(ctx, &fleet.Host{
-		ID:       hostID,
-		UUID:     hostUUID,
-		Platform: hostPlatform,
+		ID:            hostID,
+		UUID:          hostUUID,
+		Platform:      hostPlatform,
+		OsqueryHostID: &hostUUID,
 	})
 	require.NoError(t, err)
 
@@ -1709,9 +1713,10 @@ func testUpdateScriptContents(t *testing.T, ds *Datastore) {
 	updatedScript, err := ds.UpdateScriptContents(ctx, originalScript.ID, "updated script")
 	require.NoError(t, err)
 	require.Equal(t, originalScript.ID, updatedScript.ID)
-	require.Equal(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
+	// With the fix, the script should get a new content ID since content changed
+	require.NotEqual(t, originalScript.ScriptContentID, updatedScript.ScriptContentID)
 
-	updatedContents, err := ds.GetScriptContents(ctx, originalScript.ScriptContentID)
+	updatedContents, err := ds.GetScriptContents(ctx, updatedScript.ID)
 	require.NoError(t, err)
 	require.Equal(t, "updated script", string(updatedContents))
 	require.NotEqual(t, oldScript.UpdatedAt, updatedScript.UpdatedAt)
@@ -2078,7 +2083,7 @@ func testBatchExecuteWithStatus(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 
@@ -2191,7 +2196,7 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	scheduledTime := time.Now().Add(10 * time.Hour).UTC()
+	scheduledTime := time.Now().Add(10 * time.Hour).Truncate(time.Second).UTC()
 	execID, err := ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host1.ID, host2.ID, host3.ID}, scheduledTime)
 	require.NoError(t, err)
 	require.NotEmpty(t, execID)
@@ -2337,6 +2342,28 @@ func testBatchScriptSchedule(t *testing.T, ds *Datastore) {
 			require.Failf(t, "forgot to check a host", "host_id: %d", hostResult.HostID)
 		}
 	}
+
+	// Schedule script that we will subsequently cancel.
+	execID, err = ds.BatchScheduleScript(ctx, &user.ID, script.ID, []uint{host4.ID, hostWindows.ID, hostTeam1.ID, hostNoScripts.ID, 0xbeef}, scheduledTime)
+	require.NoError(t, err)
+	require.NotEmpty(t, execID)
+
+	err = ds.CancelBatchScript(ctx, execID)
+	require.NoError(t, err)
+
+	// Get the summary again
+	summaryList, err := ds.ListBatchScriptExecutions(ctx, fleet.BatchExecutionStatusFilter{
+		ExecutionID: &execID,
+	})
+	require.NoError(t, err)
+	require.Len(t, summaryList, 1)
+	summary := (summaryList)[0]
+	// The summary should have no pending hosts, one run host, three errored ones and one canceled.
+	require.Equal(t, *summary.NumPending, uint(0))
+	require.Equal(t, *summary.NumIncompatible, uint(0))
+	require.Equal(t, *summary.NumErrored, uint(0))
+	require.Equal(t, *summary.NumRan, uint(0))
+	require.Equal(t, *summary.NumCanceled, uint(5))
 }
 
 func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
@@ -2398,7 +2425,7 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 		HostID:      host2.ID,
 		ExecutionID: host2Upcoming[0].ExecutionID,
 		Output:      "bar",
-		ExitCode:    1,
+		ExitCode:    -1,
 	})
 	require.NoError(t, err)
 
@@ -2431,6 +2458,55 @@ func testMarkActivitiesAsCompleted(t *testing.T, ds *Datastore) {
 	batchActivity2, err := ds.GetBatchActivity(ctx, execID2)
 	require.NoError(t, err)
 	require.Equal(t, fleet.ScheduledBatchExecutionStarted, batchActivity2.Status)
+
+	// Schedule another batch that we will cancel.
+	execID3, err := ds.BatchExecuteScript(ctx, &user.ID, script.ID, []uint{hostNoScripts.ID, hostWindows.ID, host1.ID, host2.ID, host3.ID})
+	require.NoError(t, err)
+	require.NotEmpty(t, execID3)
+
+	// Update the batch activity status to "started"
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE batch_activities SET status='started' WHERE execution_id = ?", execID3)
+		return err
+	})
+
+	// Cancel the batch.
+	err = ds.CancelBatchScript(ctx, execID3)
+	require.NoError(t, err)
+
+	// First activity should be marked as finished and updated accordingly.
+	batchActivity, err = ds.GetBatchActivity(ctx, execID3)
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(5), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumRan)
+	require.Equal(t, uint(0), *batchActivity.NumErrored)
+	require.Equal(t, uint(2), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(3), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
+
+	// Edge case -- batch activity with no hosts.
+	// In reality this could happen if all the hosts in a batch get deleted.
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO batch_activities (execution_id, status, script_id, activity_type) VALUES (?, ?, ?, ?)",
+			"abc123", fleet.ScheduledBatchExecutionStarted, script.ID, "script")
+		return err
+	})
+
+	// Mark activities as completed
+	err = ds.MarkActivitiesAsCompleted(ctx)
+	require.NoError(t, err)
+
+	// Activity should be marked as finished and updated accordingly.
+	batchActivity, err = ds.GetBatchActivity(ctx, "abc123")
+	require.NoError(t, err)
+	require.Equal(t, fleet.ScheduledBatchExecutionFinished, batchActivity.Status)
+	require.Equal(t, uint(0), *batchActivity.NumTargeted)
+	require.Equal(t, uint(0), *batchActivity.NumRan)
+	require.Equal(t, uint(0), *batchActivity.NumErrored)
+	require.Equal(t, uint(0), *batchActivity.NumIncompatible)
+	require.Equal(t, uint(0), *batchActivity.NumCanceled)
+	require.Equal(t, uint(0), *batchActivity.NumPending)
 }
 
 func testBatchScriptCancel(t *testing.T, ds *Datastore) {
@@ -2784,4 +2860,127 @@ func testBatchSetScriptActivatesNextActivity(t *testing.T, ds *Datastore) {
 	checkUpcomingActivities(t, ds, hosts[1])
 	checkUpcomingActivities(t, ds, hosts[2])
 	checkUpcomingActivities(t, ds, hosts[3])
+}
+
+// Test updating a script to match another script's contents
+func testUpdateScriptToDuplicateContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two scripts with different content
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: "echo hello",
+	})
+	require.NoError(t, err)
+
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: "echo world",
+	})
+	require.NoError(t, err)
+
+	// Get initial content IDs
+	s1, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	initialContentID1 := s1.ScriptContentID
+	initialContentID2 := s2.ScriptContentID
+	require.NotEqual(t, initialContentID1, initialContentID2)
+
+	// Update script2 to have the same content as script1
+	// This should NOT cause a duplicate key error
+	_, err = ds.UpdateScriptContents(ctx, script2.ID, "echo hello")
+	require.NoError(t, err)
+	// ScriptContents is not populated from the DB, check via GetScriptContents
+	// GetScriptContents takes a script ID, not script_content_id
+	updatedContents, err := ds.GetScriptContents(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo hello", string(updatedContents))
+
+	// Verify both scripts now share the same content ID
+	s1After, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2After, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, s1After.ScriptContentID, s2After.ScriptContentID)
+	require.Equal(t, initialContentID1, s2After.ScriptContentID)
+
+	// Verify the old content ID was cleaned up
+	var count int
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &count,
+		`SELECT COUNT(*) FROM script_contents WHERE id = ?`, initialContentID2)
+	require.NoError(t, err)
+	require.Equal(t, 0, count, "old script content should be deleted")
+}
+
+// Test modifying a script whose content currently matches another script's content
+func testUpdateSharedScriptContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create two scripts with the SAME content
+	sharedContent := "echo shared"
+	script1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script1.sh",
+		ScriptContents: sharedContent,
+	})
+	require.NoError(t, err)
+
+	script2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script2.sh",
+		ScriptContents: sharedContent,
+	})
+	require.NoError(t, err)
+
+	// Verify they share the same content ID
+	s1, err := ds.Script(ctx, script1.ID)
+	require.NoError(t, err)
+	s2, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, s1.ScriptContentID, s2.ScriptContentID)
+
+	// Update script1 to different content
+	updated, err := ds.UpdateScriptContents(ctx, script1.ID, "echo modified")
+	require.NoError(t, err)
+	// ScriptContents is not populated from the DB, check via GetScriptContents
+	// GetScriptContents takes a script ID, not script_content_id
+	updatedContents, err := ds.GetScriptContents(ctx, script1.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo modified", string(updatedContents))
+
+	// CRITICAL: Verify script2 still has the original content
+	s2After, err := ds.Script(ctx, script2.ID)
+	require.NoError(t, err)
+	s2Contents, err := ds.GetScriptContents(ctx, script2.ID)
+	require.NoError(t, err)
+	require.Equal(t, sharedContent, string(s2Contents))
+	require.NotEqual(t, updated.ScriptContentID, s2After.ScriptContentID)
+}
+
+// Test updating script to same content -- a no-op case
+func testUpdateScriptToSameContent(t *testing.T, ds *Datastore) {
+	ctx := t.Context()
+
+	// Create a script
+	script, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "script.sh",
+		ScriptContents: "echo hello",
+	})
+	require.NoError(t, err)
+
+	s, err := ds.Script(ctx, script.ID)
+	require.NoError(t, err)
+	originalContentID := s.ScriptContentID
+
+	// Update with the same content
+	_, err = ds.UpdateScriptContents(ctx, script.ID, "echo hello")
+	require.NoError(t, err)
+	updatedContents, err := ds.GetScriptContents(ctx, script.ID)
+	require.NoError(t, err)
+	require.Equal(t, "echo hello", string(updatedContents))
+
+	// Verify content ID hasn't changed
+	sAfter, err := ds.Script(ctx, script.ID)
+	require.NoError(t, err)
+	require.Equal(t, originalContentID, sAfter.ScriptContentID)
 }

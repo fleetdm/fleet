@@ -81,6 +81,7 @@ go.mod @fleetdm/go
 /docs/REST\ API/rest-api.md                             @rachaelshaw # « REST API reference documentation
 /docs/Contributing/reference/api-for-contributors.md    @rachaelshaw @lukeheath # « Advanced / contributors-only API reference documentation
 /docs/Contributing/reference/audit-logs.md              @rachaelshaw @lukeheath # « Advanced / contributors-only audit log documentation
+/docs/Contributing/reference/configuration-for-contributors.md @rachaelshaw @lukeheath # « Advanced / contributors-only configuration documentation
 /schema                                                 @eashaw # « Data tables (osquery/fleetd schema) documentation
 /render.yaml                                            @edwardsb
 /it-and-security                                        @allenhouchins
@@ -103,6 +104,7 @@ go.mod @fleetdm/go
 #/handbook/company/product-groups.md                            Covered in custom.js
 /handbook/company/go-to-market-groups.md                        @sampfluger88
 /handbook/finance                   			        	            @sampfluger88
+/handbook/people                    			        	            @sampfluger88
 /handbook/it-and-enablement                             	      @sampfluger88
 /handbook/customer-success                                    	@sampfluger88
 /handbook/marketing                                            	@sampfluger88
@@ -134,6 +136,6 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/ @lukeheath @georgekarrv @sharon-fdm @mostlikelee
+/.github/workflows/ @lukeheath
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

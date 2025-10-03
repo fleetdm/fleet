@@ -72,6 +72,9 @@ const getSoftwareNameCellData = (
         ? "automatic"
         : "manual";
   }
+  if (softwareTitle.icon_url) {
+    iconUrl = softwareTitle.icon_url;
+  }
 
   const automaticInstallPoliciesCount = getAutomaticInstallPoliciesCount(
     softwareTitle

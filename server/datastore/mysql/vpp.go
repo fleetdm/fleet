@@ -90,6 +90,14 @@ WHERE
 			return nil, ctxerr.Wrap(ctx, err, "get policies by software title ID")
 		}
 		app.AutomaticInstallPolicies = policies
+
+		icon, err := ds.GetSoftwareTitleIcon(ctx, *teamID, titleID)
+		if err != nil && !fleet.IsNotFound(err) {
+			return nil, ctxerr.Wrap(ctx, err, "get software title icon")
+		}
+		if icon != nil {
+			app.IconURL = ptr.String(icon.IconUrl())
+		}
 	}
 
 	return &app, nil

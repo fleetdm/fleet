@@ -58,10 +58,13 @@ b, strong, .font-weight-bold {
 
 a[href] {
   color: @core-fleet-black-75;
+  cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 4px;
   text-decoration-color: #C5C7D1;
-  cursor: pointer;
+  &[no-underline] {
+    text-decoration: none;
+  }
   &:hover {
     color: @core-fleet-black;
     text-decoration-color: @core-fleet-black;;

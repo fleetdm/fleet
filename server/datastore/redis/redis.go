@@ -62,10 +62,14 @@ func (p *clusterPool) Mode() fleet.RedisMode {
 // PoolConfig holds the redis pool configuration options.
 type PoolConfig struct {
 	Server                    string
+	CacheName                 string // for ElastiCache IAM auth
+	Region                    string // for ElastiCache IAM auth
 	Username                  string
 	Password                  string
 	Database                  int
 	UseTLS                    bool
+	StsAssumeRoleArn          string
+	StsExternalID             string
 	ConnTimeout               time.Duration
 	KeepAlive                 time.Duration
 	ConnectRetryAttempts      int
@@ -260,18 +264,36 @@ func PublishHasListeners(pool fleet.RedisPool, conn redis.Conn, channel, message
 }
 
 func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
+	// Initialize AWS IAM token generator if needed
+	var awsIAMTokenGen *awsIAMAuthTokenGenerator
+
 	opts := []redis.DialOption{
 		redis.DialDatabase(conf.Database),
 		redis.DialUseTLS(conf.UseTLS),
 		redis.DialConnectTimeout(conf.ConnTimeout),
 		redis.DialKeepAlive(conf.KeepAlive),
 		redis.DialUsername(conf.Username),
-		redis.DialPassword(conf.Password),
 		redis.DialWriteTimeout(conf.WriteTimeout),
 		redis.DialReadTimeout(conf.ReadTimeout),
 	}
 
+	// Auto-detect ElastiCache and use IAM auth if no password is provided
+	useIAMAuth := false
+	if conf.Password == "" && conf.Region != "" && conf.CacheName != "" {
+		useIAMAuth = true
+		var err error
+		region := conf.Region
+		cacheName := conf.CacheName
+		awsIAMTokenGen, err = newAWSIAMAuthTokenGenerator(cacheName, conf.Username, region, conf.StsAssumeRoleArn, conf.StsExternalID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create AWS IAM token generator: %w", err)
+		}
+	} else if conf.Password != "" {
+		opts = append(opts, redis.DialPassword(conf.Password))
+	}
+
 	if conf.UseTLS {
+		var err error
 		tlsCfg := config.TLS{
 			TLSCA:         conf.TLSCA,
 			TLSCert:       conf.TLSCert,
@@ -310,7 +332,16 @@ func newCluster(conf PoolConfig) (*redisc.Cluster, error) {
 				Dial: func() (redis.Conn, error) {
 					var conn redis.Conn
 					op := func() error {
-						c, err := dialFn("tcp", server, opts...)
+						dialOpts := opts
+						if useIAMAuth {
+							token, err := awsIAMTokenGen.generateAuthToken(context.Background())
+							if err != nil {
+								return fmt.Errorf("failed to generate IAM auth token: %w", err)
+							}
+							dialOpts = append(dialOpts, redis.DialPassword(token))
+						}
+
+						c, err := dialFn("tcp", server, dialOpts...)
 
 						var netErr net.Error
 						if errors.As(err, &netErr) {

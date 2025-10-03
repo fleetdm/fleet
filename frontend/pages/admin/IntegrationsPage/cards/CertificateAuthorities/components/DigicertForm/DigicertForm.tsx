@@ -1,6 +1,6 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
-import { AppContext } from "context/app";
+import { ICertificateAuthorityPartial } from "interfaces/certificates";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -26,29 +26,31 @@ export interface IDigicertFormData {
 }
 
 interface IDigicertFormProps {
+  certAuthorities?: ICertificateAuthorityPartial[];
   formData: IDigicertFormData;
   submitBtnText: string;
   isSubmitting: boolean;
   isEditing?: boolean;
+  isDirty?: boolean;
   onChange: (update: { name: string; value: string }) => void;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
 const DigicertForm = ({
+  certAuthorities,
   formData,
   submitBtnText,
   isSubmitting,
   isEditing = false,
+  isDirty = true,
   onChange,
   onSubmit,
   onCancel,
 }: IDigicertFormProps) => {
-  const { config } = useContext(AppContext);
   const validations = useMemo(
-    () =>
-      generateFormValidations(config?.integrations.digicert ?? [], isEditing),
-    [config?.integrations.digicert, isEditing]
+    () => generateFormValidations(certAuthorities ?? [], isEditing),
+    [certAuthorities, isEditing]
   );
 
   const [formValidation, setFormValidation] = useState<IDigicertFormValidation>(
@@ -166,7 +168,7 @@ const DigicertForm = ({
         >
           <Button
             isLoading={isSubmitting}
-            disabled={!formValidation.isValid || isSubmitting}
+            disabled={!formValidation.isValid || isSubmitting || !isDirty}
             type="submit"
           >
             {submitBtnText}

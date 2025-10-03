@@ -24,7 +24,7 @@ const (
 	teamName = "Team Test"
 )
 
-func TestGitOpsTeamSofwareInstallers(t *testing.T) {
+func TestGitOpsTeamSoftwareInstallers(t *testing.T) {
 	testing_utils.StartSoftwareInstallerServer(t)
 	testing_utils.StartAndServeVPPServer(t)
 
@@ -48,6 +48,7 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 		{"testdata/gitops/team_software_installer_uninstall_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_post_install_not_found.yml", "no such file or directory"},
 		{"testdata/gitops/team_software_installer_no_url.yml", "at least one of hash_sha256 or url is required for each software package"},
+		{"testdata/gitops/team_software_installer_no_url_multi.yml", "multi_missing_url.yml, list item #1"},
 		{"testdata/gitops/team_software_installer_invalid_self_service_value.yml",
 			"Couldn't edit \"../../fleetctl/testdata/gitops/team_software_installer_invalid_self_service_value.yml\" at \"software.packages.self_service\", expected type bool but got string"},
 		{"testdata/gitops/team_software_installer_invalid_both_include_exclude.yml",
@@ -58,6 +59,9 @@ func TestGitOpsTeamSofwareInstallers(t *testing.T) {
 			"Please create the missing labels, or update your settings to not refer to these labels."},
 		// team tests for setup experience software/script
 		{"testdata/gitops/team_setup_software_valid.yml", ""},
+		{"testdata/gitops/team_setup_software_on_package.yml", ""},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
+		{"testdata/gitops/team_setup_software_defined_in_conflicting_places_vpp.yml", " Setup experience may only be specified directly on software or within macos_setup, but not both."},
 		{"testdata/gitops/team_setup_software_invalid_script.yml", "no_such_script.sh: no such file"},
 		{"testdata/gitops/team_setup_software_invalid_software_package.yml", "no_such_software.yml\" does not exist for that team"},
 		{"testdata/gitops/team_setup_software_invalid_vpp_app.yml", "\"no_such_app\" does not exist for that team"},

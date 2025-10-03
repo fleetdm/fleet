@@ -20,6 +20,8 @@ import VulnerabilitiesCell from "../VulnerabilitiesCell";
 
 interface IOsKernelsTableConfigProps {
   teamId?: number;
+  osName: string;
+  osVersion: string;
 }
 
 type IHostCountCellProps = INumberCellProps<IOperatingSystemKernels>;
@@ -27,7 +29,11 @@ type IVersionCellProps = IStringCellProps<IOperatingSystemKernels>;
 type IViewAllHostsLinkProps = CellProps<IOperatingSystemKernels>;
 type IVulnCellProps = CellProps<IOperatingSystemKernels, string[] | null>;
 
-const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
+const generateTableConfig = ({
+  teamId,
+  osName,
+  osVersion,
+}: IOsKernelsTableConfigProps) => {
   const tableHeaders = [
     {
       title: "Version",
@@ -101,6 +107,8 @@ const generateTableConfig = ({ teamId }: IOsKernelsTableConfigProps) => {
                 queryParams={{
                   software_version_id: cellProps.row.original.id,
                   team_id: teamId,
+                  os_name: osName,
+                  os_version: osVersion,
                 }}
                 className="software-link"
                 rowHover

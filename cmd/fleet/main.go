@@ -104,14 +104,17 @@ func applyDevFlags(cfg *config.FleetConfig) {
 		cfg.Prometheus.BasicAuth.Password = "insecure"
 	}
 
-	cfg.S3.CarvesBucket = "carves-dev"
-	cfg.S3.CarvesRegion = "minio"
-	cfg.S3.CarvesPrefix = "dev-prefix"
-	cfg.S3.CarvesEndpointURL = "http://localhost:9000"
-	cfg.S3.CarvesAccessKeyID = "minio"
-	cfg.S3.CarvesSecretAccessKey = "minio123!"
-	cfg.S3.CarvesDisableSSL = true
-	cfg.S3.CarvesForceS3PathStyle = true
+	// Allow the carves bucket to be overridden in dev mode
+	if cfg.S3.CarvesBucket == "" {
+		cfg.S3.CarvesBucket = "carves-dev"
+		cfg.S3.CarvesRegion = "minio"
+		cfg.S3.CarvesPrefix = "dev-prefix"
+		cfg.S3.CarvesEndpointURL = "http://localhost:9000"
+		cfg.S3.CarvesAccessKeyID = "minio"
+		cfg.S3.CarvesSecretAccessKey = "minio123!"
+		cfg.S3.CarvesDisableSSL = true
+		cfg.S3.CarvesForceS3PathStyle = true
+	}
 
 	// Allow the software installers bucket to be overridden in dev mode
 	if cfg.S3.SoftwareInstallersBucket == "" {

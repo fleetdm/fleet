@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/datastore/mysql/common_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
@@ -228,7 +229,10 @@ FROM
 	LEFT JOIN software_cve ON software.id = software_cve.software_id
 	JOIN kernel_host_counts ON kernel_host_counts.software_id = software.id
 WHERE
-	kernel_host_counts.os_version_id = ? %s GROUP BY id, cve, version
+	kernel_host_counts.os_version_id = ?
+	AND kernel_host_counts.hosts_count > 0
+    %s
+GROUP BY id, cve, version
 `
 
 	var tmID uint
@@ -326,4 +330,296 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	return nil
+}
+
+// ListVulnsByMultipleOSVersions - Optimized batch query to fetch vulnerabilities for multiple OS versions
+// This replaces the previous N+1 pattern with efficient batch queries, providing performance improvement
+// for large datasets.
+func (ds *Datastore) ListVulnsByMultipleOSVersions(
+	ctx context.Context,
+	osVersions []fleet.OSVersion,
+	includeCVSS bool,
+	teamID *uint,
+) (map[string]fleet.Vulnerabilities, error) {
+	result := make(map[string]fleet.Vulnerabilities)
+	if len(osVersions) == 0 {
+		return result, nil
+	}
+
+	// Step 1: Batch fetch OS IDs by name and version
+	// The OSVersions from ds.OSVersions() don't include the ID field,
+	// only OSVersionID, so we need to look them up
+	osIDMap := make(map[uint]string, len(osVersions))
+	osIDs := make([]uint, 0, len(osVersions))
+	linuxOSIDs := make([]uint, 0)          // Track Linux OS IDs separately for kernel vulnerabilities
+	platformMap := make(map[string]string) // Map "name-version" to platform
+
+	// Build query using IN with tuples - more efficient with the index on (name, version)
+	tuples := make([]string, 0, len(osVersions))
+	args := make([]any, 0, len(osVersions)*2)
+
+	for _, os := range osVersions {
+		tuples = append(tuples, "(?, ?)")
+		args = append(args, os.NameOnly, os.Version)
+		// Store the platform for each OS version
+		platformMap[fmt.Sprintf("%s-%s", os.NameOnly, os.Version)] = os.Platform
+	}
+
+	stmt := `
+		SELECT id, name, version
+		FROM operating_systems
+		WHERE (name, version) IN (` + strings.Join(tuples, ", ") + `)`
+
+	var osResults []struct {
+		ID      uint   `db:"id"`
+		Name    string `db:"name"`
+		Version string `db:"version"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osResults, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch fetch OS IDs")
+	}
+
+	for _, r := range osResults {
+		key := fmt.Sprintf("%s-%s", r.Name, r.Version)
+		osIDs = append(osIDs, r.ID)
+		osIDMap[r.ID] = key
+
+		// Check if this OS is Linux and add to Linux-specific list
+		if platform, ok := platformMap[key]; ok && fleet.IsLinux(platform) {
+			linuxOSIDs = append(linuxOSIDs, r.ID)
+		}
+	}
+
+	if len(osIDs) == 0 {
+		return result, nil
+	}
+
+	// Initialize result map
+	for _, key := range osIDMap {
+		result[key] = make(fleet.Vulnerabilities, 0)
+	}
+
+	// Step 2: Execute queries
+	vulnsByKey := make(map[string][]fleet.CVE)
+	cveSet := make(map[string]struct{})
+
+	// Query 1: OS Vulnerabilities
+	osVulnsQuery := `
+		SELECT
+			osv.operating_system_id,
+			osv.cve,
+			osv.resolved_in_version,
+			osv.created_at
+		FROM operating_system_vulnerabilities osv
+		WHERE osv.operating_system_id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(osIDs)), ",") + `)
+	`
+
+	osArgs := make([]any, len(osIDs))
+	for i, id := range osIDs {
+		osArgs[i] = id
+	}
+
+	var osVulnResults []struct {
+		OSID              uint      `db:"operating_system_id"`
+		CVE               string    `db:"cve"`
+		ResolvedInVersion *string   `db:"resolved_in_version"`
+		CreatedAt         time.Time `db:"created_at"`
+	}
+
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &osVulnResults, osVulnsQuery, osArgs...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch query OS vulnerabilities")
+	}
+
+	for _, r := range osVulnResults {
+		key := osIDMap[r.OSID]
+		vuln := fleet.CVE{
+			CVE:       r.CVE,
+			CreatedAt: r.CreatedAt,
+		}
+
+		if r.ResolvedInVersion != nil {
+			resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+			vuln.ResolvedInVersion = &resolvedVersion
+		}
+
+		// Check if we already have this CVE for this key (deduplication across architectures)
+		found := false
+		for i, existing := range vulnsByKey[key] {
+			if existing.CVE == r.CVE {
+				found = true
+				// Keep the earliest CreatedAt time
+				if r.CreatedAt.Before(existing.CreatedAt) {
+					vulnsByKey[key][i].CreatedAt = r.CreatedAt
+				}
+				break
+			}
+		}
+		if !found {
+			vulnsByKey[key] = append(vulnsByKey[key], vuln)
+		}
+		cveSet[r.CVE] = struct{}{}
+	}
+
+	// Query 2: Kernel Vulnerabilities (for Linux only)
+	if len(linuxOSIDs) > 0 {
+		kernelQuery := `
+			SELECT
+				os.id as os_id,
+				sc.cve,
+				sc.resolved_in_version,
+				MIN(sc.created_at) as created_at
+			FROM software_cve sc
+			JOIN kernel_host_counts khc ON khc.software_id = sc.software_id
+			JOIN operating_systems os ON os.os_version_id = khc.os_version_id
+			WHERE os.id IN (` + strings.TrimSuffix(strings.Repeat("?,", len(linuxOSIDs)), ",") + `)
+			AND khc.hosts_count > 0
+		`
+
+		kargs := make([]any, len(linuxOSIDs))
+		for i, id := range linuxOSIDs {
+			kargs[i] = id
+		}
+
+		if teamID != nil {
+			kernelQuery += ` AND khc.team_id = ?`
+			kargs = append(kargs, *teamID)
+		}
+
+		kernelQuery += ` GROUP BY os.id, sc.cve, sc.resolved_in_version`
+
+		var kernelVulnResults []struct {
+			OSID              uint      `db:"os_id"`
+			CVE               string    `db:"cve"`
+			ResolvedInVersion *string   `db:"resolved_in_version"`
+			CreatedAt         time.Time `db:"created_at"`
+		}
+
+		if err := sqlx.SelectContext(ctx, ds.reader(ctx), &kernelVulnResults, kernelQuery, kargs...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "batch query kernel vulnerabilities")
+		}
+		for _, r := range kernelVulnResults {
+			key := osIDMap[r.OSID]
+			vuln := fleet.CVE{
+				CVE:       r.CVE,
+				CreatedAt: r.CreatedAt,
+			}
+
+			if r.ResolvedInVersion != nil {
+				resolvedVersion := r.ResolvedInVersion // avoid address of range var field
+				vuln.ResolvedInVersion = &resolvedVersion
+			}
+
+			// Check if we already have this CVE
+			found := false
+			for _, existing := range vulnsByKey[key] {
+				if existing.CVE == r.CVE {
+					found = true
+					break
+				}
+			}
+			if !found {
+				vulnsByKey[key] = append(vulnsByKey[key], vuln)
+			}
+
+			cveSet[r.CVE] = struct{}{}
+		}
+	}
+
+	// Step 3: Fetch CVE metadata (for Linux kernels only)
+	if includeCVSS && len(cveSet) > 0 {
+		cveList := make([]string, 0, len(cveSet))
+		for cve := range cveSet {
+			cveList = append(cveList, cve)
+		}
+
+		// Fetch metadata in batches using the common batch processing utility
+		batchSize := 500
+		metadataMap := make(map[string]struct {
+			CVSSScore        *float64
+			EPSSProbability  *float64
+			CISAKnownExploit *bool
+			CVEPublished     *time.Time
+			Description      *string
+		})
+
+		err := common_mysql.BatchProcessSimple(cveList, batchSize, func(batch []string) error {
+			placeholders := strings.TrimSuffix(strings.Repeat("?,", len(batch)), ",")
+
+			metaQuery := `
+				SELECT
+					cve,
+					cvss_score,
+					epss_probability,
+					cisa_known_exploit,
+					published,
+					description
+				FROM cve_meta
+				WHERE cve IN (` + placeholders + `)`
+
+			metaArgs := make([]any, len(batch))
+			for j, cve := range batch {
+				metaArgs[j] = cve
+			}
+
+			var metaResults []struct {
+				CVE              string     `db:"cve"`
+				CVSSScore        *float64   `db:"cvss_score"`
+				EPSSProbability  *float64   `db:"epss_probability"`
+				CISAKnownExploit *bool      `db:"cisa_known_exploit"`
+				Published        *time.Time `db:"published"`
+				Description      *string    `db:"description"`
+			}
+
+			if err := sqlx.SelectContext(ctx, ds.reader(ctx), &metaResults, metaQuery, metaArgs...); err != nil {
+				return ctxerr.Wrap(ctx, err, "batch query CVE metadata")
+			}
+
+			for _, r := range metaResults {
+				metadataMap[r.CVE] = struct {
+					CVSSScore        *float64
+					EPSSProbability  *float64
+					CISAKnownExploit *bool
+					CVEPublished     *time.Time
+					Description      *string
+				}{r.CVSSScore, r.EPSSProbability, r.CISAKnownExploit, r.Published, r.Description}
+			}
+			return nil
+		})
+
+		if err != nil {
+			// BatchProcessSimple only returns error if batch processing fails
+			return nil, ctxerr.Wrap(ctx, err, "batch processing CVE metadata")
+		}
+
+		// Apply metadata to vulnerabilities
+		for _, vulns := range vulnsByKey {
+			for i := range vulns {
+				if meta, ok := metadataMap[vulns[i].CVE]; ok {
+					if meta.CVSSScore != nil {
+						vulns[i].CVSSScore = &meta.CVSSScore
+					}
+					if meta.EPSSProbability != nil {
+						vulns[i].EPSSProbability = &meta.EPSSProbability
+					}
+					if meta.CISAKnownExploit != nil {
+						vulns[i].CISAKnownExploit = &meta.CISAKnownExploit
+					}
+					if meta.CVEPublished != nil {
+						vulns[i].CVEPublished = &meta.CVEPublished
+					}
+					if meta.Description != nil {
+						vulns[i].Description = &meta.Description
+					}
+				}
+			}
+		}
+	}
+
+	// Step 4: Assign vulnerabilities to result
+	for key, vulns := range vulnsByKey {
+		result[key] = vulns
+	}
+
+	return result, nil
 }

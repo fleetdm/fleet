@@ -17,11 +17,15 @@ type SignupURLsCreateFunc func(ctx context.Context, serverURL string, callbackUR
 
 type EnterprisesCreateFunc func(ctx context.Context, req androidmgmt.EnterprisesCreateRequest) (androidmgmt.EnterprisesCreateResponse, error)
 
-type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) error
+type EnterprisesPoliciesPatchFunc func(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error)
+
+type EnterprisesDevicesPatchFunc func(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error)
 
 type EnterprisesEnrollmentTokensCreateFunc func(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error)
 
 type EnterpriseDeleteFunc func(ctx context.Context, enterpriseName string) error
+
+type EnterprisesListFunc func(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error)
 
 type SetAuthenticationSecretFunc func(secret string) error
 
@@ -35,11 +39,17 @@ type Client struct {
 	EnterprisesPoliciesPatchFunc        EnterprisesPoliciesPatchFunc
 	EnterprisesPoliciesPatchFuncInvoked bool
 
+	EnterprisesDevicesPatchFunc        EnterprisesDevicesPatchFunc
+	EnterprisesDevicesPatchFuncInvoked bool
+
 	EnterprisesEnrollmentTokensCreateFunc        EnterprisesEnrollmentTokensCreateFunc
 	EnterprisesEnrollmentTokensCreateFuncInvoked bool
 
 	EnterpriseDeleteFunc        EnterpriseDeleteFunc
 	EnterpriseDeleteFuncInvoked bool
+
+	EnterprisesListFunc        EnterprisesListFunc
+	EnterprisesListFuncInvoked bool
 
 	SetAuthenticationSecretFunc        SetAuthenticationSecretFunc
 	SetAuthenticationSecretFuncInvoked bool
@@ -61,11 +71,18 @@ func (p *Client) EnterprisesCreate(ctx context.Context, req androidmgmt.Enterpri
 	return p.EnterprisesCreateFunc(ctx, req)
 }
 
-func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) error {
+func (p *Client) EnterprisesPoliciesPatch(ctx context.Context, policyName string, policy *androidmanagement.Policy) (*androidmanagement.Policy, error) {
 	p.mu.Lock()
 	p.EnterprisesPoliciesPatchFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterprisesPoliciesPatchFunc(ctx, policyName, policy)
+}
+
+func (p *Client) EnterprisesDevicesPatch(ctx context.Context, deviceName string, device *androidmanagement.Device) (*androidmanagement.Device, error) {
+	p.mu.Lock()
+	p.EnterprisesDevicesPatchFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesDevicesPatchFunc(ctx, deviceName, device)
 }
 
 func (p *Client) EnterprisesEnrollmentTokensCreate(ctx context.Context, enterpriseName string, token *androidmanagement.EnrollmentToken) (*androidmanagement.EnrollmentToken, error) {
@@ -80,6 +97,13 @@ func (p *Client) EnterpriseDelete(ctx context.Context, enterpriseName string) er
 	p.EnterpriseDeleteFuncInvoked = true
 	p.mu.Unlock()
 	return p.EnterpriseDeleteFunc(ctx, enterpriseName)
+}
+
+func (p *Client) EnterprisesList(ctx context.Context, serverURL string) ([]*androidmanagement.Enterprise, error) {
+	p.mu.Lock()
+	p.EnterprisesListFuncInvoked = true
+	p.mu.Unlock()
+	return p.EnterprisesListFunc(ctx, serverURL)
 }
 
 func (p *Client) SetAuthenticationSecret(secret string) error {

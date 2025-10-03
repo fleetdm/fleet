@@ -93,9 +93,6 @@ const teamBatchSummariesHandler = http.get(
     }
 
     return HttpResponse.json({});
-    // TODO if status param === "scheduled"
-
-    // TODO if status param === "finished"
   }
 );
 
@@ -200,7 +197,7 @@ describe("ScriptBatchProgress", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Test Script 1")).toBeInTheDocument();
-      expect(screen.getByText(/Scheduled to start/)).toBeInTheDocument();
+      expect(screen.getByText(/Will start/)).toBeInTheDocument();
       expect(screen.getByText(/in over \d+ years/)).toBeInTheDocument();
     });
   });

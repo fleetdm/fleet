@@ -258,8 +258,9 @@ const HostSoftware = ({
           router,
           teamId: hostTeamId,
           onShowInventoryVersions,
+          platform,
         });
-  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions]);
+  }, [isMyDevicePage, router, hostTeamId, onShowInventoryVersions, platform]);
 
   const isLoading = isMyDevicePage
     ? deviceSoftwareLoading
@@ -306,7 +307,6 @@ const HostSoftware = ({
               max_cvss_score: queryParams.max_cvss_score,
             })}
             onAddFiltersClick={toggleSoftwareFiltersModal}
-            pathPrefix={pathname}
             // for my device software details modal toggling
             isMyDevicePage={isMyDevicePage}
             onShowInventoryVersions={onShowInventoryVersions}

@@ -1,0 +1,2 @@
+- Added support for AWS RDS (MySQL) IAM authentication
+- Added support for AWS ElastiCache (Redis) IAM authentication

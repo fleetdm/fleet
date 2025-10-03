@@ -118,7 +118,7 @@ The script should be added to the `inputs/homebrew/scripts` directory.
 
 4. If the PR passes validation, the validator will also execute the test criteria in the QA section of the issue.  If tests fail, add feedback in the PR comments.  If the test failure(s) cannot be addressed by the contributor, close the PR and move the issue to the Drafting board for prioritization.  If tests pass, the PR is approved and merged.
 
-5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)).
+5. The validator is responsible for adding the icon to Fleet (e.g. the TypeScript and website PNG components of [#29175](https://github.com/fleetdm/fleet/pull/29175/files)). These can be generated using the [generate-icons](https://github.com/fleetdm/fleet/tree/main/tools/software/icons) script.
 
 6. QA ensures the icon is added to Fleet
 
@@ -131,6 +131,13 @@ Use the `FLEET_DEV_MAINTAINED_APPS_BASE_URL` environment variable with the follo
    ```
 
    Make sure you replace the `<PR-branch-name>` and `<repository-name>`
+
+By default, Fleet refreshes the maintained apps catalog on a schedule.  
+To fetch your branch’s catalog immediately (without waiting), run:
+
+```bash
+fleetctl trigger --name maintained_apps
+```
 
 Test criteria:
 

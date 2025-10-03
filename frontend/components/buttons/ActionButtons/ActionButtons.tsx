@@ -13,11 +13,10 @@ import GitOpsModeTooltipWrapper from "components/GitOpsModeTooltipWrapper";
 export interface IActionButtonProps {
   type: "primary" | "secondary";
   label: string;
-  buttonVariant?: ButtonVariant;
-  icon?: string;
-  iconSvg?: IconNames;
-  hideAction?: boolean;
   onClick: () => void;
+  buttonVariant?: ButtonVariant;
+  iconName?: IconNames;
+  hideAction?: boolean;
   gitOpsModeCompatible?: boolean;
 }
 
@@ -90,7 +89,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
                     >
                       <>
                         {action.label}
-                        {action.iconSvg && <Icon name={action.iconSvg} />}
+                        {action.iconName && <Icon name={action.iconName} />}
                       </>
                     </Button>
                   )}
@@ -101,7 +100,7 @@ const ActionButtons = ({ baseClass, actions }: IProps): JSX.Element => {
               <Button variant="text-icon" onClick={action.onClick}>
                 <>
                   {action.label}
-                  {action.iconSvg && <Icon name={action.iconSvg} />}
+                  {action.iconName && <Icon name={action.iconName} />}
                 </>
               </Button>
             );

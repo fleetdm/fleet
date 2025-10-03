@@ -60,6 +60,14 @@ func gitopsCommand() *cli.Command {
 			debugFlag(),
 		},
 		Action: func(c *cli.Context) error {
+			logf := func(format string, a ...interface{}) {
+				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
+			}
+
+			if len(c.Args().Slice()) != 0 {
+				return errors.New("No positional arguments are allowed. To load multiple config files, use one -f flag per file.")
+			}
+
 			totalFilenames := len(flFilenames.Value())
 			if totalFilenames == 0 {
 				return errors.New("-f must be specified")
@@ -84,9 +92,6 @@ func gitopsCommand() *cli.Command {
 			}
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
-			}
-			logf := func(format string, a ...interface{}) {
-				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
 
 			// We need the controls from no-team.yml to apply them when applying the global app config.
@@ -469,47 +474,47 @@ func getLabelUsage(config *spec.GitOps) (map[string][]LabelUsage, error) {
 	}
 
 	// Get software package installer label usage
-	for _, setting := range config.Software.Packages {
+	for _, softwarePackage := range config.Software.Packages {
 		var labels []string
-		if len(setting.LabelsIncludeAny) > 0 {
-			labels = setting.LabelsIncludeAny
+		if len(softwarePackage.LabelsIncludeAny) > 0 {
+			labels = softwarePackage.LabelsIncludeAny
 		}
-		if len(setting.LabelsExcludeAny) > 0 {
+		if len(softwarePackage.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.URL)
+				return nil, fmt.Errorf("Software package '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", softwarePackage.URL)
 			}
-			labels = setting.LabelsExcludeAny
+			labels = softwarePackage.LabelsExcludeAny
 		}
-		updateLabelUsage(labels, setting.URL, "Software Package", result)
+		updateLabelUsage(labels, softwarePackage.URL, "Software Package", result)
 	}
 
 	// Get app store app installer label usage
-	for _, setting := range config.Software.AppStoreApps {
+	for _, vppApp := range config.Software.AppStoreApps {
 		var labels []string
-		if len(setting.LabelsIncludeAny) > 0 {
-			labels = setting.LabelsIncludeAny
+		if len(vppApp.LabelsIncludeAny) > 0 {
+			labels = vppApp.LabelsIncludeAny
 		}
-		if len(setting.LabelsExcludeAny) > 0 {
+		if len(vppApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.AppStoreID)
+				return nil, fmt.Errorf("App Store App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", vppApp.AppStoreID)
 			}
-			labels = setting.LabelsExcludeAny
+			labels = vppApp.LabelsExcludeAny
 		}
-		updateLabelUsage(labels, setting.AppStoreID, "App Store App", result)
+		updateLabelUsage(labels, vppApp.AppStoreID, "App Store App", result)
 	}
 
-	for _, setting := range config.Software.FleetMaintainedApps {
+	for _, maintainedApp := range config.Software.FleetMaintainedApps {
 		var labels []string
-		if len(setting.LabelsIncludeAny) > 0 {
-			labels = setting.LabelsIncludeAny
+		if len(maintainedApp.LabelsIncludeAny) > 0 {
+			labels = maintainedApp.LabelsIncludeAny
 		}
-		if len(setting.LabelsExcludeAny) > 0 {
+		if len(maintainedApp.LabelsExcludeAny) > 0 {
 			if len(labels) > 0 {
-				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", setting.Slug)
+				return nil, fmt.Errorf("Fleet Maintained App '%s' has multiple label keys; please choose one of `labels_include_any`, `labels_exclude_any`.", maintainedApp.Slug)
 			}
-			labels = setting.LabelsExcludeAny
+			labels = maintainedApp.LabelsExcludeAny
 		}
-		updateLabelUsage(labels, setting.Slug, "Fleet Maintained App", result)
+		updateLabelUsage(labels, maintainedApp.Slug, "Fleet Maintained App", result)
 	}
 
 	// Get query label usage

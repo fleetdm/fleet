@@ -1,6 +1,6 @@
 //go:build windows
-// +build windows
 
+// nolint:gosec,G103 // Reason: unsafe required for Windows API calls.
 package mdmbridge
 
 import (
@@ -10,7 +10,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/scjalliance/comshim"
 	"io"
 	"os"
 	"strings"
@@ -22,6 +21,7 @@ import (
 	"github.com/hillu/go-ntdll"
 	"github.com/osquery/osquery-go/plugin/table"
 	"github.com/rs/zerolog/log"
+	"github.com/scjalliance/comshim"
 	"golang.org/x/sys/windows"
 	"golang.org/x/sys/windows/registry"
 )

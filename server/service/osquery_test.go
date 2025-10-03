@@ -271,7 +271,7 @@ func expectedDetailQueriesForPlatform(platform string) map[string]osquery_utils.
 	return queries
 }
 
-func TestEnrollAgent(t *testing.T) {
+func TestEnrollOsquery(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
@@ -281,8 +281,8 @@ func TestEnrollAgent(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-		enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+	ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+		enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 		for _, opt := range opts {
 			opt(enrollConfig)
 		}
@@ -300,12 +300,12 @@ func TestEnrollAgent(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host123", nil)
+	nodeKey, err := svc.EnrollOsquery(ctx, "valid_secret", "host123", nil)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 }
 
-func TestEnrollAgentEnforceLimit(t *testing.T) {
+func TestEnrollOsqueryEnforceLimit(t *testing.T) {
 	runTest := func(t *testing.T, pool fleet.RedisPool) {
 		const maxHosts = 2
 
@@ -319,8 +319,8 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 				return nil, errors.New("not found")
 			}
 		}
-		ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-			enrollConfig := &fleet.DatastoreEnrollHostConfig{}
+		ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+			enrollConfig := &fleet.DatastoreEnrollOsqueryConfig{}
 			for _, opt := range opts {
 				opt(enrollConfig)
 			}
@@ -354,15 +354,15 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 			},
 		})
 
-		nodeKey, err := svc.EnrollAgent(ctx, "valid_secret", "host001", nil)
+		nodeKey, err := svc.EnrollOsquery(ctx, "valid_secret", "host001", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 
-		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host002", nil)
+		nodeKey, err = svc.EnrollOsquery(ctx, "valid_secret", "host002", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 
-		_, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		_, err = svc.EnrollOsquery(ctx, "valid_secret", "host003", nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf("maximum number of hosts reached: %d", maxHosts))
 
@@ -371,7 +371,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 		require.NoError(t, err)
 
 		// now host 003 can be enrolled
-		nodeKey, err = svc.EnrollAgent(ctx, "valid_secret", "host003", nil)
+		nodeKey, err = svc.EnrollOsquery(ctx, "valid_secret", "host003", nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, nodeKey)
 	}
@@ -387,7 +387,7 @@ func TestEnrollAgentEnforceLimit(t *testing.T) {
 	})
 }
 
-func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
+func TestEnrollOsqueryIncorrectEnrollSecret(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		switch secret {
@@ -400,18 +400,18 @@ func TestEnrollAgentIncorrectEnrollSecret(t *testing.T) {
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
-	nodeKey, err := svc.EnrollAgent(ctx, "not_correct", "host123", nil)
+	nodeKey, err := svc.EnrollOsquery(ctx, "not_correct", "host123", nil)
 	assert.NotNil(t, err)
 	assert.Empty(t, nodeKey)
 }
 
-func TestEnrollAgentDetails(t *testing.T) {
+func TestEnrollOsqueryDetails(t *testing.T) {
 	ds := new(mock.Store)
 	ds.VerifyEnrollSecretFunc = func(ctx context.Context, secret string) (*fleet.EnrollSecret, error) {
 		return &fleet.EnrollSecret{}, nil
 	}
-	ds.EnrollHostFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollHostOption) (*fleet.Host, error) {
-		config := &fleet.DatastoreEnrollHostConfig{}
+	ds.EnrollOsqueryFunc = func(ctx context.Context, opts ...fleet.DatastoreEnrollOsqueryOption) (*fleet.Host, error) {
+		config := &fleet.DatastoreEnrollOsqueryConfig{}
 		for _, opt := range opts {
 			opt(config)
 		}
@@ -445,7 +445,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 		},
 		"foo": {"foo": "bar"},
 	}
-	nodeKey, err := svc.EnrollAgent(ctx, "", "host123", details)
+	nodeKey, err := svc.EnrollOsquery(ctx, "", "host123", details)
 	require.NoError(t, err)
 	assert.NotEmpty(t, nodeKey)
 
@@ -458,7 +458,7 @@ func TestEnrollAgentDetails(t *testing.T) {
 
 func TestAuthenticateHost(t *testing.T) {
 	ds := new(mock.Store)
-	task := async.NewTask(ds, nil, clock.C, config.OsqueryConfig{})
+	task := async.NewTask(ds, nil, clock.C, nil)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{Task: task})
 
 	var gotKey string
@@ -1110,6 +1110,7 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 		hostDetailQueryPrefix + "kubequery_info":                          {},
 		hostDetailQueryPrefix + "orbit_info":                              {},
 		hostDetailQueryPrefix + "software_vscode_extensions":              {},
+		hostDetailQueryPrefix + "software_linux_fleetd_pacman":            {},
 		hostDetailQueryPrefix + "software_python_packages":                {},
 		hostDetailQueryPrefix + "software_python_packages_with_users_dir": {},
 		hostDetailQueryPrefix + "software_macos_firefox":                  {},
@@ -1589,8 +1590,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 	svc, ctx := newTestServiceWithClock(t, ds, nil, lq, mockClock)
 
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("very_random"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1614,6 +1616,9 @@ func TestDetailQueriesWithEmptyStrings(t *testing.T) {
 			return nil, errors.New("not found")
 		}
 		return host, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	lq.On("QueriesForHost", host.ID).Return(map[string]string{}, nil)
@@ -1787,6 +1792,7 @@ func TestDetailQueries(t *testing.T) {
 		ID:             1,
 		Platform:       "linux",
 		HardwareSerial: "HW_SRL",
+		OsqueryHostID:  ptr.String("foobar"),
 	}
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -1837,6 +1843,9 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, 500.1, gigsTotal)
 		return nil
 	}
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, hostUUID string) (string, string, error) {
+		return "", "", nil
+	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
 			return nil, errors.New("not found")
@@ -1845,6 +1854,9 @@ func TestDetailQueries(t *testing.T) {
 	}
 	ds.GetHostAwaitingConfigurationFunc = func(ctx context.Context, hostuuid string) (bool, error) {
 		return false, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	// With a new host, we should get the detail queries (and accelerated
@@ -2152,8 +2164,8 @@ func TestMDMQueries(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: mdmEnabled}}, nil
 	}
-	ds.GetNanoMDMUserEnrollmentUsernameFunc = func(ctx context.Context, deviceID string) (string, error) {
-		return "", nil
+	ds.GetNanoMDMUserEnrollmentUsernameAndUUIDFunc = func(ctx context.Context, deviceID string) (string, string, error) {
+		return "", "", nil
 	}
 
 	host := fleet.Host{
@@ -2293,8 +2305,9 @@ func TestDistributedQueryResults(t *testing.T) {
 		return map[string]string{}, nil
 	}
 	host := &fleet.Host{
-		ID:       1,
-		Platform: "windows",
+		ID:            1,
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("other_random_value"),
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
 		if id != 1 {
@@ -2313,6 +2326,9 @@ func TestDistributedQueryResults(t *testing.T) {
 			EnableHostUsers:         true,
 			EnableSoftwareInventory: true,
 		}}, nil
+	}
+	ds.ListSetupExperienceResultsByHostUUIDFunc = func(ctx context.Context, hostUUID string) ([]*fleet.SetupExperienceStatusResult, error) {
+		return nil, nil
 	}
 
 	hostCtx := hostctx.NewContext(ctx, host)
@@ -3214,6 +3230,9 @@ func TestPolicyQueries(t *testing.T) {
 	) {
 		return nil, nil, nil
 	}
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		return &fleet.Team{ID: 0}, nil
+	}
 
 	ctx = hostctx.NewContext(ctx, host)
 
@@ -3482,6 +3501,24 @@ func TestPolicyWebhooks(t *testing.T) {
 				},
 			},
 		}, nil
+	}
+
+	// Since the host doesn't have a team, DefaultTeamConfig will be called
+	ds.TeamWithoutExtrasFunc = func(ctx context.Context, id uint) (*fleet.Team, error) {
+		if id == 0 {
+			return &fleet.Team{
+				ID: 0,
+				Config: fleet.TeamConfig{
+					WebhookSettings: fleet.TeamWebhookSettings{
+						FailingPoliciesWebhook: fleet.FailingPoliciesWebhookSettings{
+							Enable:    true,
+							PolicyIDs: []uint{1, 2, 3},
+						},
+					},
+				},
+			}, nil
+		}
+		return nil, nil
 	}
 
 	ds.PolicyQueriesForHostFunc = func(ctx context.Context, host *fleet.Host) (map[string]string, error) {
@@ -4272,7 +4309,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			},
 		},
 		{
-			name: "non-ubuntu/debian installed python packages are NOT filtered out",
+			name: "non-ubuntu/debian installed python packages are filtered out",
 			host: &fleet.Host{ID: 1, Platform: "rhel"},
 			statusesIn: map[string]fleet.OsqueryStatus{
 				hostDetailQueryPrefix + "software_linux": fleet.StatusOK,
@@ -4309,12 +4346,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 						"source":  "rpm_packages",
 					},
 					{
-						"name":    "twisted", // duplicate of python3-twisted
-						"version": "20.3.0-2",
-						"source":  "python_packages",
-					},
-					{
-						"name":    "pillow",
+						"name":    "python3-pillow",
 						"version": "8.1.0",
 						"source":  "python_packages",
 					},

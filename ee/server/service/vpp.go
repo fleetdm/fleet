@@ -150,7 +150,7 @@ func (svc *Service) BatchAssociateVPPApps(ctx context.Context, teamName string, 
 
 		var missingAssets []string
 
-		assets, err := vpp.GetAssets(token, nil)
+		assets, err := vpp.GetAssets(ctx, token, nil)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "unable to retrieve assets")
 		}
@@ -218,7 +218,7 @@ func (svc *Service) GetAppStoreApps(ctx context.Context, teamID *uint) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
 
-	assets, err := vpp.GetAssets(vppToken, nil)
+	assets, err := vpp.GetAssets(ctx, vppToken, nil)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "fetching Apple VPP assets")
 	}
@@ -368,7 +368,7 @@ func (svc *Service) AddAppStoreApp(ctx context.Context, teamID *uint, appID flee
 		return 0, ctxerr.Wrap(ctx, err, "retrieving VPP token")
 	}
 
-	assets, err := vpp.GetAssets(vppToken, &vpp.AssetFilter{AdamID: appID.AdamID})
+	assets, err := vpp.GetAssets(ctx, vppToken, &vpp.AssetFilter{AdamID: appID.AdamID})
 	if err != nil {
 		return 0, ctxerr.Wrap(ctx, err, "retrieving VPP asset")
 	}
@@ -672,6 +672,7 @@ func (svc *Service) UpdateAppStoreApp(ctx context.Context, titleID uint, teamID 
 		Platform:         meta.Platform,
 		LabelsIncludeAny: actLabelsIncl,
 		LabelsExcludeAny: actLabelsExcl,
+		SoftwareIconURL:  meta.IconURL,
 	}
 	if err := svc.NewActivity(ctx, authz.UserFromContext(ctx), act); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "create activity for update app store app")

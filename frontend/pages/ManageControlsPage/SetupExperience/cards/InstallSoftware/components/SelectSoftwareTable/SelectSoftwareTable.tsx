@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 
 import { ISoftwareTitle } from "interfaces/software";
+import { SetupExperiencePlatform } from "interfaces/platform";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -25,17 +26,17 @@ const generateSelectedRows = (softwareTitles: ISoftwareTitle[]) => {
 interface ISelectSoftwareTableProps {
   softwareTitles: ISoftwareTitle[];
   onChangeSoftwareSelect: (select: boolean, id: number) => void;
-  onChangeSelectAll: (selectAll: boolean) => void;
+  platform: SetupExperiencePlatform;
 }
 
 const SelectSoftwareTable = ({
   softwareTitles,
   onChangeSoftwareSelect,
-  onChangeSelectAll,
+  platform,
 }: ISelectSoftwareTableProps) => {
-  const tabelConfig = useMemo(() => {
-    return generateTableConfig(onChangeSelectAll, onChangeSoftwareSelect);
-  }, [onChangeSelectAll, onChangeSoftwareSelect]);
+  const tableConfig = useMemo(() => {
+    return generateTableConfig(platform, onChangeSoftwareSelect);
+  }, [onChangeSoftwareSelect, platform]);
 
   const initialSelectedSoftwareRows = useMemo(() => {
     return generateSelectedRows(softwareTitles);
@@ -53,7 +54,7 @@ const SelectSoftwareTable = ({
     <TableContainer
       className={baseClass}
       data={softwareTitles}
-      columnConfigs={tabelConfig}
+      columnConfigs={tableConfig}
       isLoading={false}
       emptyComponent={() => (
         <EmptyTable
@@ -71,13 +72,15 @@ const SelectSoftwareTable = ({
       searchable
       searchQueryColumn="name"
       isClientSideFilter
-      onClearSelection={() => onChangeSelectAll(false)}
       renderTableHelpText={() => (
         <p className={`${baseClass}__help-text`}>
-          Software will be installed on all hosts. Currently, custom targets
-          (labels) don&apos;t apply during set up experience.
+          Software will be installed on{" "}
+          {platform === "linux" ? "compatible platforms" : "all hosts"}.
+          Currently, custom targets (labels) don&apos;t apply during set up
+          experience.
         </p>
       )}
+      suppressHeaderActions
     />
   );
 };

@@ -1,6 +1,6 @@
 import React from "react";
 import { screen } from "@testing-library/react";
-import { createCustomRenderer, renderWithSetup } from "test/test-utils";
+import { createCustomRenderer } from "test/test-utils";
 import { createMockDeviceSoftware } from "__mocks__/deviceUserMock";
 import { noop } from "lodash";
 import {
@@ -10,7 +10,7 @@ import {
 import UpdatesCard from "./UpdatesCard";
 
 describe("UpdatesCard", () => {
-  const render = createCustomRenderer();
+  const render = createCustomRenderer({ withBackendMock: true });
 
   const createEnhancedSoftware = (
     count = 3,
@@ -73,7 +73,7 @@ describe("UpdatesCard", () => {
 
   it("shows next page of updates with pagination", async () => {
     const updates = createEnhancedSoftware(5);
-    const { user } = renderWithSetup(
+    const { user } = render(
       <UpdatesCard
         enhancedSoftware={updates}
         onClickUpdateAction={noop}

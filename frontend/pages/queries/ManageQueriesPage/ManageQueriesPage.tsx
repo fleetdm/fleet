@@ -32,6 +32,7 @@ import { API_ALL_TEAMS_ID } from "interfaces/team";
 import queriesAPI, { IQueriesResponse } from "services/entities/queries";
 import PATHS from "router/paths";
 
+import PageDescription from "components/PageDescription";
 import Button from "components/buttons/Button";
 import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
@@ -433,9 +434,7 @@ const ManageQueriesPage = ({
             </div>
           )}
         </div>
-        <div className={`${baseClass}__description`}>
-          <p>{dropdownHelpText}</p>
-        </div>
+        <PageDescription content={dropdownHelpText} />
         {renderQueriesTable()}
         {renderModals()}
       </div>
