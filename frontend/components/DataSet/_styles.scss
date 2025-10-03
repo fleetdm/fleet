@@ -4,11 +4,6 @@
   font-size: $x-small;
   gap: $pad-xsmall;
 
-  &__horizontal {
-    display: flex;
-    gap: $pad-small;
-  }
-
   dt {
     font-weight: $bold;
     display: flex;

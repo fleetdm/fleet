@@ -58,7 +58,7 @@ Use Fleet's simple, clean UI, or manage Fleet with configuration as code in vers
 ### Fleet in under 3 minutes
 [Watch on YouTube](https://www.youtube.com/watch?v=q1Tm3IBcx24&t=1s)
 
-<meta name="articleTitle" value="Device enrollemt lifecycle.">
+<meta name="articleTitle" value="Device enrollment lifecycle">
 <meta name="authorFullName" value="Brock Walters">
 <meta name="authorGitHubUsername" value="nonpunctual">
 <meta name="category" value="articles">

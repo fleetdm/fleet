@@ -97,11 +97,13 @@ const WindowsMdmPage = ({ router }: IWindowsMdmPageProps) => {
   return (
     <MainContent className={baseClass}>
       <>
-        <BackButton
-          text="Back to MDM"
-          path={PATHS.ADMIN_INTEGRATIONS_MDM}
-          className={`${baseClass}__back-to-mdm`}
-        />
+        <div className={`${baseClass}__header-links`}>
+          <BackButton
+            text="Back to MDM"
+            path={PATHS.ADMIN_INTEGRATIONS_MDM}
+            className={`${baseClass}__back-to-mdm`}
+          />
+        </div>
         <h1>Manage Windows MDM</h1>
         <form>
           <Slider

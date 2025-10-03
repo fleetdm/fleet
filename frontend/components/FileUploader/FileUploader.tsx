@@ -203,19 +203,27 @@ export const FileUploader = ({
   const renderFileUploader = () => {
     return (
       <>
-        <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
-        <p className={`${baseClass}__message`}>{message}</p>
-        {additionalInfo && (
-          <p className={`${baseClass}__additional-info`}>{additionalInfo}</p>
-        )}
-        {renderUploadButton()}
-        <input
-          ref={fileInputRef}
-          accept={accept}
-          id="upload-file"
-          type="file"
-          onChange={onFileSelect}
-        />
+        <div className="content-wrapper">
+          <div className="outer">
+            <div className="inner">
+              <div className={`${baseClass}__graphics`}>{renderGraphics()}</div>
+              <p className={`${baseClass}__message`}>{message}</p>
+              {additionalInfo && (
+                <p className={`${baseClass}__additional-info`}>
+                  {additionalInfo}
+                </p>
+              )}
+            </div>
+            {renderUploadButton()}
+            <input
+              ref={fileInputRef}
+              accept={accept}
+              id="upload-file"
+              type="file"
+              onChange={onFileSelect}
+            />
+          </div>
+        </div>
       </>
     );
   };
