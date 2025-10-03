@@ -1753,8 +1753,7 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 	expectedApps := []*fleet.VPPApp{macOSApp1, macOSApp2, iOSApp2, iPadOSApp2, iPadOSApp3}
 
 	var addAppResp addAppStoreAppResponse
-	// Add apps as non-self-service
-	var titleIDs []uint
+	// Add apps
 	getSoftwareTitleIDFromApp := func(app *fleet.VPPApp) uint {
 		var titleID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -1773,7 +1772,6 @@ func (s *integrationMDMTestSuite) TestSetupExperienceVPPCRUD() {
 			&addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: app.AdamID, Platform: app.Platform},
 			http.StatusOK, &addAppResp)
 		titleIDsByApp[app] = getSoftwareTitleIDFromApp(app)
-		titleIDs = append(titleIDs, titleIDsByApp[app])
 
 		// Add apps to the other team as well so that they are available but should not show up in setup experience
 		s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps",
