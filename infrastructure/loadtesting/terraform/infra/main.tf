@@ -30,7 +30,7 @@ resource "aws_route53_record" "main" {
 }
 
 module "loadtest" {
-  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.2"
+  source = "github.com/fleetdm/fleet-terraform//byo-vpc?ref=tf-mod-root-v1.18.3"
   vpc_config = {
     name   = local.customer
     vpc_id = data.terraform_remote_state.shared.outputs.vpc.vpc_id
