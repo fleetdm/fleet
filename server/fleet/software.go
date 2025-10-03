@@ -93,9 +93,11 @@ type Software struct {
 	Checksum string `json:"-" db:"checksum"`
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
-	Installed     bool   `json:"-"`
-	IsKernel      bool   `json:"-"`
-	ApplicationID string `json:"application_id" db:"application_id"`
+	Installed bool `json:"-"`
+	// IsKernel indicates if this software is a Linux kernel.
+	IsKernel bool `json:"-"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID string `json:"application_id,omitempty" db:"application_id"`
 }
 
 func (Software) AuthzType() string {
@@ -220,7 +222,8 @@ type SoftwareTitle struct {
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// IsKernel indicates if the software title is a Linux kernel.
-	IsKernel      bool    `json:"-" db:"is_kernel"`
+	IsKernel bool `json:"-" db:"is_kernel"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
 	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
@@ -259,7 +262,8 @@ type SoftwareTitleListResult struct {
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
-	ApplicationID    *string `json:"application_id,omitempty" db:"application_id"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 type SoftwareTitleListOptions struct {

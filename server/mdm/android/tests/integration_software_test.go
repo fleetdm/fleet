@@ -80,44 +80,87 @@ func (s *softwareTestSuite) TestAndroidSoftwareIngestion() {
 	require.NoError(t, err)
 	require.Len(t, secrets, 1)
 
-	deviceID := createAndroidDeviceID("test-android")
-
-	enterpriseSpecificID := strings.ToUpper(uuid.New().String())
-	enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
-		t,
-		androidmanagement.Device{
-			Name:                deviceID,
-			EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
-		},
-		enterpriseSpecificID,
-	)
-
 	assets, err := s.DS.Datastore.GetAllMDMConfigAssetsByName(ctx, []fleet.MDMAssetName{fleet.MDMAssetAndroidPubSubToken}, nil)
 	require.NoError(t, err)
 	pubsubToken := assets[fleet.MDMAssetAndroidPubSubToken]
 	require.NotEmpty(t, pubsubToken.Value)
 
-	req := service.PubSubPushRequest{
-		PubSubMessage: *enrollmentMessage,
+	deviceID1 := createAndroidDeviceID("test-android")
+	deviceID2 := createAndroidDeviceID("test-android-2")
+
+	enterpriseSpecificID1 := strings.ToUpper(uuid.New().String())
+	enterpriseSpecificID2 := strings.ToUpper(uuid.New().String())
+	var req service.PubSubPushRequest
+	for _, d := range []struct {
+		id  string
+		esi string
+	}{{deviceID1, enterpriseSpecificID1}, {deviceID2, enterpriseSpecificID2}} {
+		enrollmentMessage := enrollmentMessageWithEnterpriseSpecificID(
+			t,
+			androidmanagement.Device{
+				Name:                d.id,
+				EnrollmentTokenData: fmt.Sprintf(`{"EnrollSecret": "%s"}`, secrets[0].Secret),
+			},
+			d.esi,
+		)
+
+		req = service.PubSubPushRequest{
+			PubSubMessage: *enrollmentMessage,
+		}
+
+		s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
+	}
+
+	// Send device data including software for device 1
+	software1 := []*androidmanagement.ApplicationReport{{
+		DisplayName: "Google Chrome",
+		PackageName: "com.google.chrome",
+		VersionName: "1.0.0",
+		State:       "INSTALLED",
+	}}
+	deviceData1 := createAndroidDeviceWithSoftware(enterpriseSpecificID1, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil, software1)
+	req = service.PubSubPushRequest{
+		PubSubMessage: createStatusReportMessageFromDevice(t, deviceData1),
 	}
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
-	device := createAndroidDevice(enterpriseSpecificID, "test-android", createAndroidDeviceID("test-policy"), ptr.Int(1), nil)
+	// Send device data including software for device 2
+	software2 := []*androidmanagement.ApplicationReport{{
+		DisplayName: "Google Chrome",
+		PackageName: "com.google.chrome",
+		VersionName: "2.0.0",
+		State:       "INSTALLED",
+	}}
+	deviceData2 := createAndroidDeviceWithSoftware(enterpriseSpecificID2, "test-android-2", createAndroidDeviceID("test-policy"), ptr.Int(1), nil, software2)
 	req = service.PubSubPushRequest{
-		PubSubMessage: createStatusReportMessageFromDevice(t, device),
+		PubSubMessage: createStatusReportMessageFromDevice(t, deviceData2),
 	}
 
 	s.Do("POST", "/api/v1/fleet/android_enterprise/pubsub", &req, http.StatusOK, "token", string(pubsubToken.Value))
 
 	mysql.ExecAdhocSQL(t, s.DS.Datastore, func(q sqlx.ExtContext) error {
+		// Check software table for correct values, we should have as many rows as there were ApplicationReports sent
 		var software []*fleet.Software
-		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source FROM software")
+		err := sqlx.SelectContext(ctx, q, &software, "SELECT id, name, application_id, source, title_id FROM software")
 		require.NoError(t, err)
-		assert.Len(t, software, len(device.ApplicationReports))
+		assert.Len(t, software, len(deviceData1.ApplicationReports)+len(deviceData2.ApplicationReports))
 
-		for i, s := range software {
-			assert.Equal(t, device.ApplicationReports[i].PackageName, s.ApplicationID)
+		// Check software_titles, we should have fewer rows here, because some ApplicationRows map to the same title.
+		var titles []fleet.SoftwareTitle
+		err = sqlx.SelectContext(ctx, q, &titles, "SELECT id, name, application_id, source FROM software_titles")
+		require.NoError(t, err)
+
+		require.Len(t, titles, 1)
+
+		for _, s := range software {
+			// Validate that both softwares map to the same title
+			assert.Equal(t, *s.TitleID, titles[0].ID)
+
+			// Check other fields are as expected
+			assert.Equal(t, "com.google.chrome", s.ApplicationID)
+			assert.Equal(t, "Google Chrome", s.Name)
+			assert.Equal(t, "android_apps", s.Source)
 		}
 		return nil
 	})
@@ -180,7 +223,7 @@ func createAndroidDeviceID(name string) string {
 	return "enterprises/mock-enterprise-id/devices/" + name
 }
 
-func createAndroidDevice(deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) androidmanagement.Device {
+func createAndroidDeviceWithSoftware(deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail, software []*androidmanagement.ApplicationReport) androidmanagement.Device {
 	return androidmanagement.Device{
 		Name:                 createAndroidDeviceID(name),
 		NonComplianceDetails: nonComplianceDetails,
@@ -202,12 +245,7 @@ func createAndroidDevice(deviceId, name, policyName string, policyVersion *int, 
 		AppliedPolicyName:    policyName,
 		AppliedPolicyVersion: int64(*policyVersion),
 		LastPolicySyncTime:   "2001-01-01T00:00:00Z",
-		ApplicationReports: []*androidmanagement.ApplicationReport{{
-			DisplayName: "Google Chrome",
-			PackageName: "com.google.chrome",
-			VersionName: "1.0.0",
-			State:       "INSTALLED",
-		}},
+		ApplicationReports:   software,
 	}
 }
 
@@ -223,8 +261,4 @@ func createStatusReportMessageFromDevice(t *testing.T, device androidmanagement.
 		},
 		Data: encodedData,
 	}
-}
-
-func createStatusReportMessage(t *testing.T, deviceId, name, policyName string, policyVersion *int, nonComplianceDetails []*androidmanagement.NonComplianceDetail) android.PubSubMessage {
-	return createStatusReportMessageFromDevice(t, createAndroidDevice(deviceId, name, policyName, policyVersion, nonComplianceDetails))
 }
