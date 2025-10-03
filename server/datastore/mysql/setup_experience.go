@@ -95,6 +95,8 @@ WHERE global_or_team_id = ?`
 
 	var totalInsertions uint
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		totalInsertions = 0 // reset for each attempt
+
 		// Clean out old statuses for the host
 		if _, err := tx.ExecContext(ctx, stmtClearSetupStatus, hostUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "removing stale setup experience entries")
@@ -102,23 +104,25 @@ WHERE global_or_team_id = ?`
 
 		// Software installers
 		fleetPlatform := fleet.PlatformFromHost(hostPlatformLike)
-		res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+		if fleetPlatform != "ios" && fleetPlatform != "ipados" {
+			res, err := tx.ExecContext(ctx, stmtSoftwareInstallers, hostUUID, teamID, fleetPlatform, hostPlatformLike, hostPlatformLike)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "inserting setup experience software installers")
+			}
+			inserts, err := res.RowsAffected()
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
+			}
+			totalInsertions += uint(inserts) // nolint: gosec
 		}
-		inserts, err := res.RowsAffected()
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "retrieving number of inserted software installers")
-		}
-		totalInsertions += uint(inserts) // nolint: gosec
 
 		// VPP apps
-		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
+			res, err := tx.ExecContext(ctx, stmtVPPApps, hostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience vpp apps")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted vpp apps")
 			}
@@ -127,19 +131,19 @@ WHERE global_or_team_id = ?`
 
 		// Scripts
 		if fleetPlatform == "darwin" {
-			res, err = tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
+			res, err := tx.ExecContext(ctx, stmtSetupScripts, hostUUID, teamID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "inserting setup experience scripts")
 			}
-			inserts, err = res.RowsAffected()
+			inserts, err := res.RowsAffected()
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "retrieving number of inserted setup experience scripts")
 			}
 			totalInsertions += uint(inserts) // nolint: gosec
 		}
 
-		// Set setup experience on darwin hosts only if they have something configured.
-		if fleetPlatform == "darwin" {
+		// Set setup experience on Apple hosts only if they have something configured.
+		if fleetPlatform == "darwin" || fleetPlatform == "ios" || fleetPlatform == "ipados" {
 			if totalInsertions > 0 {
 				if err := setHostAwaitingConfiguration(ctx, tx, hostUUID, true); err != nil {
 					return ctxerr.Wrap(ctx, err, "setting host awaiting configuration to true")
