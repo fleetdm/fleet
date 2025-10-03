@@ -66,7 +66,13 @@ SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND na
 
 - Query:
 ```sql
-SELECT * FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM';
+SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	UNION ALL
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
+		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
+		CROSS JOIN
+		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
+	ORDER BY priority ASC;
 ```
 
 ## disk_encryption_darwin
