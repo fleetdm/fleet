@@ -6,7 +6,7 @@ In Fleet, you can customize the software that's installed while enrolling new us
 
 This feature is similar to the setup experience [available on macOS](https://fleetdm.com/guides/macos-setup-experience) during ADE enrollment.
 
-The installers can come either from your Custom Packages, or the list of Fleet Maintained Apps.
+The installers can come either from your custom packages, or the list of Fleet-maintained apps.
 
 If you configure software for setup experience, users will see a web browser this pop open after their device enrolls in Fleet:
 
