@@ -155,7 +155,7 @@ export const isAndroid = (
 export const isMobilePlatform = (platform: string | HostPlatform) =>
   isIPadOrIPhone(platform) || isAndroid(platform);
 
-// --- OS Setings and Disk Encryption support by Platform ---
+// --- OS Settings and Disk Encryption support by Platform ---
 
 export const DISK_ENCRYPTION_SUPPORTED_LINUX_PLATFORMS = [
   "ubuntu", // covers Kubuntu

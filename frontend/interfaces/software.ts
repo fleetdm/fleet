@@ -236,7 +236,7 @@ export const INSTALLABLE_SOURCE_PLATFORM_CONVERSION = {
   apps: "darwin",
   ios_apps: "ios",
   ipados_apps: "ipados",
-  android_apps: "android",
+  // android_apps: "android", // Uncomment when Android software installs are supported
   chrome_extensions: null,
   firefox_addons: null,
   safari_extensions: null,
