@@ -883,16 +883,15 @@ var entraIDDetails = DetailQuery{
 	// 2. Hosts enrolled to Company Portal using the new Platform SSO extension (aka "Microsoft Entra joined").
 	//	  The extension stores the credentials in the secure enclave.
 	// 3. Hosts that migrated from (1) to (2). The keychain items in (1) are not removed after the migration,
-	//    so for that reason we query the app_sso_platform first.
+	//    so for that reason we query the app_sso_platform first (priority 1).
 	//
-	Query: `SELECT * FROM (
-	SELECT device_id, user_principal_name FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
+	Query: `SELECT device_id, user_principal_name, 1 AS priority FROM app_sso_platform WHERE extension_identifier = 'com.microsoft.CompanyPortalMac.ssoextension' AND realm = 'KERBEROS.MICROSOFTONLINE.COM'
 	UNION ALL
-	SELECT device_id, user_principal_name FROM (
+	SELECT device_id, user_principal_name, 2 AS priority FROM (
 		SELECT common_name AS device_id FROM certificates WHERE issuer LIKE '/DC=net+DC=windows+CN=MS-Organization-Access+OU%' ORDER BY not_valid_before DESC LIMIT 1)
 		CROSS JOIN
 		(SELECT label as user_principal_name FROM keychain_items WHERE account = 'com.microsoft.workplacejoin.registeredUserPrincipalName' LIMIT 1)
-	);`,
+	ORDER BY priority ASC;`,
 	Discovery:        discoveryTable("app_sso_platform"),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestEntraIDDetails,
