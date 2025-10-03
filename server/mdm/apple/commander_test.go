@@ -165,6 +165,25 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
+	cmdUUID = uuid.New().String()
+	orgName := "My Org Name"
+	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "EnableLostMode", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Contains(t, string(cmd.Raw), orgName)
+		require.Empty(t, pin)
+		return nil
+	}
+	err = cmdr.EnableLostMode(ctx, host, cmdUUID, orgName)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueDeviceLockCommandFuncInvoked)
+	mdmStorage.EnqueueDeviceLockCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
 	mdmStorage.EnqueueDeviceUnlockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
 		require.NotNil(t, gotHost)
 		require.Equal(t, host.ID, gotHost.ID)
