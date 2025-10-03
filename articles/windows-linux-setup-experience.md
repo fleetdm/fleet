@@ -8,7 +8,7 @@ This feature is similar to the setup experience [available on macOS](https://fle
 
 The installers can come either from your custom packages, or the list of Fleet-maintained apps.
 
-If you configure software for setup experience, users will see a web browser this pop open after their device enrolls in Fleet:
+If you configure software for setup experience, users will see a web browser pop open after their device enrolls in Fleet:
 
 ![screen shot of Fleet setup experience webpage](../website/assets/images/articles/setup-experience-browser.png)
 
