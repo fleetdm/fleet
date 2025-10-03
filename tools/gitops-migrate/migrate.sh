@@ -34,6 +34,9 @@ check_dependencies() {
     
     # Check yq version (we need v4+)
     YQ_VERSION=$(yq --version | cut -d' ' -f4 | cut -d'v' -f2 | cut -d'.' -f1)
+    if [[ "$YQ_VERSION" == "" ]]; then
+        YQ_VERSION="0"
+    fi
     if [ "$YQ_VERSION" -lt 4 ]; then
         echo -e "${RED}Error: yq version 4 or higher is required${NC}"
         exit 1
@@ -70,7 +73,8 @@ validate_yaml() {
 # Extract target keys from software file
 extract_keys_from_software() {
     local software_file="$1"
-    local temp_file=$(mktemp)
+    local temp_file=$(mktemp -p .)
+    chmod 666 $temp_file
     
     # Extract the keys we need
     {
@@ -88,7 +92,8 @@ remove_keys_from_software() {
     echo -e "${BLUE}  Removing keys from: $software_file${NC}"
     
     # Create a temporary file with keys removed
-    local temp_file=$(mktemp)
+    local temp_file=$(mktemp -p .)
+    chmod 666 $temp_file
     yq eval --output-format=yaml 'del(.self_service, .categories, .labels_include_any, .labels_exclude_any)' "$software_file" > "$temp_file"
     
     # Replace the original file
@@ -108,6 +113,7 @@ add_keys_to_team_file() {
     fi
     
     echo -e "${BLUE}  Adding keys to team file at package index $package_index${NC}"
+
     
     # Process each key type directly on the team file to preserve formatting
     for key in "self_service" "categories" "labels_include_any" "labels_exclude_any"; do
@@ -159,14 +165,14 @@ process_team_file() {
         
         if [ ! -f "$software_file" ]; then
             echo -e "${RED}    Error: Software file not found: $software_file${NC}"
-            ((ERRORS++))
+            ERRORS=$((ERRORS+1))
             continue
         fi
         
         # Validate software file
         if ! validate_yaml "$software_file"; then
             echo -e "${RED}    Error: Invalid YAML in software file${NC}"
-            ((ERRORS++))
+            ERRORS=$((ERRORS+1))
             continue
         fi
         
@@ -184,18 +190,18 @@ process_team_file() {
         # Clean up temp file
         rm -f "$keys_temp_file"
         
-        ((PROCESSED_PACKAGES++))
+        PROCESSED_PACKAGED=$((PROCESSED_PACKAGES+1))
         echo -e "${GREEN}    ✓ Package processed successfully${NC}"
     done
     
     # Validate the modified team file
     if ! validate_yaml "$team_file"; then
         echo -e "${RED}  Error: Team file became invalid after processing${NC}"
-        ((ERRORS++))
+        ERRORS=$((ERRORS+1))
         return 1
     fi
     
-    ((PROCESSED_TEAMS++))
+    PROCESSED_TEAMS=$((PROCESSED_TEAMS+1))
     echo -e "${GREEN}✓ Team file processed successfully${NC}"
     echo
 }
