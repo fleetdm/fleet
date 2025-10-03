@@ -373,6 +373,7 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallCount      int
 	uniqueSoftwareUninstallProb       float64
 	duplicateBundleIdentifiersPercent int
+	softwareRenaming                  bool
 }
 type softwareExtraEntityCount struct {
 	entityCount
@@ -1701,8 +1702,15 @@ func (a *agent) softwareMacOS() []map[string]string {
 		bundleIDIndex := i / groupSize
 		bundleID := fmt.Sprintf("com.fleetdm.osquery-perf.common_%d", bundleIDIndex%a.softwareCount.common)
 
+		var name string
+		if a.softwareCount.softwareRenaming {
+			name = fmt.Sprintf("RENAMED_DuplicateBundle_%d", i)
+		} else {
+			name = fmt.Sprintf("DuplicateBundle_%d", i)
+		}
+
 		duplicateBundleSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("RENAMED_DuplicateBundle_%d", i),
+			"name":              name,
 			"version":           fmt.Sprintf("1.0.%d", i),
 			"bundle_identifier": bundleID,
 			"source":            "apps",
@@ -2889,6 +2897,7 @@ func main() {
 		uniqueVSCodeExtensionsSoftwareUninstallProb  = flag.Float64("unique_vscode_extensions_software_uninstall_prob", 0.1, "Probability of uninstalling unique_vscode_extensions_software_uninstall_count common software/s")
 
 		duplicateBundleIdentifiersPercent = flag.Int("duplicate_bundle_identifiers_percent", 0, "Percentage of software with duplicate bundle identifiers (0-100)")
+		softwareRenaming                  = flag.Bool("software_renaming", false, "Enable software renaming for duplicate bundle identifiers")
 		// WARNING: This will generate massive amounts of entries in the software table,
 		// because linux devices report many individual software items, ~1600, compared to Windows around ~100s or macOS around ~500s.
 		//
@@ -3079,6 +3088,7 @@ func main() {
 				uniqueSoftwareUninstallCount:      *uniqueSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:       *uniqueSoftwareUninstallProb,
 				duplicateBundleIdentifiersPercent: *duplicateBundleIdentifiersPercent,
+				softwareRenaming:                  *softwareRenaming,
 			},
 			softwareExtraEntityCount{
 				entityCount: entityCount{

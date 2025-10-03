@@ -519,7 +519,7 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 		}
 
 		lockQuery := fmt.Sprintf(
-			"SELECT id, name FROM software WHERE id IN (%s) FOR UPDATE SKIP LOCKED",
+			"SELECT id, name FROM software WHERE id IN (%s) ORDER BY id FOR UPDATE SKIP LOCKED",
 			strings.Join(placeholders, ","),
 		)
 
