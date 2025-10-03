@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -704,11 +705,10 @@ func (ds *Datastore) getExistingSoftware(
 		for _, s := range currentSoftware {
 			sw, ok := incomingChecksumToSoftware[s.Checksum]
 			if !ok {
-				// This can happen due to replication lag. Another host may have inserted
-				// software with this checksum between when we computed our incoming checksums
-				// and when we queried the replica
-				delete(newSoftware, s.Checksum)
-				continue
+				// This should never happen. If it does, we have a bug.
+				return nil, nil, nil, nil, ctxerr.New(
+					ctx, fmt.Sprintf("current software: software not found for checksum %s", hex.EncodeToString([]byte(s.Checksum))),
+				)
 			}
 			if s.BundleIdentifier != nil && s.Source == "apps" {
 				if name, ok := bundleIDsToNames[*s.BundleIdentifier]; ok && name != s.Name {
