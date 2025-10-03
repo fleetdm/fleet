@@ -1,0 +1,1 @@
+* Fixed GitOps bug where icon was ignored when software URL was provided.
