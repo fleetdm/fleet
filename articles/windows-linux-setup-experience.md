@@ -2,7 +2,7 @@
 
 _Available in Fleet Premium_
 
-In Fleet, you can customize the software that's installed while enrolling new users on Linux. This feature is similar to the setup experience [available on macOS](https://fleetdm.com/guides/macos-setup-experience) during ADE enrollment.
+In Fleet, you can customize the software that's installed while enrolling new users on Linux. This feature is similar to the setup experience [available on macOS](https://fleetdm.com/guides/macos-setup-experience) during ADE enrollment. Windows support is coming soon.
 
 The installers can come either from your custom packages, or the list of Fleet-maintained apps.
 
