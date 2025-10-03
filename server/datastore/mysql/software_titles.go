@@ -62,6 +62,7 @@ GROUP BY
 	st.source,
 	st.browser,
 	st.bundle_identifier,
+	hosts_count,
 	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
