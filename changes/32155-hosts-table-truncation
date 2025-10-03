@@ -1,2 +1,0 @@
-* Update Hosts table > hostname column to truncate overflowing hostnames
- and place the full name in a tooltip on hover.

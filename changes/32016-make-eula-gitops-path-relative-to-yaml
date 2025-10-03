@@ -1,1 +1,0 @@
-* Bugfix: fixed EULA path to be relative to the YAML file in `fleetctl gitops`, as it is for other settings.
