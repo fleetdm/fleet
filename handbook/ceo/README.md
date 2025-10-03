@@ -8,6 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | [CEO](https://fleetdm.com/handbook/company/leadership#ceo-flaws) | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
+| Executive Assistant | <sup><sub> _See [🧑‍🚀 People](https://fleetdm.com/handbook/people#team) </sup></sub>
 
 
 
