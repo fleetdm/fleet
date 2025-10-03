@@ -1,5 +1,5 @@
 name: santa_allowed
-description: List of applications Santa has allowed to run on the host.
+description: Logs events for when Santa allowed applications to run on the host. Fleet's agent (fleetd) only stores the most recent 10,000 allowed events.
 platforms: 
   - darwin
 evented: false
