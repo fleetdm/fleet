@@ -2177,7 +2177,6 @@ Optionally, if you're using a third-party to manage AWS resources, this is the A
     sts_external_id: your_unique_id
   ```
 
-<<<<<<< HEAD
 ### ses_source_arn
 
 This flag only has effect if `email.backend` or `FLEET_EMAIL_BACKEND` is set to `ses`. This configuration **is
@@ -2194,8 +2193,6 @@ for the email address specified in the Source parameter of SendRawEmail.
     ses_source_arn: TODO
   ```
 
-=======
->>>>>>> d76184af55eb2dfa46e78a837ae93d804de37278
 ## S3
 
 ### s3_software_installers_bucket
