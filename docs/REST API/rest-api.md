@@ -4271,7 +4271,7 @@ The host will only return a key if its disk encryption status is "Verified." Get
 
 ### Get host's certificates
 
-Available for macOS, iOS, and iPadOS hosts only. Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
+Available for macOS, iOS, iPadOS, and Windows hosts only. Requires Fleet's MDM to be [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-setup).
 
 Retrieves the certificates installed on a host.
 
