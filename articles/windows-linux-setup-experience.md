@@ -1,4 +1,4 @@
-# Installing software during setup on Windows and Linux
+# Installing software during setup on Linux
 
 _Available in Fleet Premium_
 
