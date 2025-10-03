@@ -64,26 +64,22 @@ const ChangeManagement = () => {
   const [formErrors, setFormErrors] = useState<IChangeManagementFormErrors>({});
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const {
-    isLoading: isLoadingConfig,
-    error: isLoadingConfigError,
-    refetch: refetchConfig,
-  } = useQuery<IConfig, Error, IConfig>(
-    ["integrations"],
-    () => configAPI.loadAll(),
-    {
-      onSuccess: (data) => {
-        const {
-          gitops: {
-            gitops_mode_enabled: gitOpsModeEnabled,
-            repository_url: repoURL,
-          },
-        } = data;
-        setFormData({ gitOpsModeEnabled, repoURL });
-        setConfig(data);
-      },
-    }
-  );
+  const { isLoading: isLoadingConfig, error: isLoadingConfigError } = useQuery<
+    IConfig,
+    Error,
+    IConfig
+  >(["integrations"], () => configAPI.loadAll(), {
+    onSuccess: (data) => {
+      const {
+        gitops: {
+          gitops_mode_enabled: gitOpsModeEnabled,
+          repository_url: repoURL,
+        },
+      } = data;
+      setFormData({ gitOpsModeEnabled, repoURL });
+      setConfig(data);
+    },
+  });
 
   const { isPremiumTier } = useContext(AppContext);
 
@@ -108,18 +104,25 @@ const ChangeManagement = () => {
     }
     setIsUpdating(true);
     try {
-      await configAPI.update({
+      const updatedConfig = await configAPI.update({
         gitops: {
           gitops_mode_enabled: formData.gitOpsModeEnabled,
           repository_url: formData.repoURL,
         },
       });
+
+      setFormData({
+        gitOpsModeEnabled: updatedConfig.gitops.gitops_mode_enabled,
+        repoURL: updatedConfig.gitops.repository_url,
+      });
+
+      setConfig(updatedConfig);
+
       renderFlash("success", "Successfully updated settings");
-      setIsUpdating(false);
-      refetchConfig();
     } catch (e) {
       const message = getErrorReason(e);
       renderFlash("error", message || "Failed to update settings");
+    } finally {
       setIsUpdating(false);
     }
   };

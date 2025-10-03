@@ -161,7 +161,7 @@ WHERE global_or_team_id = ?`
 
 func (ds *Datastore) SetSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, titleIDs []uint) error {
 	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+		return ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
 	}
 
 	titleIDQuestionMarks := strings.Join(slices.Repeat([]string{"?"}, len(titleIDs)), ",")
@@ -366,7 +366,7 @@ func (ds *Datastore) GetSetupExperienceCount(ctx context.Context, platform strin
 
 func (ds *Datastore) ListSetupExperienceSoftwareTitles(ctx context.Context, platform string, teamID uint, opts fleet.ListOptions) ([]fleet.SoftwareTitleListResult, int, *fleet.PaginationMetadata, error) {
 	if platform != string(fleet.MacOSPlatform) && platform != "windows" && platform != "linux" && platform != string(fleet.IOSPlatform) && platform != string(fleet.IPadOSPlatform) {
-		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform)
+		return nil, 0, nil, ctxerr.Errorf(ctx, "platform %q is not supported, only %q, %q, %q, \"windows\", or \"linux\" platforms are supported", platform, fleet.MacOSPlatform, fleet.IOSPlatform, fleet.IPadOSPlatform)
 	}
 
 	opts.IncludeMetadata = true
