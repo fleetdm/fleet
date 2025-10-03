@@ -1711,7 +1711,7 @@ func (a *agent) softwareMacOS() []map[string]string {
 
 		duplicateBundleSoftware[i] = map[string]string{
 			"name":              name,
-			"version":           fmt.Sprintf("1.0.%d", i),
+			"version":           "0.0.1",
 			"bundle_identifier": bundleID,
 			"source":            "apps",
 			"installed_path":    fmt.Sprintf("/some/path/DuplicateBundle_%d.app", i),
