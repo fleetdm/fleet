@@ -3818,7 +3818,7 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		//
 		// TODO: sanity check if this approach is still valid after we implement wipe
 
-		// if there is not a deleted device, it means there is no hosts entry so no need to clean the lock
+		// if there is a deleted device, it means there is no hosts entry so no need to clean the lock
 		if deletedDevice == nil {
 			if err := svc.ds.CleanAppleMDMLock(r.Context, cmdResult.UDID); err != nil {
 				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
