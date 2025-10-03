@@ -5916,7 +5916,9 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 The returned value is a signed `.mobileconfig` OTA enrollment profile (see [Apple enrollment profile docs](https://developer.apple.com/library/archive/documentation/NetworkingInternet/Conceptual/iPhoneOTAConfiguration/OTASecurity/OTASecurity.html)). Install this profile on macOS, iOS, or iPadOS hosts to enroll them to a specific team in Fleet and turn on MDM features.
 
-To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), install the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+If the team in Fleet has [end user authentication](https://fleetdm.com/guides/macos-setup-experience#end-user-authentication) enabled, the OTA enrollment profile won't work. Use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
+
+To enroll macOS hosts, turn on MDM features, and add [human-device mapping](#get-human-device-mapping), use the [manual enrollment profile](#get-manual-enrollment-profile) instead.
 
 #### Parameters
 
