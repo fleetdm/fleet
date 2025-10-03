@@ -21,7 +21,8 @@ This script automates the migration of software configuration keys from individu
   brew install yq
   
   # Install on Ubuntu/Debian
-  sudo apt install yq
+  # yq installed from apt is NOT supported
+  sudo snap install yq
   
   # Install on other systems - see https://github.com/mikefarah/yq
   ```
