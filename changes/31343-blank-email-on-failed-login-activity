@@ -1,1 +1,0 @@
-* Fixed the message rendered from user_failed_login global activities on the Activity feed if the email is not specified.

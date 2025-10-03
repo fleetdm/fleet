@@ -1,1 +1,0 @@
-* Improved software ingestion DB lock times by pre-inserting software/titles in smaller batches when hosts check in.
