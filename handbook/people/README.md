@@ -8,6 +8,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
 | Head of People | [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
+| Executive Assistant | [Savannah Friend](https://www.linkedin.com/in/savannah-friend-2b1a53148/) _([@sfriendlee](https://github.com/sfriendlee))_
 
 
 ## Contact us
@@ -19,7 +20,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 
 ## Responsibilities
 
-The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding.
+The People department is directly responsible for Fleet's culture, human resources, benefits, opening positions, compensation planning, onboarding, and offboarding. For Executive Assistant responsibilities, see the [🔭 CEO](https://fleetdm.com/handbook/ceo#ceo) page. 
 
 > Commission planning, taxes, state unemployment insurance filings, business insurance, Delaware registered agent and franchise taxes, virtual mailbox, company phone number, and other adjacent areas of responsibility are run by [the Finance department](https://fleetdm.com/handbook/finance).
 
