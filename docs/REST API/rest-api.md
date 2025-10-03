@@ -10974,16 +10974,17 @@ Update vulnerability status details when changes are made to status, notes, and/
 | cve     | string  | path  | The cve to get information about (format must be CVE-YYYY-<4 or more digits>, case-insensitive).                             |
 | team_id | integer | query | _Available in Fleet Premium_. Filters response data to the specified team. Use `0` to filter by hosts assigned to "No team". |
 
-`POST /api/v1/fleet/vulnerabilities/:cve`
+`POST /api/v1/fleet/vulnerabilities`
 
 #### Example
 
-`POST /api/v1/fleet/vulnerabilities/cve-2022-30190`
+`POST /api/v1/fleet/vulnerabilities`
 
 ##### Request body
 
 ```json
 {
+  "cves": ["CVE-2025-1000"],
   "status_details": {
 	"status": "Dismissed",
 	"reason": "Deferred",
