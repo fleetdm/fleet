@@ -174,21 +174,19 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 }
 
 func (svc *MDMAppleCommander) EnableLostMode(ctx context.Context, host *fleet.Host, commandUUID string, orgName string) error {
-	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-	<key>CommandUUID</key>
-	<string>%s</string>
-	<key>Command</key>
-	<dict>
-		<key>RequestType</key>
-		<string>EnableLostMode</string>
-		<key>Message</key>
-		<string>This device is locked. It belongs to %s.</string>
-	</dict>
-</dict>
-</plist>`, commandUUID, orgName)
+	msg := fmt.Sprintf("This device is locked. It belongs to %s.", orgName)
+	cmdPayload := commandPayload{
+		CommandUUID: commandUUID,
+		Command: map[string]any{
+			"RequestType": "EnableLostMode",
+			"Message":     msg,
+		},
+	}
+	rawBytes, err := plist.Marshal(cmdPayload)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "marshalling EnableLostMode payload")
+	}
+	raw := string(rawBytes)
 
 	cmd, err := mdm.DecodeCommand([]byte(raw))
 	if err != nil {
