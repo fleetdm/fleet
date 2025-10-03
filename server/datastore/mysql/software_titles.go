@@ -45,7 +45,7 @@ SELECT
 	st.browser,
 	st.bundle_identifier,
 	st.application_id,
-	COALESCE(SUM(sthc.hosts_count), 0) AS hosts_count,
+	COALESCE(sthc.hosts_count, 0) AS hosts_count,
 	MAX(sthc.updated_at) AS counts_updated_at,
 	COUNT(si.id) as software_installers_count,
 	COUNT(vat.adam_id) AS vpp_apps_count,
@@ -63,6 +63,7 @@ GROUP BY
 	st.source,
 	st.browser,
 	st.bundle_identifier,
+	hosts_count,
 	vap.icon_url
 	`, teamFilter, softwareInstallerGlobalOrTeamIDFilter, vppAppsTeamsGlobalOrTeamIDFilter,
 	)
