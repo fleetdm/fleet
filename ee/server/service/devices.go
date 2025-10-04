@@ -286,9 +286,13 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 	}
 
 	var software []*fleet.SetupExperienceStatusResult
+	var scripts []*fleet.SetupExperienceStatusResult
 	for _, result := range results {
 		if result.IsForSoftware() {
 			software = append(software, result)
+		}
+		if result.IsForScript() {
+			scripts = append(scripts, result)
 		}
 	}
 
@@ -299,5 +303,6 @@ func (svc *Service) getHostSetupExperienceStatus(ctx context.Context, host *flee
 
 	return &fleet.DeviceSetupExperienceStatusPayload{
 		Software: software,
+		Scripts:  scripts,
 	}, nil
 }

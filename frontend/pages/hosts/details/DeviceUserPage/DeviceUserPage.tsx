@@ -10,7 +10,7 @@ import { NotificationContext } from "context/notification";
 import deviceUserAPI, {
   IGetDeviceCertsRequestParams,
   IGetDeviceCertificatesResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import diskEncryptionAPI from "services/entities/disk_encryption";
 import {
@@ -27,6 +27,7 @@ import {
 } from "interfaces/certificates";
 import { isAppleDevice, isLinuxLike } from "interfaces/platform";
 import { IHostSoftware } from "interfaces/software";
+import { ISetupStep } from "interfaces/setup";
 
 import DeviceUserError from "components/DeviceUserError";
 // @ts-ignore
@@ -53,7 +54,7 @@ import AboutCard from "../cards/About";
 import SoftwareCard from "../cards/Software";
 import PoliciesCard from "../cards/Policies";
 import InfoModal from "./InfoModal";
-import { getErrorMessage, getIsSettingUpSoftware } from "./helpers";
+import { getErrorMessage, hasRemainingSetupSteps } from "./helpers";
 
 import FleetIcon from "../../../../../assets/images/fleet-avatar-24x24@2x.png";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
@@ -110,6 +111,7 @@ interface IDeviceUserPageProps {
       query?: string;
       order_key?: string;
       order_direction?: "asc" | "desc";
+      setup_only?: string;
     };
     search?: string;
   };
@@ -316,7 +318,9 @@ const DeviceUserPage = ({
   const isPremiumTier = license?.tier === "premium";
   const isAppleHost = isAppleDevice(host?.platform);
   const isSetupExperienceSoftwareEnabledPlatform =
-    isLinuxLike(host?.platform || "") || host?.platform === "windows";
+    isLinuxLike(host?.platform || "") ||
+    host?.platform === "windows" ||
+    host?.platform === "darwin";
 
   const checkForSetupExperienceSoftware =
     isSetupExperienceSoftwareEnabledPlatform && isPremiumTier;
@@ -326,22 +330,35 @@ const DeviceUserPage = ({
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const {
-    data: softwareSetupStatuses,
-    isLoading: isLoadingSetupSoftware,
-    isError: isErrorSetupSoftware,
+    data: setupStepStatuses,
+    isLoading: isLoadingSetupSteps,
+    isError: isErrorSetupSteps,
   } = useQuery<
-    IGetSetupSoftwareStatusesResponse,
+    IGetSetupExperienceStatusesResponse,
     Error,
-    IGetSetupSoftwareStatusesResponse["setup_experience_results"]["software"]
+    ISetupStep[] | null | undefined
   >(
     ["software-setup-statuses", deviceAuthToken],
-    () => deviceUserAPI.getSetupSoftwareStatuses({ token: deviceAuthToken }),
+    () => deviceUserAPI.getSetupExperienceStatuses({ token: deviceAuthToken }),
     {
       ...DEFAULT_USE_QUERY_OPTIONS,
-      select: (res) => res.setup_experience_results.software,
       enabled: checkForSetupExperienceSoftware, // this can only become true once the above `dupResponse` is defined by its associated API call response, ensuring this call only fires once the frontend knows if this is a Fleet Premium instance
-      refetchInterval: (data) => (getIsSettingUpSoftware(data) ? 5000 : false), // refetch every 5s until finished
+      refetchInterval: (data) => (hasRemainingSetupSteps(data) ? 5000 : false), // refetch every 5s until finished
       refetchIntervalInBackground: true,
+      select: (response) => {
+        // Marshal the response to include a `type` property so we can differentiate
+        // between software and script setup steps in the UI.
+        return [
+          ...(response.setup_experience_results.software ?? []).map((s) => ({
+            ...s,
+            type: "software" as const,
+          })),
+          ...(response.setup_experience_results.scripts ?? []).map((s) => ({
+            ...s,
+            type: "script" as const,
+          })),
+        ];
+      },
     }
   );
 
@@ -484,21 +501,21 @@ const DeviceUserPage = ({
       !host ||
       isLoadingHost ||
       isLoadingDeviceCertificates ||
-      isLoadingSetupSoftware
+      isLoadingSetupSteps
     ) {
       return <Spinner />;
     }
-    if (isErrorSetupSoftware) {
+    if (isErrorSetupSteps) {
       return <DataError description="Could not get software setup status." />;
     }
     if (
       checkForSetupExperienceSoftware &&
-      getIsSettingUpSoftware(softwareSetupStatuses)
+      (hasRemainingSetupSteps(setupStepStatuses) || location.query.setup_only)
     ) {
       // at this point, softwareSetupStatuses will be non-empty
       return (
         <SettingUpYourDevice
-          softwareStatuses={softwareSetupStatuses || []}
+          setupSteps={setupStepStatuses || []}
           toggleInfoModal={toggleInfoModal}
         />
       );
