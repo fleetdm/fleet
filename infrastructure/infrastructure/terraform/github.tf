@@ -31,16 +31,15 @@ data "aws_iam_policy_document" "fleetdm_confidential_cloudflare_trust" {
     }
 
     condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
       values   = ["repo:fleetdm/confidential:*"]
-    }
-
-    # Require that the workflow file is check_cloudflare.yml
-    condition {
-      test     = "StringEquals"
-      variable = "token.actions.githubusercontent.com:workflow"
-      values   = ["check_cloudflare.yml"]
     }
   }
 }
