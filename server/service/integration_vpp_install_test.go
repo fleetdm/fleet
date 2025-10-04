@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/fleetdm/fleet/v4/pkg/fleetdbase"
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -898,4 +899,94 @@ func (s *integrationMDMTestSuite) TestVPPAppInstallVerification() {
 	assert.NotNil(t, getHostSw.Software[0].AppStoreApp)
 	assert.Len(t, getHostSw.Software[0].InstalledVersions, 1)
 	assert.Equal(t, iOSApp.LatestVersion, getHostSw.Software[0].InstalledVersions[0].Version)
+}
+
+// for https://github.com/fleetdm/fleet/issues/32082
+func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict() {
+	t := s.T()
+	s.setSkipWorkerJobs(t)
+
+	oldApps := s.appleITunesSrvData
+	t.Cleanup(func() { s.appleITunesSrvData = oldApps })
+	s.appleITunesSrvData = map[string]string{
+		"1": `{"bundleId": "com.example.dummy", "artworkUrl512": "https://example.com/images/1", "version": "1.0.0", "trackName": "DummyApp", "TrackID": 1}`,
+		"2": `{"bundleId": "com.example.noversion", "artworkUrl512": "https://example.com/images/2", "version": "2.0.0", "trackName": "NoVersion", "TrackID": 2}`,
+	}
+
+	var newTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 1")}}, http.StatusOK, &newTeamResp)
+	team := newTeamResp.Team
+
+	s.setVPPTokenForTeam(team.ID)
+
+	// Add VPP app 1 with bundle ID com.example.dummy (conflicts with DummyApp below)
+	vppApp1 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "1",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}
+
+	var addAppResp addAppStoreAppResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp1.AdamID, SelfService: true}, http.StatusOK, &addAppResp)
+
+	// add the NoVersion installer with bundle id com.example.noversion (conflicts with VPP app 2 below)
+	pkgNoVersion := &fleet.UploadSoftwareInstallerPayload{
+		Filename: "no_version.pkg",
+		Title:    "NoVersion",
+		TeamID:   &team.ID,
+	}
+	s.uploadSoftwareInstaller(t, pkgNoVersion, http.StatusOK, "")
+
+	// list the software titles to get the title IDs
+	var listSw listSoftwareTitlesResponse
+	// s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	// spew.Dump(listSw.SoftwareTitles)
+
+	// var app1TitleID, dummyTitleID uint
+	// for _, sw := range listSw.SoftwareTitles {
+	// 	switch sw.Name {
+	// 	case vppApp1.Name:
+	// 		app1TitleID = sw.ID
+	// 	case payloadDummy.Title:
+	// 		dummyTitleID = sw.ID
+	// 	}
+	// }
+
+	// the Dummy installer has bundle id com.example.dummy, it should fail with a
+	// conflict with VPP app 1
+	pkgDummy := &fleet.UploadSoftwareInstallerPayload{
+		Filename: "dummy_installer.pkg",
+		Title:    "DummyApp",
+		TeamID:   &team.ID,
+	}
+	// TODO(mna): this is the bug, should fail to upload due to conflict
+	// s.uploadSoftwareInstaller(t, pkgDummy, http.StatusConflict, "zzz")
+	s.uploadSoftwareInstaller(t, pkgDummy, http.StatusOK, "")
+
+	// list the software titles to get the title IDs
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	spew.Dump(listSw.SoftwareTitles)
+
+	// Add VPP app 2 with bundle ID com.example.noversion (conflicts with NoVersion)
+	vppApp2 := &fleet.VPPApp{
+		VPPAppTeam: fleet.VPPAppTeam{
+			VPPAppID: fleet.VPPAppID{
+				AdamID:   "2",
+				Platform: fleet.MacOSPlatform,
+			},
+		},
+	}
+
+	addAppResp = addAppStoreAppResponse{}
+	// TODO(mna): this fails with 500, that's a bug too... should be 409 conflict
+	// s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusConflict, &addAppResp)
+	res := s.Do("POST", "/api/latest/fleet/software/app_store_apps", &addAppStoreAppRequest{TeamID: &team.ID, AppStoreID: vppApp2.AdamID, SelfService: true}, http.StatusInternalServerError)
+	txt := extractServerErrorText(res.Body)
+	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+
+	// TODO(mna): test with batch-set (gitops) too
 }
