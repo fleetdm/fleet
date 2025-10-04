@@ -24,7 +24,7 @@ const (
 	SoftwareSourceMaxLength           = 64
 	SoftwareBundleIdentifierMaxLength = 255
 	SoftwareExtensionIDMaxLength      = 255
-	SoftwareBrowserMaxLength          = 255
+	SoftwareExtensionForMaxLength     = 255
 
 	SoftwareReleaseMaxLength = 64
 	SoftwareVendorMaxLength  = 114
@@ -50,8 +50,10 @@ type Software struct {
 	Source string `json:"source" db:"source"`
 	// ExtensionID is the browser extension id (from osquery chrome_extensions and firefox_addons)
 	ExtensionID string `json:"extension_id,omitempty" db:"extension_id"`
-	// Browser is the browser type (from osquery chrome_extensions)
-	Browser string `json:"browser" db:"browser"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 
 	// Release is the version of the OS this software was released on
 	// (e.g. "30.el7" for a CentOS package).
@@ -101,6 +103,26 @@ func (Software) AuthzType() string {
 	return "software"
 }
 
+// populateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (s *Software) populateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch s.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		s.Browser = s.ExtensionFor
+	default:
+		s.Browser = ""
+	}
+}
+
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
+func (s *Software) MarshalJSON() ([]byte, error) {
+	s.populateBrowserField()
+	type Alias Software
+	return json.Marshal((*Alias)(s))
+}
+
 // ToUniqueStr creates a unique string representation of the software
 func (s Software) ToUniqueStr() string {
 	ss := []string{s.Name, s.Version, s.Source, s.BundleIdentifier}
@@ -109,10 +131,10 @@ func (s Software) ToUniqueStr() string {
 	if s.Release != "" || s.Vendor != "" || s.Arch != "" {
 		ss = append(ss, s.Release, s.Vendor, s.Arch)
 	}
-	// ExtensionID and Browser were added in a single migration, so they are only included if they exist.
-	// This way a blank ExtensionID/Browser matches the pre-migration unique string.
-	if s.ExtensionID != "" || s.Browser != "" {
-		ss = append(ss, s.ExtensionID, s.Browser)
+	// ExtensionID and ExtensionFor were added in a single migration, so they are only included if they exist.
+	// This way a blank ExtensionID/ExtensionFor matches the pre-migration unique string.
+	if s.ExtensionID != "" || s.ExtensionFor != "" {
+		ss = append(ss, s.ExtensionID, s.ExtensionFor)
 	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
@@ -121,7 +143,7 @@ func (s Software) ToUniqueStr() string {
 // The calculation must match the one in softwareChecksumComputedColumn
 func (s Software) ComputeRawChecksum() ([]byte, error) {
 	h := md5.New() //nolint:gosec // This hash is used as a DB optimization for software row lookup, not security
-	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.Browser, s.ExtensionID}
+	cols := []string{s.Version, s.Source, s.BundleIdentifier, s.Release, s.Arch, s.Vendor, s.ExtensionFor, s.ExtensionID}
 	// Only incorporate name if the Software is not a macOS app, because names on macOS are easily
 	// mutable and can lead to unintentional duplicates of Software in Fleet.
 	if s.Source != "apps" {
@@ -139,7 +161,7 @@ type VulnerableSoftware struct {
 	Name              string  `json:"name" db:"name"`
 	Version           string  `json:"version" db:"version"`
 	Source            string  `json:"source" db:"source"`
-	Browser           string  `json:"browser" db:"browser"`
+	ExtensionFor      string  `json:"extension_for" db:"extension_for"`
 	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
 	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
 	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
@@ -185,8 +207,10 @@ type SoftwareTitle struct {
 	IconUrl *string `json:"icon_url" db:"icon_url"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
-	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
-	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -216,6 +240,46 @@ type SoftwareTitle struct {
 	IsKernel bool `json:"-" db:"is_kernel"`
 }
 
+// populateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (st *SoftwareTitle) populateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch st.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		st.Browser = st.ExtensionFor
+	default:
+		st.Browser = ""
+	}
+}
+
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
+func (st *SoftwareTitle) MarshalJSON() ([]byte, error) {
+	st.populateBrowserField()
+	type Alias SoftwareTitle
+	return json.Marshal((*Alias)(st))
+}
+
+// populateBrowserField populates the browser field for backwards compatibility
+// see https://github.com/fleetdm/fleet/pull/31760/files
+func (st *SoftwareTitleListResult) populateBrowserField() {
+	// Only populate browser field for browser extension sources
+	switch st.Source {
+	case "chrome_extensions", "firefox_addons", "ie_extensions", "safari_extensions":
+		st.Browser = st.ExtensionFor
+	default:
+		st.Browser = ""
+	}
+}
+
+// MarshalJSON populates the browser field for backwards compatibility then calls the typical
+// MarshalJSON implementation
+func (st *SoftwareTitleListResult) MarshalJSON() ([]byte, error) {
+	st.populateBrowserField()
+	type Alias SoftwareTitleListResult
+	return json.Marshal((*Alias)(st))
+}
+
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
 // SoftwarePackage is a string pointer here. This type is for use when listing out SoftwareTitles;
 // the above type is used when fetching them individually.
@@ -227,8 +291,10 @@ type SoftwareTitleListResult struct {
 	IconUrl *string `json:"icon_url" db:"-"`
 	// Source is the source reported by osquery.
 	Source string `json:"source" db:"source"`
-	// Browser is the browser type (e.g., "chrome", "firefox", "safari")
-	Browser string `json:"browser,omitempty" db:"browser"`
+	// ExtensionFor is the host software that this software is an extension for
+	ExtensionFor string `json:"extension_for" db:"extension_for"`
+	// Browser is the browser type this extension is for (deprecated, use extension_for instead)
+	Browser string `json:"browser"`
 	// HostsCount is the number of hosts that use this software title.
 	HostsCount uint `json:"hosts_count" db:"hosts_count"`
 	// VesionsCount is the number of versions that have the same title.
@@ -436,7 +502,7 @@ func ParseSoftwareLastOpenedAtRowValue(value string) (time.Time, error) {
 // The vendor field is currently trimmed by removing the extra characters and adding `...` at the end.
 func SoftwareFromOsqueryRow(
 	name, version, source, vendor, installedPath, release, arch,
-	bundleIdentifier, extensionId, browser, lastOpenedAt string,
+	bundleIdentifier, extensionId, extensionFor, lastOpenedAt string,
 ) (*Software, error) {
 	if name == "" {
 		return nil, errors.New("host reported software with empty name")
@@ -467,7 +533,7 @@ func SoftwareFromOsqueryRow(
 		Source:           truncateString(source, SoftwareSourceMaxLength),
 		BundleIdentifier: truncateString(bundleIdentifier, SoftwareBundleIdentifierMaxLength),
 		ExtensionID:      truncateString(extensionId, SoftwareExtensionIDMaxLength),
-		Browser:          truncateString(browser, SoftwareBrowserMaxLength),
+		ExtensionFor:     truncateString(extensionFor, SoftwareExtensionForMaxLength),
 
 		Release: truncateString(release, SoftwareReleaseMaxLength),
 		Vendor:  vendor,

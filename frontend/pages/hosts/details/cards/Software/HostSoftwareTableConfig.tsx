@@ -119,6 +119,7 @@ export const generateSoftwareTableHeaders = ({
           formatter={() =>
             formatSoftwareType({
               source: cellProps.cell.value as SoftwareSource,
+              extension_for: cellProps.row.original.extension_for,
             })
           }
         />
