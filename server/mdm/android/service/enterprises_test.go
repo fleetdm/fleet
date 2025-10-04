@@ -29,7 +29,7 @@ func TestEnterprisesAuth(t *testing.T) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -128,7 +128,7 @@ func TestEnterpriseSignupMissingPrivateKey(t *testing.T) {
 	fleetDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
 
-	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 	require.NoError(t, err)
 
 	user := &fleet.User{ID: 1, GlobalRole: ptr.String(fleet.RoleAdmin)}
@@ -243,7 +243,7 @@ func TestGetEnterprise(t *testing.T) {
 
 		fleetDS := InitCommonDSMocks()
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -280,7 +280,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -330,7 +330,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -372,7 +372,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -414,7 +414,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)
@@ -482,7 +482,7 @@ func TestGetEnterprise(t *testing.T) {
 				}
 
 				fleetSvc := mockService{}
-				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+				svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 				require.NoError(t, err)
 
 				enterprise, err := svc.GetEnterprise(ctx)
@@ -514,7 +514,7 @@ func TestGetEnterprise(t *testing.T) {
 		}
 
 		fleetSvc := mockService{}
-		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key")
+		svc, err := NewServiceWithClient(logger, fleetDS, &androidAPIClient, &fleetSvc, "test-private-key", &fleetDS.DataStore)
 		require.NoError(t, err)
 
 		enterprise, err := svc.GetEnterprise(ctx)

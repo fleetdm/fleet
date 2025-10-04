@@ -26,7 +26,7 @@ func createAndroidService(t *testing.T) (android.Service, *AndroidMockDS) {
 	logger := kitlog.NewLogfmtLogger(os.Stdout)
 	mockDS := InitCommonDSMocks()
 	fleetSvc := mockService{}
-	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key")
+	svc, err := NewServiceWithClient(logger, mockDS, &androidAPIClient, &fleetSvc, "test-private-key", &mockDS.DataStore)
 	require.NoError(t, err)
 
 	return svc, mockDS

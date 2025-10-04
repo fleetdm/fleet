@@ -94,7 +94,10 @@ type Software struct {
 	// TODO: should we create a separate type? Feels like this field shouldn't be here since it's
 	// just used for VPP install verification.
 	Installed bool `json:"-"`
-	IsKernel  bool `json:"-"`
+	// IsKernel indicates if this software is a Linux kernel.
+	IsKernel bool `json:"-"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID string `json:"application_id,omitempty" db:"application_id"`
 }
 
 func (Software) AuthzType() string {
@@ -114,6 +117,9 @@ func (s Software) ToUniqueStr() string {
 	if s.ExtensionID != "" || s.Browser != "" {
 		ss = append(ss, s.ExtensionID, s.Browser)
 	}
+	if s.ApplicationID != "" {
+		ss = append(ss, s.ApplicationID)
+	}
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
@@ -126,6 +132,9 @@ func (s Software) ComputeRawChecksum() ([]byte, error) {
 	// mutable and can lead to unintentional duplicates of Software in Fleet.
 	if s.Source != "apps" {
 		cols = append([]string{s.Name}, cols...)
+	}
+	if s.ApplicationID != "" {
+		cols = append(cols, s.ApplicationID)
 	}
 	_, err := fmt.Fprint(h, strings.Join(cols, "\x00"))
 	if err != nil {
@@ -214,6 +223,8 @@ type SoftwareTitle struct {
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	// IsKernel indicates if the software title is a Linux kernel.
 	IsKernel bool `json:"-" db:"is_kernel"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 // This type is essentially the same as the above SoftwareTitle type. The only difference is that
@@ -251,6 +262,8 @@ type SoftwareTitleListResult struct {
 	// with existing software entries.
 	BundleIdentifier *string `json:"bundle_identifier,omitempty" db:"bundle_identifier"`
 	HashSHA256       *string `json:"hash_sha256,omitempty" db:"package_storage_id"`
+	// ApplicationID is the unique identifier for Android software. Equivalent to the BundleIdentifier on Apple software.
+	ApplicationID *string `json:"application_id,omitempty" db:"application_id"`
 }
 
 type SoftwareTitleListOptions struct {

@@ -128,8 +128,7 @@ const HostSoftware = ({
 }: IHostSoftwareProps) => {
   const { isPremiumTier } = useContext(AppContext);
 
-  const isUnsupported =
-    isAndroid(platform) || (isIPadOrIPhone(platform) && queryParams.vulnerable); // no Android software and no vulnerable software for iOS
+  const isUnsupported = isIPadOrIPhone(platform) && queryParams.vulnerable; // no Android software and no vulnerable software for iOS
 
   const [showSoftwareFiltersModal, setShowSoftwareFiltersModal] = useState(
     false
