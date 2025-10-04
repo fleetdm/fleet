@@ -201,6 +201,8 @@ type HostFunc func(ctx context.Context, id uint) (*fleet.Host, error)
 
 type GetHostHealthFunc func(ctx context.Context, id uint) (*fleet.HostHealth, error)
 
+type HostIDByEmailFunc func(ctx context.Context, email string) (uint, error)
+
 type ListHostsFunc func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error)
 
 type ListBatchScriptHostsFunc func(ctx context.Context, batchScriptExecutionID string, batchScriptExecutionStatus fleet.BatchScriptExecutionStatus, opt fleet.ListOptions) ([]fleet.BatchScriptHost, *fleet.PaginationMetadata, uint, error)
@@ -1808,6 +1810,9 @@ type DataStore struct {
 
 	GetHostHealthFunc        GetHostHealthFunc
 	GetHostHealthFuncInvoked bool
+
+	HostIDByEmailFunc        HostIDByEmailFunc
+	HostIDByEmailFuncInvoked bool
 
 	ListHostsFunc        ListHostsFunc
 	ListHostsFuncInvoked bool
@@ -4433,6 +4438,13 @@ func (s *DataStore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 	s.GetHostHealthFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostHealthFunc(ctx, id)
+}
+
+func (s *DataStore) HostIDByEmail(ctx context.Context, email string) (uint, error) {
+	s.mu.Lock()
+	s.HostIDByEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.HostIDByEmailFunc(ctx, email)
 }
 
 func (s *DataStore) ListHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {

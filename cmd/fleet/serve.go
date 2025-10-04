@@ -56,6 +56,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
+	"github.com/fleetdm/fleet/v4/server/okta"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -790,6 +791,10 @@ the way that the Fleet server works.
 				initFatal(err, "initializing android service")
 			}
 
+			// Initialize Okta conditional access service
+			oktaLogger := kitlog.With(logger, "component", "okta-device-health")
+			oktaSvc := okta.NewService(ds, oktaLogger)
+
 			var softwareInstallStore fleet.SoftwareInstallerStore
 			var bootstrapPackageStore fleet.MDMBootstrapPackageStore
 			var softwareTitleIconStore fleet.SoftwareTitleIconStore
@@ -1490,6 +1495,13 @@ the way that the Fleet server works.
 				}
 				debugHandler.tokenAuthenticatedHandler = http.StripPrefix("/debug/", netbug.AuthHandler(debugToken))
 				fmt.Printf("*** Debug mode enabled ***\nAccess the debug endpoints at /debug/?token=%s\n", url.QueryEscape(debugToken))
+			}
+
+			// Okta device health SAML IdP endpoints (conditional access POC)
+			oktaBaseURL := os.Getenv("FLEET_CONDITIONAL_ACCESS_URL")
+			if oktaBaseURL != "" {
+				oktaHandler := oktaSvc.MakeHandler(oktaBaseURL, config)
+				rootMux.Handle("/api/v1/fleet/okta/device_health/", oktaHandler)
 			}
 
 			if len(config.Server.URLPrefix) > 0 {
