@@ -46,6 +46,13 @@ module.exports = {
       return this.res.unauthorized();
     }
 
+    // Check the list of Android Enterprises managed by Fleet to see if this Android Enterprise is still managed.
+    let isEnterpriseManagedByFleet = await sails.helpers.androidProxy.getIsEnterpriseManagedByFleet(androidEnterpriseId);
+    // Return a 404 response if this Android enterprise is no longer managed by Fleet.
+    if(!isEnterpriseManagedByFleet) {
+      return this.res.notFound();
+    }
+
     let newEnrollmentToken = await sails.helpers.flow.build(async ()=>{
       let { google } = require('googleapis');
       let androidmanagement = google.androidmanagement('v1');
