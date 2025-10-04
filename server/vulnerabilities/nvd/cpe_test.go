@@ -1667,6 +1667,13 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:    "golang.go",
+				Source:  "vscode_extensions",
+				Version: "0.50.0",
+			}, cpe: "",
+		},
+		{
+			software: fleet.Software{
 				Name:             "Google Chrome Helper.app",
 				Source:           "apps",
 				Version:          "111.0.5563.64",
