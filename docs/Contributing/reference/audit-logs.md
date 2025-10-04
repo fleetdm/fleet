@@ -2161,6 +2161,45 @@ This activity contains the following fields:
 }
 ```
 
+## deleted_host
+
+Generated when a user deletes a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C"
+}
+```
+
+## expired_host
+
+Generated when a host is automatically deleted due to inactivity when the configured host expiry window has elapsed.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_serial": Serial number of the host.
+- "host_display_name": Display name of the host.
+- "host_expiry_window": The host expiry window at the time the host was deleted.
+
+#### Example
+
+```json
+{
+	"host_id": "123",
+	"host_serial": "B04FL3ALPT21",
+	"host_display_name": "WIN-DESKTOP-JGS78KJ7C",
+	"host_expiry_window": 90
+}
+```
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">
