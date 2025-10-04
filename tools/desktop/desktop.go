@@ -155,7 +155,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 		"-ldflags", os.ExpandEnv("-X=main.version=$FLEET_DESKTOP_VERSION"),
 		"./"+filepath.Join("orbit", "cmd", "desktop"),
 	)
-	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=amd64")
+	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=amd64", "MACOSX_DEPLOYMENT_TARGET=10.13")
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 
@@ -171,7 +171,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 		"-ldflags", os.ExpandEnv("-X=main.version=$FLEET_DESKTOP_VERSION"),
 		"./"+filepath.Join("orbit", "cmd", "desktop"),
 	)
-	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64")
+	buildExec.Env = append(os.Environ(), "CGO_ENABLED=1", "GOOS=darwin", "GOARCH=arm64", "MACOSX_DEPLOYMENT_TARGET=11.0")
 	buildExec.Stderr = os.Stderr
 	buildExec.Stdout = os.Stdout
 
