@@ -518,6 +518,12 @@ func updateTargetedBundleIDs(ctx context.Context, tx sqlx.ExtContext, softwareRe
 			args[i] = id
 		}
 
+		// During high concurrency situations, we may have multiple transactions attempting to update the same software rows.
+		// For example, this can happen when many hosts are trying to rename the same software items.
+		// To avoid long locks or even deadlocks, use UPDATE SKIP LOCKED to skip rows that are already locked by another transaction.
+		// This means that some software rows may not be updated in this transaction,
+		// however, eventually they should be updated. This is trading off immediate consistency
+		// for less lock contention.
 		lockQuery := fmt.Sprintf(
 			"SELECT id, name FROM software WHERE id IN (%s) ORDER BY id FOR UPDATE SKIP LOCKED",
 			strings.Join(placeholders, ","),
