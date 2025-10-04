@@ -69,6 +69,8 @@ type GetPendingLockCommandFunc func(ctx context.Context, hostUUID string) (*mdm.
 
 type EnqueueDeviceLockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error
 
+type EnqueueDeviceUnlockCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
+
 type EnqueueDeviceWipeCommandFunc func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error
 
 type MDMAppleStore struct {
@@ -152,6 +154,9 @@ type MDMAppleStore struct {
 
 	EnqueueDeviceLockCommandFunc        EnqueueDeviceLockCommandFunc
 	EnqueueDeviceLockCommandFuncInvoked bool
+
+	EnqueueDeviceUnlockCommandFunc        EnqueueDeviceUnlockCommandFunc
+	EnqueueDeviceUnlockCommandFuncInvoked bool
 
 	EnqueueDeviceWipeCommandFunc        EnqueueDeviceWipeCommandFunc
 	EnqueueDeviceWipeCommandFuncInvoked bool
@@ -346,6 +351,13 @@ func (fs *MDMAppleStore) EnqueueDeviceLockCommand(ctx context.Context, host *fle
 	fs.EnqueueDeviceLockCommandFuncInvoked = true
 	fs.mu.Unlock()
 	return fs.EnqueueDeviceLockCommandFunc(ctx, host, cmd, pin)
+}
+
+func (fs *MDMAppleStore) EnqueueDeviceUnlockCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	fs.mu.Lock()
+	fs.EnqueueDeviceUnlockCommandFuncInvoked = true
+	fs.mu.Unlock()
+	return fs.EnqueueDeviceUnlockCommandFunc(ctx, host, cmd)
 }
 
 func (fs *MDMAppleStore) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
