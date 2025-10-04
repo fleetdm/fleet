@@ -11,7 +11,7 @@ import {
   isAppleDevice,
   isMobilePlatform,
 } from "interfaces/platform";
-import { isPersonalEnrollmentInMdm } from "interfaces/mdm";
+import { isBYODAccountDrivenEnrollment } from "interfaces/mdm";
 
 import TooltipWrapperArchLinuxRolling from "components/TooltipWrapperArchLinuxRolling";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -644,7 +644,9 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
       // TODO(android): is iOS/iPadOS supported?
       if (
         isAndroid(cellProps.row.original.platform) ||
-        isPersonalEnrollmentInMdm(cellProps.row.original.mdm.enrollment_status)
+        isBYODAccountDrivenEnrollment(
+          cellProps.row.original.mdm.enrollment_status
+        )
       ) {
         return NotSupported;
       }
