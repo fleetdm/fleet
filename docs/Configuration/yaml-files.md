@@ -438,6 +438,21 @@ The `macos_migration` section lets you control the [end user migration workflow]
 
 Can only be configured for all teams (`default.yml`).
 
+## vulnerabilities
+
+```yaml
+vulnerabilities:
+  dismissed:
+    - cve: CVE-2025-23432
+      reason: dkdkda
+      notes:
+      owner:
+    - cve: CVE-2025-23432
+      reason: dkdkda
+      notes:
+      owner:
+```
+
 ## software
 
 > **Experimental feature**. This feature is undergoing rapid improvement, which may result in breaking changes to the API or configuration surface. It is not recommended for use in automated workflows.
@@ -935,6 +950,7 @@ org_settings:
 - `enable_vulnerabilities_webhook` (default: `false`)
 - `destination_url` is the URL to `POST` to when the condition for the webhook triggers (default: `""`).
 - `host_batch_size` is the maximum number of host identifiers to send in one webhook request. A value of `0` means all host identifiers with a detected vulnerability will be sent in a single request.
+- `include_status_details` designates whether or not to include the new field of status-details object.
 
 #### Example
 
@@ -945,6 +961,7 @@ org_settings:
       enable_vulnerabilities_webhook: true
       destination_url: https://example.org/webhook_handler
       host_batch_size: 0
+      include_status_details: true
 ```
 
 Can only be configured for all teams (`org_settings`).
