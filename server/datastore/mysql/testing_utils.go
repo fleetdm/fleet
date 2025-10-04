@@ -197,11 +197,25 @@ func setupDummyReplica(t testing.TB, testName string, ds *Datastore, opts *testi
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
+
 					stmt = fmt.Sprintf(`CREATE TABLE %s.%s LIKE %s.%s`, replicaDB, tbl, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
-					stmt = fmt.Sprintf(`INSERT INTO %s.%s SELECT * FROM %s.%s`, replicaDB, tbl, testName, tbl)
+
+					// Build query to avoid inserting into GENERATED columns
+					var columns string
+					columnsStmt := fmt.Sprintf(`SELECT 
+                                                  GROUP_CONCAT(column_name ORDER BY ordinal_position) 
+                                                FROM information_schema.columns 
+                                                WHERE table_schema = '%s' AND table_name = '%s'
+												  AND NOT (EXTRA LIKE '%%GENERATED%%' AND EXTRA NOT LIKE '%%DEFAULT_GENERATED%%');`, replicaDB, tbl)
+					err = replica.GetContext(ctx, &columns, columnsStmt)
+					require.NoError(t, err)
+
+					stmt = fmt.Sprintf(`INSERT INTO %s.%s (%s) 
+                                        SELECT %s
+                                        FROM %s.%s;`, replicaDB, tbl, columns, columns, testName, tbl)
 					t.Log(stmt)
 					_, err = replica.ExecContext(ctx, stmt)
 					require.NoError(t, err)
