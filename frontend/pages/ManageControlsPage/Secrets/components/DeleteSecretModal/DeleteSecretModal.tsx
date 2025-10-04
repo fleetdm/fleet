@@ -11,7 +11,7 @@ import secretsAPI from "services/entities/secrets";
 interface DeleteSecretModalProps {
   secret: ISecret | undefined;
   onExit: () => void;
-  reloadList: () => void;
+  onDeleteSecret: () => void;
 }
 
 const baseClass = "fleet-delete-secret-modal";
@@ -19,7 +19,7 @@ const baseClass = "fleet-delete-secret-modal";
 const DeleteSecretModal = ({
   secret,
   onExit,
-  reloadList,
+  onDeleteSecret,
 }: DeleteSecretModalProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -33,7 +33,7 @@ const DeleteSecretModal = ({
     try {
       await secretsAPI.deleteSecret(secret.id);
       renderFlash("success", "Variable successfully deleted.");
-      reloadList();
+      onDeleteSecret();
     } catch (error) {
       const errorObject = formatErrorResponse(error);
       const isInUseError =
@@ -44,9 +44,9 @@ const DeleteSecretModal = ({
           ? errorObject.base
           : "An error occurred while deleting the custom variable. Please try again.";
       renderFlash("error", message);
+      onExit();
     } finally {
       setIsDeleting(false);
-      onExit();
     }
   };
 
