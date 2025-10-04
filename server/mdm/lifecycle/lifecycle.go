@@ -49,15 +49,22 @@ type HostOptions struct {
 
 // HostLifecycle manages MDM host lifecycle actions
 type HostLifecycle struct {
-	ds     fleet.Datastore
-	logger kitlog.Logger
+	ds              fleet.Datastore
+	logger          kitlog.Logger
+	newActivityFunc NewActivityFunc
 }
 
+// NewActivityFunc is the signature type of the service-layer function that can
+// create activities and handle the webhook notification and all other
+// mechanisms required when creating an activity.
+type NewActivityFunc func(ctx context.Context, user *fleet.User, details fleet.ActivityDetails, ds fleet.Datastore, logger kitlog.Logger) error
+
 // New creates a new HostLifecycle struct
-func New(ds fleet.Datastore, logger kitlog.Logger) *HostLifecycle {
+func New(ds fleet.Datastore, logger kitlog.Logger, newActivityFn NewActivityFunc) *HostLifecycle {
 	return &HostLifecycle{
-		ds:     ds,
-		logger: logger,
+		ds:              ds,
+		logger:          logger,
+		newActivityFunc: newActivityFn,
 	}
 }
 
@@ -111,14 +118,18 @@ func (t *HostLifecycle) doWindows(ctx context.Context, opts HostOptions) error {
 	}
 }
 
-type uuidFn func(ctx context.Context, uuid string) error
+type uuidFn func(ctx context.Context, uuid string) ([]*fleet.User, []fleet.ActivityDetails, error)
 
 func (t *HostLifecycle) doWithUUIDValidation(ctx context.Context, action uuidFn, opts HostOptions) error {
 	if opts.UUID == "" {
 		return ctxerr.New(ctx, "UUID option is required for this action")
 	}
 
-	return action(ctx, opts.UUID)
+	users, acts, err := action(ctx, opts.UUID)
+	if err != nil {
+		return err
+	}
+	return t.createActivities(ctx, users, acts)
 }
 
 func (t *HostLifecycle) resetWindows(ctx context.Context, opts HostOptions) error {
@@ -340,4 +351,18 @@ func (t *HostLifecycle) getDefaultTeamForABMToken(ctx context.Context, host *fle
 	}
 
 	return abmDefaultTeamID, nil
+}
+
+func (t *HostLifecycle) createActivities(ctx context.Context, users []*fleet.User, acts []fleet.ActivityDetails) error {
+	if len(users) != len(acts) {
+		return ctxerr.New(ctx, "number of users and activities must match, this is a Fleet development bug")
+	}
+
+	for i, act := range acts {
+		user := users[i]
+		if err := t.newActivityFunc(ctx, user, act, t.ds, t.logger); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity")
+		}
+	}
+	return nil
 }
