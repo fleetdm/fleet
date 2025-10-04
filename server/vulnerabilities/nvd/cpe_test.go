@@ -1812,6 +1812,24 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
+				Name:             "iTerm2",
+				Source:           "apps",
+				Version:          "3.5.14",
+				BundleIdentifier: "com.googlecode.iterm2",
+			},
+			cpe: "cpe:2.3:a:iterm2:iterm2:3.5.14:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "iTerm2ImportStatus",
+				Source:           "apps",
+				Version:          "1.0",
+				BundleIdentifier: "com.googlecode.iterm2.iTerm2ImportStatus",
+			},
+			cpe: "", // Skip iTerm2ImportStatus since it is part of iTerm2 and doesn't have its own cpe
+		},
+		{
+			software: fleet.Software{
 				Name:    "Firefox.app",
 				Source:  "apps",
 				Version: "137.0.2",
