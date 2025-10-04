@@ -107,6 +107,15 @@ func (svc *Service) ListSoftwareTitles(
 		return nil, 0, nil, err
 	}
 
+	// for jetbrains plugins/extensions, we populate the ExtensionFor field
+	// from the Browser field (which holds the JetBrains product name)
+	for i, t := range titles {
+		if t.Source == "jetbrains_plugins" {
+			titles[i].ExtensionFor = t.Browser
+			titles[i].Browser = ""
+		}
+	}
+
 	return titles, count, meta, nil
 }
 
@@ -179,6 +188,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
+
+	fleet.NormalizeTitle(software)
 
 	license, err := svc.License(ctx)
 	if err != nil {
