@@ -1,0 +1,335 @@
+#!/bin/bash
+
+# GitOps Migration Tool
+# Moves self_service, categories, labels_exclude_any, labels_include_any keys
+# from software YAML files to team YAML files
+#
+# Usage: ./migrate.sh <teams_directory_path>
+# Example: ./migrate.sh it-and-security/teams
+
+set -euo pipefail
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Global counters
+PROCESSED_TEAMS=0
+PROCESSED_PACKAGES=0
+ERRORS=0
+
+# Array to track software files that have been processed
+PROCESSED_SOFTWARE_FILES=()
+
+# Check if yq is installed
+check_dependencies() {
+    if ! command -v yq &> /dev/null; then
+        echo -e "${RED}Error: yq is required but not installed. Please install yq first.${NC}"
+        echo "Install with: brew install yq"
+        exit 1
+    fi
+    
+    # Check yq version (we need v4+)
+    YQ_VERSION=$(yq --version | cut -d' ' -f4 | cut -d'v' -f2 | cut -d'.' -f1)
+    if [[ "$YQ_VERSION" == "" ]]; then
+        YQ_VERSION="0"
+    fi
+    if [ "$YQ_VERSION" -lt 4 ]; then
+        echo -e "${RED}Error: yq version 4 or higher is required${NC}"
+        exit 1
+    fi
+}
+
+# Show usage information
+show_usage() {
+    echo "Usage: $0 <teams_directory_path>"
+    echo
+    echo "Process YAML files in the specified teams directory, moving keys from"
+    echo "referenced software files to the team files."
+    echo
+    echo "Arguments:"
+    echo "  teams_directory_path    Path to directory containing team YAML files"
+    echo
+    echo "Examples:"
+    echo "  $0 it-and-security/teams"
+    echo "  $0 /path/to/teams"
+    echo
+    echo "Keys moved: self_service, categories, labels_include_any, labels_exclude_any"
+}
+
+# Validate YAML syntax
+validate_yaml() {
+    local file="$1"
+    if ! yq eval '.' "$file" >/dev/null 2>&1; then
+        echo -e "${RED}Error: Invalid YAML syntax in $file${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# Extract target keys from software file
+extract_keys_from_software() {
+    local software_file="$1"
+    local temp_file=$(mktemp -p .)
+    chmod 666 $temp_file
+    
+    # Extract the keys we need
+    {
+        echo "# Extracted keys from $software_file"
+        yq eval 'pick(["self_service", "categories", "labels_include_any", "labels_exclude_any"])' "$software_file" 2>/dev/null || echo "{}"
+    } > "$temp_file"
+    
+    echo "$temp_file"
+}
+
+# Remove target keys from software file
+remove_keys_from_software() {
+    local software_file="$1"
+    
+    echo -e "${BLUE}  Removing keys from: $software_file${NC}"
+    
+    # Create a temporary file with keys removed
+    local temp_file=$(mktemp -p .)
+    chmod 666 $temp_file
+    yq eval --output-format=yaml 'del(.self_service, .categories, .labels_include_any, .labels_exclude_any)' "$software_file" > "$temp_file"
+    
+    # Replace the original file
+    mv "$temp_file" "$software_file"
+}
+
+# Add keys to team file at specific package index
+add_keys_to_team_file() {
+    local team_file="$1"
+    local package_index="$2"
+    local keys_file="$3"
+    
+    # Check if keys file has any meaningful content
+    if ! yq eval 'keys | length > 0' "$keys_file" >/dev/null 2>&1; then
+        echo -e "${YELLOW}  No keys to move${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}  Adding keys to team file at package index $package_index${NC}"
+
+    
+    # Process each key type directly on the team file to preserve formatting
+    for key in "self_service" "categories" "labels_include_any" "labels_exclude_any"; do
+        if yq eval "has(\"$key\")" "$keys_file" | grep -q "true"; then
+            # Use yq to properly extract and merge the value, preserving arrays and complex structures
+            if yq eval ".$key != null" "$keys_file" | grep -q "true"; then
+                yq eval -i ".software.packages[$package_index].$key = load(\"$keys_file\").$key" "$team_file"
+                echo -e "${GREEN}    Added $key${NC}"
+            fi
+        fi
+    done
+}
+
+# Process a single team file (Pass 1: Add keys to team files only)
+process_team_file() {
+    local team_file="$1"
+    echo -e "${GREEN}Processing team file: $team_file${NC}"
+    
+    # Check if file has software.packages section
+    if ! yq eval 'has("software") and .software | has("packages")' "$team_file" | grep -q "true"; then
+        echo -e "${YELLOW}  No software.packages section found, skipping${NC}"
+        return 0
+    fi
+    
+    # Get the number of packages
+    local package_count=$(yq eval '.software.packages | length' "$team_file")
+    echo -e "${BLUE}  Found $package_count packages${NC}"
+    
+    # Process each package
+    for ((i=0; i<package_count; i++)); do
+        echo -e "${BLUE}  Processing package $((i+1))/$package_count${NC}"
+        
+        # Get the path from the package
+        local package_path=$(yq eval ".software.packages[$i].path" "$team_file")
+        
+        if [ "$package_path" = "null" ]; then
+            echo -e "${YELLOW}    No path found, skipping${NC}"
+            continue
+        fi
+        
+        echo -e "${BLUE}    Package path: $package_path${NC}"
+        
+        # Convert relative path to absolute path
+        local team_dir=$(dirname "$team_file")
+        local software_file="$team_dir/$package_path"
+        
+        # Normalize the path
+        software_file=$(realpath "$software_file" 2>/dev/null || echo "$software_file")
+        
+        if [ ! -f "$software_file" ]; then
+            echo -e "${RED}    Error: Software file not found: $software_file${NC}"
+            ERRORS=$((ERRORS+1))
+            continue
+        fi
+        
+        # Validate software file
+        if ! validate_yaml "$software_file"; then
+            echo -e "${RED}    Error: Invalid YAML in software file${NC}"
+            ERRORS=$((ERRORS+1))
+            continue
+        fi
+        
+        echo -e "${BLUE}    Processing: $software_file${NC}"
+        
+        # Extract keys from software file
+        local keys_temp_file=$(extract_keys_from_software "$software_file")
+        
+        # Add keys to team file
+        add_keys_to_team_file "$team_file" "$i" "$keys_temp_file"
+        
+        # Track this software file for cleanup in pass 2
+        PROCESSED_SOFTWARE_FILES+=("$software_file")
+        
+        # Clean up temp file
+        rm -f "$keys_temp_file"
+        
+        PROCESSED_PACKAGED=$((PROCESSED_PACKAGES+1))
+        echo -e "${GREEN}    ✓ Package processed successfully${NC}"
+    done
+    
+    # Validate the modified team file
+    if ! validate_yaml "$team_file"; then
+        echo -e "${RED}  Error: Team file became invalid after processing${NC}"
+        ERRORS=$((ERRORS+1))
+        return 1
+    fi
+    
+    PROCESSED_TEAMS=$((PROCESSED_TEAMS+1))
+    echo -e "${GREEN}✓ Team file processed successfully${NC}"
+    echo
+}
+
+# Pass 2: Remove keys from all processed software files
+cleanup_software_files() {
+    echo -e "${GREEN}=== PASS 2: CLEANING UP SOFTWARE FILES ===${NC}"
+    
+    # Remove duplicates from the array
+    local unique_files=($(printf "%s\n" "${PROCESSED_SOFTWARE_FILES[@]}" | sort -u))
+    
+    echo -e "${BLUE}Removing keys from ${#unique_files[@]} unique software files${NC}"
+    
+    for software_file in "${unique_files[@]}"; do
+        echo -e "${BLUE}  Removing keys from: $software_file${NC}"
+        remove_keys_from_software "$software_file"
+    done
+    
+    echo -e "${GREEN}✓ Software file cleanup complete${NC}"
+    echo
+}
+# Fix Unicode escape sequences back to emoji characters
+fix_unicode_emojis() {
+    local file="$1"
+    echo -e "${BLUE}  Restoring emoji characters in: $(basename "$file")${NC}"
+    
+    # Use perl to convert Unicode escape sequences back to actual characters
+    if command -v perl &> /dev/null; then
+        perl -i -pe 's/\\U([0-9A-F]{8})/chr(hex($1))/ge' "$file"
+    else
+        # Fallback: convert specific known emojis manually
+        sed -i '' 's/\\U0001F4BB/💻/g' "$file" 2>/dev/null || sed -i 's/\\U0001F4BB/💻/g' "$file"
+        sed -i '' 's/\\U0001F423/🐣/g' "$file" 2>/dev/null || sed -i 's/\\U0001F423/🐣/g' "$file"
+    fi
+}
+
+# Fix emojis in all processed team files
+restore_emojis_in_team_files() {
+    echo -e "${GREEN}=== RESTORING EMOJI CHARACTERS ===${NC}"
+    
+    for team_file in "${team_files[@]}"; do
+        if [ -f "$team_file" ] && grep -q "\\\\U[0-9A-F]" "$team_file"; then
+            fix_unicode_emojis "$team_file"
+        fi
+    done
+    
+    echo -e "${GREEN}✓ Emoji restoration complete${NC}"
+    echo
+}
+
+
+# Main function
+main() {
+    # Check if directory path argument is provided
+    if [ $# -eq 0 ]; then
+        echo -e "${RED}Error: No teams directory path provided${NC}"
+        echo
+        show_usage
+        exit 1
+    fi
+    
+    # Handle help flags
+    if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+        show_usage
+        exit 0
+    fi
+    
+    local teams_dir="$1"
+    
+    echo -e "${GREEN}GitOps Migration Tool${NC}"
+    echo -e "${BLUE}Moving keys from software files to team files${NC}"
+    echo -e "${BLUE}Teams directory: $teams_dir${NC}"
+    echo
+
+    # Check dependencies
+    check_dependencies
+    
+    # Check if teams directory exists
+    if [ ! -d "$teams_dir" ]; then
+        echo -e "${RED}Error: Teams directory not found: $teams_dir${NC}"
+        echo "Please provide a valid directory path"
+        exit 1
+    fi
+    
+    # Process all YAML files in teams directory
+    echo -e "${BLUE}Finding team files...${NC}"
+    
+    # Use nullglob to handle case where no files match the pattern
+    shopt -s nullglob
+    local team_files=("$teams_dir"/*.yml)
+    shopt -u nullglob
+    
+    if [ ${#team_files[@]} -eq 0 ]; then
+        echo -e "${RED}Error: No YAML files found in teams directory${NC}"
+        exit 1
+    fi
+    
+    echo -e "${BLUE}Found ${#team_files[@]} team files${NC}"
+    echo
+    
+    # PASS 1: Process each team file (add keys to team files)
+    echo -e "${GREEN}=== PASS 1: UPDATING TEAM FILES ===${NC}"
+    for team_file in "${team_files[@]}"; do
+        if [ -f "$team_file" ]; then
+            process_team_file "$team_file"
+        fi
+    done
+    
+    # PASS 2: Clean up software files (remove keys from software files)
+    if [ ${#PROCESSED_SOFTWARE_FILES[@]} -gt 0 ]; then
+        cleanup_software_files
+    fi
+    
+    # PASS 3: Restore emoji characters that may have been converted to Unicode escape sequences
+    restore_emojis_in_team_files
+    
+    # Summary
+    echo -e "${GREEN}=== PROCESSING COMPLETE ===${NC}"
+    echo -e "${GREEN}Teams processed: $PROCESSED_TEAMS${NC}"
+    echo -e "${GREEN}Packages processed: $PROCESSED_PACKAGES${NC}"
+    if [ $ERRORS -gt 0 ]; then
+        echo -e "${RED}Errors encountered: $ERRORS${NC}"
+        echo -e "${YELLOW}Check the output above for details${NC}"
+    else
+        echo -e "${GREEN}✓ All files processed successfully!${NC}"
+    fi
+    
+}
+
+# Run main function with all script arguments
+main "$@"
