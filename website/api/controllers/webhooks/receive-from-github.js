@@ -748,6 +748,7 @@ module.exports = {
        * - Orchestration
        * - MDM
        * - Software
+       * - Security & compliance
        *
        * Status transitions tracked:
        *
