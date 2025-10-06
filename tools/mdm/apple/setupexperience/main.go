@@ -1,9 +1,22 @@
-// Command applebmapi takes an Apple Business Manager server token in decrypted
-// JSON format and calls the Apple BM API to retrieve and print the account
-// information or the specified enrollment profile.
+// This tool allows you to simulate Apple DEP enrollment on a virtual machine
+// for the purposes of testing the macOS setup experience feature in Fleet.
+// It connects to a MySQL database, inserts necessary records to simulate
+// MDM enrollment, and enqueues setup experience items for a specified host.
 //
-// Was implemented to test out https://github.com/fleetdm/fleet/issues/7515#issuecomment-1330889768,
-// and can still be useful for debugging purposes.
+// It is a quick and dirty tool that does some direct SQL queries to set up
+// the necessary state, and therefore comes with some inherent brittleness.
+//
+// To use, first start a local server with MDM enabled, and enroll your macOS VM
+// into a team. Then, run this tool with the appropriate flags to set up the
+// necessary database records. If the setup dialog doesn't appear on the VM,
+// or it remains on the initial setup screen, try running the tool again.
+//
+// Note that unless your instance is configured to enable manually releasing
+// devices, the setup experience dialog will not auto-dismiss after completing.
+//
+// Usage:
+//
+//	go run main.go --server-private-key <private_key> --host-uuid <host_uuid>
 package main
 
 import (
@@ -50,6 +63,8 @@ func main() {
 		ConnMaxLifetime: 0,
 	}
 
+	// Connect to MySQL directly using sqlx for the setup steps.
+	// TODO -- use Fleet Datastore methods to do these steps, if possible?
 	dsn := fmt.Sprintf("%s:%s@%s(%s)/%s", mysqlConf.Username, mysqlConf.Password, mysqlConf.Protocol, mysqlConf.Address, mysqlConf.Database)
 
 	db, err := sqlx.Open("mysql", dsn) // or your traced driver name
