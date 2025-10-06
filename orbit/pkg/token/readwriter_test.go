@@ -156,6 +156,8 @@ func TestRotater(t *testing.T) {
 
 	// Close the first stop channel, this should not stop the rotation.
 	stop1()
+	// Do it again to prove that closing multiple times is safe.
+	stop1()
 
 	// Set the token's mtime to more than an hour ago again.
 	rw.mu.Lock()

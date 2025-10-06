@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -16,12 +18,12 @@ type remoteUpdaterFunc func(token string) error
 
 type ReadWriter struct {
 	*Reader
-	remoteUpdate           remoteUpdaterFunc
-	rotationCheckerStarted int
-	checkTokenFunc         func(token string) error
-	localCheckDuration     time.Duration
-	remoteCheckDuration    time.Duration
-	rotationStopCh         chan struct{}
+	remoteUpdate        remoteUpdaterFunc
+	rotationWatchers    []chan struct{}
+	checkTokenFunc      func(token string) error
+	localCheckDuration  time.Duration
+	remoteCheckDuration time.Duration
+	rotationStopCh      chan struct{}
 }
 
 func NewReadWriter(path string, checkTokenFunc func(token string) error) *ReadWriter {
@@ -120,11 +122,13 @@ func (rw *ReadWriter) setChmod() error {
 }
 
 func (rw *ReadWriter) StartRotation() func() {
-	rw.rotationCheckerStarted++
-
+	// Create a channel that this caller can use to signal they want to stop
+	// watching for rotations.
 	stopCh := make(chan struct{})
+	// Append it to the list of watchers.
+	rw.rotationWatchers = append(rw.rotationWatchers, stopCh)
 
-	if rw.rotationCheckerStarted == 1 {
+	if len(rw.rotationWatchers) == 1 {
 		log.Info().Msg("token rotation is enabled")
 
 		// Create a channel we can use to stop the rotation goroutine.
@@ -198,14 +202,22 @@ func (rw *ReadWriter) StartRotation() func() {
 	// Start goroutine to handle this caller's stop signal.
 	go func() {
 		<-stopCh
-		rw.rotationCheckerStarted--
+		// Remove this caller's stop channel from the list of watchers.
+		rw.rotationWatchers = slices.DeleteFunc(rw.rotationWatchers, func(ch chan struct{}) bool {
+			return ch == stopCh
+		})
+
 		// If all callers have signaled to stop, signal the main rotation goroutine to stop.
-		if rw.rotationCheckerStarted == 0 {
+		if len(rw.rotationWatchers) == 0 {
 			close(rw.rotationStopCh)
 		}
 	}()
 
+	// Return a function that the caller can use to stop watching for rotations.
+	var closeOnce sync.Once
 	return func() {
-		close(stopCh)
+		closeOnce.Do(func() {
+			close(stopCh)
+		})
 	}
 }
