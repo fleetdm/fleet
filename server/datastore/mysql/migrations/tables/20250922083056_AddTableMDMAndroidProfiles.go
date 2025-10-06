@@ -137,7 +137,11 @@ ALTER TABLE mdm_configuration_profile_labels
 
 	// our mysql version at the time this constraint was added did not support CHECK constraints so this may or may not exist for us
 	// to delete, so we create the new wider constraint above then, optionally, delete the older narrow one
-	checkIfOldConstraintExists := `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'CHECK' AND TABLE_NAME = 'mdm_configuration_profile_labels' AND CONSTRAINT_NAME = 'ck_mdm_configuration_profile_labels_apple_or_windows'`
+	checkIfOldConstraintExists := `
+	SELECT COUNT(*)
+	FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+	WHERE CONSTRAINT_SCHEMA = DATABASE() AND CONSTRAINT_TYPE = 'CHECK' AND TABLE_NAME = 'mdm_configuration_profile_labels'
+	AND CONSTRAINT_NAME = 'ck_mdm_configuration_profile_labels_apple_or_windows'`
 	var constraintCount int
 	if err := tx.QueryRow(checkIfOldConstraintExists).Scan(&constraintCount); err != nil {
 		return fmt.Errorf("check for old CHECK constraint on mdm_configuration_profile_labels: %w", err)
