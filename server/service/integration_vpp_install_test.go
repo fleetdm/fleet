@@ -5,6 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -1186,4 +1188,53 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
 
 	// TODO(mna): test with batch-set (gitops) too
+
+	// start the HTTP server to serve package installers
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/no_version.pkg":
+			http.ServeFile(w, r, filepath.Join("testdata", "software-installers", "no_version.pkg"))
+		case "/dummy_installer.pkg":
+			http.ServeFile(w, r, filepath.Join("testdata", "software-installers", "dummy_installer.pkg"))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+	}))
+	t.Cleanup(srv.Close)
+
+	// try to set DummyApp and NoVersion installers, but DummyApp conflicts with VPP app 1
+	var batchResponse batchSetSoftwareInstallersResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+		Software: []*fleet.SoftwareInstallerPayload{
+			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
+			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
+		},
+	}, http.StatusAccepted, &batchResponse, "team_name", team.Name)
+	batchResp := waitBatchSetSoftwareInstallers(t, &s.withServer, team.Name, batchResponse.RequestUUID)
+	// TODO(mna): this is the bug, a package that conflicts can be batch-uploaded
+	// require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
+	// require.Contains(t, batchResp.Message, "zzzz")
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResp.Status)
+
+	fmt.Println(">>>> BEFORE BATCH VPP APPS")
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "vpp_apps_teams")
+		return nil
+	})
+
+	// batch-set the VPP apps, including one in conflict
+	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: "1"},
+		{AppStoreID: "2"},
+	}}, http.StatusOK, &batchAssociateResponse, "team_name", team.Name)
+	// TODO(mna): this is another bug, it should fail for app store "2"
+	require.Len(t, batchAssociateResponse.Apps, 2)
+
+	fmt.Println(">>>> AFTER BATCH VPP APPS")
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		mysql.DumpTable(t, q, "vpp_apps_teams")
+		return nil
+	})
 }
