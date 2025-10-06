@@ -462,14 +462,17 @@ func (a *AppleMDM) installSetupExperienceVPPAppsOnIosIpadOS(ctx context.Context,
 
 		switch {
 		case status.VPPAppTeamID != nil:
-			switch status.Status {
-			case fleet.SetupExperienceStatusPending:
+			if status.Status == fleet.SetupExperienceStatusPending {
 				appsPending = append(appsPending, status)
 			}
 		case status.SetupExperienceScriptID != nil, status.SoftwareInstallerID != nil:
-			// TODO log this odd case
 			status.Status = fleet.SetupExperienceStatusFailure
-			a.Datastore.UpdateSetupExperienceStatusResult(ctx, status)
+			err = a.Datastore.UpdateSetupExperienceStatusResult(ctx, status)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "updating setup experience status result to failure")
+			}
+			// If we enqueued a non-VPP item for an iOS/iPadOS device, it likely a code bug
+			level.Error(a.Log).Log("msg", "unexpected setup experience item for iOS/iPadOS device, only VPP apps are supported", "host_uuid", hostUUID, "status_id", status.ID)
 		}
 	}
 
