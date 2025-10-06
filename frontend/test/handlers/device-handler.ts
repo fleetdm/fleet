@@ -12,7 +12,7 @@ import { baseUrl } from "test/test-utils";
 import { IDeviceUserResponse } from "interfaces/host";
 import {
   IGetDeviceSoftwareResponse,
-  IGetSetupSoftwareStatusesResponse,
+  IGetSetupExperienceStatusesResponse,
 } from "services/entities/device_user";
 import { IGetHostCertificatesResponse } from "services/entities/hosts";
 
@@ -87,7 +87,7 @@ export const defaultDeviceCertificatesHandler = http.get(
 );
 
 export const deviceSetupExperienceHandler = (
-  overrides?: Partial<IGetSetupSoftwareStatusesResponse>
+  overrides?: Partial<IGetSetupExperienceStatusesResponse>
 ) =>
   http.post(baseUrl("/device/:token/setup_experience/status"), () => {
     return HttpResponse.json(
@@ -96,5 +96,5 @@ export const deviceSetupExperienceHandler = (
   });
 
 export const emptySetupExperienceHandler = deviceSetupExperienceHandler({
-  setup_experience_results: { software: [] },
+  setup_experience_results: { software: [], scripts: [] },
 });
