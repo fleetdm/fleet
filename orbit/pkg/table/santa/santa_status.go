@@ -1,5 +1,4 @@
 //go:build darwin
-// +build darwin
 
 // Package santa implements the tables for getting Santa data
 // (logs, rules, status) on macOS.
