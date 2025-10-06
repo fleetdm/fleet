@@ -57,6 +57,7 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   appStore: AppStore,
   "adobe acrobat reader": AcrobatReader,
   "adobe creative cloud": CreativeCloud,
+  code: VisualStudioCode,
   "microsoft excel": Excel,
   falcon: Falcon,
   firefox: Firefox,
@@ -182,6 +183,8 @@ export const getMatchedSoftwareIcon = ({
   name = "",
   source = "",
 }: Pick<ISoftware, "name" | "source">) => {
+  // Strip non-ascii, and non-printable characters
+  name = name.replace(/[^\x20-\x7E]/g, "");
   // first, try strict matching on name and source
   let Icon = matchStrictNameSourceToIcon({
     name,
