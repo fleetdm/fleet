@@ -69,7 +69,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 
 	// Ensure that the token rotation checker is started, so that we have a valid token
 	// when we need to show or refresh the My Device URL in the webview.
-	stopRotationCh := s.trw.StartRotation()
+	stopRotation := s.trw.StartRotation()
 
 	_, binaryPath, _ := update.LocalTargetPaths(
 		s.rootDirPath,
@@ -219,7 +219,7 @@ func (s *SetupExperiencer) Run(oc *fleet.OrbitConfig) error {
 		}
 
 		// Stop the token rotation checker since we're done with the setup experience.
-		close(stopRotationCh)
+		stopRotation()
 	}
 
 	return nil

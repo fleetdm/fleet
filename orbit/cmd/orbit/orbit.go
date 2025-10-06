@@ -1182,9 +1182,8 @@ func main() {
 			// Ensure that the token rotation checker is started,
 			// so that we have a valid token to launch the
 			// My Device page.
-			//
-			// Note that we leave this running forever.
-			trw.StartRotation()
+			stopRotation := trw.StartRotation()
+			defer stopRotation()
 		}
 
 		switch runtime.GOOS {

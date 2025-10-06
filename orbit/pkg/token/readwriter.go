@@ -119,7 +119,7 @@ func (rw *ReadWriter) setChmod() error {
 	return os.Chmod(rw.Path, constant.DefaultWorldReadableFileMode)
 }
 
-func (rw *ReadWriter) StartRotation() chan<- struct{} {
+func (rw *ReadWriter) StartRotation() func() {
 	rw.rotationCheckerStarted++
 
 	stopCh := make(chan struct{})
@@ -205,5 +205,7 @@ func (rw *ReadWriter) StartRotation() chan<- struct{} {
 		}
 	}()
 
-	return stopCh
+	return func() {
+		close(stopCh)
+	}
 }

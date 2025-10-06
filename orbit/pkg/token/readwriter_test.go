@@ -148,14 +148,14 @@ func TestRotater(t *testing.T) {
 	rw.mtime = time.Now().Add(-2 * time.Hour)
 	rw.mu.Unlock()
 
-	stopCh1 := rw.StartRotation()
-	stopCh2 := rw.StartRotation()
+	stop1 := rw.StartRotation()
+	stop2 := rw.StartRotation()
 
 	time.Sleep(150 * time.Millisecond)
 	require.Equal(t, 1, numUpdates)
 
 	// Close the first stop channel, this should not stop the rotation.
-	close(stopCh1)
+	stop1()
 
 	// Set the token's mtime to more than an hour ago again.
 	rw.mu.Lock()
@@ -173,7 +173,7 @@ func TestRotater(t *testing.T) {
 	rw.mu.Unlock()
 
 	// Now close the second stop channel, this should stop the rotation.
-	close(stopCh2)
+	stop2()
 
 	// Wait enough time to ensure that if the rotation was still running
 	// we would have done another remote check.
