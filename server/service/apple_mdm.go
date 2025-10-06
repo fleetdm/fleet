@@ -3567,6 +3567,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 			HostDisplayName:  updatedInfo.DisplayName,
 			InstalledFromDEP: updatedInfo.DEPAssignedToFleet,
 			MDMPlatform:      fleet.MDMPlatformApple,
+			Platform:         updatedInfo.Platform,
 		}
 		if r.Type == mdm.UserEnrollmentDevice {
 			mdmEnrolledActivity.EnrollmentID = ptr.String(m.EnrollmentID)
