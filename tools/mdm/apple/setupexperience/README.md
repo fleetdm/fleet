@@ -2,7 +2,15 @@
 
 This is a quick and dirty tool that does some direct SQL queries to set up the necessary state, and therefore comes with some inherent brittleness. 
 
-To use, first start a local server with MDM enabled, and enroll your macOS VM into a team. Then, run this tool with the appropriate flags to set up the necessary database records, e.g.:
+To use:
+
+1. Start a local server [with MDM enabled](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/getting-started/testing-and-local-development.md#mdm-setup-and-testing).
+2. Ensure that end-user validation is _disabled_ in setup experience config.
+3. Ensure no bootstrap package is uploaded.
+4. Ensure no custom setup profile is uploaded.
+5. Add some software and/or scripts to the setup experience config.
+6. Enroll your macOS VM into a team. 
+7. Run this tool with the appropriate flags to set up the necessary database records, e.g.:
 
 ```
 go run main.go -server-private-key=$(cat ~/path/to/private/key) -host-uuid="your-enrolled-host-uuid"
