@@ -160,4 +160,9 @@ func main() {
 	}
 
 	_, err = mds.EnqueueSetupExperienceItems(ctx, "darwin", *hostUUID, teamID)
+	if err != nil {
+		log.Fatalf("failed to enqueue setup experience items for host %s: %v", *hostUUID, err)
+	}
+
+	fmt.Printf("Successfully enqueued setup experience items for host UUID %s\n", *hostUUID)
 }
