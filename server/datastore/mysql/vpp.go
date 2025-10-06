@@ -440,6 +440,18 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
+	var teamName string
+	if len(toAddApps) > 0 {
+		teamName = fleet.TeamNameNoTeam
+		if teamID != nil && *teamID > 0 {
+			tm, err := ds.Team(ctx, *teamID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get team for VPP app conflict error")
+			}
+			teamName = tm.Name
+		}
+	}
+
 	var vppToken *fleet.VPPTokenDB
 	if len(appFleets) > 0 {
 		vppToken, err = ds.GetVPPTokenByTeamID(ctx, teamID)
@@ -448,14 +460,26 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 		}
 	}
 
-	// TODO(mna): somewhere in here, check if the software title is already associated
-	// with a software installer for the same team and platform (macOS).
-
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		for _, toAdd := range toAddApps {
 			vppAppTeamID, err := insertVPPAppTeams(ctx, tx, toAdd, teamID, vppToken.ID)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "SetTeamVPPApps inserting vpp app into team")
+			}
+
+			// check if the vpp app conflicts with an existing software installer
+			// already associated with the software title for the same platform
+			// (macos).
+			if toAdd.Platform == fleet.MacOSPlatform {
+				exists, conflictingTitle, err := ds.checkConflictingSoftwareInstallerForVPPApp(ctx, tx, teamID, toAdd.VPPAppID)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "checking for conflicting software installer")
+				}
+				if exists {
+					return ctxerr.Wrap(ctx, fleet.ConflictError{
+						Message: fmt.Sprintf("Error: Couldn't add software. %s already has a package or app available for install on the %s team.",
+							conflictingTitle, teamName)}, "vpp app conflicts with existing software installer")
+				}
 			}
 
 			if toAdd.ValidatedLabels != nil {
@@ -501,6 +525,38 @@ func (ds *Datastore) SetTeamVPPApps(ctx context.Context, teamID *uint, appFleets
 
 		return nil
 	})
+}
+
+func (ds *Datastore) checkConflictingSoftwareInstallerForVPPApp(ctx context.Context, q sqlx.QueryerContext, teamID *uint, appID fleet.VPPAppID) (bool, string, error) {
+	const stmt = `
+SELECT
+	st.name
+FROM
+	software_titles st
+	INNER JOIN software_installers si ON si.title_id = st.id AND
+		si.global_or_team_id = ?
+	INNER JOIN vpp_apps va ON va.title_id = st.id
+	INNER JOIN vpp_apps_teams vat ON vat.adam_id = va.adam_id AND 
+		vat.platform = va.platform AND vat.global_or_team_id = ?
+WHERE
+	va.adam_id = ? AND 
+	va.platform = ? AND
+	si.platform = va.platform
+`
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var title string
+	err := sqlx.GetContext(ctx, q, &title, stmt, globalOrTeamID, globalOrTeamID, appID.AdamID, appID.Platform)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, "", nil
+		}
+		return false, "", ctxerr.Wrap(ctx, err, "checking for conflicting software installer for vpp app")
+	}
+	return true, title, nil
 }
 
 func (ds *Datastore) InsertVPPAppWithTeam(ctx context.Context, app *fleet.VPPApp, teamID *uint) (*fleet.VPPApp, error) {

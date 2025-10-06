@@ -1189,30 +1189,78 @@ func (s *integrationMDMTestSuite) TestSoftwareTitleVPPAppSoftwarePackageConflict
 	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusFailed, batchResp.Status)
 	require.Contains(t, batchResp.Message, "DummyApp already has a package or app available for install on the Team 1 team.")
 
-	fmt.Println(">>>> BEFORE BATCH VPP APPS")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "vpp_apps_teams", "id", "adam_id", "team_id", "platform")
-		mysql.DumpTable(t, q, "vpp_apps", "adam_id", "title_id", "bundle_identifier", "name", "latest_version")
-		mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id", "filename", "platform")
-		mysql.DumpTable(t, q, "software_titles")
-		return nil
-	})
-
 	// batch-set the VPP apps, including one in conflict
-	var batchAssociateResponse batchAssociateAppStoreAppsResponse
+	res = s.Do("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
+		{AppStoreID: "1"},
+		{AppStoreID: "2"},
+	}}, http.StatusConflict, "team_name", team.Name)
+	txt = extractServerErrorText(res.Body)
+	require.Contains(t, txt, "NoVersion already has a package or app available for install on the Team 1 team.")
+
+	// listing software available to install only lists the dummy app and noversion installer
+	var listSw listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+
+	// a different team can batch-add the two installers without conflict
+	newTeamResp = teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 2")}}, http.StatusOK, &newTeamResp)
+	team2 := newTeamResp.Team
+
+	batchResponse = batchSetSoftwareInstallersResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/software/batch", batchSetSoftwareInstallersRequest{
+		Software: []*fleet.SoftwareInstallerPayload{
+			{URL: srv.URL + "/no_version.pkg", SHA256: "4ba383be20c1020e416958ab10e3b472a4d5532a8cd94ed720d495a9c81958fe"},
+			{URL: srv.URL + "/dummy_installer.pkg", SHA256: "7f679541ccfdb56094ca76117fd7cf75071c9d8f43bfd2a6c0871077734ca7c8"},
+		},
+	}, http.StatusAccepted, &batchResponse, "team_name", team2.Name)
+	batchResp = waitBatchSetSoftwareInstallers(t, &s.withServer, team2.Name, batchResponse.RequestUUID)
+	require.Equal(t, fleet.BatchSetSoftwareInstallersStatusCompleted, batchResp.Status)
+	require.Empty(t, batchResp.Message)
+	require.Len(t, batchResp.Packages, 2)
+
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team2.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	// both are software packages
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].SoftwarePackage)
+	require.Equal(t, "dummy_installer.pkg", listSw.SoftwareTitles[0].SoftwarePackage.Name)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].SoftwarePackage)
+	require.Equal(t, "no_version.pkg", listSw.SoftwareTitles[1].SoftwarePackage.Name)
+
+	// a different team can batch-add the two VPP apps without conflict
+	newTeamResp = teamResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/teams", &createTeamRequest{TeamPayload: fleet.TeamPayload{Name: ptr.String("Team 3")}}, http.StatusOK, &newTeamResp)
+	team3 := newTeamResp.Team
+
+	var tokenResp getVPPTokensResponse
+	s.DoJSON("GET", "/api/latest/fleet/vpp_tokens", &getVPPTokensRequest{}, http.StatusOK, &tokenResp)
+	var resPatchVPP patchVPPTokensTeamsResponse
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/vpp_tokens/%d/teams", tokenResp.Tokens[0].ID), patchVPPTokensTeamsRequest{TeamIDs: []uint{team.ID, team3.ID}}, http.StatusOK, &resPatchVPP)
+
+	var batchAppResp batchAssociateAppStoreAppsResponse
 	s.DoJSON("POST", "/api/latest/fleet/software/app_store_apps/batch", batchAssociateAppStoreAppsRequest{Apps: []fleet.VPPBatchPayload{
 		{AppStoreID: "1"},
 		{AppStoreID: "2"},
-	}}, http.StatusOK, &batchAssociateResponse, "team_name", team.Name)
-	// TODO(mna): this is another bug, it should fail for app store "2"
-	require.Len(t, batchAssociateResponse.Apps, 2)
+	}}, http.StatusOK, &batchAppResp, "team_name", team3.Name)
+	require.Len(t, batchAppResp.Apps, 2)
 
-	fmt.Println(">>>> AFTER BATCH VPP APPS")
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		mysql.DumpTable(t, q, "vpp_apps_teams", "id", "adam_id", "team_id", "platform")
-		mysql.DumpTable(t, q, "vpp_apps", "adam_id", "title_id", "bundle_identifier", "name", "latest_version")
-		mysql.DumpTable(t, q, "software_installers", "id", "team_id", "title_id", "filename", "platform")
-		mysql.DumpTable(t, q, "software_titles")
-		return nil
-	})
+	listSw = listSoftwareTitlesResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", nil, http.StatusOK, &listSw, "team_id", fmt.Sprint(team3.ID), "available_for_install", "true")
+	require.Len(t, listSw.SoftwareTitles, 2)
+	// both are VPP apps
+	require.Equal(t, "DummyApp", listSw.SoftwareTitles[0].Name)
+	require.NotNil(t, listSw.SoftwareTitles[0].AppStoreApp)
+	require.Equal(t, "1", listSw.SoftwareTitles[0].AppStoreApp.AppStoreID)
+	require.Equal(t, "NoVersion", listSw.SoftwareTitles[1].Name)
+	require.NotNil(t, listSw.SoftwareTitles[1].AppStoreApp)
+	require.Equal(t, "2", listSw.SoftwareTitles[1].AppStoreApp.AppStoreID)
 }
