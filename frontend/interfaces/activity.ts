@@ -158,7 +158,9 @@ export type IHostUpcomingActivityType =
   | ActivityType.RanScript
   | ActivityType.InstalledSoftware
   | ActivityType.UninstalledSoftware
-  | ActivityType.InstalledAppStoreApp;
+  | ActivityType.InstalledAppStoreApp
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost;
 
 export interface IActivity {
   created_at: string;
