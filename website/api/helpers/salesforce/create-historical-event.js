@@ -50,7 +50,10 @@ module.exports = {
         'Fleet channel member in MacAdmins Slack',
         'Fleet channel member in osquery Slack',
         'Implemented a trial key',
-        'Engaged with Fleetie at event',
+        'Signed up for Sales-led event',
+        'Signed up for Marketing-led event',
+        'Engaged with Fleetie at Sales-led event',
+        'Engaged with Fleetie at Marketing-led event',
         'Attended a Fleet happy hour',
         'Stared the fleetdm/fleet repo on GitHub',
         'Forked the fleetdm/fleet repo on GitHub',
@@ -138,7 +141,7 @@ module.exports = {
         Website_visit_reason__c: websiteVisitReason// eslint-disable-line camelcase
       });
     }).intercept((err)=>{
-      return new Error(`An error occured when creating a new Historical event record in Salesforce. full error ${require('util').inpsect(err, {depth: null})}`);
+      return new Error(`An error occured when creating a new Historical event record in Salesforce. full error ${require('util').inspect(err, {depth: null})}`);
     });
 
 

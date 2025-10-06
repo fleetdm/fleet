@@ -1,0 +1,1 @@
+* Fixed edge case when renaming macOS software mapped to multiple checksums.

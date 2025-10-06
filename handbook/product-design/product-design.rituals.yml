@@ -51,13 +51,6 @@
     labels: [ ":product" ]
     repo: "fleet"
 -
-  task: "🦢👁️ Product design check-in"
-  startedOn: "2023-07-11" 
-  frequency: "Weekly" 
-  description: "The Head of Product Design summarizes the current week's design reviews to discuss with the CEO" 
-  moreInfoUrl: "https://fleetdm.com/handbook/product-design#product-design-check-in" # 2024-03-06 TODO: Add responsibility to README and link to it here
-  dri: "noahtalerman"
--
   task: "🦢🗣 Product office hours"
   startedOn: "2023-07-11" 
   frequency: "Weekly" 

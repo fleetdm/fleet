@@ -416,7 +416,8 @@ module.exports.custom = {
     projects: {
       orchestration: 71,
       mdm: 58,
-      software: 70
+      software: 70,
+      'security-compliance': 97
     },
     excludeWeekends: true
   },
